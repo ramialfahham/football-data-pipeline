@@ -27,7 +27,6 @@ The following canonical columns are currently verified against football-data.co.
 ## Current Status by Source
 
 - `football_data` (football-data.co.uk): key match/result columns are `verified`.
-- `football_data_org`: top-level payload naming is currently `inferred`.
 - `api_football`: top-level payload naming is currently `inferred`.
 
 ## Update Process

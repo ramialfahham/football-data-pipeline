@@ -53,7 +53,6 @@ If ingestion code changed, also run syntax checks:
 
 ```powershell
 python -m py_compile ingestion\football_data_co_uk\main.py
-python -m py_compile ingestion\football_data_org\main.py
 python -m py_compile ingestion\api_football\main.py
 ```
 

@@ -23,19 +23,6 @@ with football_data_names as (
         away_team as source_team_name
     from {{ ref('base_football_data__e0') }}
 ),
-fdorg_names as (
-    select
-        'football_data_org' as source_system,
-        competition_code as league_code,
-        cast(m.homeTeam.name as string) as source_team_name
-    from {{ ref('base_fdorg__matches_scheduled') }}, unnest(matches_payload) as m
-    union all
-    select
-        'football_data_org' as source_system,
-        competition_code as league_code,
-        cast(m.awayTeam.name as string) as source_team_name
-    from {{ ref('base_fdorg__matches_scheduled') }}, unnest(matches_payload) as m
-),
 apif_names as (
     select
         'api_football' as source_system,
@@ -51,8 +38,6 @@ apif_names as (
 ),
 all_names as (
     select * from football_data_names
-    union all
-    select * from fdorg_names
     union all
     select * from apif_names
 ),
@@ -70,9 +55,8 @@ ranked as (
     select
         *,
         case
-            when source_system = 'football_data_org' then 1
-            when source_system = 'api_football' then 2
-            else 3
+            when source_system = 'api_football' then 1
+            else 2
         end as source_priority
     from cleaned
 ),

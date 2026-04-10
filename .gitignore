@@ -148,6 +148,8 @@ venv.bak/
 dbt_packages/
 target/
 logs/
+# dbt local user identifier (machine-specific)
+dbt_project/.user.yml
 
 # Spyder project settings
 .spyderproject

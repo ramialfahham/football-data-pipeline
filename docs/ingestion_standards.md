@@ -42,7 +42,6 @@ Fields:
 ## Suggested Schedules (prototype)
 
 - `football_data_co_uk`: daily
-- `football_data_org`: 2 to 4 times daily
 
 ## Minimal Monitoring Queries
 

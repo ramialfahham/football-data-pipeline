@@ -2,7 +2,10 @@ version: 2
 
 models:
   - name: base_team_names__cross_source
-    description: "Cross-source team name normalization map with canonical team-name candidate per league."
+    description: >
+      Cross-source team name normalization map with a canonical team-name candidate per league.
+      Source systems included: football-data.co.uk (historical fixtures) and API-Football (upcoming fixtures).
+      Canonical picks prefer API-Football names when both disagree.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -23,5 +26,5 @@ models:
         description: "Normalization key used for cross-source entity matching."
         tests: [not_null]
       - name: canonical_team_name
-        description: "Preferred canonical team name selected by source-priority rules."
+        description: "Preferred canonical team name (API-Football over football-data.co.uk when both exist)."
         tests: [not_null]

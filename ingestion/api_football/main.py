@@ -1,7 +1,7 @@
 import io
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import functions_framework
 import requests
@@ -11,7 +11,9 @@ from ingestion.common.ops import init_run, write_run_log
 
 GCP_PROJECT_ID = "football-data-pipeline-gcp"
 DATASET_ID = "API_FOOTBALL"
-BASE_URL = "https://api-football-v1.p.rapidapi.com/v3"
+
+APISPORTS_BASE = "https://v3.football.api-sports.io"
+RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
 
 # API-Football league IDs (top tiers aligned with your current scope).
 LEAGUES = {
@@ -23,18 +25,70 @@ LEAGUES = {
 }
 
 
+def _provider() -> str:
+    return os.getenv("API_FOOTBALL_PROVIDER", "apisports").strip().lower()
+
+
+def base_url() -> str:
+    p = _provider()
+    if p in ("rapidapi", "rapid"):
+        return RAPIDAPI_BASE
+    if p in ("apisports", "api_sports", "direct", ""):
+        return APISPORTS_BASE
+    raise ValueError(
+        "API_FOOTBALL_PROVIDER must be 'apisports' (default) or 'rapidapi'"
+    )
+
+
 def get_headers() -> dict:
     api_key = os.getenv("API_FOOTBALL_API_KEY")
     if not api_key:
         raise ValueError("Missing env var API_FOOTBALL_API_KEY")
-    return {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
-    }
+    if _provider() in ("rapidapi", "rapid"):
+        return {
+            "x-rapidapi-key": api_key,
+            "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
+        }
+    return {"x-apisports-key": api_key}
+
+
+def season_year() -> int:
+    raw = os.getenv("API_FOOTBALL_SEASON")
+    if raw is not None and raw.strip() != "":
+        return int(raw.strip())
+    # Competition "season" is the starting calendar year (e.g. 2025 for 2025/26).
+    return datetime.utcnow().year - 1
+
+
+def fixtures_query_params(league_id: int, season: int) -> dict:
+    """
+    Paid plans typically support `next`. Free tier often rejects `next` and may restrict `season`;
+    use from_to with explicit dates (see env vars below).
+    """
+    mode = os.getenv("API_FOOTBALL_FIXTURES_MODE", "next").strip().lower()
+    base = {"league": league_id, "season": season}
+    if mode in ("from_to", "range", "daterange"):
+        date_from = os.getenv("API_FOOTBALL_FIXTURE_FROM")
+        date_to = os.getenv("API_FOOTBALL_FIXTURE_TO")
+        if date_from and date_to:
+            return {**base, "from": date_from.strip(), "to": date_to.strip()}
+        end = datetime.utcnow().date()
+        days = int(os.getenv("API_FOOTBALL_FIXTURE_RANGE_DAYS", "14"))
+        start = end - timedelta(days=days)
+        return {
+            **base,
+            "from": start.isoformat(),
+            "to": end.isoformat(),
+        }
+    if mode == "next":
+        return {**base, "next": 20}
+    raise ValueError(
+        "API_FOOTBALL_FIXTURES_MODE must be 'next' (default) or 'from_to'"
+    )
 
 
 def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
-    response = requests.get(f"{BASE_URL}{path}", headers=headers, params=params, timeout=60)
+    response = requests.get(f"{base_url()}{path}", headers=headers, params=params, timeout=60)
     response.raise_for_status()
     return response.json()
 
@@ -60,14 +114,14 @@ def load_api_football(request):
 
     try:
         headers = get_headers()
-        current_year = datetime.utcnow().year
+        season = season_year()
 
         for league_code, league_id in LEAGUES.items():
             try:
                 fixtures_next = fetch_json(
                     "/fixtures",
                     headers=headers,
-                    params={"league": league_id, "season": current_year, "next": 20},
+                    params=fixtures_query_params(league_id, season),
                 )
                 load_json_to_bq(client, f"RAW_APIF_FIXTURES_NEXT_{league_code}", fixtures_next)
                 tables_loaded += 1
@@ -93,7 +147,7 @@ def load_api_football(request):
                         team_players = fetch_json(
                             "/players",
                             headers=headers,
-                            params={"team": team_id, "season": current_year},
+                            params={"team": team_id, "season": season},
                         )
                         players_payload["response"].append(
                             {"team_id": team_id, "players_payload": team_players.get("response", [])}
@@ -121,7 +175,7 @@ def load_api_football(request):
                     injuries_payload = fetch_json(
                         "/injuries",
                         headers=headers,
-                        params={"league": league_id, "season": current_year},
+                        params={"league": league_id, "season": season},
                     )
                     load_json_to_bq(client, f"RAW_APIF_INJURIES_{league_code}", injuries_payload)
                     tables_loaded += 1
