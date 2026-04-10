@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: base_team_names__cross_source
+    description: "Cross-source team name normalization map with canonical team-name candidate per league."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["base", "entity_resolution", "team_names"]
+    columns:
+      - name: source_system
+        description: "Source system where the original team name was observed."
+        tests: [not_null]
+      - name: league_code
+        description: "League code in internal convention."
+        tests: [not_null]
+      - name: source_team_name
+        description: "Original team name as provided by the source system."
+        tests: [not_null]
+      - name: normalized_team_key
+        description: "Normalization key used for cross-source entity matching."
+        tests: [not_null]
+      - name: canonical_team_name
+        description: "Preferred canonical team name selected by source-priority rules."
+        tests: [not_null]

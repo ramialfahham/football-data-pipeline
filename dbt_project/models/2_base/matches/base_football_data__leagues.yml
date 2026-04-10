@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: base_football_data__d1
+    description: "Base model: unioned and aligned Bundesliga (D1) matches across all available raw seasons."
+    columns:
+      - name: match_id
+        description: "Deterministic unique key for a match row within league and season."
+        tests:
+          - not_null
+          - unique
+      - name: league
+        description: "League code."
+        tests:
+          - not_null
+      - name: season
+        description: "Season code derived from raw table name (e.g. 2526)."
+        tests:
+          - not_null
+      - name: match_date
+        description: "Calendar date of the match."
+        tests:
+          - not_null
+      - name: home_team
+        tests:
+          - not_null
+      - name: away_team
+        tests:
+          - not_null
+      - name: full_time_result
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: base_football_data__e0
+    description: "Base model: unioned and aligned Premier League (E0) matches across all available raw seasons."
+    columns:
+      - name: match_id
+        description: "Deterministic unique key for a match row within league and season."
+        tests:
+          - not_null
+          - unique
+      - name: league
+        description: "League code."
+        tests:
+          - not_null
+      - name: season
+        description: "Season code derived from raw table name (e.g. 1617)."
+        tests:
+          - not_null
+      - name: match_date
+        description: "Calendar date of the match."
+        tests:
+          - not_null
+      - name: home_team
+        tests:
+          - not_null
+      - name: away_team
+        tests:
+          - not_null
+      - name: full_time_result
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']

@@ -1,0 +1,1289 @@
+version: 2
+
+models:
+  - name: stg_football_data__i1_0001
+    description: "Staging model for football-data.co.uk I1 season 0001 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0102
+    description: "Staging model for football-data.co.uk I1 season 0102 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0203
+    description: "Staging model for football-data.co.uk I1 season 0203 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0304
+    description: "Staging model for football-data.co.uk I1 season 0304 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0405
+    description: "Staging model for football-data.co.uk I1 season 0405 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0506
+    description: "Staging model for football-data.co.uk I1 season 0506 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0607
+    description: "Staging model for football-data.co.uk I1 season 0607 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0708
+    description: "Staging model for football-data.co.uk I1 season 0708 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0809
+    description: "Staging model for football-data.co.uk I1 season 0809 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_0910
+    description: "Staging model for football-data.co.uk I1 season 0910 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1011
+    description: "Staging model for football-data.co.uk I1 season 1011 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1112
+    description: "Staging model for football-data.co.uk I1 season 1112 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1213
+    description: "Staging model for football-data.co.uk I1 season 1213 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1314
+    description: "Staging model for football-data.co.uk I1 season 1314 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1415
+    description: "Staging model for football-data.co.uk I1 season 1415 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1516
+    description: "Staging model for football-data.co.uk I1 season 1516 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1617
+    description: "Staging model for football-data.co.uk I1 season 1617 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1718
+    description: "Staging model for football-data.co.uk I1 season 1718 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1819
+    description: "Staging model for football-data.co.uk I1 season 1819 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_1920
+    description: "Staging model for football-data.co.uk I1 season 1920 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_2021
+    description: "Staging model for football-data.co.uk I1 season 2021 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_2122
+    description: "Staging model for football-data.co.uk I1 season 2122 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_2223
+    description: "Staging model for football-data.co.uk I1 season 2223 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_2324
+    description: "Staging model for football-data.co.uk I1 season 2324 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_2425
+    description: "Staging model for football-data.co.uk I1 season 2425 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_2526
+    description: "Staging model for football-data.co.uk I1 season 2526 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9394
+    description: "Staging model for football-data.co.uk I1 season 9394 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9495
+    description: "Staging model for football-data.co.uk I1 season 9495 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9596
+    description: "Staging model for football-data.co.uk I1 season 9596 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9697
+    description: "Staging model for football-data.co.uk I1 season 9697 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9798
+    description: "Staging model for football-data.co.uk I1 season 9798 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9899
+    description: "Staging model for football-data.co.uk I1 season 9899 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']
+
+  - name: stg_football_data__i1_9900
+    description: "Staging model for football-data.co.uk I1 season 9900 with standardized schema and naming."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+      definition_confidence: "verified"
+      source_reference: "https://www.football-data.co.uk/notes.txt"
+    config:
+      tags: ["staging", "football_data_co_uk", "pre_match", "verified_definitions"]
+    columns:
+      - name: league
+        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        tests: [not_null]
+      - name: season
+        description: "Season code extracted from source table naming (for example 2526)."
+        tests: [not_null]
+      - name: raw_table
+        description: "Original raw table identifier used as lineage reference."
+        tests: [not_null]
+      - name: match_date
+        description: "Match date (source Date). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: home_team
+        description: "Home team name (source HomeTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: away_team
+        description: "Away team name (source AwayTeam). Verified against football-data.co.uk notes."
+        tests: [not_null]
+      - name: full_time_home_goals
+        description: "Full-time home goals (source FTHG). Verified against football-data.co.uk notes."
+      - name: full_time_away_goals
+        description: "Full-time away goals (source FTAG). Verified against football-data.co.uk notes."
+      - name: full_time_result
+        description: "Full-time result code (source FTR): H=Home win, D=Draw, A=Away win. Verified against football-data.co.uk notes."
+        tests:
+          - accepted_values:
+              values: ['H', 'D', 'A']

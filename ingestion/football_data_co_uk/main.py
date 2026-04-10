@@ -4,11 +4,18 @@ from bs4 import BeautifulSoup
 from google.cloud import bigquery
 import io
 import re
+from ingestion.common.ops import init_run, write_run_log
 
 GCP_PROJECT_ID = "football-data-pipeline-gcp"
 DATASET_ID = "FOOTBALL_DATA"
 LEAGUES = ['D1', 'E0', 'I1', 'SP1', 'F1']
-URLS = ["https://www.football-data.co.uk/germanym.php", "https://www.football-data.co.uk/englandm.php"]
+URLS = [
+    "https://www.football-data.co.uk/germanym.php",
+    "https://www.football-data.co.uk/englandm.php",
+    "https://www.football-data.co.uk/italym.php",
+    "https://www.football-data.co.uk/spainm.php",
+    "https://www.football-data.co.uk/francem.php",
+]
 
 def make_unique_columns(columns):
     seen = {}
@@ -32,45 +39,70 @@ def make_unique_columns(columns):
 def load_football_data(request):
     client = bigquery.Client(project=GCP_PROJECT_ID)
     headers = {'User-Agent': 'Mozilla/5.0'}
-    
-    all_links = []
-    for page in URLS:
-        res = requests.get(page, headers=headers)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        for a in soup.find_all('a', href=True):
-            href = a['href']
-            if href.endswith('.csv') and any(f"/{l}.csv" in href for l in LEAGUES):
-                all_links.append(f"https://www.football-data.co.uk/{href}")
-
+    run_ctx = init_run("football_data_co_uk")
+    errors = []
     success_count = 0
-    for url in all_links:
-        try:
-            file_res = requests.get(url, headers=headers)
-            if file_res.status_code == 200:
-                lines = file_res.content.decode('latin-1').splitlines()
-                if not lines: continue
-                
-                # Header auslesen und eindeutig machen
-                raw_header = lines[0].split(',')
-                clean_header = make_unique_columns(raw_header)
-                lines[0] = ",".join(clean_header)
-                
-                parts = url.split('/')
-                table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.RAW_{parts[-1].replace('.csv','')}_{parts[-2]}"
-                
-                job_config = bigquery.LoadJobConfig(
-                    source_format=bigquery.SourceFormat.CSV,
-                    skip_leading_rows=1,
-                    autodetect=True,
-                    write_disposition="WRITE_TRUNCATE"
-                )
-                
-                final_csv = "\n".join(lines)
-                job = client.load_table_from_file(io.BytesIO(final_csv.encode('utf-8')), table_id, job_config=job_config)
-                job.result()
-                success_count += 1
-        except Exception as e:
-            print(f"Fehler bei {url}: {e}")
-            continue
+    try:
+        all_links = set()
+        for page in URLS:
+            res = requests.get(page, headers=headers, timeout=60)
+            soup = BeautifulSoup(res.text, 'html.parser')
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                if href.endswith('.csv') and any(f"/{l}.csv" in href for l in LEAGUES):
+                    all_links.add(f"https://www.football-data.co.uk/{href}")
 
-    return f"Erfolg: {success_count} Tabellen geladen.", 200
+        for url in sorted(all_links):
+            try:
+                file_res = requests.get(url, headers=headers, timeout=60)
+                if file_res.status_code == 200:
+                    lines = file_res.content.decode('latin-1').splitlines()
+                    if not lines:
+                        continue
+
+                    # Header auslesen und eindeutig machen
+                    raw_header = lines[0].split(',')
+                    clean_header = make_unique_columns(raw_header)
+                    lines[0] = ",".join(clean_header)
+
+                    parts = url.split('/')
+                    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.RAW_{parts[-1].replace('.csv','')}_{parts[-2]}"
+
+                    job_config = bigquery.LoadJobConfig(
+                        source_format=bigquery.SourceFormat.CSV,
+                        skip_leading_rows=1,
+                        autodetect=True,
+                        write_disposition="WRITE_TRUNCATE"
+                    )
+
+                    final_csv = "\n".join(lines)
+                    job = client.load_table_from_file(io.BytesIO(final_csv.encode('utf-8')), table_id, job_config=job_config)
+                    job.result()
+                    success_count += 1
+            except Exception as e:
+                errors.append(f"{url}: {e}")
+                print(f"Fehler bei {url}: {e}")
+                continue
+
+        status = "success" if not errors else "partial_success"
+        write_run_log(
+            client=client,
+            project_id=GCP_PROJECT_ID,
+            run_ctx=run_ctx,
+            status=status,
+            tables_loaded=success_count,
+            errors_count=len(errors),
+            error_sample=errors[0] if errors else "",
+        )
+        return f"Erfolg: {success_count} Tabellen geladen.", 200
+    except Exception as e:
+        write_run_log(
+            client=client,
+            project_id=GCP_PROJECT_ID,
+            run_ctx=run_ctx,
+            status="failed",
+            tables_loaded=success_count,
+            errors_count=len(errors) + 1,
+            error_sample=str(e),
+        )
+        return f"Fehler beim Pipeline-Lauf: {e}", 500

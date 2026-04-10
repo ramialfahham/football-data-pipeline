@@ -1,0 +1,502 @@
+version: 2
+
+sources:
+  - name: football_data
+    description: "Raw football data tables loaded into BigQuery by ingestion jobs."
+    schema: FOOTBALL_DATA
+    tables:
+      - name: raw_d1_0001
+        identifier: RAW_D1_0001
+        description: "Raw match data (D1) season 0001."
+      - name: raw_d1_0102
+        identifier: RAW_D1_0102
+        description: "Raw match data (D1) season 0102."
+      - name: raw_d1_0203
+        identifier: RAW_D1_0203
+        description: "Raw match data (D1) season 0203."
+      - name: raw_d1_0304
+        identifier: RAW_D1_0304
+        description: "Raw match data (D1) season 0304."
+      - name: raw_d1_0405
+        identifier: RAW_D1_0405
+        description: "Raw match data (D1) season 0405."
+      - name: raw_d1_0506
+        identifier: RAW_D1_0506
+        description: "Raw match data (D1) season 0506."
+      - name: raw_d1_0607
+        identifier: RAW_D1_0607
+        description: "Raw match data (D1) season 0607."
+      - name: raw_d1_0708
+        identifier: RAW_D1_0708
+        description: "Raw match data (D1) season 0708."
+      - name: raw_d1_0809
+        identifier: RAW_D1_0809
+        description: "Raw match data (D1) season 0809."
+      - name: raw_d1_0910
+        identifier: RAW_D1_0910
+        description: "Raw match data (D1) season 0910."
+      - name: raw_d1_1011
+        identifier: RAW_D1_1011
+        description: "Raw match data (D1) season 1011."
+      - name: raw_d1_1112
+        identifier: RAW_D1_1112
+        description: "Raw match data (D1) season 1112."
+      - name: raw_d1_1213
+        identifier: RAW_D1_1213
+        description: "Raw match data (D1) season 1213."
+      - name: raw_d1_1314
+        identifier: RAW_D1_1314
+        description: "Raw match data (D1) season 1314."
+      - name: raw_d1_1415
+        identifier: RAW_D1_1415
+        description: "Raw match data (D1) season 1415."
+      - name: raw_d1_1516
+        identifier: RAW_D1_1516
+        description: "Raw match data (D1) season 1516."
+      - name: raw_d1_1617
+        identifier: RAW_D1_1617
+        description: "Raw match data (D1) season 1617."
+      - name: raw_d1_1718
+        identifier: RAW_D1_1718
+        description: "Raw match data (D1) season 1718."
+      - name: raw_d1_1819
+        identifier: RAW_D1_1819
+        description: "Raw match data (D1) season 1819."
+      - name: raw_d1_1920
+        identifier: RAW_D1_1920
+        description: "Raw match data (D1) season 1920."
+      - name: raw_d1_2021
+        identifier: RAW_D1_2021
+        description: "Raw match data (D1) season 2021."
+      - name: raw_d1_2122
+        identifier: RAW_D1_2122
+        description: "Raw match data (D1) season 2122."
+      - name: raw_d1_2223
+        identifier: RAW_D1_2223
+        description: "Raw match data (D1) season 2223."
+      - name: raw_d1_2324
+        identifier: RAW_D1_2324
+        description: "Raw match data (D1) season 2324."
+      - name: raw_d1_2425
+        identifier: RAW_D1_2425
+        description: "Raw match data (D1) season 2425."
+      - name: raw_d1_2526
+        identifier: RAW_D1_2526
+        description: "Raw match data (D1) season 2526."
+      - name: raw_d1_9394
+        identifier: RAW_D1_9394
+        description: "Raw match data (D1) season 9394."
+      - name: raw_d1_9495
+        identifier: RAW_D1_9495
+        description: "Raw match data (D1) season 9495."
+      - name: raw_d1_9596
+        identifier: RAW_D1_9596
+        description: "Raw match data (D1) season 9596."
+      - name: raw_d1_9697
+        identifier: RAW_D1_9697
+        description: "Raw match data (D1) season 9697."
+      - name: raw_d1_9798
+        identifier: RAW_D1_9798
+        description: "Raw match data (D1) season 9798."
+      - name: raw_d1_9899
+        identifier: RAW_D1_9899
+        description: "Raw match data (D1) season 9899."
+      - name: raw_d1_9900
+        identifier: RAW_D1_9900
+        description: "Raw match data (D1) season 9900."
+      - name: raw_e0_0001
+        identifier: RAW_E0_0001
+        description: "Raw match data (E0) season 0001."
+      - name: raw_e0_0102
+        identifier: RAW_E0_0102
+        description: "Raw match data (E0) season 0102."
+      - name: raw_e0_0203
+        identifier: RAW_E0_0203
+        description: "Raw match data (E0) season 0203."
+      - name: raw_e0_0304
+        identifier: RAW_E0_0304
+        description: "Raw match data (E0) season 0304."
+      - name: raw_e0_0405
+        identifier: RAW_E0_0405
+        description: "Raw match data (E0) season 0405."
+      - name: raw_e0_0506
+        identifier: RAW_E0_0506
+        description: "Raw match data (E0) season 0506."
+      - name: raw_e0_0607
+        identifier: RAW_E0_0607
+        description: "Raw match data (E0) season 0607."
+      - name: raw_e0_0708
+        identifier: RAW_E0_0708
+        description: "Raw match data (E0) season 0708."
+      - name: raw_e0_0809
+        identifier: RAW_E0_0809
+        description: "Raw match data (E0) season 0809."
+      - name: raw_e0_0910
+        identifier: RAW_E0_0910
+        description: "Raw match data (E0) season 0910."
+      - name: raw_e0_1011
+        identifier: RAW_E0_1011
+        description: "Raw match data (E0) season 1011."
+      - name: raw_e0_1112
+        identifier: RAW_E0_1112
+        description: "Raw match data (E0) season 1112."
+      - name: raw_e0_1213
+        identifier: RAW_E0_1213
+        description: "Raw match data (E0) season 1213."
+      - name: raw_e0_1314
+        identifier: RAW_E0_1314
+        description: "Raw match data (E0) season 1314."
+      - name: raw_e0_1415
+        identifier: RAW_E0_1415
+        description: "Raw match data (E0) season 1415."
+      - name: raw_e0_1516
+        identifier: RAW_E0_1516
+        description: "Raw match data (E0) season 1516."
+      - name: raw_e0_1617
+        identifier: RAW_E0_1617
+        description: "Raw match data (E0) season 1617."
+      - name: raw_e0_1718
+        identifier: RAW_E0_1718
+        description: "Raw match data (E0) season 1718."
+      - name: raw_e0_1819
+        identifier: RAW_E0_1819
+        description: "Raw match data (E0) season 1819."
+      - name: raw_e0_1920
+        identifier: RAW_E0_1920
+        description: "Raw match data (E0) season 1920."
+      - name: raw_e0_2021
+        identifier: RAW_E0_2021
+        description: "Raw match data (E0) season 2021."
+      - name: raw_e0_2122
+        identifier: RAW_E0_2122
+        description: "Raw match data (E0) season 2122."
+      - name: raw_e0_2223
+        identifier: RAW_E0_2223
+        description: "Raw match data (E0) season 2223."
+      - name: raw_e0_2324
+        identifier: RAW_E0_2324
+        description: "Raw match data (E0) season 2324."
+      - name: raw_e0_2425
+        identifier: RAW_E0_2425
+        description: "Raw match data (E0) season 2425."
+      - name: raw_e0_2526
+        identifier: RAW_E0_2526
+        description: "Raw match data (E0) season 2526."
+      - name: raw_e0_9394
+        identifier: RAW_E0_9394
+        description: "Raw match data (E0) season 9394."
+      - name: raw_e0_9495
+        identifier: RAW_E0_9495
+        description: "Raw match data (E0) season 9495."
+      - name: raw_e0_9596
+        identifier: RAW_E0_9596
+        description: "Raw match data (E0) season 9596."
+      - name: raw_e0_9697
+        identifier: RAW_E0_9697
+        description: "Raw match data (E0) season 9697."
+      - name: raw_e0_9798
+        identifier: RAW_E0_9798
+        description: "Raw match data (E0) season 9798."
+      - name: raw_e0_9899
+        identifier: RAW_E0_9899
+        description: "Raw match data (E0) season 9899."
+      - name: raw_e0_9900
+        identifier: RAW_E0_9900
+        description: "Raw match data (E0) season 9900."
+      - name: raw_i1_0001
+        identifier: RAW_I1_0001
+        description: "Raw match data (I1) season 0001."
+      - name: raw_i1_0102
+        identifier: RAW_I1_0102
+        description: "Raw match data (I1) season 0102."
+      - name: raw_i1_0203
+        identifier: RAW_I1_0203
+        description: "Raw match data (I1) season 0203."
+      - name: raw_i1_0304
+        identifier: RAW_I1_0304
+        description: "Raw match data (I1) season 0304."
+      - name: raw_i1_0405
+        identifier: RAW_I1_0405
+        description: "Raw match data (I1) season 0405."
+      - name: raw_i1_0506
+        identifier: RAW_I1_0506
+        description: "Raw match data (I1) season 0506."
+      - name: raw_i1_0607
+        identifier: RAW_I1_0607
+        description: "Raw match data (I1) season 0607."
+      - name: raw_i1_0708
+        identifier: RAW_I1_0708
+        description: "Raw match data (I1) season 0708."
+      - name: raw_i1_0809
+        identifier: RAW_I1_0809
+        description: "Raw match data (I1) season 0809."
+      - name: raw_i1_0910
+        identifier: RAW_I1_0910
+        description: "Raw match data (I1) season 0910."
+      - name: raw_i1_1011
+        identifier: RAW_I1_1011
+        description: "Raw match data (I1) season 1011."
+      - name: raw_i1_1112
+        identifier: RAW_I1_1112
+        description: "Raw match data (I1) season 1112."
+      - name: raw_i1_1213
+        identifier: RAW_I1_1213
+        description: "Raw match data (I1) season 1213."
+      - name: raw_i1_1314
+        identifier: RAW_I1_1314
+        description: "Raw match data (I1) season 1314."
+      - name: raw_i1_1415
+        identifier: RAW_I1_1415
+        description: "Raw match data (I1) season 1415."
+      - name: raw_i1_1516
+        identifier: RAW_I1_1516
+        description: "Raw match data (I1) season 1516."
+      - name: raw_i1_1617
+        identifier: RAW_I1_1617
+        description: "Raw match data (I1) season 1617."
+      - name: raw_i1_1718
+        identifier: RAW_I1_1718
+        description: "Raw match data (I1) season 1718."
+      - name: raw_i1_1819
+        identifier: RAW_I1_1819
+        description: "Raw match data (I1) season 1819."
+      - name: raw_i1_1920
+        identifier: RAW_I1_1920
+        description: "Raw match data (I1) season 1920."
+      - name: raw_i1_2021
+        identifier: RAW_I1_2021
+        description: "Raw match data (I1) season 2021."
+      - name: raw_i1_2122
+        identifier: RAW_I1_2122
+        description: "Raw match data (I1) season 2122."
+      - name: raw_i1_2223
+        identifier: RAW_I1_2223
+        description: "Raw match data (I1) season 2223."
+      - name: raw_i1_2324
+        identifier: RAW_I1_2324
+        description: "Raw match data (I1) season 2324."
+      - name: raw_i1_2425
+        identifier: RAW_I1_2425
+        description: "Raw match data (I1) season 2425."
+      - name: raw_i1_2526
+        identifier: RAW_I1_2526
+        description: "Raw match data (I1) season 2526."
+      - name: raw_i1_9394
+        identifier: RAW_I1_9394
+        description: "Raw match data (I1) season 9394."
+      - name: raw_i1_9495
+        identifier: RAW_I1_9495
+        description: "Raw match data (I1) season 9495."
+      - name: raw_i1_9596
+        identifier: RAW_I1_9596
+        description: "Raw match data (I1) season 9596."
+      - name: raw_i1_9697
+        identifier: RAW_I1_9697
+        description: "Raw match data (I1) season 9697."
+      - name: raw_i1_9798
+        identifier: RAW_I1_9798
+        description: "Raw match data (I1) season 9798."
+      - name: raw_i1_9899
+        identifier: RAW_I1_9899
+        description: "Raw match data (I1) season 9899."
+      - name: raw_i1_9900
+        identifier: RAW_I1_9900
+        description: "Raw match data (I1) season 9900."
+      - name: raw_sp1_0001
+        identifier: RAW_SP1_0001
+        description: "Raw match data (SP1) season 0001."
+      - name: raw_sp1_0102
+        identifier: RAW_SP1_0102
+        description: "Raw match data (SP1) season 0102."
+      - name: raw_sp1_0203
+        identifier: RAW_SP1_0203
+        description: "Raw match data (SP1) season 0203."
+      - name: raw_sp1_0304
+        identifier: RAW_SP1_0304
+        description: "Raw match data (SP1) season 0304."
+      - name: raw_sp1_0405
+        identifier: RAW_SP1_0405
+        description: "Raw match data (SP1) season 0405."
+      - name: raw_sp1_0506
+        identifier: RAW_SP1_0506
+        description: "Raw match data (SP1) season 0506."
+      - name: raw_sp1_0607
+        identifier: RAW_SP1_0607
+        description: "Raw match data (SP1) season 0607."
+      - name: raw_sp1_0708
+        identifier: RAW_SP1_0708
+        description: "Raw match data (SP1) season 0708."
+      - name: raw_sp1_0809
+        identifier: RAW_SP1_0809
+        description: "Raw match data (SP1) season 0809."
+      - name: raw_sp1_0910
+        identifier: RAW_SP1_0910
+        description: "Raw match data (SP1) season 0910."
+      - name: raw_sp1_1011
+        identifier: RAW_SP1_1011
+        description: "Raw match data (SP1) season 1011."
+      - name: raw_sp1_1112
+        identifier: RAW_SP1_1112
+        description: "Raw match data (SP1) season 1112."
+      - name: raw_sp1_1213
+        identifier: RAW_SP1_1213
+        description: "Raw match data (SP1) season 1213."
+      - name: raw_sp1_1314
+        identifier: RAW_SP1_1314
+        description: "Raw match data (SP1) season 1314."
+      - name: raw_sp1_1415
+        identifier: RAW_SP1_1415
+        description: "Raw match data (SP1) season 1415."
+      - name: raw_sp1_1516
+        identifier: RAW_SP1_1516
+        description: "Raw match data (SP1) season 1516."
+      - name: raw_sp1_1617
+        identifier: RAW_SP1_1617
+        description: "Raw match data (SP1) season 1617."
+      - name: raw_sp1_1718
+        identifier: RAW_SP1_1718
+        description: "Raw match data (SP1) season 1718."
+      - name: raw_sp1_1819
+        identifier: RAW_SP1_1819
+        description: "Raw match data (SP1) season 1819."
+      - name: raw_sp1_1920
+        identifier: RAW_SP1_1920
+        description: "Raw match data (SP1) season 1920."
+      - name: raw_sp1_2021
+        identifier: RAW_SP1_2021
+        description: "Raw match data (SP1) season 2021."
+      - name: raw_sp1_2122
+        identifier: RAW_SP1_2122
+        description: "Raw match data (SP1) season 2122."
+      - name: raw_sp1_2223
+        identifier: RAW_SP1_2223
+        description: "Raw match data (SP1) season 2223."
+      - name: raw_sp1_2324
+        identifier: RAW_SP1_2324
+        description: "Raw match data (SP1) season 2324."
+      - name: raw_sp1_2425
+        identifier: RAW_SP1_2425
+        description: "Raw match data (SP1) season 2425."
+      - name: raw_sp1_2526
+        identifier: RAW_SP1_2526
+        description: "Raw match data (SP1) season 2526."
+      - name: raw_sp1_9394
+        identifier: RAW_SP1_9394
+        description: "Raw match data (SP1) season 9394."
+      - name: raw_sp1_9495
+        identifier: RAW_SP1_9495
+        description: "Raw match data (SP1) season 9495."
+      - name: raw_sp1_9596
+        identifier: RAW_SP1_9596
+        description: "Raw match data (SP1) season 9596."
+      - name: raw_sp1_9697
+        identifier: RAW_SP1_9697
+        description: "Raw match data (SP1) season 9697."
+      - name: raw_sp1_9798
+        identifier: RAW_SP1_9798
+        description: "Raw match data (SP1) season 9798."
+      - name: raw_sp1_9899
+        identifier: RAW_SP1_9899
+        description: "Raw match data (SP1) season 9899."
+      - name: raw_sp1_9900
+        identifier: RAW_SP1_9900
+        description: "Raw match data (SP1) season 9900."
+      - name: raw_f1_0001
+        identifier: RAW_F1_0001
+        description: "Raw match data (F1) season 0001."
+      - name: raw_f1_0102
+        identifier: RAW_F1_0102
+        description: "Raw match data (F1) season 0102."
+      - name: raw_f1_0203
+        identifier: RAW_F1_0203
+        description: "Raw match data (F1) season 0203."
+      - name: raw_f1_0304
+        identifier: RAW_F1_0304
+        description: "Raw match data (F1) season 0304."
+      - name: raw_f1_0405
+        identifier: RAW_F1_0405
+        description: "Raw match data (F1) season 0405."
+      - name: raw_f1_0506
+        identifier: RAW_F1_0506
+        description: "Raw match data (F1) season 0506."
+      - name: raw_f1_0607
+        identifier: RAW_F1_0607
+        description: "Raw match data (F1) season 0607."
+      - name: raw_f1_0708
+        identifier: RAW_F1_0708
+        description: "Raw match data (F1) season 0708."
+      - name: raw_f1_0809
+        identifier: RAW_F1_0809
+        description: "Raw match data (F1) season 0809."
+      - name: raw_f1_0910
+        identifier: RAW_F1_0910
+        description: "Raw match data (F1) season 0910."
+      - name: raw_f1_1011
+        identifier: RAW_F1_1011
+        description: "Raw match data (F1) season 1011."
+      - name: raw_f1_1112
+        identifier: RAW_F1_1112
+        description: "Raw match data (F1) season 1112."
+      - name: raw_f1_1213
+        identifier: RAW_F1_1213
+        description: "Raw match data (F1) season 1213."
+      - name: raw_f1_1314
+        identifier: RAW_F1_1314
+        description: "Raw match data (F1) season 1314."
+      - name: raw_f1_1415
+        identifier: RAW_F1_1415
+        description: "Raw match data (F1) season 1415."
+      - name: raw_f1_1516
+        identifier: RAW_F1_1516
+        description: "Raw match data (F1) season 1516."
+      - name: raw_f1_1617
+        identifier: RAW_F1_1617
+        description: "Raw match data (F1) season 1617."
+      - name: raw_f1_1718
+        identifier: RAW_F1_1718
+        description: "Raw match data (F1) season 1718."
+      - name: raw_f1_1819
+        identifier: RAW_F1_1819
+        description: "Raw match data (F1) season 1819."
+      - name: raw_f1_1920
+        identifier: RAW_F1_1920
+        description: "Raw match data (F1) season 1920."
+      - name: raw_f1_2021
+        identifier: RAW_F1_2021
+        description: "Raw match data (F1) season 2021."
+      - name: raw_f1_2122
+        identifier: RAW_F1_2122
+        description: "Raw match data (F1) season 2122."
+      - name: raw_f1_2223
+        identifier: RAW_F1_2223
+        description: "Raw match data (F1) season 2223."
+      - name: raw_f1_2324
+        identifier: RAW_F1_2324
+        description: "Raw match data (F1) season 2324."
+      - name: raw_f1_2425
+        identifier: RAW_F1_2425
+        description: "Raw match data (F1) season 2425."
+      - name: raw_f1_2526
+        identifier: RAW_F1_2526
+        description: "Raw match data (F1) season 2526."
+      - name: raw_f1_9394
+        identifier: RAW_F1_9394
+        description: "Raw match data (F1) season 9394."
+      - name: raw_f1_9495
+        identifier: RAW_F1_9495
+        description: "Raw match data (F1) season 9495."
+      - name: raw_f1_9596
+        identifier: RAW_F1_9596
+        description: "Raw match data (F1) season 9596."
+      - name: raw_f1_9697
+        identifier: RAW_F1_9697
+        description: "Raw match data (F1) season 9697."
+      - name: raw_f1_9798
+        identifier: RAW_F1_9798
+        description: "Raw match data (F1) season 9798."
+      - name: raw_f1_9899
+        identifier: RAW_F1_9899
+        description: "Raw match data (F1) season 9899."
+      - name: raw_f1_9900
+        identifier: RAW_F1_9900
+        description: "Raw match data (F1) season 9900."

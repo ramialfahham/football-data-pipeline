@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: mart_ops__ingestion_health
+    description: "Operational monitoring mart for ingestion pipelines over the last 7 days."
+    meta:
+      owner: "data-platform"
+      domain: "ops"
+      criticality: "high"
+    config:
+      tags: ["marts", "ops", "monitoring"]
+    columns:
+      - name: pipeline_name
+        tests: [not_null, unique]
+      - name: success_rate_7d
+        description: "Fraction of successful runs in last 7 days."
+      - name: avg_duration_seconds_7d
+        description: "Average ingestion runtime in seconds over last 7 days."
+      - name: last_error_sample
+        description: "Most recent error sample from failed or partial runs."

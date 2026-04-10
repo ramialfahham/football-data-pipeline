@@ -1,0 +1,18 @@
+selectors:
+  - name: staging
+    description: "Staging models (raw cleanup only). Tests run automatically via dbt build."
+    definition:
+      method: path
+      value: models/1_staging
+
+  - name: base
+    description: "Base models (unions/alignment). Tests run automatically via dbt build."
+    definition:
+      method: path
+      value: models/2_base
+
+  - name: dq
+    description: "All models and all tests (full data-quality suite)."
+    definition:
+      method: fqn
+      value: "*"

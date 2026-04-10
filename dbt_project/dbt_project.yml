@@ -1,0 +1,51 @@
+name: 'football_data_pipeline'
+version: '1.0.0'
+config-version: 2
+
+# Connection to the profile defined in profiles.yml
+profile: 'football_data_pipeline'
+
+# Path configuration
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Variable configuration (Best Practice for BigQuery)
+vars:
+  # This tells dbt_utils how to handle specific BigQuery syntax if needed
+  'dbt_utils:dispatch_list': ['bigquery']
+
+# Hierarchical Model Configuration
+models:
+  football_data_pipeline:
+    # 1. Staging: Raw cleanup (Views for speed and low cost)
+    1_staging:
+      +materialized: view
+      +schema: staging
+
+    # 2. Base: Unions and source alignment (Views)
+    2_base:
+      +materialized: view
+      +schema: base
+
+    # 3. Core: Star Schema / Dimensional Entities (Tables)
+    3_core:
+      +materialized: table
+      +schema: core
+
+    # 4. Intermediate: Business logic & heavy math (Tables)
+    4_intermediate:
+      +materialized: table
+      +schema: intermediate
+
+    # 5. Marts: BI-ready data products (Tables)
+    5_marts:
+      +materialized: table
+      +schema: marts

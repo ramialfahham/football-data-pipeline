@@ -1,0 +1,24 @@
+football_data_pipeline:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: football-data-pipeline-gcp
+      dataset: dbt_analytics
+      threads: 4
+      timeout_seconds: 300
+      location: EU
+      priority: interactive
+
+    # Recommended for CI/CD:
+    # prod:
+    #   type: bigquery
+    #   method: service-account
+    #   project: football-data-pipeline-gcp
+    #   dataset: analytics
+    #   keyfile: /path/to/service-account.json
+    #   threads: 4
+    #   timeout_seconds: 300
+    #   location: EU
+    #   priority: interactive

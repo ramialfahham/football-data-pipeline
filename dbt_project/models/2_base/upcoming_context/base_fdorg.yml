@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: base_fdorg__matches_scheduled
+    description: "Base union model across target competitions for fdorg matches_scheduled."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["base", "fdorg", "pre_match"]
+    columns:
+      - name: competition_code
+        tests: [not_null]
+
+  - name: base_fdorg__teams
+    description: "Base union model across target competitions for fdorg teams."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["base", "fdorg", "pre_match"]
+    columns:
+      - name: competition_code
+        tests: [not_null]
+
+  - name: base_fdorg__standings
+    description: "Base union model across target competitions for fdorg standings."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["base", "fdorg", "pre_match"]
+    columns:
+      - name: competition_code
+        tests: [not_null]
