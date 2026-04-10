@@ -48,3 +48,4 @@ Engineering standards: `dbt_project/docs/engineering_standards.md`.
 Ingestion operations standards: `docs/ingestion_standards.md`.
 API-Football MVP scope: `docs/api_football_mvp_scope.md`.
 Data dictionary and definition confidence: `docs/data_dictionary.md`.
+Development workflow: `docs/development_workflow.md`.
