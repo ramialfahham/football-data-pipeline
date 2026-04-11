@@ -39,7 +39,7 @@ API responses always use the same envelope: check `errors`, then `paging`, then 
 - `API_FOOTBALL_SEASON` (optional): competition season as **start year** (e.g. `2025` for 2025/26). **Set this when you move to a paid plan** so ingestion tracks the real current season. If omitted, ingestion uses `utcnow().year - 1` and **clamps** it to the free-tier window below so local runs keep working on a free key without per-year edits.
 - `API_FOOTBALL_SEASON_MIN` / `API_FOOTBALL_SEASON_MAX` (optional): bounds used **only when `API_FOOTBALL_SEASON` is unset** (defaults **`2022`** and **`2024`** to match common API-Sports free-plan messages such as *“try from 2022 to 2024”*). On a paid plan, either set **`API_FOOTBALL_SEASON`** explicitly each season, or set a wide max (e.g. `API_FOOTBALL_SEASON_MAX=2099`) if you want auto `year-1` without clamping.
 - `API_FOOTBALL_FIXTURES_MODE` (optional): **`from_to`** (default) or **`next`** (`next=20`; typically **paid** only — free plans often return *“do not have access to the Next parameter”*).
-- `API_FOOTBALL_FIXTURE_FROM` / `API_FOOTBALL_FIXTURE_TO` (optional, with `from_to`): inclusive `yyyy-MM-dd` bounds. If omitted, defaults to **last N calendar days ending today**, with `API_FOOTBALL_FIXTURE_RANGE_DAYS` (default `14`). For free tiers you may need a **historical** window that matches an allowed `API_FOOTBALL_SEASON` (e.g. season `2024` with dates in 2024/25).
+- `API_FOOTBALL_FIXTURE_FROM` / `API_FOOTBALL_FIXTURE_TO` (optional, with `from_to`): inclusive `yyyy-MM-dd` bounds. If omitted, ingestion uses the last **`API_FOOTBALL_FIXTURE_RANGE_DAYS`** days **inside** a coarse season calendar (**July 1 `season` → June 30 `season+1`**), capped by UTC today — so the window always matches the **`season`** parameter (avoids sending 2026 dates with `season=2024`).
 - `API_FOOTBALL_DATASET_LOCATION` (optional): BigQuery **region** for the `API_FOOTBALL` dataset when it is first created (default **`EU`**, same as `location` in [`dbt_project/profiles.example.yml`](dbt_project/profiles.example.yml)). If the dataset already exists elsewhere, delete it once or align dbt’s `location` with that region.
 - `API_FOOTBALL_MAX_PAGES` (optional, default `250`): safety cap when merging `page=` results for **`/players`** only (other listed endpoints use a single request without `page` on free-friendly defaults).
 - `API_FOOTBALL_REQUEST_PAUSE_MS` (optional): milliseconds to sleep **after each successful** HTTP response. **If unset**, defaults to **6600** (~9 calls/min) so free-tier **10 req/min** limits are less likely to trip. Set to **`0`** for no pause (typical on **paid** plans or CI).
@@ -57,6 +57,8 @@ python -m ingestion.api_football.main
 ```
 
 Creates `API_FOOTBALL` in **EU** by default (override with `API_FOOTBALL_DATASET_LOCATION` if your dbt profile uses another region), then loads the four `RAW_APIF_*_D1` tables.
+
+On a **free** key, the first full run can take **several minutes** (default pacing ~10 HTTP calls/min and up to three `/players` pages per club). Then run **`dbt build --project-dir .\dbt_project --selector staging`** so BigQuery `staging` views match the new raw rows.
 
 ## Data Flow
 

@@ -13,7 +13,7 @@ import io
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import requests
 from google.cloud import bigquery
@@ -87,6 +87,29 @@ def season_year() -> int:
     return min(max(candidate, lo), hi)
 
 
+def _default_fixture_date_range(season: int, days: int) -> tuple[str, str]:
+    """
+    Inclusive ``from`` / ``to`` for ``from_to`` mode when env dates are not set.
+
+    Uses the last ``days`` days **inside** a coarse European-season calendar for
+    ``season`` (July 1 ``season`` → June 30 ``season+1``), capped by UTC today, so
+    we do not send e.g. 2026 dates with ``season=2024`` (which often yields empty data).
+    """
+    today = datetime.utcnow().date()
+    season_start = date(season, 7, 1)
+    season_end = date(season + 1, 6, 30)
+    end = min(today, season_end)
+    if end < season_start:
+        end = min(season_start + timedelta(days=max(days - 1, 0)), season_end)
+        start = season_start
+    else:
+        start = end - timedelta(days=max(days - 1, 0))
+        if start < season_start:
+            start = season_start
+            end = min(season_end, start + timedelta(days=max(days - 1, 0)))
+    return start.isoformat(), end.isoformat()
+
+
 def fixtures_query_params(league_id: int, season: int) -> dict:
     """
     Paid plans can use `next`. Free tier commonly rejects `next` (plan error); default is `from_to`.
@@ -98,14 +121,9 @@ def fixtures_query_params(league_id: int, season: int) -> dict:
         date_to = os.getenv("API_FOOTBALL_FIXTURE_TO")
         if date_from and date_to:
             return {**base, "from": date_from.strip(), "to": date_to.strip()}
-        end = datetime.utcnow().date()
         days = int(os.getenv("API_FOOTBALL_FIXTURE_RANGE_DAYS", "14"))
-        start = end - timedelta(days=days)
-        return {
-            **base,
-            "from": start.isoformat(),
-            "to": end.isoformat(),
-        }
+        start_s, end_s = _default_fixture_date_range(season, days)
+        return {**base, "from": start_s, "to": end_s}
     if mode == "next":
         return {**base, "next": 20}
     raise ValueError(
