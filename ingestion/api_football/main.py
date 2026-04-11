@@ -89,10 +89,9 @@ def season_year() -> int:
 
 def fixtures_query_params(league_id: int, season: int) -> dict:
     """
-    Paid plans typically support `next`. Free tier often rejects `next` and may restrict `season`;
-    use from_to with explicit dates (see env vars below).
+    Paid plans can use `next`. Free tier commonly rejects `next` (plan error); default is `from_to`.
     """
-    mode = os.getenv("API_FOOTBALL_FIXTURES_MODE", "next").strip().lower()
+    mode = os.getenv("API_FOOTBALL_FIXTURES_MODE", "from_to").strip().lower()
     base = {"league": league_id, "season": season}
     if mode in ("from_to", "range", "daterange"):
         date_from = os.getenv("API_FOOTBALL_FIXTURE_FROM")
@@ -110,7 +109,7 @@ def fixtures_query_params(league_id: int, season: int) -> dict:
     if mode == "next":
         return {**base, "next": 20}
     raise ValueError(
-        "API_FOOTBALL_FIXTURES_MODE must be 'next' (default) or 'from_to'"
+        "API_FOOTBALL_FIXTURES_MODE must be 'from_to' (default) or 'next'"
     )
 
 
@@ -215,13 +214,24 @@ def fetch_merged_paged(
     headers: dict,
     base_params: dict,
     *,
+    paginate: bool = True,
     max_pages: int | None = None,
 ) -> dict:
     """
-    Fetch all pages for list endpoints; merges `response` arrays.
-
-    Preserves first-page metadata (`get`, `parameters`, …); sets `paging` to a single logical page.
+    Fetch API list endpoints. When ``paginate`` is True, merges all ``page=`` results (e.g. ``/players``).
+    When False, sends ``base_params`` only — many endpoints (and free-tier plans) reject ``page``.
     """
+    if not paginate:
+        data = fetch_json(path, headers, params=dict(base_params))
+        meta = {k: v for k, v in data.items() if k not in ("response", "errors", "results", "paging")}
+        out = dict(meta)
+        out["errors"] = _flatten_api_errors(data.get("errors"))
+        merged = list(data.get("response") or [])
+        out["response"] = merged
+        out["results"] = len(merged)
+        out["paging"] = {"current": 1, "total": 1}
+        return out
+
     limit = max_pages if max_pages is not None else int(os.getenv("API_FOOTBALL_MAX_PAGES", "250"))
     merged: list = []
     meta: dict | None = None
@@ -261,6 +271,7 @@ def team_ids_for_league(
         "/teams",
         headers,
         {"league": league_id, "season": season},
+        paginate=False,
     )
     if errors is not None:
         append_api_errors(data, f"teams league_id={league_id}", errors)
@@ -354,6 +365,7 @@ def _load_api_football(request):
                     "/fixtures",
                     headers,
                     fixtures_query_params(league_id, season),
+                    paginate=False,
                 )
                 append_api_errors(fixtures_next, f"fixtures {league_code}", errors)
                 load_json_to_bq(client, f"RAW_APIF_FIXTURES_NEXT_{league_code}", fixtures_next)
@@ -427,6 +439,7 @@ def _load_api_football(request):
                         "/injuries",
                         headers,
                         {"league": league_id, "season": season},
+                        paginate=False,
                     )
                     append_api_errors(injuries_payload, f"injuries {league_code}", errors)
                     load_json_to_bq(client, f"RAW_APIF_INJURIES_{league_code}", injuries_payload)
