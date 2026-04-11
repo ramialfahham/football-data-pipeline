@@ -48,13 +48,17 @@ API responses always use the same envelope: check `errors`, then `paging`, then 
 
 ## Local ingestion (no Cloud Run)
 
-From repo root, with [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the project and `API_FOOTBALL_API_KEY` set:
+From repo root, with [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the project.
+
+**API key once (no paste every run):** copy [`.env.example`](../.env.example) to **`.env`** in the repo root, set `API_FOOTBALL_API_KEY=...`, and `pip install -r requirements.txt` (includes `python-dotenv`). Ingestion loads `.env` automatically. **Never commit `.env`** (it is gitignored).
 
 ```powershell
+pip install -r requirements.txt
 $env:PYTHONPATH = "."
-$env:API_FOOTBALL_API_KEY = "<your-key>"
 python -m ingestion.api_football.main
 ```
+
+Or set `API_FOOTBALL_API_KEY` in the shell / OS user environment if you prefer not to use a file.
 
 Creates `API_FOOTBALL` in **EU** by default (override with `API_FOOTBALL_DATASET_LOCATION` if your dbt profile uses another region), then loads the four `RAW_APIF_*_D1` tables.
 

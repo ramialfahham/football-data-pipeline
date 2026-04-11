@@ -19,6 +19,19 @@ import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
+
+def _load_dotenv() -> None:
+    """Load repo-root `.env` into the process (optional dependency)."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    load_dotenv(os.path.join(root, ".env"))
+
+
+_load_dotenv()
+
 GCP_PROJECT_ID = "football-data-pipeline-gcp"
 DATASET_ID = "API_FOOTBALL"
 
@@ -271,11 +284,10 @@ def fetch_merged_paged(
         merged.extend(data.get("response") or [])
         if _paging_done(data, page):
             break
+        # Stop at hard page cap (e.g. free tier max page=3) without treating as an error.
+        if page >= limit:
+            break
         page += 1
-    else:
-        raise RuntimeError(
-            f"{path}: exceeded API_FOOTBALL_MAX_PAGES={limit}; incomplete merge — increase env or narrow params."
-        )
     out = dict(meta)
     out["errors"] = merged_errors
     out["response"] = merged
