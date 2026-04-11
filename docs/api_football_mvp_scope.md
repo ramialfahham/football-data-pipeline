@@ -2,19 +2,22 @@
 
 This document defines the minimum API-Football footprint for player-focused pre-match insights.
 
+Implementation follows the official walkthrough: [How to get started with API-Football (complete beginner’s guide)](https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide) (envelope fields, pagination, rate limits, empty `response` on HTTP 200).
+
 ## Goal
 
 Collect enough player context for fan-facing pre-match views without high API spend.
 
 ## Endpoints in Scope
 
-- `/fixtures` with `next=20` per league (or `from_to` when configured)
+- `/fixtures` with `next=20` per league (or `from_to` when configured), **all `paging` pages** merged into one snapshot
   - raw table: `RAW_APIF_FIXTURES_NEXT_D1`
-- `/players` per team for teams in upcoming fixtures
+- `/teams` with `league` + `season` **only when** the fixtures response yields no team IDs (e.g. empty `next` on free tier, off-season window). Used to discover clubs before `/players`.
+- `/players` per team (`team` + `season`), **all pages** (`page=1…n` until `paging` is exhausted — see [API-Football beginner’s guide](https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide))
   - raw table: `RAW_APIF_PLAYERS_D1`
 - `/fixtures/lineups` per upcoming fixture
   - raw table: `RAW_APIF_LINEUPS_D1`
-- `/injuries` per league/season
+- `/injuries` per league/season, **all pages** merged (same pagination discipline as `/players`)
   - raw table: `RAW_APIF_INJURIES_D1`
 
 ## League Scope
@@ -24,17 +27,23 @@ Collect enough player context for fan-facing pre-match views without high API sp
 ## Cost Controls
 
 - Only upcoming fixtures (no full-season exhaustive pulls).
-- Only player pulls for teams appearing in those fixtures.
+- Player pulls target teams from **upcoming fixtures first**; if that set is empty, one `/teams` batch per league plus `/players` per club (still bounded by league size, not a global crawl).
 - Batch schedule 2-4 times daily (not live minute-by-minute).
+
+API responses always use the same envelope: check `errors`, then `paging`, then `response` (HTTP 200 can still mean empty results — wrong `season`, unsupported `next`, or no data yet). Ingestion merges paged `response` arrays into the raw tables, aggregates body `errors` into the stored envelope, and appends human-readable notes to the function return message when the API reports issues.
 
 ## Environment Variables
 
 - `API_FOOTBALL_API_KEY` (required): dashboard key from [API-Sports](https://dashboard.api-sports.io/) (header `x-apisports-key`), **or** RapidAPI key if you use that marketplace.
 - `API_FOOTBALL_PROVIDER` (optional): `apisports` (default, direct `v3.football.api-sports.io`) or `rapidapi` (requires an active RapidAPI subscription to the API-Football product).
-- `API_FOOTBALL_SEASON` (optional): competition season as **start year** (e.g. `2024` for 2024/25). Defaults to **previous calendar year** (`utcnow().year - 1`). Free plans may only allow a limited year range; set this explicitly if responses return empty `response` with an `errors` object.
+- `API_FOOTBALL_SEASON` (optional): competition season as **start year** (e.g. `2025` for 2025/26). **Set this when you move to a paid plan** so ingestion tracks the real current season. If omitted, ingestion uses `utcnow().year - 1` and **clamps** it to the free-tier window below so local runs keep working on a free key without per-year edits.
+- `API_FOOTBALL_SEASON_MIN` / `API_FOOTBALL_SEASON_MAX` (optional): bounds used **only when `API_FOOTBALL_SEASON` is unset** (defaults **`2022`** and **`2024`** to match common API-Sports free-plan messages such as *“try from 2022 to 2024”*). On a paid plan, either set **`API_FOOTBALL_SEASON`** explicitly each season, or set a wide max (e.g. `API_FOOTBALL_SEASON_MAX=2099`) if you want auto `year-1` without clamping.
 - `API_FOOTBALL_FIXTURES_MODE` (optional): `next` (default, `next=20` — often **not** available on free tier) or `from_to` (uses `from` / `to` dates).
 - `API_FOOTBALL_FIXTURE_FROM` / `API_FOOTBALL_FIXTURE_TO` (optional, with `from_to`): inclusive `yyyy-MM-dd` bounds. If omitted, defaults to **last N calendar days ending today**, with `API_FOOTBALL_FIXTURE_RANGE_DAYS` (default `14`). For free tiers you may need a **historical** window that matches an allowed `API_FOOTBALL_SEASON` (e.g. season `2024` with dates in 2024/25).
 - `API_FOOTBALL_DATASET_LOCATION` (optional): BigQuery **region** for the `API_FOOTBALL` dataset when it is first created (default **`EU`**, same as `location` in [`dbt_project/profiles.example.yml`](dbt_project/profiles.example.yml)). If the dataset already exists elsewhere, delete it once or align dbt’s `location` with that region.
+- `API_FOOTBALL_MAX_PAGES` (optional, default `250`): safety cap when merging `page=` results for `/fixtures`, `/injuries`, `/teams`, `/players`.
+- `API_FOOTBALL_REQUEST_PAUSE_MS` (optional, default `0`): sleep this many milliseconds **after each successful** HTTP response to avoid tight bursts (free tier per-minute cap and firewall rules in the guide).
+- `API_FOOTBALL_LOG_QUOTA` (optional): set to `1` / `true` / `yes` to print `x-ratelimit-requests-remaining` and per-minute remaining headers after each call (stdout).
 
 ## Local ingestion (no Cloud Run)
 

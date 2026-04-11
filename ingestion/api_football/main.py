@@ -1,6 +1,18 @@
+"""
+API-Football → BigQuery raw loads (D1 MVP).
+
+Follows the API-Football response contract: check `errors`, then `paging`, then `response`
+(HTTP 200 can still mean empty or partial data). Paginates endpoints that return `paging`.
+
+Reference: https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide
+"""
+
+from __future__ import annotations
+
 import io
 import json
 import os
+import time
 from datetime import datetime, timedelta
 
 import requests
@@ -46,12 +58,33 @@ def get_headers() -> dict:
     return {"x-apisports-key": api_key}
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if raw == "":
+        return default
+    return int(raw)
+
+
 def season_year() -> int:
+    """
+    Competition season = API's **start year** (e.g. 2024 for 2024/25).
+
+    If ``API_FOOTBALL_SEASON`` is set, it wins (use this on paid plans for the real current season).
+
+    If unset, we use ``utcnow().year - 1`` then **clamp** to
+    ``[API_FOOTBALL_SEASON_MIN, API_FOOTBALL_SEASON_MAX]`` so free-tier keys
+    (often limited to a band like 2022–2024) still ingest without manual env
+    every year. Widen or remove the clamp by setting env bounds or an explicit season.
+    """
     raw = os.getenv("API_FOOTBALL_SEASON")
     if raw is not None and raw.strip() != "":
         return int(raw.strip())
-    # Competition "season" is the starting calendar year (e.g. 2025 for 2025/26).
-    return datetime.utcnow().year - 1
+    candidate = datetime.utcnow().year - 1
+    lo = _env_int("API_FOOTBALL_SEASON_MIN", 2022)
+    hi = _env_int("API_FOOTBALL_SEASON_MAX", 2024)
+    if lo > hi:
+        raise ValueError("API_FOOTBALL_SEASON_MIN must be <= API_FOOTBALL_SEASON_MAX")
+    return min(max(candidate, lo), hi)
 
 
 def fixtures_query_params(league_id: int, season: int) -> dict:
@@ -81,10 +114,183 @@ def fixtures_query_params(league_id: int, season: int) -> dict:
     )
 
 
+def _request_pause_seconds() -> float:
+    raw = os.getenv("API_FOOTBALL_REQUEST_PAUSE_MS", "").strip()
+    if not raw:
+        return 0.0
+    try:
+        return max(0.0, float(raw) / 1000.0)
+    except ValueError:
+        return 0.0
+
+
+def _throttle() -> None:
+    delay = _request_pause_seconds()
+    if delay:
+        time.sleep(delay)
+
+
+def _maybe_log_quota(response_headers: dict) -> None:
+    if os.getenv("API_FOOTBALL_LOG_QUOTA", "").strip() not in ("1", "true", "yes"):
+        return
+    daily = response_headers.get("x-ratelimit-requests-remaining")
+    minute = response_headers.get("X-Ratelimit-Remaining") or response_headers.get(
+        "x-ratelimit-remaining"
+    )
+    if daily is not None or minute is not None:
+        print(
+            f"[api-football] quota headers: daily_remaining={daily!r} per_minute={minute!r}",
+            flush=True,
+        )
+
+
+def _flatten_api_errors(raw) -> list[str]:
+    """Normalize API `errors` field (empty list, strings, dicts, or list of mixed)."""
+    if raw is None:
+        return []
+    if isinstance(raw, str) and raw.strip():
+        return [raw.strip()]
+    if isinstance(raw, dict):
+        if not raw:
+            return []
+        parts = []
+        for k, v in raw.items():
+            if isinstance(v, (dict, list)):
+                parts.append(f"{k}: {json.dumps(v, ensure_ascii=True)}")
+            else:
+                parts.append(f"{k}: {v}")
+        return ["; ".join(parts)] if parts else []
+    if isinstance(raw, list):
+        out: list[str] = []
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                out.append(item.strip())
+            elif isinstance(item, dict):
+                out.append(json.dumps(item, ensure_ascii=True))
+            elif item is not None:
+                out.append(str(item))
+        return out
+    return [str(raw)]
+
+
+def append_api_errors(data: dict, context: str, sink: list[str]) -> None:
+    """Record API body errors next to a pipeline step (guide: prefer body over HTTP code alone)."""
+    for msg in _flatten_api_errors(data.get("errors")):
+        sink.append(f"{context}: {msg}")
+
+
 def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
-    response = requests.get(f"{base_url()}{path}", headers=headers, params=params, timeout=60)
-    response.raise_for_status()
-    return response.json()
+    """
+    GET JSON from API-Football. Retries 429 / 5xx once with backoff (guide: safe single retry).
+    """
+    url = f"{base_url()}{path}"
+    params = dict(params or {})
+    for attempt in range(2):
+        response = requests.get(url, headers=headers, params=params, timeout=60)
+        if response.status_code == 429 and attempt == 0:
+            ra = response.headers.get("Retry-After", "")
+            wait = float(ra) if ra.isdigit() else 3.0
+            time.sleep(wait)
+            continue
+        if 500 <= response.status_code < 600 and attempt == 0:
+            time.sleep(1.5)
+            continue
+        response.raise_for_status()
+        data = response.json()
+        _maybe_log_quota(response.headers)
+        _throttle()
+        return data
+    raise AssertionError("fetch_json: unreachable")
+
+
+def _paging_done(data: dict, page: int) -> bool:
+    paging = data.get("paging") or {}
+    current = int(paging.get("current") or page)
+    total = int(paging.get("total") or 1)
+    return current >= total
+
+
+def fetch_merged_paged(
+    path: str,
+    headers: dict,
+    base_params: dict,
+    *,
+    max_pages: int | None = None,
+) -> dict:
+    """
+    Fetch all pages for list endpoints; merges `response` arrays.
+
+    Preserves first-page metadata (`get`, `parameters`, …); sets `paging` to a single logical page.
+    """
+    limit = max_pages if max_pages is not None else int(os.getenv("API_FOOTBALL_MAX_PAGES", "250"))
+    merged: list = []
+    meta: dict | None = None
+    merged_errors: list[str] = []
+    page = 1
+    while page <= limit:
+        params = dict(base_params)
+        params["page"] = page
+        data = fetch_json(path, headers, params=params)
+        if meta is None:
+            meta = {k: v for k, v in data.items() if k not in ("response", "errors", "results", "paging")}
+        merged_errors.extend(_flatten_api_errors(data.get("errors")))
+        merged.extend(data.get("response") or [])
+        if _paging_done(data, page):
+            break
+        page += 1
+    else:
+        raise RuntimeError(
+            f"{path}: exceeded API_FOOTBALL_MAX_PAGES={limit}; incomplete merge — increase env or narrow params."
+        )
+    out = dict(meta)
+    out["errors"] = merged_errors
+    out["response"] = merged
+    out["results"] = len(merged)
+    out["paging"] = {"current": 1, "total": 1}
+    return out
+
+
+def team_ids_for_league(
+    headers: dict,
+    league_id: int,
+    season: int,
+    errors: list[str] | None = None,
+) -> set[int]:
+    """Bootstrap team IDs when fixtures return none (see API-Football /teams docs)."""
+    data = fetch_merged_paged(
+        "/teams",
+        headers,
+        {"league": league_id, "season": season},
+    )
+    if errors is not None:
+        append_api_errors(data, f"teams league_id={league_id}", errors)
+    ids: set[int] = set()
+    for item in data.get("response", []):
+        team = item.get("team") or {}
+        tid = team.get("id")
+        if tid:
+            ids.add(int(tid))
+    return ids
+
+
+def players_response_for_team(
+    headers: dict,
+    team_id: int,
+    season: int,
+    errors: list[str] | None = None,
+    *,
+    error_context: str = "",
+) -> list:
+    """All /players pages for team+season (API paginates)."""
+    data = fetch_merged_paged(
+        "/players",
+        headers,
+        {"team": team_id, "season": season},
+    )
+    if errors is not None:
+        ctx = error_context or f"players team_id={team_id}"
+        append_api_errors(data, ctx, errors)
+    return list(data.get("response") or [])
 
 
 def _api_football_dataset_location() -> str:
@@ -127,20 +333,29 @@ def load_json_to_bq(client: bigquery.Client, table_name: str, payload: dict) -> 
 def _load_api_football(request):
     client = bigquery.Client(project=GCP_PROJECT_ID)
     ensure_api_football_dataset(client)
-    errors = []
+    errors: list[str] = []
     tables_loaded = 0
 
     try:
         headers = get_headers()
         season = season_year()
+        _lo = _env_int("API_FOOTBALL_SEASON_MIN", 2022)
+        _hi = _env_int("API_FOOTBALL_SEASON_MAX", 2024)
+        _raw = os.getenv("API_FOOTBALL_SEASON", "").strip() or "(unset → auto)"
+        print(
+            f"[api-football] resolved_season={season} API_FOOTBALL_SEASON={_raw!r} "
+            f"auto_clamp_when_unset={_lo}-{_hi}",
+            flush=True,
+        )
 
         for league_code, league_id in LEAGUES.items():
             try:
-                fixtures_next = fetch_json(
+                fixtures_next = fetch_merged_paged(
                     "/fixtures",
-                    headers=headers,
-                    params=fixtures_query_params(league_id, season),
+                    headers,
+                    fixtures_query_params(league_id, season),
                 )
+                append_api_errors(fixtures_next, f"fixtures {league_code}", errors)
                 load_json_to_bq(client, f"RAW_APIF_FIXTURES_NEXT_{league_code}", fixtures_next)
                 tables_loaded += 1
 
@@ -158,28 +373,47 @@ def _load_api_football(request):
                     if away.get("id"):
                         team_ids.add(away["id"])
 
-                # Player pool snapshot (team squads) for near-term relevant teams.
+                # If fixtures returned no teams (empty `next`, free-tier limits, off-season),
+                # fall back to all clubs in the league via /teams.
+                if not team_ids:
+                    try:
+                        team_ids = team_ids_for_league(headers, league_id, season, errors)
+                    except Exception as e:
+                        errors.append(f"teams fallback {league_code}: {e}")
+
+                # Player pool snapshot (team squads).
                 players_payload = {"league_code": league_code, "response": []}
                 for team_id in sorted(team_ids):
                     try:
-                        team_players = fetch_json(
-                            "/players",
-                            headers=headers,
-                            params={"team": team_id, "season": season},
+                        players_rows = players_response_for_team(
+                            headers,
+                            team_id,
+                            season,
+                            errors,
+                            error_context=f"players {league_code} team_id={team_id}",
                         )
                         players_payload["response"].append(
-                            {"team_id": team_id, "players_payload": team_players.get("response", [])}
+                            {"team_id": team_id, "players_payload": players_rows}
                         )
                     except Exception as e:
                         errors.append(f"players {league_code} team {team_id}: {e}")
                 load_json_to_bq(client, f"RAW_APIF_PLAYERS_{league_code}", players_payload)
                 tables_loaded += 1
 
-                # Lineups for upcoming fixtures (fan-critical pre-match context).
+                # Lineups: typically published shortly before kickoff; empty response is normal early.
                 lineups_payload = {"league_code": league_code, "response": []}
                 for fixture_id in sorted(fixture_ids):
                     try:
-                        lineups = fetch_json("/fixtures/lineups", headers=headers, params={"fixture": fixture_id})
+                        lineups = fetch_json(
+                            "/fixtures/lineups",
+                            headers=headers,
+                            params={"fixture": fixture_id},
+                        )
+                        append_api_errors(
+                            lineups,
+                            f"lineups {league_code} fixture {fixture_id}",
+                            errors,
+                        )
                         lineups_payload["response"].append(
                             {"fixture_id": fixture_id, "lineups": lineups.get("response", [])}
                         )
@@ -188,13 +422,13 @@ def _load_api_football(request):
                 load_json_to_bq(client, f"RAW_APIF_LINEUPS_{league_code}", lineups_payload)
                 tables_loaded += 1
 
-                # Injuries by league/season.
                 try:
-                    injuries_payload = fetch_json(
+                    injuries_payload = fetch_merged_paged(
                         "/injuries",
-                        headers=headers,
-                        params={"league": league_id, "season": season},
+                        headers,
+                        {"league": league_id, "season": season},
                     )
+                    append_api_errors(injuries_payload, f"injuries {league_code}", errors)
                     load_json_to_bq(client, f"RAW_APIF_INJURIES_{league_code}", injuries_payload)
                     tables_loaded += 1
                 except Exception as e:
@@ -202,7 +436,14 @@ def _load_api_football(request):
             except Exception as e:
                 errors.append(f"league {league_code}: {e}")
 
-        return f"Loaded {tables_loaded} API-Football tables.", 200
+        msg = f"Loaded {tables_loaded} API-Football tables."
+        if errors:
+            shown = errors[:40]
+            tail = "; ".join(shown)
+            if len(errors) > 40:
+                tail += f" … (+{len(errors) - 40} more)"
+            msg += f" Notes: {tail}"
+        return msg, 200
     except Exception as e:
         return f"Pipeline failed: {e}", 500
 

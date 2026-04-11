@@ -79,3 +79,15 @@ Allowed:
 - `2_base`: key integrity and canonical-shape assertions.
 - `3_core` and `4_intermediate`: relationship and business-rule tests.
 - `5_marts`: consumer-contract and metric-consistency tests.
+
+## Continuity: API-Football (free tier → paid plan)
+
+When you add `2_base` and below, keep **plan and season** as **configuration**, not as magic numbers inside SQL.
+
+- **Single season source for dbt:** define a dbt **variable** (for example `apif_season_year`) in `dbt_project.yml` or pass `--vars` in CI, sourced from the same convention as ingestion (`API_FOOTBALL_SEASON`). Downstream models should **reference the var** (or columns already present on staging/base such as `season_year` extracted from the payload) instead of hardcoding `2024` for “free tier”.
+- **Stable grain and keys:** use API-stable identifiers (`fixture_id`, `team_id`, `player_id`, `league` id) as primary join keys. Paid vs free only changes **how many seasons and competitions** you load, not the shape of those keys.
+- **Normalize envelope quirks in `2_base` only:** today staging exposes both full API envelopes (`fixtures`, `injuries`) and ingestion-wrapped arrays (`players`, `lineups`). Base is the right place to **one shape per entity** (for example one row per fixture, one row per player-team-season block) so `3_core` does not branch on “which raw layout”.
+- **Sparse endpoints:** lineups and some injury rows are legitimately empty before kickoff or outside coverage. Prefer **conditional or relationship tests**, not blanket `not_null` on columns that the API documents as optional.
+- **Promotion path:** when you upgrade, change **ingestion env** (`API_FOOTBALL_SEASON`, widen or drop season clamp envs) and **dbt vars / target** to the live season. If staging column contracts stay the same, **rebuild** downstream; avoid renaming marts columns unless you version or document a breaking change.
+
+Together, this keeps the graph **ref()-stable** while the only operational change is “which season’s raw snapshots you load,” which is exactly what a paid plan unlocks.
