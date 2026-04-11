@@ -114,13 +114,19 @@ def fixtures_query_params(league_id: int, season: int) -> dict:
 
 
 def _request_pause_seconds() -> float:
-    raw = os.getenv("API_FOOTBALL_REQUEST_PAUSE_MS", "").strip()
-    if not raw:
-        return 0.0
+    """
+    Pause after each successful HTTP response.
+
+    When ``API_FOOTBALL_REQUEST_PAUSE_MS`` is unset, default **6600 ms** (~9 calls/min)
+    to stay under common free-tier **10 requests/minute** limits. Set to ``0`` for no pause (paid / CI).
+    """
+    raw = os.getenv("API_FOOTBALL_REQUEST_PAUSE_MS")
+    if raw is None or str(raw).strip() == "":
+        return 6.6
     try:
-        return max(0.0, float(raw) / 1000.0)
+        return max(0.0, float(str(raw).strip()) / 1000.0)
     except ValueError:
-        return 0.0
+        return 6.6
 
 
 def _throttle() -> None:
@@ -292,11 +298,13 @@ def players_response_for_team(
     *,
     error_context: str = "",
 ) -> list:
-    """All /players pages for team+season (API paginates)."""
+    """All /players pages for team+season (API paginates; free tier caps ``page`` — see env)."""
+    max_page = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
     data = fetch_merged_paged(
         "/players",
         headers,
         {"team": team_id, "season": season},
+        max_pages=max_page,
     )
     if errors is not None:
         ctx = error_context or f"players team_id={team_id}"

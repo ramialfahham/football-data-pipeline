@@ -13,7 +13,7 @@ Collect enough player context for fan-facing pre-match views without high API sp
 - `/fixtures`: default **`from_to`** (last N days ending today, or explicit `from`/`to`) — free plans usually reject **`next`**. One API request per run (**no `page`**; many plans error on `page` for this endpoint).
   - raw table: `RAW_APIF_FIXTURES_NEXT_D1` (name kept for history). Set `API_FOOTBALL_FIXTURES_MODE=next` on paid plans if you rely on `next=20`.
 - `/teams` with `league` + `season` **only when** the fixtures response yields no team IDs (e.g. empty window, off-season). **One request, no `page`** (same free-tier `page` limitation as injuries).
-- `/players` per team (`team` + `season`), **all pages** (`page=1…n` until `paging` is exhausted — see [API-Football beginner’s guide](https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide))
+- `/players` per team (`team` + `season`), **`page=` merged** up to **`API_FOOTBALL_PLAYERS_MAX_PAGE`** (default **3** — free plans often cap `page` at 3). Raise on paid plans if squads need more pages.
   - raw table: `RAW_APIF_PLAYERS_D1`
 - `/fixtures/lineups` per upcoming fixture
   - raw table: `RAW_APIF_LINEUPS_D1`
@@ -42,7 +42,8 @@ API responses always use the same envelope: check `errors`, then `paging`, then 
 - `API_FOOTBALL_FIXTURE_FROM` / `API_FOOTBALL_FIXTURE_TO` (optional, with `from_to`): inclusive `yyyy-MM-dd` bounds. If omitted, defaults to **last N calendar days ending today**, with `API_FOOTBALL_FIXTURE_RANGE_DAYS` (default `14`). For free tiers you may need a **historical** window that matches an allowed `API_FOOTBALL_SEASON` (e.g. season `2024` with dates in 2024/25).
 - `API_FOOTBALL_DATASET_LOCATION` (optional): BigQuery **region** for the `API_FOOTBALL` dataset when it is first created (default **`EU`**, same as `location` in [`dbt_project/profiles.example.yml`](dbt_project/profiles.example.yml)). If the dataset already exists elsewhere, delete it once or align dbt’s `location` with that region.
 - `API_FOOTBALL_MAX_PAGES` (optional, default `250`): safety cap when merging `page=` results for **`/players`** only (other listed endpoints use a single request without `page` on free-friendly defaults).
-- `API_FOOTBALL_REQUEST_PAUSE_MS` (optional, default `0`): sleep this many milliseconds **after each successful** HTTP response to avoid tight bursts (free tier per-minute cap and firewall rules in the guide).
+- `API_FOOTBALL_REQUEST_PAUSE_MS` (optional): milliseconds to sleep **after each successful** HTTP response. **If unset**, defaults to **6600** (~9 calls/min) so free-tier **10 req/min** limits are less likely to trip. Set to **`0`** for no pause (typical on **paid** plans or CI).
+- `API_FOOTBALL_PLAYERS_MAX_PAGE` (optional, default **3**): last `page` number to request per team for `/players` (free tier often allows pages **1–3** only).
 - `API_FOOTBALL_LOG_QUOTA` (optional): set to `1` / `true` / `yes` to print `x-ratelimit-requests-remaining` and per-minute remaining headers after each call (stdout).
 
 ## Local ingestion (no Cloud Run)
