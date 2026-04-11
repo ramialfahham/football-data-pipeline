@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: stg_apif__fixtures_next_d1
-    description: "Staging model for API-Football fixtures_next payload (D1) with cleaned canonical top-level columns."
+    description: "Staging model for API-Football fixtures_next payload (Bundesliga D1) with cleaned canonical top-level columns."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -11,111 +11,7 @@ models:
       tags: ["staging", "api_football", "player_context"]
     columns:
       - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__fixtures_next_e0
-    description: "Staging model for API-Football fixtures_next payload (E0) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__fixtures_next_i1
-    description: "Staging model for API-Football fixtures_next payload (I1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__fixtures_next_sp1
-    description: "Staging model for API-Football fixtures_next payload (SP1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__fixtures_next_f1
-    description: "Staging model for API-Football fixtures_next payload (F1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: api_endpoint
         description: "API-Football endpoint identifier returned in the payload metadata."
@@ -132,7 +28,7 @@ models:
         description: "Raw nested response payload used downstream for further extraction."
 
   - name: stg_apif__players_d1
-    description: "Staging model for API-Football players payload (D1) with cleaned canonical top-level columns."
+    description: "Staging model for the ingestion-wrapped players snapshot (Bundesliga D1); same column names as API-shaped staging, null metadata where not present on raw."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -141,115 +37,10 @@ models:
       tags: ["staging", "api_football", "player_context"]
     columns:
       - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__players_e0
-    description: "Staging model for API-Football players payload (E0) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__players_i1
-    description: "Staging model for API-Football players payload (I1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__players_sp1
-    description: "Staging model for API-Football players payload (SP1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__players_f1
-    description: "Staging model for API-Football players payload (F1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
+        description: "Null for this table; raw payload is an ingestion aggregate, not a single API response envelope."
       - name: request_parameters
         description: "Request parameters echoed by the source API for traceability."
       - name: api_errors
@@ -262,7 +53,7 @@ models:
         description: "Raw nested response payload used downstream for further extraction."
 
   - name: stg_apif__lineups_d1
-    description: "Staging model for API-Football lineups payload (D1) with cleaned canonical top-level columns."
+    description: "Staging model for the ingestion-wrapped lineups snapshot (Bundesliga D1); same column names as API-shaped staging, null metadata where not present on raw."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -271,115 +62,10 @@ models:
       tags: ["staging", "api_football", "player_context"]
     columns:
       - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__lineups_e0
-    description: "Staging model for API-Football lineups payload (E0) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__lineups_i1
-    description: "Staging model for API-Football lineups payload (I1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__lineups_sp1
-    description: "Staging model for API-Football lineups payload (SP1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__lineups_f1
-    description: "Staging model for API-Football lineups payload (F1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
+        description: "Null for this table; raw payload is an ingestion aggregate, not a single API response envelope."
       - name: request_parameters
         description: "Request parameters echoed by the source API for traceability."
       - name: api_errors
@@ -392,7 +78,7 @@ models:
         description: "Raw nested response payload used downstream for further extraction."
 
   - name: stg_apif__injuries_d1
-    description: "Staging model for API-Football injuries payload (D1) with cleaned canonical top-level columns."
+    description: "Staging model for API-Football injuries payload (Bundesliga D1) with cleaned canonical top-level columns."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -401,111 +87,7 @@ models:
       tags: ["staging", "api_football", "player_context"]
     columns:
       - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__injuries_e0
-    description: "Staging model for API-Football injuries payload (E0) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__injuries_i1
-    description: "Staging model for API-Football injuries payload (I1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__injuries_sp1
-    description: "Staging model for API-Football injuries payload (SP1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
-        tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
-
-  - name: stg_apif__injuries_f1
-    description: "Staging model for API-Football injuries payload (F1) with cleaned canonical top-level columns."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    columns:
-      - name: league_code
-        description: "Internal league code aligned to project conventions (D1/E0/I1/SP1/F1)."
+        description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: api_endpoint
         description: "API-Football endpoint identifier returned in the payload metadata."

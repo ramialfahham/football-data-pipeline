@@ -5,10 +5,10 @@ with source as (
 
 select
     'D1' as league_code,
-    `get` as api_endpoint,
-    parameters as request_parameters,
-    errors as api_errors,
-    results as result_count,
-    paging as paging_info,
+    cast(null as string) as api_endpoint,
+    cast(null as json) as request_parameters,
+    cast(null as json) as api_errors,
+    cast(null as int64) as result_count,
+    cast(null as json) as paging_info,
     response as payload_response
 from source

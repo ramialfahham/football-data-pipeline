@@ -2,49 +2,14 @@ version: 2
 
 sources:
   - name: api_football
-    description: "Raw API-Football payloads for pre-match player context."
+    description: "Raw API-Football payloads for Bundesliga (D1) pre-match context."
     schema: API_FOOTBALL
     tables:
       - name: raw_apif_fixtures_next_d1
         identifier: RAW_APIF_FIXTURES_NEXT_D1
-      - name: raw_apif_fixtures_next_e0
-        identifier: RAW_APIF_FIXTURES_NEXT_E0
-      - name: raw_apif_fixtures_next_i1
-        identifier: RAW_APIF_FIXTURES_NEXT_I1
-      - name: raw_apif_fixtures_next_sp1
-        identifier: RAW_APIF_FIXTURES_NEXT_SP1
-      - name: raw_apif_fixtures_next_f1
-        identifier: RAW_APIF_FIXTURES_NEXT_F1
-
       - name: raw_apif_players_d1
         identifier: RAW_APIF_PLAYERS_D1
-      - name: raw_apif_players_e0
-        identifier: RAW_APIF_PLAYERS_E0
-      - name: raw_apif_players_i1
-        identifier: RAW_APIF_PLAYERS_I1
-      - name: raw_apif_players_sp1
-        identifier: RAW_APIF_PLAYERS_SP1
-      - name: raw_apif_players_f1
-        identifier: RAW_APIF_PLAYERS_F1
-
       - name: raw_apif_lineups_d1
         identifier: RAW_APIF_LINEUPS_D1
-      - name: raw_apif_lineups_e0
-        identifier: RAW_APIF_LINEUPS_E0
-      - name: raw_apif_lineups_i1
-        identifier: RAW_APIF_LINEUPS_I1
-      - name: raw_apif_lineups_sp1
-        identifier: RAW_APIF_LINEUPS_SP1
-      - name: raw_apif_lineups_f1
-        identifier: RAW_APIF_LINEUPS_F1
-
       - name: raw_apif_injuries_d1
         identifier: RAW_APIF_INJURIES_D1
-      - name: raw_apif_injuries_e0
-        identifier: RAW_APIF_INJURIES_E0
-      - name: raw_apif_injuries_i1
-        identifier: RAW_APIF_INJURIES_I1
-      - name: raw_apif_injuries_sp1
-        identifier: RAW_APIF_INJURIES_SP1
-      - name: raw_apif_injuries_f1
-        identifier: RAW_APIF_INJURIES_F1

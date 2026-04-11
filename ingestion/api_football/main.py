@@ -3,11 +3,9 @@ import json
 import os
 from datetime import datetime, timedelta
 
-import functions_framework
 import requests
 from google.cloud import bigquery
-
-from ingestion.common.ops import init_run, write_run_log
+from google.cloud.exceptions import NotFound
 
 GCP_PROJECT_ID = "football-data-pipeline-gcp"
 DATASET_ID = "API_FOOTBALL"
@@ -15,13 +13,9 @@ DATASET_ID = "API_FOOTBALL"
 APISPORTS_BASE = "https://v3.football.api-sports.io"
 RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
 
-# API-Football league IDs (top tiers aligned with your current scope).
+# API-Football league IDs — MVP: German Bundesliga only.
 LEAGUES = {
-    "E0": 39,    # Premier League
-    "D1": 78,    # Bundesliga
-    "I1": 135,   # Serie A
-    "SP1": 140,  # La Liga
-    "F1": 61,    # Ligue 1
+    "D1": 78,  # Bundesliga
 }
 
 
@@ -93,6 +87,31 @@ def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
     return response.json()
 
 
+def _api_football_dataset_location() -> str:
+    """Must match dbt `location` in profiles.yml (default EU)."""
+    return os.getenv("API_FOOTBALL_DATASET_LOCATION", "EU").strip() or "EU"
+
+
+def ensure_api_football_dataset(client: bigquery.Client) -> None:
+    ref = f"{GCP_PROJECT_ID}.{DATASET_ID}"
+    want_loc = _api_football_dataset_location()
+    try:
+        existing = client.get_dataset(ref)
+        got = (existing.location or "").upper()
+        if got and got != want_loc.upper():
+            raise RuntimeError(
+                f"BigQuery dataset {ref} exists in location {existing.location!r} but "
+                f"API_FOOTBALL_DATASET_LOCATION / dbt expect {want_loc!r}. "
+                f"Delete dataset {DATASET_ID} in the console (or pick one region everywhere), then re-run."
+            )
+        return
+    except NotFound:
+        pass
+    ds = bigquery.Dataset(ref)
+    ds.location = want_loc
+    client.create_dataset(ds, exists_ok=True)
+
+
 def load_json_to_bq(client: bigquery.Client, table_name: str, payload: dict) -> None:
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     line = json.dumps(payload, ensure_ascii=True) + "\n"
@@ -105,10 +124,9 @@ def load_json_to_bq(client: bigquery.Client, table_name: str, payload: dict) -> 
     job.result()
 
 
-@functions_framework.http
-def load_api_football(request):
+def _load_api_football(request):
     client = bigquery.Client(project=GCP_PROJECT_ID)
-    run_ctx = init_run("api_football")
+    ensure_api_football_dataset(client)
     errors = []
     tables_loaded = 0
 
@@ -184,25 +202,26 @@ def load_api_football(request):
             except Exception as e:
                 errors.append(f"league {league_code}: {e}")
 
-        status = "success" if not errors else "partial_success"
-        write_run_log(
-            client=client,
-            project_id=GCP_PROJECT_ID,
-            run_ctx=run_ctx,
-            status=status,
-            tables_loaded=tables_loaded,
-            errors_count=len(errors),
-            error_sample=errors[0] if errors else "",
-        )
         return f"Loaded {tables_loaded} API-Football tables.", 200
     except Exception as e:
-        write_run_log(
-            client=client,
-            project_id=GCP_PROJECT_ID,
-            run_ctx=run_ctx,
-            status="failed",
-            tables_loaded=tables_loaded,
-            errors_count=len(errors) + 1,
-            error_sample=str(e),
-        )
         return f"Pipeline failed: {e}", 500
+
+
+try:
+    import functions_framework
+
+    load_api_football = functions_framework.http(_load_api_football)
+except ImportError:
+    load_api_football = _load_api_football
+
+
+if __name__ == "__main__":
+    # Local / CI: load D1 raw tables into BigQuery without Cloud Run.
+    # From repo root: set PYTHONPATH=. and API_FOOTBALL_API_KEY, then:
+    #   python -m ingestion.api_football.main
+    class _Request:
+        pass
+
+    body, status = load_api_football(_Request())
+    print(body, flush=True)
+    raise SystemExit(0 if status == 200 else 1)

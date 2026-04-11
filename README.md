@@ -1,5 +1,7 @@
 # football-data-pipeline
-Modular ELT pipeline to aggregate and model football data from multiple sources using Python, BigQuery, and dbt.
+Modular ELT pipeline to ingest and model football data from API-Football using Python, BigQuery, and dbt.
+
+**MVP:** ingestion and dbt **`1_staging`** are scoped to **German Bundesliga (D1)** only. Folders **`2_base`–`5_marts`** exist for the layer contract but contain no models yet (placeholders). Until you add models there, `dbt parse` / `dbt build` may warn that those folder configs apply to no resources; that is expected.
 
 ## dbt (local setup)
 
@@ -26,10 +28,10 @@ Recommended local workflow:
 # Staging-only checks (fast, catches raw load issues early)
 dbt build --project-dir .\dbt_project --selector staging
 
-# Base-layer checks (unions/alignment + keys)
+# Base layer (no models until you add them under models/2_base)
 dbt build --project-dir .\dbt_project --selector base
 
-# Full suite (all models + all tests)
+# Full suite (today: staging + any packages; add base+ when you introduce models)
 dbt build --project-dir .\dbt_project
 ```
 

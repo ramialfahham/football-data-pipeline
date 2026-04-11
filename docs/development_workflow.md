@@ -49,10 +49,11 @@ dbt build --project-dir .\dbt_project --selector staging
 dbt build --project-dir .\dbt_project --selector base
 ```
 
+If `dbt` is not on your PATH after `pip install -r requirements.txt`, invoke the CLI from your Python **Scripts** directory (Windows example: `%LocalAppData%\Programs\Python\Python311\Scripts\dbt.exe`, or run `python -c "import sysconfig; print(sysconfig.get_path('scripts'))"` to print the folder).
+
 If ingestion code changed, also run syntax checks:
 
 ```powershell
-python -m py_compile ingestion\football_data_co_uk\main.py
 python -m py_compile ingestion\api_football\main.py
 ```
 

@@ -1,6 +1,6 @@
 # Data Dictionary and Definition Confidence
 
-This document defines confidence levels for data definitions and records verified mappings.
+This document defines confidence levels for data definitions and records how column meanings are confirmed.
 
 ## Confidence Levels
 
@@ -9,25 +9,11 @@ This document defines confidence levels for data definitions and records verifie
 
 ## Verified Source Documents
 
-- football-data.co.uk notes: https://www.football-data.co.uk/notes.txt
-
-## Verified Canonical Mappings (football_data_co_uk)
-
-The following canonical columns are currently verified against football-data.co.uk notes:
-
-| canonical_column | source_column | verified_definition |
-|---|---|---|
-| `match_date` | `Date` | Match date |
-| `home_team` | `HomeTeam` | Home team name |
-| `away_team` | `AwayTeam` | Away team name |
-| `full_time_home_goals` | `FTHG` | Full-time home team goals |
-| `full_time_away_goals` | `FTAG` | Full-time away team goals |
-| `full_time_result` | `FTR` | Full-time result (`H`, `D`, `A`) |
+- API-Sports Football v3 documentation: https://www.api-football.com/documentation-v3
 
 ## Current Status by Source
 
-- `football_data` (football-data.co.uk): key match/result columns are `verified`.
-- `api_football`: top-level payload naming is currently `inferred`.
+- `api_football`: top-level payload naming is currently `inferred` until each field is cross-checked with official docs.
 
 ## Update Process
 

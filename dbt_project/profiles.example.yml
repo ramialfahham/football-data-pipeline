@@ -8,7 +8,7 @@ football_data_pipeline:
       dataset: dbt_analytics
       threads: 4
       timeout_seconds: 300
-      location: EU
+      location: EU  # keep in sync with API_FOOTBALL raw dataset (ingestion default: EU)
       priority: interactive
 
     # Recommended for CI/CD:
