@@ -8,7 +8,7 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 
 | Dataset | What lives there |
 |---------|------------------|
-| **`raw`** | 1:1 ingestion from Python (`RAW_<league>_APIF_*` tables, e.g. `RAW_D1_APIF_*`, plus global `RAW_APIF_ODDS_*`). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
+| **`raw`** | 1:1 ingestion from Python (`RAW_<league>_APIF_*` tables, e.g. `RAW_D1_APIF_*`). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
 | **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
 | **`base`** | `2_base` models (views): unions, canonical keys (add when you build this layer). |
 | **`core`** | `3_core` models (tables): shared dimensions/facts. |

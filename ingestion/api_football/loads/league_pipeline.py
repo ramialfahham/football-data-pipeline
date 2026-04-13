@@ -47,7 +47,7 @@ def ingest_league(ctx: PipelineContext, league_code: str, league_id: int) -> Non
         load_top_lists(ctx, league_code, league_id, seasons_list)
         _ingestion_phase(league_code, "transfers")
         load_transfers_if_enabled(ctx, league_code, team_ids)
-        _ingestion_phase(league_code, "fixture_fanout (lineups/events/stats/odds/...)")
+        _ingestion_phase(league_code, "fixture_fanout (lineups/events/stats/predictions/...)")
         run_fixture_fanout_and_persist(
             ctx, league_code, fixtures_merged, fixture_ids, team_ids, cov
         )

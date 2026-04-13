@@ -72,3 +72,35 @@ def load_json_to_bq(
         )
     job = client.load_table_from_file(io.BytesIO(line.encode("utf-8")), table_id, job_config=job_config)
     job.result()
+
+
+def read_latest_payload_json(
+    client: bigquery.Client,
+    table_name: str,
+) -> dict | None:
+    """
+    Return the ``payload`` JSON object from the latest row (by ``ingested_datetime``).
+
+    Used to merge this run's data with prior loads so raw tables stay complete across
+    quota-limited runs. Returns ``None`` if the table is missing or empty.
+    """
+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+    try:
+        client.get_table(table_id)
+    except NotFound:
+        return None
+    job = client.query(
+        f"SELECT payload FROM `{table_id}` ORDER BY ingested_datetime DESC LIMIT 1"
+    )
+    rows = list(job.result())
+    if not rows:
+        return None
+    row = rows[0]
+    pl = row["payload"] if "payload" in row.keys() else row[0]
+    if pl is None:
+        return None
+    if isinstance(pl, dict):
+        return pl
+    if isinstance(pl, str):
+        return json.loads(pl)
+    return dict(pl)

@@ -41,9 +41,9 @@ def team_ids_for_league(
 def _fixture_fanout_http_estimate() -> int:
     """
     HTTP calls per fixture for the detailed bundle: events, statistics, lineups,
-    ``/fixtures/players``, ``/predictions``, and up to ``API_FOOTBALL_ODDS_MAX_PAGE`` for ``/odds``.
+    ``/fixtures/players``, and ``/predictions``.
     """
-    return 5 + max(1, _env_int("API_FOOTBALL_ODDS_MAX_PAGE", 3))
+    return 5
 
 
 def _bool_at(coverage: dict, *path: str, default: bool = True) -> bool:
@@ -83,7 +83,6 @@ def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]
         "standings": b("standings"),
         "injuries": b("injuries"),
         "predictions": b("predictions"),
-        "odds": b("odds"),
         "fixture_events": b("fixtures", "events"),
         "fixture_lineups": b("fixtures", "lineups"),
         "fixture_statistics": b("fixtures", "statistics_fixtures"),
@@ -253,7 +252,7 @@ def _budgeted_fixture_fanout_ids(
         elif cap < len(sorted_ids):
             errors.append(
                 f"fixture_fanout {league_code}: capped to {cap} of {len(sorted_ids)} fixtures "
-                f"(~{cpf} HTTP/fixture incl. odds pages; reserve ~{reserve_players} for /players)"
+                f"(~{cpf} HTTP/fixture; reserve ~{reserve_players} for /players)"
             )
         return sorted_ids[:cap]
 

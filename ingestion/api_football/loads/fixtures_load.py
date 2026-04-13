@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import _env_int, raw_league_table
 from ..errors_quota import append_api_errors
 from ..http_client import fetch_merged_paged
+from ..payload_merge import merge_fixtures_envelope
 from ..seasons import _merge_merged_paged, fixtures_query_params
 from .context import PipelineContext
 
@@ -83,9 +84,12 @@ def fetch_merge_and_persist_fixtures(
             f"parameters={params!r} — check API errors above, API_FOOTBALL_FIXTURES_MODE "
             f"(from_to needs sensible dates), or quota; then re-run ingest."
         )
+    fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
+    prior_fx = read_latest_payload_json(ctx.client, fx_tbl)
+    fixtures_merged = merge_fixtures_envelope(prior_fx, fixtures_merged)
     load_json_to_bq(
         ctx.client,
-        raw_league_table(league_code, "FIXTURES_NEXT"),
+        fx_tbl,
         fixtures_merged,
         as_json_payload=True,
     )

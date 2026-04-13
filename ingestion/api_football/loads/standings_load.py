@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..http_client import fetch_merged_paged
@@ -38,9 +38,12 @@ def load_standings_if_enabled(
     if standings_merged is None:
         return
     try:
+        st_tbl = raw_league_table(league_code, "STANDINGS")
+        prior = read_latest_payload_json(ctx.client, st_tbl)
+        standings_merged = merge_standings_envelope(prior, standings_merged)
         load_json_to_bq(
             ctx.client,
-            raw_league_table(league_code, "STANDINGS"),
+            st_tbl,
             standings_merged,
             as_json_payload=True,
         )

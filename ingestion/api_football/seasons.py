@@ -6,10 +6,10 @@ import os
 from datetime import date, datetime, timedelta
 
 from .config import (
-    _default_season_max,
-    _default_season_min,
     _env_truthy,
     _ingest_profile_name,
+    effective_season_max,
+    effective_season_min,
     season_year,
 )
 from .errors_quota import append_api_errors, _flatten_api_errors
@@ -121,13 +121,13 @@ def _seasons_for_ingestion(
             if not x:
                 continue
             years.append(int(x))
-        lo = _default_season_min()
-        hi = _default_season_max()
+        lo = effective_season_min()
+        hi = effective_season_max()
         out = sorted({y for y in years if lo <= y <= hi})
         if not out and years:
             errors.append(
                 "API_FOOTBALL_SEASONS: every year was outside "
-                f"API_FOOTBALL_SEASON_MIN..MAX ({lo}..{hi}); using inferred single season"
+                f"the active season band ({lo}..{hi}); using inferred single season"
             )
             return [season_year()]
         return out or [season_year()]
@@ -145,14 +145,14 @@ def _seasons_for_ingestion(
                     f"multi-season: only {len(discovered)} year(s) from /leagues and "
                     f"/leagues/seasons for league_id={league_id} — check API response and plan."
                 )
-        lo = _default_season_min()
-        hi = _default_season_max()
+        lo = effective_season_min()
+        hi = effective_season_max()
         filt = [y for y in discovered if lo <= y <= hi]
         if not filt:
             if discovered:
                 errors.append(
                     "multi-season: no API seasons fall inside "
-                    f"API_FOOTBALL_SEASON_MIN..MAX ({lo}..{hi}); using inferred single season"
+                    f"the active season band ({lo}..{hi}); using inferred single season"
                 )
             return [season_year()]
         return filt

@@ -5,15 +5,16 @@ from __future__ import annotations
 import os
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
-from ..config import _env_int, raw_league_table
+from ..bq import load_json_to_bq, read_latest_payload_json
+from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..fanout import (
     _budgeted_fixture_fanout_ids,
     _fanout_fixture_order,
     _write_fanout_cursor,
 )
-from ..http_client import fetch_json, fetch_merged_paged
+from ..http_client import fetch_json
+from ..payload_merge import merge_fanout_batched
 from .context import PipelineContext
 
 
@@ -25,7 +26,6 @@ def _batched_shell(league_code: str) -> dict[str, dict]:
         "fx_stats": dict(base),
         "fx_players": dict(base),
         "preds": dict(base),
-        "odds": dict(base),
     }
 
 
@@ -33,6 +33,7 @@ def _persist_fanout_tables(
     ctx: PipelineContext,
     league_code: str,
     shells: dict[str, dict],
+    valid_fixture_ids: set[int],
 ) -> None:
     specs = (
         ("lineups", "LINEUPS", "lineups BQ"),
@@ -40,14 +41,21 @@ def _persist_fanout_tables(
         ("fx_stats", "FIXTURE_STATISTICS", "fixture_statistics BQ"),
         ("fx_players", "FIXTURE_PLAYERS", "fixture_players BQ"),
         ("preds", "PREDICTIONS", "predictions BQ"),
-        ("odds", "ODDS", "odds BQ"),
     )
     for key, entity, err_prefix in specs:
         try:
+            tbl = raw_league_table(league_code, entity)
+            prior = read_latest_payload_json(ctx.client, tbl)
+            merged = merge_fanout_batched(
+                prior,
+                shells[key],
+                league_code=league_code,
+                valid_fixture_ids=valid_fixture_ids,
+            )
             load_json_to_bq(
                 ctx.client,
-                raw_league_table(league_code, entity),
-                shells[key],
+                tbl,
+                merged,
                 as_json_payload=True,
             )
             ctx.add_loaded(1)
@@ -73,7 +81,6 @@ def run_fixture_fanout_and_persist(
     fanout_ids = _budgeted_fixture_fanout_ids(
         ordered_fanout, team_ids, league_code, ctx.errors
     )
-    odds_mp = _env_int("API_FOOTBALL_ODDS_MAX_PAGE", 3)
     sh = _batched_shell(league_code)
 
     for fixture_id in fanout_ids:
@@ -162,21 +169,6 @@ def run_fixture_fanout_and_persist(
                 )
             except Exception as e:
                 ctx.errors.append(f"predictions {league_code} fixture {fixture_id}: {e}")
-        if cov["odds"]:
-            try:
-                od = fetch_merged_paged(
-                    "/odds",
-                    ctx.headers,
-                    {"fixture": fixture_id},
-                    paginate=True,
-                    max_pages=odds_mp,
-                )
-                append_api_errors(od, f"odds {league_code} fixture {fixture_id}", ctx.errors)
-                sh["odds"]["response"].append(
-                    {"fixture_id": fixture_id, "odds": od.get("response", [])}
-                )
-            except Exception as e:
-                ctx.errors.append(f"odds {league_code} fixture {fixture_id}: {e}")
 
     pri = os.getenv("API_FOOTBALL_FANOUT_PRIORITY", "upcoming").strip().lower()
     if pri == "cursor" and chrono_all and cursor_start is not None:
@@ -187,4 +179,4 @@ def run_fixture_fanout_and_persist(
         except Exception as e:
             ctx.errors.append(f"ingest_cursor {league_code}: {e}")
 
-    _persist_fanout_tables(ctx, league_code, sh)
+    _persist_fanout_tables(ctx, league_code, sh, fixture_ids)

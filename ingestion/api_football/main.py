@@ -46,9 +46,15 @@ if __name__ == "__main__":
     # Local / CI: load D1 raw tables into BigQuery without Cloud Run.
     # From repo root: set PYTHONPATH=. and API_FOOTBALL_API_KEY, then:
     #   python -m ingestion.api_football.main
+    # Exit: 0 ok, 1 error, 2 lock (409), 3 completeness (503).
     class _Request:
         pass
 
     body, status = load_api_football(_Request())
     print(body, flush=True)
+    # Exit codes for schedulers / CI: 0 ok, 1 pipeline error, 2 lock held, 3 completeness.
+    if status == 409:
+        raise SystemExit(2)
+    if status == 503:
+        raise SystemExit(3)
     raise SystemExit(0 if status == 200 else 1)

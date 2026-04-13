@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import raw_league_table
+from ..payload_merge import merge_players_squad
 from ..fanout import players_response_for_team
 from .context import PipelineContext
 
@@ -22,38 +23,47 @@ def load_squad_players_batch(
         ctx.errors.append(
             f"players {league_code}: skipped (API_FOOTBALL_SKIP_PLAYERS set — use on low-quota archive runs)"
         )
-    else:
-        for season in seasons_list:
+        return
+    for season in seasons_list:
+        if errors_quota._http_quota_exhausted:
+            break
+        for team_id in sorted(team_ids):
             if errors_quota._http_quota_exhausted:
                 break
-            for team_id in sorted(team_ids):
-                if errors_quota._http_quota_exhausted:
-                    break
-                try:
-                    players_rows = players_response_for_team(
-                        ctx.headers,
-                        team_id,
-                        season,
-                        ctx.errors,
-                        error_context=(
-                            f"players {league_code} team_id={team_id} season={season}"
-                        ),
-                    )
-                    players_payload["response"].append(
-                        {
-                            "team_id": team_id,
-                            "season": season,
-                            "players_payload": players_rows,
-                        }
-                    )
-                except Exception as e:
-                    ctx.errors.append(
-                        f"players {league_code} team {team_id} season={season}: {e}"
-                    )
+            try:
+                players_rows = players_response_for_team(
+                    ctx.headers,
+                    team_id,
+                    season,
+                    ctx.errors,
+                    error_context=(
+                        f"players {league_code} team_id={team_id} season={season}"
+                    ),
+                )
+                players_payload["response"].append(
+                    {
+                        "team_id": team_id,
+                        "season": season,
+                        "players_payload": players_rows,
+                    }
+                )
+            except Exception as e:
+                ctx.errors.append(
+                    f"players {league_code} team {team_id} season={season}: {e}"
+                )
+    valid_keys = {(int(tid), int(s)) for s in seasons_list for tid in team_ids}
     try:
+        tbl = raw_league_table(league_code, "PLAYERS")
+        prior = read_latest_payload_json(ctx.client, tbl)
+        players_payload = merge_players_squad(
+            prior,
+            players_payload,
+            league_code=league_code,
+            valid_team_season=valid_keys,
+        )
         load_json_to_bq(
             ctx.client,
-            raw_league_table(league_code, "PLAYERS"),
+            tbl,
             players_payload,
             as_json_payload=True,
         )

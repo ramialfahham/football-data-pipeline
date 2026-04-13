@@ -21,3 +21,8 @@ drop table if exists `football-data-pipeline-gcp.raw.RAW_APIF_PREDICTIONS_D1`;
 drop table if exists `football-data-pipeline-gcp.raw.RAW_APIF_ODDS_D1`;
 drop table if exists `football-data-pipeline-gcp.raw.RAW_APIF_PLAYERS_D1`;
 drop table if exists `football-data-pipeline-gcp.raw.RAW_APIF_INGEST_CURSOR_D1`;
+
+-- Odds raw tables (removed from ingestion); drop if left over from older runs.
+drop table if exists `football-data-pipeline-gcp.raw.RAW_APIF_ODDS_BOOKMAKERS`;
+drop table if exists `football-data-pipeline-gcp.raw.RAW_APIF_ODDS_BETS`;
+drop table if exists `football-data-pipeline-gcp.raw.RAW_D1_APIF_ODDS`;

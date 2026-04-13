@@ -99,7 +99,7 @@ models:
       tags: ["staging", "api_football", "player_context"]
 
   - name: stg_apif__d1_rounds
-    description: "Round names from GET /fixtures/rounds."
+    description: "Round names from GET /fixtures/rounds (raw stores one block per API season with ``api_season_year``)."
     config:
       tags: ["staging", "api_football", "player_context"]
 
@@ -136,16 +136,6 @@ models:
     config:
       tags: ["staging", "api_football", "player_context"]
 
-  - name: stg_apif__d1_ref_odds_bookmakers
-    description: "Reference GET /odds/bookmakers (global, not league-scoped)."
-    config:
-      tags: ["staging", "api_football", "player_context"]
-
-  - name: stg_apif__d1_ref_odds_bets
-    description: "Reference GET /odds/bets (global, not league-scoped)."
-    config:
-      tags: ["staging", "api_football", "player_context"]
-
   - name: stg_apif__d1_fixture_events
     description: "Per-fixture GET /fixtures/events (batched payload)."
     config:
@@ -163,10 +153,5 @@ models:
 
   - name: stg_apif__d1_predictions
     description: "Per-fixture GET /predictions (batched payload)."
-    config:
-      tags: ["staging", "api_football", "player_context"]
-
-  - name: stg_apif__d1_odds
-    description: "Per-fixture GET /odds merged pages (batched payload)."
     config:
       tags: ["staging", "api_football", "player_context"]

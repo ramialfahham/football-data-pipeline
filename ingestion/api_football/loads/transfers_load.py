@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import _env_int, raw_league_table
 from ..errors_quota import append_api_errors, _flatten_api_errors
 from ..http_client import fetch_merged_paged
+from ..payload_merge import merge_transfers_envelope
 from .context import PipelineContext
 
 
@@ -52,9 +53,12 @@ def load_transfers_if_enabled(
         tr["results"] = len(merged_tr)
         tr["paging"] = {"current": 1, "total": 1}
         append_api_errors(tr, f"transfers {league_code}", ctx.errors)
+        tr_tbl = raw_league_table(league_code, "TRANSFERS")
+        prior = read_latest_payload_json(ctx.client, tr_tbl)
+        tr = merge_transfers_envelope(prior, tr)
         load_json_to_bq(
             ctx.client,
-            raw_league_table(league_code, "TRANSFERS"),
+            tr_tbl,
             tr,
             as_json_payload=True,
         )

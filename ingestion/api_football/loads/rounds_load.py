@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..http_client import fetch_json
-from ..seasons import _merge_json_api
+from ..payload_merge import merge_rounds_season_blocks
 from .context import PipelineContext
 
 
@@ -17,7 +17,8 @@ def load_rounds_merged(
     league_id: int,
     seasons_list: list[int],
 ) -> None:
-    rounds_merged: dict | None = None
+    rnd_tbl = raw_league_table(league_code, "ROUNDS")
+    rounds_merged = read_latest_payload_json(ctx.client, rnd_tbl)
     for season in seasons_list:
         if errors_quota._http_quota_exhausted:
             break
@@ -30,7 +31,7 @@ def load_rounds_merged(
             append_api_errors(
                 rounds_pl, f"fixtures/rounds {league_code} season={season}", ctx.errors
             )
-            rounds_merged = _merge_json_api(rounds_merged, rounds_pl)
+            rounds_merged = merge_rounds_season_blocks(rounds_merged, season, rounds_pl)
         except Exception as e:
             ctx.errors.append(f"fixtures/rounds {league_code} season={season}: {e}")
     if rounds_merged is None:
@@ -38,7 +39,7 @@ def load_rounds_merged(
     try:
         load_json_to_bq(
             ctx.client,
-            raw_league_table(league_code, "ROUNDS"),
+            rnd_tbl,
             rounds_merged,
             as_json_payload=True,
         )

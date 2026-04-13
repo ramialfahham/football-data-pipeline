@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..fanout import team_ids_for_league
@@ -45,9 +45,12 @@ def load_teams_merge_and_extend_ids(
         if teams_merged_envelope is not None:
             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
+            tm_tbl = raw_league_table(league_code, "TEAMS")
+            prior = read_latest_payload_json(ctx.client, tm_tbl)
+            teams_merged_envelope = merge_teams_envelope(prior, teams_merged_envelope)
             load_json_to_bq(
                 ctx.client,
-                raw_league_table(league_code, "TEAMS"),
+                tm_tbl,
                 teams_merged_envelope,
                 as_json_payload=True,
             )

@@ -30,6 +30,10 @@ LEAGUES = {
     "D1": 78,  # Bundesliga
 }
 
+# v1 milestone: last N API ``season`` start years **including** the active campaign (see
+# ``_infer_competition_season_start_year``). Fixed N here — widen in code later if v2 needs it.
+V1_SEASON_WINDOW_YEARS = 10
+
 
 def raw_league_table(league_code: str, entity: str) -> str:
     """
@@ -93,14 +97,23 @@ def _infer_competition_season_start_year(now: datetime | None = None) -> int:
     return today.year - 1
 
 
+def effective_season_min() -> int:
+    """Lower bound: ``V1_SEASON_WINDOW_YEARS`` start years ending at the active campaign."""
+    hi = _infer_competition_season_start_year()
+    return hi - (V1_SEASON_WINDOW_YEARS - 1)
+
+
+def effective_season_max() -> int:
+    """Upper bound: active campaign API season start year."""
+    return _infer_competition_season_start_year()
+
+
 def _default_season_min() -> int:
-    """Lower bound when auto-picking or filtering discovered seasons (override via env)."""
-    return _env_int("API_FOOTBALL_SEASON_MIN", 1990)
+    return effective_season_min()
 
 
 def _default_season_max() -> int:
-    """Upper bound defaults to the current calendar year so the active season is never clamped away."""
-    return _env_int("API_FOOTBALL_SEASON_MAX", datetime.utcnow().year)
+    return effective_season_max()
 
 
 def season_year() -> int:
@@ -110,18 +123,16 @@ def season_year() -> int:
     If ``API_FOOTBALL_SEASON`` is set, it wins.
 
     If unset, we infer the **current** campaign via :func:`_infer_competition_season_start_year`
-    then clamp to ``[API_FOOTBALL_SEASON_MIN, API_FOOTBALL_SEASON_MAX]`` (defaults
-    ``1990`` .. ``current calendar year``). Narrow the band on strict keys, or set
-    ``API_FOOTBALL_ALL_SEASONS`` / ``API_FOOTBALL_SEASONS`` for multi-season loads.
+    then clamp to the v1 window ``[effective_season_min(), effective_season_max()]``
+    (last ``V1_SEASON_WINDOW_YEARS`` API season start years, inclusive). Set
+    ``API_FOOTBALL_SEASONS`` for an explicit list when needed.
     """
     raw = os.getenv("API_FOOTBALL_SEASON")
     if raw is not None and raw.strip() != "":
         return int(raw.strip())
     candidate = _infer_competition_season_start_year()
-    lo = _default_season_min()
-    hi = _default_season_max()
-    if lo > hi:
-        raise ValueError("API_FOOTBALL_SEASON_MIN must be <= API_FOOTBALL_SEASON_MAX")
+    lo = effective_season_min()
+    hi = effective_season_max()
     return min(max(candidate, lo), hi)
 
 
@@ -145,8 +156,9 @@ def _ingest_profile_name() -> str:
 
 def _apply_ingest_profile_defaults() -> None:
     """
-    **Full** profile = standard paid / warehouse ingestion: all seasons the API exposes
-    for the league, no request pacing unless you set it, and high pagination caps.
+    **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
+    v1 window (``V1_SEASON_WINDOW_YEARS``), no request pacing unless you set it, and
+    high pagination caps.
     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
 
     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
@@ -170,14 +182,14 @@ def _apply_ingest_profile_defaults() -> None:
     d.setdefault("API_FOOTBALL_ALL_SEASONS", "1")
     d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
     d.setdefault("API_FOOTBALL_PLAYERS_MAX_PAGE", "50")
-    d.setdefault("API_FOOTBALL_ODDS_MAX_PAGE", "30")
     d.setdefault("API_FOOTBALL_TRANSFERS_MAX_PAGE", "50")
     d.setdefault("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", "-1")
     d.setdefault("API_FOOTBALL_MAX_PAGES", "250")
     d.setdefault("API_FOOTBALL_FIXTURES_MAX_PAGE", "50")
     print(
         "[api-football] ingest profile=full -> unset env got paid defaults "
-        "(catalog multi-season, REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
+        f"(multi-season within v1 window last {V1_SEASON_WINDOW_YEARS} API season years, "
+        "REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
         "Unset API_FOOTBALL_SEASON for multi-season; set any var explicitly to override.",
         flush=True,
     )

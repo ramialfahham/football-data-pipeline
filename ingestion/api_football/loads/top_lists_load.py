@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from .. import errors_quota
-from ..bq import load_json_to_bq
+from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..http_client import fetch_merged_paged
+from ..payload_merge import merge_top_list_envelope
 from ..seasons import _merge_merged_paged
 from .context import PipelineContext
 
@@ -46,9 +47,12 @@ def load_top_lists(
         if merged_top is None:
             continue
         try:
+            top_tbl = raw_league_table(league_code, tbl)
+            prior = read_latest_payload_json(ctx.client, top_tbl)
+            merged_top = merge_top_list_envelope(prior, merged_top)
             load_json_to_bq(
                 ctx.client,
-                raw_league_table(league_code, tbl),
+                top_tbl,
                 merged_top,
                 as_json_payload=True,
             )
