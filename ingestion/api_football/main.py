@@ -104,14 +104,17 @@ def _default_fixture_date_range(season: int, days: int) -> tuple[str, str]:
     """
     Inclusive ``from`` / ``to`` for ``from_to`` mode when env dates are not set.
 
-    Uses the last ``days`` days **inside** a coarse European-season calendar for
-    ``season`` (July 1 ``season`` → June 30 ``season+1``), capped by UTC today, so
-    we do not send e.g. 2026 dates with ``season=2024`` (which often yields empty data).
+    Uses the last ``days`` days inside the API ``season`` (July 1 ``season`` through
+    June 30 ``season+1``), capped by UTC **today** and by **May 31 ``season+1``** so we
+    do not land in the summer break (e.g. mid–late June) where many domestic leagues
+    have **no** ``league`` fixtures — which produced empty ``response`` for D1.
     """
     today = datetime.utcnow().date()
     season_start = date(season, 7, 1)
     season_end = date(season + 1, 6, 30)
-    end = min(today, season_end)
+    # Typical last domestic matchdays are by end of May; June is often empty for league id.
+    regular_season_end = date(season + 1, 5, 31)
+    end = min(today, season_end, regular_season_end)
     if end < season_start:
         end = min(season_start + timedelta(days=max(days - 1, 0)), season_end)
         start = season_start
