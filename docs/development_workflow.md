@@ -54,7 +54,7 @@ If `dbt` is not on your PATH after `pip install -r requirements.txt`, invoke the
 If ingestion code changed, also run syntax checks:
 
 ```powershell
-python -m py_compile ingestion\api_football\main.py
+Get-ChildItem ingestion\api_football\ -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
 ```
 
 ## 5) Data Quality and Documentation Gate

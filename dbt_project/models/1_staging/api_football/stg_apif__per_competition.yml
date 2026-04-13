@@ -1,8 +1,11 @@
 version: 2
 
+# Staging naming: use ``_date`` for ``DATE`` columns and ``_datetime`` for ``TIMESTAMP`` / ``DATETIME``.
+# Integer epoch fields must not use those suffixes (e.g. ``fixture_api_unix_seconds``).
+
 models:
-  - name: stg_apif__fixtures_next_d1
-    description: "Staging model for API-Football fixtures_next payload (Bundesliga D1) with cleaned canonical top-level columns."
+  - name: stg_apif__d1_fixtures_next
+    description: "One row per match from GET /fixtures (D1); envelope metadata as JSON strings plus core kickoff / teams / score columns and source_json."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -13,22 +16,24 @@ models:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
+      - name: raw_ingested_datetime
+        description: "UTC timestamp when this raw table row was loaded (from ``ingested_datetime`` in BigQuery raw)."
+      - name: fixture_id
+        description: "API-Football fixture id."
         tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
+      - name: fixture_date
+        description: "Fixture calendar date in UTC (``DATE``), derived from API ``fixture.date``."
+      - name: kickoff_datetime
+        description: "Fixture kickoff as ``TIMESTAMP`` from API ``fixture.date`` (RFC3339 string)."
+      - name: fixture_api_unix_seconds
+        description: "API ``fixture.timestamp`` (Unix seconds), not a warehouse datetime type."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the parent response envelope (same on every row for that load)."
+      - name: source_json
+        description: "Full match object JSON for fields not promoted to columns."
 
-  - name: stg_apif__players_d1
-    description: "Staging model for the ingestion-wrapped players snapshot (Bundesliga D1); same column names as API-shaped staging, null metadata where not present on raw."
+  - name: stg_apif__d1_players
+    description: "One row per player from the merged /players squad pull (D1 batch payload in raw)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -39,21 +44,21 @@ models:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
-      - name: api_endpoint
-        description: "Null for this table; raw payload is an ingestion aggregate, not a single API response envelope."
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
+      - name: team_id
+        description: "Club id for this squad row."
+        tests: [not_null]
+      - name: season_year
+        description: "Competition start year for this squad snapshot (API season); from batch payload when multi-season ingest runs."
+      - name: player_id
+        description: "Player id from API-Football."
+        tests: [not_null]
+      - name: raw_ingested_datetime
+        description: "UTC timestamp when the squad raw row was loaded."
+      - name: birth_date
+        description: "Player birth date as ``DATE`` when parseable from API ``birth.date``."
 
-  - name: stg_apif__lineups_d1
-    description: "Staging model for the ingestion-wrapped lineups snapshot (Bundesliga D1); same column names as API-shaped staging, null metadata where not present on raw."
+  - name: stg_apif__d1_lineups
+    description: "One row per team formation block per fixture from the batched lineups payload (D1)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -64,21 +69,12 @@ models:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
-      - name: api_endpoint
-        description: "Null for this table; raw payload is an ingestion aggregate, not a single API response envelope."
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
+      - name: fixture_id
+        description: "Fixture id for this lineup slice."
+        tests: [not_null]
 
-  - name: stg_apif__injuries_d1
-    description: "Staging model for API-Football injuries payload (Bundesliga D1) with cleaned canonical top-level columns."
+  - name: stg_apif__d1_injuries
+    description: "One row per injury row from GET /injuries (D1)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -89,16 +85,88 @@ models:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
-      - name: api_endpoint
-        description: "API-Football endpoint identifier returned in the payload metadata."
-        tests: [not_null]
-      - name: request_parameters
-        description: "Request parameters echoed by the source API for traceability."
-      - name: api_errors
-        description: "API-level errors object returned by API-Football."
-      - name: result_count
-        description: "Count of records returned by the API for this request."
-      - name: paging_info
-        description: "Paging metadata returned by API-Football."
-      - name: payload_response
-        description: "Raw nested response payload used downstream for further extraction."
+      - name: season
+        description: "API season year on the injury row (from `$.league.season` in the response object)."
+
+  - name: stg_apif__d1_leagues
+    description: "Bundesliga D1 metadata and per-season coverage from GET /leagues."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_standings
+    description: "League table from GET /standings (skipped when coverage.standings is false)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_rounds
+    description: "Round names from GET /fixtures/rounds."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_teams
+    description: "Clubs and venues from GET /teams for league+season."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+    columns:
+      - name: season
+        description: "API season year for this team row (from `$.league.season` in the response object)."
+
+  - name: stg_apif__d1_topscorers
+    description: "GET /players/topscorers merged pages."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_topassists
+    description: "GET /players/topassists merged pages."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_topyellowcards
+    description: "GET /players/topyellowcards merged pages."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_topredcards
+    description: "GET /players/topredcards merged pages."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_transfers
+    description: "GET /transfers when league+season is accepted (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_ref_odds_bookmakers
+    description: "Reference GET /odds/bookmakers (global, not league-scoped)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_ref_odds_bets
+    description: "Reference GET /odds/bets (global, not league-scoped)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_fixture_events
+    description: "Per-fixture GET /fixtures/events (batched payload)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_fixture_statistics
+    description: "Per-fixture GET /fixtures/statistics (batched payload)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_fixture_players
+    description: "Per-fixture GET /fixtures/players (batched payload)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_predictions
+    description: "Per-fixture GET /predictions (batched payload)."
+    config:
+      tags: ["staging", "api_football", "player_context"]
+
+  - name: stg_apif__d1_odds
+    description: "Per-fixture GET /odds merged pages (batched payload)."
+    config:
+      tags: ["staging", "api_football", "player_context"]

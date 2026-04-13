@@ -1,0 +1,24 @@
+---
+description: Milestone and ingest scope — align before changing env or narrowing data
+alwaysApply: true
+---
+
+# Data pipeline milestone (binding)
+
+## North star
+
+- **Goal:** Complete API-Football **D1** data in BigQuery **`raw`** (all MVP raw tables per `docs/api_football_mvp_scope.md`) **and** matching **`staging`** views (`dbt build --selector staging` green on that raw).
+- **After that:** User builds **downstream** dbt (base/marts/etc.); do not expand modeling scope unless asked.
+
+## Do not work against the user
+
+- **Never** change **`.env`**, ingest profile, season selection, or fanout/cost caps to “make a run finish faster” or “unblock quickly” **without explicit user confirmation** in the same thread. Treat **full multi-season** (`API_FOOTBALL_INGEST_PROFILE=full`, no `API_FOOTBALL_SEASON` unless they asked for a slice) as the default intent for this repo unless they state otherwise.
+- If API **daily limits** require multiple days or scheduled runs, **say so** and propose **scheduling or cursor/fanout patterns** from the doc — do **not** silently redefine “complete” as one season.
+
+## Before non-trivial changes
+
+State in one short block: **intent → files/env touched → definition of done.** If anything could shrink scope, **stop and ask**.
+
+## Where details live
+
+- Ingest contract, tables, env reference: `docs/api_football_mvp_scope.md`.

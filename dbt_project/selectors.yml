@@ -11,6 +11,19 @@ selectors:
       method: path
       value: models/2_base
 
+  - name: downstream
+    description: "Base through marts (excludes 1_staging); use once models exist under 2_base–5_marts."
+    definition:
+      union:
+        - method: path
+          value: models/2_base
+        - method: path
+          value: models/3_core
+        - method: path
+          value: models/4_intermediate
+        - method: path
+          value: models/5_marts
+
   - name: dq
     description: "All models and all tests (full data-quality suite)."
     definition:

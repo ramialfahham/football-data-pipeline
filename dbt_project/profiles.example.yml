@@ -5,10 +5,12 @@ football_data_pipeline:
       type: bigquery
       method: oauth
       project: football-data-pipeline-gcp
-      dataset: dbt_analytics
+      # Fallback dataset for models without `+schema` (see `macros/generate_schema_name.sql`).
+      # Layer models use datasets: raw (ingestion only), staging, base, core, intermediate, marts.
+      dataset: dbt_scratch
       threads: 4
       timeout_seconds: 300
-      location: EU  # keep in sync with API_FOOTBALL raw dataset (ingestion default: EU)
+      location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
       priority: interactive
 
     # Recommended for CI/CD:

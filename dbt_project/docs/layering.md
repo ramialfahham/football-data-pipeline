@@ -2,6 +2,34 @@
 
 This document defines what is allowed in each dbt layer for this project.
 
+## BigQuery layout (datasets = schemas)
+
+In BigQuery, a **dataset** is the unit that other databases often call a **schema**. This repo uses **one dataset per medallion layer** (same names as in `dbt_project.yml`):
+
+| Dataset | What lives there |
+|---------|------------------|
+| **`raw`** | 1:1 ingestion from Python (`RAW_<league>_APIF_*` tables, e.g. `RAW_D1_APIF_*`, plus global `RAW_APIF_ODDS_*`). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
+| **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
+| **`base`** | `2_base` models (views): unions, canonical keys (add when you build this layer). |
+| **`core`** | `3_core` models (tables): shared dimensions/facts. |
+| **`intermediate`** | `4_intermediate` models (tables): heavier transforms. |
+| **`marts`** | `5_marts` models (tables): BI / product-facing tables. |
+
+dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema`; with [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), configured layer models use **only** the custom name (`staging`, `base`, …), not `dbt_scratch_staging`.
+
+**Ingestion vs dbt:** Python loads **`project.raw.*`**. dbt builds **`project.staging.*`**, **`project.base.*`**, etc. Same GCP **project**, different datasets.
+
+The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
+
+`dbt build --project-dir .\dbt_project --vars '{raw_schema: raw_dev}'`
+
+### Adding another landing source (recommended pattern)
+
+1. **Tables:** keep using the shared **`raw`** dataset; add tables with a **clear prefix** (e.g. `RAW_OPTA_*`, `RAW_STATS_BOMB_*`) so sources never collide.
+2. **Ingestion:** isolate loaders under `ingestion/<source>/` (same pattern as `ingestion/api_football/`).
+3. **dbt:** add `models/1_staging/<source>/sources.yml` pointing at `schema: "{{ var('raw_schema') }}"` and staging models named `stg_<source>__<entity>` (see `engineering_standards.md`).
+4. **Do not** nest datasets as `raw/api_football` — BigQuery has no subdatasets; use **prefixes** or, if IAM requires it, a **separate** dataset `raw_<source>` and a second dbt var (only when needed).
+
 ## Layer Cheat Sheet
 
 - `1_staging`: source-near cleanup only (renaming, typing, light normalization). No cross-source unions/joins.

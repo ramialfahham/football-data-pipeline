@@ -1,7 +1,12 @@
 # dbt Engineering Standards
 
 This document defines practical standards for analytics engineering in this project.
-Use it together with `docs/layering.md`.
+Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and layer rules).
+
+## 0) Warehouse layout
+
+- **Raw landing** lives in the BigQuery dataset named by dbt **`raw_schema`** (default `raw`). Ingestion must use the **same** dataset id (`API_FOOTBALL_BIGQUERY_DATASET` for API-Football).
+- **Additional vendors:** prefer new `RAW_<VENDOR>_…` tables in the **same** `raw` dataset and a new folder `models/1_staging/<vendor>/` unless IAM forces a separate `raw_<vendor>` dataset.
 
 ## 1) Naming Conventions
 

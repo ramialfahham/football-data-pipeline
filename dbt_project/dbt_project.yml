@@ -21,6 +21,8 @@ clean-targets:
 vars:
   # This tells dbt_utils how to handle specific BigQuery syntax if needed
   'dbt_utils:dispatch_list': ['bigquery']
+  # BigQuery dataset id for 1:1 ingestion (must match Python `API_FOOTBALL_BIGQUERY_DATASET` default).
+  raw_schema: raw
 
 # Hierarchical Model Configuration
 models:

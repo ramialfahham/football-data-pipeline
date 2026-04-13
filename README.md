@@ -1,6 +1,20 @@
 # football-data-pipeline
 Modular ELT pipeline to ingest and model football data from API-Football using Python, BigQuery, and dbt.
 
+## BigQuery layout (datasets)
+
+BigQuery uses **datasets** as the unit that other databases often call **schemas**. This repo uses **one dataset per medallion layer** in the same GCP project:
+
+| Dataset | Role |
+|---------|------|
+| **`raw`** | 1:1 loads from Python (`RAW_*` tables). Default; override with `API_FOOTBALL_BIGQUERY_DATASET` (ingestion) and dbt **`raw_schema`** var (must match). |
+| **`staging`** | dbt `1_staging` — light cleanup on top of `raw`. |
+| **`base`** → **`marts`** | dbt `2_base` … `5_marts` per `dbt_project.yml`. |
+
+dbt uses [`macros/generate_schema_name.sql`](dbt_project/macros/generate_schema_name.sql) so layer names map **directly** to dataset ids (not `dbt_scratch_staging`). The profile’s default **`dataset`** (`dbt_scratch` in `profiles.example.yml`) is only a fallback for nodes without `+schema`.
+
+Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_project/docs/layering.md).
+
 **MVP:** ingestion and dbt **`1_staging`** are scoped to **German Bundesliga (D1)** only. Folders **`2_base`–`5_marts`** exist for the layer contract but contain no models yet (placeholders). Until you add models there, `dbt parse` / `dbt build` may warn that those folder configs apply to no resources; that is expected.
 
 ## dbt (local setup)
@@ -28,11 +42,17 @@ Recommended local workflow:
 # Staging-only checks (fast, catches raw load issues early)
 dbt build --project-dir .\dbt_project --selector staging
 
-# Base layer (no models until you add them under models/2_base)
+# Base layer only (no models until you add them under models/2_base)
 dbt build --project-dir .\dbt_project --selector base
 
-# Full suite (today: staging + any packages; add base+ when you introduce models)
+# Base + core + intermediate + marts (when those folders contain models)
+dbt build --project-dir .\dbt_project --selector downstream
+
+# Full suite (staging + downstream + tests)
 dbt build --project-dir .\dbt_project
+
+# Optional: point dbt at a non-default raw dataset (must match ingestion target)
+# dbt build --project-dir .\dbt_project --vars "{ raw_schema: raw_dev }"
 ```
 
 ## dbt Layer Contract
