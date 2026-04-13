@@ -137,7 +137,8 @@ def fixtures_query_params(league_id: int, season: int) -> dict:
         date_to = os.getenv("API_FOOTBALL_FIXTURE_TO")
         if date_from and date_to:
             return {**base, "from": date_from.strip(), "to": date_to.strip()}
-        days = int(os.getenv("API_FOOTBALL_FIXTURE_RANGE_DAYS", "14"))
+        # Default 42: ~6 weeks of matchdays when anchored at end of May (14 was often only 1–2 rounds).
+        days = int(os.getenv("API_FOOTBALL_FIXTURE_RANGE_DAYS", "42"))
         start_s, end_s = _default_fixture_date_range(season, days)
         return {**base, "from": start_s, "to": end_s}
     if mode == "next":
