@@ -217,6 +217,17 @@ python -m ingestion.api_football.main
 
 **CLI exit codes:** **0** = success and completeness OK (or check skipped); **1** = pipeline exception; **2** = ingest lock held by another run (**409**); **3** = completeness shortfall (**503** when strict).
 
+### Resume ingest toward v1 “complete” (next day or after quota reset)
+
+Partial runs still **merge** into raw tables; you **do not** drop everything unless you choose to.
+
+1. **`git pull origin main`** so you have the latest loader (including merge reads that tolerate legacy raw schemas without `ingested_datetime`).
+2. From repo root: **`pip install -r requirements.txt`** (if deps changed), then **`$env:PYTHONPATH = "."`** and **`python -m ingestion.api_football.main`**.
+3. **Milestone (fanout complete vs fixtures):** keep **`API_FOOTBALL_FANOUT_PRIORITY=cursor`** (or alternate **upcoming** / **cursor** jobs per the archive playbook) until `ingest_completeness_json` shows **`all_fanout_complete": true`** for D1. Until then, set **`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`** in `.env` if you do not want exit **3** / HTTP **503** on every short pass.
+4. **Lock stuck (409 / exit 2)** while no job is running: run **`python scripts/clear_apif_ingest_lock.py`** from repo root (with `PYTHONPATH=.` and ADC), or wait for **`lease_until`**.
+5. **Optional one-time hygiene:** if **`RAW_D1_APIF_PLAYERS`** was created under an old autodetect layout and causes issues, drop that table in BigQuery once; the next successful load recreates **`payload` + `ingested_datetime`**.
+6. When raw looks good: **`dbt build --project-dir .\dbt_project --selector staging`**.
+
 Or set `API_FOOTBALL_API_KEY` in the shell / OS user environment if you prefer not to use a file.
 
 Creates the **raw** dataset (default id **`raw`**; override with `API_FOOTBALL_BIGQUERY_DATASET`) in **EU** by default, then loads **all** `RAW_D1_APIF_*` league tables listed above. See [`dbt_project/docs/layering.md`](../dbt_project/docs/layering.md) for how this maps to **staging → base → core → intermediate → marts** datasets.

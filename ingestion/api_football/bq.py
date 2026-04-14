@@ -79,19 +79,25 @@ def read_latest_payload_json(
     table_name: str,
 ) -> dict | None:
     """
-    Return the ``payload`` JSON object from the latest row (by ``ingested_datetime``).
+    Return the ``payload`` JSON object from the latest row (by ``ingested_datetime`` when
+    that column exists; otherwise ``LIMIT 1`` for legacy autodetect tables).
 
     Used to merge this run's data with prior loads so raw tables stay complete across
     quota-limited runs. Returns ``None`` if the table is missing or empty.
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     try:
-        client.get_table(table_id)
+        table = client.get_table(table_id)
     except NotFound:
         return None
-    job = client.query(
-        f"SELECT payload FROM `{table_id}` ORDER BY ingested_datetime DESC LIMIT 1"
-    )
+    colnames = {f.name for f in table.schema}
+    if "payload" not in colnames:
+        return None
+    if "ingested_datetime" in colnames:
+        q = f"SELECT payload FROM `{table_id}` ORDER BY ingested_datetime DESC LIMIT 1"
+    else:
+        q = f"SELECT payload FROM `{table_id}` LIMIT 1"
+    job = client.query(q)
     rows = list(job.result())
     if not rows:
         return None
