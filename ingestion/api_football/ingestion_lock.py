@@ -35,21 +35,20 @@ def skip_ingest_lock() -> bool:
 
 
 def ensure_ingest_lock_table(client: bigquery.Client) -> None:
-    """One row per ``LOCK_NAME``; created on first use."""
+    """Create the lock table if needed and ensure the singleton seed row exists."""
     tid = ingest_lock_table_id()
     try:
         client.get_table(tid)
-        return
     except NotFound:
-        pass
-    schema = [
-        bigquery.SchemaField("lock_name", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("holder_run_id", "STRING"),
-        bigquery.SchemaField("lease_until", "TIMESTAMP"),
-        bigquery.SchemaField("acquired_at", "TIMESTAMP"),
-    ]
-    table = bigquery.Table(tid, schema=schema)
-    client.create_table(table, exists_ok=True)
+        schema = [
+            bigquery.SchemaField("lock_name", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("holder_run_id", "STRING"),
+            bigquery.SchemaField("lease_until", "TIMESTAMP"),
+            bigquery.SchemaField("acquired_at", "TIMESTAMP"),
+        ]
+        table = bigquery.Table(tid, schema=schema)
+        client.create_table(table, exists_ok=True)
+    # If the table existed from an older failed run, it may be empty; always seed.
     client.query(
         f"""
         INSERT INTO `{tid}` (lock_name, holder_run_id, lease_until, acquired_at)
