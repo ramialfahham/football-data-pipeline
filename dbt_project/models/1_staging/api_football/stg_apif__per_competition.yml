@@ -12,6 +12,10 @@ models:
       criticality: "medium"
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_id
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
@@ -40,6 +44,13 @@ models:
       criticality: "medium"
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - team_id
+            - season_year
+            - player_id
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
@@ -65,6 +76,12 @@ models:
       criticality: "medium"
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+            - team_id
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
@@ -81,6 +98,16 @@ models:
       criticality: "medium"
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - season
+            - player_id
+            - team_id
+            - fixture_id
+            - injury_type
+            - injury_reason
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
@@ -92,21 +119,45 @@ models:
     description: "Bundesliga D1 metadata and per-season coverage from GET /leagues."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - league_api_id
 
   - name: stg_apif__d1_standings
     description: "League table from GET /standings (skipped when coverage.standings is false)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - season
+            - team_id
+            - group_description
 
   - name: stg_apif__d1_rounds
     description: "Round names from GET /fixtures/rounds (raw stores one block per API season with ``api_season_year``)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - api_season_year
+            - round_name
 
   - name: stg_apif__d1_teams
     description: "Clubs and venues from GET /teams for league+season."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - season
+            - team_id
     columns:
       - name: season
         description: "API season year for this team row (from `$.league.season` in the response object)."
@@ -115,43 +166,98 @@ models:
     description: "GET /players/topscorers merged pages."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_id
 
   - name: stg_apif__d1_topassists
     description: "GET /players/topassists merged pages."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_id
 
   - name: stg_apif__d1_topyellowcards
     description: "GET /players/topyellowcards merged pages."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_id
 
   - name: stg_apif__d1_topredcards
     description: "GET /players/topredcards merged pages."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_id
 
   - name: stg_apif__d1_transfers
     description: "GET /transfers when league+season is accepted (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_id
 
   - name: stg_apif__d1_fixture_events
     description: "Per-fixture GET /fixtures/events (batched payload)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+            - minute_elapsed
+            - minute_extra
+            - team_id
+            - player_id
+            - event_type
+            - event_detail
 
   - name: stg_apif__d1_fixture_statistics
     description: "Per-fixture GET /fixtures/statistics (batched payload)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+            - team_id
 
   - name: stg_apif__d1_fixture_players
     description: "Per-fixture GET /fixtures/players (batched payload)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+            - team_id
+            - player_id
 
   - name: stg_apif__d1_predictions
     description: "Per-fixture GET /predictions (batched payload)."
     config:
       tags: ["staging", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+            - prediction_json
