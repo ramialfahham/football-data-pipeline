@@ -54,6 +54,7 @@ def ensure_ingest_lock_table(client: bigquery.Client) -> None:
         f"""
         INSERT INTO `{tid}` (lock_name, holder_run_id, lease_until, acquired_at)
         SELECT @name, NULL, NULL, NULL
+        FROM (SELECT 1 AS _singleton)
         WHERE NOT EXISTS (SELECT 1 FROM `{tid}` WHERE lock_name = @name)
         """,
         job_config=bigquery.QueryJobConfig(
