@@ -67,11 +67,10 @@ This project follows a strict layer contract so transformations stay predictable
 
 Detailed rules: `dbt_project/docs/layering.md`.
 Engineering standards: `dbt_project/docs/engineering_standards.md`.
-Ingestion operations standards: `docs/ingestion_standards.md`.
 API-Football data contract: `docs/data_contract.md`.
-Data dictionary and definition confidence: `docs/data_dictionary.md`.
 Development workflow: `docs/development_workflow.md`.
 
 ## Maintenance & operations
 
 - **Runbook and troubleshooting** (environment variables, ingest lock, completeness checks, backfill vs daily update): [`docs/operations_guide.md`](docs/operations_guide.md).
+- **Cursor / AI governance** (binding rules for tool use, edits, and permissions): [`.cursor/rules/ai-behavior-and-permissions.mdc`](.cursor/rules/ai-behavior-and-permissions.mdc).

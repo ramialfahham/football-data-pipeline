@@ -1,6 +1,6 @@
 # Operations guide: running and troubleshooting ingestion
 
-This guide is for **anyone operating** the API-Football → BigQuery loader: what the knobs do, why safety checks exist, and how to run a **one-off backfill** versus a **steady daily job**. For **what** we store and **which tables** map to which API calls, see [`data_contract.md`](data_contract.md). For **engineering conventions** on ingestion code, see [`ingestion_standards.md`](ingestion_standards.md).
+This guide is for **anyone operating** the API-Football → BigQuery loader: what the knobs do, why safety checks exist, and how to run a **one-off backfill** versus a **steady daily job**. For **what** we store and **which tables** map to which API calls, see [`data_contract.md`](data_contract.md). Ingestion behaviour and HTTP discipline are defined in the **`ingestion/api_football`** package in this repository.
 
 ---
 
@@ -42,7 +42,7 @@ Your API-Football / API-Sports (or RapidAPI) key. Without it, the process stops 
 
 Controls the **“shape” of a run”**: how many seasons we try to cover by default and how aggressive pacing and caps are.
 
-- **Unset** (or explicitly **`full`** / aliases **`paid`** / **`complete`**): treated as a **warehouse-style** run. The code applies **paid-friendly defaults** (via internal `setdefault`): multi-season discovery within the **v1 season window** (last N campaign start years in code), **no** sleep between HTTP calls unless you set one, higher pagination caps, and the **fanout soft cap turned off** (`-1`) unless you override it. Use when you have **enough daily quota** for a large pull.
+- **Unset** (or explicitly **`full`** / aliases **`paid`** / **`complete`**): treated as a **warehouse-style** run. The code applies **paid-friendly defaults** (via internal `setdefault`): multi-season discovery within the **configured Bundesliga season-year window** in code, **no** sleep between HTTP calls unless you set one, higher pagination caps, and the **fanout soft cap turned off** (`-1`) unless you override it. Use when you have **enough daily quota** for a large pull.
 - **`default`**, **`economy`**, or **`free`**: **no** those bundled defaults — you get a **single inferred season** (from today’s date and the project’s July rule) and the usual **free-tier-friendly** pause between calls unless you set `API_FOOTBALL_REQUEST_PAUSE_MS` yourself. Use for **low daily limits** or smoke tests.
 
 **Rule of thumb:** unset = “use the big profile”; set to **`default`** when you must stay inside **~100 requests/day** style limits or want one season only.
@@ -175,5 +175,4 @@ How long a successful lock holder keeps the lease (default **180**). After a **c
 | Topic | Document |
 |--------|-----------|
 | Raw tables, merge idea, endpoint map | [`data_contract.md`](data_contract.md) |
-| Code-side standards (retries, paging discipline) | [`ingestion_standards.md`](ingestion_standards.md) |
 | dbt layers and naming | `dbt_project/docs/layering.md` (in-repo) |
