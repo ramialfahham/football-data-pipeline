@@ -99,3 +99,5 @@ These tables support **safe scheduling**, not match statistics:
 ## After landing zone
 
 Cleaned, source-near columns for D1 live in **dbt** under `dbt_project/models/1_staging/api_football/`. For how layers are intended to stack, see `dbt_project/docs/layering.md` (outside this `docs/` folder).
+
+For **commands, env vars, lock, completeness, and playbooks**, see [`operations_guide.md`](operations_guide.md).

@@ -71,3 +71,7 @@ Ingestion operations standards: `docs/ingestion_standards.md`.
 API-Football data contract: `docs/data_contract.md`.
 Data dictionary and definition confidence: `docs/data_dictionary.md`.
 Development workflow: `docs/development_workflow.md`.
+
+## Maintenance & operations
+
+- **Runbook and troubleshooting** (environment variables, ingest lock, completeness checks, backfill vs daily update): [`docs/operations_guide.md`](docs/operations_guide.md).
