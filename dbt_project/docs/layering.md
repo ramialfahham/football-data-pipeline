@@ -10,10 +10,10 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 |---------|------------------|
 | **`raw`** | 1:1 ingestion from Python (`RAW_<league>_APIF_*` tables, e.g. `RAW_D1_APIF_*`). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
 | **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
-| **`base`** | `2_base` models (views): unions, canonical keys (add when you build this layer). |
-| **`core`** | `3_core` models (tables): shared dimensions/facts. |
-| **`intermediate`** | `4_intermediate` models (tables): heavier transforms. |
-| **`marts`** | `5_marts` models (tables): BI / product-facing tables. |
+| **`base`** | `2_base` models (views): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
+| **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
+| **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
+| **`marts`** | `5_marts` models (tables): **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
 
 dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema`; with [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), configured layer models use **only** the custom name (`staging`, `base`, …), not `dbt_scratch_staging`.
 
@@ -33,10 +33,10 @@ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must 
 ## Layer Cheat Sheet
 
 - `1_staging`: source-near cleanup only (renaming, typing, light normalization). No cross-source unions/joins.
-- `2_base`: source-agnostic canonicalization (unions/alignment/entity resolution/technical keys).
-- `3_core`: stable business entities and relationships reused across use cases.
-- `4_intermediate`: heavier transformations and feature engineering.
-- `5_marts`: consumer-ready outputs for app/BI/monitoring.
+- `2_base`: preparation for **core**—entity resolution and first logical standardization across sources.
+- `3_core`: **system of record**—canonical dimensions and facts.
+- `4_intermediate`: preparation for **marts**—complex logic, derived fields, and joins that should not live in consumption models.
+- `5_marts`: **consumption layer**—delivery-oriented tables for apps and analysis.
 
 ## Goals
 
@@ -61,61 +61,54 @@ Not allowed:
 
 ## 2_base
 
-Purpose: technical consolidation and canonical shaping.
+Purpose: **preparation for the core layer.** Base turns staging into a coherent cross-source view: **entity resolution**, shared identifiers, and **first logical transformations** so the warehouse agrees on what a team, fixture, or other entity *is* before facts and dimensions are finalized.
 
 Allowed:
-- Unions across staging models (for example all seasons for one league).
-- Canonical column alignment across similar entities.
-- Deterministic technical keys (for example `match_id`).
-- Structural tests (for example `unique`, stronger `not_null`).
+- Unions and alignment across staging models where the same real-world entity appears in more than one place.
+- Standardized keys and attributes that downstream layers can rely on without re-negotiating source quirks.
+- Structural tests (for example `unique`, stronger `not_null`) on grains and keys you define here.
 
 Not allowed:
-- Heavy business KPIs or model-specific product logic.
+- Declaring the authoritative business **fact** or **dimension** system of record (that belongs in **core**).
+- Presentation or delivery logic aimed at a specific app or report.
 
 ## 3_core
 
-Purpose: reusable business entities and relationship logic.
+Purpose: **system of record** for the modeled domain. Core holds the canonical **dimension** and **fact** tables: stable grains, vetted definitions, and relationships that other layers treat as the single source of truth.
 
 Allowed:
-- Stable entities and semantic relationships.
-- Shared business definitions used by multiple downstream consumers.
+- Dimensions and facts that multiple use cases are expected to share.
+- Relationship logic and conformed attributes that marts and intermediate models should reuse rather than re-derive.
 
 Not allowed:
-- App-specific presentation logic.
+- Wide, consumer-specific projections or performance-oriented denormalization (those belong in **marts**, with support from **intermediate** where needed).
 
 ## 4_intermediate
 
-Purpose: complex transformations and feature engineering.
+Purpose: **preparation for the marts layer.** Intermediate is where **complex logic**, multi-step **calculations**, and **cross-table joins** live when they would make **marts** models too heavy, repetitive, or hard to test.
 
 Allowed:
-- Multi-step transforms.
-- Window logic and derived feature sets for modeling.
-- Expensive computations that should not be repeated in marts.
+- Reusable blocks of logic shared by several mart models.
+- Windowed or multi-stage calculations that are easier to reason about in dedicated models than inside a final delivery table.
+- Joins and reshaping that are still internal to the warehouse graph, not final consumption shape.
+
+Not allowed:
+- End-user-facing table design (naming, flattening, and optimization for a specific consumer are **marts** concerns).
 
 ## 5_marts
 
-Purpose: consumer-ready outputs.
+Purpose: **consumption layer.** Marts expose **flattened**, **query-efficient** datasets intended for **applications** (low-latency, stable contracts) and for **analytical work** (exploration, exports, BI) without requiring consumers to navigate the full internal graph.
 
 Allowed:
-- API/BI-ready tables.
-- Clear naming and documentation for downstream use.
-- Final aggregation or projection for product use cases.
+- Models shaped for known consumers: clear grains, documented columns, and tests that match how the table will be used.
+- Denormalization and pre-aggregation where they improve latency or usability at the point of use.
+
+Not allowed:
+- Re-defining core business truth that should remain centralized in **core** (marts should select and present, not fork definitions silently).
 
 ## Testing Guidance by Layer
 
 - `1_staging`: light data sanity checks close to source.
 - `2_base`: key integrity and canonical-shape assertions.
-- `3_core` and `4_intermediate`: relationship and business-rule tests.
-- `5_marts`: consumer-contract and metric-consistency tests.
-
-## Continuity: API-Football (free tier → paid plan)
-
-When you add `2_base` and below, keep **plan and season** as **configuration**, not as magic numbers inside SQL.
-
-- **Single season source for dbt:** define a dbt **variable** (for example `apif_season_year`) in `dbt_project.yml` or pass `--vars` in CI, sourced from the same convention as ingestion (`API_FOOTBALL_SEASON`). Downstream models should **reference the var** (or columns already present on staging/base such as `season_year` extracted from the payload) instead of hardcoding `2024` for “free tier”.
-- **Stable grain and keys:** use API-stable identifiers (`fixture_id`, `team_id`, `player_id`, `league` id) as primary join keys. Paid vs free only changes **how many seasons and competitions** you load, not the shape of those keys.
-- **Normalize envelope quirks in `2_base` only:** today staging exposes both full API envelopes (`fixtures`, `injuries`) and ingestion-wrapped arrays (`players`, `lineups`). Base is the right place to **one shape per entity** (for example one row per fixture, one row per player-team-season block) so `3_core` does not branch on “which raw layout”.
-- **Sparse endpoints:** lineups and some injury rows are legitimately empty before kickoff or outside coverage. Prefer **conditional or relationship tests**, not blanket `not_null` on columns that the API documents as optional.
-- **Promotion path:** when you upgrade, change **ingestion env** (`API_FOOTBALL_SEASON`, widen or drop season clamp envs) and **dbt vars / target** to the live season. If staging column contracts stay the same, **rebuild** downstream; avoid renaming marts columns unless you version or document a breaking change.
-
-Together, this keeps the graph **ref()-stable** while the only operational change is “which season’s raw snapshots you load,” which is exactly what a paid plan unlocks.
+- `3_core` and `4_intermediate`: relationship and business-rule tests on shared logic.
+- `5_marts`: consumer-contract tests (required columns, grains, allowed values) and checks that outputs stay aligned with upstream **core** definitions.
