@@ -13,14 +13,14 @@ alwaysApply: true
 
 ## North star
 
-- **Goal (v1 “complete”):** Full API-Football **D1** coverage for the **last 10 API season start years including the active campaign** (computed at ingest from UTC date; see `ingestion/api_football/config.py`). All MVP **raw** tables for that window per the doc, plus matching **`staging`** (`dbt build --selector staging` green).
+- **Goal (v1 “complete”):** Full API-Football **D1** coverage for the **last 10 API season start years including the active campaign** (computed at ingest from UTC date; see `ingestion/api_football/config.py`). All MVP **raw** tables for that window per `docs/data_contract.md`, plus matching **`staging`** (`dbt build --selector staging` green).
 - **After that:** User builds **downstream** dbt (base/marts/etc.); do not expand modeling scope unless asked.
 - **Wider history** (pre–v1 window) is **v2+** unless the user explicitly widens the band.
 
 ## Do not work against the user
 
 - **Never** change **`.env`**, ingest profile, the **v1 season window constant** in code, or fanout/cost caps to “make a run finish faster” or “unblock quickly” **without explicit user confirmation** in the same thread. Default v1 intent: **`full`**, **`API_FOOTBALL_SEASON` unset**, **10** seasons — not “one season” unless they ask.
-- If API **daily limits** require multiple days or scheduled runs, **say so** and propose **scheduling or cursor/fanout patterns** from the doc — do **not** silently redefine “complete” as one season.
+- If API **daily limits** require multiple days or scheduled runs, **say so** and propose **scheduling or cursor/fanout patterns** from `docs/data_contract.md` — do **not** silently redefine “complete” as one season.
 
 ## Before non-trivial changes
 
@@ -28,4 +28,4 @@ State in one short block: **intent → files/env touched → definition of done.
 
 ## Where details live
 
-- Ingest contract, tables, env reference: `docs/api_football_mvp_scope.md`.
+- Data contract (raw landing zone, merge model, endpoint map): `docs/data_contract.md`.

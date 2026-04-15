@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: api_football
-    description: "Raw API-Football payloads; league-first table names (RAW_<league>_APIF_*). See docs/api_football_mvp_scope.md."
+    description: "Raw API-Football payloads; league-first table names (RAW_<league>_APIF_*). See docs/data_contract.md."
     schema: "{{ var('raw_schema') }}"
     tables:
       - name: raw_d1_apif_fixtures_next

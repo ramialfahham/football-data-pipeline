@@ -25,8 +25,8 @@ Use **Cloud Logging** (function stdout/stderr and request logs) and **Cloud Sche
 - Continue per table when safe and record partial failures.
 - Return HTTP 500 only for fatal run-level failures.
 
-For **API-Football**, treat provider responses as documented: inspect JSON `errors` and `paging` even on HTTP 200, merge all pages where the API paginates, and avoid hammering the API (single retry on 429 / 5xx with backoff, optional pacing between calls). See [`docs/api_football_mvp_scope.md`](api_football_mvp_scope.md) and the [API-Football beginner’s guide](https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide).
+For **API-Football**, treat provider responses as documented: inspect JSON `errors` and `paging` even on HTTP 200, merge all pages where the API paginates, and avoid hammering the API (single retry on 429 / 5xx with backoff, optional pacing between calls). See [`docs/data_contract.md`](data_contract.md) and the [API-Football beginner’s guide](https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide).
 
 ## Suggested Schedules (prototype)
 
-- `api_football`: several times daily (see `docs/api_football_mvp_scope.md`).
+- `api_football`: several times daily (see `docs/data_contract.md`).
