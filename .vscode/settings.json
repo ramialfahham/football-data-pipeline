@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+  "terminal.integrated.env.windows": {
+    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}",
+    "VIRTUAL_ENV": "${workspaceFolder}\\.venv"
+  },
+  "sqlfluff.config": "${workspaceFolder}/dbt_project/.sqlfluff",
+  "sqlfluff.executablePath": "${workspaceFolder}/.venv/Scripts/sqlfluff.exe",
+  "sqlfluff.workingDirectory": "${workspaceFolder}/dbt_project"
+}

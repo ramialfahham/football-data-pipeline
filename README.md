@@ -25,7 +25,15 @@ The dbt project lives in `dbt_project/`. For CI/CD readiness, `profiles.yml` is 
   - Default location on Windows: `%USERPROFILE%\.dbt\profiles.yml`
   - Or set `DBT_PROFILES_DIR` to point to a folder containing `profiles.yml`
 
-Run from the repo root (with the root `venv` activated):
+**Local Python (single convention):** the repo uses **`.venv/`** at the root (gitignored). Set it up once, then use it for ingestion, dbt, and SQLFluff:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Run dbt from the repo root with **`.venv`** activated:
 
 ```powershell
 dbt --version

@@ -2,7 +2,7 @@
 
 ## Required validation commands
 
-Run from repo root with the root venv active:
+Run from repo root with the **`.venv`** from `README.md` activated:
 
 ```powershell
 dbt deps --project-dir .\dbt_project
