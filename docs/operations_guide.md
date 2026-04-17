@@ -9,10 +9,9 @@ This guide is for **anyone operating** the API-Football → BigQuery loader: wha
 1. **Credentials:** use [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the GCP project that owns the raw dataset.
 2. **Secrets:** copy `.env.example` to **`.env`** in the repo root and set **`API_FOOTBALL_API_KEY`**. Never commit `.env`.
 3. **Dependencies:** activate the repo **`.venv`** (see `README.md`), then from the repo root run `pip install -r requirements.txt` (includes `python-dotenv`, which loads `.env` automatically when the loader starts).
-4. **Command (PowerShell):**
+4. **Command (PowerShell):** open a terminal **at the repository root** (the folder that contains `ingestion/` and `requirements.txt`), then run:
 
    ```powershell
-   Set-Location D:\Projects\football-data-pipeline
    $env:PYTHONPATH = "."
    python -m ingestion.api_football.main
    ```

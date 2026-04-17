@@ -63,20 +63,24 @@ dbt build --project-dir .\dbt_project
 # dbt build --project-dir .\dbt_project --vars "{ raw_schema: raw_dev }"
 ```
 
+For expectations by layer (grain, `not_null`, `unique`, avoiding duplicate tests downstream), see [engineering_standards.md §3 (Testing policy)](dbt_project/docs/engineering_standards.md).
+
 ## dbt Layer Contract
 
 This project follows a strict layer contract so transformations stay predictable and testable.
 
-- `1_staging`: raw cleanup only (renaming, typing, light normalization). No unions across leagues/sources.
-- `2_base`: unions and alignment into canonical structures. Technical keys and structural quality checks.
+- `1_staging`: raw cleanup only (renaming, typing, light normalization). No cross-source unions/joins (details in [layering.md §1_staging](dbt_project/docs/layering.md#1_staging)).
+- `2_base`: preparation for **core**—entity resolution, shared identifiers, and first logical standardization across sources (unions/alignment where the same real-world entity appears in more than one staging place). Structural tests on grains and keys you define here—not the authoritative dimension/fact system of record (that is `3_core`).
 - `3_core`: reusable business entities and clean relationship logic.
 - `4_intermediate`: heavier transformations and feature engineering.
 - `5_marts`: app/BI-ready outputs for consumption.
 
-Detailed rules: `dbt_project/docs/layering.md`.
-Engineering standards: `dbt_project/docs/engineering_standards.md`.
-API-Football data contract: `docs/data_contract.md`.
-Development workflow: `docs/development_workflow.md`.
+Further reading:
+
+- Detailed layering rules: [dbt_project/docs/layering.md](dbt_project/docs/layering.md)
+- Engineering standards: [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md)
+- API-Football data contract: [docs/data_contract.md](docs/data_contract.md)
+- Development workflow: [docs/development_workflow.md](docs/development_workflow.md)
 
 ## Maintenance & operations
 

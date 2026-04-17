@@ -27,7 +27,7 @@ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must 
 
 1. **Tables:** keep using the shared **`raw`** dataset; add tables with a **clear prefix** (e.g. `RAW_OPTA_*`, `RAW_STATS_BOMB_*`) so sources never collide.
 2. **Ingestion:** isolate loaders under `ingestion/<source>/` (same pattern as `ingestion/api_football/`).
-3. **dbt:** add `models/1_staging/<source>/sources.yml` pointing at `schema: "{{ var('raw_schema') }}"` and staging models named `stg_<source>__<entity>` (see `engineering_standards.md`).
+3. **dbt:** add `models/1_staging/<source>/sources.yml` pointing at `schema: "{{ var('raw_schema') }}"` and staging models named `stg_<source>__<entity>` (naming: [engineering_standards.md](engineering_standards.md) §1).
 4. **Do not** nest datasets as `raw/api_football` — BigQuery has no subdatasets; use **prefixes** or, if IAM requires it, a **separate** dataset `raw_<source>` and a second dbt var (only when needed).
 
 ## Layer Cheat Sheet
@@ -52,12 +52,14 @@ Allowed:
 - Source-to-model mapping (often 1:1 by table/season/competition).
 - Column renaming to consistent naming conventions (snake_case).
 - Safe type casting and lightweight normalization.
-- Source-level and light model-level quality tests (for example `not_null`, `accepted_values`).
+- Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields; `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
 
 Not allowed:
 - Unions across leagues/competitions/sources.
 - Business rules and feature engineering.
 - Cross-domain joins.
+
+**D1 API-Football inventory:** `models/1_staging/api_football/` contains **17** `stg_apif__d1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Canonical table ↔ model mapping: [`../models/1_staging/api_football/README.md`](../models/1_staging/api_football/README.md).
 
 ## 2_base
 
