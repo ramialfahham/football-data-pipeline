@@ -92,10 +92,16 @@ def _load_api_football(request):
 
         report = run_ingest_completeness_checks(client)
         print(completeness_summary_line(report), flush=True)
-        if fail_on_incomplete() and not report.get("skipped") and not report.get(
-            "all_fanout_complete", True
-        ):
-            msg += " Ingest completeness check failed (fanout vs fixtures)."
+        match_ok = report.get(
+            "match_level_tables_cover_all_fixtures",
+            report.get("all_fanout_complete", True),
+        )
+        if fail_on_incomplete() and not report.get("skipped") and not match_ok:
+            msg += (
+                " Per-match raw tables (lineups, events, statistics, "
+                "fixture players, predictions) do not yet cover every fixture id "
+                "in the merged fixtures list."
+            )
             return msg, 503
 
         return msg, 200

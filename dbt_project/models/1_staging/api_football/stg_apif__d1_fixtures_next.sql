@@ -6,18 +6,22 @@ with src as (
 exploded as (
     select
         'D1' as league_code,
-        src.ingested_datetime as raw_ingested_datetime,
+        src.ingested_at as raw_ingested_at,
+        match_json,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,
         safe_cast(json_value(src.payload, '$.results') as int64) as api_reported_result_count,
-        to_json_string(json_query(src.payload, '$.parameters')) as request_parameters_json,
-        match_json
+        to_json_string(json_query(src.payload, '$.parameters')) as request_parameters_json
     from src,
-    unnest({{ apif_payload_response_json_strings('src') }}) as match_json
+        unnest({{ apif_payload_response_json_strings('src') }}) as match_json
 )
 
 select
     league_code,
-    raw_ingested_datetime,
+    raw_ingested_at,
+    api_errors_json,
+    api_reported_result_count,
+    request_parameters_json,
+    match_json as source_json,
     safe_cast(json_value(match_json, '$.fixture.id') as int64) as fixture_id,
     safe_cast(json_value(match_json, '$.fixture.timestamp') as int64) as fixture_api_unix_seconds,
     date(safe_cast(json_value(match_json, '$.fixture.date') as timestamp)) as fixture_date,
@@ -38,9 +42,5 @@ select
     safe_cast(json_value(match_json, '$.goals.away') as int64) as goals_away,
     json_value(match_json, '$.fixture.venue.id') as venue_id,
     json_value(match_json, '$.fixture.venue.name') as venue_name,
-    json_value(match_json, '$.fixture.venue.city') as venue_city,
-    api_errors_json,
-    api_reported_result_count,
-    request_parameters_json,
-    match_json as source_json
+    json_value(match_json, '$.fixture.venue.city') as venue_city
 from exploded

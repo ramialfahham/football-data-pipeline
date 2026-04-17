@@ -5,29 +5,29 @@ with src as (
 
 team_blocks as (
     select
-        coalesce(json_value(src.payload, '$.league_code'), 'D1') as league_code,
-        src.ingested_datetime as raw_ingested_datetime,
-        team_block
+        src.ingested_at as raw_ingested_at,
+        team_block,
+        coalesce(json_value(src.payload, '$.league_code'), 'D1') as league_code
     from src,
-    unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as team_block
+        unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as team_block
 ),
 
 player_rows as (
     select
         league_code,
-        raw_ingested_datetime,
+        raw_ingested_at,
+        player_el,
         safe_cast(json_value(team_block, '$.team_id') as int64) as team_id,
-        safe_cast(json_value(team_block, '$.season') as int64) as season_year,
-        player_el
+        safe_cast(json_value(team_block, '$.season') as int64) as season_year
     from team_blocks,
-    unnest(
-        json_query_array(json_query(team_block, '$.players_payload'), '$')
-    ) as player_el
+        unnest(
+            json_query_array(json_query(team_block, '$.players_payload'), '$')
+        ) as player_el
 )
 
 select
     league_code,
-    raw_ingested_datetime,
+    raw_ingested_at,
     team_id,
     season_year,
     safe_cast(json_value(player_el, '$.player.id') as int64) as player_id,

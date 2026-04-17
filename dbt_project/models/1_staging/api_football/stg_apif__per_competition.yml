@@ -1,6 +1,6 @@
 version: 2
 
-# Staging naming: use ``_date`` for ``DATE`` columns and ``_datetime`` for ``TIMESTAMP`` / ``DATETIME``.
+# Staging naming: use ``_date`` for ``DATE`` columns; warehouse ``TIMESTAMP`` load markers use ``_at`` (e.g. ``raw_ingested_at``). Other ``_datetime`` columns stay as documented per field.
 # Integer epoch fields must not use those suffixes (e.g. ``fixture_api_unix_seconds``).
 
 models:
@@ -20,8 +20,8 @@ models:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
-      - name: raw_ingested_datetime
-        description: "UTC timestamp when this raw table row was loaded (from ``ingested_datetime`` in BigQuery raw)."
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded (from ``ingested_at`` in BigQuery raw)."
       - name: fixture_id
         description: "API-Football fixture id."
         tests: [not_null]
@@ -63,7 +63,7 @@ models:
       - name: player_id
         description: "Player id from API-Football."
         tests: [not_null]
-      - name: raw_ingested_datetime
+      - name: raw_ingested_at
         description: "UTC timestamp when the squad raw row was loaded."
       - name: birth_date
         description: "Player birth date as ``DATE`` when parseable from API ``birth.date``."

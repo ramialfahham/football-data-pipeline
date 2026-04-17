@@ -11,6 +11,12 @@ selectors:
       method: path
       value: models/2_base
 
+  - name: intermediate
+    description: "Intermediate models (4_intermediate), including raw ingestion spread."
+    definition:
+      method: path
+      value: models/4_intermediate
+
   - name: downstream
     description: "Base through marts (excludes 1_staging); use once models exist under 2_base–5_marts."
     definition:

@@ -1,4 +1,4 @@
--- Drop D1 raw tables that must match loader contract: payload (JSON) + ingested_datetime (TIMESTAMP).
+-- Drop D1 raw tables that must match loader contract: payload (JSON) + ingested_at (TIMESTAMP).
 -- After drop, run: python -m ingestion.api_football.main (when quota allows) to recreate.
 -- Edit project/dataset if yours differ from defaults.
 

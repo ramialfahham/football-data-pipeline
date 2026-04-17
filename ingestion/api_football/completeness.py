@@ -66,8 +66,9 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
     """
     Compare merged fixture ids to each fanout batched table.
 
-    Returns a JSON-serializable dict including ``all_fanout_complete`` and per-entity
-    ``covered`` / ``missing_count`` / ``missing_fixture_ids_sample`` (up to 12 ids).
+    Returns a JSON-serializable dict including ``match_level_tables_cover_all_fixtures``
+    (same boolean as legacy ``all_fanout_complete``) and per-entity ``covered`` /
+    ``missing_count`` / ``missing_fixture_ids_sample`` (up to 12 ids).
     """
     out: dict[str, Any] = {
         "skipped": False,
@@ -107,10 +108,12 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
                 "complete": ok,
             }
         league_block["all_fanout_complete"] = all_ok
+        league_block["match_level_tables_cover_all_fixtures"] = all_ok
         out["leagues"][league_code] = league_block
         if not all_ok:
             out["all_fanout_complete"] = False
 
+    out["match_level_tables_cover_all_fixtures"] = out["all_fanout_complete"]
     return out
 
 

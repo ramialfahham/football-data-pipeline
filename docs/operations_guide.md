@@ -2,6 +2,8 @@
 
 This guide is for **anyone operating** the API-Football → BigQuery loader: what the knobs do, why safety checks exist, and how to run a **one-off backfill** versus a **steady daily job**. For **what** we store and **which tables** map to which API calls, see [`data_contract.md`](data_contract.md). Ingestion behaviour and HTTP discipline are defined in the **`ingestion/api_football`** package in this repository.
 
+**Pipeline order:** after a **successful** ingest (exit **0**), run **dbt** so staging (and downstream) match the raw snapshot you just wrote—for example `dbt build --project-dir .\dbt_project --selector staging`, then extend with `--selector downstream` when those layers exist. The same order should be encoded in schedulers or Cloud Functions so “what we query” tracks the last good load by design.
+
 ---
 
 ## How to run ingestion (local)
@@ -23,7 +25,7 @@ This guide is for **anyone operating** the API-Football → BigQuery loader: wha
 | **0** | Run finished; pipeline OK and completeness passed (or completeness was skipped). |
 | **1** | Pipeline error (exception or non-success HTTP path from the job). |
 | **2** | Another run holds the **ingest lock** (BigQuery lease still valid) — do not start a second writer without clearing or waiting. |
-| **3** | **Completeness check** failed (fanout coverage short vs merged fixtures) while strict mode is on — see below. |
+| **3** | **Per-match coverage check** failed: lineups / events / statistics / fixture players / predictions raw payloads are still short versus every fixture id in the merged fixtures list, while strict mode is on — see below. |
 
 The job prints phase lines such as `[api-football] league=D1 phase=fixtures` so a long run is not silent.
 
@@ -130,15 +132,19 @@ How long a successful lock holder keeps the lease (default **180**). After a **c
 
 ---
 
-## Completeness check (fanout vs fixtures)
+## Per-match tables vs merged fixtures (ingest log check)
 
-**What it is:** after loading, the job compares **fixture ids** in merged **`RAW_D1_APIF_FIXTURES_NEXT`** to fixture ids present in each batched fanout payload (**LINEUPS**, **FIXTURE_EVENTS**, **FIXTURE_STATISTICS**, **FIXTURE_PLAYERS**, **PREDICTIONS**). It does **not** validate every other table (e.g. squad **`PLAYERS`**) against that list.
+**What it is:** after loading, the job compares **fixture ids** in merged **`RAW_D1_APIF_FIXTURES_NEXT`** to fixture ids present in each batched per-match payload (**LINEUPS**, **FIXTURE_EVENTS**, **FIXTURE_STATISTICS**, **FIXTURE_PLAYERS**, **PREDICTIONS**). It answers one specific question: *for this merged fixture list, does every id appear in each of those five raw blobs?* It does not, by itself, prove that every other raw table (for example squad **`PLAYERS`**) is fresh—that is covered by freshness, spread, and running dbt after ingest (see [`data_contract.md`](data_contract.md) “Data completeness”).
 
-**Why it exists:** under **daily caps**, one run may only refresh **some** fixtures’ detail bundles. The check answers: “**Given** our merged fixture list, do the five fanout blobs **cover every** fixture id?” Operators and alerts can watch the printed line:
+**Why it exists:** under **daily caps**, one run may only refresh **some** fixtures’ detail bundles. The check still tells you whether the merged payloads are **in sync on fixture coverage** for those five tables. Operators and alerts can watch:
 
 `[api-football] ingest_completeness_json={...}`
 
-**If it fails** (`all_fanout_complete: false`): expected during backfill until enough runs have merged fanout for all fixtures — **not** necessarily an API outage. With **`API_FOOTBALL_FAIL_ON_INCOMPLETE=1`** (default), the process exits **3** so schedulers can page someone. Set **`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`** until the JSON shows complete, or skip the check entirely with **`API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1`** (not recommended long-term).
+The JSON includes **`match_level_tables_cover_all_fixtures`** (same boolean as legacy **`all_fanout_complete`**).
+
+**If it fails** (`match_level_tables_cover_all_fixtures`: false): common during multi-day backfill until enough runs have merged fanout for all fixtures—**not** necessarily an API outage. With **`API_FOOTBALL_FAIL_ON_INCOMPLETE=1`** (default), the process exits **3** so schedulers can page someone. Set **`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`** until the JSON shows true, or skip the check with **`API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1`** (not recommended long-term).
+
+**Warehouse spread:** model **`int_apif__raw_ingestion_spread`** (intermediate) summarizes `MAX(ingested_at)` across raw D1 tables; build it with `dbt build --project-dir .\dbt_project --select int_apif__raw_ingestion_spread` when you want a quick alignment read after deploys.
 
 ---
 
@@ -152,9 +158,9 @@ How long a successful lock holder keeps the lease (default **180**). After a **c
 2. Set **`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`** until fanout coverage catches up; optionally cap **`API_FOOTBALL_LINEUPS_MAX_FIXTURES`** per day.
 3. Use **`API_FOOTBALL_FANOUT_PRIORITY=cursor`** (and optionally **`API_FOOTBALL_SKIP_PLAYERS=1`** on cursor-only days) to **walk** the fixture list across runs — see [`data_contract.md`](data_contract.md) for the merge model.
 4. **Clear a stale lock** if you get exit **2** and no job is running (`scripts/clear_apif_ingest_lock.py`).
-5. Run **`python -m ingestion.api_football.main`** as often as quota allows until **`ingest_completeness_json`** shows **`all_fanout_complete": true`** for D1.
+5. Run **`python -m ingestion.api_football.main`** as often as quota allows until **`ingest_completeness_json`** shows **`match_level_tables_cover_all_fixtures": true`** for D1 (legacy **`all_fanout_complete`** matches).
 6. Turn **`API_FOOTBALL_FAIL_ON_INCOMPLETE`** back to **`1`** for normal operations.
-7. Run **`dbt build --project-dir .\dbt_project --selector staging`** when raw looks good.
+7. Run **`dbt build --project-dir .\dbt_project --selector staging`** (and downstream when applicable) **after** ingest succeeds so staging matches raw.
 
 **If you truly need an empty slate:** selectively drop or truncate raw tables in BigQuery only when you understand what will be re-fetched — not required for day-to-day merges.
 
@@ -175,3 +181,4 @@ How long a successful lock holder keeps the lease (default **180**). After a **c
 |--------|-----------|
 | Raw tables, merge idea, endpoint map | [`data_contract.md`](data_contract.md) |
 | dbt layers and naming | `dbt_project/docs/layering.md` (in-repo) |
+| Raw load-time spread (D1) | dbt model `int_apif__raw_ingestion_spread` |

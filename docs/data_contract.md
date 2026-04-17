@@ -19,7 +19,28 @@ Our **landing zone** is a set of BigQuery tables where we store those packages *
 
 **In plain terms:** we keep the **original recipe card**, not only the few numbers we already put on a label. That way we never lose detail we might need later, and we can always re-parse the same snapshot if our staging models improve.
 
-**Technical note:** each load stores one row per table with `payload` (JSON) and `ingested_datetime` (when that snapshot was written). Downstream **dbt** staging reads `payload` and treats `ingested_datetime` as `raw_ingested_datetime` where documented.
+**Technical note:** each load stores one row per table with `payload` (JSON) and `ingested_at` (UTC when that snapshot was written). Downstream **dbt** staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+
+---
+
+## Data completeness (what “complete” means here)
+
+**In plain words**, for this pipeline we treat data as **complete for a successful run** when:
+
+- Every **in-scope** raw landing table for D1 has been refreshed on the schedule you run the loader, and **staging** has been rebuilt after that ingest so analysts see the same snapshot generation.
+- History follows the **multi-season window** the Python job is configured to merge (today: roughly the **last ten Bundesliga start years through the current campaign**; see `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/config.py`). Heavy areas (per-match bundles) can still need **several successful runs** under daily API limits—that is expected, not a silent “done” on day one.
+- **Per-match detail:** for each fixture id present in the merged **`RAW_D1_APIF_FIXTURES_NEXT`** payload, the batched raw tables for lineups, events, statistics, fixture players, and predictions should eventually contain that id. The loader prints a JSON line after each run; the field **`match_level_tables_cover_all_fixtures`** states whether that check passed (legacy key **`all_fanout_complete`** is the same boolean for backward compatibility).
+
+**How we check it (question → mechanism):**
+
+| Question | Mechanism |
+|----------|-----------|
+| Did each raw table load recently? | dbt **source freshness** on `ingested_at` in `dbt_project/models/1_staging/api_football/sources.yml`. |
+| Are raw tables’ latest loads aligned with each other? | dbt model **`int_apif__raw_ingestion_spread`** (max `ingested_at` per table and `spread_minutes`). |
+| Does staging reflect the latest raw? | Run **`dbt build`** for staging **after** a successful ingest in your scheduler or runbook. |
+| Do per-match tables cover all fixtures in the merged list? | Post-ingest check in `ingestion/api_football/completeness.py` (logged as `ingest_completeness_json`). |
+
+Operational detail (locks, exit codes, env vars) stays in [`operations_guide.md`](operations_guide.md).
 
 ---
 

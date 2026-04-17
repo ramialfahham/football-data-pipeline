@@ -2,7 +2,7 @@
 
 There are **17** staging SQL models here: **one `stg_apif__d1_*.sql` per `RAW_D1_APIF_*` raw table** declared in [`sources.yml`](sources.yml). If your editor shows fewer files, refresh the folder, confirm you are on the latest `main`, and run `git status` in this path.
 
-Tests and column docs for these models live mainly in [`stg_apif__per_competition.yml`](stg_apif__per_competition.yml) (one YAML file, many models).
+Tests and column docs for these models live mainly in [`stg_apif__per_competition.yml`](stg_apif__per_competition.yml) (one YAML file, many models). Each model carries **`raw_ingested_at`** (UTC load time from raw column **`ingested_at`**).
 
 | # | BigQuery table (`identifier`) | dbt source name | Staging model |
 |---|-------------------------------|-----------------|---------------|

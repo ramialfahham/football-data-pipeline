@@ -48,17 +48,17 @@ def load_json_to_bq(
     """Load one NDJSON row into ``table_name``.
 
     ``as_json_payload=True`` stores the API envelope (or batched wrapper) in ``payload`` (JSON)
-    plus ``ingested_datetime`` (UTC load time). Use for responses where autodetect fails (nested arrays, numeric-looking keys).
+    plus ``ingested_at`` (UTC load time). Use for responses where autodetect fails (nested arrays, numeric-looking keys).
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     if as_json_payload:
-        ingested_datetime = datetime.now(timezone.utc).isoformat()
-        row = {"payload": payload, "ingested_datetime": ingested_datetime}
+        ingested_at = datetime.now(timezone.utc).isoformat()
+        row = {"payload": payload, "ingested_at": ingested_at}
         line = json.dumps(row, ensure_ascii=True) + "\n"
         job_config = bigquery.LoadJobConfig(
             schema=[
                 bigquery.SchemaField("payload", "JSON"),
-                bigquery.SchemaField("ingested_datetime", "TIMESTAMP"),
+                bigquery.SchemaField("ingested_at", "TIMESTAMP"),
             ],
             source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
             write_disposition="WRITE_TRUNCATE",
@@ -79,8 +79,9 @@ def read_latest_payload_json(
     table_name: str,
 ) -> dict | None:
     """
-    Return the ``payload`` JSON object from the latest row (by ``ingested_datetime`` when
-    that column exists; otherwise ``LIMIT 1`` for legacy autodetect tables).
+    Return the ``payload`` JSON object from the latest row (by ``ingested_at`` when
+    that column exists, else ``ingested_datetime`` for tables not yet migrated;
+    otherwise ``LIMIT 1`` for legacy autodetect tables).
 
     Used to merge this run's data with prior loads so raw tables stay complete across
     quota-limited runs. Returns ``None`` if the table is missing or empty.
@@ -93,7 +94,9 @@ def read_latest_payload_json(
     colnames = {f.name for f in table.schema}
     if "payload" not in colnames:
         return None
-    if "ingested_datetime" in colnames:
+    if "ingested_at" in colnames:
+        q = f"SELECT payload FROM `{table_id}` ORDER BY ingested_at DESC LIMIT 1"
+    elif "ingested_datetime" in colnames:
         q = f"SELECT payload FROM `{table_id}` ORDER BY ingested_datetime DESC LIMIT 1"
     else:
         q = f"SELECT payload FROM `{table_id}` LIMIT 1"
