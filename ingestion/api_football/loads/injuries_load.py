@@ -7,6 +7,7 @@ from ..bq import load_json_to_bq, read_latest_payload_json
 from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..http_client import fetch_merged_paged
+from ..payload_merge import merge_injuries_envelope
 from ..seasons import _merge_merged_paged
 from .context import PipelineContext
 

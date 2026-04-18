@@ -8,6 +8,7 @@ from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..fanout import team_ids_for_league
 from ..http_client import fetch_merged_paged
+from ..payload_merge import merge_teams_envelope
 from .context import PipelineContext
 
 

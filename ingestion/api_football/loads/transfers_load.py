@@ -25,6 +25,11 @@ def load_transfers_if_enabled(
     ):
         return
     try:
+        use_page = os.getenv("API_FOOTBALL_TRANSFERS_USE_PAGE", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         tr_pages = _env_int("API_FOOTBALL_TRANSFERS_MAX_PAGE", 3)
         merged_tr: list = []
         tr_errors: list[str] = []
@@ -36,8 +41,8 @@ def load_transfers_if_enabled(
                 "/transfers",
                 ctx.headers,
                 {"team": tid},
-                paginate=True,
-                max_pages=tr_pages,
+                paginate=use_page,
+                max_pages=tr_pages if use_page else None,
             )
             if tr_meta is None:
                 tr_meta = {

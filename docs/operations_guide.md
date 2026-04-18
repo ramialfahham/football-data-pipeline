@@ -1,184 +1,200 @@
-# Operations guide: running and troubleshooting ingestion
+# Operations guide
 
-This guide is for **anyone operating** the API-Football → BigQuery loader: what the knobs do, why safety checks exist, and how to run a **one-off backfill** versus a **steady daily job**. For **what** we store and **which tables** map to which API calls, see [`data_contract.md`](data_contract.md). Ingestion behaviour and HTTP discipline are defined in the **`ingestion/api_football`** package in this repository.
+Run and troubleshoot the API-Football → BigQuery loader. Ingestion behaviour lives in the `ingestion/api_football` package; raw tables and the completeness definition are documented in [`data_contract.md`](data_contract.md).
 
-**Pipeline order:** after a **successful** ingest (exit **0**), run **dbt** so staging (and downstream) match the raw snapshot you just wrote—for example `dbt build --project-dir .\dbt_project --selector staging`, then extend with `--selector downstream` when those layers exist. The same order should be encoded in schedulers or Cloud Functions so “what we query” tracks the last good load by design.
+## Pipeline order
+
+After a successful ingest (exit `0`), run dbt so staging and downstream layers reflect the raw snapshot just written:
+
+```powershell
+dbt build --project-dir .\dbt_project --selector staging
+```
+
+Extend with `--selector downstream` when those layers exist. Encode the same order in any scheduler so queries always track the last good load.
 
 ---
 
-## How to run ingestion (local)
+## Prerequisites
 
-1. **Credentials:** use [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the GCP project that owns the raw dataset.
-2. **Secrets:** copy `.env.example` to **`.env`** in the repo root and set **`API_FOOTBALL_API_KEY`**. Never commit `.env`.
-3. **Dependencies:** activate the repo **`.venv`** (see `README.md`), then from the repo root run `pip install -r requirements.txt` (includes `python-dotenv`, which loads `.env` automatically when the loader starts).
-4. **Command (PowerShell):** open a terminal **at the repository root** (the folder that contains `ingestion/` and `requirements.txt`), then run:
+- [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the GCP project that owns the raw dataset.
+- `.env` at the repo root, copied from `.env.example`, with `API_FOOTBALL_API_KEY` set. Never commit `.env`.
+- Activated repo `.venv` (see `README.md`) with dependencies installed: `pip install -r requirements.txt`. `python-dotenv` loads `.env` automatically at startup.
 
-   ```powershell
-   $env:PYTHONPATH = "."
-   python -m ingestion.api_football.main
-   ```
+---
 
-**Exit codes (CLI):**
+## Running the loader
+
+From a PowerShell terminal at the repo root (the folder containing `ingestion/` and `requirements.txt`):
+
+```powershell
+$env:PYTHONPATH = "."
+python -m ingestion.api_football.main
+```
+
+The job prints phase markers such as `[api-football] league=D1 phase=fixtures` so long runs are not silent.
+
+### Exit codes
 
 | Code | Meaning |
-|------|--------|
-| **0** | Run finished; pipeline OK and completeness passed (or completeness was skipped). |
-| **1** | Pipeline error (exception or non-success HTTP path from the job). |
-| **2** | Another run holds the **ingest lock** (BigQuery lease still valid) — do not start a second writer without clearing or waiting. |
-| **3** | **Per-match coverage check** failed: lineups / events / statistics / fixture players / predictions raw payloads are still short versus every fixture id in the merged fixtures list, while strict mode is on — see below. |
-
-The job prints phase lines such as `[api-football] league=D1 phase=fixtures` so a long run is not silent.
+|------|---------|
+| `0` | Run finished; pipeline OK and completeness passed (or the check was skipped). |
+| `1` | Pipeline error (exception or non-success HTTP path). |
+| `2` | Another run holds the ingest lock (BigQuery lease still valid). Do not start a second writer without clearing or waiting. |
+| `3` | Per-match coverage check failed while strict mode is on: lineups / events / statistics / fixture players / predictions do not yet cover every fixture id in the merged fixtures list. See Monitoring a run. |
 
 ---
 
-## Environment variables (from `.env.example`, plain language)
+## Environment variables
 
-Values in `.env` override defaults. **Commented lines in `.env.example` are optional** — uncomment and set only when you need to change behaviour.
+Values in `.env` override defaults. Uncomment lines in `.env.example` only when changing behaviour.
 
-### `API_FOOTBALL_API_KEY` (required)
+### Credentials and scope
 
-Your API-Football / API-Sports (or RapidAPI) key. Without it, the process stops immediately.
+#### `API_FOOTBALL_API_KEY` (required)
 
-### `API_FOOTBALL_INGEST_PROFILE` (optional)
+API-Football / API-Sports / RapidAPI key. Without it, the process exits immediately.
 
-Controls the **“shape” of a run”**: how many seasons we try to cover by default and how aggressive pacing and caps are.
+#### `API_FOOTBALL_BIGQUERY_DATASET` (optional)
 
-- **Unset** (or explicitly **`full`** / aliases **`paid`** / **`complete`**): treated as a **warehouse-style** run. The code applies **paid-friendly defaults** (via internal `setdefault`): multi-season discovery within the **configured Bundesliga season-year window** in code, **no** sleep between HTTP calls unless you set one, higher pagination caps, and the **fanout soft cap turned off** (`-1`) unless you override it. Use when you have **enough daily quota** for a large pull.
-- **`default`**, **`economy`**, or **`free`**: **no** those bundled defaults — you get a **single inferred season** (from today’s date and the project’s July rule) and the usual **free-tier-friendly** pause between calls unless you set `API_FOOTBALL_REQUEST_PAUSE_MS` yourself. Use for **low daily limits** or smoke tests.
+BigQuery dataset id for `RAW_*` tables. Default `raw`. Must match the dbt `raw_schema` so staging reads the same dataset.
 
-**Rule of thumb:** unset = “use the big profile”; set to **`default`** when you must stay inside **~100 requests/day** style limits or want one season only.
+#### `API_FOOTBALL_INGEST_PROFILE` (optional)
 
-### `API_FOOTBALL_BIGQUERY_DATASET` (optional)
+Shapes defaults for scope, pacing, and caps.
 
-BigQuery **dataset id** where `RAW_*` tables are written. Default **`raw`**. Must match dbt’s **`raw_schema`** for staging to read the same place.
+- Unset or `full` / `paid` / `complete`: multi-season discovery across the configured Bundesliga window, no inter-call sleep, higher pagination caps, fanout soft cap disabled (`-1`). Intended for keys with enough daily quota for a wide pull.
+- `default`, `economy`, or `free`: single inferred season (from today's date and the July rollover rule), free-tier-friendly pacing between calls, soft caps active. Intended for ~100 requests/day keys or smoke tests.
 
-### `API_FOOTBALL_FIXTURES_MODE` (optional)
+Explicit values for any individual variable override the profile defaults.
 
-How **`/fixtures`** is queried. Default **`season`** = one call style per season using `league` + `season`. Other modes (`from_to`, `next`) exist for different product needs; **`next`** often requires a paid plan.
+### Tuning knobs
 
-### `API_FOOTBALL_FIXTURE_USE_PAGE` (optional)
+#### `API_FOOTBALL_FIXTURES_MODE` (optional)
 
-Whether to send **`page=`** on **`/fixtures`** when in `season` mode. Many plans **reject** fixture paging — leave **`0`** / unset unless you confirmed it works on your key.
+How `/fixtures` is queried. Default `season` (`league` + `season` only). Alternative modes: `from_to` (date range) and `next` (upcoming matches — usually paid-only).
 
-### `API_FOOTBALL_LINEUPS_MAX_FIXTURES` (optional)
+#### `API_FOOTBALL_FIXTURE_USE_PAGE` (optional)
 
-Hard cap on how many fixtures get the **per-fixture bundle** (lineups, events, statistics, fixture players, predictions) in **one** run. Empty = no extra cap beyond quota math and soft caps. Use to **fit inside a daily budget**.
+Whether to send `page=` on `/fixtures` in `season` mode. Default `0`. Set to `1` only if the key is known to accept paging on `/fixtures`.
 
-### `API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER` (optional)
+#### `API_FOOTBALL_LINEUPS_MAX_FIXTURES` (optional)
 
-When the API does **not** return a daily quota header, this limits how many fixtures enter that bundle (default **`6`** in economy-style defaults). **`full`** profile sets it to **`-1`** (disabled) unless you override. Set **`-1`** yourself to disable the soft cap when you trust your quota.
+Hard cap on fixtures entering the per-fixture bundle (lineups, events, statistics, fixture players, predictions) in one run. Empty default means no extra cap beyond quota math and soft caps. Set when a specific daily budget must not be exceeded.
 
-### `API_FOOTBALL_FETCH_TRANSFERS` (optional)
+> Fanout selection: before the per-fixture pass, the loader reads the merged payloads of the five batched raw tables and skips, per endpoint, any `fixture_id` already covered. Only fixtures that still need at least one endpoint enter the priority and budget math. The log line `[api-football] fanout_selection league=… target=… already_complete=… missing_any_endpoint=…` at the start of the phase shows how much work remains this run.
 
-**`1`** (default) = load **`/transfers`**. Set to **`0`** / **`false`** / **`no`** to skip transfers and save requests.
+#### `API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER` (optional)
 
-### `API_FOOTBALL_FANOUT_PRIORITY` (optional)
+Fixture cap applied when the API does not return a daily quota header. Default `6` under economy profile, `-1` (disabled) under `full`. Set to `-1` manually when the quota is trusted and no cap is wanted.
 
-Order in which fixtures are considered for the expensive per-fixture bundle:
+#### `API_FOOTBALL_FANOUT_PRIORITY` (optional)
 
-- **`upcoming`** (default): matches in the **next few weeks** (see `API_FOOTBALL_FRESH_HORIZON_DAYS`) first — good for **product freshness**.
-- **`cursor`**: walk the full list from a stored **offset** (`RAW_D1_APIF_INGEST_CURSOR`) so scheduled runs **advance the archive** over many days.
-- **`season_chrono`** / **`chrono`**: earliest kickoff first for the whole list.
+Order in which fixtures enter the per-fixture bundle.
 
-### `API_FOOTBALL_FRESH_HORIZON_DAYS` (optional)
+- `upcoming` (default): next few weeks first (see `API_FOOTBALL_FRESH_HORIZON_DAYS`). Best for product freshness.
+- `cursor`: walk the full list from a stored offset in `RAW_D1_APIF_INGEST_CURSOR`. Best for steadily advancing the archive across scheduled runs.
+- `season_chrono` / `chrono`: earliest kickoff first.
 
-With **`upcoming`**, how many **calendar days ahead** of UTC “today” count as “fresh” for ordering (default **14**).
+#### `API_FOOTBALL_FRESH_HORIZON_DAYS` (optional)
 
-### `API_FOOTBALL_SKIP_PLAYERS` (optional)
+Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `14`.
 
-**`1`** / **`true`** / **`yes`** skips **`/players`** squad pulls. Saves a large block of calls; use on **cursor** archive runs if squads are refreshed separately.
+#### `API_FOOTBALL_SKIP_PLAYERS` (optional)
 
-### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
+`1` / `true` / `yes` skips `/players` squad pulls. Use on cursor archive runs when squads are refreshed on a separate schedule.
 
-Milliseconds to sleep **after each successful** HTTP call. When **unset**, economy-style runs default to a slow pace (~free tier **10/min**); **`full`** profile sets **`0`** via `setdefault` unless you set this explicitly.
+#### `API_FOOTBALL_FETCH_TRANSFERS` (optional)
 
-### `API_FOOTBALL_SKIP_INGEST_LOCK` (optional)
+`1` (default) loads `/transfers`. Set to `0` / `false` / `no` to skip transfers entirely.
 
-**`1`** / **`true`** / **`yes`** = **do not** take the BigQuery single-flight lock. **Only for local debugging.** Two overlapping jobs can corrupt merged payloads.
+#### `API_FOOTBALL_TRANSFERS_USE_PAGE` (optional)
 
-### `API_FOOTBALL_INGEST_LEASE_MINUTES` (optional)
+Whether to send `page=` on `/transfers`. Default `0`, because many plans (including free and several paid tiers) reject paging on this endpoint with `"The Page field do not exist."`. Pairs with `API_FOOTBALL_TRANSFERS_MAX_PAGE` (default `3`) when enabled.
 
-How long a successful lock holder keeps the lease (default **180**). After a **crash**, another run can acquire the lock once **`lease_until`** has passed.
+#### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
 
-### `API_FOOTBALL_SKIP_COMPLETENESS_CHECK` (optional)
+Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing under economy profile and `0` under `full`. Set explicitly to enforce a specific rate.
 
-**`1`** / **`true`** / **`yes`** = skip the post-run **fanout vs fixtures** comparison and the `ingest_completeness_json` log line.
+#### `API_FOOTBALL_SKIP_INGEST_LOCK` (optional)
 
-### `API_FOOTBALL_FAIL_ON_INCOMPLETE` (optional)
+`1` / `true` / `yes` skips the BigQuery single-flight lock. Local debugging only; two overlapping jobs can corrupt merged payloads.
 
-**`1`** (default) = if completeness finds missing fanout coverage, the job returns **exit code 3** (and HTTP **503** in Cloud Functions). Set to **`0`** / **`false`** / **`off`** during a **long multi-day backfill** so “partial but merged” runs do not fail the scheduler until coverage catches up.
+#### `API_FOOTBALL_INGEST_LEASE_MINUTES` (optional)
 
----
+Lease duration for a successful lock holder. Default `180`. After a crash, another run can acquire the lock once `lease_until` has passed.
 
-## Ingest lock (single-flight)
+#### `API_FOOTBALL_SKIP_COMPLETENESS_CHECK` (optional)
 
-**What it is:** a single row in BigQuery table **`RAW_APIF_INGEST_LOCK`** (same dataset as raw loads) records **`holder_run_id`** and **`lease_until`**.
+`1` / `true` / `yes` skips the post-run fanout-vs-fixtures comparison and the `ingest_completeness_json` log line.
 
-**Why it exists:** two ingestion jobs writing the **same** raw tables at once can **read partial state**, merge independently, and **overwrite** each other — a classic race. The lock makes overlapping runs **wait** (or exit with code **2**) instead of corrupting data.
+#### `API_FOOTBALL_FAIL_ON_INCOMPLETE` (optional)
 
-**If you see “another ingestion holds the lease”:** either a job is **still running**, a previous run **crashed** before release, or the lease is still inside **`lease_until`**.
-
-**What to do:**
-
-- **Wait** until `lease_until` if another process is legitimate.
-- If nothing is running and you are sure it is **stale**, clear it from the repo root (ADC + same project):
-
-  ```powershell
-  $env:PYTHONPATH = "."
-  python scripts\clear_apif_ingest_lock.py
-  ```
-
-- **Emergency local only:** `API_FOOTBALL_SKIP_INGEST_LOCK=1` — avoid in production.
+`1` (default) makes the process exit `3` (HTTP `503` in Cloud Functions) when fanout coverage is incomplete. Set to `0` during a long multi-day backfill so partial-but-merged runs do not fail the scheduler before coverage catches up.
 
 ---
 
-## Per-match tables vs merged fixtures (ingest log check)
+## Ingest lock
 
-**What it is:** after loading, the job compares **fixture ids** in merged **`RAW_D1_APIF_FIXTURES_NEXT`** to fixture ids present in each batched per-match payload (**LINEUPS**, **FIXTURE_EVENTS**, **FIXTURE_STATISTICS**, **FIXTURE_PLAYERS**, **PREDICTIONS**). It answers one specific question: *for this merged fixture list, does every id appear in each of those five raw blobs?* It does not, by itself, prove that every other raw table (for example squad **`PLAYERS`**) is fresh—that is covered by freshness, spread, and running dbt after ingest (see [`data_contract.md`](data_contract.md) “Data completeness”).
+A single row in `RAW_APIF_INGEST_LOCK` (same dataset as raw loads) records `holder_run_id` and `lease_until`. The lock prevents two ingestion jobs from racing on the same raw tables: concurrent merges can read partial state and overwrite each other.
 
-**Why it exists:** under **daily caps**, one run may only refresh **some** fixtures’ detail bundles. The check still tells you whether the merged payloads are **in sync on fixture coverage** for those five tables. Operators and alerts can watch:
+If a run reports "another ingestion holds the lease", either a legitimate job is still running, a prior run crashed before release, or the lease has not yet expired.
 
-`[api-football] ingest_completeness_json={...}`
+Wait until `lease_until` if another process is legitimate. If nothing is running and the lock is stale, clear it from the repo root with ADC authenticated to the same project:
 
-The JSON includes **`match_level_tables_cover_all_fixtures`** (same boolean as legacy **`all_fanout_complete`**).
+```powershell
+$env:PYTHONPATH = "."
+python scripts\clear_apif_ingest_lock.py
+```
 
-**If it fails** (`match_level_tables_cover_all_fixtures`: false): common during multi-day backfill until enough runs have merged fanout for all fixtures—**not** necessarily an API outage. With **`API_FOOTBALL_FAIL_ON_INCOMPLETE=1`** (default), the process exits **3** so schedulers can page someone. Set **`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`** until the JSON shows true, or skip the check with **`API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1`** (not recommended long-term).
+`API_FOOTBALL_SKIP_INGEST_LOCK=1` disables the lock entirely. Local debugging only; never production.
 
-**Warehouse spread:** model **`int_apif__raw_ingestion_spread`** (intermediate) summarizes `MAX(ingested_at)` across raw D1 tables; build it with `dbt build --project-dir .\dbt_project --select int_apif__raw_ingestion_spread` when you want a quick alignment read after deploys.
+---
+
+## Monitoring a run
+
+Three signals together tell you what happened.
+
+1. **Fanout selection (start of per-fixture phase).** The log line `[api-football] fanout_selection league=D1 target=… already_complete=… missing_any_endpoint=…` reports the number of in-scope fixtures, how many are already covered in all five per-match tables, and how many still miss at least one endpoint.
+
+2. **Completeness check (end of run).** The loader compares fixture ids in the merged `RAW_D1_APIF_FIXTURES_NEXT` payload against fixture ids present in each batched per-match payload (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`, `PREDICTIONS`) and emits `[api-football] ingest_completeness_json={...}`. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
+
+   When `match_level_tables_cover_all_fixtures` is `false` during a multi-day backfill, the process exits `3` under the default `API_FOOTBALL_FAIL_ON_INCOMPLETE=1`. Set that env var to `0` until coverage catches up, or skip the check entirely with `API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1` (not recommended long-term).
+
+3. **Warehouse alignment.** The dbt model `int_apif__raw_ingestion_spread` summarises `MAX(ingested_at)` across raw D1 tables in one row, including `spread_minutes`. Build it with `dbt build --project-dir .\dbt_project --select int_apif__raw_ingestion_spread` to check alignment after deploys.
 
 ---
 
 ## Playbooks
 
-### A) Fresh backfill (first fill or deliberate rebuild)
+### A) Fresh backfill
 
-**Goal:** land a **wide** merged snapshot (many seasons / full fanout over time) without fighting the scheduler on exit **3**.
+Land a wide merged snapshot (many seasons, full fanout over time) without fighting the scheduler on exit `3`.
 
-1. Confirm **`.env`**: `API_FOOTBALL_API_KEY`, dataset id if non-default, and profile suitable for your **quota** (`full` vs `default`).
-2. Set **`API_FOOTBALL_FAIL_ON_INCOMPLETE=0`** until fanout coverage catches up; optionally cap **`API_FOOTBALL_LINEUPS_MAX_FIXTURES`** per day.
-3. Use **`API_FOOTBALL_FANOUT_PRIORITY=cursor`** (and optionally **`API_FOOTBALL_SKIP_PLAYERS=1`** on cursor-only days) to **walk** the fixture list across runs — see [`data_contract.md`](data_contract.md) for the merge model.
-4. **Clear a stale lock** if you get exit **2** and no job is running (`scripts/clear_apif_ingest_lock.py`).
-5. Run **`python -m ingestion.api_football.main`** as often as quota allows until **`ingest_completeness_json`** shows **`match_level_tables_cover_all_fixtures": true`** for D1 (legacy **`all_fanout_complete`** matches).
-6. Turn **`API_FOOTBALL_FAIL_ON_INCOMPLETE`** back to **`1`** for normal operations.
-7. Run **`dbt build --project-dir .\dbt_project --selector staging`** (and downstream when applicable) **after** ingest succeeds so staging matches raw.
+1. Confirm `.env`: `API_FOOTBALL_API_KEY`, dataset id if non-default, and a profile that fits the daily quota (`full` for wide pulls, `default` for ~100 requests/day keys).
+2. Set `API_FOOTBALL_FAIL_ON_INCOMPLETE=0` until fanout coverage catches up. Optionally cap `API_FOOTBALL_LINEUPS_MAX_FIXTURES` per day.
+3. Use `API_FOOTBALL_FANOUT_PRIORITY=cursor` (and optionally `API_FOOTBALL_SKIP_PLAYERS=1` on cursor-only days) to walk the fixture list across runs.
+4. Clear a stale lock (`scripts/clear_apif_ingest_lock.py`) if exit `2` appears with no job running.
+5. Run `python -m ingestion.api_football.main` as often as quota allows until `ingest_completeness_json` reports `match_level_tables_cover_all_fixtures: true` for D1.
+6. Return `API_FOOTBALL_FAIL_ON_INCOMPLETE` to `1` for normal operations.
+7. Run `dbt build --project-dir .\dbt_project --selector staging` (and downstream where it applies) after ingest succeeds so staging matches raw.
 
-**If you truly need an empty slate:** selectively drop or truncate raw tables in BigQuery only when you understand what will be re-fetched — not required for day-to-day merges.
+Dropping or truncating raw tables in BigQuery is only required for a deliberate empty slate; day-to-day merges do not need it.
 
-### B) Daily update (steady state)
+### B) Daily update
 
-**Goal:** refresh **cheap** league-wide tables every day and **prioritise near-term matches** for expensive fanout.
+Refresh cheap league-wide tables daily and prioritise near-term matches for the expensive fanout.
 
-1. Keep **`API_FOOTBALL_FAIL_ON_INCOMPLETE=1`** once backfill is complete (alerts on regression).
-2. Default **`API_FOOTBALL_FANOUT_PRIORITY=upcoming`** so the next match window gets detail first.
-3. Keep the **ingest lock enabled** so scheduled jobs never overlap.
-4. Optionally run a **second** schedule with **`FANOUT_PRIORITY=cursor`** (and optional **`SKIP_PLAYERS`**) to advance the long tail — same pattern as in the backfill playbook, but smaller slices.
+1. Keep `API_FOOTBALL_FAIL_ON_INCOMPLETE=1` once backfill is complete so the scheduler alerts on regression.
+2. Leave `API_FOOTBALL_FANOUT_PRIORITY=upcoming` so the next match window gets detail first.
+3. Keep the ingest lock enabled so scheduled jobs never overlap.
+4. Optionally run a second schedule with `FANOUT_PRIORITY=cursor` (and `SKIP_PLAYERS=1`) to keep advancing the long tail in smaller slices.
 
 ---
 
 ## Related documents
 
 | Topic | Document |
-|--------|-----------|
-| Raw tables, merge idea, endpoint map | [`data_contract.md`](data_contract.md) |
-| dbt layers and naming | `dbt_project/docs/layering.md` (in-repo) |
+|-------|----------|
+| Raw tables, merge model, endpoint map | [`data_contract.md`](data_contract.md) |
+| dbt layers and naming | `dbt_project/docs/layering.md` |
 | Raw load-time spread (D1) | dbt model `int_apif__raw_ingestion_spread` |

@@ -1,4 +1,11 @@
-"""Per-fixture HTTP fanout + batched RAW_* tables (lineups, events, stats, …)."""
+"""Per-fixture HTTP fanout + batched RAW_* tables (lineups, events, stats, …).
+
+Selection is **completeness-driven**: before spending any quota, read the current
+merged payloads for the five fanout tables and skip fixture ids (per endpoint)
+that are already covered. A run therefore only pays for work that actually
+advances completeness, which is what makes multi-day convergence monotonic
+without any operator-facing knob.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +13,7 @@ import os
 
 from .. import errors_quota
 from ..bq import load_json_to_bq, read_latest_payload_json
+from ..completeness import _fixture_ids_from_fanout_payload
 from ..config import raw_league_table
 from ..errors_quota import append_api_errors
 from ..fanout import (
@@ -17,16 +25,49 @@ from ..http_client import fetch_json
 from ..payload_merge import merge_fanout_batched
 from .context import PipelineContext
 
+# (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)
+_FANOUT_ENTITY_KEYS: tuple[tuple[str, str, str], ...] = (
+    ("lineups", "LINEUPS", "fixture_lineups"),
+    ("events", "FIXTURE_EVENTS", "fixture_events"),
+    ("fx_stats", "FIXTURE_STATISTICS", "fixture_statistics"),
+    ("fx_players", "FIXTURE_PLAYERS", "fixture_players"),
+    ("preds", "PREDICTIONS", "predictions"),
+)
+
 
 def _batched_shell(league_code: str) -> dict[str, dict]:
     base = {"league_code": league_code, "response": []}
-    return {
-        "lineups": dict(base),
-        "events": dict(base),
-        "fx_stats": dict(base),
-        "fx_players": dict(base),
-        "preds": dict(base),
-    }
+    return {key: dict(base) for key, _entity, _cov_key in _FANOUT_ENTITY_KEYS}
+
+
+def _already_covered_per_entity(
+    ctx: PipelineContext,
+    league_code: str,
+) -> dict[str, set[int]]:
+    """Read merged fanout payloads once and return ``{shell_key: set(fixture_ids)}``."""
+    covered: dict[str, set[int]] = {}
+    for key, entity, _cov_key in _FANOUT_ENTITY_KEYS:
+        tbl = raw_league_table(league_code, entity)
+        try:
+            prior = read_latest_payload_json(ctx.client, tbl)
+        except Exception as e:
+            ctx.errors.append(f"fanout_covered {league_code} {entity}: {e}")
+            prior = None
+        covered[key] = _fixture_ids_from_fanout_payload(prior)
+    return covered
+
+
+def _fixture_needs_any_endpoint(
+    fixture_id: int,
+    covered: dict[str, set[int]],
+    cov: dict[str, bool],
+) -> bool:
+    for key, _entity, cov_key in _FANOUT_ENTITY_KEYS:
+        if not cov.get(cov_key, True):
+            continue
+        if fixture_id not in covered[key]:
+            return True
+    return False
 
 
 def _persist_fanout_tables(
@@ -35,14 +76,7 @@ def _persist_fanout_tables(
     shells: dict[str, dict],
     valid_fixture_ids: set[int],
 ) -> None:
-    specs = (
-        ("lineups", "LINEUPS", "lineups BQ"),
-        ("events", "FIXTURE_EVENTS", "fixture_events BQ"),
-        ("fx_stats", "FIXTURE_STATISTICS", "fixture_statistics BQ"),
-        ("fx_players", "FIXTURE_PLAYERS", "fixture_players BQ"),
-        ("preds", "PREDICTIONS", "predictions BQ"),
-    )
-    for key, entity, err_prefix in specs:
+    for key, entity, _cov_key in _FANOUT_ENTITY_KEYS:
         try:
             tbl = raw_league_table(league_code, entity)
             prior = read_latest_payload_json(ctx.client, tbl)
@@ -60,7 +94,7 @@ def _persist_fanout_tables(
             )
             ctx.add_loaded(1)
         except Exception as e:
-            ctx.errors.append(f"{err_prefix} {league_code}: {e}")
+            ctx.errors.append(f"{entity.lower()} BQ {league_code}: {e}")
 
 
 def run_fixture_fanout_and_persist(
@@ -78,15 +112,28 @@ def run_fixture_fanout_and_persist(
         league_code,
         ctx.errors,
     )
+
+    covered = _already_covered_per_entity(ctx, league_code)
+    ordered_missing = [
+        fid for fid in ordered_fanout if _fixture_needs_any_endpoint(fid, covered, cov)
+    ]
+
+    print(
+        f"[api-football] fanout_selection league={league_code} "
+        f"target={len(fixture_ids)} "
+        f"already_complete={len(fixture_ids) - len(ordered_missing)} "
+        f"missing_any_endpoint={len(ordered_missing)}"
+    )
+
     fanout_ids = _budgeted_fixture_fanout_ids(
-        ordered_fanout, team_ids, league_code, ctx.errors
+        ordered_missing, team_ids, league_code, ctx.errors
     )
     sh = _batched_shell(league_code)
 
     for fixture_id in fanout_ids:
         if errors_quota._http_quota_exhausted:
             break
-        if cov["fixture_lineups"]:
+        if cov["fixture_lineups"] and fixture_id not in covered["lineups"]:
             try:
                 lineups = fetch_json(
                     "/fixtures/lineups",
@@ -101,7 +148,7 @@ def run_fixture_fanout_and_persist(
                 )
             except Exception as e:
                 ctx.errors.append(f"lineups {league_code} fixture {fixture_id}: {e}")
-        if cov["fixture_events"]:
+        if cov["fixture_events"] and fixture_id not in covered["events"]:
             try:
                 ev = fetch_json(
                     "/fixtures/events",
@@ -116,7 +163,7 @@ def run_fixture_fanout_and_persist(
                 )
             except Exception as e:
                 ctx.errors.append(f"fixtures/events {league_code} fixture {fixture_id}: {e}")
-        if cov["fixture_statistics"]:
+        if cov["fixture_statistics"] and fixture_id not in covered["fx_stats"]:
             try:
                 fxs = fetch_json(
                     "/fixtures/statistics",
@@ -135,7 +182,7 @@ def run_fixture_fanout_and_persist(
                 ctx.errors.append(
                     f"fixtures/statistics {league_code} fixture {fixture_id}: {e}"
                 )
-        if cov["fixture_players"]:
+        if cov["fixture_players"] and fixture_id not in covered["fx_players"]:
             try:
                 fxp = fetch_json(
                     "/fixtures/players",
@@ -154,7 +201,7 @@ def run_fixture_fanout_and_persist(
                 ctx.errors.append(
                     f"fixtures/players {league_code} fixture {fixture_id}: {e}"
                 )
-        if cov["predictions"]:
+        if cov["predictions"] and fixture_id not in covered["preds"]:
             try:
                 pr = fetch_json(
                     "/predictions",
