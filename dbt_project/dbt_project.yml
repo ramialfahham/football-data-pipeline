@@ -51,3 +51,8 @@ models:
     5_marts:
       +materialized: table
       +schema: marts
+
+# Snapshots: SCD Type-2 history tables (used for sources the API only exposes as "current").
+snapshots:
+  football_data_pipeline:
+    +target_schema: snapshots

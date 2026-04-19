@@ -85,6 +85,70 @@ Allowed:
 Not allowed:
 - Wide, consumer-specific projections or performance-oriented denormalization (those belong in **marts**, with support from **intermediate** where needed).
 
+### Dimension qualification rules
+
+A table earns `dim_` status only when **all three** conditions hold:
+
+1. **Entity.** It represents a real-world thing the business talks about by name (team, player, season, date, league). A lookup table for a closed enum does not qualify on its own.
+2. **Reuse.** Its attributes are shared across more than one fact or mart. If an attribute set is consumed by exactly one consumer, denormalize it onto that consumer's fact or mart instead.
+3. **Conformance.** The vocabulary is one the whole warehouse agrees on. If two sources disagree on what the same entity is, resolve the conflict in `2_base` before the dimension crystallizes in `3_core`.
+
+Patterns that look like dimensions but are not:
+
+- **Degenerate dimension.** A natural key with no independent attributes (e.g. a round name, an invoice number): keep the key on the fact; do not build a table.
+- **Closed enum.** A small, stable vocabulary (fixture status, event type, card colour): enforce with `accepted_values` on the fact; a dim adds maintenance without adding information.
+- **Attribute masquerading as entity.** Country, nationality, position, language: keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation, position group). Promote to a dim when the rollup logic appears, not before.
+- **Entity requiring cross-source resolution.** If consolidating the entity requires reconciling identifiers across sources (e.g. venue from `/teams` vs `/fixtures`), that work lives in `2_base`; `3_core` receives the already-conformed version.
+
+Canonical dimension inventory for this project:
+
+| Dim | Grain | Source staging model | Notes |
+|-----|-------|----------------------|-------|
+| `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
+| `dim_league` | (league_code, league_api_id) | `stg_apif__d1_leagues` | One row per configured league. |
+| `dim_season` | (league_code, season_api_year) | `stg_apif__d1_leagues` (seasons_json) | Carries API coverage flags that drive downstream conditional logic. |
+| `dim_team` | (league_code, team_api_id) | `stg_apif__d1_teams` | Deduplicated to latest-season snapshot; home-venue attributes denormalized until a first-class `dim_venue` is justified. |
+| `dim_player` | (league_code, player_api_id) | `stg_apif__d1_players` | Deduplicated to latest (team, season); `last_known_team_api_id` is a snapshot attribute, not a join key. |
+
+All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
+
+### Fact qualification rules
+
+A table earns `fct_` status only when **all three** conditions hold:
+
+1. **Event or measurement.** It captures something that happened at a point in time (a match, a transfer, a card) or the state of a measure at a point in time (standings on a given day). A reference list with no time dimension does not qualify.
+2. **Dimensional context.** It joins to one or more dims via foreign keys and/or carries degenerate dim columns that pin the event/measurement to a team, player, season, and date.
+3. **Measures or atomic grain.** It carries additive/semi-additive measures (goals, minutes, shots, points), or it is the atomic grain of a state that downstream models aggregate. Wide denormalized shapes designed for a single consumer belong in `5_marts`, not `3_core`.
+
+Patterns that look like facts but are not:
+
+- **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived views** over `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
+- **Degenerate fact.** Rounds are only labels attached to fixtures, with no measures of their own. Keep them as a degenerate attribute on `fct_fixture` (`round_name`); a separate `fct_round` adds no information.
+- **Consumer-specific denormalization.** A wide per-team season summary is a **mart**, not a core fact, even when it carries measures — facts in `3_core` stay at their atomic grain so multiple marts can aggregate them differently.
+- **Deferred fact.** `fct_injury`, `fct_prediction`, and `fct_fixture_lineup` each pass the three-condition test in principle but are deferred until a mart consumer actually queries them; ingesting to `3_core` without a consumer adds maintenance without value.
+
+Canonical fact inventory for this project:
+
+| Fact | Grain | Source staging model(s) | Notes |
+|------|-------|-------------------------|-------|
+| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `stg_apif__d1_fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+| `fct_standings` | `(season_sk, team_sk, group_description)` | `snap_apif_d1_standings` (from `stg_apif__d1_standings`) | Current snapshot only; history is in the dbt snapshot table. |
+| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `stg_apif__d1_fixture_statistics` | `statistics_lines_json` pivoted to named columns. |
+| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__d1_fixture_players` | `player_statistics_json[0]` flattened into measures. |
+| `fct_fixture_event` | `event_sk` hashed over full staging grain | `stg_apif__d1_fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
+| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `stg_apif__d1_transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
+
+All facts propagate `league_code` so they are safe to union across future leagues.
+
+### Snapshots
+
+Some endpoints only return the current state (notably `/standings`). To preserve history without inflating fact grain, we use dbt's native `snapshots` feature:
+
+- Snapshot files live in `dbt_project/snapshots/` and target the **`snapshots`** BigQuery dataset (configured via `dbt_project.yml`).
+- Naming convention: `snap_<source>_<table>` (e.g. `snap_apif_d1_standings`).
+- `strategy='check'` with `check_cols` on the measure columns; `dbt snapshot` is run as part of the daily pipeline before `dbt build`.
+- Core facts (`fct_standings`) read the current version (`where dbt_valid_to is null`); historical queries read the snapshot directly.
+
 ## 4_intermediate
 
 Purpose: **preparation for the marts layer.** Intermediate is where **complex logic**, multi-step **calculations**, and **cross-table joins** live when they would make **marts** models too heavy, repetitive, or hard to test.

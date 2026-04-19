@@ -1,0 +1,643 @@
+version: 2
+
+# Core layer is source-agnostic: dimensions and facts are the canonical system of record and may conform data from multiple sources in the future.
+# Surrogate keys use ``dbt_utils.generate_surrogate_key``. League-scoped dimensions carry ``league_code`` in the surrogate key so a second league slots in without collisions.
+#
+# Core test policy:
+#   - surrogate key: unique + not_null
+#   - natural key: dbt_utils.unique_combination_of_columns
+#   - not_null on the attributes the dimension would be useless without (name / date)
+#   - accepted_values where the attribute is a closed, stable enum
+# Fact test policy:
+#   - surrogate key: unique + not_null
+#   - natural-key grain: dbt_utils.unique_combination_of_columns
+#   - every FK to a dim: not_null + relationships (severity error by default)
+#     exception: fct_transfer.{from,to}_team_sk are nullable by design (cross-league teams) and use severity warn
+#   - accepted_values on closed API enums (severity warn while the data still backfills)
+
+models:
+  - name: dim_date
+    description: "Global calendar dimension, one row per day from 2015-07-01 through 2030-12-31. Grain: date_day. Not league-scoped; every fact that carries a date joins via ``date_sk``."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    columns:
+      - name: date_sk
+        description: "Surrogate key: ``YYYYMMDD`` as INT64. Stable and human-readable."
+        tests: [not_null, unique]
+      - name: date_day
+        description: "Calendar date (DATE)."
+        tests: [not_null]
+      - name: calendar_year
+        description: "Four-digit Gregorian year."
+      - name: calendar_quarter
+        description: "Quarter of the year, 1-4."
+      - name: calendar_month
+        description: "Month of the year, 1-12."
+      - name: calendar_month_name
+        description: "Full English month name (January..December)."
+      - name: iso_year
+        description: "ISO-8601 week-based year."
+      - name: iso_week
+        description: "ISO-8601 week number, 1-53."
+      - name: day_of_month
+        description: "Day of month, 1-31."
+      - name: day_of_week
+        description: "BigQuery day-of-week (1=Sunday..7=Saturday)."
+      - name: day_of_week_name
+        description: "Full English weekday name."
+      - name: is_weekend
+        description: "True when day_of_week is Sunday or Saturday."
+
+  - name: dim_league
+    description: "Canonical league dimension. Grain: (league_code, league_api_id). One row per configured league; deduplicated to the latest raw ingestion per natural key."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - league_api_id
+    columns:
+      - name: league_sk
+        description: "Surrogate key from (league_code, league_api_id)."
+        tests: [not_null, unique]
+      - name: league_code
+        description: "Internal league code propagated through every league-scoped key (e.g. D1 for Bundesliga)."
+        tests: [not_null]
+      - name: league_api_id
+        description: "API-Football league id (78 for Bundesliga)."
+        tests: [not_null]
+      - name: league_name
+        description: "League display name from API-Football."
+        tests: [not_null]
+      - name: league_type
+        description: "League type as reported by API-Football."
+        tests:
+          - accepted_values:
+              values: ['League', 'Cup']
+              severity: warn
+      - name: league_country
+        description: "Country the league belongs to."
+      - name: league_logo_url
+        description: "League logo URL."
+      - name: country_flag_url
+        description: "Country flag URL."
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this dimension row was derived from."
+
+  - name: dim_season
+    description: "Canonical season dimension with per-season coverage flags. Grain: (league_code, season_api_year). Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - season_api_year
+    columns:
+      - name: season_sk
+        description: "Surrogate key from (league_code, season_api_year)."
+        tests: [not_null, unique]
+      - name: league_sk
+        description: "FK to dim_league (same surrogate construction as in dim_league)."
+        tests: [not_null]
+      - name: league_code
+        description: "Internal league code."
+        tests: [not_null]
+      - name: season_api_year
+        description: "API season start year (e.g. 2025 for the 2025/26 season)."
+        tests: [not_null]
+      - name: season_start_date
+        description: "Season start date from API-Football."
+      - name: season_end_date
+        description: "Season end date from API-Football."
+      - name: season_is_current
+        description: "True when this season is marked ``current`` by API-Football for the league."
+      - name: has_coverage_fixture_events
+        description: "Coverage flag for per-fixture events."
+      - name: has_coverage_fixture_lineups
+        description: "Coverage flag for per-fixture lineups."
+      - name: has_coverage_fixture_statistics
+        description: "Coverage flag for per-fixture team statistics."
+      - name: has_coverage_fixture_players
+        description: "Coverage flag for per-fixture player statistics."
+      - name: has_coverage_standings
+        description: "Coverage flag for league standings."
+      - name: has_coverage_players
+        description: "Coverage flag for squad players."
+      - name: has_coverage_top_scorers
+        description: "Coverage flag for top scorers."
+      - name: has_coverage_top_assists
+        description: "Coverage flag for top assists."
+      - name: has_coverage_top_cards
+        description: "Coverage flag for top yellow/red cards."
+      - name: has_coverage_injuries
+        description: "Coverage flag for injuries."
+      - name: has_coverage_predictions
+        description: "Coverage flag for predictions."
+      - name: has_coverage_odds
+        description: "Coverage flag for pre-match odds."
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this dimension row was derived from."
+
+  - name: dim_team
+    description: "Canonical team dimension. Grain: (league_code, team_api_id). Deduplicated to the latest season's snapshot per team; venue attributes are the current home venue from the latest /teams payload."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - team_api_id
+    columns:
+      - name: team_sk
+        description: "Surrogate key from (league_code, team_api_id)."
+        tests: [not_null, unique]
+      - name: league_code
+        description: "Internal league code."
+        tests: [not_null]
+      - name: team_api_id
+        description: "API-Football team id."
+        tests: [not_null]
+      - name: team_name
+        description: "Team display name from API-Football."
+        tests: [not_null]
+      - name: team_code
+        description: "Short team code (3-4 letters) from API-Football."
+      - name: team_country
+        description: "Country the team is registered in."
+      - name: team_founded_year
+        description: "Year the team was founded."
+      - name: team_logo_url
+        description: "Team crest URL."
+      - name: venue_api_id
+        description: "API-Football venue id for the current home venue."
+      - name: venue_name
+        description: "Home venue name."
+      - name: venue_address
+        description: "Home venue address."
+      - name: venue_city
+        description: "Home venue city."
+      - name: venue_capacity
+        description: "Home venue capacity."
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this dimension row was derived from."
+
+  - name: dim_player
+    description: "Canonical player dimension. Grain: (league_code, player_api_id). A player keeps one row even when they change teams within a season; the last known team and season are retained as snapshot attributes rather than joinable keys, because team attribution belongs on facts that involve player and team simultaneously."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_api_id
+    columns:
+      - name: player_sk
+        description: "Surrogate key from (league_code, player_api_id)."
+        tests: [not_null, unique]
+      - name: league_code
+        description: "Internal league code."
+        tests: [not_null]
+      - name: player_api_id
+        description: "API-Football player id."
+        tests: [not_null]
+      - name: player_name
+        description: "Player display name from API-Football."
+        tests: [not_null]
+      - name: player_first_name
+        description: "Player first name."
+      - name: player_last_name
+        description: "Player last name."
+      - name: player_birth_date
+        description: "Player birth date (DATE) when parseable from API ``birth.date``."
+      - name: player_nationality
+        description: "Nationality string from API-Football."
+      - name: player_photo_url
+        description: "Player photo URL."
+      - name: last_known_team_api_id
+        description: "Snapshot attribute: the most recent team this player was seen with in ingested squad data. Not a join key; use facts for authoritative player-team attribution at a point in time."
+      - name: last_known_season_year
+        description: "Snapshot attribute: the most recent season year this player was seen with last_known_team_api_id."
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this dimension row was derived from."
+
+  - name: fct_fixture
+    description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "fact"]
+    columns:
+      - name: fixture_sk
+        description: "Surrogate key equal to fixture_api_id cast to INT64 (globally unique in API-Football)."
+        tests: [not_null, unique]
+      - name: fixture_api_id
+        description: "API-Football fixture id."
+        tests: [not_null]
+      - name: league_sk
+        description: "FK to dim_league."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: season_sk
+        description: "FK to dim_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: home_team_sk
+        description: "FK to dim_team for the home side."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: away_team_sk
+        description: "FK to dim_team for the away side."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: kickoff_date_sk
+        description: "FK to dim_date on the kickoff day (UTC date)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_sk
+      - name: league_code
+        description: "Internal league code."
+        tests: [not_null]
+      - name: season_api_year
+        description: "Season start year."
+      - name: home_team_api_id
+        description: "API-Football home team id."
+      - name: away_team_api_id
+        description: "API-Football away team id."
+      - name: fixture_date
+        description: "Kickoff date (UTC)."
+        tests: [not_null]
+      - name: kickoff_datetime
+        description: "Full kickoff timestamp."
+      - name: kickoff_timezone
+        description: "Kickoff timezone string as delivered by the API."
+      - name: status_short
+        description: "API-Football short status code."
+        tests:
+          - accepted_values:
+              values:
+                ['TBD', 'NS', '1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT',
+                 'FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', 'AWD', 'WO', 'LIVE']
+              severity: warn
+      - name: status_long
+        description: "API-Football long status description."
+      - name: status_elapsed
+        description: "Elapsed minutes as reported by API-Football (in-play only)."
+      - name: round_name
+        description: "Round label (e.g. ``Regular Season - 12``). Degenerate attribute."
+      - name: goals_home
+        description: "Final-time goals scored by home team."
+      - name: goals_away
+        description: "Final-time goals scored by away team."
+      - name: venue_api_id
+        description: "API-Football venue id."
+      - name: venue_name_snapshot
+        description: "Venue name at the time the fixture was ingested."
+      - name: venue_city_snapshot
+        description: "Venue city at the time the fixture was ingested."
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this fact row was derived from."
+
+  - name: fct_standings
+    description: "Current league standings. Grain: (season_sk, team_sk, group_description). Sources the ``dbt_valid_to is null`` row per key from snap_apif_d1_standings. Historical analysis queries the snapshot directly."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "fact"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - season_sk
+            - team_sk
+            - group_description
+    columns:
+      - name: standing_sk
+        description: "Surrogate key from (league_code, season, team_id, group_description)."
+        tests: [not_null, unique]
+      - name: season_sk
+        description: "FK to dim_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+      - name: team_api_id
+      - name: group_description
+        description: "Standings group label (e.g. ``Bundesliga``). Part of the grain because the API returns one row per (team, group)."
+        tests: [not_null]
+      - name: standing_rank
+        description: "Table position (1 = leader)."
+      - name: points
+        description: "Accumulated points."
+      - name: goals_diff
+        description: "Goal difference."
+      - name: form
+        description: "Recent form string (``WDLWW`` etc.). Degenerate attribute."
+      - name: played
+        description: "Games played (all)."
+      - name: wins
+        description: "Wins (all)."
+      - name: draws
+        description: "Draws (all)."
+      - name: losses
+        description: "Losses (all)."
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this fact row was derived from."
+      - name: snapshot_valid_from
+        description: "Timestamp the current snapshot version became valid (from dbt snapshot bookkeeping)."
+
+  - name: fct_fixture_team_stats
+    description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). statistics_lines_json is pivoted into named columns; percentage metrics are cast to INT64."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "fact"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - team_sk
+    columns:
+      - name: fixture_team_stat_sk
+        description: "Surrogate key from (fixture_id, league_code, team_id)."
+        tests: [not_null, unique]
+      - name: fixture_sk
+        description: "FK to fct_fixture."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_api_id
+      - name: team_api_id
+      - name: shots_on_goal
+      - name: shots_off_goal
+      - name: shots_total
+      - name: shots_blocked
+      - name: shots_inside_box
+      - name: shots_outside_box
+      - name: fouls
+      - name: corner_kicks
+      - name: offsides
+      - name: ball_possession_percent
+        description: "Ball possession as an integer percent (0-100)."
+      - name: yellow_cards
+      - name: red_cards
+      - name: goalkeeper_saves
+      - name: passes_total
+      - name: passes_accurate
+      - name: passes_accuracy_percent
+        description: "Pass accuracy as an integer percent (0-100)."
+      - name: expected_goals
+        description: "Expected goals (xG) as FLOAT64 when provided by the API."
+      - name: raw_ingested_at
+
+  - name: fct_fixture_player_stats
+    description: "Per-player, per-fixture statistics. Grain: (fixture_sk, team_sk, player_sk). Flattens the single-element ``player_statistics_json[0]`` subtree into measure columns."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "fact"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - team_sk
+            - player_sk
+    columns:
+      - name: fixture_player_stat_sk
+        description: "Surrogate key from (fixture_id, league_code, team_id, player_id)."
+        tests: [not_null, unique]
+      - name: fixture_sk
+        description: "FK to fct_fixture."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        description: "FK to dim_player."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_api_id
+      - name: team_api_id
+      - name: player_api_id
+      - name: minutes_played
+      - name: shirt_number
+      - name: position_code
+        description: "Position as reported by the API (e.g. G, D, M, F). Degenerate attribute; kept free-form to track future codes."
+      - name: rating
+      - name: is_captain
+      - name: is_substitute
+      - name: is_starter
+        description: "Derived: minutes_played > 0 AND NOT is_substitute."
+      - name: offsides
+      - name: shots_total
+      - name: shots_on
+      - name: goals_total
+      - name: goals_conceded
+      - name: goals_assists
+      - name: goals_saves
+      - name: passes_total
+      - name: passes_key
+      - name: passes_accuracy_percent
+      - name: tackles_total
+      - name: tackles_blocks
+      - name: tackles_interceptions
+      - name: duels_total
+      - name: duels_won
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: dribbles_past
+      - name: fouls_drawn
+      - name: fouls_committed
+      - name: cards_yellow
+      - name: cards_red
+      - name: penalty_won
+      - name: penalty_committed
+        description: "Mirrors the API's ``penalty.commited`` (sic) field under a corrected name."
+      - name: penalty_scored
+      - name: penalty_missed
+      - name: penalty_saved
+      - name: raw_ingested_at
+
+  - name: fct_fixture_event
+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: event_sk hashed over (fixture, minute_elapsed, minute_extra, team, player, event_type, event_detail)."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "fact"]
+    columns:
+      - name: event_sk
+        description: "Surrogate key hashing the full staging grain."
+        tests: [not_null, unique]
+      - name: fixture_sk
+        description: "FK to fct_fixture."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        description: "FK to dim_team for the event's team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        description: "FK to dim_player for the primary actor (goalscorer, card recipient, etc.). Nullable: VAR decisions or team-level events may not carry a player."
+        tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+              where: "player_sk is not null"
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_api_id
+      - name: team_api_id
+      - name: player_api_id
+      - name: minute_elapsed
+      - name: minute_extra
+      - name: event_type
+        description: "High-level event type (e.g. Goal, Card, subst, Var)."
+      - name: event_detail
+        description: "Event subtype (e.g. Normal Goal, Yellow Card, Substitution 1)."
+      - name: event_comments
+      - name: team_name_snapshot
+      - name: player_name_snapshot
+      - name: assist_player_name
+        description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
+      - name: raw_ingested_at
+
+  - name: fct_transfer
+    description: "Player transfer events. Grain: transfer_sk hashed over (league_code, player, date, from_team, to_team, type). from_team_sk / to_team_sk are nullable because transfers often involve teams outside the configured leagues; both legs keep api_id and name_snapshot regardless."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "fact"]
+    columns:
+      - name: transfer_sk
+        description: "Surrogate key hashing the transfer grain."
+        tests: [not_null, unique]
+      - name: player_sk
+        description: "FK to dim_player."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: from_team_sk
+        description: "FK to dim_team for the selling side. Nullable: cross-league outgoing teams are not in dim_team."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+              severity: warn
+              where: "from_team_sk is not null"
+      - name: to_team_sk
+        description: "FK to dim_team for the buying side. Nullable: cross-league incoming teams are not in dim_team."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+              severity: warn
+              where: "to_team_sk is not null"
+      - name: transfer_date_sk
+        description: "FK to dim_date on the transfer date."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_sk
+      - name: league_code
+        tests: [not_null]
+      - name: player_api_id
+        tests: [not_null]
+      - name: transfer_date
+        tests: [not_null]
+      - name: transfer_type
+        description: "Transfer type as delivered by the API (e.g. Free, Loan, N/A)."
+      - name: from_team_api_id
+      - name: from_team_name_snapshot
+      - name: to_team_api_id
+      - name: to_team_name_snapshot
+      - name: raw_ingested_at
