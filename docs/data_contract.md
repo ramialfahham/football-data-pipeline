@@ -59,7 +59,7 @@ Heavy per-match coverage typically takes several runs under daily API limits; th
 | Did each raw table load recently? | dbt source freshness on `ingested_at` in `dbt_project/models/1_staging/api_football/sources.yml`. |
 | Are raw tables' latest loads aligned with each other? | dbt model `int_apif__raw_ingestion_spread` (max `ingested_at` per table, `spread_minutes`). |
 | Does staging reflect the latest raw? | Run `dbt build` for staging after a successful ingest. |
-| Do per-match tables cover all fixtures in the merged list? | Post-ingest check in `ingestion/api_football/completeness.py`, logged as `ingest_completeness_json`. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the boolean result. |
+| Do per-match tables cover every finished fixture in the merged list? | Post-ingest check in `ingestion/api_football/completeness.py`, logged as `ingest_completeness_json`. Expected is restricted to fixtures with `status.short` in `FT`, `AET`, `PEN` (configured as `FINISHED_STATUS_SHORT`); unplayed fixtures are reported as `fixture_unplayed_count` but do not fail the check. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the boolean result. |
 
 Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`](operations_guide.md).
 

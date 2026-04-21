@@ -40,7 +40,7 @@ The job prints phase markers such as `[api-football] league=D1 phase=fixtures` s
 | `0` | Run finished; pipeline OK and completeness passed (or the check was skipped). |
 | `1` | Pipeline error (exception or non-success HTTP path). |
 | `2` | Another run holds the ingest lock (BigQuery lease still valid). Do not start a second writer without clearing or waiting. |
-| `3` | Per-match coverage check failed while strict mode is on: lineups / events / statistics / fixture players / predictions do not yet cover every fixture id in the merged fixtures list. See Monitoring a run. |
+| `3` | Per-match coverage check failed while strict mode is on: lineups / events / statistics / fixture players / predictions do not yet cover every **finished** fixture (status `FT`/`AET`/`PEN`) in the merged fixtures list. Unplayed fixtures are ignored by this check. See Monitoring a run. |
 
 ---
 
@@ -156,7 +156,7 @@ Three signals together tell you what happened.
 
 1. **Fanout selection (start of per-fixture phase).** The log line `[api-football] fanout_selection league=D1 target=… already_complete=… missing_any_endpoint=…` reports the number of in-scope fixtures, how many are already covered in all five per-match tables, and how many still miss at least one endpoint.
 
-2. **Completeness check (end of run).** The loader compares fixture ids in the merged `RAW_D1_APIF_FIXTURES_NEXT` payload against fixture ids present in each batched per-match payload (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`, `PREDICTIONS`) and emits `[api-football] ingest_completeness_json={...}`. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
+2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the merged `RAW_D1_APIF_FIXTURES_NEXT` payload (`status.short` in `FT`, `AET`, `PEN`) against fixture ids present in each batched per-match payload (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`, `PREDICTIONS`) and emits `[api-football] ingest_completeness_json={...}`. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check, because the per-match tables can't legitimately cover them yet. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
 
    When `match_level_tables_cover_all_fixtures` is `false` during a multi-day backfill, the process exits `3` under the default `API_FOOTBALL_FAIL_ON_INCOMPLETE=1`. Set that env var to `0` until coverage catches up, or skip the check entirely with `API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1` (not recommended long-term).
 

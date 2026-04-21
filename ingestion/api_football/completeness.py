@@ -20,17 +20,38 @@ FANOUT_ENTITIES = (
     "PREDICTIONS",
 )
 
+# API-Football ``fixture.status.short`` codes where the match has concluded and
+# per-fixture fanout data is expected to exist. Everything else (upcoming, in-play,
+# cancelled, abandoned, postponed) is excluded from the completeness expected set:
+# we cannot fetch lineups / events / stats for matches that never reached a final
+# whistle, so counting them as missing would generate permanent false-negative alerts.
+FINISHED_STATUS_SHORT = frozenset({"FT", "AET", "PEN"})
 
-def _fixture_ids_from_fixtures_payload(payload: dict | None) -> set[int]:
+
+def _fixture_ids_from_fixtures_payload(
+    payload: dict | None,
+    *,
+    statuses: frozenset[str] | None = None,
+) -> set[int]:
+    """Return fixture ids from a merged ``/fixtures`` payload.
+
+    When ``statuses`` is provided, only fixtures whose ``fixture.status.short``
+    is in the set are returned.
+    """
     out: set[int] = set()
     for item in (payload or {}).get("response") or []:
         fx = item.get("fixture") or {}
         fid = fx.get("id")
-        if fid is not None:
-            try:
-                out.add(int(fid))
-            except (TypeError, ValueError):
+        if fid is None:
+            continue
+        if statuses is not None:
+            status_short = ((fx.get("status") or {}).get("short") or "").strip()
+            if status_short not in statuses:
                 continue
+        try:
+            out.add(int(fid))
+        except (TypeError, ValueError):
+            continue
     return out
 
 
@@ -64,14 +85,20 @@ def fail_on_incomplete() -> bool:
 
 def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
     """
-    Compare merged fixture ids to each fanout batched table.
+    Compare merged finished-fixture ids to each fanout batched table.
+
+    Expected is restricted to fixtures whose ``status.short`` is in
+    :data:`FINISHED_STATUS_SHORT` (``FT``/``AET``/``PEN``). Unplayed matches
+    (upcoming, in-play, cancelled, postponed, abandoned) are reported separately
+    as ``fixture_unplayed_count`` and do not affect the ``complete`` boolean.
 
     Returns a JSON-serializable dict including ``match_level_tables_cover_all_fixtures``
-    (same boolean as legacy ``all_fanout_complete``) and per-entity ``covered`` /
-    ``missing_count`` / ``missing_fixture_ids_sample`` (up to 12 ids).
+    (same boolean as legacy ``all_fanout_complete``) and per-entity
+    ``covered_count`` / ``missing_count`` / ``missing_fixture_ids_sample`` (up to 12 ids).
     """
     out: dict[str, Any] = {
         "skipped": False,
+        "expected_status_short": sorted(FINISHED_STATUS_SHORT),
         "leagues": {},
         "all_fanout_complete": True,
     }
@@ -82,14 +109,21 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
     for league_code in LEAGUES:
         fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
         fx_payload = read_latest_payload_json(client, fx_tbl)
-        expected = _fixture_ids_from_fixtures_payload(fx_payload)
+        all_fixture_ids = _fixture_ids_from_fixtures_payload(fx_payload)
+        expected = _fixture_ids_from_fixtures_payload(
+            fx_payload, statuses=FINISHED_STATUS_SHORT
+        )
         league_block: dict[str, Any] = {
+            "fixture_total_count": len(all_fixture_ids),
             "fixture_expected_count": len(expected),
+            "fixture_unplayed_count": len(all_fixture_ids - expected),
             "fanout": {},
         }
         all_ok = True
         if not expected:
-            league_block["note"] = "no fixtures in merged payload; fanout checks skipped"
+            league_block["note"] = (
+                "no finished fixtures in merged payload; fanout checks skipped"
+            )
             out["leagues"][league_code] = league_block
             continue
         for entity in FANOUT_ENTITIES:

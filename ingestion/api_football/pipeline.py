@@ -99,8 +99,8 @@ def _load_api_football(request):
         if fail_on_incomplete() and not report.get("skipped") and not match_ok:
             msg += (
                 " Per-match raw tables (lineups, events, statistics, "
-                "fixture players, predictions) do not yet cover every fixture id "
-                "in the merged fixtures list."
+                "fixture players, predictions) do not yet cover every finished "
+                "fixture (status FT/AET/PEN) in the merged fixtures list."
             )
             return msg, 503
 
