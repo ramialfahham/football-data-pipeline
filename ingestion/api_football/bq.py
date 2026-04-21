@@ -85,6 +85,10 @@ def read_latest_payload_json(
 
     Used to merge this run's data with prior loads so raw tables stay complete across
     quota-limited runs. Returns ``None`` if the table is missing or empty.
+
+    Results are streamed via the BigQuery Storage Read API (gRPC) rather than the
+    REST paginator because merged ``payload`` rows can exceed REST's 20 MiB per-row
+    response cap after several runs (notably ``raw_d1_apif_players``).
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     try:
@@ -101,15 +105,16 @@ def read_latest_payload_json(
     else:
         q = f"SELECT payload FROM `{table_id}` LIMIT 1"
     job = client.query(q)
-    rows = list(job.result())
-    if not rows:
+    arrow_table = job.result().to_arrow(create_bqstorage_client=True)
+    if arrow_table.num_rows == 0:
         return None
-    row = rows[0]
-    pl = row["payload"] if "payload" in row.keys() else row[0]
+    pl = arrow_table.column("payload")[0].as_py()
     if pl is None:
         return None
     if isinstance(pl, dict):
         return pl
+    if isinstance(pl, (bytes, bytearray)):
+        pl = pl.decode("utf-8")
     if isinstance(pl, str):
         return json.loads(pl)
     return dict(pl)
