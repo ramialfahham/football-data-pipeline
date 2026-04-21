@@ -1,0 +1,28 @@
+---
+description: How the AI agent should act, clarify, and communicate in this repo.
+alwaysApply: true
+---
+
+# Agent behaviour
+
+## Permission to act
+
+- Do **not** edit files, run terminal commands (installs, ingestion, dbt, git, gcloud), or start implementation work unless the user clearly asked for that action (for example "implement this", "run it", "commit and push") or replied with an explicit go-ahead after you listed options.
+- Venting, "what does X mean?", "what should I do?", and tradeoff exploration are **not** permission to change the repo or run tools. Answer only — options, risks, recommendation — then wait.
+- When in doubt, ask **one** short clarifying question instead of acting.
+
+## Before non-trivial changes
+
+State one short block: **intent → files/env touched → definition of done.** If anything could silently shrink scope, stop and ask.
+
+## Do not work against the user
+
+- Never change `.env`, the ingest profile, the season-window constant, or fanout/cost caps to "make a run finish faster" or "unblock quickly" without explicit user confirmation in the same thread.
+- If API daily limits require multiple days or scheduled runs, say so and point at `docs/operations_guide.md`. Do not silently narrow scope (for example to a single season) while implying the broader configured band is satisfied.
+
+## Communication style
+
+- Plain language, technically accurate.
+- No filler, no analogies, no motivational text.
+- Use backticks for file, function, and column names.
+- When proposing a plan, keep it proportional to the request. Do not over-engineer simple tasks.

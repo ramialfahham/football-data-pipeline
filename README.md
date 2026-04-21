@@ -15,7 +15,19 @@ dbt uses [`macros/generate_schema_name.sql`](dbt_project/macros/generate_schema_
 
 Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_project/docs/layering.md).
 
-**MVP:** ingestion and dbt **`1_staging`** are scoped to **German Bundesliga (D1)** only. Folders **`2_base`–`5_marts`** exist for the layer contract but contain no models yet (placeholders). Until you add models there, `dbt parse` / `dbt build` may warn that those folder configs apply to no resources; that is expected.
+**Competition scope:** ingestion and dbt models target **German Bundesliga (D1)** only (API-Football league id **78**). Adding a second competition means adding raw tables with a new league prefix and a parallel set of staging models; the `3_core` layer is already `league_code`-aware so dims and facts can union future leagues without schema changes.
+
+**Layer population (current state):**
+
+| Layer | Status | What is there |
+|-------|--------|---------------|
+| `1_staging` | populated | 17 `stg_apif__d1_*` models, one per `RAW_D1_APIF_*` source. |
+| `2_base` | empty placeholder | Deferred until a second landing source exists. |
+| `3_core` | populated | 5 dims (`dim_date`, `dim_league`, `dim_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`), 1 snapshot (`snap_apif_d1_standings`). |
+| `4_intermediate` | 1 model | `int_apif__raw_ingestion_spread` (ingestion-spread audit). |
+| `5_marts` | empty placeholder | Built on demand once a consumer is defined. |
+
+Until `2_base` and `5_marts` contain models, `dbt parse` / `dbt build` may warn that their folder configs apply to no resources; that is expected.
 
 ## dbt (local setup)
 
@@ -50,14 +62,16 @@ Recommended local workflow:
 # Staging-only checks (fast, catches raw load issues early)
 dbt build --project-dir .\dbt_project --selector staging
 
-# Base layer only (no models until you add them under models/2_base)
-dbt build --project-dir .\dbt_project --selector base
-
-# Base + core + intermediate + marts (when those folders contain models)
-dbt build --project-dir .\dbt_project --selector downstream
+# Snapshot history tables first (standings), then all downstream (core + intermediate)
+dbt snapshot --project-dir .\dbt_project
+dbt build   --project-dir .\dbt_project --selector downstream
 
 # Full suite (staging + downstream + tests)
 dbt build --project-dir .\dbt_project
+
+# Selector "base" and "marts" are defined but currently match no models.
+# dbt build --project-dir .\dbt_project --selector base
+# dbt build --project-dir .\dbt_project --selector marts
 
 # Optional: point dbt at a non-default raw dataset (must match ingestion target)
 # dbt build --project-dir .\dbt_project --vars "{ raw_schema: raw_dev }"
@@ -85,4 +99,4 @@ Further reading:
 ## Maintenance & operations
 
 - **Runbook and troubleshooting** (environment variables, ingest lock, completeness checks, backfill vs daily update): [`docs/operations_guide.md`](docs/operations_guide.md).
-- **Cursor / AI governance** (binding rules for tool use, edits, and permissions): [`.cursor/rules/ai-behavior-and-permissions.mdc`](.cursor/rules/ai-behavior-and-permissions.mdc).
+- **Cursor / AI governance:** three focused rule files in [`.cursor/rules/`](.cursor/rules/) — [`agent-behavior.mdc`](.cursor/rules/agent-behavior.mdc) and [`project-context.mdc`](.cursor/rules/project-context.mdc) always apply; [`dbt.mdc`](.cursor/rules/dbt.mdc) and [`ingestion.mdc`](.cursor/rules/ingestion.mdc) load only when the agent is editing files in the matching directory. Rules encode evergreen intent and point at the authoritative docs rather than duplicating them.

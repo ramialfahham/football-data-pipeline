@@ -1,0 +1,20 @@
+---
+description: What this project is, the stack, and where the authoritative docs live.
+alwaysApply: true
+---
+
+# Project context
+
+- **What:** Football data pipeline. Python ingestion into BigQuery raw, then dbt into staging and downstream layers.
+- **Source:** API-Football. Current scope is the German Bundesliga (API `league.id = 78`, `league_code = D1`).
+- **Stack:** Python, BigQuery, dbt, sqlfluff.
+- **Current state:** see [README.md](../../README.md) for layer-population status. Do not cache that here — it drifts every time a model is added.
+- **Scope is a hard invariant.** Do not change the season window, ingest profile, or fanout/cost caps unless the user asks for it in the same thread.
+
+## Authoritative docs
+
+- Data contract (raw landing, merge model, endpoint map, completeness semantics): [docs/data_contract.md](../../docs/data_contract.md).
+- Operations (env vars, ingest lock, runbooks, IAM): [docs/operations_guide.md](../../docs/operations_guide.md).
+- Development workflow (local validation, secret safety): [docs/development_workflow.md](../../docs/development_workflow.md).
+- dbt layering rules, dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
+- dbt engineering standards (naming, testing policy, performance, promotion): [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).

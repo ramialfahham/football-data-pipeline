@@ -29,6 +29,12 @@ If ingestion Python changed, also compile-check it:
 Get-ChildItem ingestion\api_football\ -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
 ```
 
+Run the ingestion loader smoke test to catch import/wiring errors (for example missing merge-helper imports) before a pipeline run:
+
+```powershell
+python -m unittest tests.test_ingestion_loads_smoke
+```
+
 If `dbt` is not on PATH after `pip install -r requirements.txt`, invoke it from the Python Scripts directory (Windows example: `%LocalAppData%\Programs\Python\Python311\Scripts\dbt.exe`; `python -c "import sysconfig; print(sysconfig.get_path('scripts'))"` prints the folder).
 
 ## Secret safety (public repo)

@@ -1,0 +1,17 @@
+---
+description: Pointers for the Python ingestion package.
+globs: ingestion/**/*.py
+alwaysApply: false
+---
+
+# Ingestion
+
+## Where rules live (do not re-derive here)
+
+- Write model (payload merge + `WRITE_TRUNCATE`), endpoint map, completeness semantics: [docs/data_contract.md](../../docs/data_contract.md).
+- Operational procedures (env vars, ingest lock, IAM for BigQuery Storage Read API, known endpoint quirks): [docs/operations_guide.md](../../docs/operations_guide.md).
+
+## Naming
+
+- Timestamp columns end with `_at`.
+- Merge helpers in `payload_merge.py` are named `merge_<entity>_<shape>` (e.g. `merge_fixtures_envelope`, `merge_standings_envelope`).

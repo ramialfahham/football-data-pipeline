@@ -1,0 +1,21 @@
+---
+description: dbt naming skeleton and pointers to layer and testing docs.
+globs: dbt_project/**/*.sql, dbt_project/**/*.yml, dbt_project/**/*.md
+alwaysApply: false
+---
+
+# dbt
+
+## Naming
+
+- Models: `stg_<source>__<entity>`, `dim_<entity>`, `fct_<entity>`, `int_<source>__<topic>`, `snap_<source>_<table>`.
+- Columns: `snake_case`. Booleans start with `is_` or `has_`. Timestamps end with `_at`. Dates end with `_date`.
+
+## Where rules live (do not re-derive here)
+
+- Layer contract and dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
+- Testing policy per layer (staging, base, core, intermediate, marts), materialization, CI gate, change management: [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
+
+## Tooling
+
+- Run `sqlfluff lint models/<path>` from inside `dbt_project/`, not from the repo root, so the dbt templater picks up `.sqlfluff`.
