@@ -198,3 +198,23 @@ Refresh cheap league-wide tables daily and prioritise near-term matches for the 
 | Raw tables, merge model, endpoint map | [`data_contract.md`](data_contract.md) |
 | dbt layers and naming | `dbt_project/docs/layering.md` |
 | Raw load-time spread (D1) | dbt model `int_apif__raw_ingestion_spread` |
+
+---
+
+## CI/CD guardrails
+
+GitHub Actions workflows enforce the layer contract and run dbt:
+
+- `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, `dbt build --selector downstream`).
+- `.github/workflows/dbt-scheduled.yml`: nightly scheduled run with full DQ selector (`dbt build --selector dq`).
+
+Required repository secrets for Workload Identity Federation:
+
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`
+- `GCP_SERVICE_ACCOUNT`
+
+Local equivalent hard-fail check:
+
+```powershell
+python .\scripts\check_layer_contract.py
+```

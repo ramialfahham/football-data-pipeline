@@ -1,0 +1,316 @@
+version: 2
+
+# Marts are denormalised, consumer-shaped products. Every mart carries ``league_code`` so
+# multi-league slicing is a filter, not a schema change.
+#
+# Mart test policy:
+#   - surrogate key: unique + not_null
+#   - grain: dbt_utils.unique_combination_of_columns on the business keys
+#   - relationships back to the core dims / facts the mart rolls up from
+#   - accepted_values where a closed enum is surfaced
+#   - one semantic assertion per rollup (e.g. wins + draws + losses = played)
+
+models:
+  - name: mart_fixture_results
+    description: "Flat fixture table, one row per fixture with both teams, league, season, and kickoff-date denormalised. View (cheap to rebuild). Default consumer shape for dashboards and ad-hoc SQL."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "(status_short in ('FT', 'AET', 'PEN') and match_outcome is not null) or status_short not in ('FT', 'AET', 'PEN')"
+    columns:
+      - name: fixture_sk
+        description: "FK to fct_fixture. One fixture per row."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: league_sk
+        description: "FK to dim_league."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: season_sk
+        description: "FK to dim_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: home_team_sk
+        description: "FK to dim_team for the home side."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: away_team_sk
+        description: "FK to dim_team for the away side."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: kickoff_date_sk
+        description: "FK to dim_date (UTC kickoff date)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_sk
+      - name: league_code
+        description: "Internal league code."
+        tests: [not_null]
+      - name: season_api_year
+        description: "API season start year."
+      - name: fixture_date
+        description: "Kickoff date (UTC)."
+      - name: kickoff_datetime
+      - name: status_short
+        description: "API-Football short status code."
+        tests:
+          - accepted_values:
+              values:
+                ['TBD', 'NS', '1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT',
+                 'FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', 'AWD', 'WO', 'LIVE']
+              severity: warn
+      - name: match_outcome
+        description: "HOME, AWAY, or DRAW for finished matches; null otherwise. Derived from goals and status_short."
+        tests:
+          - accepted_values:
+              values: ['HOME', 'AWAY', 'DRAW']
+              config:
+                where: "match_outcome is not null"
+      - name: goals_home
+      - name: goals_away
+      - name: round_name
+      - name: home_team_name
+      - name: home_team_code
+      - name: home_team_country
+      - name: away_team_name
+      - name: away_team_code
+      - name: away_team_country
+      - name: league_name
+      - name: league_country
+      - name: season_start_date
+      - name: season_end_date
+      - name: season_is_current
+      - name: kickoff_date
+      - name: kickoff_day_of_week
+      - name: kickoff_is_weekend
+      - name: venue_api_id
+      - name: venue_name_snapshot
+      - name: venue_city_snapshot
+      - name: raw_ingested_at
+
+  - name: mart_team_season
+    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank / latest_form come from fct_standings for the current snapshot; null for historical seasons not in the current snapshot."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - team_sk
+            - season_sk
+      - dbt_utils.expression_is_true:
+          expression: "wins + draws + losses = played"
+    columns:
+      - name: team_season_sk
+        description: "Surrogate key from (team_sk, season_sk)."
+        tests: [not_null, unique]
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        description: "FK to dim_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: league_sk
+        description: "FK to dim_league."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: team_code
+      - name: team_country
+      - name: team_logo_url
+      - name: played
+        description: "Count of finished matches this team took part in during the season."
+        tests: [not_null]
+      - name: wins
+        tests: [not_null]
+      - name: draws
+        tests: [not_null]
+      - name: losses
+        tests: [not_null]
+      - name: goals_for
+        tests: [not_null]
+      - name: goals_against
+        tests: [not_null]
+      - name: goal_diff
+        tests: [not_null]
+      - name: points
+        description: "3 points per win, 1 per draw."
+        tests: [not_null]
+      - name: clean_sheets
+        tests: [not_null]
+      - name: latest_rank
+        description: "Rank from fct_standings (current snapshot). Null if the team is not in the current standings snapshot for that season."
+      - name: latest_form
+        description: "Recent-form string from fct_standings (e.g. WDLWW). Null for non-current-snapshot seasons."
+
+  - name: mart_player_season
+    description: "Per-player, per-season rollup. Grain: (player_sk, season_sk). Aggregates come from fct_fixture_player_stats joined to fct_fixture filtered to finished matches. A player who transfers mid-season produces one row per season; per-fixture team attribution lives in the core fact."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - season_sk
+      - dbt_utils.expression_is_true:
+          expression: "starts + substitute_appearances <= appearances"
+    columns:
+      - name: player_season_sk
+        description: "Surrogate key from (player_sk, season_sk)."
+        tests: [not_null, unique]
+      - name: player_sk
+        description: "FK to dim_player."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: season_sk
+        description: "FK to dim_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: league_sk
+        description: "FK to dim_league."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: player_name
+      - name: player_first_name
+      - name: player_last_name
+      - name: player_nationality
+      - name: player_birth_date
+      - name: appearances
+        description: "Fixtures the player appears on the team sheet for (any minutes, or 0-minute substitutes)."
+        tests: [not_null]
+      - name: starts
+        description: "Fixtures where the player started (derived is_starter in core)."
+      - name: substitute_appearances
+        description: "Fixtures where the player was flagged as a substitute in the source payload."
+      - name: minutes
+        description: "Sum of minutes played."
+      - name: goals
+      - name: assists
+      - name: shots
+      - name: shots_on_target
+      - name: key_passes
+      - name: pass_accuracy_avg_percent
+        description: "Average pass accuracy percent across fixtures (unweighted; a weighted version can be added later)."
+      - name: rating_avg
+        description: "Average API-Football rating across fixtures (unweighted)."
+      - name: yellow_cards
+      - name: red_cards
+
+  - name: mart_top_scorers
+    description: "Top scorers per (league_code, season_api_year) derived from mart_player_season. View (cheap to rebuild). Replaces the /players/topscorers endpoint. DENSE_RANK ties share a rank and no ranks are skipped; filter is scorer_rank <= 25 (inclusive of ties at rank 25)."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - season_sk
+      - dbt_utils.expression_is_true:
+          expression: "scorer_rank <= 25"
+      - dbt_utils.expression_is_true:
+          expression: "goals > 0"
+    columns:
+      - name: player_season_sk
+        description: "FK to mart_player_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('mart_player_season')
+              field: player_season_sk
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: player_name
+      - name: player_nationality
+      - name: appearances
+      - name: starts
+      - name: minutes
+      - name: goals
+        tests: [not_null]
+      - name: assists
+      - name: shots_on_target
+      - name: scorer_rank
+        description: "DENSE_RANK over goals desc (ties share a rank). 1 is top."
+        tests: [not_null]

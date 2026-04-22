@@ -1,6 +1,14 @@
 {{ config(materialized='table') }}
 
-with src as (
+with stg_apif__d1_players as (
+    select * from {{ ref('stg_apif__d1_players') }}
+),
+
+stg_apif__d1_transfers as (
+    select * from {{ ref('stg_apif__d1_transfers') }}
+),
+
+players_src as (
     select
         league_code,
         player_id as player_api_id,
@@ -12,9 +20,34 @@ with src as (
         player_photo_url,
         team_id as last_known_team_api_id,
         season_year as last_known_season_year,
-        raw_ingested_at
-    from {{ ref('stg_apif__d1_players') }}
+        raw_ingested_at,
+        1 as source_priority
+    from stg_apif__d1_players
     where player_id is not null
+),
+
+transfers_src as (
+    select
+        league_code,
+        player_id as player_api_id,
+        player_name,
+        cast(null as string) as player_first_name,
+        cast(null as string) as player_last_name,
+        cast(null as date) as player_birth_date,
+        cast(null as string) as player_nationality,
+        player_photo_url,
+        cast(null as int64) as last_known_team_api_id,
+        cast(null as int64) as last_known_season_year,
+        raw_ingested_at,
+        2 as source_priority
+    from stg_apif__d1_transfers
+    where player_id is not null
+),
+
+src as (
+    select * from players_src
+    union all
+    select * from transfers_src
 ),
 
 ranked as (
@@ -22,7 +55,11 @@ ranked as (
         *,
         row_number() over (
             partition by league_code, player_api_id
-            order by last_known_season_year desc, last_known_team_api_id desc, raw_ingested_at desc
+            order by
+                source_priority asc,
+                last_known_season_year desc,
+                last_known_team_api_id desc,
+                raw_ingested_at desc
         ) as rn
     from src
 )

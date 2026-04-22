@@ -9,6 +9,7 @@ with src as (
         country as league_country,
         league_logo_url,
         country_flag_url,
+        season_api_year,
         raw_ingested_at
     from {{ ref('stg_apif__d1_leagues') }}
     where league_api_id is not null
@@ -19,7 +20,7 @@ ranked as (
         *,
         row_number() over (
             partition by league_code, league_api_id
-            order by raw_ingested_at desc
+            order by raw_ingested_at desc, season_api_year desc
         ) as rn
     from src
 )

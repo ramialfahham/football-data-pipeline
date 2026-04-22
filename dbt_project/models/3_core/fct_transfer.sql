@@ -15,38 +15,16 @@ with src as (
         league_code,
         player_id,
         player_name,
-        transfers_json,
+        transfer_date,
+        transfer_type,
+        from_team_api_id,
+        from_team_name_snapshot,
+        to_team_api_id,
+        to_team_name_snapshot,
         raw_ingested_at
     from {{ ref('stg_apif__d1_transfers') }}
     where
         player_id is not null
-        and transfers_json is not null
-),
-
-exploded as (
-    select
-        league_code,
-        player_id,
-        player_name,
-        raw_ingested_at,
-        transfer_el
-    from src,
-        unnest(json_query_array(transfers_json, '$')) as transfer_el
-),
-
-parsed as (
-    select
-        league_code,
-        player_id,
-        player_name,
-        raw_ingested_at,
-        safe_cast(json_value(transfer_el, '$.date') as date) as transfer_date,
-        json_value(transfer_el, '$.type') as transfer_type,
-        safe_cast(json_value(transfer_el, '$.teams.out.id') as int64) as from_team_api_id,
-        json_value(transfer_el, '$.teams.out.name') as from_team_name_snapshot,
-        safe_cast(json_value(transfer_el, '$.teams.in.id') as int64) as to_team_api_id,
-        json_value(transfer_el, '$.teams.in.name') as to_team_name_snapshot
-    from exploded
 ),
 
 deduped as (
@@ -62,7 +40,7 @@ deduped as (
                 transfer_type
             order by raw_ingested_at desc
         ) as rn
-    from parsed
+    from src
     where transfer_date is not null
 )
 

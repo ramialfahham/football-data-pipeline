@@ -94,7 +94,7 @@ models:
         description: "UTC timestamp of the raw row this dimension row was derived from."
 
   - name: dim_season
-    description: "Canonical season dimension with per-season coverage flags. Grain: (league_code, season_api_year). Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream."
+    description: "Canonical season dimension with per-season coverage flags. Grain: (league_code, season_api_year). Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -396,7 +396,7 @@ models:
         description: "Timestamp the current snapshot version became valid (from dbt snapshot bookkeeping)."
 
   - name: fct_fixture_team_stats
-    description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). statistics_lines_json is pivoted into named columns; percentage metrics are cast to INT64."
+    description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). Staging prepares and types all measure columns; core keys and constrains the fact grain."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -453,7 +453,7 @@ models:
       - name: raw_ingested_at
 
   - name: fct_fixture_player_stats
-    description: "Per-player, per-fixture statistics. Grain: (fixture_sk, team_sk, player_sk). Flattens the single-element ``player_statistics_json[0]`` subtree into measure columns."
+    description: "Per-player, per-fixture statistics. Grain: (fixture_sk, team_sk, player_sk). Staging flattens and types player statistics; core keys and constrains the fact grain."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -587,7 +587,7 @@ models:
       - name: raw_ingested_at
 
   - name: fct_transfer
-    description: "Player transfer events. Grain: transfer_sk hashed over (league_code, player, date, from_team, to_team, type). from_team_sk / to_team_sk are nullable because transfers often involve teams outside the configured leagues; both legs keep api_id and name_snapshot regardless."
+    description: "Player transfer events. Grain: transfer_sk hashed over (league_code, player, date, from_team, to_team, type). Transfer event expansion/parsing is done in staging. from_team_sk / to_team_sk are nullable because transfers often involve teams outside the configured leagues; both legs keep api_id and name_snapshot regardless."
     meta:
       owner: "data-platform"
       domain: "football"

@@ -137,7 +137,7 @@ models:
         tests: [not_null]
 
   - name: stg_apif__d1_leagues
-    description: "Bundesliga D1 metadata and per-season coverage from GET /leagues. Grain: (league_code, league_api_id)."
+    description: "Bundesliga D1 metadata and per-season coverage from GET /leagues. Grain: (league_code, league_api_id, season_api_year)."
     config:
       tags: ["staging", "api_football", "player_context"]
     tests:
@@ -145,12 +145,16 @@ models:
           combination_of_columns:
             - league_code
             - league_api_id
+            - season_api_year
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: league_api_id
         description: "API-Football league id (78 for Bundesliga)."
+        tests: [not_null]
+      - name: season_api_year
+        description: "Season year from the leagues payload season block."
         tests: [not_null]
 
   - name: stg_apif__d1_standings
@@ -221,7 +225,7 @@ models:
         tests: [not_null]
 
   - name: stg_apif__d1_transfers
-    description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Grain: (league_code, player_id) within the current merged snapshot."
+    description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Grain: (league_code, player_id, transfer_date, from_team_api_id, to_team_api_id, transfer_type)."
     config:
       tags: ["staging", "api_football", "player_context"]
     tests:
@@ -229,12 +233,19 @@ models:
           combination_of_columns:
             - league_code
             - player_id
+            - transfer_date
+            - from_team_api_id
+            - to_team_api_id
+            - transfer_type
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: player_id
         description: "Player id from API-Football."
+        tests: [not_null]
+      - name: transfer_date
+        description: "Transfer date for this transfer event row."
         tests: [not_null]
 
   - name: stg_apif__d1_fixture_events
