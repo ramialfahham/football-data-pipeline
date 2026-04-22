@@ -314,3 +314,58 @@ models:
       - name: scorer_rank
         description: "DENSE_RANK over goals desc (ties share a rank). 1 is top."
         tests: [not_null]
+
+  - name: mart_team_rankings_current
+    description: "Current-season team ranking snapshot per league for product surfaces (standings widgets/API responses). Grain: (league_code, team_sk) for the latest available season in each league."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "consumer"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - team_sk
+      - dbt_utils.expression_is_true:
+          expression: "current_rank >= 1"
+    columns:
+      - name: team_season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('mart_team_season')
+              field: team_season_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: played
+      - name: wins
+      - name: draws
+      - name: losses
+      - name: goal_diff
+      - name: points
+      - name: current_rank
+        tests: [not_null]

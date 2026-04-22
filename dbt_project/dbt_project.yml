@@ -32,11 +32,6 @@ models:
       +materialized: view
       +schema: staging
 
-    # 2. Base: Unions and source alignment (Views)
-    2_base:
-      +materialized: view
-      +schema: base
-
     # 3. Core: Star Schema / Dimensional Entities (Tables)
     3_core:
       +materialized: table

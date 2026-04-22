@@ -206,7 +206,7 @@ Refresh cheap league-wide tables daily and prioritise near-term matches for the 
 GitHub Actions workflows enforce the layer contract and run dbt:
 
 - `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, focused transfer contract build `dbt build --select dim_date dim_player fct_transfer`).
-- `.github/workflows/dbt-scheduled.yml`: nightly scheduled run with full DQ selector (`dbt build --selector dq`).
+- `.github/workflows/dbt-scheduled.yml`: twice-daily scheduled run (`04:00` and `16:00` UTC) with full DQ selector (`dbt build --selector dq`).
 
 Required repository secrets for Workload Identity Federation:
 
@@ -222,3 +222,9 @@ Local equivalent hard-fail check:
 ```powershell
 python .\scripts\check_layer_contract.py
 ```
+
+### Simple operations playbook (lean baseline)
+
+- **Where to check failed runs:** GitHub Actions tab -> `dbt-ci` / `dbt-scheduled` workflow runs.
+- **What to do when marts are stale:** rerun `dbt-scheduled` via workflow_dispatch; if it still fails, inspect the failed dbt step first (`dbt deps`, contract check, then build).
+- **Where WIF secrets live:** GitHub repo -> Settings -> Secrets and variables -> Actions (`GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`).
