@@ -205,13 +205,17 @@ Refresh cheap league-wide tables daily and prioritise near-term matches for the 
 
 GitHub Actions workflows enforce the layer contract and run dbt:
 
-- `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, `dbt build --selector downstream`).
+- `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, focused transfer contract build `dbt build --select dim_date dim_player fct_transfer`).
 - `.github/workflows/dbt-scheduled.yml`: nightly scheduled run with full DQ selector (`dbt build --selector dq`).
 
 Required repository secrets for Workload Identity Federation:
 
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`
 - `GCP_SERVICE_ACCOUNT`
+
+Both workflows generate a temporary `/home/runner/.dbt/profiles.yml` for the
+`football_data_pipeline` profile in CI to avoid relying on machine-local
+profiles files.
 
 Local equivalent hard-fail check:
 

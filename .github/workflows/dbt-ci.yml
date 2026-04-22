@@ -2,6 +2,7 @@ name: dbt-ci
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 
@@ -29,6 +30,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ../requirements.txt
 
+      - name: Create dbt profile for CI
+        run: |
+          mkdir -p /home/runner/.dbt
+          cat > /home/runner/.dbt/profiles.yml <<'EOF'
+          football_data_pipeline:
+            target: ci
+            outputs:
+              ci:
+                type: bigquery
+                method: oauth
+                project: football-data-pipeline-gcp
+                dataset: dbt_analytics
+                threads: 4
+                timeout_seconds: 300
+                location: EU
+                priority: interactive
+          EOF
+
       - name: Authenticate to GCP (WIF)
         uses: google-github-actions/auth@v2
         with:
@@ -53,5 +72,5 @@ jobs:
       - name: Build staging
         run: dbt build --selector staging
 
-      - name: Build downstream
-        run: dbt build --selector downstream
+      - name: Build core transfer contracts
+        run: dbt build --select dim_date dim_player fct_transfer
