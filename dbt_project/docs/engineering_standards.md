@@ -21,6 +21,13 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Boolean columns start with `is_` or `has_`.
 - Timestamp columns end with `_at`, dates end with `_date`.
 
+## 1.1) SQL Structure and Readability
+
+- Every model starts with explicit import CTEs for each `ref()` / `source()` relation before transformation logic.
+- Prefer named CTE chains over inline subqueries. Avoid `from ( ... )` when the same logic can be expressed as a named CTE.
+- Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
+- For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
+
 ## 2) Documentation Policy
 
 - Every model must have a `description`.

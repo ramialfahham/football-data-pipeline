@@ -16,6 +16,13 @@ alwaysApply: false
 - Layer contract and dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
 - Testing policy per layer (staging, base, core, intermediate, marts), materialization, CI gate, change management: [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
 
+## Mandatory layer guardrails
+
+- `1_staging` is strict raw-to-staging mapping only: one `stg_*` model per raw source table.
+- Do not create staging helper/bridge/derived models.
+- Source parsing operations (`json_value`, `json_query`, `unnest`, flattening) are allowed in staging because they are source normalization.
+- If logic is not source normalization, move it to downstream layers (`2_base`, `3_core`, `4_intermediate`, or `5_marts`) per `layering.md`.
+
 ## Tooling
 
 - Run `sqlfluff lint models/<path>` from inside `dbt_project/`, not from the repo root, so the dbt templater picks up `.sqlfluff`.

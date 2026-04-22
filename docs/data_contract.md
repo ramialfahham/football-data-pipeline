@@ -134,3 +134,15 @@ Support safe scheduling, not match statistics.
 ## Downstream
 
 Source-near columns for D1 live under `dbt_project/models/1_staging/api_football/`. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
+
+---
+
+## Adding a new league
+
+The project is scoped to D1 today, but every layer is already league-aware: ingestion loops over a `LEAGUES` dict, dbt facts and dims carry `league_code` in their keys, and marts carry `league_code` as a column. Adding a league (e.g. Bundesliga 2 as `D2`, Premier League as `E1`) is a three-step recipe:
+
+1. **Configure ingestion.** Add an entry to `LEAGUES` in `ingestion/api_football/config.py` mapping the internal league code to its API-Football league id and the backfill window you want. This is the only code change in the Python package.
+2. **Declare the new raw source.** Add a league block to `dbt_project/models/1_staging/api_football/sources.yml` for the new `RAW_<CODE>_APIF_*` tables.
+3. **Stand up staging + core for the new code.** This is the only non-trivial step today: the current staging models are named `stg_apif__d1_*` and hardcoded to `raw_d1_apif_*` sources, so multi-league support requires either renaming them to `stg_apif__<code>_*` per league, or refactoring staging to be league-agnostic (reading all league sources and propagating `league_code`). The recommended path is the second; the refactor is scoped in the parked plan `multi-league-ready_refactor_fea19c5f` in the Cursor plans directory. Expect about one day of work. Core and marts do not need to change — they already key on `league_code`.
+
+After that, run ingestion + `dbt build` and the new league flows through the entire stack. No mart rewrites, no dashboard changes beyond an additional filter value.

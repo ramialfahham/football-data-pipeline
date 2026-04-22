@@ -49,17 +49,19 @@ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must 
 Purpose: source-near cleanup with minimal transformation.
 
 Allowed:
-- Source-to-model mapping (often 1:1 by table/season/competition).
+- Source-to-model mapping (strictly 1:1 by raw source table for this project).
 - Column renaming to consistent naming conventions (snake_case).
 - Safe type casting and lightweight normalization.
+- JSON extraction, unnesting, and flattening needed to expose one regular typed table per raw source.
 - Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields; `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
 
 Not allowed:
 - Unions across leagues/competitions/sources.
+- Helper/bridge/derived staging models that are not direct source mappings.
 - Business rules and feature engineering.
 - Cross-domain joins.
 
-**D1 API-Football inventory:** `models/1_staging/api_football/` contains **13** `stg_apif__d1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Canonical table ↔ model mapping: [`../models/1_staging/api_football/README.md`](../models/1_staging/api_football/README.md).
+**Hard contract:** `models/1_staging/api_football/` must contain exactly **13** `stg_apif__d1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Adding a 14th helper model in staging is a contract violation and must fail CI.
 
 ## 2_base
 
@@ -171,6 +173,20 @@ Allowed:
 
 Not allowed:
 - Re-defining core business truth that should remain centralized in **core** (marts should select and present, not fork definitions silently).
+
+### Mart conventions
+
+- Every mart carries `league_code` as a column so multi-league slicing is a filter, not a schema change. When a second league is onboarded, marts do not need to be rewritten.
+- Rollup marts (one row per business entity and grain) materialize as `table`; flat denormalized projections materialize as `view` unless a latency requirement forces a table.
+
+Canonical mart inventory for this project:
+
+| Mart | Grain | Materialization | Notes |
+|------|-------|-----------------|-------|
+| `mart_fixture_results` | fixture_sk | view | Flat fixture table with both teams, league, season, and kickoff-date denormalized; default consumer shape. |
+| `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank / form joined from `fct_standings`. |
+| `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
+| `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
 
 ## Testing Guidance by Layer
 
