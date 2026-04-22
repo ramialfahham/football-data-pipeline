@@ -11,7 +11,6 @@ from .rounds_load import load_rounds_merged
 from .squad_players_load import load_squad_players_batch
 from .standings_load import load_standings_if_enabled
 from .teams_load import load_teams_merge_and_extend_ids
-from .top_lists_load import load_top_lists
 from .transfers_load import load_transfers_if_enabled
 
 
@@ -43,8 +42,6 @@ def ingest_league(ctx: PipelineContext, league_code: str, league_id: int) -> Non
         load_injuries_if_enabled(
             ctx, league_code, league_id, seasons_list, cov
         )
-        _ingestion_phase(league_code, "top_lists")
-        load_top_lists(ctx, league_code, league_id, seasons_list)
         _ingestion_phase(league_code, "transfers")
         load_transfers_if_enabled(ctx, league_code, team_ids)
         _ingestion_phase(league_code, "fixture_fanout (lineups/events/stats/predictions/...)")

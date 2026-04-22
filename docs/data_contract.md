@@ -77,7 +77,6 @@ Each row is one HTTP area and the BigQuery raw table where its merged payload li
 | Rounds | `/fixtures/rounds` | `RAW_D1_APIF_ROUNDS` |
 | Teams | `/teams` | `RAW_D1_APIF_TEAMS` |
 | Injuries | `/injuries` | `RAW_D1_APIF_INJURIES` |
-| Top lists | `/players/topscorers`, `topassists`, `topyellowcards`, `topredcards` | `RAW_D1_APIF_TOPSCORERS`, `RAW_D1_APIF_TOPASSISTS`, `RAW_D1_APIF_TOPYELLOWCARDS`, `RAW_D1_APIF_TOPREDCARDS` |
 | Transfers | `/transfers` (when league and season are accepted) | `RAW_D1_APIF_TRANSFERS` |
 | Squad | `/players` per team, with `page=` merged where applicable | `RAW_D1_APIF_PLAYERS` |
 | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_D1_APIF_LINEUPS`, `RAW_D1_APIF_FIXTURE_EVENTS`, `RAW_D1_APIF_FIXTURE_STATISTICS`, `RAW_D1_APIF_FIXTURE_PLAYERS`, `RAW_D1_APIF_PREDICTIONS` |
@@ -88,7 +87,7 @@ Default is `season` (`league` + `season` only). Alternative modes `from_to` and 
 
 ### Pagination
 
-`page=` is merged for `/players` and the top-list endpoints when the API paginates. It is not sent by default on `/fixtures`, `/teams`, `/injuries`, `/standings`, or `/transfers`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in per endpoint with `API_FOOTBALL_FIXTURE_USE_PAGE=1` or `API_FOOTBALL_TRANSFERS_USE_PAGE=1` only when the key is known to support it.
+`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, `/injuries`, `/standings`, or `/transfers`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in per endpoint with `API_FOOTBALL_FIXTURE_USE_PAGE=1` or `API_FOOTBALL_TRANSFERS_USE_PAGE=1` only when the key is known to support it.
 
 ### Coverage flags
 
@@ -106,7 +105,7 @@ Mapping from a typical API-Football subscription list to what this repository in
 | Standings, teams, fixtures | Yes |
 | Events | Yes — `GET /fixtures/events` (batched raw → staging) |
 | Line-ups | Yes — `GET /fixtures/lineups` |
-| Top scorers (+ assists / cards lists) | Yes — `GET /players/topscorers` and related top-list endpoints |
+| Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
 | Players & coaches | Partly — squad `/players` per club; coach may appear on lineup payloads where the API returns it; no separate "coaches only" ingest |
 | Player transfers | Yes — `GET /transfers` by team |
 | Injuries | Yes — `GET /injuries` |

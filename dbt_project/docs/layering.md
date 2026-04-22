@@ -59,7 +59,7 @@ Not allowed:
 - Business rules and feature engineering.
 - Cross-domain joins.
 
-**D1 API-Football inventory:** `models/1_staging/api_football/` contains **17** `stg_apif__d1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Canonical table ↔ model mapping: [`../models/1_staging/api_football/README.md`](../models/1_staging/api_football/README.md).
+**D1 API-Football inventory:** `models/1_staging/api_football/` contains **13** `stg_apif__d1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Canonical table ↔ model mapping: [`../models/1_staging/api_football/README.md`](../models/1_staging/api_football/README.md).
 
 ## 2_base
 

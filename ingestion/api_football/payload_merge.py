@@ -165,38 +165,6 @@ def merge_injuries_envelope(existing: dict | None, incoming: dict) -> dict:
     return out
 
 
-def _top_list_row_key(row: dict) -> tuple[int, int] | None:
-    try:
-        pid = int((row.get("player") or {}).get("id"))
-        stats = row.get("statistics") or []
-        if stats:
-            league = stats[0].get("league") or {}
-            if league.get("season") is not None:
-                return (pid, int(league.get("season")))
-        return (pid, -1)
-    except (TypeError, ValueError, IndexError):
-        return None
-
-
-def merge_top_list_envelope(existing: dict | None, incoming: dict) -> dict:
-    by_k: dict[tuple[int, int], dict] = {}
-    for r in (existing or {}).get("response") or []:
-        k = _top_list_row_key(r)
-        if k is not None:
-            by_k[k] = r
-    for r in incoming.get("response") or []:
-        k = _top_list_row_key(r)
-        if k is not None:
-            by_k[k] = r
-    resp = [by_k[k] for k in sorted(by_k.keys())]
-    out = {k: v for k, v in incoming.items() if k not in ("response", "errors", "results", "paging")}
-    out["response"] = resp
-    out["errors"] = list(incoming.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
-
-
 def _transfer_player_key(row: dict) -> int | None:
     try:
         return int((row.get("player") or {}).get("id"))

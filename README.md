@@ -21,7 +21,7 @@ Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_proje
 
 | Layer | Status | What is there |
 |-------|--------|---------------|
-| `1_staging` | populated | 17 `stg_apif__d1_*` models, one per `RAW_D1_APIF_*` source. |
+| `1_staging` | populated | 13 `stg_apif__d1_*` models, one per ingested `RAW_D1_APIF_*` source. |
 | `2_base` | empty placeholder | Deferred until a second landing source exists. |
 | `3_core` | populated | 5 dims (`dim_date`, `dim_league`, `dim_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`), 1 snapshot (`snap_apif_d1_standings`). |
 | `4_intermediate` | 1 model | `int_apif__raw_ingestion_spread` (ingestion-spread audit). |

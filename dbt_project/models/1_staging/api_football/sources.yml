@@ -41,30 +41,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_topscorers
-        identifier: RAW_D1_APIF_TOPSCORERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_topassists
-        identifier: RAW_D1_APIF_TOPASSISTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_topyellowcards
-        identifier: RAW_D1_APIF_TOPYELLOWCARDS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_topredcards
-        identifier: RAW_D1_APIF_TOPREDCARDS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_d1_apif_transfers
         identifier: RAW_D1_APIF_TRANSFERS
         loaded_at_field: ingested_at

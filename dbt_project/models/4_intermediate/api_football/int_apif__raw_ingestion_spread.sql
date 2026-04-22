@@ -37,26 +37,6 @@ with per_table as (
     from {{ source('api_football', 'raw_d1_apif_injuries') }}
     union all
     select
-        'topscorers' as source_entity,
-        max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_topscorers') }}
-    union all
-    select
-        'topassists' as source_entity,
-        max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_topassists') }}
-    union all
-    select
-        'topyellowcards' as source_entity,
-        max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_topyellowcards') }}
-    union all
-    select
-        'topredcards' as source_entity,
-        max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_topredcards') }}
-    union all
-    select
         'transfers' as source_entity,
         max(ingested_at) as max_ingested_at
     from {{ source('api_football', 'raw_d1_apif_transfers') }}
