@@ -1,0 +1,37 @@
+---
+description: Multi-role MVP delivery with mandatory data and UX gates.
+alwaysApply: true
+---
+
+# MVP Delivery Roles
+
+For product-facing app work, operate in this order:
+
+1. Product/UX designer: define interaction and copy first.
+2. Data/analytics engineer: verify metric correctness and freshness.
+3. Frontend implementer: build only the approved spec.
+4. QA reviewer: validate device behavior and regressions.
+
+Do not skip steps 1-2 before implementation.
+
+# Required Gates Before Sign-off
+
+- **Data gate (hard)**:
+  - Metric definitions and calculation windows are explicit.
+  - Missing-data behavior is explicit (null, fallback, confidence label).
+  - Displayed values are consistent with model output and ordering.
+- **UX gate (hard)**:
+  - Mobile-first flow is preserved.
+  - No horizontal scroll in data regions.
+  - User-facing copy avoids internal jargon.
+
+If either gate fails, stop and revise before shipping.
+
+# Iteration Protocol
+
+Before coding UI changes, produce:
+- flow (`landing -> card1 -> cardN`)
+- content hierarchy per screen
+- acceptance checks for phone/tablet/desktop
+
+After coding, report pass/fail for each check.

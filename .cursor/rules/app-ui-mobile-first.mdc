@@ -1,0 +1,36 @@
+---
+description: Mobile-first UI constraints for match intelligence app surfaces.
+globs: artifacts/**/*.html, artifacts/**/*.js
+alwaysApply: false
+---
+
+# Mobile-first UI Constraints
+
+- Design for phone viewport first (390x844), then scale up.
+- One landing screen, then swipe between match cards.
+- Card-to-card swipe is allowed.
+- Horizontal scrolling inside tables/metric blocks is forbidden.
+- Avoid long dense blocks; use progressive disclosure.
+
+# Copy Constraints
+
+- Do not use internal labels in user-facing text:
+  - "coach-grade"
+  - "fan-readable"
+  - "fan metrics"
+- Do not show metric counts in headings (for example `(5)`, `(3)`).
+- Keep wording plain and bilingual-ready (EN/DE).
+
+# Match Card Information Order
+
+1. Fixture + local kickoff time
+2. Core metric comparison rows
+3. Short insight sentence
+4. Optional details collapsed by default
+
+# Required QA Checks
+
+- Phone: flow and readability pass
+- Tablet: layout pass
+- Desktop: layout pass
+- No data-region horizontal scroll

@@ -51,3 +51,29 @@ Never commit:
 ```powershell
 git status --short
 ```
+
+### Enforced guardrails
+
+This repo uses two automated secret checks:
+
+1. **Local pre-commit hook** (`.pre-commit-config.yaml`) blocks obvious secrets before commit.
+2. **CI secret scan** (`.github/workflows/security-secrets.yml`) runs `gitleaks` on push/PR.
+
+Set up local guardrails once:
+
+```powershell
+pip install pre-commit
+pre-commit install
+```
+
+Run checks manually anytime:
+
+```powershell
+pre-commit run --all-files
+```
+
+If a real token/key was ever committed:
+
+1. Rotate/revoke it immediately at the provider.
+2. Replace file value with placeholder.
+3. Commit the cleanup.

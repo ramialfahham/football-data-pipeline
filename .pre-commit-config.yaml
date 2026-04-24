@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: check-no-secrets
+        name: Block obvious secrets in tracked files
+        entry: python scripts/security/check_no_secrets.py
+        language: system
+        pass_filenames: true
