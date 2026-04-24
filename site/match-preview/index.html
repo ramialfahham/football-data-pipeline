@@ -185,6 +185,15 @@
     const FEEDBACK_TOKEN = "";
     const TZ = "Europe/Berlin";
 
+    function isFeedbackEndpointConfigured() {
+      const u = String(FEEDBACK_ENDPOINT || "").trim();
+      return Boolean(
+        u
+        && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/i.test(u)
+        && !/REPLACE_WITH|PLACEHOLDER|__YOUR_/i.test(u)
+      );
+    }
+
     const COPY = {
       legend: "Spalten: Heim · Kennzahl · Gast. Kurzerklärungen unter der Kennzahl (ohne Wiederholung des Formfensters — siehe Fußnote). Anteile als ganze Prozentzahlen; andere Kennzahlen mit einer Nachkommastelle.",
       foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
@@ -414,12 +423,19 @@
 
     document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
     document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
-    document.getElementById("feedback-open-btn").addEventListener("click", openFeedbackModal);
-    document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
-    document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
-    document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
-      if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
-    });
+    (function setupFeedbackUi() {
+      const openBtn = document.getElementById("feedback-open-btn");
+      if (!isFeedbackEndpointConfigured()) {
+        openBtn.style.display = "none";
+        return;
+      }
+      openBtn.addEventListener("click", openFeedbackModal);
+      document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
+      document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
+      document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
+        if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
+      });
+    })();
 
     Promise.all([
       fetch("./matchday_insights.json").then((r) => r.json()),

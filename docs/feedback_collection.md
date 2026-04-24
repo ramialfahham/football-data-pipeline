@@ -10,7 +10,9 @@ The flow stores only anonymous product feedback (no name/email/user account).
 
 ## 1) Configure frontend placeholders
 
-Update these constants in `artifacts/matchday_style_clash.html`:
+Update these constants in `site/match-preview/index.html` (GitHub Pages) and/or `artifacts/matchday_style_clash.html` (local):
+
+If `FEEDBACK_ENDPOINT` is still the placeholder, the **Feedback** button is hidden so users are not shown a failing send.
 
 - `FEEDBACK_ENDPOINT`: your deployed Google Apps Script Web App URL
 - `FEEDBACK_TOKEN`: optional shared token (same value as backend script). Leave empty if not using token check.
