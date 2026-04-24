@@ -1,10 +1,5 @@
 {{ config(materialized='view') }}
 
-{#
-    Matchday "style clash" surface for upcoming D1 fixtures.
-    Grain: one row per fixture for the nearest upcoming round.
-#}
-
 with mart_fixture_results as (
     select * from {{ ref('mart_fixture_results') }}
 ),
@@ -117,8 +112,7 @@ finished_team_stats as (
         fl.result,
         stats.shots_on_goal,
         stats.shots_outside_box,
-        stats.offsides,
-        stats.expected_goals
+        stats.offsides
     from finished_legs as fl
     left join fct_fixture_team_stats as stats
         on
@@ -139,9 +133,7 @@ finished_with_opponent as (
         fts.shots_on_goal,
         fts.shots_outside_box,
         fts.offsides,
-        fts.expected_goals,
-        opp.shots_on_goal as opponent_shots_on_goal,
-        opp.expected_goals as opponent_expected_goals
+        opp.shots_on_goal as opponent_shots_on_goal
     from finished_team_stats as fts
     left join finished_team_stats as opp
         on
@@ -179,9 +171,7 @@ ranked_recent as (
         fwo.shots_on_goal,
         fwo.shots_outside_box,
         fwo.offsides,
-        fwo.expected_goals,
         fwo.opponent_shots_on_goal,
-        fwo.opponent_expected_goals,
         row_number() over (
             partition by tfc.upcoming_fixture_sk, tfc.team_sk
             order by fwo.kickoff_datetime desc, fwo.fixture_sk desc
@@ -201,54 +191,22 @@ aggregated_recent as (
         team_sk,
         countif(recent_match_rank <= 5) as played_last5,
         countif(recent_match_rank <= 10) as played_last10,
-        countif(recent_match_rank <= 5 and expected_goals is not null) as stat_coverage_last5,
-        countif(recent_match_rank <= 10 and expected_goals is not null) as stat_coverage_last10,
+        countif(recent_match_rank <= 5 and shots_on_goal is not null) as stat_coverage_last5,
+        countif(recent_match_rank <= 10 and shots_on_goal is not null) as stat_coverage_last10,
         avg(if(recent_match_rank <= 5, cast(result = 'W' as int64), null)) as win_rate_last5_raw,
         avg(if(recent_match_rank <= 10, cast(result = 'W' as int64), null)) as win_rate_last10_raw,
         avg(if(recent_match_rank <= 5, goals_for, null)) as goals_per_match_last5_raw,
         avg(if(recent_match_rank <= 10, goals_for, null)) as goals_per_match_last10_raw,
         avg(if(recent_match_rank <= 5, shots_on_goal, null)) as shots_on_target_last5_raw,
         avg(if(recent_match_rank <= 10, shots_on_goal, null)) as shots_on_target_last10_raw,
-        avg(if(recent_match_rank <= 5, expected_goals, null)) as xg_for_last5_raw,
-        avg(if(recent_match_rank <= 10, expected_goals, null)) as xg_for_last10_raw,
-        avg(
-            if(
-                recent_match_rank <= 5,
-                expected_goals - coalesce(opponent_expected_goals, 0),
-                null
-            )
-        ) as xg_delta_last5_raw,
-        avg(
-            if(
-                recent_match_rank <= 10,
-                expected_goals - coalesce(opponent_expected_goals, 0),
-                null
-            )
-        ) as xg_delta_last10_raw,
-        safe_divide(
-            sum(if(recent_match_rank <= 5, goals_for, null)),
-            nullif(sum(if(recent_match_rank <= 5, expected_goals, null)), 0)
-        ) as shot_quality_conversion_last5_raw,
-        safe_divide(
-            sum(if(recent_match_rank <= 10, goals_for, null)),
-            nullif(sum(if(recent_match_rank <= 10, expected_goals, null)), 0)
-        ) as shot_quality_conversion_last10_raw,
-        avg(if(recent_match_rank <= 5, coalesce(opponent_expected_goals, 0), null)) as xga_last5_raw,
-        avg(if(recent_match_rank <= 10, coalesce(opponent_expected_goals, 0), null)) as xga_last10_raw,
-        avg(
-            if(
-                recent_match_rank <= 5,
-                coalesce(shots_outside_box, 0) + coalesce(offsides, 0),
-                null
-            )
-        ) as transition_threat_last5_raw,
-        avg(
-            if(
-                recent_match_rank <= 10,
-                coalesce(shots_outside_box, 0) + coalesce(offsides, 0),
-                null
-            )
-        ) as transition_threat_last10_raw
+        avg(if(recent_match_rank <= 5, coalesce(shots_on_goal, 0) - coalesce(opponent_shots_on_goal, 0), null)) as shot_balance_last5_raw,
+        avg(if(recent_match_rank <= 10, coalesce(shots_on_goal, 0) - coalesce(opponent_shots_on_goal, 0), null)) as shot_balance_last10_raw,
+        safe_divide(sum(if(recent_match_rank <= 5, goals_for, null)), nullif(sum(if(recent_match_rank <= 5, shots_on_goal, null)), 0)) as shot_quality_conversion_last5_raw,
+        safe_divide(sum(if(recent_match_rank <= 10, goals_for, null)), nullif(sum(if(recent_match_rank <= 10, shots_on_goal, null)), 0)) as shot_quality_conversion_last10_raw,
+        avg(if(recent_match_rank <= 5, coalesce(opponent_shots_on_goal, 0), null)) as shots_allowed_last5_raw,
+        avg(if(recent_match_rank <= 10, coalesce(opponent_shots_on_goal, 0), null)) as shots_allowed_last10_raw,
+        avg(if(recent_match_rank <= 5, coalesce(shots_outside_box, 0) + coalesce(offsides, 0), null)) as transition_threat_last5_raw,
+        avg(if(recent_match_rank <= 10, coalesce(shots_outside_box, 0) + coalesce(offsides, 0), null)) as transition_threat_last10_raw
     from ranked_recent
     where recent_match_rank <= 10
     group by upcoming_fixture_sk, team_sk
@@ -268,29 +226,12 @@ team_recent_metrics as (
             else 'LOW'
         end as coverage_bucket,
         if(stat_coverage_last5 >= 3, win_rate_last5_raw, win_rate_last10_raw) as win_rate_recent,
-        if(
-            stat_coverage_last5 >= 3,
-            goals_per_match_last5_raw,
-            goals_per_match_last10_raw
-        ) as goals_per_match_recent,
-        if(
-            stat_coverage_last5 >= 3,
-            shots_on_target_last5_raw,
-            shots_on_target_last10_raw
-        ) as shots_on_target_recent,
-        if(stat_coverage_last5 >= 3, xg_for_last5_raw, xg_for_last10_raw) as xg_for_recent,
-        if(stat_coverage_last5 >= 3, xg_delta_last5_raw, xg_delta_last10_raw) as xg_delta_recent,
-        if(
-            stat_coverage_last5 >= 3,
-            shot_quality_conversion_last5_raw,
-            shot_quality_conversion_last10_raw
-        ) as shot_quality_conversion_recent,
-        if(stat_coverage_last5 >= 3, xga_last5_raw, xga_last10_raw) as xga_recent,
-        if(
-            stat_coverage_last5 >= 3,
-            transition_threat_last5_raw,
-            transition_threat_last10_raw
-        ) as transition_threat_recent
+        if(stat_coverage_last5 >= 3, goals_per_match_last5_raw, goals_per_match_last10_raw) as goals_per_match_recent,
+        if(stat_coverage_last5 >= 3, shots_on_target_last5_raw, shots_on_target_last10_raw) as shots_on_target_recent,
+        if(stat_coverage_last5 >= 3, shot_balance_last5_raw, shot_balance_last10_raw) as shot_balance_recent,
+        if(stat_coverage_last5 >= 3, shot_quality_conversion_last5_raw, shot_quality_conversion_last10_raw) as shot_quality_conversion_recent,
+        if(stat_coverage_last5 >= 3, shots_allowed_last5_raw, shots_allowed_last10_raw) as shots_allowed_recent,
+        if(stat_coverage_last5 >= 3, transition_threat_last5_raw, transition_threat_last10_raw) as transition_threat_recent
     from aggregated_recent
 ),
 
@@ -304,10 +245,9 @@ home_metrics as (
         win_rate_recent as home_win_rate_recent,
         goals_per_match_recent as home_goals_per_match_recent,
         shots_on_target_recent as home_shots_on_target_per_match_recent,
-        xg_for_recent as home_xg_for_recent,
-        xg_delta_recent as home_xg_delta_recent,
+        shot_balance_recent as home_shot_balance_recent,
         shot_quality_conversion_recent as home_shot_quality_conversion_recent,
-        xga_recent as home_xga_per_match_recent,
+        shots_allowed_recent as home_shots_allowed_per_match_recent,
         transition_threat_recent as home_transition_threat_recent
     from team_recent_metrics
 ),
@@ -322,10 +262,9 @@ away_metrics as (
         win_rate_recent as away_win_rate_recent,
         goals_per_match_recent as away_goals_per_match_recent,
         shots_on_target_recent as away_shots_on_target_per_match_recent,
-        xg_for_recent as away_xg_for_recent,
-        xg_delta_recent as away_xg_delta_recent,
+        shot_balance_recent as away_shot_balance_recent,
         shot_quality_conversion_recent as away_shot_quality_conversion_recent,
-        xga_recent as away_xga_per_match_recent,
+        shots_allowed_recent as away_shots_allowed_per_match_recent,
         transition_threat_recent as away_transition_threat_recent
     from team_recent_metrics
 ),
@@ -352,10 +291,9 @@ final as (
         hm.home_win_rate_recent,
         hm.home_goals_per_match_recent,
         hm.home_shots_on_target_per_match_recent,
-        hm.home_xg_for_recent,
-        hm.home_xg_delta_recent,
+        hm.home_shot_balance_recent,
         hm.home_shot_quality_conversion_recent,
-        hm.home_xga_per_match_recent,
+        hm.home_shots_allowed_per_match_recent,
         hm.home_transition_threat_recent,
         am.away_recent_matches_played_last5,
         am.away_stat_coverage_last5,
@@ -363,27 +301,18 @@ final as (
         am.away_win_rate_recent,
         am.away_goals_per_match_recent,
         am.away_shots_on_target_per_match_recent,
-        am.away_xg_for_recent,
-        am.away_xg_delta_recent,
+        am.away_shot_balance_recent,
         am.away_shot_quality_conversion_recent,
-        am.away_xga_per_match_recent,
+        am.away_shots_allowed_per_match_recent,
         am.away_transition_threat_recent,
-        coalesce(hm.home_xg_delta_recent, 0) - coalesce(am.away_xg_delta_recent, 0)
-            as xg_delta_edge_home,
-        coalesce(hm.home_shot_quality_conversion_recent, 0)
-        - coalesce(am.away_shot_quality_conversion_recent, 0)
-            as shot_quality_conversion_edge_home,
-        coalesce(am.away_xga_per_match_recent, 0) - coalesce(hm.home_xga_per_match_recent, 0)
-            as defensive_suppression_edge_home,
-        coalesce(hm.home_transition_threat_recent, 0)
-        - coalesce(am.away_transition_threat_recent, 0)
-            as transition_threat_edge_home,
+        coalesce(hm.home_shot_balance_recent, 0) - coalesce(am.away_shot_balance_recent, 0) as shot_balance_edge_home,
+        coalesce(hm.home_shot_quality_conversion_recent, 0) - coalesce(am.away_shot_quality_conversion_recent, 0) as shot_quality_conversion_edge_home,
+        coalesce(am.away_shots_allowed_per_match_recent, 0) - coalesce(hm.home_shots_allowed_per_match_recent, 0) as defensive_suppression_edge_home,
+        coalesce(hm.home_transition_threat_recent, 0) - coalesce(am.away_transition_threat_recent, 0) as transition_threat_edge_home,
         format_date('%A', um.fixture_date) as kickoff_weekday_utc,
         case
-            when coalesce(hm.home_xg_delta_recent, 0) - coalesce(am.away_xg_delta_recent, 0) >= 0.25
-                then 'HOME_CHANCE_EDGE'
-            when coalesce(hm.home_xg_delta_recent, 0) - coalesce(am.away_xg_delta_recent, 0) <= -0.25
-                then 'AWAY_CHANCE_EDGE'
+            when coalesce(hm.home_shot_balance_recent, 0) - coalesce(am.away_shot_balance_recent, 0) >= 0.5 then 'HOME_CHANCE_EDGE'
+            when coalesce(hm.home_shot_balance_recent, 0) - coalesce(am.away_shot_balance_recent, 0) <= -0.5 then 'AWAY_CHANCE_EDGE'
             else 'BALANCED'
         end as clash_verdict
     from upcoming_matchday as um

@@ -25,7 +25,6 @@ src as (
         passes_total,
         passes_accurate,
         passes_accuracy_percent,
-        expected_goals,
         raw_ingested_at,
         row_number() over (
             partition by fixture_id, team_id
@@ -66,6 +65,5 @@ select
     passes_total,
     passes_accurate,
     passes_accuracy_percent,
-    expected_goals,
     raw_ingested_at
 from latest

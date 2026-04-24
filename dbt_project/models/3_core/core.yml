@@ -448,8 +448,6 @@ models:
       - name: passes_accurate
       - name: passes_accuracy_percent
         description: "Pass accuracy as an integer percent (0-100)."
-      - name: expected_goals
-        description: "Expected goals (xG) as FLOAT64 when provided by the API."
       - name: raw_ingested_at
 
   - name: fct_fixture_player_stats

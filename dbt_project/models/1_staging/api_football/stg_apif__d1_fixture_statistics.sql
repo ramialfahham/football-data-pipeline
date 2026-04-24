@@ -79,9 +79,7 @@ pivoted as (
         max(case
             when stat_type = 'Passes %'
                 then safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64)
-        end) as passes_accuracy_percent,
-        max(case when stat_type = 'expected_goals' then safe_cast(stat_value_raw as float64) end)
-            as expected_goals
+        end) as passes_accuracy_percent
     from stat_lines
     where
         fixture_id is not null
@@ -111,6 +109,5 @@ select
     passes_total,
     passes_accurate,
     passes_accuracy_percent,
-    expected_goals,
     source_json
 from pivoted

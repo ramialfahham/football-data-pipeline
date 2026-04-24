@@ -199,7 +199,7 @@
       en: {
         title: "Match Intelligence",
         sub: "D1 pre-match cards: coach-grade metrics, fan-readable story.",
-        legend: "How to read: xG = expected goals, xGA = expected goals against, xG Delta = chance quality edge.",
+        legend: "How to read: Shot Balance = shots on target edge, Shots Allowed = defensive pressure allowed.",
         feedback: "Give feedback",
         feedbackTitle: "Quick feedback",
         feedbackQ1: "How easy was this app to use? (1-5)",
@@ -216,10 +216,9 @@
         mHome: "Home",
         mAway: "Away",
         mEdge: "Edge",
-        mXg: "xG (recent)",
-        mXgDelta: "xG Delta (recent)",
+        mShotBalance: "Shot Balance (recent)",
         mShotQuality: "Shot Quality Conversion",
-        mDefSupp: "Defensive Suppression (xGA)",
+        mDefSupp: "Defensive Suppression (Shots Allowed)",
         mTransition: "Transition Threat",
         mGoals: "Goals / Match",
         mWinRate: "Win Rate",
@@ -230,12 +229,12 @@
         coverageHigh: "High coverage",
         coverageMedium: "Medium coverage",
         coverageLow: "Low coverage",
-        foot: "Metrics use recent form with coverage-aware fallback (last 5 -> last 10) when xG data is sparse.",
+        foot: "Metrics use recent form with coverage-aware fallback (last 5 -> last 10) when stat data is sparse.",
       },
       de: {
         title: "Match Intelligence",
         sub: "D1 Pre-Match-Karten: Trainer-relevante Metriken, fan-freundliche Story.",
-        legend: "So lesen: xG = erwartete Tore, xGA = erwartete Gegentore, xG-Differenz = Chancenqualitätsvorteil.",
+        legend: "So lesen: Shot Balance = Vorteil bei Schüssen aufs Tor, Shots Allowed = zugelassener Defensivdruck.",
         feedback: "Feedback geben",
         feedbackTitle: "Kurzes Feedback",
         feedbackQ1: "Wie einfach war die Nutzung der App? (1-5)",
@@ -252,10 +251,9 @@
         mHome: "Heim",
         mAway: "Auswärts",
         mEdge: "Vorteil",
-        mXg: "xG (aktuell)",
-        mXgDelta: "xG-Differenz (aktuell)",
+        mShotBalance: "Shot Balance (aktuell)",
         mShotQuality: "Abschluss-Effizienz",
-        mDefSupp: "Defensiv-Unterdrückung (xGA)",
+        mDefSupp: "Defensiv-Unterdrückung (zugelassene Schüsse aufs Tor)",
         mTransition: "Umschaltgefahr",
         mGoals: "Tore / Spiel",
         mWinRate: "Siegrate",
@@ -266,7 +264,7 @@
         coverageHigh: "Hohe Datenabdeckung",
         coverageMedium: "Mittlere Datenabdeckung",
         coverageLow: "Niedrige Datenabdeckung",
-        foot: "Metriken nutzen aktuelle Form mit Fallback (letzte 5 -> letzte 10), wenn xG-Daten fehlen.",
+        foot: "Metriken nutzen aktuelle Form mit Fallback (letzte 5 -> letzte 10), wenn Stat-Daten fehlen.",
       },
     };
 
@@ -324,21 +322,21 @@
     function narrative(row) {
       const home = row.home_team_name;
       const away = row.away_team_name;
-      const xgEdge = Number(row.xg_delta_edge_home || 0);
+      const shotEdge = Number(row.shot_balance_edge_home || 0);
       const defEdge = Number(row.defensive_suppression_edge_home || 0);
       const tranEdge = Number(row.transition_threat_edge_home || 0);
 
-      if (xgEdge >= 0.25 && defEdge >= 0) {
+      if (shotEdge >= 0.5 && defEdge >= 0) {
         return lang === "de"
           ? `${home} kommt mit Vorteilen bei Chancenqualität und Defensivkontrolle ins Spiel.`
           : `${home} enter with an edge in chance quality and defensive control.`;
       }
-      if (xgEdge <= -0.25 && tranEdge < 0) {
+      if (shotEdge <= -0.5 && tranEdge < 0) {
         return lang === "de"
           ? `${away} wirkt im Umschaltspiel gefährlicher und hat die besseren Chancenprofile.`
           : `${away} look more dangerous in transition and carry the better chance profile.`;
       }
-      if (Math.abs(xgEdge) < 0.15 && Math.abs(defEdge) < 0.15) {
+      if (Math.abs(shotEdge) < 0.2 && Math.abs(defEdge) < 0.15) {
         return lang === "de"
           ? `Die Profile liegen eng beieinander - Effizienz im Abschluss dürfte entscheiden.`
           : `Profiles are tight - finishing efficiency is likely to decide this one.`;
@@ -466,10 +464,9 @@
             activeFixtureId = row.fixture_api_id;
           }
           const coreRows = [
-            { label: t.mXg, home: fmtNum(row.home_xg_for_recent), away: fmtNum(row.away_xg_for_recent), edge: Number(row.home_xg_for_recent || 0) - Number(row.away_xg_for_recent || 0), edgeText: signed(Number(row.home_xg_for_recent || 0) - Number(row.away_xg_for_recent || 0)) },
-            { label: t.mXgDelta, home: fmtNum(row.home_xg_delta_recent), away: fmtNum(row.away_xg_delta_recent), edge: row.xg_delta_edge_home, edgeText: signed(row.xg_delta_edge_home) },
+            { label: t.mShotBalance, home: fmtNum(row.home_shot_balance_recent), away: fmtNum(row.away_shot_balance_recent), edge: row.shot_balance_edge_home, edgeText: signed(row.shot_balance_edge_home) },
             { label: t.mShotQuality, home: fmtNum(row.home_shot_quality_conversion_recent), away: fmtNum(row.away_shot_quality_conversion_recent), edge: row.shot_quality_conversion_edge_home, edgeText: signed(row.shot_quality_conversion_edge_home) },
-            { label: t.mDefSupp, home: fmtNum(row.home_xga_per_match_recent), away: fmtNum(row.away_xga_per_match_recent), edge: row.defensive_suppression_edge_home, edgeText: signed(row.defensive_suppression_edge_home) },
+            { label: t.mDefSupp, home: fmtNum(row.home_shots_allowed_per_match_recent), away: fmtNum(row.away_shots_allowed_per_match_recent), edge: row.defensive_suppression_edge_home, edgeText: signed(row.defensive_suppression_edge_home) },
             { label: t.mTransition, home: fmtNum(row.home_transition_threat_recent), away: fmtNum(row.away_transition_threat_recent), edge: row.transition_threat_edge_home, edgeText: signed(row.transition_threat_edge_home) },
           ];
           const fanRows = [

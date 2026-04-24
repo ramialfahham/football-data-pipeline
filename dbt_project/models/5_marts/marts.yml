@@ -438,29 +438,25 @@ models:
       - name: away_recent_matches_played_last5
         description: "Finished matches in the strict 5-game sample for the away side."
       - name: home_stat_coverage_last5
-        description: "Count of home recent matches (within 5) that include xG/stat payload."
+        description: "Count of home recent matches (within 5) that include shots-on-target stat payload."
       - name: away_stat_coverage_last5
-        description: "Count of away recent matches (within 5) that include xG/stat payload."
+        description: "Count of away recent matches (within 5) that include shots-on-target stat payload."
       - name: home_coverage_bucket
         description: "Metric window used for home side: LAST5, LAST10, or LOW coverage."
       - name: away_coverage_bucket
         description: "Metric window used for away side: LAST5, LAST10, or LOW coverage."
-      - name: home_xg_for_recent
-        description: "Average xG for home side over the selected recent window."
-      - name: away_xg_for_recent
-        description: "Average xG for away side over the selected recent window."
-      - name: home_xg_delta_recent
-        description: "xG Delta for home side over the selected recent window."
-      - name: away_xg_delta_recent
-        description: "xG Delta for away side over the selected recent window."
+      - name: home_shot_balance_recent
+        description: "Home side shot-balance signal (shots on target minus opponent shots on target) over selected recent window."
+      - name: away_shot_balance_recent
+        description: "Away side shot-balance signal (shots on target minus opponent shots on target) over selected recent window."
       - name: home_shot_quality_conversion_recent
-        description: "Goals divided by xG over the selected recent window for home side."
+        description: "Goals divided by shots on target over the selected recent window for home side."
       - name: away_shot_quality_conversion_recent
-        description: "Goals divided by xG over the selected recent window for away side."
-      - name: home_xga_per_match_recent
-        description: "Expected goals allowed per match over the selected window for home side."
-      - name: away_xga_per_match_recent
-        description: "Expected goals allowed per match over the selected window for away side."
+        description: "Goals divided by shots on target over the selected recent window for away side."
+      - name: home_shots_allowed_per_match_recent
+        description: "Opponent shots on target allowed per match over selected window for home side."
+      - name: away_shots_allowed_per_match_recent
+        description: "Opponent shots on target allowed per match over selected window for away side."
       - name: home_transition_threat_recent
         description: "Transition threat proxy over selected window for home side."
       - name: away_transition_threat_recent
@@ -477,8 +473,8 @@ models:
         description: "Fan metric: shots on target per match over selected window (home side)."
       - name: away_shots_on_target_per_match_recent
         description: "Fan metric: shots on target per match over selected window (away side)."
-      - name: xg_delta_edge_home
-        description: "Home-minus-away edge on xG Delta (positive favors home side)."
+      - name: shot_balance_edge_home
+        description: "Home-minus-away edge on shot-balance signal (positive favors home side)."
       - name: shot_quality_conversion_edge_home
         description: "Home-minus-away edge on shot quality conversion."
       - name: defensive_suppression_edge_home
@@ -488,7 +484,7 @@ models:
       - name: kickoff_weekday_utc
         description: "UTC weekday name derived from fixture_date (used as fallback display key)."
       - name: clash_verdict
-        description: "Simple pre-match verdict derived from xG Delta edge."
+        description: "Simple pre-match verdict derived from shot-balance edge."
         tests:
           - accepted_values:
               values: ['HOME_CHANCE_EDGE', 'AWAY_CHANCE_EDGE', 'BALANCED']

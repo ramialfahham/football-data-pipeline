@@ -590,8 +590,6 @@ models:
         description: "Value from stat line type `Passes accurate`."
       - name: passes_accuracy_percent
         description: "Value from stat line type `Passes %`, stored as integer percent without `%`."
-      - name: expected_goals
-        description: "Value from stat line type `expected_goals`; currently NULL when that stat type is absent in source payload."
       - name: source_json
         description: "Full team statistics object JSON for fields not promoted to columns."
 
