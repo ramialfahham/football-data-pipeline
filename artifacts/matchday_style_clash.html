@@ -25,7 +25,6 @@
     h1 { margin: 0; font-size: 1.35rem; }
     .sub { margin: 6px 0 0; font-size: 0.9rem; color: #e8eeff; }
     .meta { margin-top: 8px; color: #dbe3ff; font-size: 0.8rem; }
-    .legend { margin-top: 8px; font-size: 0.8rem; color: #e7eeff; line-height: 1.4; }
     .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
     button, .btn {
       border: 1px solid #8898d8;
@@ -133,7 +132,6 @@
       <h1>Match Intelligence</h1>
       <p class="sub">Bundesliga · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
       <div class="meta" id="stamp"></div>
-      <p class="legend" id="legend"></p>
       <div class="controls">
         <span class="nav-hint">Wischen oder Tippen: nächstes / vorheriges Spiel</span>
         <button type="button" id="prev-btn" aria-label="Vorheriges Spiel">&larr;</button>
@@ -195,7 +193,6 @@
     }
 
     const COPY = {
-      legend: "Spalten: Heim · Kennzahl · Gast. Kurzerklärungen unter der Kennzahl (ohne Wiederholung des Formfensters — siehe Fußnote). Anteile als ganze Prozentzahlen; andere Kennzahlen mit einer Nachkommastelle.",
       foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
       dataAsOf: "Datenstand",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
@@ -377,7 +374,6 @@
     }
 
     function render(rows, g) {
-      document.getElementById("legend").textContent = COPY.legend;
       document.getElementById("foot-note").textContent = COPY.foot;
       document.getElementById("stamp").textContent = `${COPY.dataAsOf}: ${new Date().toLocaleString("de-DE")}`;
       setFeedbackCopy();

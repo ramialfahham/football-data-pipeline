@@ -8,6 +8,18 @@ This prototype collects app-level feedback inside the UI (no redirect) with exac
 
 The flow stores only anonymous product feedback (no name/email/user account).
 
+## Exact steps to collect feedback (GitHub Pages)
+
+1. **Google Sheet:** Create a spreadsheet. Add a worksheet tab named exactly **`feedback`**. Row 1 can be headers (`ingested_at`, `ease_score`, …) or empty — the script appends rows.
+2. **Apps Script:** Go to [script.google.com](https://script.google.com) → New project → paste the full contents of **`scripts/feedback_webapp.gs`**.
+3. In that script, set **`SHEET_ID`** to your Sheet’s ID (from the Sheet URL: `docs.google.com/spreadsheets/d/<THIS_PART>/edit`). Leave **`FEEDBACK_TOKEN`** empty unless you want a shared secret (if you set it, set the same string in the HTML `FEEDBACK_TOKEN` constant and in CI you’d need a second secret — optional).
+4. **Deploy:** Deploy → New deployment → Type **Web app** → Execute as **Me** → Who has access **Anyone** → Deploy. Copy the **Web app URL** (must end with **`/exec`**).
+5. **GitHub:** In the repo → **Settings → Secrets and variables → Actions** → **New repository secret** → Name **`FEEDBACK_APPS_SCRIPT_URL`** → Value = that **`/exec`** URL (full string).
+6. **Publish:** Run the workflow **Deploy match preview (GitHub Pages)** on `main` (or push a change that triggers it). The build injects the URL into the page; the **Feedback** button appears and POSTs to your script.
+7. **Verify:** Submit feedback from the live site → confirm a new row appears on the **`feedback`** tab.
+
+**Local HTML only:** skip steps 5–6; in `artifacts/matchday_style_clash.html` replace `FEEDBACK_ENDPOINT` with your `/exec` URL and open the file from a folder that also contains `matchday_insights.json` and `metric_glossary.json`.
+
 ## Does it work end-to-end?
 
 **Yes**, once all of the following are true:
