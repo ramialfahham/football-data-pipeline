@@ -27,10 +27,10 @@ The flow stores only anonymous product feedback (no name/email/user account).
 1. Google Sheet exists with tab name **`feedback`** (columns as below).
 2. **`scripts/feedback_webapp.gs`** is deployed as a Web App with **`SHEET_ID`** set, **Execute as: Me**, **Who has access: Anyone** (required so anonymous visitors can POST).
 3. The deployed **`…/exec`** URL is available to the browser:
-   - **GitHub Pages:** add repository secret **`FEEDBACK_APPS_SCRIPT_URL`** with that full URL. The Pages workflow runs `scripts/inject_feedback_endpoint.py` before upload so the **Feedback** button is enabled and submits to your script.
-   - **Local / artifacts:** replace `FEEDBACK_ENDPOINT` in `artifacts/matchday_style_clash.html` (or inject before serve).
+   - **GitHub Pages:** add repository secret **`FEEDBACK_APPS_SCRIPT_URL`** with that full URL. The Pages workflow runs `scripts/inject_feedback_endpoint.py` before upload so the built page contains your **`/exec`** URL and **Senden** reaches your script.
+   - **Local / artifacts:** replace `FEEDBACK_ENDPOINT` in `artifacts/matchday_style_clash.html` or `site/match-preview/index.html` with the same **`/exec`** URL (or run `inject_feedback_endpoint.py` on a copy before serving).
 
-Until the URL is configured, the UI **hides** the Feedback button (no broken “send failed” toast).
+The **Feedback** button is always shown. If the URL is still the placeholder, **Senden** shows a short hint instead of calling Google.
 
 Optional: set **`FEEDBACK_TOKEN`** in both the Apps Script and the HTML constant if you want a shared secret gate; leave both empty to skip.
 

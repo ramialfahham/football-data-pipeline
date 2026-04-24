@@ -196,7 +196,9 @@
       foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
       dataAsOf: "Datenstand",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
-      feedbackError: "Feedback konnte gerade nicht gesendet werden.",
+      feedbackError: "Feedback konnte nicht gesendet werden.",
+      feedbackNotConfigured:
+        "Kein Feedback-Endpunkt: Trage die Web-App-URL (…/exec) bei FEEDBACK_ENDPOINT in dieser HTML-Datei ein (oder nutze das GitHub-Geheimnis FEEDBACK_APPS_SCRIPT_URL beim Pages-Deploy).",
     };
 
     function nz(x) {
@@ -331,7 +333,8 @@
       toast.style.display = "block";
       toast.style.background = isError ? "#5b1f2a" : "#174e30";
       toast.style.borderColor = isError ? "#8e3244" : "#2a8152";
-      setTimeout(() => { toast.style.display = "none"; }, 3000);
+      const ms = isError && String(message).length > 120 ? 12000 : 3500;
+      setTimeout(() => { toast.style.display = "none"; }, ms);
     }
 
     function openFeedbackModal() {
@@ -345,6 +348,10 @@
     }
 
     async function submitFeedback() {
+      if (!isFeedbackEndpointConfigured()) {
+        showToast(COPY.feedbackNotConfigured, true);
+        return;
+      }
       const ease = Number(document.getElementById("feedback-ease").value);
       const clarity = Number(document.getElementById("feedback-clarity").value);
       const comment = String(document.getElementById("feedback-comment").value || "").trim().slice(0, 500);
@@ -364,12 +371,18 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        if (!resp.ok) throw new Error(String(resp.status));
+        if (!resp.ok) {
+          showToast(`${COPY.feedbackError} (HTTP ${resp.status})`, true);
+          return;
+        }
         closeFeedbackModal();
         document.getElementById("feedback-comment").value = "";
         showToast(COPY.feedbackThanks);
-      } catch {
-        showToast(COPY.feedbackError, true);
+      } catch (err) {
+        const hint = err && String(err.message || err).includes("fetch")
+          ? " Netzwerk/CORS prüfen; Web-App auf „Jeder“?"
+          : "";
+        showToast(`${COPY.feedbackError}${hint}`, true);
       }
     }
 
@@ -420,19 +433,12 @@
 
     document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
     document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
-    (function setupFeedbackUi() {
-      const openBtn = document.getElementById("feedback-open-btn");
-      if (!isFeedbackEndpointConfigured()) {
-        openBtn.style.display = "none";
-        return;
-      }
-      openBtn.addEventListener("click", openFeedbackModal);
-      document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
-      document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
-      document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
-        if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
-      });
-    })();
+    document.getElementById("feedback-open-btn").addEventListener("click", openFeedbackModal);
+    document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
+    document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
+    document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
+      if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
+    });
 
     Promise.all([
       fetch("./matchday_insights.json").then((r) => r.json()),
