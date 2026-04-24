@@ -186,7 +186,7 @@
     const TZ = "Europe/Berlin";
 
     const COPY = {
-      legend: "Spalten: Heim · Kennzahl · Gast. Unter jeder Kennzahl: Kurzerklärung aus metric_glossary.json. Anteile als %, Tore pro Spiel mit zwei Nachkommastellen.",
+      legend: "Spalten: Heim · Kennzahl · Gast. Unter jeder Kennzahl: Kurzerklärung aus metric_glossary.json. Anteile als ganze Prozentzahlen; andere Kennzahlen mit einer Nachkommastelle.",
       foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
       dataAsOf: "Datenstand",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
@@ -208,7 +208,7 @@
 
     /** Anteil 0–1 als Prozent mit einer Nachkommastelle */
     function fmtDePct(x) {
-      return `${fmtDe(nz(x) * 100, 1)}%`;
+      return `${fmtDe(nz(x) * 100, 0)}%`;
     }
 
     function berlinKickoff(iso) {
@@ -286,7 +286,7 @@
         row("home_shot_accuracy_recent", "away_shot_accuracy_recent", "Schussgenauigkeit", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent)),
         row("home_finishing_efficiency_recent", "away_finishing_efficiency_recent", "Abschlusseffizienz", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent)),
         row("home_pass_accuracy_recent", "away_pass_accuracy_recent", "Passgenauigkeit", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent)),
-        row("home_offensive_efficiency_recent", "away_offensive_efficiency_recent", "Offensive Effizienz", fmtDe(r.home_offensive_efficiency_recent, 2), fmtDe(r.away_offensive_efficiency_recent, 2)),
+        row("home_offensive_efficiency_recent", "away_offensive_efficiency_recent", "Offensive Effizienz", fmtDe(r.home_offensive_efficiency_recent, 1), fmtDe(r.away_offensive_efficiency_recent, 1)),
         row("home_save_ratio_recent", "away_save_ratio_recent", "Paradenquote", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent)),
       ];
     }
