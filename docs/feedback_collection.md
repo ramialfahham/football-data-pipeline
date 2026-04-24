@@ -13,7 +13,7 @@ The flow stores only anonymous product feedback (no name/email/user account).
 Update these constants in `artifacts/matchday_style_clash.html`:
 
 - `FEEDBACK_ENDPOINT`: your deployed Google Apps Script Web App URL
-- `FEEDBACK_TOKEN`: shared token (same value as backend script)
+- `FEEDBACK_TOKEN`: optional shared token (same value as backend script). Leave empty if not using token check.
 
 ## 2) Create Google Sheet
 
@@ -35,12 +35,13 @@ Suggested column order:
 Use `scripts/feedback_webapp.gs` in Apps Script:
 
 - Replace `SHEET_ID`
-- Replace `FEEDBACK_TOKEN`
+- Set `FEEDBACK_TOKEN` only if you want token-based gatekeeping
 - Deploy as Web App (execute as you, access: anyone)
 
 ## 4) Security baseline
 
-- Keep `FEEDBACK_TOKEN` private and rotate occasionally.
+- Never commit real tokens, sheet IDs, or deployment URLs if you consider them sensitive.
+- Keep `FEEDBACK_TOKEN` private and rotate immediately if exposed.
 - Collect only anonymous fields listed above.
 - Keep strict numeric bounds for scores (1..5).
 - Sanitize comment text and cap length.
@@ -56,3 +57,11 @@ At least once per week:
 - 3 sample comments
 
 Share this digest in chat for improvement planning.
+
+## Incident note (if a token was pushed already)
+
+If a token was ever committed in git history:
+
+1. Rotate token in deployed Apps Script immediately.
+2. Update local app config with the new token.
+3. Treat old token as compromised permanently.

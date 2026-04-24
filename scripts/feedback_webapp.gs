@@ -15,13 +15,18 @@
 
 const SHEET_ID = "replace_with_google_sheet_id";
 const SHEET_NAME = "feedback";
-const FEEDBACK_TOKEN = "replace_with_feedback_token";
+const FEEDBACK_TOKEN = "";
+
+function doGet() {
+  return json_(200, { ok: true, message: "feedback endpoint live; use POST to submit" });
+}
 
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData && e.postData.contents ? e.postData.contents : "{}");
     const token = String(body.feedback_token || "");
-    if (token !== FEEDBACK_TOKEN) {
+    // Optional token check: enable by setting FEEDBACK_TOKEN to a non-empty value in your deployed script.
+    if (FEEDBACK_TOKEN && token !== FEEDBACK_TOKEN) {
       return json_(401, { ok: false, error: "unauthorized" });
     }
     const cleaned = validateAndNormalize_(body);
