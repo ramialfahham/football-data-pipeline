@@ -74,3 +74,18 @@ jobs:
 
       - name: Build core transfer contracts
         run: dbt build --select dim_date dim_player fct_transfer
+
+      - name: Build fixture statistics chain
+        run: dbt build --select stg_apif__d1_fixture_statistics fct_fixture_team_stats mart_matchday_insights
+
+      - name: Run fixture stats trust diagnostics (hard gate)
+        run: python ../scripts/data_trust_fixture_stats.py
+
+      - name: Upload data trust artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-trust-fixture-stats
+          path: |
+            artifacts/data_trust_fixture_stats.json
+            artifacts/data_trust_fixture_stats.md

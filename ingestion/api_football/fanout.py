@@ -222,13 +222,14 @@ def _budgeted_fixture_fanout_ids(
     else:
         explicit = max(0, int(raw))
 
-    mp = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
-    n_teams = max(1, len(team_ids))
+    # Reserve only a bounded amount for /players. Over-reserving by team_count * page_cap
+    # can starve fixture fanout entirely and leave statistics payloads empty.
     buf = _env_int("API_FOOTBALL_QUOTA_BUFFER", 5)
+    players_reserve_calls = _env_int("API_FOOTBALL_PLAYERS_RESERVE_CALLS", 20)
     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
         reserve_players = buf
     else:
-        reserve_players = n_teams * mp + buf
+        reserve_players = max(buf, players_reserve_calls + buf)
     cpf = _fixture_fanout_http_estimate()
 
     if _last_requests_remaining is not None:

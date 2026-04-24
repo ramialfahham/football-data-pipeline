@@ -64,3 +64,15 @@ jobs:
 
       - name: Full data-quality build
         run: dbt build --selector dq
+
+      - name: Run fixture stats trust diagnostics (hard gate)
+        run: python ../scripts/data_trust_fixture_stats.py
+
+      - name: Upload data trust artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-trust-fixture-stats
+          path: |
+            artifacts/data_trust_fixture_stats.json
+            artifacts/data_trust_fixture_stats.md
