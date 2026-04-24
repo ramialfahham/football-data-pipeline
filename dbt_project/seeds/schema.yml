@@ -3,8 +3,8 @@ version: 2
 seeds:
   - name: metric_glossary
     description: >
-      KPI labels and prose for the match preview UI. metric_key matches mart_matchday_insights
-      column names; values and display formatting live in the mart.
+      Kurze deutsche Labels und Erklärungen für die Match-Preview-UI. metric_key entspricht
+      Spalten in mart_matchday_insights; Zahlen und Formatierung kommen aus dem Mart.
     columns:
       - name: metric_key
         description: "Stable id; same as the mart column name for that metric."
@@ -12,8 +12,8 @@ seeds:
           - not_null
           - unique
       - name: label
-        description: "Short label on the card."
+        description: "Kurzbeschriftung (oft Heim/Gast unterscheidbar)."
         tests: [not_null]
       - name: description
-        description: "Longer explanation for tooltips or info modal."
+        description: "Knappe Erklärung unter der Kennzahl; Formfenster-Bezug steht in der Fußnote der Seite."
         tests: [not_null]
