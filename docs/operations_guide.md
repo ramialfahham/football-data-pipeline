@@ -214,6 +214,7 @@ GitHub Actions workflows enforce the layer contract and run dbt:
 1. In the GitHub repository, go to **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions** (not “Deploy from a branch”) the first time you enable Pages.
 2. Run **Actions → Deploy match preview (GitHub Pages) → Run workflow** on `main`, or wait for the daily schedule after merging the workflow.
 3. After a successful run, open **`https://<owner>.github.io/<repository>/match-preview/`** (project site). The repository root (`…/<repository>/`) redirects there; opening only `…/<repository>/` used to show **404** before that redirect existed. The workflow uses the same WIF secrets as other dbt workflows (`GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`).
+4. **Optional — in-app feedback on Pages:** add Actions secret **`FEEDBACK_APPS_SCRIPT_URL`** with your Google Apps Script Web App **`…/exec`** URL (see [`docs/feedback_collection.md`](feedback_collection.md)). If unset, the Feedback button stays hidden.
 
 Local preview of the same HTML and JSON layout: run `scripts/export_matchday_insights.ps1`, then `.\scripts\build_match_preview_site.ps1` (Windows) or `bash scripts/build_match_preview_site.sh` (Linux/macOS), and serve the `_site` folder with a static file server (open `/match-preview/`).
 

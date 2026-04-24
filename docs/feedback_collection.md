@@ -8,14 +8,26 @@ This prototype collects app-level feedback inside the UI (no redirect) with exac
 
 The flow stores only anonymous product feedback (no name/email/user account).
 
+## Does it work end-to-end?
+
+**Yes**, once all of the following are true:
+
+1. Google Sheet exists with tab name **`feedback`** (columns as below).
+2. **`scripts/feedback_webapp.gs`** is deployed as a Web App with **`SHEET_ID`** set, **Execute as: Me**, **Who has access: Anyone** (required so anonymous visitors can POST).
+3. The deployed **`…/exec`** URL is available to the browser:
+   - **GitHub Pages:** add repository secret **`FEEDBACK_APPS_SCRIPT_URL`** with that full URL. The Pages workflow runs `scripts/inject_feedback_endpoint.py` before upload so the **Feedback** button is enabled and submits to your script.
+   - **Local / artifacts:** replace `FEEDBACK_ENDPOINT` in `artifacts/matchday_style_clash.html` (or inject before serve).
+
+Until the URL is configured, the UI **hides** the Feedback button (no broken “send failed” toast).
+
+Optional: set **`FEEDBACK_TOKEN`** in both the Apps Script and the HTML constant if you want a shared secret gate; leave both empty to skip.
+
 ## 1) Configure frontend placeholders
 
-Update these constants in `site/match-preview/index.html` (GitHub Pages) and/or `artifacts/matchday_style_clash.html` (local):
+For **local** HTML only, edit constants in `artifacts/matchday_style_clash.html` (or `site/match-preview/index.html` if you do not use CI injection):
 
-If `FEEDBACK_ENDPOINT` is still the placeholder, the **Feedback** button is hidden so users are not shown a failing send.
-
-- `FEEDBACK_ENDPOINT`: your deployed Google Apps Script Web App URL
-- `FEEDBACK_TOKEN`: optional shared token (same value as backend script). Leave empty if not using token check.
+- `FEEDBACK_ENDPOINT`: your deployed Web App **`…/exec`** URL
+- `FEEDBACK_TOKEN`: optional; must match the script if you enabled the check there
 
 ## 2) Create Google Sheet
 

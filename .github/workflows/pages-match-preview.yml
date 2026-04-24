@@ -17,6 +17,7 @@ on:
       - "scripts/build_match_preview_site.ps1"
       - "scripts/extract_show_json.py"
       - "scripts/build_metric_glossary_json.py"
+      - "scripts/inject_feedback_endpoint.py"
 
 concurrency:
   group: pages-match-preview
@@ -95,6 +96,16 @@ jobs:
         run: |
           python scripts/extract_show_json.py artifacts/_show.json artifacts/matchday_insights.json
           python scripts/build_metric_glossary_json.py
+
+      - name: Inject feedback Apps Script URL (optional)
+        env:
+          FEEDBACK_APPS_SCRIPT_URL: ${{ secrets.FEEDBACK_APPS_SCRIPT_URL }}
+        run: |
+          if [ -n "${FEEDBACK_APPS_SCRIPT_URL:-}" ]; then
+            python scripts/inject_feedback_endpoint.py site/match-preview/index.html "$FEEDBACK_APPS_SCRIPT_URL"
+          else
+            echo "FEEDBACK_APPS_SCRIPT_URL secret not set — Feedback stays disabled until you add it (see docs/feedback_collection.md)."
+          fi
 
       - name: Assemble Pages folder
         run: bash scripts/build_match_preview_site.sh
