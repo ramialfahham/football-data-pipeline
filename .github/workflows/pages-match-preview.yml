@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "site/match-preview/**"
+      - "site/**"
       - "dbt_project/models/5_marts/mart_matchday_insights.sql"
       - "dbt_project/seeds/metric_glossary.csv"
       - "dbt_project/seeds/schema.yml"
