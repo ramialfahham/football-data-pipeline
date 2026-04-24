@@ -84,6 +84,49 @@
     td.edge-zero { color: #c4d0f8; font-weight: 700; }
     .section-title { margin: 9px 0 6px; color: #dbe4ff; font-size: 13px; font-weight: 700; text-transform: uppercase; }
     .foot { color: var(--muted); font-size: 12px; margin-top: 12px; }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(1, 7, 20, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal {
+      width: min(560px, 96vw);
+      background: #0f1a37;
+      border: 1px solid #334b88;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .modal h2 { margin: 0 0 10px; font-size: 20px; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; margin-bottom: 6px; font-size: 13px; color: #d8e2ff; }
+    .field textarea, .field select {
+      width: 100%;
+      border: 1px solid #4d65a7;
+      border-radius: 8px;
+      background: #111f44;
+      color: #f1f5ff;
+      padding: 8px;
+      font-size: 13px;
+    }
+    .modal-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; }
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #174e30;
+      color: #dbffe9;
+      border: 1px solid #2a8152;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      display: none;
+      z-index: 1100;
+    }
   </style>
 </head>
 <body>
@@ -97,7 +140,7 @@
         <div class="controls">
           <button class="lang-btn" data-lang="en">EN</button>
           <button class="lang-btn" data-lang="de">DE</button>
-          <a class="btn" id="feedback-link" target="_blank" rel="noreferrer">Feedback</a>
+          <button class="btn" id="feedback-open-btn" type="button">Feedback</button>
         </div>
       </div>
       <div class="meta" id="stamp"></div>
@@ -112,8 +155,43 @@
     </div>
     <div class="foot" id="foot-note"></div>
   </div>
+  <div class="modal-backdrop" id="feedback-modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+      <h2 id="feedback-modal-title">Feedback</h2>
+      <div class="field">
+        <label id="feedback-q1-label" for="feedback-ease"></label>
+        <select id="feedback-ease">
+          <option value="5">5</option>
+          <option value="4">4</option>
+          <option value="3" selected>3</option>
+          <option value="2">2</option>
+          <option value="1">1</option>
+        </select>
+      </div>
+      <div class="field">
+        <label id="feedback-q2-label" for="feedback-clarity"></label>
+        <select id="feedback-clarity">
+          <option value="5">5</option>
+          <option value="4">4</option>
+          <option value="3" selected>3</option>
+          <option value="2">2</option>
+          <option value="1">1</option>
+        </select>
+      </div>
+      <div class="field">
+        <label id="feedback-q3-label" for="feedback-comment"></label>
+        <textarea id="feedback-comment" rows="4" maxlength="500"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="feedback-cancel-btn" type="button"></button>
+        <button id="feedback-submit-btn" type="button"></button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="feedback-toast"></div>
   <script>
-    const FEEDBACK_URL = "https://forms.gle/xxxxxxxxxxxxxxxxx";
+    const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/REPLACE_WITH_DEPLOYMENT_ID/exec";
+    const FEEDBACK_TOKEN = "replace_with_feedback_token";
     const TZ = "Europe/Berlin";
 
     const i18n = {
@@ -122,6 +200,14 @@
         sub: "D1 pre-match cards: coach-grade metrics, fan-readable story.",
         legend: "How to read: xG = expected goals, xGA = expected goals against, xG Delta = chance quality edge.",
         feedback: "Give feedback",
+        feedbackTitle: "Quick feedback",
+        feedbackQ1: "How easy was this app to use? (1-5)",
+        feedbackQ2: "How clear were the insights and metrics? (1-5)",
+        feedbackQ3: "What is the one thing we should improve first?",
+        feedbackCancel: "Cancel",
+        feedbackSubmit: "Send feedback",
+        feedbackThanks: "Thanks! Feedback received.",
+        feedbackError: "Could not send feedback right now.",
         dataAsOf: "Data as of",
         sectionCore: "Core Intelligence (5)",
         sectionFan: "Fan Metrics (3)",
@@ -150,6 +236,14 @@
         sub: "D1 Pre-Match-Karten: Trainer-relevante Metriken, fan-freundliche Story.",
         legend: "So lesen: xG = erwartete Tore, xGA = erwartete Gegentore, xG-Differenz = Chancenqualitätsvorteil.",
         feedback: "Feedback geben",
+        feedbackTitle: "Kurzes Feedback",
+        feedbackQ1: "Wie einfach war die Nutzung der App? (1-5)",
+        feedbackQ2: "Wie verständlich waren Insights und Metriken? (1-5)",
+        feedbackQ3: "Was sollten wir als Erstes verbessern?",
+        feedbackCancel: "Abbrechen",
+        feedbackSubmit: "Feedback senden",
+        feedbackThanks: "Danke! Feedback wurde gesendet.",
+        feedbackError: "Feedback konnte gerade nicht gesendet werden.",
         dataAsOf: "Datenstand",
         sectionCore: "Kernmetriken (5)",
         sectionFan: "Fan-Metriken (3)",
@@ -176,6 +270,7 @@
     };
 
     let lang = navigator.language && navigator.language.toLowerCase().startsWith("de") ? "de" : "en";
+    let activeFixtureId = null;
 
     function fmtNum(x, d = 2) {
       return x === null || x === undefined ? "n/a" : Number(x).toFixed(d);
@@ -270,13 +365,75 @@
       `;
     }
 
+    function setFeedbackCopy(t) {
+      document.getElementById("feedback-open-btn").textContent = t.feedback;
+      document.getElementById("feedback-modal-title").textContent = t.feedbackTitle;
+      document.getElementById("feedback-q1-label").textContent = t.feedbackQ1;
+      document.getElementById("feedback-q2-label").textContent = t.feedbackQ2;
+      document.getElementById("feedback-q3-label").textContent = t.feedbackQ3;
+      document.getElementById("feedback-cancel-btn").textContent = t.feedbackCancel;
+      document.getElementById("feedback-submit-btn").textContent = t.feedbackSubmit;
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById("feedback-toast");
+      toast.textContent = message;
+      toast.style.display = "block";
+      toast.style.background = isError ? "#5b1f2a" : "#174e30";
+      toast.style.borderColor = isError ? "#8e3244" : "#2a8152";
+      setTimeout(() => { toast.style.display = "none"; }, 3000);
+    }
+
+    function openFeedbackModal() {
+      document.getElementById("feedback-modal-backdrop").style.display = "flex";
+      document.getElementById("feedback-modal-backdrop").setAttribute("aria-hidden", "false");
+    }
+
+    function closeFeedbackModal() {
+      document.getElementById("feedback-modal-backdrop").style.display = "none";
+      document.getElementById("feedback-modal-backdrop").setAttribute("aria-hidden", "true");
+    }
+
+    async function submitFeedback() {
+      const t = i18n[lang];
+      const ease = Number(document.getElementById("feedback-ease").value);
+      const clarity = Number(document.getElementById("feedback-clarity").value);
+      const comment = String(document.getElementById("feedback-comment").value || "").trim().slice(0, 500);
+
+      const payload = {
+        ease_score: ease,
+        clarity_score: clarity,
+        improvement_text: comment,
+        language: lang,
+        fixture_id: activeFixtureId,
+        app_version: "v1.2-feedback",
+        submitted_at: new Date().toISOString(),
+        feedback_token: FEEDBACK_TOKEN,
+      };
+
+      try {
+        const resp = await fetch(FEEDBACK_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          throw new Error(`Feedback endpoint failed: ${resp.status}`);
+        }
+        closeFeedbackModal();
+        document.getElementById("feedback-comment").value = "";
+        showToast(t.feedbackThanks);
+      } catch (err) {
+        showToast(t.feedbackError, true);
+      }
+    }
+
     function render(rows) {
       const t = i18n[lang];
       document.getElementById("app-title").textContent = t.title;
       document.getElementById("app-sub").textContent = t.sub;
       document.getElementById("legend").textContent = t.legend;
-      document.getElementById("feedback-link").textContent = t.feedback;
-      document.getElementById("feedback-link").href = FEEDBACK_URL;
+      setFeedbackCopy(t);
       document.getElementById("foot-note").textContent = t.foot;
       document.getElementById("stamp").textContent = `${t.dataAsOf}: ${new Date().toLocaleString(lang === "de" ? "de-DE" : "en-GB")}`;
       document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
@@ -304,6 +461,9 @@
         carousel.dataset.day = day;
 
         grouped[day].forEach((row) => {
+          if (activeFixtureId === null) {
+            activeFixtureId = row.fixture_api_id;
+          }
           const coreRows = [
             { label: t.mXg, home: fmtNum(row.home_xg_for_recent), away: fmtNum(row.away_xg_for_recent), edge: Number(row.home_xg_for_recent || 0) - Number(row.away_xg_for_recent || 0), edgeText: signed(Number(row.home_xg_for_recent || 0) - Number(row.away_xg_for_recent || 0)) },
             { label: t.mXgDelta, home: fmtNum(row.home_xg_delta_recent), away: fmtNum(row.away_xg_delta_recent), edge: row.xg_delta_edge_home, edgeText: signed(row.xg_delta_edge_home) },
@@ -344,6 +504,14 @@
 
     document.getElementById("prev-btn").addEventListener("click", () => scrollActive(-1));
     document.getElementById("next-btn").addEventListener("click", () => scrollActive(1));
+    document.getElementById("feedback-open-btn").addEventListener("click", openFeedbackModal);
+    document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
+    document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
+    document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
+      if (ev.target.id === "feedback-modal-backdrop") {
+        closeFeedbackModal();
+      }
+    });
     document.querySelectorAll(".lang-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         lang = btn.dataset.lang;
