@@ -3,97 +3,362 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bundesliga Matchday Style Clash</title>
+  <title>Match Intelligence - D1 Matchday</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #0b1020; color: #e8edff; margin: 0; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    .hero { background: linear-gradient(135deg, #1b2a5a, #6a2bbf); border-radius: 14px; padding: 18px; }
-    .hero h1 { margin: 0 0 6px; font-size: 28px; }
-    .hero p { margin: 4px 0; opacity: 0.92; }
-    .legend { margin-top: 10px; font-size: 13px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; margin-top: 18px; }
-    .card { background: #121933; border: 1px solid #273159; border-radius: 14px; padding: 14px; }
-    .fixture { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
-    .meta { color: #b9c2ea; font-size: 13px; margin-bottom: 10px; }
-    .badge { display: inline-block; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-    .home { background: #0b6b35; color: #d5ffe6; }
-    .away { background: #8a1f1f; color: #ffdfe0; }
-    .bal { background: #4a536d; color: #f2f5ff; }
-    .narrative { margin: 10px 0 12px; color: #dce3ff; }
-    .metric { margin: 7px 0; padding: 7px; border-radius: 8px; background: #192347; }
-    .metric b { font-size: 13px; }
-    .metric small { display: block; color: #aeb9e4; margin-top: 2px; }
-    .edge { float: right; font-weight: 700; }
-    .foot { color: #aeb9e4; font-size: 12px; margin-top: 20px; }
+    :root {
+      --bg: #070c1a;
+      --panel: #101a34;
+      --panel-soft: #162349;
+      --line: #2a3c74;
+      --text: #ecf1ff;
+      --muted: #a8b5df;
+      --accent: #6f7dff;
+      --good: #16914e;
+      --warn: #ba8b00;
+      --neutral: #4f5f8d;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, sans-serif; }
+    .app { max-width: 1160px; margin: 0 auto; padding: 18px 16px 26px; }
+    .start {
+      background: linear-gradient(140deg, #243b8f, #6a2fbe);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 28px; }
+    .sub { margin: 6px 0 0; color: #e3e9ff; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    button, .btn {
+      border: 1px solid #8898d8;
+      background: #1d2f67;
+      color: white;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .lang-btn.active { background: #e8efff; color: #1a2955; border-color: #e8efff; }
+    .meta { margin-top: 9px; color: #dbe3ff; font-size: 13px; }
+    .legend { margin-top: 10px; color: #e7eeff; font-size: 13px; }
+    .carousel-wrap { margin-top: 14px; }
+    .day-header { margin: 16px 0 8px; font-size: 18px; color: #d6defb; }
+    .carousel-controls { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+    .carousel {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding-bottom: 8px;
+    }
+    .card {
+      min-width: min(96vw, 780px);
+      scroll-snap-align: start;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .fixture { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .kickoff { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+    .pill { display: inline-block; border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
+    .pill.home { background: #1b854f; }
+    .pill.away { background: #8d2e39; }
+    .pill.balanced { background: #4e5f8e; }
+    .coverage { margin-left: 8px; background: #2d3f72; }
+    .narrative { margin: 10px 0 12px; font-size: 15px; color: #f0f3ff; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      background: var(--panel-soft);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid #22325f; font-size: 13px; }
+    th { color: #cad5ff; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+    td.edge-pos { color: #97f1b6; font-weight: 700; }
+    td.edge-neg { color: #ffadb8; font-weight: 700; }
+    td.edge-zero { color: #c4d0f8; font-weight: 700; }
+    .section-title { margin: 9px 0 6px; color: #dbe4ff; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+    .foot { color: var(--muted); font-size: 12px; margin-top: 12px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="hero">
-      <h1>Bundesliga Style Clash Cards</h1>
-      <p>Coach-grade metrics, fan-readable narrative. Share this with friends before kickoff.</p>
-      <p id="stamp"></p>
-      <div class="legend">
-        <b>How to read:</b> xG = expected goals, xGA = expected goals against, xG Delta = chance quality edge.
+  <div class="app">
+    <section class="start">
+      <div class="topbar">
+        <div>
+          <h1 id="app-title"></h1>
+          <p class="sub" id="app-sub"></p>
+        </div>
+        <div class="controls">
+          <button class="lang-btn" data-lang="en">EN</button>
+          <button class="lang-btn" data-lang="de">DE</button>
+          <a class="btn" id="feedback-link" target="_blank" rel="noreferrer">Feedback</a>
+        </div>
       </div>
+      <div class="meta" id="stamp"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+    <div class="carousel-wrap">
+      <div class="carousel-controls">
+        <button id="prev-btn">&larr;</button>
+        <button id="next-btn">&rarr;</button>
+      </div>
+      <div id="cards-root"></div>
     </div>
-    <div id="cards" class="grid"></div>
-    <div class="foot">
-      Metrics include: xG Delta, Shot Quality Conversion (Goals/xG), Defensive Suppression (xGA + shots conceded),
-      Transition Threat, Set-Piece Threat, plus fan metrics (Goals/Match, Win Rate last 5, Shots on Target/Match).
-    </div>
+    <div class="foot" id="foot-note"></div>
   </div>
   <script>
-    function badgeClass(v) {
-      if (v === "HOME_CHANCE_EDGE") return "badge home";
-      if (v === "AWAY_CHANCE_EDGE") return "badge away";
-      return "badge bal";
+    const FEEDBACK_URL = "https://forms.gle/xxxxxxxxxxxxxxxxx";
+    const TZ = "Europe/Berlin";
+
+    const i18n = {
+      en: {
+        title: "Match Intelligence",
+        sub: "D1 pre-match cards: coach-grade metrics, fan-readable story.",
+        legend: "How to read: xG = expected goals, xGA = expected goals against, xG Delta = chance quality edge.",
+        feedback: "Give feedback",
+        dataAsOf: "Data as of",
+        sectionCore: "Core Intelligence (5)",
+        sectionFan: "Fan Metrics (3)",
+        mMetric: "Metric",
+        mHome: "Home",
+        mAway: "Away",
+        mEdge: "Edge",
+        mXg: "xG (recent)",
+        mXgDelta: "xG Delta (recent)",
+        mShotQuality: "Shot Quality Conversion",
+        mDefSupp: "Defensive Suppression (xGA)",
+        mTransition: "Transition Threat",
+        mGoals: "Goals / Match",
+        mWinRate: "Win Rate",
+        mSoT: "Shots on Target / Match",
+        verdictHome: "Home chance edge",
+        verdictAway: "Away chance edge",
+        verdictBalanced: "Balanced matchup",
+        coverageHigh: "High coverage",
+        coverageMedium: "Medium coverage",
+        coverageLow: "Low coverage",
+        foot: "Metrics use recent form with coverage-aware fallback (last 5 -> last 10) when xG data is sparse.",
+      },
+      de: {
+        title: "Match Intelligence",
+        sub: "D1 Pre-Match-Karten: Trainer-relevante Metriken, fan-freundliche Story.",
+        legend: "So lesen: xG = erwartete Tore, xGA = erwartete Gegentore, xG-Differenz = Chancenqualitätsvorteil.",
+        feedback: "Feedback geben",
+        dataAsOf: "Datenstand",
+        sectionCore: "Kernmetriken (5)",
+        sectionFan: "Fan-Metriken (3)",
+        mMetric: "Metrik",
+        mHome: "Heim",
+        mAway: "Auswärts",
+        mEdge: "Vorteil",
+        mXg: "xG (aktuell)",
+        mXgDelta: "xG-Differenz (aktuell)",
+        mShotQuality: "Abschluss-Effizienz",
+        mDefSupp: "Defensiv-Unterdrückung (xGA)",
+        mTransition: "Umschaltgefahr",
+        mGoals: "Tore / Spiel",
+        mWinRate: "Siegrate",
+        mSoT: "Schüsse aufs Tor / Spiel",
+        verdictHome: "Heimteam mit Chancenvorteil",
+        verdictAway: "Auswärtsteam mit Chancenvorteil",
+        verdictBalanced: "Ausgeglichenes Duell",
+        coverageHigh: "Hohe Datenabdeckung",
+        coverageMedium: "Mittlere Datenabdeckung",
+        coverageLow: "Niedrige Datenabdeckung",
+        foot: "Metriken nutzen aktuelle Form mit Fallback (letzte 5 -> letzte 10), wenn xG-Daten fehlen.",
+      },
+    };
+
+    let lang = navigator.language && navigator.language.toLowerCase().startsWith("de") ? "de" : "en";
+
+    function fmtNum(x, d = 2) {
+      return x === null || x === undefined ? "n/a" : Number(x).toFixed(d);
     }
-    function badgeText(v) {
-      if (v === "HOME_CHANCE_EDGE") return "Home has chance edge";
-      if (v === "AWAY_CHANCE_EDGE") return "Away has chance edge";
-      return "Balanced clash";
+    function fmtPct(x) {
+      return x === null || x === undefined ? "n/a" : `${Math.round(Number(x) * 100)}%`;
     }
-    function fmt(x, d = 2) { return x === null || x === undefined ? "n/a" : Number(x).toFixed(d); }
-    function pct(x) { return x === null || x === undefined ? "n/a" : `${Math.round(Number(x) * 100)}%`; }
-    function edgeNarrative(row) {
-      const h = row.home_team_name;
-      const a = row.away_team_name;
-      if (row.clash_verdict === "HOME_CHANCE_EDGE") {
-        return `${h} enter with the stronger chance profile, but ${a} can flip it in transitions.`;
+    function edgeClass(v) {
+      if (v > 0.05) return "edge-pos";
+      if (v < -0.05) return "edge-neg";
+      return "edge-zero";
+    }
+    function signed(v, d = 2) {
+      if (v === null || v === undefined) return "n/a";
+      const n = Number(v);
+      return `${n > 0 ? "+" : ""}${n.toFixed(d)}`;
+    }
+    function berlinDate(iso, opts = {}) {
+      const base = { timeZone: TZ, weekday: "long", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" };
+      return new Intl.DateTimeFormat(lang === "de" ? "de-DE" : "en-GB", { ...base, ...opts }).format(new Date(iso));
+    }
+    function dayKey(iso) {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "long" }).format(new Date(iso));
+    }
+    function dayLabel(day) {
+      const map = {
+        Friday: lang === "de" ? "Freitag" : "Friday",
+        Saturday: lang === "de" ? "Samstag" : "Saturday",
+        Sunday: lang === "de" ? "Sonntag" : "Sunday",
+      };
+      return map[day] || day;
+    }
+    function verdictText(row, t) {
+      if (row.clash_verdict === "HOME_CHANCE_EDGE") return t.verdictHome;
+      if (row.clash_verdict === "AWAY_CHANCE_EDGE") return t.verdictAway;
+      return t.verdictBalanced;
+    }
+    function verdictClass(row) {
+      if (row.clash_verdict === "HOME_CHANCE_EDGE") return "pill home";
+      if (row.clash_verdict === "AWAY_CHANCE_EDGE") return "pill away";
+      return "pill balanced";
+    }
+    function coverageText(row, t) {
+      const low = row.home_coverage_bucket === "LOW" || row.away_coverage_bucket === "LOW";
+      const med = row.home_coverage_bucket === "LAST10" || row.away_coverage_bucket === "LAST10";
+      if (low) return t.coverageLow;
+      if (med) return t.coverageMedium;
+      return t.coverageHigh;
+    }
+    function narrative(row) {
+      const home = row.home_team_name;
+      const away = row.away_team_name;
+      const xgEdge = Number(row.xg_delta_edge_home || 0);
+      const defEdge = Number(row.defensive_suppression_edge_home || 0);
+      const tranEdge = Number(row.transition_threat_edge_home || 0);
+
+      if (xgEdge >= 0.25 && defEdge >= 0) {
+        return lang === "de"
+          ? `${home} kommt mit Vorteilen bei Chancenqualität und Defensivkontrolle ins Spiel.`
+          : `${home} enter with an edge in chance quality and defensive control.`;
       }
-      if (row.clash_verdict === "AWAY_CHANCE_EDGE") {
-        return `${a} hold the chance edge on recent form, while ${h} need efficiency to keep pace.`;
+      if (xgEdge <= -0.25 && tranEdge < 0) {
+        return lang === "de"
+          ? `${away} wirkt im Umschaltspiel gefährlicher und hat die besseren Chancenprofile.`
+          : `${away} look more dangerous in transition and carry the better chance profile.`;
       }
-      return `${h} vs ${a} looks tight on chance profile - small moments could decide this one.`;
+      if (Math.abs(xgEdge) < 0.15 && Math.abs(defEdge) < 0.15) {
+        return lang === "de"
+          ? `Die Profile liegen eng beieinander - Effizienz im Abschluss dürfte entscheiden.`
+          : `Profiles are tight - finishing efficiency is likely to decide this one.`;
+      }
+      return lang === "de"
+        ? `${home} vs ${away}: Das Duell kippt je nach Umschaltmomenten und Chancenverwertung.`
+        : `${home} vs ${away}: transition moments and shot execution are likely swing factors.`;
     }
+
+    function metricTable(rows, t) {
+      return `
+        <table>
+          <thead><tr><th>${t.mMetric}</th><th>${t.mHome}</th><th>${t.mAway}</th><th>${t.mEdge}</th></tr></thead>
+          <tbody>
+            ${rows.map((r) => `
+              <tr>
+                <td>${r.label}</td>
+                <td>${r.home}</td>
+                <td>${r.away}</td>
+                <td class="${edgeClass(r.edge)}">${r.edgeText}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function render(rows) {
+      const t = i18n[lang];
+      document.getElementById("app-title").textContent = t.title;
+      document.getElementById("app-sub").textContent = t.sub;
+      document.getElementById("legend").textContent = t.legend;
+      document.getElementById("feedback-link").textContent = t.feedback;
+      document.getElementById("feedback-link").href = FEEDBACK_URL;
+      document.getElementById("foot-note").textContent = t.foot;
+      document.getElementById("stamp").textContent = `${t.dataAsOf}: ${new Date().toLocaleString(lang === "de" ? "de-DE" : "en-GB")}`;
+      document.querySelectorAll(".lang-btn").forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
+
+      const sorted = [...rows].sort((a, b) => new Date(a.kickoff_datetime) - new Date(b.kickoff_datetime));
+      const order = ["Friday", "Saturday", "Sunday"];
+      const grouped = {};
+      sorted.forEach((r) => {
+        const key = dayKey(r.kickoff_datetime);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(r);
+      });
+
+      const root = document.getElementById("cards-root");
+      root.innerHTML = "";
+
+      order.filter((d) => grouped[d]).forEach((day) => {
+        const header = document.createElement("div");
+        header.className = "day-header";
+        header.textContent = dayLabel(day);
+        root.appendChild(header);
+
+        const carousel = document.createElement("div");
+        carousel.className = "carousel";
+        carousel.dataset.day = day;
+
+        grouped[day].forEach((row) => {
+          const coreRows = [
+            { label: t.mXg, home: fmtNum(row.home_xg_for_recent), away: fmtNum(row.away_xg_for_recent), edge: Number(row.home_xg_for_recent || 0) - Number(row.away_xg_for_recent || 0), edgeText: signed(Number(row.home_xg_for_recent || 0) - Number(row.away_xg_for_recent || 0)) },
+            { label: t.mXgDelta, home: fmtNum(row.home_xg_delta_recent), away: fmtNum(row.away_xg_delta_recent), edge: row.xg_delta_edge_home, edgeText: signed(row.xg_delta_edge_home) },
+            { label: t.mShotQuality, home: fmtNum(row.home_shot_quality_conversion_recent), away: fmtNum(row.away_shot_quality_conversion_recent), edge: row.shot_quality_conversion_edge_home, edgeText: signed(row.shot_quality_conversion_edge_home) },
+            { label: t.mDefSupp, home: fmtNum(row.home_xga_per_match_recent), away: fmtNum(row.away_xga_per_match_recent), edge: row.defensive_suppression_edge_home, edgeText: signed(row.defensive_suppression_edge_home) },
+            { label: t.mTransition, home: fmtNum(row.home_transition_threat_recent), away: fmtNum(row.away_transition_threat_recent), edge: row.transition_threat_edge_home, edgeText: signed(row.transition_threat_edge_home) },
+          ];
+          const fanRows = [
+            { label: t.mGoals, home: fmtNum(row.home_goals_per_match_recent, 1), away: fmtNum(row.away_goals_per_match_recent, 1), edge: Number(row.home_goals_per_match_recent || 0) - Number(row.away_goals_per_match_recent || 0), edgeText: signed(Number(row.home_goals_per_match_recent || 0) - Number(row.away_goals_per_match_recent || 0), 1) },
+            { label: t.mWinRate, home: fmtPct(row.home_win_rate_recent), away: fmtPct(row.away_win_rate_recent), edge: Number(row.home_win_rate_recent || 0) - Number(row.away_win_rate_recent || 0), edgeText: signed((Number(row.home_win_rate_recent || 0) - Number(row.away_win_rate_recent || 0)) * 100, 0) + "%" },
+            { label: t.mSoT, home: fmtNum(row.home_shots_on_target_per_match_recent, 1), away: fmtNum(row.away_shots_on_target_per_match_recent, 1), edge: Number(row.home_shots_on_target_per_match_recent || 0) - Number(row.away_shots_on_target_per_match_recent || 0), edgeText: signed(Number(row.home_shots_on_target_per_match_recent || 0) - Number(row.away_shots_on_target_per_match_recent || 0), 1) },
+          ];
+
+          const card = document.createElement("article");
+          card.className = "card";
+          card.innerHTML = `
+            <div class="fixture">${row.home_team_name} vs ${row.away_team_name}</div>
+            <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinDate(row.kickoff_datetime)} (${TZ})</div>
+            <span class="${verdictClass(row)}">${verdictText(row, t)}</span>
+            <span class="pill coverage">${coverageText(row, t)}</span>
+            <div class="narrative">${narrative(row)}</div>
+            <div class="section-title">${t.sectionCore}</div>
+            ${metricTable(coreRows, t)}
+            <div class="section-title">${t.sectionFan}</div>
+            ${metricTable(fanRows, t)}
+          `;
+          carousel.appendChild(card);
+        });
+        root.appendChild(carousel);
+      });
+    }
+
+    function scrollActive(direction) {
+      const firstCarousel = document.querySelector(".carousel");
+      if (!firstCarousel) return;
+      firstCarousel.scrollBy({ left: direction * 420, behavior: "smooth" });
+    }
+
+    document.getElementById("prev-btn").addEventListener("click", () => scrollActive(-1));
+    document.getElementById("next-btn").addEventListener("click", () => scrollActive(1));
+    document.querySelectorAll(".lang-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        lang = btn.dataset.lang;
+        fetch("./matchday_insights.json")
+          .then((r) => r.json())
+          .then((payload) => render(payload.show || []));
+      });
+    });
 
     fetch("./matchday_insights.json")
       .then((r) => r.json())
-      .then((payload) => {
-        const rows = payload.show || [];
-        document.getElementById("stamp").textContent =
-          `Data as of ${new Date().toLocaleString()} (upcoming D1 matchday sample)`;
-        const cards = document.getElementById("cards");
-        rows.forEach((row) => {
-          const el = document.createElement("div");
-          el.className = "card";
-          el.innerHTML = `
-            <div class="fixture">${row.home_team_name} vs ${row.away_team_name}</div>
-            <div class="meta">${row.league_name} · ${row.round_name} · ${String(row.kickoff_datetime).replace("T", " ").slice(0, 16)} UTC</div>
-            <span class="${badgeClass(row.clash_verdict)}">${badgeText(row.clash_verdict)}</span>
-            <div class="narrative">${edgeNarrative(row)}</div>
-            <div class="metric"><b>xG Delta</b><span class="edge">${fmt(row.home_xg_delta_last5)} vs ${fmt(row.away_xg_delta_last5)}</span><small>Chance quality edge over last 5 matches.</small></div>
-            <div class="metric"><b>Defensive Suppression</b><span class="edge">${fmt(row.home_xga_per_match_last5)} xGA vs ${fmt(row.away_xga_per_match_last5)} xGA</span><small>Lower xGA suggests better chance prevention.</small></div>
-            <div class="metric"><b>Set-Piece Threat</b><span class="edge">${fmt(row.home_set_piece_threat_last5)} vs ${fmt(row.away_set_piece_threat_last5)}</span><small>Proxy for danger from corners/free-kicks.</small></div>
-            <div class="metric"><b>Win Rate (last 5)</b><span class="edge">${pct(row.home_win_rate_last5)} vs ${pct(row.away_win_rate_last5)}</span><small>Familiar form snapshot for quick context.</small></div>
-            <div class="metric"><b>Goals per Match (last 5)</b><span class="edge">${fmt(row.home_goals_per_match_last5, 1)} vs ${fmt(row.away_goals_per_match_last5, 1)}</span><small>Fan-friendly attacking output baseline.</small></div>
-          `;
-          cards.appendChild(el);
-        });
-      })
+      .then((payload) => render(payload.show || []))
       .catch((err) => {
-        document.getElementById("cards").innerHTML = `<div class="card">Could not load matchday data: ${err}</div>`;
+        document.getElementById("cards-root").innerHTML =
+          `<article class="card">Could not load matchday data: ${err}</article>`;
       });
   </script>
 </body>

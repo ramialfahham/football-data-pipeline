@@ -433,42 +433,50 @@ models:
         tests: [not_null]
       - name: away_team_name
         tests: [not_null]
-      - name: home_recent_matches_played
-        description: "Count of finished matches included in the home-side rolling window (max 5)."
-      - name: away_recent_matches_played
-        description: "Count of finished matches included in the away-side rolling window (max 5)."
-      - name: home_xg_delta_last5
-        description: "xG Delta over the home team's last five finished matches."
-      - name: away_xg_delta_last5
-        description: "xG Delta over the away team's last five finished matches."
-      - name: home_shot_quality_conversion_last5
-        description: "Goals divided by xG over home team's last five finished matches."
-      - name: away_shot_quality_conversion_last5
-        description: "Goals divided by xG over away team's last five finished matches."
-      - name: home_xga_per_match_last5
-        description: "Expected goals allowed per match over home team's recent sample."
-      - name: away_xga_per_match_last5
-        description: "Expected goals allowed per match over away team's recent sample."
-      - name: home_transition_threat_last5
-        description: "Transition threat proxy over home team's recent sample."
-      - name: away_transition_threat_last5
-        description: "Transition threat proxy over away team's recent sample."
-      - name: home_set_piece_threat_last5
-        description: "Set-piece threat proxy over home team's recent sample."
-      - name: away_set_piece_threat_last5
-        description: "Set-piece threat proxy over away team's recent sample."
-      - name: home_goals_per_match_last5
-        description: "Fan-familiar form metric: goals per match in the recent sample."
-      - name: away_goals_per_match_last5
-        description: "Fan-familiar form metric: goals per match in the recent sample."
-      - name: home_win_rate_last5
-        description: "Fan-familiar form metric: win rate over recent sample."
-      - name: away_win_rate_last5
-        description: "Fan-familiar form metric: win rate over recent sample."
-      - name: home_shots_on_target_per_match_last5
-        description: "Fan-familiar attacking metric: shots on target per match over recent sample."
-      - name: away_shots_on_target_per_match_last5
-        description: "Fan-familiar attacking metric: shots on target per match over recent sample."
+      - name: home_recent_matches_played_last5
+        description: "Finished matches in the strict 5-game sample for the home side."
+      - name: away_recent_matches_played_last5
+        description: "Finished matches in the strict 5-game sample for the away side."
+      - name: home_stat_coverage_last5
+        description: "Count of home recent matches (within 5) that include xG/stat payload."
+      - name: away_stat_coverage_last5
+        description: "Count of away recent matches (within 5) that include xG/stat payload."
+      - name: home_coverage_bucket
+        description: "Metric window used for home side: LAST5, LAST10, or LOW coverage."
+      - name: away_coverage_bucket
+        description: "Metric window used for away side: LAST5, LAST10, or LOW coverage."
+      - name: home_xg_for_recent
+        description: "Average xG for home side over the selected recent window."
+      - name: away_xg_for_recent
+        description: "Average xG for away side over the selected recent window."
+      - name: home_xg_delta_recent
+        description: "xG Delta for home side over the selected recent window."
+      - name: away_xg_delta_recent
+        description: "xG Delta for away side over the selected recent window."
+      - name: home_shot_quality_conversion_recent
+        description: "Goals divided by xG over the selected recent window for home side."
+      - name: away_shot_quality_conversion_recent
+        description: "Goals divided by xG over the selected recent window for away side."
+      - name: home_xga_per_match_recent
+        description: "Expected goals allowed per match over the selected window for home side."
+      - name: away_xga_per_match_recent
+        description: "Expected goals allowed per match over the selected window for away side."
+      - name: home_transition_threat_recent
+        description: "Transition threat proxy over selected window for home side."
+      - name: away_transition_threat_recent
+        description: "Transition threat proxy over selected window for away side."
+      - name: home_goals_per_match_recent
+        description: "Fan metric: goals per match over selected recent window (home side)."
+      - name: away_goals_per_match_recent
+        description: "Fan metric: goals per match over selected recent window (away side)."
+      - name: home_win_rate_recent
+        description: "Fan metric: win rate over selected recent window (home side)."
+      - name: away_win_rate_recent
+        description: "Fan metric: win rate over selected recent window (away side)."
+      - name: home_shots_on_target_per_match_recent
+        description: "Fan metric: shots on target per match over selected window (home side)."
+      - name: away_shots_on_target_per_match_recent
+        description: "Fan metric: shots on target per match over selected window (away side)."
       - name: xg_delta_edge_home
         description: "Home-minus-away edge on xG Delta (positive favors home side)."
       - name: shot_quality_conversion_edge_home
@@ -477,8 +485,8 @@ models:
         description: "Home-minus-away edge for defensive suppression signal."
       - name: transition_threat_edge_home
         description: "Home-minus-away edge for transition threat."
-      - name: set_piece_threat_edge_home
-        description: "Home-minus-away edge for set-piece threat."
+      - name: kickoff_weekday_utc
+        description: "UTC weekday name derived from fixture_date (used as fallback display key)."
       - name: clash_verdict
         description: "Simple pre-match verdict derived from xG Delta edge."
         tests:
