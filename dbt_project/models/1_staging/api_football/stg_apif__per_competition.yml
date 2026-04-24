@@ -42,6 +42,44 @@ models:
         description: "Stringified API `errors` object from the parent response envelope (same on every row for that load)."
       - name: source_json
         description: "Full match object JSON for fields not promoted to columns."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: season
+        description: "API season year from `league.season` on the fixture object."
+      - name: league_api_id
+        description: "API-Football league id from `league.id` on the fixture object."
+      - name: league_name
+        description: "League display name from `league.name` on the fixture object."
+      - name: round_name
+        description: "Round label from `league.round` on the fixture object."
+      - name: home_team_id
+        description: "Home team id from `teams.home.id`."
+      - name: home_team_name
+        description: "Home team name from `teams.home.name`."
+      - name: away_team_id
+        description: "Away team id from `teams.away.id`."
+      - name: away_team_name
+        description: "Away team name from `teams.away.name`."
+      - name: goals_home
+        description: "Home goals from `goals.home` in the fixture payload."
+      - name: goals_away
+        description: "Away goals from `goals.away` in the fixture payload."
+      - name: kickoff_timezone
+        description: "Kickoff timezone string from `fixture.timezone`."
+      - name: status_long
+        description: "Verbose fixture status from `fixture.status.long`."
+      - name: status_short
+        description: "Short fixture status code from `fixture.status.short`."
+      - name: status_elapsed
+        description: "Elapsed match minutes from `fixture.status.elapsed` when provided."
+      - name: venue_id
+        description: "Venue id from `fixture.venue.id`."
+      - name: venue_name
+        description: "Venue name from `fixture.venue.name`."
+      - name: venue_city
+        description: "Venue city from `fixture.venue.city`."
 
   - name: stg_apif__d1_players
     description: "One row per player per (league, team, season) from the merged /players squad pull. Grain: (league_code, team_id, season_year, player_id)."
@@ -75,6 +113,20 @@ models:
         description: "UTC timestamp when the squad raw row was loaded."
       - name: birth_date
         description: "Player birth date as ``DATE`` when parseable from API ``birth.date``."
+      - name: player_name
+        description: "Player display name from `player.name`."
+      - name: player_firstname
+        description: "Player first name from `player.firstname`."
+      - name: player_lastname
+        description: "Player last name from `player.lastname`."
+      - name: player_photo_url
+        description: "Player photo URL from `player.photo`."
+      - name: nationality
+        description: "Player nationality from `player.nationality`."
+      - name: statistics_json
+        description: "Raw player `statistics` array JSON preserved for downstream parsing."
+      - name: source_json
+        description: "Full player response object JSON for fields not promoted to columns."
 
   - name: stg_apif__d1_lineups
     description: "One row per team formation block per fixture from the batched lineups payload. Grain: (league_code, fixture_id, team_id)."
@@ -100,6 +152,20 @@ models:
       - name: team_id
         description: "Team id for this formation block."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: team_name
+        description: "Team name from `team.name` in the lineup block."
+      - name: formation
+        description: "Formation string from `formation` (for example 4-2-3-1)."
+      - name: coach_name
+        description: "Coach name from `coach.name` in the lineup block."
+      - name: start_xi_json
+        description: "Raw `startXI` JSON array for the team lineup."
+      - name: substitutes_json
+        description: "Raw `substitutes` JSON array for the team lineup."
+      - name: source_json
+        description: "Full team lineup object JSON for fields not promoted to columns."
 
   - name: stg_apif__d1_injuries
     description: "One row per injury report from GET /injuries. Grain: (league_code, season, player_id, team_id, fixture_id, injury_type, injury_reason). Type and reason are in the grain to disambiguate multiple reports for the same player+fixture and may legitimately be NULL at source."
@@ -135,6 +201,32 @@ models:
       - name: fixture_id
         description: "Fixture id the injury is linked to."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the response envelope."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: source_json
+        description: "Full injury response object JSON for fields not promoted to columns."
+      - name: player_name
+        description: "Player name from `player.name` on the injury row."
+      - name: player_photo_url
+        description: "Player photo URL from `player.photo` on the injury row."
+      - name: team_name
+        description: "Team name from `team.name` on the injury row."
+      - name: team_logo_url
+        description: "Team logo URL from `team.logo` on the injury row."
+      - name: injury_league_name
+        description: "League name from `league.name` on the injury row."
+      - name: injury_league_country
+        description: "League country from `league.country` on the injury row."
+      - name: injury_type
+        description: "Injury type from `type` on the injury row."
+      - name: injury_reason
+        description: "Injury reason from `reason` on the injury row."
 
   - name: stg_apif__d1_leagues
     description: "Bundesliga D1 metadata and per-season coverage from GET /leagues. Grain: (league_code, league_api_id, season_api_year)."
@@ -156,6 +248,56 @@ models:
       - name: season_api_year
         description: "Season year from the leagues payload season block."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the response envelope."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: source_json
+        description: "Full league response object JSON for fields not promoted to columns."
+      - name: league_name
+        description: "League name from `league.name`."
+      - name: league_type
+        description: "League type from `league.type`."
+      - name: country
+        description: "Country name from `league.country`."
+      - name: league_logo_url
+        description: "League logo URL from `league.logo`."
+      - name: country_flag_url
+        description: "Country flag URL from `league.flag`."
+      - name: season_start_date
+        description: "Season start date from `seasons[].start`."
+      - name: season_end_date
+        description: "Season end date from `seasons[].end`."
+      - name: season_is_current
+        description: "Boolean current-season marker from `seasons[].current`."
+      - name: has_coverage_fixture_events
+        description: "Coverage flag from `seasons[].coverage.fixtures.events`."
+      - name: has_coverage_fixture_lineups
+        description: "Coverage flag from `seasons[].coverage.fixtures.lineups`."
+      - name: has_coverage_fixture_statistics
+        description: "Coverage flag from `seasons[].coverage.fixtures.statistics_fixtures`."
+      - name: has_coverage_fixture_players
+        description: "Coverage flag from `seasons[].coverage.fixtures.statistics_players`."
+      - name: has_coverage_standings
+        description: "Coverage flag from `seasons[].coverage.standings`."
+      - name: has_coverage_players
+        description: "Coverage flag from `seasons[].coverage.players`."
+      - name: has_coverage_top_scorers
+        description: "Coverage flag from `seasons[].coverage.top_scorers`."
+      - name: has_coverage_top_assists
+        description: "Coverage flag from `seasons[].coverage.top_assists`."
+      - name: has_coverage_top_cards
+        description: "Coverage flag from `seasons[].coverage.top_cards`."
+      - name: has_coverage_injuries
+        description: "Coverage flag from `seasons[].coverage.injuries`."
+      - name: has_coverage_predictions
+        description: "Coverage flag from `seasons[].coverage.predictions`."
+      - name: has_coverage_odds
+        description: "Coverage flag from `seasons[].coverage.odds`."
 
   - name: stg_apif__d1_standings
     description: "League table from GET /standings (skipped when coverage.standings is false). Grain: (league_code, season, team_id, group_description). group_description is part of the grain because some competitions have multiple groups; for Bundesliga it is always a single group."
@@ -178,6 +320,40 @@ models:
       - name: team_id
         description: "Team id in the standings row."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the response envelope."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: league_api_id
+        description: "API-Football league id from `league.id` in the standings block."
+      - name: league_name
+        description: "League name from `league.name` in the standings block."
+      - name: standing_rank
+        description: "Table rank from `rank` on the team standings row."
+      - name: team_name
+        description: "Team name from `team.name` on the standings row."
+      - name: points
+        description: "League points from `points` on the standings row."
+      - name: goals_diff
+        description: "Goal difference from `goalsDiff` on the standings row."
+      - name: form
+        description: "Recent form string from `form` on the standings row."
+      - name: group_description
+        description: "Group or stage description from `description` on the standings row."
+      - name: played_all
+        description: "Matches played from `all.played` on the standings row."
+      - name: wins_all
+        description: "Wins from `all.win` on the standings row."
+      - name: draws_all
+        description: "Draws from `all.draw` on the standings row."
+      - name: losses_all
+        description: "Losses from `all.lose` on the standings row."
+      - name: source_json
+        description: "Full standings team row JSON for fields not promoted to columns."
 
   - name: stg_apif__d1_rounds
     description: "Round names from GET /fixtures/rounds (raw stores one block per API season with ``api_season_year``). Grain: (league_code, api_season_year, round_name)."
@@ -199,6 +375,16 @@ models:
       - name: round_name
         description: "Round name from API-Football (e.g. 'Regular Season - 27')."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the response envelope."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: source_json
+        description: "Raw round value JSON/string preserved for lineage."
 
   - name: stg_apif__d1_teams
     description: "Clubs and venues from GET /teams for league+season. Grain: (league_code, season, team_id)."
@@ -223,6 +409,34 @@ models:
       - name: team_name
         description: "Team display name from API-Football."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the response envelope."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: source_json
+        description: "Full team response object JSON for fields not promoted to columns."
+      - name: team_code
+        description: "Short team code from `team.code`."
+      - name: team_country
+        description: "Team country from `team.country`."
+      - name: founded_year
+        description: "Founding year from `team.founded`."
+      - name: team_logo_url
+        description: "Team logo URL from `team.logo`."
+      - name: venue_id
+        description: "Venue id from `venue.id`."
+      - name: venue_name
+        description: "Venue name from `venue.name`."
+      - name: venue_address
+        description: "Venue address from `venue.address`."
+      - name: venue_city
+        description: "Venue city from `venue.city`."
+      - name: venue_capacity
+        description: "Venue capacity from `venue.capacity`."
 
   - name: stg_apif__d1_transfers
     description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Grain: (league_code, player_id, transfer_date, from_team_api_id, to_team_api_id, transfer_type)."
@@ -247,6 +461,30 @@ models:
       - name: transfer_date
         description: "Transfer date for this transfer event row."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: api_errors_json
+        description: "Stringified API `errors` object from the response envelope."
+      - name: api_reported_result_count
+        description: "Result count from the API envelope (`payload.results`) for this raw load."
+      - name: request_parameters_json
+        description: "Stringified API request parameters from the response envelope (`payload.parameters`)."
+      - name: source_json
+        description: "Full transfer response object JSON for fields not promoted to columns."
+      - name: player_name
+        description: "Player name from the transfer player object."
+      - name: player_photo_url
+        description: "Player photo URL from the transfer player object."
+      - name: transfer_type
+        description: "Transfer type label from `transfers[].type`."
+      - name: from_team_api_id
+        description: "Outgoing club id from `transfers[].teams.out.id`."
+      - name: from_team_name_snapshot
+        description: "Outgoing club name snapshot from `transfers[].teams.out.name`."
+      - name: to_team_api_id
+        description: "Incoming club id from `transfers[].teams.in.id`."
+      - name: to_team_name_snapshot
+        description: "Incoming club name snapshot from `transfers[].teams.in.name`."
 
   - name: stg_apif__d1_fixture_events
     description: "Per-fixture GET /fixtures/events (batched payload). Grain: (league_code, fixture_id, minute_elapsed, minute_extra, team_id, player_id, event_type, event_detail). Minute and player fields may legitimately be NULL at source (e.g. VAR decisions, team-level events); only entity-identity columns carry not_null."
@@ -273,6 +511,28 @@ models:
       - name: team_id
         description: "Team id the event is attributed to."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: minute_elapsed
+        description: "Elapsed minute from `time.elapsed` on the event row."
+      - name: minute_extra
+        description: "Added time minute from `time.extra` on the event row."
+      - name: team_name
+        description: "Team name from `team.name` on the event row."
+      - name: player_name
+        description: "Primary player name from `player.name` on the event row."
+      - name: player_id
+        description: "Primary player id from `player.id` on the event row."
+      - name: assist_player_name
+        description: "Assist player name from `assist.name` when provided."
+      - name: event_type
+        description: "Event type from `type` (for example Goal, Card, subst)."
+      - name: event_detail
+        description: "Event detail from `detail` for type-specific context."
+      - name: event_comments
+        description: "Optional event comments from `comments`."
+      - name: source_json
+        description: "Full event object JSON for fields not promoted to columns."
 
   - name: stg_apif__d1_fixture_statistics
     description: "Per-fixture GET /fixtures/statistics (batched payload). Grain: (league_code, fixture_id, team_id)."
@@ -294,6 +554,46 @@ models:
       - name: team_id
         description: "Team id these stats are attributed to."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: team_name
+        description: "Team name from the statistics team block (`team.name`)."
+      - name: shots_on_goal
+        description: "Value from stat line type `Shots on Goal`."
+      - name: shots_off_goal
+        description: "Value from stat line type `Shots off Goal`."
+      - name: shots_total
+        description: "Value from stat line type `Total Shots`."
+      - name: shots_blocked
+        description: "Value from stat line type `Blocked Shots`."
+      - name: shots_inside_box
+        description: "Value from stat line type `Shots insidebox`."
+      - name: shots_outside_box
+        description: "Value from stat line type `Shots outsidebox`."
+      - name: fouls
+        description: "Value from stat line type `Fouls`."
+      - name: corner_kicks
+        description: "Value from stat line type `Corner Kicks`."
+      - name: offsides
+        description: "Value from stat line type `Offsides`."
+      - name: ball_possession_percent
+        description: "Value from stat line type `Ball Possession`, stored as integer percent without `%`."
+      - name: yellow_cards
+        description: "Value from stat line type `Yellow Cards`."
+      - name: red_cards
+        description: "Value from stat line type `Red Cards`."
+      - name: goalkeeper_saves
+        description: "Value from stat line type `Goalkeeper Saves`."
+      - name: passes_total
+        description: "Value from stat line type `Total passes`."
+      - name: passes_accurate
+        description: "Value from stat line type `Passes accurate`."
+      - name: passes_accuracy_percent
+        description: "Value from stat line type `Passes %`, stored as integer percent without `%`."
+      - name: expected_goals
+        description: "Value from stat line type `expected_goals`; currently NULL when that stat type is absent in source payload."
+      - name: source_json
+        description: "Full team statistics object JSON for fields not promoted to columns."
 
   - name: stg_apif__d1_fixture_players
     description: "Per-fixture GET /fixtures/players (batched payload). Grain: (league_code, fixture_id, team_id, player_id)."
@@ -319,6 +619,82 @@ models:
       - name: player_id
         description: "Player id from API-Football."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: team_name
+        description: "Team name from the fixture players team block."
+      - name: player_name
+        description: "Player name from `player.name`."
+      - name: player_photo_url
+        description: "Player photo URL from `player.photo`."
+      - name: minutes_played
+        description: "Minutes played from `statistics[].games.minutes`."
+      - name: shirt_number
+        description: "Shirt number from `statistics[].games.number`."
+      - name: position_code
+        description: "Position code/name from `statistics[].games.position`."
+      - name: rating
+        description: "Player match rating from `statistics[].games.rating`."
+      - name: is_captain
+        description: "Captain flag from `statistics[].games.captain`."
+      - name: is_substitute
+        description: "Substitute flag from `statistics[].games.substitute`."
+      - name: offsides
+        description: "Offsides count from `statistics[].offsides`."
+      - name: shots_total
+        description: "Shots total from `statistics[].shots.total`."
+      - name: shots_on
+        description: "Shots on target from `statistics[].shots.on`."
+      - name: goals_total
+        description: "Goals scored from `statistics[].goals.total`."
+      - name: goals_conceded
+        description: "Goals conceded from `statistics[].goals.conceded`."
+      - name: goals_assists
+        description: "Assists from `statistics[].goals.assists`."
+      - name: goals_saves
+        description: "Saves from `statistics[].goals.saves` (goalkeepers)."
+      - name: passes_total
+        description: "Passes total from `statistics[].passes.total`."
+      - name: passes_key
+        description: "Key passes from `statistics[].passes.key`."
+      - name: passes_accuracy_percent
+        description: "Pass accuracy from `statistics[].passes.accuracy`, stored as integer percent without `%`."
+      - name: tackles_total
+        description: "Tackles total from `statistics[].tackles.total`."
+      - name: tackles_blocks
+        description: "Blocked tackles/shots from `statistics[].tackles.blocks`."
+      - name: tackles_interceptions
+        description: "Interceptions from `statistics[].tackles.interceptions`."
+      - name: duels_total
+        description: "Duels total from `statistics[].duels.total`."
+      - name: duels_won
+        description: "Duels won from `statistics[].duels.won`."
+      - name: dribbles_attempts
+        description: "Dribbles attempted from `statistics[].dribbles.attempts`."
+      - name: dribbles_success
+        description: "Successful dribbles from `statistics[].dribbles.success`."
+      - name: dribbles_past
+        description: "Times dribbled past from `statistics[].dribbles.past`."
+      - name: fouls_drawn
+        description: "Fouls drawn from `statistics[].fouls.drawn`."
+      - name: fouls_committed
+        description: "Fouls committed from `statistics[].fouls.committed`."
+      - name: cards_yellow
+        description: "Yellow cards from `statistics[].cards.yellow`."
+      - name: cards_red
+        description: "Red cards from `statistics[].cards.red`."
+      - name: penalty_won
+        description: "Penalties won from `statistics[].penalty.won`."
+      - name: penalty_committed
+        description: "Penalties committed from `statistics[].penalty.commited`."
+      - name: penalty_scored
+        description: "Penalties scored from `statistics[].penalty.scored`."
+      - name: penalty_missed
+        description: "Penalties missed from `statistics[].penalty.missed`."
+      - name: penalty_saved
+        description: "Penalties saved from `statistics[].penalty.saved`."
+      - name: source_json
+        description: "Full player fixture object JSON for fields not promoted to columns."
 
   - name: stg_apif__d1_predictions
     description: "Per-fixture GET /predictions (batched payload). Grain: (league_code, fixture_id, prediction_json). prediction_json is in the grain to disambiguate multiple prediction variants per fixture; it is not asserted not_null because structure can vary at source."
@@ -337,3 +713,9 @@ models:
       - name: fixture_id
         description: "Fixture id the prediction belongs to."
         tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp when this raw table row was loaded."
+      - name: prediction_doc
+        description: "Raw prediction object (JSON type) from the batched prediction payload."
+      - name: prediction_json
+        description: "Stringified prediction object for stable hashing and lineage."

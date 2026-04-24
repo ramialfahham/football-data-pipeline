@@ -53,8 +53,29 @@ def _already_covered_per_entity(
         except Exception as e:
             ctx.errors.append(f"fanout_covered {league_code} {entity}: {e}")
             prior = None
-        covered[key] = _fixture_ids_from_fanout_payload(prior)
+        required_key = "statistics" if key == "fx_stats" else None
+        covered[key] = _fixture_ids_from_fanout_payload(
+            prior,
+            required_payload_key=required_key,
+        )
     return covered
+
+
+def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
+    finished: set[int] = set()
+    for row in fixtures_response or []:
+        fixture = row.get("fixture") or {}
+        status_short = ((fixture.get("status") or {}).get("short") or "").strip().upper()
+        if status_short not in {"FT", "AET", "PEN"}:
+            continue
+        fixture_id = fixture.get("id")
+        if fixture_id is None:
+            continue
+        try:
+            finished.add(int(fixture_id))
+        except (TypeError, ValueError):
+            continue
+    return finished
 
 
 def _fixture_needs_any_endpoint(
@@ -117,6 +138,21 @@ def run_fixture_fanout_and_persist(
     ordered_missing = [
         fid for fid in ordered_fanout if _fixture_needs_any_endpoint(fid, covered, cov)
     ]
+    missing_index = {fixture_id: idx for idx, fixture_id in enumerate(ordered_missing)}
+    finished_fixture_ids = _finished_fixture_ids(fixtures_merged.get("response", []))
+    ordered_missing = sorted(
+        ordered_missing,
+        key=lambda fixture_id: (
+            0
+            if (
+                cov.get("fixture_statistics", True)
+                and fixture_id in finished_fixture_ids
+                and fixture_id not in covered["fx_stats"]
+            )
+            else 1,
+            missing_index[fixture_id],
+        ),
+    )
 
     print(
         f"[api-football] fanout_selection league={league_code} "

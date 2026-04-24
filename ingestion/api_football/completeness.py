@@ -55,10 +55,18 @@ def _fixture_ids_from_fixtures_payload(
     return out
 
 
-def _fixture_ids_from_fanout_payload(payload: dict | None) -> set[int]:
+def _fixture_ids_from_fanout_payload(
+    payload: dict | None,
+    *,
+    required_payload_key: str | None = None,
+) -> set[int]:
     out: set[int] = set()
     for row in (payload or {}).get("response") or []:
         fid = row.get("fixture_id")
+        if required_payload_key is not None:
+            endpoint_payload = row.get(required_payload_key)
+            if not endpoint_payload:
+                continue
         if fid is not None:
             try:
                 out.add(int(fid))
@@ -129,7 +137,13 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         for entity in FANOUT_ENTITIES:
             tbl = raw_league_table(league_code, entity)
             batched = read_latest_payload_json(client, tbl)
-            covered = _fixture_ids_from_fanout_payload(batched)
+            required_key = (
+                "statistics" if entity == "FIXTURE_STATISTICS" else None
+            )
+            covered = _fixture_ids_from_fanout_payload(
+                batched,
+                required_payload_key=required_key,
+            )
             missing = sorted(expected - covered)
             ok = not missing
             if not ok:
