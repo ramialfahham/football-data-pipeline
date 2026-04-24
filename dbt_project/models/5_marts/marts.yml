@@ -369,3 +369,118 @@ models:
       - name: points
       - name: current_rank
         tests: [not_null]
+
+  - name: mart_matchday_insights
+    description: "Upcoming D1 matchday style-clash surface for shareable pre-match analysis. Grain: one row per fixture in the nearest upcoming round."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+      - dbt_utils.expression_is_true:
+          expression: "clash_verdict in ('HOME_CHANCE_EDGE', 'AWAY_CHANCE_EDGE', 'BALANCED')"
+    columns:
+      - name: fixture_sk
+        description: "Fixture key. One row per upcoming fixture in the selected matchday."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_season')
+              field: season_sk
+      - name: home_team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: away_team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "League scope marker (currently D1)."
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: fixture_date
+        tests: [not_null]
+      - name: kickoff_datetime
+        tests: [not_null]
+      - name: round_name
+        description: "Round selected as the upcoming matchday batch."
+      - name: league_name
+      - name: home_team_name
+        tests: [not_null]
+      - name: away_team_name
+        tests: [not_null]
+      - name: home_recent_matches_played
+        description: "Count of finished matches included in the home-side rolling window (max 5)."
+      - name: away_recent_matches_played
+        description: "Count of finished matches included in the away-side rolling window (max 5)."
+      - name: home_xg_delta_last5
+        description: "xG Delta over the home team's last five finished matches."
+      - name: away_xg_delta_last5
+        description: "xG Delta over the away team's last five finished matches."
+      - name: home_shot_quality_conversion_last5
+        description: "Goals divided by xG over home team's last five finished matches."
+      - name: away_shot_quality_conversion_last5
+        description: "Goals divided by xG over away team's last five finished matches."
+      - name: home_xga_per_match_last5
+        description: "Expected goals allowed per match over home team's recent sample."
+      - name: away_xga_per_match_last5
+        description: "Expected goals allowed per match over away team's recent sample."
+      - name: home_transition_threat_last5
+        description: "Transition threat proxy over home team's recent sample."
+      - name: away_transition_threat_last5
+        description: "Transition threat proxy over away team's recent sample."
+      - name: home_set_piece_threat_last5
+        description: "Set-piece threat proxy over home team's recent sample."
+      - name: away_set_piece_threat_last5
+        description: "Set-piece threat proxy over away team's recent sample."
+      - name: home_goals_per_match_last5
+        description: "Fan-familiar form metric: goals per match in the recent sample."
+      - name: away_goals_per_match_last5
+        description: "Fan-familiar form metric: goals per match in the recent sample."
+      - name: home_win_rate_last5
+        description: "Fan-familiar form metric: win rate over recent sample."
+      - name: away_win_rate_last5
+        description: "Fan-familiar form metric: win rate over recent sample."
+      - name: home_shots_on_target_per_match_last5
+        description: "Fan-familiar attacking metric: shots on target per match over recent sample."
+      - name: away_shots_on_target_per_match_last5
+        description: "Fan-familiar attacking metric: shots on target per match over recent sample."
+      - name: xg_delta_edge_home
+        description: "Home-minus-away edge on xG Delta (positive favors home side)."
+      - name: shot_quality_conversion_edge_home
+        description: "Home-minus-away edge on shot quality conversion."
+      - name: defensive_suppression_edge_home
+        description: "Home-minus-away edge for defensive suppression signal."
+      - name: transition_threat_edge_home
+        description: "Home-minus-away edge for transition threat."
+      - name: set_piece_threat_edge_home
+        description: "Home-minus-away edge for set-piece threat."
+      - name: clash_verdict
+        description: "Simple pre-match verdict derived from xG Delta edge."
+        tests:
+          - accepted_values:
+              values: ['HOME_CHANCE_EDGE', 'AWAY_CHANCE_EDGE', 'BALANCED']

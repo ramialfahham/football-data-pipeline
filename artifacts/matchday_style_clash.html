@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bundesliga Matchday Style Clash</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0b1020; color: #e8edff; margin: 0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .hero { background: linear-gradient(135deg, #1b2a5a, #6a2bbf); border-radius: 14px; padding: 18px; }
+    .hero h1 { margin: 0 0 6px; font-size: 28px; }
+    .hero p { margin: 4px 0; opacity: 0.92; }
+    .legend { margin-top: 10px; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 14px; margin-top: 18px; }
+    .card { background: #121933; border: 1px solid #273159; border-radius: 14px; padding: 14px; }
+    .fixture { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .meta { color: #b9c2ea; font-size: 13px; margin-bottom: 10px; }
+    .badge { display: inline-block; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .home { background: #0b6b35; color: #d5ffe6; }
+    .away { background: #8a1f1f; color: #ffdfe0; }
+    .bal { background: #4a536d; color: #f2f5ff; }
+    .narrative { margin: 10px 0 12px; color: #dce3ff; }
+    .metric { margin: 7px 0; padding: 7px; border-radius: 8px; background: #192347; }
+    .metric b { font-size: 13px; }
+    .metric small { display: block; color: #aeb9e4; margin-top: 2px; }
+    .edge { float: right; font-weight: 700; }
+    .foot { color: #aeb9e4; font-size: 12px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>Bundesliga Style Clash Cards</h1>
+      <p>Coach-grade metrics, fan-readable narrative. Share this with friends before kickoff.</p>
+      <p id="stamp"></p>
+      <div class="legend">
+        <b>How to read:</b> xG = expected goals, xGA = expected goals against, xG Delta = chance quality edge.
+      </div>
+    </div>
+    <div id="cards" class="grid"></div>
+    <div class="foot">
+      Metrics include: xG Delta, Shot Quality Conversion (Goals/xG), Defensive Suppression (xGA + shots conceded),
+      Transition Threat, Set-Piece Threat, plus fan metrics (Goals/Match, Win Rate last 5, Shots on Target/Match).
+    </div>
+  </div>
+  <script>
+    function badgeClass(v) {
+      if (v === "HOME_CHANCE_EDGE") return "badge home";
+      if (v === "AWAY_CHANCE_EDGE") return "badge away";
+      return "badge bal";
+    }
+    function badgeText(v) {
+      if (v === "HOME_CHANCE_EDGE") return "Home has chance edge";
+      if (v === "AWAY_CHANCE_EDGE") return "Away has chance edge";
+      return "Balanced clash";
+    }
+    function fmt(x, d = 2) { return x === null || x === undefined ? "n/a" : Number(x).toFixed(d); }
+    function pct(x) { return x === null || x === undefined ? "n/a" : `${Math.round(Number(x) * 100)}%`; }
+    function edgeNarrative(row) {
+      const h = row.home_team_name;
+      const a = row.away_team_name;
+      if (row.clash_verdict === "HOME_CHANCE_EDGE") {
+        return `${h} enter with the stronger chance profile, but ${a} can flip it in transitions.`;
+      }
+      if (row.clash_verdict === "AWAY_CHANCE_EDGE") {
+        return `${a} hold the chance edge on recent form, while ${h} need efficiency to keep pace.`;
+      }
+      return `${h} vs ${a} looks tight on chance profile - small moments could decide this one.`;
+    }
+
+    fetch("./matchday_insights.json")
+      .then((r) => r.json())
+      .then((payload) => {
+        const rows = payload.show || [];
+        document.getElementById("stamp").textContent =
+          `Data as of ${new Date().toLocaleString()} (upcoming D1 matchday sample)`;
+        const cards = document.getElementById("cards");
+        rows.forEach((row) => {
+          const el = document.createElement("div");
+          el.className = "card";
+          el.innerHTML = `
+            <div class="fixture">${row.home_team_name} vs ${row.away_team_name}</div>
+            <div class="meta">${row.league_name} · ${row.round_name} · ${String(row.kickoff_datetime).replace("T", " ").slice(0, 16)} UTC</div>
+            <span class="${badgeClass(row.clash_verdict)}">${badgeText(row.clash_verdict)}</span>
+            <div class="narrative">${edgeNarrative(row)}</div>
+            <div class="metric"><b>xG Delta</b><span class="edge">${fmt(row.home_xg_delta_last5)} vs ${fmt(row.away_xg_delta_last5)}</span><small>Chance quality edge over last 5 matches.</small></div>
+            <div class="metric"><b>Defensive Suppression</b><span class="edge">${fmt(row.home_xga_per_match_last5)} xGA vs ${fmt(row.away_xga_per_match_last5)} xGA</span><small>Lower xGA suggests better chance prevention.</small></div>
+            <div class="metric"><b>Set-Piece Threat</b><span class="edge">${fmt(row.home_set_piece_threat_last5)} vs ${fmt(row.away_set_piece_threat_last5)}</span><small>Proxy for danger from corners/free-kicks.</small></div>
+            <div class="metric"><b>Win Rate (last 5)</b><span class="edge">${pct(row.home_win_rate_last5)} vs ${pct(row.away_win_rate_last5)}</span><small>Familiar form snapshot for quick context.</small></div>
+            <div class="metric"><b>Goals per Match (last 5)</b><span class="edge">${fmt(row.home_goals_per_match_last5, 1)} vs ${fmt(row.away_goals_per_match_last5, 1)}</span><small>Fan-friendly attacking output baseline.</small></div>
+          `;
+          cards.appendChild(el);
+        });
+      })
+      .catch((err) => {
+        document.getElementById("cards").innerHTML = `<div class="card">Could not load matchday data: ${err}</div>`;
+      });
+  </script>
+</body>
+</html>
