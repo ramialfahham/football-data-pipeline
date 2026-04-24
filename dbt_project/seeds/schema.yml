@@ -1,0 +1,19 @@
+version: 2
+
+seeds:
+  - name: metric_glossary
+    description: >
+      KPI labels and prose for the match preview UI. metric_key matches mart_matchday_insights
+      column names; values and display formatting live in the mart.
+    columns:
+      - name: metric_key
+        description: "Stable id; same as the mart column name for that metric."
+        tests:
+          - not_null
+          - unique
+      - name: label
+        description: "Short label on the card."
+        tests: [not_null]
+      - name: description
+        description: "Longer explanation for tooltips or info modal."
+        tests: [not_null]

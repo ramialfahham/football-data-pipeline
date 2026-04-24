@@ -1,0 +1,119 @@
+name: Deploy match preview (GitHub Pages)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily ~07:30 UTC after typical EU morning data refresh
+    - cron: "30 7 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "site/match-preview/**"
+      - "dbt_project/models/5_marts/mart_matchday_insights.sql"
+      - "dbt_project/seeds/metric_glossary.csv"
+      - "dbt_project/seeds/schema.yml"
+      - ".github/workflows/pages-match-preview.yml"
+      - "scripts/build_match_preview_site.sh"
+      - "scripts/build_match_preview_site.ps1"
+      - "scripts/extract_show_json.py"
+      - "scripts/build_metric_glossary_json.py"
+
+concurrency:
+  group: pages-match-preview
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create dbt profile for CI
+        run: |
+          mkdir -p /home/runner/.dbt
+          cat > /home/runner/.dbt/profiles.yml <<'EOF'
+          football_data_pipeline:
+            target: ci
+            outputs:
+              ci:
+                type: bigquery
+                method: oauth
+                project: football-data-pipeline-gcp
+                dataset: dbt_analytics
+                threads: 4
+                timeout_seconds: 300
+                location: EU
+                priority: interactive
+          EOF
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: dbt deps
+        working-directory: dbt_project
+        run: dbt deps
+
+      - name: Build all upstream of mart_matchday_insights
+        working-directory: dbt_project
+        run: dbt run --select +mart_matchday_insights
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v4
+
+      - name: Export matchday JSON (dbt show)
+        working-directory: dbt_project
+        run: dbt show --select mart_matchday_insights --limit 9 --output json > ../artifacts/_show.json 2>&1
+
+      - name: Extract app JSON
+        run: |
+          python scripts/extract_show_json.py artifacts/_show.json artifacts/matchday_insights.json
+          python scripts/build_metric_glossary_json.py
+
+      - name: Assemble Pages folder
+        run: bash scripts/build_match_preview_site.sh
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

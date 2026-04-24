@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Match Intelligence · D1</title>
+  <title>Match Intelligence · Bundesliga</title>
   <style>
     :root {
       --bg: #070c1a;
@@ -123,7 +123,7 @@
   <div class="app">
     <section class="start">
       <h1>Match Intelligence</h1>
-      <p class="sub">D1 · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
+      <p class="sub">Bundesliga · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
       <div class="meta" id="stamp"></div>
       <p class="legend" id="legend"></p>
       <div class="controls">
@@ -190,7 +190,6 @@
       return Number.isFinite(n) ? n : 0;
     }
 
-    /** Deutsch: Komma als Dezimaltrennzeichen */
     function fmtDe(x, decimals) {
       if (x === null || x === undefined) return "0" + (decimals > 0 ? "," + "0".repeat(decimals) : "");
       const n = Number(x);
@@ -198,7 +197,6 @@
       return n.toFixed(decimals).replace(".", ",");
     }
 
-    /** Anteil 0–1 als Prozent mit einer Nachkommastelle */
     function fmtDePct(x) {
       return `${fmtDe(nz(x) * 100, 1)}%`;
     }
@@ -228,22 +226,42 @@
       return Number.isFinite(n) ? String(n) : "—";
     }
 
-    function metricTableRows(r) {
+    /** Optional: metric_glossary.json → map metric_key → { label, description } */
+    function glossaryMap(glossaryPayload) {
+      const m = Object.create(null);
+      const list = (glossaryPayload && glossaryPayload.metrics) || [];
+      list.forEach((e) => {
+        if (e && e.metric_key) m[e.metric_key] = { label: e.label || "", description: e.description || "" };
+      });
+      return m;
+    }
+
+    function glLabel(g, homeKey, awayKey, fallback) {
+      const a = g[homeKey];
+      const b = g[awayKey];
+      if (a && b && a.label && a.label === b.label) {
+        return a.label.replace(/^Home /i, "").replace(/^Away /i, "");
+      }
+      return fallback;
+    }
+
+    function metricTableRows(r, g) {
+      const G = g || {};
       return [
         {
-          label: "Punkte (im Fenster)",
+          label: glLabel(G, "home_points_won_sum_form", "away_points_won_sum_form", "Punkte (im Fenster)"),
           home: pointsDisplay(r, "home"),
           away: pointsDisplay(r, "away"),
         },
-        { label: "Tore pro Spiel", home: fmtDe(r.home_goals_per_match_recent, 2), away: fmtDe(r.away_goals_per_match_recent, 2) },
-        { label: "Gegentore pro Spiel", home: fmtDe(r.home_goals_against_per_match_recent, 2), away: fmtDe(r.away_goals_against_per_match_recent, 2) },
-        { label: "Schussanteil", home: fmtDePct(r.home_shot_share_recent), away: fmtDePct(r.away_shot_share_recent) },
-        { label: "Gefahrenzonen-Anteil", home: fmtDePct(r.home_danger_zone_ratio_recent), away: fmtDePct(r.away_danger_zone_ratio_recent) },
-        { label: "Schussgenauigkeit", home: fmtDePct(r.home_shot_accuracy_recent), away: fmtDePct(r.away_shot_accuracy_recent) },
-        { label: "Abschlusseffizienz", home: fmtDePct(r.home_finishing_efficiency_recent), away: fmtDePct(r.away_finishing_efficiency_recent) },
-        { label: "Passgenauigkeit", home: fmtDePct(r.home_pass_accuracy_recent), away: fmtDePct(r.away_pass_accuracy_recent) },
-        { label: "Offensive Effizienz", home: fmtDe(r.home_offensive_efficiency_recent, 2), away: fmtDe(r.away_offensive_efficiency_recent, 2) },
-        { label: "Paradenquote", home: fmtDePct(r.home_save_ratio_recent), away: fmtDePct(r.away_save_ratio_recent) },
+        { label: glLabel(G, "home_goals_per_match_recent", "away_goals_per_match_recent", "Tore pro Spiel"), home: fmtDe(r.home_goals_per_match_recent, 2), away: fmtDe(r.away_goals_per_match_recent, 2) },
+        { label: glLabel(G, "home_goals_against_per_match_recent", "away_goals_against_per_match_recent", "Gegentore pro Spiel"), home: fmtDe(r.home_goals_against_per_match_recent, 2), away: fmtDe(r.away_goals_against_per_match_recent, 2) },
+        { label: glLabel(G, "home_shot_share_recent", "away_shot_share_recent", "Schussanteil"), home: fmtDePct(r.home_shot_share_recent), away: fmtDePct(r.away_shot_share_recent) },
+        { label: glLabel(G, "home_danger_zone_ratio_recent", "away_danger_zone_ratio_recent", "Gefahrenzonen-Anteil"), home: fmtDePct(r.home_danger_zone_ratio_recent), away: fmtDePct(r.away_danger_zone_ratio_recent) },
+        { label: glLabel(G, "home_shot_accuracy_recent", "away_shot_accuracy_recent", "Schussgenauigkeit"), home: fmtDePct(r.home_shot_accuracy_recent), away: fmtDePct(r.away_shot_accuracy_recent) },
+        { label: glLabel(G, "home_finishing_efficiency_recent", "away_finishing_efficiency_recent", "Abschlusseffizienz"), home: fmtDePct(r.home_finishing_efficiency_recent), away: fmtDePct(r.away_finishing_efficiency_recent) },
+        { label: glLabel(G, "home_pass_accuracy_recent", "away_pass_accuracy_recent", "Passgenauigkeit"), home: fmtDePct(r.home_pass_accuracy_recent), away: fmtDePct(r.away_pass_accuracy_recent) },
+        { label: glLabel(G, "home_offensive_efficiency_recent", "away_offensive_efficiency_recent", "Offensive Effizienz"), home: fmtDe(r.home_offensive_efficiency_recent, 2), away: fmtDe(r.away_offensive_efficiency_recent, 2) },
+        { label: glLabel(G, "home_save_ratio_recent", "away_save_ratio_recent", "Paradenquote"), home: fmtDePct(r.home_save_ratio_recent), away: fmtDePct(r.away_save_ratio_recent) },
       ];
     }
 
@@ -299,7 +317,7 @@
         improvement_text: comment,
         language: "de",
         fixture_id: activeFixtureId,
-        app_version: "v2-de-metrics",
+        app_version: "pages-match-preview",
         submitted_at: new Date().toISOString(),
         feedback_token: FEEDBACK_TOKEN,
       };
@@ -318,7 +336,7 @@
       }
     }
 
-    function render(rows) {
+    function render(rows, g) {
       document.getElementById("legend").textContent = COPY.legend;
       document.getElementById("foot-note").textContent = COPY.foot;
       document.getElementById("stamp").textContent = `${COPY.dataAsOf}: ${new Date().toLocaleString("de-DE")}`;
@@ -345,7 +363,7 @@
           <div class="fixture">${row.home_team_name} vs ${row.away_team_name}</div>
           <div class="ranks">Tabellenplatz: ${rankLabel(row.home_league_rank)} (Heim) · ${rankLabel(row.away_league_rank)} (Gast)</div>
           <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinKickoff(row.kickoff_datetime)} (${TZ})${mdNote}</div>
-          ${renderTable(metricTableRows(row))}
+          ${renderTable(metricTableRows(row, g))}
         `;
         carousel.appendChild(article);
       });
@@ -373,9 +391,13 @@
       if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
     });
 
-    fetch("./matchday_insights.json")
-      .then((r) => r.json())
-      .then((payload) => render(payload.show || []))
+    Promise.all([
+      fetch("./matchday_insights.json").then((r) => r.json()),
+      fetch("./metric_glossary.json").then((r) => r.json()).catch(() => ({ metrics: [] })),
+    ])
+      .then(([payload, glossaryPayload]) => {
+        render(payload.show || [], glossaryMap(glossaryPayload));
+      })
       .catch((err) => {
         document.getElementById("carousel").innerHTML =
           `<article class="card">Daten konnten nicht geladen werden: ${err}</article>`;

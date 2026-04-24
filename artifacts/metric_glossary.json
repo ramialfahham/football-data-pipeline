@@ -1,0 +1,159 @@
+{
+  "metrics": [
+    {
+      "metric_key": "upcoming_matchday_fixture_count",
+      "label": "Fixtures this matchday",
+      "description": "Count of games in this Bundesliga round (same round_name season and league)."
+    },
+    {
+      "metric_key": "home_league_rank",
+      "label": "Home table rank",
+      "description": "League table position for the home side before this matchday when standings exist."
+    },
+    {
+      "metric_key": "away_league_rank",
+      "label": "Away table rank",
+      "description": "League table position for the away side before this matchday when standings exist."
+    },
+    {
+      "metric_key": "home_form_games_played",
+      "label": "Home games in form window",
+      "description": "Finished matches counted for the home team in the last five completed matchdays."
+    },
+    {
+      "metric_key": "away_form_games_played",
+      "label": "Away games in form window",
+      "description": "Finished matches counted for the away team in the last five completed matchdays."
+    },
+    {
+      "metric_key": "home_form_matchdays_used",
+      "label": "Home matchdays in window",
+      "description": "Distinct completed rounds included for the home team (at most five)."
+    },
+    {
+      "metric_key": "away_form_matchdays_used",
+      "label": "Away matchdays in window",
+      "description": "Distinct completed rounds included for the away team (at most five)."
+    },
+    {
+      "metric_key": "home_stat_coverage_form_games",
+      "label": "Home games with shot stats",
+      "description": "Form-window games where shot statistics exist for the home team."
+    },
+    {
+      "metric_key": "away_stat_coverage_form_games",
+      "label": "Away games with shot stats",
+      "description": "Form-window games where shot statistics exist for the away team."
+    },
+    {
+      "metric_key": "home_points_won_sum_form",
+      "label": "Home points in window",
+      "description": "Sum of league points (3/1/0) over the home team form window."
+    },
+    {
+      "metric_key": "away_points_won_sum_form",
+      "label": "Away points in window",
+      "description": "Sum of league points over the away team form window."
+    },
+    {
+      "metric_key": "home_points_capture_recent",
+      "label": "Home points capture",
+      "description": "Share of maximum points taken in the form window (points over 3 times games)."
+    },
+    {
+      "metric_key": "away_points_capture_recent",
+      "label": "Away points capture",
+      "description": "Share of maximum points taken in the form window for the away team."
+    },
+    {
+      "metric_key": "home_goals_per_match_recent",
+      "label": "Home goals per game",
+      "description": "Goals scored per match in the form window for the home team."
+    },
+    {
+      "metric_key": "away_goals_per_match_recent",
+      "label": "Away goals per game",
+      "description": "Goals scored per match in the form window for the away team."
+    },
+    {
+      "metric_key": "home_goals_against_per_match_recent",
+      "label": "Home conceded per game",
+      "description": "Goals conceded per match in the form window for the home team."
+    },
+    {
+      "metric_key": "away_goals_against_per_match_recent",
+      "label": "Away conceded per game",
+      "description": "Goals conceded per match in the form window for the away team."
+    },
+    {
+      "metric_key": "home_shot_share_recent",
+      "label": "Home shot share",
+      "description": "Share of shots in the form window using ratio-of-sums across matches for the home team."
+    },
+    {
+      "metric_key": "away_shot_share_recent",
+      "label": "Away shot share",
+      "description": "Share of shots in the form window using ratio-of-sums for the away team."
+    },
+    {
+      "metric_key": "home_danger_zone_ratio_recent",
+      "label": "Home inside-box shot rate",
+      "description": "Shots from inside the box divided by all shots in the form window for the home team."
+    },
+    {
+      "metric_key": "away_danger_zone_ratio_recent",
+      "label": "Away inside-box shot rate",
+      "description": "Shots from inside the box divided by all shots in the form window for the away team."
+    },
+    {
+      "metric_key": "home_shot_accuracy_recent",
+      "label": "Home shot accuracy",
+      "description": "Shots on target divided by all shots in the form window for the home team."
+    },
+    {
+      "metric_key": "away_shot_accuracy_recent",
+      "label": "Away shot accuracy",
+      "description": "Shots on target divided by all shots in the form window for the away team."
+    },
+    {
+      "metric_key": "home_finishing_efficiency_recent",
+      "label": "Home finishing efficiency",
+      "description": "Goals divided by shots on target in the form window for the home team."
+    },
+    {
+      "metric_key": "away_finishing_efficiency_recent",
+      "label": "Away finishing efficiency",
+      "description": "Goals divided by shots on target in the form window for the away team."
+    },
+    {
+      "metric_key": "home_pass_accuracy_recent",
+      "label": "Home pass accuracy",
+      "description": "Accurate passes divided by total passes in the form window for the home team."
+    },
+    {
+      "metric_key": "away_pass_accuracy_recent",
+      "label": "Away pass accuracy",
+      "description": "Accurate passes divided by total passes in the form window for the away team."
+    },
+    {
+      "metric_key": "home_offensive_efficiency_recent",
+      "label": "Home offensive link-up",
+      "description": "Accurate passes divided by total shots in the form window for the home team."
+    },
+    {
+      "metric_key": "away_offensive_efficiency_recent",
+      "label": "Away offensive link-up",
+      "description": "Accurate passes divided by total shots in the form window for the away team."
+    },
+    {
+      "metric_key": "home_save_ratio_recent",
+      "label": "Home save rate",
+      "description": "Saves divided by saves plus goals conceded in the form window for the home team."
+    },
+    {
+      "metric_key": "away_save_ratio_recent",
+      "label": "Away save rate",
+      "description": "Saves divided by saves plus goals conceded in the form window for the away team."
+    }
+  ]
+}

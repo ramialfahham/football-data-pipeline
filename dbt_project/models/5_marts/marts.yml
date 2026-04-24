@@ -371,7 +371,7 @@ models:
         tests: [not_null]
 
   - name: mart_matchday_insights
-    description: "Upcoming D1 matchday style-clash surface for shareable pre-match analysis. Grain: one row per fixture in the nearest upcoming round."
+    description: "Bundesliga upcoming matchday surface for pre-match comparison (internal league_code D1). Grain: one row per fixture in the nearest upcoming round. Form metrics aggregate all matches played by each side in the last five completed matchdays (API round order) before the upcoming round; per-match rates divide by games in that window."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -382,8 +382,6 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
             - fixture_sk
-      - dbt_utils.expression_is_true:
-          expression: "clash_verdict in ('HOME_CHANCE_EDGE', 'AWAY_CHANCE_EDGE', 'BALANCED')"
     columns:
       - name: fixture_sk
         description: "Fixture key. One row per upcoming fixture in the selected matchday."
@@ -418,7 +416,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
-        description: "League scope marker (currently D1)."
+        description: "Internal pipeline league key (D1 for Bundesliga in this model). Use league_name for display."
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
@@ -427,64 +425,75 @@ models:
       - name: kickoff_datetime
         tests: [not_null]
       - name: round_name
-        description: "Round selected as the upcoming matchday batch."
+        description: "API round name for the upcoming matchday batch (e.g. Regular Season - 31)."
+      - name: upcoming_round_order
+        description: "Trailing integer parsed from round_name for ordering past rounds (null if not parseable)."
       - name: league_name
+        description: "Human-readable league name; Bundesliga for all rows in this model."
       - name: home_team_name
         tests: [not_null]
       - name: away_team_name
         tests: [not_null]
-      - name: home_recent_matches_played_last5
-        description: "Finished matches in the strict 5-game sample for the home side."
-      - name: away_recent_matches_played_last5
-        description: "Finished matches in the strict 5-game sample for the away side."
-      - name: home_stat_coverage_last5
-        description: "Count of home recent matches (within 5) that include shots-on-target stat payload."
-      - name: away_stat_coverage_last5
-        description: "Count of away recent matches (within 5) that include shots-on-target stat payload."
-      - name: home_coverage_bucket
-        description: "Metric window used for home side: LAST5, LAST10, or LOW coverage."
-      - name: away_coverage_bucket
-        description: "Metric window used for away side: LAST5, LAST10, or LOW coverage."
-      - name: home_shot_balance_recent
-        description: "Home side shot-balance signal (shots on target minus opponent shots on target) over selected recent window."
-      - name: away_shot_balance_recent
-        description: "Away side shot-balance signal (shots on target minus opponent shots on target) over selected recent window."
-      - name: home_shot_quality_conversion_recent
-        description: "Goals divided by shots on target over the selected recent window for home side."
-      - name: away_shot_quality_conversion_recent
-        description: "Goals divided by shots on target over the selected recent window for away side."
-      - name: home_shots_allowed_per_match_recent
-        description: "Opponent shots on target allowed per match over selected window for home side."
-      - name: away_shots_allowed_per_match_recent
-        description: "Opponent shots on target allowed per match over selected window for away side."
-      - name: home_transition_threat_recent
-        description: "Transition threat proxy over selected window for home side."
-      - name: away_transition_threat_recent
-        description: "Transition threat proxy over selected window for away side."
+      - name: upcoming_matchday_fixture_count
+        description: "Number of fixtures in this upcoming matchday (same round_name, league, season)."
+        tests: [not_null]
+      - name: home_league_rank
+        description: "Current table rank for the home team from mart_team_season.latest_rank (standings snapshot); null if absent."
+      - name: away_league_rank
+        description: "Current table rank for the away team from mart_team_season.latest_rank (standings snapshot); null if absent."
+      - name: home_form_games_played
+        description: "Home: count of finished matches included in the form window (all games in the last five completed matchdays)."
+      - name: away_form_games_played
+        description: "Away: count of finished matches included in the form window."
+      - name: home_form_matchdays_used
+        description: "Home: distinct completed matchdays (round_name) in the window (at most five)."
+      - name: away_form_matchdays_used
+        description: "Away: distinct completed matchdays in the window (at most five)."
+      - name: home_stat_coverage_form_games
+        description: "Home: games in the form window with non-null shots_on_goal in fct_fixture_team_stats."
+      - name: away_stat_coverage_form_games
+        description: "Away: games in the form window with non-null shots_on_goal in fct_fixture_team_stats."
+      - name: home_points_won_sum_form
+        description: "Home: sum of league points (3/1/0) over form-window matches."
+      - name: away_points_won_sum_form
+        description: "Away: sum of league points over form-window matches."
+      - name: home_points_capture_recent
+        description: "Home: points_won_sum_form / (3 * form_games_played); 0 if no games."
+      - name: away_points_capture_recent
+        description: "Away: points_won_sum_form / (3 * form_games_played); 0 if no games."
       - name: home_goals_per_match_recent
-        description: "Fan metric: goals per match over selected recent window (home side)."
+        description: "Home: goals scored per form-window game (sum / games)."
       - name: away_goals_per_match_recent
-        description: "Fan metric: goals per match over selected recent window (away side)."
-      - name: home_win_rate_recent
-        description: "Fan metric: win rate over selected recent window (home side)."
-      - name: away_win_rate_recent
-        description: "Fan metric: win rate over selected recent window (away side)."
-      - name: home_shots_on_target_per_match_recent
-        description: "Fan metric: shots on target per match over selected window (home side)."
-      - name: away_shots_on_target_per_match_recent
-        description: "Fan metric: shots on target per match over selected window (away side)."
-      - name: shot_balance_edge_home
-        description: "Home-minus-away edge on shot-balance signal (positive favors home side)."
-      - name: shot_quality_conversion_edge_home
-        description: "Home-minus-away edge on shot quality conversion."
-      - name: defensive_suppression_edge_home
-        description: "Home-minus-away edge for defensive suppression signal."
-      - name: transition_threat_edge_home
-        description: "Home-minus-away edge for transition threat."
-      - name: kickoff_weekday_utc
-        description: "UTC weekday name derived from fixture_date (used as fallback display key)."
-      - name: clash_verdict
-        description: "Simple pre-match verdict derived from shot-balance edge."
-        tests:
-          - accepted_values:
-              values: ['HOME_CHANCE_EDGE', 'AWAY_CHANCE_EDGE', 'BALANCED']
+        description: "Away: goals scored per form-window game."
+      - name: home_goals_against_per_match_recent
+        description: "Home: goals conceded per form-window game."
+      - name: away_goals_against_per_match_recent
+        description: "Away: goals conceded per form-window game."
+      - name: home_shot_share_recent
+        description: "Home: ratio-of-sums shot share over the form window."
+      - name: away_shot_share_recent
+        description: "Away: ratio-of-sums shot share over the form window."
+      - name: home_danger_zone_ratio_recent
+        description: "Home: shots_inside_box / total_shots over the form window."
+      - name: away_danger_zone_ratio_recent
+        description: "Away: shots_inside_box / total_shots over the form window."
+      - name: home_shot_accuracy_recent
+        description: "Home: shots_on_goal / total_shots over the form window."
+      - name: away_shot_accuracy_recent
+        description: "Away: shots_on_goal / total_shots over the form window."
+      - name: home_finishing_efficiency_recent
+        description: "Home: goals_for / shots_on_goal over the form window."
+      - name: away_finishing_efficiency_recent
+        description: "Away: goals_for / shots_on_goal over the form window."
+      - name: home_pass_accuracy_recent
+        description: "Home: passes_accurate / passes_total over the form window."
+      - name: away_pass_accuracy_recent
+        description: "Away: passes_accurate / passes_total over the form window."
+      - name: home_offensive_efficiency_recent
+        description: "Home: passes_accurate / total_shots over the form window."
+      - name: away_offensive_efficiency_recent
+        description: "Away: passes_accurate / total_shots over the form window."
+      - name: home_save_ratio_recent
+        description: "Home: sum(saves) / (sum(saves) + sum(goals_against)) over the form window."
+      - name: away_save_ratio_recent
+        description: "Away: save ratio over the form window."

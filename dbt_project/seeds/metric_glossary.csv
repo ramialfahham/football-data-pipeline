@@ -1,0 +1,32 @@
+metric_key,label,description
+upcoming_matchday_fixture_count,Fixtures this matchday,Count of games in this Bundesliga round (same round_name season and league).
+home_league_rank,Home table rank,League table position for the home side before this matchday when standings exist.
+away_league_rank,Away table rank,League table position for the away side before this matchday when standings exist.
+home_form_games_played,Home games in form window,Finished matches counted for the home team in the last five completed matchdays.
+away_form_games_played,Away games in form window,Finished matches counted for the away team in the last five completed matchdays.
+home_form_matchdays_used,Home matchdays in window,Distinct completed rounds included for the home team (at most five).
+away_form_matchdays_used,Away matchdays in window,Distinct completed rounds included for the away team (at most five).
+home_stat_coverage_form_games,Home games with shot stats,Form-window games where shot statistics exist for the home team.
+away_stat_coverage_form_games,Away games with shot stats,Form-window games where shot statistics exist for the away team.
+home_points_won_sum_form,Home points in window,Sum of league points (3/1/0) over the home team form window.
+away_points_won_sum_form,Away points in window,Sum of league points over the away team form window.
+home_points_capture_recent,Home points capture,Share of maximum points taken in the form window (points over 3 times games).
+away_points_capture_recent,Away points capture,Share of maximum points taken in the form window for the away team.
+home_goals_per_match_recent,Home goals per game,Goals scored per match in the form window for the home team.
+away_goals_per_match_recent,Away goals per game,Goals scored per match in the form window for the away team.
+home_goals_against_per_match_recent,Home conceded per game,Goals conceded per match in the form window for the home team.
+away_goals_against_per_match_recent,Away conceded per game,Goals conceded per match in the form window for the away team.
+home_shot_share_recent,Home shot share,Share of shots in the form window using ratio-of-sums across matches for the home team.
+away_shot_share_recent,Away shot share,Share of shots in the form window using ratio-of-sums for the away team.
+home_danger_zone_ratio_recent,Home inside-box shot rate,Shots from inside the box divided by all shots in the form window for the home team.
+away_danger_zone_ratio_recent,Away inside-box shot rate,Shots from inside the box divided by all shots in the form window for the away team.
+home_shot_accuracy_recent,Home shot accuracy,Shots on target divided by all shots in the form window for the home team.
+away_shot_accuracy_recent,Away shot accuracy,Shots on target divided by all shots in the form window for the away team.
+home_finishing_efficiency_recent,Home finishing efficiency,Goals divided by shots on target in the form window for the home team.
+away_finishing_efficiency_recent,Away finishing efficiency,Goals divided by shots on target in the form window for the away team.
+home_pass_accuracy_recent,Home pass accuracy,Accurate passes divided by total passes in the form window for the home team.
+away_pass_accuracy_recent,Away pass accuracy,Accurate passes divided by total passes in the form window for the away team.
+home_offensive_efficiency_recent,Home offensive link-up,Accurate passes divided by total shots in the form window for the home team.
+away_offensive_efficiency_recent,Away offensive link-up,Accurate passes divided by total shots in the form window for the away team.
+home_save_ratio_recent,Home save rate,Saves divided by saves plus goals conceded in the form window for the home team.
+away_save_ratio_recent,Away save rate,Saves divided by saves plus goals conceded in the form window for the away team.

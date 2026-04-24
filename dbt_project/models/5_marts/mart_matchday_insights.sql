@@ -4,6 +4,10 @@ with mart_fixture_results as (
     select * from {{ ref('mart_fixture_results') }}
 ),
 
+mart_team_season as (
+    select * from {{ ref('mart_team_season') }}
+),
+
 fct_fixture as (
     select * from {{ ref('fct_fixture') }}
 ),
@@ -48,7 +52,9 @@ next_round as (
 ),
 
 upcoming_matchday as (
-    select uc.*
+    select
+        uc.*,
+        safe_cast(regexp_extract(uc.round_name, r'(\d+)$') as int64) as upcoming_round_order
     from upcoming_candidates as uc
     inner join next_round as nr
         on
@@ -57,12 +63,24 @@ upcoming_matchday as (
             and uc.round_name = nr.round_name
 ),
 
+matchday_fixture_count as (
+    select
+        league_code,
+        season_api_year,
+        round_name,
+        count(*) as upcoming_matchday_fixture_count
+    from upcoming_matchday
+    group by league_code, season_api_year, round_name
+),
+
 finished_legs as (
     select
         f.fixture_sk,
         f.league_code,
         f.season_api_year,
         f.kickoff_datetime,
+        f.round_name,
+        safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
         f.home_team_sk as team_sk,
         f.away_team_sk as opponent_team_sk,
         f.goals_home as goals_for,
@@ -83,6 +101,8 @@ finished_legs as (
         f.league_code,
         f.season_api_year,
         f.kickoff_datetime,
+        f.round_name,
+        safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
         f.away_team_sk as team_sk,
         f.home_team_sk as opponent_team_sk,
         f.goals_away as goals_for,
@@ -107,12 +127,17 @@ finished_team_stats as (
         fl.league_code,
         fl.season_api_year,
         fl.kickoff_datetime,
+        fl.round_name,
+        fl.round_order,
         fl.goals_for,
         fl.goals_against,
         fl.result,
         stats.shots_on_goal,
-        stats.shots_outside_box,
-        stats.offsides
+        stats.shots_total,
+        stats.shots_inside_box,
+        stats.passes_total,
+        stats.passes_accurate,
+        stats.goalkeeper_saves
     from finished_legs as fl
     left join fct_fixture_team_stats as stats
         on
@@ -127,13 +152,18 @@ finished_with_opponent as (
         fts.league_code,
         fts.season_api_year,
         fts.kickoff_datetime,
+        fts.round_name,
+        fts.round_order,
         fts.goals_for,
         fts.goals_against,
         fts.result,
         fts.shots_on_goal,
-        fts.shots_outside_box,
-        fts.offsides,
-        opp.shots_on_goal as opponent_shots_on_goal
+        fts.shots_total,
+        fts.shots_inside_box,
+        fts.passes_total,
+        fts.passes_accurate,
+        fts.goalkeeper_saves,
+        opp.shots_total as opponent_total_shots
     from finished_team_stats as fts
     left join finished_team_stats as opp
         on
@@ -147,6 +177,7 @@ team_fixture_context as (
         um.league_code,
         um.season_api_year,
         um.kickoff_datetime as upcoming_kickoff_datetime,
+        um.upcoming_round_order,
         um.home_team_sk as team_sk
     from upcoming_matchday as um
     union all
@@ -155,118 +186,176 @@ team_fixture_context as (
         um.league_code,
         um.season_api_year,
         um.kickoff_datetime as upcoming_kickoff_datetime,
+        um.upcoming_round_order,
         um.away_team_sk as team_sk
     from upcoming_matchday as um
 ),
 
-ranked_recent as (
+past_team_matches as (
     select
         tfc.upcoming_fixture_sk,
         tfc.team_sk,
         fwo.fixture_sk,
         fwo.kickoff_datetime,
+        fwo.round_name,
+        fwo.round_order,
         fwo.goals_for,
         fwo.goals_against,
         fwo.result,
         fwo.shots_on_goal,
-        fwo.shots_outside_box,
-        fwo.offsides,
-        fwo.opponent_shots_on_goal,
-        row_number() over (
+        fwo.shots_total,
+        fwo.shots_inside_box,
+        fwo.passes_total,
+        fwo.passes_accurate,
+        fwo.goalkeeper_saves,
+        fwo.opponent_total_shots,
+        dense_rank() over (
             partition by tfc.upcoming_fixture_sk, tfc.team_sk
-            order by fwo.kickoff_datetime desc, fwo.fixture_sk desc
-        ) as recent_match_rank
+            order by fwo.round_order desc nulls last, fwo.kickoff_datetime desc
+        ) as recent_matchday_rank
     from team_fixture_context as tfc
     inner join finished_with_opponent as fwo
         on
             tfc.team_sk = fwo.team_sk
             and tfc.league_code = fwo.league_code
             and tfc.season_api_year = fwo.season_api_year
-            and tfc.upcoming_kickoff_datetime > fwo.kickoff_datetime
+            and fwo.kickoff_datetime < tfc.upcoming_kickoff_datetime
+            and (
+                tfc.upcoming_round_order is null
+                or fwo.round_order is null
+                or fwo.round_order < tfc.upcoming_round_order
+            )
 ),
 
-aggregated_recent as (
+form_window_matches as (
+    select * from past_team_matches
+    where recent_matchday_rank <= 5
+),
+
+aggregated_form as (
     select
         upcoming_fixture_sk as fixture_sk,
         team_sk,
-        countif(recent_match_rank <= 5) as played_last5,
-        countif(recent_match_rank <= 10) as played_last10,
-        countif(recent_match_rank <= 5 and shots_on_goal is not null) as stat_coverage_last5,
-        countif(recent_match_rank <= 10 and shots_on_goal is not null) as stat_coverage_last10,
-        avg(if(recent_match_rank <= 5, cast(result = 'W' as int64), null)) as win_rate_last5_raw,
-        avg(if(recent_match_rank <= 10, cast(result = 'W' as int64), null)) as win_rate_last10_raw,
-        avg(if(recent_match_rank <= 5, goals_for, null)) as goals_per_match_last5_raw,
-        avg(if(recent_match_rank <= 10, goals_for, null)) as goals_per_match_last10_raw,
-        avg(if(recent_match_rank <= 5, shots_on_goal, null)) as shots_on_target_last5_raw,
-        avg(if(recent_match_rank <= 10, shots_on_goal, null)) as shots_on_target_last10_raw,
-        avg(if(recent_match_rank <= 5, coalesce(shots_on_goal, 0) - coalesce(opponent_shots_on_goal, 0), null)) as shot_balance_last5_raw,
-        avg(if(recent_match_rank <= 10, coalesce(shots_on_goal, 0) - coalesce(opponent_shots_on_goal, 0), null)) as shot_balance_last10_raw,
-        safe_divide(sum(if(recent_match_rank <= 5, goals_for, null)), nullif(sum(if(recent_match_rank <= 5, shots_on_goal, null)), 0)) as shot_quality_conversion_last5_raw,
-        safe_divide(sum(if(recent_match_rank <= 10, goals_for, null)), nullif(sum(if(recent_match_rank <= 10, shots_on_goal, null)), 0)) as shot_quality_conversion_last10_raw,
-        avg(if(recent_match_rank <= 5, coalesce(opponent_shots_on_goal, 0), null)) as shots_allowed_last5_raw,
-        avg(if(recent_match_rank <= 10, coalesce(opponent_shots_on_goal, 0), null)) as shots_allowed_last10_raw,
-        avg(if(recent_match_rank <= 5, coalesce(shots_outside_box, 0) + coalesce(offsides, 0), null)) as transition_threat_last5_raw,
-        avg(if(recent_match_rank <= 10, coalesce(shots_outside_box, 0) + coalesce(offsides, 0), null)) as transition_threat_last10_raw
-    from ranked_recent
-    where recent_match_rank <= 10
+        count(*) as form_games_played,
+        count(distinct round_name) as form_matchdays_used,
+        countif(shots_on_goal is not null) as stat_coverage_form_games,
+        sum(
+            case result
+                when 'W' then 3
+                when 'D' then 1
+                else 0
+            end
+        ) as points_won_sum_form,
+        sum(goals_for) as goals_for_sum_form,
+        sum(goals_against) as goals_against_sum_form,
+        sum(coalesce(shots_total, 0)) as total_shots_sum_form,
+        sum(coalesce(opponent_total_shots, 0)) as opponent_total_shots_sum_form,
+        sum(coalesce(shots_inside_box, 0)) as shots_inside_box_sum_form,
+        sum(coalesce(shots_on_goal, 0)) as shots_on_goal_sum_form,
+        sum(coalesce(passes_accurate, 0)) as passes_accurate_sum_form,
+        sum(coalesce(passes_total, 0)) as passes_total_sum_form,
+        sum(coalesce(goalkeeper_saves, 0)) as goalkeeper_saves_sum_form
+    from form_window_matches
     group by upcoming_fixture_sk, team_sk
 ),
 
-team_recent_metrics as (
+team_form_metrics as (
     select
         fixture_sk,
         team_sk,
-        played_last5,
-        played_last10,
-        stat_coverage_last5,
-        stat_coverage_last10,
-        case
-            when stat_coverage_last5 >= 3 then 'LAST5'
-            when stat_coverage_last10 >= 3 then 'LAST10'
-            else 'LOW'
-        end as coverage_bucket,
-        if(stat_coverage_last5 >= 3, win_rate_last5_raw, win_rate_last10_raw) as win_rate_recent,
-        if(stat_coverage_last5 >= 3, goals_per_match_last5_raw, goals_per_match_last10_raw) as goals_per_match_recent,
-        if(stat_coverage_last5 >= 3, shots_on_target_last5_raw, shots_on_target_last10_raw) as shots_on_target_recent,
-        if(stat_coverage_last5 >= 3, shot_balance_last5_raw, shot_balance_last10_raw) as shot_balance_recent,
-        if(stat_coverage_last5 >= 3, shot_quality_conversion_last5_raw, shot_quality_conversion_last10_raw) as shot_quality_conversion_recent,
-        if(stat_coverage_last5 >= 3, shots_allowed_last5_raw, shots_allowed_last10_raw) as shots_allowed_recent,
-        if(stat_coverage_last5 >= 3, transition_threat_last5_raw, transition_threat_last10_raw) as transition_threat_recent
-    from aggregated_recent
+        form_games_played,
+        form_matchdays_used,
+        stat_coverage_form_games,
+        points_won_sum_form,
+        coalesce(
+            safe_divide(points_won_sum_form, nullif(3 * form_games_played, 0)),
+            0
+        ) as points_capture_recent,
+        coalesce(
+            safe_divide(goals_for_sum_form, nullif(form_games_played, 0)),
+            0
+        ) as goals_per_match_recent,
+        coalesce(
+            safe_divide(goals_against_sum_form, nullif(form_games_played, 0)),
+            0
+        ) as goals_against_per_match_recent,
+        coalesce(
+            safe_divide(
+                total_shots_sum_form,
+                nullif(total_shots_sum_form + opponent_total_shots_sum_form, 0)
+            ),
+            0
+        ) as shot_share_recent,
+        coalesce(
+            safe_divide(shots_inside_box_sum_form, nullif(total_shots_sum_form, 0)),
+            0
+        ) as danger_zone_ratio_recent,
+        coalesce(
+            safe_divide(shots_on_goal_sum_form, nullif(total_shots_sum_form, 0)),
+            0
+        ) as shot_accuracy_recent,
+        coalesce(
+            safe_divide(goals_for_sum_form, nullif(shots_on_goal_sum_form, 0)),
+            0
+        ) as finishing_efficiency_recent,
+        coalesce(
+            safe_divide(passes_accurate_sum_form, nullif(passes_total_sum_form, 0)),
+            0
+        ) as pass_accuracy_recent,
+        coalesce(
+            safe_divide(passes_accurate_sum_form, nullif(total_shots_sum_form, 0)),
+            0
+        ) as offensive_efficiency_recent,
+        coalesce(
+            safe_divide(
+                goalkeeper_saves_sum_form,
+                nullif(goalkeeper_saves_sum_form + goals_against_sum_form, 0)
+            ),
+            0
+        ) as save_ratio_recent
+    from aggregated_form
 ),
 
-home_metrics as (
+home_form as (
     select
         fixture_sk,
         team_sk as home_team_sk,
-        played_last5 as home_recent_matches_played_last5,
-        stat_coverage_last5 as home_stat_coverage_last5,
-        coverage_bucket as home_coverage_bucket,
-        win_rate_recent as home_win_rate_recent,
+        form_games_played as home_form_games_played,
+        form_matchdays_used as home_form_matchdays_used,
+        stat_coverage_form_games as home_stat_coverage_form_games,
+        points_won_sum_form as home_points_won_sum_form,
+        points_capture_recent as home_points_capture_recent,
         goals_per_match_recent as home_goals_per_match_recent,
-        shots_on_target_recent as home_shots_on_target_per_match_recent,
-        shot_balance_recent as home_shot_balance_recent,
-        shot_quality_conversion_recent as home_shot_quality_conversion_recent,
-        shots_allowed_recent as home_shots_allowed_per_match_recent,
-        transition_threat_recent as home_transition_threat_recent
-    from team_recent_metrics
+        goals_against_per_match_recent as home_goals_against_per_match_recent,
+        shot_share_recent as home_shot_share_recent,
+        danger_zone_ratio_recent as home_danger_zone_ratio_recent,
+        shot_accuracy_recent as home_shot_accuracy_recent,
+        finishing_efficiency_recent as home_finishing_efficiency_recent,
+        pass_accuracy_recent as home_pass_accuracy_recent,
+        offensive_efficiency_recent as home_offensive_efficiency_recent,
+        save_ratio_recent as home_save_ratio_recent
+    from team_form_metrics
 ),
 
-away_metrics as (
+away_form as (
     select
         fixture_sk,
         team_sk as away_team_sk,
-        played_last5 as away_recent_matches_played_last5,
-        stat_coverage_last5 as away_stat_coverage_last5,
-        coverage_bucket as away_coverage_bucket,
-        win_rate_recent as away_win_rate_recent,
+        form_games_played as away_form_games_played,
+        form_matchdays_used as away_form_matchdays_used,
+        stat_coverage_form_games as away_stat_coverage_form_games,
+        points_won_sum_form as away_points_won_sum_form,
+        points_capture_recent as away_points_capture_recent,
         goals_per_match_recent as away_goals_per_match_recent,
-        shots_on_target_recent as away_shots_on_target_per_match_recent,
-        shot_balance_recent as away_shot_balance_recent,
-        shot_quality_conversion_recent as away_shot_quality_conversion_recent,
-        shots_allowed_recent as away_shots_allowed_per_match_recent,
-        transition_threat_recent as away_transition_threat_recent
-    from team_recent_metrics
+        goals_against_per_match_recent as away_goals_against_per_match_recent,
+        shot_share_recent as away_shot_share_recent,
+        danger_zone_ratio_recent as away_danger_zone_ratio_recent,
+        shot_accuracy_recent as away_shot_accuracy_recent,
+        finishing_efficiency_recent as away_finishing_efficiency_recent,
+        pass_accuracy_recent as away_pass_accuracy_recent,
+        offensive_efficiency_recent as away_offensive_efficiency_recent,
+        save_ratio_recent as away_save_ratio_recent
+    from team_form_metrics
 ),
 
 final as (
@@ -280,50 +369,68 @@ final as (
         um.fixture_date,
         um.kickoff_datetime,
         um.round_name,
-        um.league_name,
+        um.upcoming_round_order,
+        case
+            when um.league_code = 'D1' then 'Bundesliga'
+            else um.league_name
+        end as league_name,
         um.home_team_sk,
         um.home_team_name,
         um.away_team_sk,
         um.away_team_name,
-        hm.home_recent_matches_played_last5,
-        hm.home_stat_coverage_last5,
-        hm.home_coverage_bucket,
-        hm.home_win_rate_recent,
-        hm.home_goals_per_match_recent,
-        hm.home_shots_on_target_per_match_recent,
-        hm.home_shot_balance_recent,
-        hm.home_shot_quality_conversion_recent,
-        hm.home_shots_allowed_per_match_recent,
-        hm.home_transition_threat_recent,
-        am.away_recent_matches_played_last5,
-        am.away_stat_coverage_last5,
-        am.away_coverage_bucket,
-        am.away_win_rate_recent,
-        am.away_goals_per_match_recent,
-        am.away_shots_on_target_per_match_recent,
-        am.away_shot_balance_recent,
-        am.away_shot_quality_conversion_recent,
-        am.away_shots_allowed_per_match_recent,
-        am.away_transition_threat_recent,
-        coalesce(hm.home_shot_balance_recent, 0) - coalesce(am.away_shot_balance_recent, 0) as shot_balance_edge_home,
-        coalesce(hm.home_shot_quality_conversion_recent, 0) - coalesce(am.away_shot_quality_conversion_recent, 0) as shot_quality_conversion_edge_home,
-        coalesce(am.away_shots_allowed_per_match_recent, 0) - coalesce(hm.home_shots_allowed_per_match_recent, 0) as defensive_suppression_edge_home,
-        coalesce(hm.home_transition_threat_recent, 0) - coalesce(am.away_transition_threat_recent, 0) as transition_threat_edge_home,
-        format_date('%A', um.fixture_date) as kickoff_weekday_utc,
-        case
-            when coalesce(hm.home_shot_balance_recent, 0) - coalesce(am.away_shot_balance_recent, 0) >= 0.5 then 'HOME_CHANCE_EDGE'
-            when coalesce(hm.home_shot_balance_recent, 0) - coalesce(am.away_shot_balance_recent, 0) <= -0.5 then 'AWAY_CHANCE_EDGE'
-            else 'BALANCED'
-        end as clash_verdict
+        mfc.upcoming_matchday_fixture_count,
+        home_ts.latest_rank as home_league_rank,
+        away_ts.latest_rank as away_league_rank,
+        hf.home_form_games_played,
+        hf.home_form_matchdays_used,
+        hf.home_stat_coverage_form_games,
+        hf.home_points_won_sum_form,
+        hf.home_points_capture_recent,
+        hf.home_goals_per_match_recent,
+        hf.home_goals_against_per_match_recent,
+        hf.home_shot_share_recent,
+        hf.home_danger_zone_ratio_recent,
+        hf.home_shot_accuracy_recent,
+        hf.home_finishing_efficiency_recent,
+        hf.home_pass_accuracy_recent,
+        hf.home_offensive_efficiency_recent,
+        hf.home_save_ratio_recent,
+        af.away_form_games_played,
+        af.away_form_matchdays_used,
+        af.away_stat_coverage_form_games,
+        af.away_points_won_sum_form,
+        af.away_points_capture_recent,
+        af.away_goals_per_match_recent,
+        af.away_goals_against_per_match_recent,
+        af.away_shot_share_recent,
+        af.away_danger_zone_ratio_recent,
+        af.away_shot_accuracy_recent,
+        af.away_finishing_efficiency_recent,
+        af.away_pass_accuracy_recent,
+        af.away_offensive_efficiency_recent,
+        af.away_save_ratio_recent
     from upcoming_matchday as um
-    left join home_metrics as hm
+    inner join matchday_fixture_count as mfc
         on
-            um.fixture_sk = hm.fixture_sk
-            and um.home_team_sk = hm.home_team_sk
-    left join away_metrics as am
+            um.league_code = mfc.league_code
+            and um.season_api_year = mfc.season_api_year
+            and um.round_name = mfc.round_name
+    left join mart_team_season as home_ts
         on
-            um.fixture_sk = am.fixture_sk
-            and um.away_team_sk = am.away_team_sk
+            um.home_team_sk = home_ts.team_sk
+            and um.season_sk = home_ts.season_sk
+    left join mart_team_season as away_ts
+        on
+            um.away_team_sk = away_ts.team_sk
+            and um.season_sk = away_ts.season_sk
+    left join home_form as hf
+        on
+            um.fixture_sk = hf.fixture_sk
+            and um.home_team_sk = hf.home_team_sk
+    left join away_form as af
+        on
+            um.fixture_sk = af.fixture_sk
+            and um.away_team_sk = af.away_team_sk
 )
 
 select *
