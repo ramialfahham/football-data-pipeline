@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Match Intelligence · D1</title>
+  <title>Match Intelligence · Bundesliga</title>
   <style>
     :root {
       --bg: #070c1a;
@@ -71,7 +71,15 @@
     th:nth-child(2), td:nth-child(2),
     th:nth-child(3), td:nth-child(3) { text-align: center; width: 29%; }
     tr:last-child td { border-bottom: none; }
-    .metric-name { color: #dce4ff; }
+    .metric-name { color: #dce4ff; vertical-align: top; }
+    .metric-title { font-weight: 600; }
+    .metric-desc {
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.35;
+      margin-top: 4px;
+      font-weight: 400;
+    }
     .num { font-variant-numeric: tabular-nums; }
     .foot { color: var(--muted); font-size: 0.75rem; margin-top: 14px; line-height: 1.4; }
     .modal-backdrop {
@@ -123,7 +131,7 @@
   <div class="app">
     <section class="start">
       <h1>Match Intelligence</h1>
-      <p class="sub">D1 · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
+      <p class="sub">Bundesliga · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
       <div class="meta" id="stamp"></div>
       <p class="legend" id="legend"></p>
       <div class="controls">
@@ -178,7 +186,7 @@
     const TZ = "Europe/Berlin";
 
     const COPY = {
-      legend: "Spalten: Heim · Kennzahl · Gast. Anteile als %, Tore pro Spiel mit zwei Nachkommastellen.",
+      legend: "Spalten: Heim · Kennzahl · Gast. Unter jeder Kennzahl: Kurzerklärung aus metric_glossary.json. Anteile als %, Tore pro Spiel mit zwei Nachkommastellen.",
       foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
       dataAsOf: "Datenstand",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
@@ -228,33 +236,74 @@
       return Number.isFinite(n) ? String(n) : "—";
     }
 
-    function metricTableRows(r) {
+    function glossaryMap(glossaryPayload) {
+      const m = Object.create(null);
+      const list = (glossaryPayload && glossaryPayload.metrics) || [];
+      list.forEach((e) => {
+        if (e && e.metric_key) m[e.metric_key] = { label: e.label || "", description: e.description || "" };
+      });
+      return m;
+    }
+
+    function glLabel(g, homeKey, awayKey, fallback) {
+      const a = g[homeKey];
+      const b = g[awayKey];
+      if (a && b && a.label && a.label === b.label) {
+        return a.label.replace(/^Home /i, "").replace(/^Away /i, "");
+      }
+      return fallback;
+    }
+
+    function glExplain(g, homeKey, awayKey) {
+      const G = g || {};
+      const a = G[homeKey];
+      const b = G[awayKey];
+      const d = (a && a.description) || (b && b.description) || "";
+      return String(d).trim();
+    }
+
+    function escHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function metricTableRows(r, g) {
+      const G = g || {};
+      const row = (homeKey, awayKey, fallbackLabel, homeVal, awayVal) => ({
+        label: glLabel(G, homeKey, awayKey, fallbackLabel),
+        explain: glExplain(G, homeKey, awayKey),
+        home: homeVal,
+        away: awayVal,
+      });
       return [
-        {
-          label: "Punkte (im Fenster)",
-          home: pointsDisplay(r, "home"),
-          away: pointsDisplay(r, "away"),
-        },
-        { label: "Tore pro Spiel", home: fmtDe(r.home_goals_per_match_recent, 2), away: fmtDe(r.away_goals_per_match_recent, 2) },
-        { label: "Gegentore pro Spiel", home: fmtDe(r.home_goals_against_per_match_recent, 2), away: fmtDe(r.away_goals_against_per_match_recent, 2) },
-        { label: "Schussanteil", home: fmtDePct(r.home_shot_share_recent), away: fmtDePct(r.away_shot_share_recent) },
-        { label: "Gefahrenzonen-Anteil", home: fmtDePct(r.home_danger_zone_ratio_recent), away: fmtDePct(r.away_danger_zone_ratio_recent) },
-        { label: "Schussgenauigkeit", home: fmtDePct(r.home_shot_accuracy_recent), away: fmtDePct(r.away_shot_accuracy_recent) },
-        { label: "Abschlusseffizienz", home: fmtDePct(r.home_finishing_efficiency_recent), away: fmtDePct(r.away_finishing_efficiency_recent) },
-        { label: "Passgenauigkeit", home: fmtDePct(r.home_pass_accuracy_recent), away: fmtDePct(r.away_pass_accuracy_recent) },
-        { label: "Offensive Effizienz", home: fmtDe(r.home_offensive_efficiency_recent, 2), away: fmtDe(r.away_offensive_efficiency_recent, 2) },
-        { label: "Paradenquote", home: fmtDePct(r.home_save_ratio_recent), away: fmtDePct(r.away_save_ratio_recent) },
+        row("home_points_won_sum_form", "away_points_won_sum_form", "Punkte (im Fenster)", pointsDisplay(r, "home"), pointsDisplay(r, "away")),
+        row("home_goals_per_match_recent", "away_goals_per_match_recent", "Tore pro Spiel", fmtDe(r.home_goals_per_match_recent, 2), fmtDe(r.away_goals_per_match_recent, 2)),
+        row("home_goals_against_per_match_recent", "away_goals_against_per_match_recent", "Gegentore pro Spiel", fmtDe(r.home_goals_against_per_match_recent, 2), fmtDe(r.away_goals_against_per_match_recent, 2)),
+        row("home_danger_zone_ratio_recent", "away_danger_zone_ratio_recent", "Gefahrenzonen-Anteil", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent)),
+        row("home_shot_accuracy_recent", "away_shot_accuracy_recent", "Schussgenauigkeit", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent)),
+        row("home_finishing_efficiency_recent", "away_finishing_efficiency_recent", "Abschlusseffizienz", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent)),
+        row("home_pass_accuracy_recent", "away_pass_accuracy_recent", "Passgenauigkeit", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent)),
+        row("home_offensive_efficiency_recent", "away_offensive_efficiency_recent", "Offensive Effizienz", fmtDe(r.home_offensive_efficiency_recent, 2), fmtDe(r.away_offensive_efficiency_recent, 2)),
+        row("home_save_ratio_recent", "away_save_ratio_recent", "Paradenquote", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent)),
       ];
     }
 
     function renderTable(rows) {
       const head = `<tr><th>Heim</th><th>Kennzahl</th><th>Gast</th></tr>`;
-      const body = rows.map((m) => `
+      const body = rows.map((m) => {
+        const sub = m.explain
+          ? `<div class="metric-desc">${escHtml(m.explain)}</div>`
+          : "";
+        return `
         <tr>
           <td class="num">${m.home}</td>
-          <td class="metric-name">${m.label}</td>
+          <td class="metric-name"><div class="metric-title">${escHtml(m.label)}</div>${sub}</td>
           <td class="num">${m.away}</td>
-        </tr>`).join("");
+        </tr>`;
+      }).join("");
       return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
     }
 
@@ -299,7 +348,7 @@
         improvement_text: comment,
         language: "de",
         fixture_id: activeFixtureId,
-        app_version: "v2-de-metrics",
+        app_version: "v2-de-metrics-glossary",
         submitted_at: new Date().toISOString(),
         feedback_token: FEEDBACK_TOKEN,
       };
@@ -318,7 +367,7 @@
       }
     }
 
-    function render(rows) {
+    function render(rows, g) {
       document.getElementById("legend").textContent = COPY.legend;
       document.getElementById("foot-note").textContent = COPY.foot;
       document.getElementById("stamp").textContent = `${COPY.dataAsOf}: ${new Date().toLocaleString("de-DE")}`;
@@ -345,7 +394,7 @@
           <div class="fixture">${row.home_team_name} vs ${row.away_team_name}</div>
           <div class="ranks">Tabellenplatz: ${rankLabel(row.home_league_rank)} (Heim) · ${rankLabel(row.away_league_rank)} (Gast)</div>
           <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinKickoff(row.kickoff_datetime)} (${TZ})${mdNote}</div>
-          ${renderTable(metricTableRows(row))}
+          ${renderTable(metricTableRows(row, g))}
         `;
         carousel.appendChild(article);
       });
@@ -373,9 +422,13 @@
       if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
     });
 
-    fetch("./matchday_insights.json")
-      .then((r) => r.json())
-      .then((payload) => render(payload.show || []))
+    Promise.all([
+      fetch("./matchday_insights.json").then((r) => r.json()),
+      fetch("./metric_glossary.json").then((r) => r.json()).catch(() => ({ metrics: [] })),
+    ])
+      .then(([payload, glossaryPayload]) => {
+        render(payload.show || [], glossaryMap(glossaryPayload));
+      })
       .catch((err) => {
         document.getElementById("carousel").innerHTML =
           `<article class="card">Daten konnten nicht geladen werden: ${err}</article>`;
