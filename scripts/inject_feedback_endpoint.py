@@ -17,6 +17,13 @@ def main() -> int:
         return 1
     path = pathlib.Path(sys.argv[1])
     url = sys.argv[2].strip().rstrip("/")
+    if "/home/projects/" in url or ("/edit" in url and "/macros/" not in url):
+        print(
+            "That URL is the Apps Script editor (…/home/projects/…/edit), not the Web App. "
+            "In the script: Deploy > New deployment > type Web app > copy the URL ending in /exec.",
+            file=sys.stderr,
+        )
+        return 2
     ok = (
         url.startswith("https://script.google.com/")
         or url.startswith("https://script.googleusercontent.com/")
@@ -24,7 +31,7 @@ def main() -> int:
     if not ok:
         print(
             "URL must be a Google Apps Script Web App, e.g. "
-            "https://script.google.com/macros/s/<id>/exec (or …/dev for test)",
+            "https://script.google.com/macros/s/<deployment-id>/exec (or …/dev for test)",
             file=sys.stderr,
         )
         return 2

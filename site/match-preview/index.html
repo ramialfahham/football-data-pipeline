@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Match Intelligence · Bundesliga</title>
+  <title>Match Day Intelligence · Bundesliga</title>
   <style>
     :root {
       --bg: #070c1a;
@@ -129,7 +129,7 @@
 <body>
   <div class="app">
     <section class="start">
-      <h1>Match Intelligence</h1>
+      <h1>Match Day Intelligence</h1>
       <p class="sub">Bundesliga · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
       <div class="meta" id="stamp"></div>
       <div class="controls">
@@ -179,7 +179,6 @@
   </div>
   <div class="toast" id="feedback-toast"></div>
   <script>
-    /* Paste your Apps Script Web-App URL (…/exec) here, OR leave placeholder and set GitHub secret FEEDBACK_APPS_SCRIPT_URL for Pages CI inject. */
     const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/REPLACE_WITH_DEPLOYMENT_ID/exec";
     const FEEDBACK_TOKEN = "";
     const TZ = "Europe/Berlin";
@@ -187,7 +186,6 @@
     function isFeedbackEndpointConfigured() {
       const u = String(FEEDBACK_ENDPOINT || "").trim();
       if (!u || /REPLACE_WITH|PLACEHOLDER|__YOUR_/i.test(u)) return false;
-      // Production: …/macros/s/…/exec — Google may also use usercontent host or /dev for test deploys.
       const okHost =
         /^https:\/\/script\.google\.com\//i.test(u)
         || /^https:\/\/script\.googleusercontent\.com\//i.test(u);
