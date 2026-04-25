@@ -198,6 +198,7 @@
       dataAsOf: "Datenstand",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
       feedbackError: "Feedback konnte nicht gesendet werden.",
+      feedbackErrorDetailPrefix: "Feedback nicht gespeichert:",
       feedbackNotConfigured:
         "Kein Feedback-Endpunkt in dieser Seite: Trage die Web-App-URL (…/exec) in site/match-preview/index.html ein ODER setze das GitHub-Actions-Geheimnis FEEDBACK_APPS_SCRIPT_URL und lasse „Deploy match preview“ neu laufen.",
     };
@@ -371,8 +372,15 @@
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify(payload),
         });
+        const body = await resp.json().catch(() => null);
+        const appOk = !!(body && body.ok);
         if (!resp.ok) {
           showToast(`${COPY.feedbackError} (HTTP ${resp.status})`, true);
+          return;
+        }
+        if (!appOk) {
+          const detail = body && body.error ? String(body.error) : "unknown_error";
+          showToast(`${COPY.feedbackErrorDetailPrefix} ${detail}`, true);
           return;
         }
         closeFeedbackModal();
