@@ -288,6 +288,7 @@
         away: awayVal,
       });
       return [
+        row("", "", "Tabellenplatz", rankLabel(r.home_league_rank), rankLabel(r.away_league_rank)),
         row("home_points_won_sum_form", "away_points_won_sum_form", "Punkte (im Fenster)", pointsDisplay(r, "home"), pointsDisplay(r, "away")),
         row("home_goals_per_match_recent", "away_goals_per_match_recent", "Tore pro Spiel", fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1)),
         row("home_goals_against_per_match_recent", "away_goals_against_per_match_recent", "Gegentore pro Spiel", fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1)),
@@ -418,7 +419,6 @@
         const mdNote = mdCount > 0 ? ` · ${mdCount} Partien an diesem Spieltag` : "";
         article.innerHTML = `
           <div class="fixture">${row.home_team_name} vs ${row.away_team_name}</div>
-          <div class="ranks">Tabellenplatz: ${rankLabel(row.home_league_rank)} (Heim) · ${rankLabel(row.away_league_rank)} (Gast)</div>
           <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinKickoff(row.kickoff_datetime)} (${TZ})${mdNote}</div>
           ${renderTable(metricTableRows(row, g))}
         `;
