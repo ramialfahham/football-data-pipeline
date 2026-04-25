@@ -1,0 +1,1 @@
+# WM 2026 MVP Scope**Status:** APPROVED  **Owner:** CPO  **See full document:** shared via claude.ai chat
