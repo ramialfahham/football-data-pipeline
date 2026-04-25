@@ -64,6 +64,8 @@ Use `scripts/feedback_webapp.gs` in Apps Script:
 - Set `FEEDBACK_TOKEN` only if you want token-based gatekeeping
 - Deploy as Web App (execute as you, access: anyone)
 
+**If the browser shows a CORS / network error when sending:** the match preview page POSTs JSON with `Content-Type: text/plain` on purpose. `application/json` triggers a preflight `OPTIONS` request; Google Apps Script web apps often do not handle that, so the request never reaches `doPost`. Do not change the client back to `application/json` unless you add a proxy that handles CORS.
+
 ## 4) Security baseline
 
 - Never commit real tokens, sheet IDs, or deployment URLs if you consider them sensitive.

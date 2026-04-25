@@ -11,6 +11,9 @@
  * 2) Set FEEDBACK_TOKEN to a long random string.
  * 3) Deploy as Web App: "Anyone" (required for anonymous app users).
  * 4) Paste deployment URL into artifacts/matchday_style_clash.html.
+ *
+ * Client must POST JSON with Content-Type: text/plain (not application/json)
+ * so browsers skip CORS preflight; Apps Script doPost still reads postData.contents.
  */
 
 const SHEET_ID = "replace_with_google_sheet_id";
@@ -88,9 +91,7 @@ function validateAndNormalize_(body) {
 }
 
 function json_(status, payload) {
-  const out = ContentService
-    .createTextOutput(JSON.stringify(payload))
+  return ContentService
+    .createTextOutput(JSON.stringify({ status, ...payload }))
     .setMimeType(ContentService.MimeType.JSON);
-  out.setContent(JSON.stringify({ status, ...payload }));
-  return out;
 }
