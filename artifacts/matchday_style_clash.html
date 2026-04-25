@@ -185,11 +185,12 @@
 
     function isFeedbackEndpointConfigured() {
       const u = String(FEEDBACK_ENDPOINT || "").trim();
-      return Boolean(
-        u
-        && /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/i.test(u)
-        && !/REPLACE_WITH|PLACEHOLDER|__YOUR_/i.test(u)
-      );
+      if (!u || /REPLACE_WITH|PLACEHOLDER|__YOUR_/i.test(u)) return false;
+      const okHost =
+        /^https:\/\/script\.google\.com\//i.test(u)
+        || /^https:\/\/script\.googleusercontent\.com\//i.test(u);
+      const okPath = /\/(exec|dev)(\?|#|$|\/)/i.test(u);
+      return okHost && okPath;
     }
 
     const COPY = {

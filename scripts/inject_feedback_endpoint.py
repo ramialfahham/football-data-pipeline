@@ -17,8 +17,16 @@ def main() -> int:
         return 1
     path = pathlib.Path(sys.argv[1])
     url = sys.argv[2].strip().rstrip("/")
-    if not url.startswith("https://script.google.com/macros/s/") or "/exec" not in url:
-        print("URL must be like https://script.google.com/macros/s/<id>/exec", file=sys.stderr)
+    ok = (
+        url.startswith("https://script.google.com/")
+        or url.startswith("https://script.googleusercontent.com/")
+    ) and ("/exec" in url or "/dev" in url)
+    if not ok:
+        print(
+            "URL must be a Google Apps Script Web App, e.g. "
+            "https://script.google.com/macros/s/<id>/exec (or …/dev for test)",
+            file=sys.stderr,
+        )
         return 2
     text = path.read_text(encoding="utf-8")
     if PLACEHOLDER not in text:
