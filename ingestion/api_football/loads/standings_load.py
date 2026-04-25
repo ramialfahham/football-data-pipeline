@@ -19,8 +19,10 @@ def load_standings_if_enabled(
     seasons_list: list[int],
     cov: dict[str, bool],
 ) -> None:
-    if not cov["standings"]:
-        return
+    if not cov.get("standings", True):
+        ctx.errors.append(
+            f"standings {league_code}: coverage metadata reported unsupported; attempting fetch anyway"
+        )
     standings_merged: dict | None = None
     for season in seasons_list:
         if errors_quota._http_quota_exhausted:
@@ -37,6 +39,7 @@ def load_standings_if_enabled(
         except Exception as e:
             ctx.errors.append(f"standings {league_code} season={season}: {e}")
     if standings_merged is None:
+        ctx.errors.append(f"standings {league_code}: no payload fetched for configured seasons")
         return
     try:
         st_tbl = raw_league_table(league_code, "STANDINGS")

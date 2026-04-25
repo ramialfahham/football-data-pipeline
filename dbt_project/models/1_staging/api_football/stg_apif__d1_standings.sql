@@ -15,7 +15,7 @@ expanded_standings as (
         to_json_string(json_query(src.payload, '$.parameters')) as request_parameters_json
     from src,
         unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as league_block,
-        unnest(json_query_array(json_query(league_block, '$.standings'), '$')) as stage_group,
+        unnest(json_query_array(json_query(league_block, '$.league.standings'), '$')) as stage_group,
         unnest(json_query_array(stage_group, '$')) as team_row
 )
 

@@ -439,8 +439,16 @@ models:
         tests: [not_null]
       - name: home_league_rank
         description: "Current table rank for the home team from mart_team_season.latest_rank (standings snapshot); null if absent."
+        tests:
+          - not_null:
+              config:
+                where: "league_code = 'D1' and fixture_date >= current_date()"
       - name: away_league_rank
         description: "Current table rank for the away team from mart_team_season.latest_rank (standings snapshot); null if absent."
+        tests:
+          - not_null:
+              config:
+                where: "league_code = 'D1' and fixture_date >= current_date()"
       - name: home_form_games_played
         description: "Home: count of finished matches included in the form window (all games in the last five completed matchdays)."
       - name: away_form_games_played
