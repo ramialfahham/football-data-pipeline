@@ -78,10 +78,9 @@
       font-weight: 600;
       background: rgba(32, 50, 95, 0.55);
     }
-    .team-map-row td:nth-child(2) {
-      color: var(--muted);
-      font-weight: 500;
-    }
+    .team-map-row td:first-child { text-align: left; padding-left: 10px; }
+    .team-map-row td:nth-child(2) { color: transparent; }
+    .team-map-row td:last-child { text-align: right; padding-right: 10px; }
     .metric-desc {
       font-size: 0.72rem;
       color: var(--muted);
@@ -318,11 +317,13 @@
 
     function renderTable(fixtureRow, rows) {
       const head = `<tr><th>Heim</th><th>Kennzahl</th><th>Gast</th></tr>`;
+      const homeTeam = `${teamNameLabel(fixtureRow.home_team_name, "DATA_ERROR_HOME_TEAM")} (Home)`;
+      const awayTeam = `${teamNameLabel(fixtureRow.away_team_name, "DATA_ERROR_AWAY_TEAM")} (Away)`;
       const teamMapRow = `
         <tr class="team-map-row">
-          <td>${escHtml(teamNameLabel(fixtureRow.home_team_name, "DATA_ERROR_HOME_TEAM"))}</td>
-          <td>Team-Zuordnung</td>
-          <td>${escHtml(teamNameLabel(fixtureRow.away_team_name, "DATA_ERROR_AWAY_TEAM"))}</td>
+          <td>${escHtml(homeTeam)}</td>
+          <td>&nbsp;</td>
+          <td>${escHtml(awayTeam)}</td>
         </tr>`;
       const body = rows.map((m) => {
         const sub = m.explain
