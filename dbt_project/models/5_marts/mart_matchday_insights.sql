@@ -219,11 +219,11 @@ past_team_matches as (
             tfc.team_sk = fwo.team_sk
             and tfc.league_code = fwo.league_code
             and tfc.season_api_year = fwo.season_api_year
-            and fwo.kickoff_datetime < tfc.upcoming_kickoff_datetime
+            and tfc.upcoming_kickoff_datetime > fwo.kickoff_datetime
             and (
                 tfc.upcoming_round_order is null
                 or fwo.round_order is null
-                or fwo.round_order < tfc.upcoming_round_order
+                or tfc.upcoming_round_order > fwo.round_order
             )
 ),
 
@@ -370,10 +370,6 @@ final as (
         um.kickoff_datetime,
         um.round_name,
         um.upcoming_round_order,
-        case
-            when um.league_code = 'D1' then 'Bundesliga'
-            else um.league_name
-        end as league_name,
         um.home_team_sk,
         um.home_team_name,
         um.away_team_sk,
@@ -408,7 +404,11 @@ final as (
         af.away_finishing_efficiency_recent,
         af.away_pass_accuracy_recent,
         af.away_offensive_efficiency_recent,
-        af.away_save_ratio_recent
+        af.away_save_ratio_recent,
+        case
+            when um.league_code = 'D1' then 'Bundesliga'
+            else um.league_name
+        end as league_name
     from upcoming_matchday as um
     inner join matchday_fixture_count as mfc
         on
