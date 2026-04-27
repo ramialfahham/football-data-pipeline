@@ -1,1 +1,0 @@
-# Ground Truth — Football Analytics Platform**Status:** DRAFT  **Owner:** CPO  **Purpose:** Single source of truth for all agents. To be filled in next session.
