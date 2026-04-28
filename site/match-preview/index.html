@@ -75,17 +75,25 @@
       overflow: hidden;
       font-size: 0.82rem;
     }
-    th, td { padding: 8px 6px; border-bottom: 1px solid #22325f; vertical-align: middle; }
-    th { color: #cad5ff; font-weight: 700; font-size: 0.72rem; text-align: center; }
-    th:first-child, td:first-child { text-align: left; padding-left: 10px; width: 42%; }
-    th:nth-child(2), td:nth-child(2),
-    th:nth-child(3), td:nth-child(3) { text-align: center; width: 29%; }
-    tr:last-child td { border-bottom: none; }
+    th, td { padding: 8px 6px; border-bottom: none; vertical-align: middle; }
+    th {
+      color: #d7e0ff;
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-align: center;
+      background: rgba(12, 22, 52, 0.92);
+      border-bottom: 1px solid #3b4f89;
+    }
+    th:first-child, td:first-child { text-align: center; width: 23%; }
+    th:nth-child(2), td:nth-child(2) { text-align: center; width: 54%; }
+    th:nth-child(3), td:nth-child(3) { text-align: center; width: 23%; }
+    tbody tr + tr td { border-top: 1px solid #3f568f; }
     .metric-name { color: #dce4ff; vertical-align: top; }
     .metric-title {
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       line-height: 1.25;
+      white-space: nowrap;
     }
     .metric-desc {
       font-size: 0.76rem;
@@ -94,10 +102,15 @@
       margin-top: 4px;
       font-weight: 400;
     }
+    .metric-row-block-a td { background: rgba(38, 57, 112, 0.56); }
+    .metric-row-block-b td { background: rgba(15, 27, 60, 0.78); }
+    .metric-row-block-a td { border-top-color: #4b64a6; }
+    .metric-row-block-b td { border-top-color: #2f447a; }
     .num {
       font-variant-numeric: tabular-nums;
       font-size: 0.92rem;
       line-height: 1.2;
+      text-align: center !important;
     }
     .foot { color: var(--muted); font-size: 0.75rem; margin-top: 14px; line-height: 1.4; }
     .modal-backdrop {
@@ -300,26 +313,27 @@
 
     function metricTableRows(r, g) {
       const G = g || {};
-      const row = (homeKey, awayKey, fallbackLabel, homeVal, awayVal) => ({
+      const row = (homeKey, awayKey, fallbackLabel, homeVal, awayVal, group) => ({
         label: glLabel(G, homeKey, awayKey, fallbackLabel),
         explain: glExplain(G, homeKey, awayKey),
         home: homeVal,
         away: awayVal,
+        group,
       });
       return [
-        row("", "", "Tabellenplatz", rankLabel(r.home_league_rank), rankLabel(r.away_league_rank)),
-        row("home_points_won_sum_form", "away_points_won_sum_form", "Punkte (letzte 5 Spiele)", pointsDisplay(r, "home"), pointsDisplay(r, "away")),
-        row("home_goals_per_match_recent", "away_goals_per_match_recent", "Tore pro Spiel", fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1)),
-        row("home_goals_against_per_match_recent", "away_goals_against_per_match_recent", "Gegentore pro Spiel", fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1)),
-        row("home_shots_per_match_recent", "away_shots_per_match_recent", "Schüsse pro Spiel", fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1)),
-        row("home_shot_accuracy_recent", "away_shot_accuracy_recent", "Schussgenauigkeit", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent)),
-        row("home_danger_zone_ratio_recent", "away_danger_zone_ratio_recent", "Anteil Abschlüsse im Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent)),
-        row("home_finishing_efficiency_recent", "away_finishing_efficiency_recent", "Abschlusseffizienz", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent)),
-        row("home_passes_per_match_recent", "away_passes_per_match_recent", "Pässe pro Spiel", fmtDe(r.home_passes_per_match_recent, 1), fmtDe(r.away_passes_per_match_recent, 1)),
-        row("home_pass_accuracy_recent", "away_pass_accuracy_recent", "Passgenauigkeit", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent)),
-        row("home_corner_kicks_per_match_recent", "away_corner_kicks_per_match_recent", "Ecken pro Spiel", fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1)),
-        row("home_corners_conceded_per_match_recent", "away_corners_conceded_per_match_recent", "Ecken gegen sich pro Spiel", fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1)),
-        row("home_save_ratio_recent", "away_save_ratio_recent", "Anteil gehaltener Schüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent)),
+        row("", "", "Tabellenplatz", rankLabel(r.home_league_rank), rankLabel(r.away_league_rank), "a"),
+        row("home_points_won_sum_form", "away_points_won_sum_form", "Punkte (letzte 5 Spiele)", pointsDisplay(r, "home"), pointsDisplay(r, "away"), "a"),
+        row("home_goals_per_match_recent", "away_goals_per_match_recent", "Tore pro Spiel", fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1), "a"),
+        row("home_goals_against_per_match_recent", "away_goals_against_per_match_recent", "Gegentore pro Spiel", fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1), "a"),
+        row("home_shots_per_match_recent", "away_shots_per_match_recent", "Schüsse pro Spiel", fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1), "b"),
+        row("home_shot_accuracy_recent", "away_shot_accuracy_recent", "Schussgenauigkeit", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent), "b"),
+        row("home_danger_zone_ratio_recent", "away_danger_zone_ratio_recent", "Anteil Abschlüsse im Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent), "b"),
+        row("home_finishing_efficiency_recent", "away_finishing_efficiency_recent", "Abschlusseffizienz", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent), "b"),
+        row("home_passes_per_match_recent", "away_passes_per_match_recent", "Pässe pro Spiel", fmtDe(r.home_passes_per_match_recent, 1), fmtDe(r.away_passes_per_match_recent, 1), "b"),
+        row("home_pass_accuracy_recent", "away_pass_accuracy_recent", "Passgenauigkeit", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent), "b"),
+        row("home_corner_kicks_per_match_recent", "away_corner_kicks_per_match_recent", "Ecken pro Spiel", fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1), "a"),
+        row("home_corners_conceded_per_match_recent", "away_corners_conceded_per_match_recent", "Ecken gegen sich pro Spiel", fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1), "a"),
+        row("home_save_ratio_recent", "away_save_ratio_recent", "Anteil gehaltener Schüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent), "b"),
       ];
     }
 
@@ -334,8 +348,9 @@
         const sub = m.explain
           ? `<div class="metric-desc">${escHtml(m.explain)}</div>`
           : "";
+        const rowClass = m.group === "a" ? "metric-row-block-a" : "metric-row-block-b";
         return `
-        <tr>
+        <tr class="${rowClass}">
           <td class="num">${m.home}</td>
           <td class="metric-name"><div class="metric-title">${escHtml(m.label)}</div>${sub}</td>
           <td class="num">${m.away}</td>
