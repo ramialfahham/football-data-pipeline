@@ -135,6 +135,7 @@ finished_team_stats as (
         stats.shots_on_goal,
         stats.shots_total,
         stats.shots_inside_box,
+        stats.corner_kicks,
         stats.passes_total,
         stats.passes_accurate,
         stats.goalkeeper_saves
@@ -160,10 +161,12 @@ finished_with_opponent as (
         fts.shots_on_goal,
         fts.shots_total,
         fts.shots_inside_box,
+        fts.corner_kicks,
         fts.passes_total,
         fts.passes_accurate,
         fts.goalkeeper_saves,
-        opp.shots_total as opponent_total_shots
+        opp.shots_total as opponent_total_shots,
+        opp.corner_kicks as opponent_corner_kicks
     from finished_team_stats as fts
     left join finished_team_stats as opp
         on
@@ -205,10 +208,12 @@ past_team_matches as (
         fwo.shots_on_goal,
         fwo.shots_total,
         fwo.shots_inside_box,
+        fwo.corner_kicks,
         fwo.passes_total,
         fwo.passes_accurate,
         fwo.goalkeeper_saves,
         fwo.opponent_total_shots,
+        fwo.opponent_corner_kicks,
         dense_rank() over (
             partition by tfc.upcoming_fixture_sk, tfc.team_sk
             order by fwo.round_order desc nulls last, fwo.kickoff_datetime desc
@@ -252,6 +257,8 @@ aggregated_form as (
         sum(coalesce(opponent_total_shots, 0)) as opponent_total_shots_sum_form,
         sum(coalesce(shots_inside_box, 0)) as shots_inside_box_sum_form,
         sum(coalesce(shots_on_goal, 0)) as shots_on_goal_sum_form,
+        sum(coalesce(corner_kicks, 0)) as corner_kicks_sum_form,
+        sum(coalesce(opponent_corner_kicks, 0)) as opponent_corner_kicks_sum_form,
         sum(coalesce(passes_accurate, 0)) as passes_accurate_sum_form,
         sum(coalesce(passes_total, 0)) as passes_total_sum_form,
         sum(coalesce(goalkeeper_saves, 0)) as goalkeeper_saves_sum_form
@@ -280,6 +287,10 @@ team_form_metrics as (
             0
         ) as goals_against_per_match_recent,
         coalesce(
+            safe_divide(total_shots_sum_form, nullif(form_games_played, 0)),
+            0
+        ) as shots_per_match_recent,
+        coalesce(
             safe_divide(
                 total_shots_sum_form,
                 nullif(total_shots_sum_form + opponent_total_shots_sum_form, 0)
@@ -303,9 +314,17 @@ team_form_metrics as (
             0
         ) as pass_accuracy_recent,
         coalesce(
-            safe_divide(passes_accurate_sum_form, nullif(total_shots_sum_form, 0)),
+            safe_divide(passes_total_sum_form, nullif(form_games_played, 0)),
             0
-        ) as offensive_efficiency_recent,
+        ) as passes_per_match_recent,
+        coalesce(
+            safe_divide(corner_kicks_sum_form, nullif(form_games_played, 0)),
+            0
+        ) as corner_kicks_per_match_recent,
+        coalesce(
+            safe_divide(opponent_corner_kicks_sum_form, nullif(form_games_played, 0)),
+            0
+        ) as corners_conceded_per_match_recent,
         coalesce(
             safe_divide(
                 goalkeeper_saves_sum_form,
@@ -327,12 +346,15 @@ home_form as (
         points_capture_recent as home_points_capture_recent,
         goals_per_match_recent as home_goals_per_match_recent,
         goals_against_per_match_recent as home_goals_against_per_match_recent,
+        shots_per_match_recent as home_shots_per_match_recent,
         shot_share_recent as home_shot_share_recent,
         danger_zone_ratio_recent as home_danger_zone_ratio_recent,
         shot_accuracy_recent as home_shot_accuracy_recent,
         finishing_efficiency_recent as home_finishing_efficiency_recent,
         pass_accuracy_recent as home_pass_accuracy_recent,
-        offensive_efficiency_recent as home_offensive_efficiency_recent,
+        passes_per_match_recent as home_passes_per_match_recent,
+        corner_kicks_per_match_recent as home_corner_kicks_per_match_recent,
+        corners_conceded_per_match_recent as home_corners_conceded_per_match_recent,
         save_ratio_recent as home_save_ratio_recent
     from team_form_metrics
 ),
@@ -348,12 +370,15 @@ away_form as (
         points_capture_recent as away_points_capture_recent,
         goals_per_match_recent as away_goals_per_match_recent,
         goals_against_per_match_recent as away_goals_against_per_match_recent,
+        shots_per_match_recent as away_shots_per_match_recent,
         shot_share_recent as away_shot_share_recent,
         danger_zone_ratio_recent as away_danger_zone_ratio_recent,
         shot_accuracy_recent as away_shot_accuracy_recent,
         finishing_efficiency_recent as away_finishing_efficiency_recent,
         pass_accuracy_recent as away_pass_accuracy_recent,
-        offensive_efficiency_recent as away_offensive_efficiency_recent,
+        passes_per_match_recent as away_passes_per_match_recent,
+        corner_kicks_per_match_recent as away_corner_kicks_per_match_recent,
+        corners_conceded_per_match_recent as away_corners_conceded_per_match_recent,
         save_ratio_recent as away_save_ratio_recent
     from team_form_metrics
 ),
@@ -384,12 +409,15 @@ final as (
         hf.home_points_capture_recent,
         hf.home_goals_per_match_recent,
         hf.home_goals_against_per_match_recent,
+        hf.home_shots_per_match_recent,
         hf.home_shot_share_recent,
         hf.home_danger_zone_ratio_recent,
         hf.home_shot_accuracy_recent,
         hf.home_finishing_efficiency_recent,
         hf.home_pass_accuracy_recent,
-        hf.home_offensive_efficiency_recent,
+        hf.home_passes_per_match_recent,
+        hf.home_corner_kicks_per_match_recent,
+        hf.home_corners_conceded_per_match_recent,
         hf.home_save_ratio_recent,
         af.away_form_games_played,
         af.away_form_matchdays_used,
@@ -398,12 +426,15 @@ final as (
         af.away_points_capture_recent,
         af.away_goals_per_match_recent,
         af.away_goals_against_per_match_recent,
+        af.away_shots_per_match_recent,
         af.away_shot_share_recent,
         af.away_danger_zone_ratio_recent,
         af.away_shot_accuracy_recent,
         af.away_finishing_efficiency_recent,
         af.away_pass_accuracy_recent,
-        af.away_offensive_efficiency_recent,
+        af.away_passes_per_match_recent,
+        af.away_corner_kicks_per_match_recent,
+        af.away_corners_conceded_per_match_recent,
         af.away_save_ratio_recent,
         case
             when um.league_code = 'D1' then 'Bundesliga'
