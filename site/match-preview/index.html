@@ -431,12 +431,10 @@
         const article = document.createElement("article");
         article.className = "card";
         article.dataset.fixtureId = row.fixture_api_id;
-        const mdCount = nz(row.upcoming_matchday_fixture_count);
-        const mdNote = mdCount > 0 ? ` · ${mdCount} Partien an diesem Spieltag` : "";
         const homeTeam = teamNameLabel(row.home_team_name, "DATA_ERROR_HOME_TEAM");
         const awayTeam = teamNameLabel(row.away_team_name, "DATA_ERROR_AWAY_TEAM");
         article.innerHTML = `
-          <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinKickoff(row.kickoff_datetime)} (${TZ})${mdNote}</div>
+          <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinKickoff(row.kickoff_datetime)} (${TZ})</div>
           <div class="fixture"><span class="fixture-home">${escHtml(homeTeam)}</span><span class="fixture-away">${escHtml(awayTeam)}</span></div>
           ${renderTable(metricTableRows(row, g))}
         `;
