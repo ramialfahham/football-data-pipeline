@@ -491,6 +491,10 @@ models:
         description: "Home: goals conceded per form-window game."
       - name: away_goals_against_per_match_recent
         description: "Away: goals conceded per form-window game."
+      - name: home_shots_per_match_recent
+        description: "Home: total shots per form-window game."
+      - name: away_shots_per_match_recent
+        description: "Away: total shots per form-window game."
       - name: home_shot_share_recent
         description: "Home: ratio-of-sums shot share over the form window."
       - name: away_shot_share_recent
@@ -511,10 +515,18 @@ models:
         description: "Home: passes_accurate / passes_total over the form window."
       - name: away_pass_accuracy_recent
         description: "Away: passes_accurate / passes_total over the form window."
-      - name: home_offensive_efficiency_recent
-        description: "Home: passes_accurate / total_shots over the form window."
-      - name: away_offensive_efficiency_recent
-        description: "Away: passes_accurate / total_shots over the form window."
+      - name: home_passes_per_match_recent
+        description: "Home: total passes per form-window game."
+      - name: away_passes_per_match_recent
+        description: "Away: total passes per form-window game."
+      - name: home_corner_kicks_per_match_recent
+        description: "Home: corner kicks won per form-window game."
+      - name: away_corner_kicks_per_match_recent
+        description: "Away: corner kicks won per form-window game."
+      - name: home_corners_conceded_per_match_recent
+        description: "Home: corner kicks conceded per form-window game."
+      - name: away_corners_conceded_per_match_recent
+        description: "Away: corner kicks conceded per form-window game."
       - name: home_save_ratio_recent
         description: "Home: sum(saves) / (sum(saves) + sum(goals_against)) over the form window."
       - name: away_save_ratio_recent
