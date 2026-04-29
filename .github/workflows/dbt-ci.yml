@@ -63,6 +63,19 @@ jobs:
       - name: Enforce layer contract
         run: python ../scripts/check_layer_contract.py
 
+      - name: Enforce SQL quality gate on changed enforced layers
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse HEAD~1)"
+          fi
+          CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA")"
+          python ../scripts/check_sql_quality.py $CHANGED_FILES
+
       - name: Lint SQL
         run: sqlfluff lint models
 

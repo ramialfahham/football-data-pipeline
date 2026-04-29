@@ -29,6 +29,13 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
 - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
 
+## 1.2) SQL Performance Gate (enforced)
+
+- In `2_base` / `3_core` / `4_intermediate` / `5_marts`, do not use `select *` unless a reviewer approves an explicit exception (`sql-quality: allow-select-star` comment).
+- For simple dedupe/top-1 where rank is not reused, prefer `qualify row_number() over (...) = 1` over `where rn = 1` with an extra rank alias.
+- Keep expensive expressions centralized (single CTE) when reused in multiple downstream projections.
+- CI enforces these rules on changed SQL files via `scripts/check_sql_quality.py`.
+
 ## 2) Documentation Policy
 
 - Every model must have a `description`.
