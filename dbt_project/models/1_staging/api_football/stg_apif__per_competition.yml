@@ -14,6 +14,33 @@ version: 2
 # Freshness lives in sources.yml via loaded_at_field: ingested_at.
 
 models:
+  - name: stg_apif__fixtures_next
+    description: "League-agnostic fixtures staging model. Grain: (league_code, fixture_id). Additive transitional model sourced from D1 and WC26 raw fixture envelopes."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["staging", "api_football", "multi_competition"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+    columns:
+      - name: league_code
+        description: "Internal competition code in staging scope (transitional: D1 and WC26)."
+        tests: [not_null]
+      - name: fixture_id
+        description: "API-Football fixture id scoped by league_code."
+        tests: [not_null]
+      - name: fixture_date
+        description: "Fixture calendar date in UTC."
+      - name: kickoff_datetime
+        description: "Fixture kickoff timestamp in UTC."
+      - name: source_json
+        description: "Full per-fixture source JSON."
+
   - name: stg_apif__d1_fixtures_next
     description: "One row per match from GET /fixtures (D1). Grain: fixture_id. Envelope metadata as JSON strings plus core kickoff / teams / score columns and source_json."
     meta:
