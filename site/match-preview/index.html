@@ -20,11 +20,24 @@
       background: linear-gradient(140deg, #243b8f, #6a2fbe);
       border-radius: 14px;
       padding: 16px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
     h1 { margin: 0; font-size: 1.35rem; }
     .sub { margin: 6px 0 0; font-size: 0.9rem; color: #e8eeff; }
     .meta { margin-top: 8px; color: #dbe3ff; font-size: 0.8rem; }
+    .competition-block {
+      background: rgba(17, 29, 62, 0.96);
+      border: 1px solid #2e447f;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+    .competition-line {
+      color: #dbe4ff;
+      font-size: 0.96rem;
+      line-height: 1.3;
+      font-weight: 600;
+    }
     .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
     button, .btn {
       border: 1px solid #8898d8;
@@ -162,14 +175,16 @@
   <div class="app">
     <section class="start">
       <h1>Matchday IQ</h1>
-      <p class="sub">Bundesliga · Form aus den letzten fünf abgeschlossenen Spieltagen (alle Spiele dieser Tage) vor dem anstehenden Spieltag.</p>
-      <div class="meta" id="stamp"></div>
+      <p class="sub">Football analytics for fans</p>
       <div class="controls">
         <span class="nav-hint">Wischen oder Tippen: nächstes / vorheriges Spiel</span>
         <button type="button" id="prev-btn" aria-label="Vorheriges Spiel">&larr;</button>
         <button type="button" id="next-btn" aria-label="Nächstes Spiel">&rarr;</button>
         <button class="btn" id="feedback-open-btn" type="button">Feedback</button>
       </div>
+    </section>
+    <section class="competition-block">
+      <div class="competition-line" id="competition-context"></div>
     </section>
     <div class="carousel-wrap">
       <div class="carousel" id="carousel" role="region" aria-label="Spiele"></div>
@@ -227,7 +242,6 @@
 
     const COPY = {
       foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
-      dataAsOf: "Datenstand",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
       feedbackError: "Feedback konnte nicht gesendet werden.",
       feedbackErrorDetailPrefix: "Feedback nicht gespeichert:",
@@ -260,6 +274,56 @@
         hour: "2-digit",
         minute: "2-digit",
       }).format(new Date(iso));
+    }
+
+    function seasonDisplayLabel(row) {
+      const explicit = String(row && row.season_display_label ? row.season_display_label : "").trim();
+      if (explicit) return explicit;
+      const y = Number(row && row.season_api_year);
+      if (Number.isFinite(y)) return `Saison ${y}/${y + 1}`;
+      return "Saison";
+    }
+
+    function competitionDisplayLabel(row) {
+      const explicit = String(row && row.competition_display_name ? row.competition_display_name : "").trim();
+      if (explicit) return explicit;
+      const league = String(row && row.league_name ? row.league_name : "").trim();
+      return league || "Wettbewerb";
+    }
+
+    function kickoffDisplayLabel(row) {
+      const explicit = String(row && row.kickoff_display_label ? row.kickoff_display_label : "").trim();
+      if (explicit) return explicit;
+      return `Anstoß ${berlinKickoff(row.kickoff_datetime)}`;
+    }
+
+    function normalizedStageLabel(row) {
+      const explicit = String(row && row.stage_display_label ? row.stage_display_label : "").trim();
+      if (explicit) return explicit;
+      const round = String(row && row.round_name ? row.round_name : "").trim();
+      if (!round) return "Runde";
+      const regularSeasonRound = /regular\s*season/i.test(round) && /(\d+)/.test(round);
+      if (regularSeasonRound) {
+        const n = round.match(/(\d+)/);
+        if (n && n[1]) return `${n[1]}. Spieltag`;
+      }
+      return round;
+    }
+
+    function matchContextLine(row) {
+      const stage = normalizedStageLabel(row);
+      const substage = String(row && row.substage_display_label ? row.substage_display_label : "").trim();
+      const kickoff = kickoffDisplayLabel(row);
+      return [stage, substage, kickoff].filter(Boolean).join(" · ");
+    }
+
+    function setCompetitionContext(rows) {
+      const el = document.getElementById("competition-context");
+      if (!el) return;
+      const first = rows && rows.length ? rows[0] : {};
+      const competition = competitionDisplayLabel(first);
+      const season = seasonDisplayLabel(first);
+      el.textContent = `${competition} - ${season}`;
     }
 
     function pointsDisplay(r, side) {
@@ -439,7 +503,6 @@
 
     function render(rows, g) {
       document.getElementById("foot-note").textContent = COPY.foot;
-      document.getElementById("stamp").textContent = `${COPY.dataAsOf}: ${new Date().toLocaleString("de-DE")}`;
       setFeedbackCopy();
 
       const sorted = [...rows].sort((a, b) => {
@@ -448,6 +511,7 @@
         if (ta !== tb) return ta - tb;
         return nz(a.fixture_sk) - nz(b.fixture_sk);
       });
+      setCompetitionContext(sorted);
 
       const carousel = document.getElementById("carousel");
       carousel.innerHTML = "";
@@ -460,7 +524,7 @@
         const homeTeam = teamNameLabel(row.home_team_name, "DATA_ERROR_HOME_TEAM");
         const awayTeam = teamNameLabel(row.away_team_name, "DATA_ERROR_AWAY_TEAM");
         article.innerHTML = `
-          <div class="kickoff">${row.league_name} · ${row.round_name} · ${berlinKickoff(row.kickoff_datetime)} (${TZ})</div>
+          <div class="kickoff">${escHtml(matchContextLine(row))}</div>
           <div class="fixture"><span class="fixture-home">${escHtml(homeTeam)}</span><span class="fixture-away">${escHtml(awayTeam)}</span></div>
           ${renderTable(metricTableRows(row, g))}
         `;
