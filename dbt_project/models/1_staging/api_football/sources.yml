@@ -11,6 +11,12 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_fixtures_next
+        identifier: RAW_WC26_APIF_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
       - name: raw_d1_apif_leagues
         identifier: RAW_D1_APIF_LEAGUES
         loaded_at_field: ingested_at
