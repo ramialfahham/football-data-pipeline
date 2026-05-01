@@ -61,11 +61,14 @@ app_visible_competitions as (
     {% set visible_competitions = var('app_visible_competitions', []) %}
     {% if visible_competitions | length == 0 %}
     select
-        cast(null as string) as league_code,
-        cast(null as date) as visible_from,
+        league_code,
+        cast('1900-01-01' as date) as visible_from,
         cast(null as date) as visible_until
-    from unnest([1]) as seed_row
-    where false
+    from (
+        select distinct league_code
+        from mart_fixture_results
+        where league_code is not null
+    )
     {% else %}
     {% for comp in visible_competitions %}
     select
