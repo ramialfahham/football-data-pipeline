@@ -61,11 +61,17 @@ app_visible_competitions as (
     {% set visible_competitions = var('app_visible_competitions', []) %}
     {% if visible_competitions | length == 0 %}
     select
-        cast(null as string) as league_code,
-        cast(null as date) as visible_from,
+        case
+            when league_code = 'D1' then 'BL1'
+            else league_code
+        end as league_code,
+        cast('1900-01-01' as date) as visible_from,
         cast(null as date) as visible_until
-    from unnest([1]) as seed_row
-    where false
+    from (
+        select distinct league_code
+        from mart_fixture_results
+        where league_code is not null
+    )
     {% else %}
     {% for comp in visible_competitions %}
     select
@@ -88,7 +94,10 @@ upcoming_candidates as (
         mfr.season_sk,
         mfr.home_team_sk,
         mfr.away_team_sk,
-        mfr.league_code,
+        case
+            when mfr.league_code = 'D1' then 'BL1'
+            else mfr.league_code
+        end as league_code,
         mfr.season_api_year,
         mfr.fixture_date,
         mfr.kickoff_datetime,
@@ -99,7 +108,13 @@ upcoming_candidates as (
         mfr.status_short
     from mart_fixture_results as mfr
     inner join app_visible_competitions as avc
-        on mfr.league_code = avc.league_code
+        on
+            (
+                case
+                    when mfr.league_code = 'D1' then 'BL1'
+                    else mfr.league_code
+                end
+            ) = avc.league_code
     where
         mfr.status_short in ('NS', 'TBD')
         and mfr.fixture_date >= current_date()
@@ -144,7 +159,10 @@ matchday_fixture_count as (
 finished_legs as (
     select
         f.fixture_sk,
-        f.league_code,
+        case
+            when f.league_code = 'D1' then 'BL1'
+            else f.league_code
+        end as league_code,
         f.season_api_year,
         f.kickoff_datetime,
         f.round_name,
@@ -166,7 +184,10 @@ finished_legs as (
     union all
     select
         f.fixture_sk,
-        f.league_code,
+        case
+            when f.league_code = 'D1' then 'BL1'
+            else f.league_code
+        end as league_code,
         f.season_api_year,
         f.kickoff_datetime,
         f.round_name,
