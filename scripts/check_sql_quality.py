@@ -6,9 +6,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DBT_MODELS = REPO_ROOT / "dbt_project" / "models"
 ENFORCED_LAYER_DIRS = {"2_base", "3_core", "4_intermediate", "5_marts"}
-ALLOW_SELECT_STAR_FILES = {
-    "dbt_project/models/5_marts/mart_matchday_insights.sql",
-}
 
 
 def _is_enforced_sql(path: Path) -> bool:
@@ -45,8 +42,7 @@ def _check_file(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     lowered = text.lower()
 
-    allow_select_star = rel in ALLOW_SELECT_STAR_FILES or _has_allow_comment(text)
-    if not allow_select_star:
+    if not _has_allow_comment(text):
         if re.search(r"\bselect\s+\*", lowered):
             errors.append(
                 f"{rel}: avoid `select *` in base/core/intermediate/marts (project SQL quality gate)."
