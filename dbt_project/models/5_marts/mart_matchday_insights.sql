@@ -58,7 +58,15 @@ fct_fixture_team_stats as (
 ),
 
 app_visible_competitions as (
-    {% for comp in var('app_visible_competitions', []) %}
+    {% set visible_competitions = var('app_visible_competitions', []) %}
+    {% if visible_competitions | length == 0 %}
+    select
+        cast(null as string) as league_code,
+        cast(null as date) as visible_from,
+        cast(null as date) as visible_until
+    where false
+    {% else %}
+    {% for comp in visible_competitions %}
     select
         '{{ comp["league_code"] }}' as league_code,
         cast('{{ comp["visible_from"] }}' as date) as visible_from,
@@ -69,6 +77,7 @@ app_visible_competitions as (
         {% endif %}
     {% if not loop.last %}union all{% endif %}
     {% endfor %}
+    {% endif %}
 ),
 
 upcoming_candidates as (
