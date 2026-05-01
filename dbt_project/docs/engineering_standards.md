@@ -20,7 +20,6 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Columns use lowercase snake_case.
 - Boolean columns start with `is_` or `has_`.
 - Timestamp columns end with `_at`, dates end with `_date`.
-- Competition identity above staging must use `league_code` only. Provider ids/codes stay in ingestion and staging.
 
 ## 1.1) SQL Structure and Readability
 
@@ -28,13 +27,6 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Prefer named CTE chains over inline subqueries. Avoid `from ( ... )` when the same logic can be expressed as a named CTE.
 - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
 - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
-
-## 1.2) SQL Performance Gate (enforced)
-
-- In `2_base` / `3_core` / `4_intermediate` / `5_marts`, do not use `select *` unless a reviewer approves an explicit exception (`sql-quality: allow-select-star` comment).
-- For simple dedupe/top-1 where rank is not reused, prefer `qualify row_number() over (...) = 1` over `where rn = 1` with an extra rank alias.
-- Keep expensive expressions centralized (single CTE) when reused in multiple downstream projections.
-- CI enforces these rules on changed SQL files via `scripts/check_sql_quality.py`.
 
 ## 2) Documentation Policy
 
@@ -99,26 +91,6 @@ Before release to prod:
   - why it changes
   - migration impact for downstream consumers
 - Keep marts stable as product/API contracts.
-
-## 8.1) Product Visibility and Lifecycle
-
-- App-facing marts must respect lifecycle-driven visibility windows (prelaunch/live/post-season), not hardcoded league literals.
-- Ingestion status (`active`, `in_progress`, etc.) is operational metadata; app visibility is a separate product concern.
-- Hide completed/off-season competitions from primary pre-match surfaces without deleting warehouse history.
-
-## 8.2) International Tournament Metric Policy (WC26)
-
-- Do not blend qualifier/international context with tournament-only performance into one composite metric.
-- Keep separate outputs:
-  - `recent_form_*` for international/qualifier context.
-  - `tournament_form_*` for World Cup matches only.
-- Expose tournament sample size fields and explicit null/fallback semantics when tournament sample is empty.
-
-## 8.3) Localization (i18n) Contract
-
-- Use stable identifiers and keys in marts; avoid embedding final localized copy in warehouse logic.
-- Never use translated strings as join keys or filter predicates.
-- Presentation layer (app) owns locale-specific rendering from stable data keys.
 
 ## 9) Data Freshness and SLAs
 

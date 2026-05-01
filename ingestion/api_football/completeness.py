@@ -9,7 +9,7 @@ from typing import Any
 from google.cloud import bigquery
 
 from .bq import read_latest_payload_json
-from .config import selected_leagues_map, raw_league_table
+from .config import LEAGUES, raw_league_table
 
 # Batched fanout raw entities (fixture_id blocks).
 FANOUT_ENTITIES = (
@@ -114,7 +114,7 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         out["skipped"] = True
         return out
 
-    for league_code in selected_leagues_map():
+    for league_code in LEAGUES:
         fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
         fx_payload = read_latest_payload_json(client, fx_tbl)
         all_fixture_ids = _fixture_ids_from_fixtures_payload(fx_payload)

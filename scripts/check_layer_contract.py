@@ -16,7 +16,6 @@ CORE_FORBIDDEN_PATTERNS = (
 )
 
 EXPECTED_STAGING_MODELS = {
-    "stg_apif__fixtures_next.sql",
     "stg_apif__d1_fixture_events.sql",
     "stg_apif__d1_fixture_players.sql",
     "stg_apif__d1_fixture_statistics.sql",
@@ -52,7 +51,7 @@ def check_staging_inventory(errors: list[str]) -> None:
     for name in unexpected:
         errors.append(
             f"Unexpected staging model in api_football: {name} "
-            "(only approved direct source-mapping staging inventory is allowed)."
+            "(only stg_apif__d1_*.sql inventory is allowed)."
         )
 
     for name in missing:

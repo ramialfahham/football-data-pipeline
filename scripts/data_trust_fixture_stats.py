@@ -112,6 +112,9 @@ def run() -> TrustResult:
         reasons.append("staging shots_on_goal is entirely null")
     if core_shots_on_goal_non_null_rows == 0:
         reasons.append("core fixture team stats shots_on_goal is entirely null")
+    if mart_rows == 0:
+        reasons.append("mart matchday insights has zero rows")
+
     return TrustResult(
         raw_rows=raw_rows,
         raw_rows_last_24h=raw_rows_last_24h,

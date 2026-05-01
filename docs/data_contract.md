@@ -1,7 +1,6 @@
-# Data contract: API-Football → BigQuery (competition-aware)
+# Data contract: API-Football → BigQuery (Bundesliga D1)
 
-Current production app surface is Bundesliga (`BL1`) while WC26 onboarding runs in parallel.
-Competition onboarding and status are governed by `docs/competition_registry.yml`.
+League in scope: **D1**, German Bundesliga, API-Football league id `78`.
 
 API references:
 
@@ -32,12 +31,12 @@ Row count per table stays at one by design. Growth happens inside `payload.respo
 
 ## Fanout selection (completeness-driven)
 
-The five per-match raw tables (`RAW_<LEAGUE>_APIF_LINEUPS`, `RAW_<LEAGUE>_APIF_FIXTURE_EVENTS`, `RAW_<LEAGUE>_APIF_FIXTURE_STATISTICS`, `RAW_<LEAGUE>_APIF_FIXTURE_PLAYERS`, `RAW_<LEAGUE>_APIF_PREDICTIONS`) dominate the daily request budget. Before the per-fixture pass, the loader reads the current merged payloads for those five tables and extracts the set of fixture ids already covered, per endpoint. Only fixtures where at least one endpoint is still missing enter the ordering and budget math. Inside the loop, each individual endpoint call is skipped when that fixture id is already covered for that endpoint.
+The five per-match raw tables (`RAW_D1_APIF_LINEUPS`, `RAW_D1_APIF_FIXTURE_EVENTS`, `RAW_D1_APIF_FIXTURE_STATISTICS`, `RAW_D1_APIF_FIXTURE_PLAYERS`, `RAW_D1_APIF_PREDICTIONS`) dominate the daily request budget. Before the per-fixture pass, the loader reads the current merged payloads for those five tables and extracts the set of fixture ids already covered, per endpoint. Only fixtures where at least one endpoint is still missing enter the ordering and budget math. Inside the loop, each individual endpoint call is skipped when that fixture id is already covered for that endpoint.
 
 A start-of-phase log line reports what the run will attempt:
 
 ```
-[api-football] fanout_selection league=BL1 target=3074 already_complete=1501 missing_any_endpoint=1573
+[api-football] fanout_selection league=D1 target=3074 already_complete=1501 missing_any_endpoint=1573
 ```
 
 Coverage advances monotonically across runs under any ordering (`upcoming`, `cursor`, `chrono`). Once every in-scope fixture is covered across all five endpoints, the fanout pass is a no-op.
@@ -48,8 +47,8 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
 
 Data is complete when four conditions hold:
 
-1. **Coverage** — every in-scope raw table for each selected competition has been refreshed, and staging has been rebuilt on top of that refresh.
-2. **History** — raw tables carry the configured season windows (currently the last ten season-start years for league-mode pulls; see `V1_SEASON_WINDOW_YEARS`).
+1. **Coverage** — every in-scope raw table for D1 has been refreshed, and staging has been rebuilt on top of that refresh.
+2. **History** — raw tables carry the multi-season window configured in `ingestion/api_football/config.py` (currently the last ten Bundesliga start years through the current campaign; see `V1_SEASON_WINDOW_YEARS`).
 3. **Freshness** — when new source data appears (matchdays, injuries, transfers), the next run merges it into the corresponding raw tables.
 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
 
@@ -72,15 +71,15 @@ Each row is one HTTP area and the BigQuery raw table where its merged payload li
 
 | Area | Endpoint(s) | BigQuery raw table |
 |------|----------------|-------------------|
-| Fixtures | `/fixtures` | `RAW_<LEAGUE>_APIF_FIXTURES_NEXT` (example: `RAW_D1_APIF_FIXTURES_NEXT`) |
-| League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_<LEAGUE>_APIF_LEAGUES` |
-| Standings | `/standings` | `RAW_<LEAGUE>_APIF_STANDINGS` |
-| Rounds | `/fixtures/rounds` | `RAW_<LEAGUE>_APIF_ROUNDS` |
-| Teams | `/teams` | `RAW_<LEAGUE>_APIF_TEAMS` |
-| Injuries | `/injuries` | `RAW_<LEAGUE>_APIF_INJURIES` |
-| Transfers | `/transfers` (when league and season are accepted) | `RAW_<LEAGUE>_APIF_TRANSFERS` |
-| Squad | `/players` per team, with `page=` merged where applicable | `RAW_<LEAGUE>_APIF_PLAYERS` |
-| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_<LEAGUE>_APIF_LINEUPS`, `RAW_<LEAGUE>_APIF_FIXTURE_EVENTS`, `RAW_<LEAGUE>_APIF_FIXTURE_STATISTICS`, `RAW_<LEAGUE>_APIF_FIXTURE_PLAYERS`, `RAW_<LEAGUE>_APIF_PREDICTIONS` |
+| Fixtures | `/fixtures` | `RAW_D1_APIF_FIXTURES_NEXT` |
+| League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_D1_APIF_LEAGUES` |
+| Standings | `/standings` | `RAW_D1_APIF_STANDINGS` |
+| Rounds | `/fixtures/rounds` | `RAW_D1_APIF_ROUNDS` |
+| Teams | `/teams` | `RAW_D1_APIF_TEAMS` |
+| Injuries | `/injuries` | `RAW_D1_APIF_INJURIES` |
+| Transfers | `/transfers` (when league and season are accepted) | `RAW_D1_APIF_TRANSFERS` |
+| Squad | `/players` per team, with `page=` merged where applicable | `RAW_D1_APIF_PLAYERS` |
+| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_D1_APIF_LINEUPS`, `RAW_D1_APIF_FIXTURE_EVENTS`, `RAW_D1_APIF_FIXTURE_STATISTICS`, `RAW_D1_APIF_FIXTURE_PLAYERS`, `RAW_D1_APIF_PREDICTIONS` |
 
 ### /fixtures query style
 
@@ -102,7 +101,7 @@ Mapping from a typical API-Football subscription list to what this repository in
 
 | Your plan often includes | In this repo today |
 |--------------------------|-------------------|
-| Leagues, seasons (via league payload) | Yes — `GET /leagues`, seasons in `RAW_<LEAGUE>_APIF_LEAGUES` |
+| Leagues, seasons (via league payload) | Yes — `GET /leagues`, seasons in `RAW_D1_APIF_LEAGUES` |
 | Standings, teams, fixtures | Yes |
 | Events | Yes — `GET /fixtures/events` (batched raw → staging) |
 | Line-ups | Yes — `GET /fixtures/lineups` |
@@ -128,28 +127,22 @@ Support safe scheduling, not match statistics.
 | Purpose | BigQuery table |
 |---------|----------------|
 | Single-flight ingest lock | `RAW_APIF_INGEST_LOCK` |
-| Optional fanout cursor (rotating "where to continue") | `RAW_<LEAGUE>_APIF_INGEST_CURSOR` |
+| Optional fanout cursor (rotating "where to continue") | `RAW_D1_APIF_INGEST_CURSOR` |
 
 ---
 
 ## Downstream
 
-Source-near columns live under `dbt_project/models/1_staging/api_football/`. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
+Source-near columns for D1 live under `dbt_project/models/1_staging/api_football/`. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
 
 ---
 
-## Adding a new competition
+## Adding a new league
 
-Competition onboarding is registry-driven:
+The project is scoped to D1 today, but every layer is already league-aware: ingestion loops over a `LEAGUES` dict, dbt facts and dims carry `league_code` in their keys, and marts carry `league_code` as a column. Adding a league (e.g. Bundesliga 2 as `D2`, Premier League as `E1`) is a three-step recipe:
 
-1. **Register competition metadata.** Add/update `docs/competition_registry.yml` with `league_code`, `provider_league_id`, status, and coverage notes.
-2. **Select ingestion policy.** Ingestion always includes `active`; `in_progress` is opt-in via `API_FOOTBALL_INCLUDE_IN_PROGRESS=1`.
-3. **Modeling rollout.** Keep changes additive and preserve current app stability (`BL1` visible while WC26 backfills).
+1. **Configure ingestion.** Add an entry to `LEAGUES` in `ingestion/api_football/config.py` mapping the internal league code to its API-Football league id and the backfill window you want. This is the only code change in the Python package.
+2. **Declare the new raw source.** Add a league block to `dbt_project/models/1_staging/api_football/sources.yml` for the new `RAW_<CODE>_APIF_*` tables.
+3. **Stand up staging + core for the new code.** This is the only non-trivial step today: the current staging models are named `stg_apif__d1_*` and hardcoded to `raw_d1_apif_*` sources, so multi-league support requires either renaming them to `stg_apif__<code>_*` per league, or refactoring staging to be league-agnostic (reading all league sources and propagating `league_code`). The recommended path is the second; the refactor is scoped in the parked plan `multi-league-ready_refactor_fea19c5f` in the Cursor plans directory. Expect about one day of work. Core and marts do not need to change — they already key on `league_code`.
 
-### Product visibility and metric semantics
-
-- App visibility is lifecycle-gated (for example prelaunch windows and post-season hide) and must be independent of ingestion status.
-- For WC26 pre-match analytics, keep qualifier/international context and tournament performance separate:
-  - `recent_form_*`: context window (qualifiers/internationals)
-  - `tournament_form_*`: WC26-only
-  - no blended composite metric.
+After that, run ingestion + `dbt build` and the new league flows through the entire stack. No mart rewrites, no dashboard changes beyond an additional filter value.
