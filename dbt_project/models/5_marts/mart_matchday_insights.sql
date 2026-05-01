@@ -64,6 +64,7 @@ app_visible_competitions as (
         cast(null as string) as league_code,
         cast(null as date) as visible_from,
         cast(null as date) as visible_until
+    from unnest([1]) as _
     where false
     {% else %}
     {% for comp in visible_competitions %}
