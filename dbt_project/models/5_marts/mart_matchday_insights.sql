@@ -47,6 +47,7 @@ next_round as (
         round_name
     from upcoming_candidates
     qualify row_number() over (
+        partition by league_code, season_api_year
         order by fixture_date asc, kickoff_datetime asc
     ) = 1
 ),
@@ -241,9 +242,9 @@ aggregated_form as (
     select
         upcoming_fixture_sk as fixture_sk,
         team_sk,
-        count(*) as form_games_played,
+        count(distinct fixture_sk) as form_games_played,
         count(distinct round_name) as form_matchdays_used,
-        countif(shots_on_goal is not null) as stat_coverage_form_games,
+        count(distinct case when shots_on_goal is not null then fixture_sk end) as stat_coverage_form_games,
         sum(
             case result
                 when 'W' then 3
