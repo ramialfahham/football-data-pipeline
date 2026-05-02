@@ -2,6 +2,10 @@
 
 Read this at the start of every session before doing anything else.
 
+## Working agreement
+
+**Read [`docs/working_agreement.md`](docs/working_agreement.md) before doing anything.** It defines what you are and are not allowed to do, quality standards, branch discipline, layer rules, and communication style. Non-negotiable.
+
 ## North star
 
 **Read [`docs/north_star.md`](docs/north_star.md) first.** It defines the product vision, the user, the navigation flow, what makes it sticky, and the roles. Everything else flows from there.
