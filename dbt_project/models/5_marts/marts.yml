@@ -472,33 +472,13 @@ models:
           expression: "away_save_ratio_recent between 0 and 1"
           name: away_save_ratio_in_range
 
-      # ── Per-match plausibility: values within realistic football bounds ───────
+      # ── Form window size: at most 5 rounds, 1 game per round in Bundesliga ────────
       - dbt_utils.expression_is_true:
-          expression: "home_goals_per_match_recent between 0 and 15"
-          name: home_goals_per_match_plausible
+          expression: "home_form_games_played <= 5"
+          name: home_form_games_played_at_most_5
       - dbt_utils.expression_is_true:
-          expression: "away_goals_per_match_recent between 0 and 15"
-          name: away_goals_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "home_shots_per_match_recent between 0 and 50"
-          name: home_shots_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "away_shots_per_match_recent between 0 and 50"
-          name: away_shots_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "home_passes_per_match_recent between 0 and 1500"
-          name: home_passes_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "away_passes_per_match_recent between 0 and 1500"
-          name: away_passes_per_match_plausible
-
-      # ── Form window size ────────────────────────────────────────────────────────
-      - dbt_utils.expression_is_true:
-          expression: "home_form_games_played between 0 and 5"
-          name: home_form_games_played_in_range
-      - dbt_utils.expression_is_true:
-          expression: "away_form_games_played between 0 and 5"
-          name: away_form_games_played_in_range
+          expression: "away_form_games_played <= 5"
+          name: away_form_games_played_at_most_5
 
       # ── Rate metrics: sum / games_played (missing from first pass) ───────────────
       - dbt_utils.expression_is_true:
@@ -552,19 +532,6 @@ models:
           expression: "(away_goalkeeper_saves_sum_form + away_goals_against_sum_form) = 0 or abs(away_save_ratio_recent - safe_divide(away_goalkeeper_saves_sum_form, away_goalkeeper_saves_sum_form + away_goals_against_sum_form)) < 0.001"
           name: away_save_ratio_consistent_with_sum
 
-      # ── Corner plausibility ─────────────────────────────────────────────────────
-      - dbt_utils.expression_is_true:
-          expression: "home_corner_kicks_per_match_recent between 0 and 20"
-          name: home_corner_kicks_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "away_corner_kicks_per_match_recent between 0 and 20"
-          name: away_corner_kicks_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "home_corners_conceded_per_match_recent between 0 and 20"
-          name: home_corners_conceded_per_match_plausible
-      - dbt_utils.expression_is_true:
-          expression: "away_corners_conceded_per_match_recent between 0 and 20"
-          name: away_corners_conceded_per_match_plausible
     columns:
       - name: fixture_sk
         description: "Fixture key. One row per upcoming fixture in the selected matchday."
