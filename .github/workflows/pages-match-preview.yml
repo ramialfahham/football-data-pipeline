@@ -90,6 +90,10 @@ jobs:
         working-directory: dbt_project
         run: dbt run --select +mart_matchday_insights
 
+      - name: Run data quality tests
+        working-directory: dbt_project
+        run: dbt test --select fct_fixture mart_matchday_insights --exclude tag:debug
+
       - name: Configure Pages
         uses: actions/configure-pages@v4
 
