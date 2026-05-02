@@ -22,6 +22,7 @@ Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga
 | Topic | File |
 |-------|------|
 | Project vision, UI, multi-competition roadmap | Claude memory files (see below) + this file |
+| Agent role briefs | [docs/roles/](docs/roles/) — one file per role |
 | Data contract (raw landing, merge model, endpoints) | [docs/data_contract.md](docs/data_contract.md) |
 | dbt layer rules (what belongs where) | [dbt_project/docs/layering.md](dbt_project/docs/layering.md) |
 | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
