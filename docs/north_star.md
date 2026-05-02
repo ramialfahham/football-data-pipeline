@@ -126,3 +126,6 @@ Quality bar first. Growth comes after the product deserves it.
 | [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | |
 | [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | |
 | [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | |
+| [CFO / Financial Advisor](roles/cfo.md) | Cost tracking, revenue modeling, stage-gate investment decisions | |
+| [CTO / Tech Strategist](roles/cto.md) | Tech stack evolution, stage-appropriate architecture, build vs. buy | |
+| [Product Analyst](roles/product_analyst.md) | App tracking, funnel analysis, retention metrics, behavioural insight | |
