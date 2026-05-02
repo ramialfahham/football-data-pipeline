@@ -73,10 +73,13 @@ jobs:
         run: dbt build --selector staging
 
       - name: Build core transfer contracts
-        run: dbt build --select dim_date dim_player fct_transfer
+        run: dbt build --select dim_date base_apif__d1_transfers +dim_player +fct_transfer
 
       - name: Build fixture statistics chain
         run: dbt build --select stg_apif__d1_fixture_statistics fct_fixture_team_stats mart_matchday_insights
+
+      - name: Run singular data quality tests
+        run: dbt test --select test_type:singular
 
       - name: Run fixture stats trust diagnostics (hard gate)
         run: python ../scripts/data_trust_fixture_stats.py

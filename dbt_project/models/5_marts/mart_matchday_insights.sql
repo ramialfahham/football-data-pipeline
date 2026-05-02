@@ -195,10 +195,50 @@ team_fixture_context as (
     from upcoming_matchday as um
 ),
 
-past_team_matches as (
+current_season_game_counts as (
     select
         tfc.upcoming_fixture_sk,
         tfc.team_sk,
+        count(fwo.fixture_sk) as completed_games_in_current_season
+    from team_fixture_context as tfc
+    left join finished_with_opponent as fwo
+        on
+            tfc.team_sk = fwo.team_sk
+            and tfc.league_code = fwo.league_code
+            and tfc.season_api_year = fwo.season_api_year
+            and tfc.upcoming_kickoff_datetime > fwo.kickoff_datetime
+            and (
+                tfc.upcoming_round_order is null
+                or fwo.round_order is null
+                or tfc.upcoming_round_order > fwo.round_order
+            )
+    group by tfc.upcoming_fixture_sk, tfc.team_sk
+),
+
+team_season_choice as (
+    select
+        tfc.upcoming_fixture_sk,
+        tfc.team_sk,
+        tfc.league_code,
+        tfc.upcoming_kickoff_datetime,
+        tfc.upcoming_round_order,
+        case
+            when coalesce(cs.completed_games_in_current_season, 0) = 0
+                then tfc.season_api_year - 1
+            else tfc.season_api_year
+        end as form_season_api_year,
+        coalesce(cs.completed_games_in_current_season, 0) > 0 as use_current_season
+    from team_fixture_context as tfc
+    left join current_season_game_counts as cs
+        on
+            tfc.upcoming_fixture_sk = cs.upcoming_fixture_sk
+            and tfc.team_sk = cs.team_sk
+),
+
+past_team_matches as (
+    select
+        tsc.upcoming_fixture_sk,
+        tsc.team_sk,
         fwo.fixture_sk,
         fwo.kickoff_datetime,
         fwo.round_name,
@@ -215,21 +255,23 @@ past_team_matches as (
         fwo.goalkeeper_saves,
         fwo.opponent_total_shots,
         fwo.opponent_corner_kicks,
+        tsc.form_season_api_year,
         dense_rank() over (
-            partition by tfc.upcoming_fixture_sk, tfc.team_sk
+            partition by tsc.upcoming_fixture_sk, tsc.team_sk
             order by fwo.round_order desc nulls last, fwo.kickoff_datetime desc
         ) as recent_matchday_rank
-    from team_fixture_context as tfc
+    from team_season_choice as tsc
     inner join finished_with_opponent as fwo
         on
-            tfc.team_sk = fwo.team_sk
-            and tfc.league_code = fwo.league_code
-            and tfc.season_api_year = fwo.season_api_year
-            and tfc.upcoming_kickoff_datetime > fwo.kickoff_datetime
+            tsc.team_sk = fwo.team_sk
+            and tsc.league_code = fwo.league_code
+            and tsc.form_season_api_year = fwo.season_api_year
+            and tsc.upcoming_kickoff_datetime > fwo.kickoff_datetime
             and (
-                tfc.upcoming_round_order is null
+                not tsc.use_current_season
+                or tsc.upcoming_round_order is null
                 or fwo.round_order is null
-                or tfc.upcoming_round_order > fwo.round_order
+                or tsc.upcoming_round_order > fwo.round_order
             )
 ),
 
@@ -242,6 +284,7 @@ aggregated_form as (
     select
         upcoming_fixture_sk as fixture_sk,
         team_sk,
+        any_value(form_season_api_year) as form_season_api_year,
         count(distinct fixture_sk) as form_games_played,
         count(distinct round_name) as form_matchdays_used,
         count(distinct case when shots_on_goal is not null then fixture_sk end) as stat_coverage_form_games,
@@ -271,6 +314,7 @@ team_form_metrics as (
     select
         fixture_sk,
         team_sk,
+        form_season_api_year,
         form_games_played,
         form_matchdays_used,
         stat_coverage_form_games,
@@ -351,6 +395,7 @@ home_form as (
     select
         fixture_sk,
         team_sk as home_team_sk,
+        form_season_api_year as home_form_season_api_year,
         form_games_played as home_form_games_played,
         form_matchdays_used as home_form_matchdays_used,
         stat_coverage_form_games as home_stat_coverage_form_games,
@@ -386,6 +431,7 @@ away_form as (
     select
         fixture_sk,
         team_sk as away_team_sk,
+        form_season_api_year as away_form_season_api_year,
         form_games_played as away_form_games_played,
         form_matchdays_used as away_form_matchdays_used,
         stat_coverage_form_games as away_stat_coverage_form_games,
@@ -436,6 +482,7 @@ final as (
         mfc.upcoming_matchday_fixture_count,
         home_ts.latest_rank as home_league_rank,
         away_ts.latest_rank as away_league_rank,
+        hf.home_form_season_api_year,
         hf.home_form_games_played,
         hf.home_form_matchdays_used,
         hf.home_stat_coverage_form_games,
@@ -464,6 +511,7 @@ final as (
         hf.home_corner_kicks_per_match_recent,
         hf.home_corners_conceded_per_match_recent,
         hf.home_save_ratio_recent,
+        af.away_form_season_api_year,
         af.away_form_games_played,
         af.away_form_matchdays_used,
         af.away_stat_coverage_form_games,

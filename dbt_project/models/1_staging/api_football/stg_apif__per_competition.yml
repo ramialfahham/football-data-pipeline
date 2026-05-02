@@ -439,18 +439,9 @@ models:
         description: "Venue capacity from `venue.capacity`."
 
   - name: stg_apif__d1_transfers
-    description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Grain: (league_code, player_id, transfer_date, from_team_api_id, to_team_api_id, transfer_type)."
+    description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Raw grain: one row per transfer event per player as returned by the API; duplicates are resolved in base_apif__d1_transfers."
     config:
       tags: ["staging", "api_football", "player_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - league_code
-            - player_id
-            - transfer_date
-            - from_team_api_id
-            - to_team_api_id
-            - transfer_type
     columns:
       - name: league_code
         description: "Internal league code; always D1 (Bundesliga) for this MVP."

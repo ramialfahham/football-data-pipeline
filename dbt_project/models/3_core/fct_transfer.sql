@@ -11,37 +11,7 @@
 #}
 
 with src as (
-    select
-        league_code,
-        player_id,
-        player_name,
-        transfer_date,
-        transfer_type,
-        from_team_api_id,
-        from_team_name_snapshot,
-        to_team_api_id,
-        to_team_name_snapshot,
-        raw_ingested_at
-    from {{ ref('stg_apif__d1_transfers') }}
-    where
-        player_id is not null
-),
-
-deduped as (
-    select
-        *,
-        row_number() over (
-            partition by
-                league_code,
-                player_id,
-                transfer_date,
-                from_team_api_id,
-                to_team_api_id,
-                transfer_type
-            order by raw_ingested_at desc
-        ) as rn
-    from src
-    where transfer_date is not null
+    select * from {{ ref('base_apif__d1_transfers') }}
 )
 
 select
@@ -72,5 +42,4 @@ select
     to_team_api_id,
     to_team_name_snapshot,
     raw_ingested_at
-from deduped
-where rn = 1
+from src

@@ -5,7 +5,7 @@ with stg_apif__d1_players as (
 ),
 
 stg_apif__d1_transfers as (
-    select * from {{ ref('stg_apif__d1_transfers') }}
+    select * from {{ ref('base_apif__d1_transfers') }}
 ),
 
 players_src as (
