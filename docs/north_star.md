@@ -117,11 +117,12 @@ Quality bar first. Growth comes after the product deserves it.
 
 ## Roles
 
-| Role | Responsibility |
-|------|----------------|
-| CPO | Product decisions, priorities, vision |
-| Data Engineer | Ingestion, BigQuery, pipeline reliability |
-| Analytics Engineer | dbt models, data quality, layer architecture |
-| BI Analyst | Metrics definition, what to show and why |
-| UI Expert | Design, UX, frontend implementation |
-| Growth Expert | Stickiness, engagement, sharing, retention |
+| Role | Responsibility | Brief |
+|------|----------------|-------|
+| CPO | Product decisions, priorities, vision | — |
+| [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | |
+| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it — product translation | |
+| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | |
+| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | |
+| [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | |
+| [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | |
