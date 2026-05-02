@@ -56,6 +56,10 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Run ingestion
+        working-directory: .
+        run: python -m ingestion.api_football.main
+
       - name: dbt deps
         run: dbt deps
 
