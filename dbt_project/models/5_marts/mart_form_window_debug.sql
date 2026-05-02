@@ -14,6 +14,7 @@
 with
 
 mart_fixture_results as (select * from {{ ref('mart_fixture_results') }}),
+
 fct_fixture as (select * from {{ ref('fct_fixture') }}),
 
 upcoming_candidates as (
@@ -36,7 +37,10 @@ upcoming_candidates as (
 ),
 
 next_round as (
-    select league_code, season_api_year, round_name
+    select
+        league_code,
+        season_api_year,
+        round_name
     from upcoming_candidates
     qualify row_number() over (
         partition by league_code, season_api_year
@@ -48,23 +52,24 @@ upcoming_matchday as (
     select uc.*
     from upcoming_candidates as uc
     inner join next_round as nr
-        on uc.league_code = nr.league_code
-        and uc.season_api_year = nr.season_api_year
-        and uc.round_name = nr.round_name
+        on
+            uc.league_code = nr.league_code
+            and uc.season_api_year = nr.season_api_year
+            and uc.round_name = nr.round_name
 ),
 
 team_context as (
     select
-        fixture_sk            as upcoming_fixture_sk,
+        fixture_sk as upcoming_fixture_sk,
         league_code,
         season_api_year,
-        kickoff_datetime      as upcoming_kickoff,
+        kickoff_datetime as upcoming_kickoff,
         upcoming_round_order,
-        round_name            as upcoming_round,
-        home_team_sk          as team_sk,
-        home_team_name        as team_name,
-        away_team_name        as opponent_name,
-        'home'                as side
+        round_name as upcoming_round,
+        home_team_sk as team_sk,
+        home_team_name as team_name,
+        away_team_name as opponent_name,
+        'home' as side
     from upcoming_matchday
     union all
     select
@@ -77,7 +82,7 @@ team_context as (
         away_team_sk,
         away_team_name,
         home_team_name,
-        'away'
+        'away' as side
     from upcoming_matchday
 ),
 
@@ -89,14 +94,14 @@ finished_legs as (
         kickoff_datetime,
         round_name,
         safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as round_order,
-        home_team_sk                                               as team_sk,
-        goals_home                                                 as goals_for,
-        goals_away                                                 as goals_against,
+        home_team_sk as team_sk,
+        goals_home as goals_for,
+        goals_away as goals_against,
         case
             when goals_home > goals_away then 'W'
             when goals_home < goals_away then 'L'
             else 'D'
-        end                                                        as result
+        end as result
     from fct_fixture
     where
         status_short in ('FT', 'AET', 'PEN')
@@ -109,7 +114,7 @@ finished_legs as (
         season_api_year,
         kickoff_datetime,
         round_name,
-        safe_cast(regexp_extract(round_name, r'(\d+)$') as int64),
+        safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as round_order,
         away_team_sk,
         goals_away,
         goals_home,
@@ -117,7 +122,7 @@ finished_legs as (
             when goals_away > goals_home then 'W'
             when goals_away < goals_home then 'L'
             else 'D'
-        end
+        end as result
     from fct_fixture
     where
         status_short in ('FT', 'AET', 'PEN')
@@ -132,8 +137,8 @@ ranked as (
         tc.side,
         tc.team_name,
         tc.opponent_name,
-        fl.fixture_sk      as form_fixture_sk,
-        fl.round_name      as form_round,
+        fl.fixture_sk as form_fixture_sk,
+        fl.round_name as form_round,
         fl.kickoff_datetime as form_kickoff,
         fl.goals_for,
         fl.goals_against,
@@ -141,18 +146,19 @@ ranked as (
         dense_rank() over (
             partition by tc.upcoming_fixture_sk, tc.team_sk
             order by fl.round_order desc nulls last, fl.kickoff_datetime desc
-        )                  as rank_in_window
+        ) as rank_in_window
     from team_context as tc
     inner join finished_legs as fl
-        on tc.team_sk = fl.team_sk
-        and tc.league_code = fl.league_code
-        and tc.season_api_year = fl.season_api_year
-        and tc.upcoming_kickoff > fl.kickoff_datetime
-        and (
-            tc.upcoming_round_order is null
-            or fl.round_order is null
-            or tc.upcoming_round_order > fl.round_order
-        )
+        on
+            tc.team_sk = fl.team_sk
+            and tc.league_code = fl.league_code
+            and tc.season_api_year = fl.season_api_year
+            and tc.upcoming_kickoff > fl.kickoff_datetime
+            and (
+                tc.upcoming_round_order is null
+                or fl.round_order is null
+                or tc.upcoming_round_order > fl.round_order
+            )
 )
 
 select *
