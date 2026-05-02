@@ -27,6 +27,12 @@ If anything could silently shrink scope or affect something not listed, stop and
 
 Every change goes on a **new branch**. Never commit directly to `main`. Never push to `main`. Create a PR and wait for CI and explicit user approval before merging.
 
+**Correct process:**
+1. `git checkout -b feature/name` — never with `origin/main` as the tracking target (causes pushes to go directly to main)
+2. Do the work and commit
+3. `git push origin feature/name` — explicit remote branch name, never rely on implicit tracking
+4. Open a PR; wait for CI and user approval
+
 ---
 
 ## 4. Quality is non-negotiable
