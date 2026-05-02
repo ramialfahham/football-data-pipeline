@@ -379,11 +379,11 @@ models:
         tests: [not_null]
 
   - name: mart_matchday_insights
-    description: "Bundesliga upcoming matchday surface for pre-match comparison (internal league_code D1). Grain: one row per fixture in the nearest upcoming round. Form metrics aggregate all matches played by each side in the last five completed matchdays (API round order) before the upcoming round; per-match rates divide by games in that window."
+    description: "Upcoming matchday surface for pre-match comparison. Grain: one row per fixture in the nearest upcoming round per competition. Form metrics aggregate the last five completed matchdays before the upcoming round; per-match rates divide by games in that window."
     meta:
       owner: "data-platform"
       domain: "football"
-      criticality: "medium"
+      criticality: "high"
     config:
       tags: ["marts", "football", "consumer", "pre_match"]
     tests:
@@ -394,6 +394,144 @@ models:
           expression: "length(trim(home_team_name)) > 0"
       - dbt_utils.expression_is_true:
           expression: "length(trim(away_team_name)) > 0"
+
+      # ── Metric consistency: reported rate = sum / count ──────────────────────
+      # These catch silent NULL-in-SUM bugs where COUNT includes a game but SUM skips it.
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_goals_per_match_recent - safe_divide(home_goals_for_sum_form, home_form_games_played)) < 0.001"
+          name: home_goals_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_goals_per_match_recent - safe_divide(away_goals_for_sum_form, away_form_games_played)) < 0.001"
+          name: away_goals_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_goals_against_per_match_recent - safe_divide(home_goals_against_sum_form, home_form_games_played)) < 0.001"
+          name: home_goals_against_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_goals_against_per_match_recent - safe_divide(away_goals_against_sum_form, away_form_games_played)) < 0.001"
+          name: away_goals_against_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_points_capture_recent - safe_divide(home_points_won_sum_form, 3.0 * home_form_games_played)) < 0.001"
+          name: home_points_capture_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_points_capture_recent - safe_divide(away_points_won_sum_form, 3.0 * away_form_games_played)) < 0.001"
+          name: away_points_capture_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_total_shots_sum_form = 0 or abs(home_shot_accuracy_recent - safe_divide(home_shots_on_goal_sum_form, home_total_shots_sum_form)) < 0.001"
+          name: home_shot_accuracy_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_total_shots_sum_form = 0 or abs(away_shot_accuracy_recent - safe_divide(away_shots_on_goal_sum_form, away_total_shots_sum_form)) < 0.001"
+          name: away_shot_accuracy_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_passes_total_sum_form = 0 or abs(home_pass_accuracy_recent - safe_divide(home_passes_accurate_sum_form, home_passes_total_sum_form)) < 0.001"
+          name: home_pass_accuracy_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_passes_total_sum_form = 0 or abs(away_pass_accuracy_recent - safe_divide(away_passes_accurate_sum_form, away_passes_total_sum_form)) < 0.001"
+          name: away_pass_accuracy_consistent_with_sum
+
+      # ── Ratio bounds: all ratios must be in [0, 1] ───────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "home_points_capture_recent between 0 and 1"
+          name: home_points_capture_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_points_capture_recent between 0 and 1"
+          name: away_points_capture_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_shot_accuracy_recent between 0 and 1"
+          name: home_shot_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_shot_accuracy_recent between 0 and 1"
+          name: away_shot_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_shot_share_recent between 0 and 1"
+          name: home_shot_share_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_shot_share_recent between 0 and 1"
+          name: away_shot_share_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_danger_zone_ratio_recent between 0 and 1"
+          name: home_danger_zone_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_danger_zone_ratio_recent between 0 and 1"
+          name: away_danger_zone_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_finishing_efficiency_recent between 0 and 1"
+          name: home_finishing_efficiency_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_finishing_efficiency_recent between 0 and 1"
+          name: away_finishing_efficiency_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_pass_accuracy_recent between 0 and 1"
+          name: home_pass_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_pass_accuracy_recent between 0 and 1"
+          name: away_pass_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_save_ratio_recent between 0 and 1"
+          name: home_save_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_save_ratio_recent between 0 and 1"
+          name: away_save_ratio_in_range
+
+      # ── Form window size: at most 5 rounds, 1 game per round in Bundesliga ────────
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played <= 5"
+          name: home_form_games_played_at_most_5
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played <= 5"
+          name: away_form_games_played_at_most_5
+
+      # ── Rate metrics: sum / games_played (missing from first pass) ───────────────
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_shots_per_match_recent - safe_divide(home_total_shots_sum_form, home_form_games_played)) < 0.001"
+          name: home_shots_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_shots_per_match_recent - safe_divide(away_total_shots_sum_form, away_form_games_played)) < 0.001"
+          name: away_shots_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_passes_per_match_recent - safe_divide(home_passes_total_sum_form, home_form_games_played)) < 0.001"
+          name: home_passes_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_passes_per_match_recent - safe_divide(away_passes_total_sum_form, away_form_games_played)) < 0.001"
+          name: away_passes_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_corner_kicks_per_match_recent - safe_divide(home_corner_kicks_sum_form, home_form_games_played)) < 0.001"
+          name: home_corner_kicks_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_corner_kicks_per_match_recent - safe_divide(away_corner_kicks_sum_form, away_form_games_played)) < 0.001"
+          name: away_corner_kicks_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or abs(home_corners_conceded_per_match_recent - safe_divide(home_opponent_corner_kicks_sum_form, home_form_games_played)) < 0.001"
+          name: home_corners_conceded_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or abs(away_corners_conceded_per_match_recent - safe_divide(away_opponent_corner_kicks_sum_form, away_form_games_played)) < 0.001"
+          name: away_corners_conceded_per_match_consistent_with_sum
+
+      # ── Ratio-of-sums metrics: formula consistency ──────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "(home_total_shots_sum_form + home_opponent_total_shots_sum_form) = 0 or abs(home_shot_share_recent - safe_divide(home_total_shots_sum_form, home_total_shots_sum_form + home_opponent_total_shots_sum_form)) < 0.001"
+          name: home_shot_share_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "(away_total_shots_sum_form + away_opponent_total_shots_sum_form) = 0 or abs(away_shot_share_recent - safe_divide(away_total_shots_sum_form, away_total_shots_sum_form + away_opponent_total_shots_sum_form)) < 0.001"
+          name: away_shot_share_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_total_shots_sum_form = 0 or abs(home_danger_zone_ratio_recent - safe_divide(home_shots_inside_box_sum_form, home_total_shots_sum_form)) < 0.001"
+          name: home_danger_zone_ratio_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_total_shots_sum_form = 0 or abs(away_danger_zone_ratio_recent - safe_divide(away_shots_inside_box_sum_form, away_total_shots_sum_form)) < 0.001"
+          name: away_danger_zone_ratio_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_shots_on_goal_sum_form = 0 or abs(home_finishing_efficiency_recent - safe_divide(home_goals_for_sum_form, home_shots_on_goal_sum_form)) < 0.001"
+          name: home_finishing_efficiency_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_shots_on_goal_sum_form = 0 or abs(away_finishing_efficiency_recent - safe_divide(away_goals_for_sum_form, away_shots_on_goal_sum_form)) < 0.001"
+          name: away_finishing_efficiency_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "(home_goalkeeper_saves_sum_form + home_goals_against_sum_form) = 0 or abs(home_save_ratio_recent - safe_divide(home_goalkeeper_saves_sum_form, home_goalkeeper_saves_sum_form + home_goals_against_sum_form)) < 0.001"
+          name: home_save_ratio_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "(away_goalkeeper_saves_sum_form + away_goals_against_sum_form) = 0 or abs(away_save_ratio_recent - safe_divide(away_goalkeeper_saves_sum_form, away_goalkeeper_saves_sum_form + away_goals_against_sum_form)) < 0.001"
+          name: away_save_ratio_consistent_with_sum
+
     columns:
       - name: fixture_sk
         description: "Fixture key. One row per upcoming fixture in the selected matchday."
