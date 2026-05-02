@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: base_apif__d1_transfers
+    description: >
+      Deduplicated transfer events from stg_apif__d1_transfers.
+      Resolves duplicate entries that the API occasionally returns within a
+      single player's transfers array by keeping the most recently ingested row
+      per transfer grain. Grain: (league_code, player_id, transfer_date,
+      from_team_api_id, to_team_api_id, transfer_type).
+    config:
+      tags: ["base", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - player_id
+            - transfer_date
+            - from_team_api_id
+            - to_team_api_id
+            - transfer_type
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: transfer_date
+        tests: [not_null]
