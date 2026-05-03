@@ -2,7 +2,6 @@
 
 with current_snapshot as (
     select
-        league_code,
         season,
         team_id,
         group_description,
@@ -15,7 +14,8 @@ with current_snapshot as (
         draws_all as draws,
         losses_all as losses,
         raw_ingested_at,
-        dbt_valid_from as snapshot_valid_from
+        dbt_valid_from as snapshot_valid_from,
+        replace(league_code, 'D1', 'BL1') as league_code
     from {{ ref('snap_apif_d1_standings') }}
     where dbt_valid_to is null
 )

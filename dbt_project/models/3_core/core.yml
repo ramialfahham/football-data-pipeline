@@ -372,8 +372,7 @@ models:
       - name: season_api_year
       - name: team_api_id
       - name: group_description
-        description: "Standings group label (e.g. ``Bundesliga``). Part of the grain because the API returns one row per (team, group)."
-        tests: [not_null]
+        description: "Standings group label (e.g. ``Bundesliga``). Part of the grain because the API returns one row per (team, group). Null for single-group leagues."
       - name: standing_rank
         description: "Table position (1 = leader)."
       - name: points
