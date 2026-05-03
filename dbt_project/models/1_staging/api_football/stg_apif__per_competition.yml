@@ -14,7 +14,7 @@ version: 2
 # Freshness lives in sources.yml via loaded_at_field: ingested_at.
 
 models:
-  - name: stg_apif__d1_fixtures_next
+  - name: stg_apif__bl1_fixtures_next
     description: "One row per match from GET /fixtures (D1). Grain: fixture_id. Envelope metadata as JSON strings plus core kickoff / teams / score columns and source_json."
     meta:
       owner: "data-platform"
@@ -24,7 +24,7 @@ models:
       tags: ["staging", "api_football", "player_context"]
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: raw_ingested_at
         description: "UTC timestamp when this raw table row was loaded (from ``ingested_at`` in BigQuery raw)."
@@ -81,7 +81,7 @@ models:
       - name: venue_city
         description: "Venue city from `fixture.venue.city`."
 
-  - name: stg_apif__d1_players
+  - name: stg_apif__bl1_players
     description: "One row per player per (league, team, season) from the merged /players squad pull. Grain: (league_code, team_id, season_year, player_id)."
     meta:
       owner: "data-platform"
@@ -98,7 +98,7 @@ models:
             - player_id
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: team_id
         description: "Club id for this squad row."
@@ -128,7 +128,7 @@ models:
       - name: source_json
         description: "Full player response object JSON for fields not promoted to columns."
 
-  - name: stg_apif__d1_lineups
+  - name: stg_apif__bl1_lineups
     description: "One row per team formation block per fixture from the batched lineups payload. Grain: (league_code, fixture_id, team_id)."
     meta:
       owner: "data-platform"
@@ -144,7 +144,7 @@ models:
             - team_id
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id for this lineup slice."
@@ -167,7 +167,7 @@ models:
       - name: source_json
         description: "Full team lineup object JSON for fields not promoted to columns."
 
-  - name: stg_apif__d1_injuries
+  - name: stg_apif__bl1_injuries
     description: "One row per injury report from GET /injuries. Grain: (league_code, season, player_id, team_id, fixture_id, injury_type, injury_reason). Type and reason are in the grain to disambiguate multiple reports for the same player+fixture and may legitimately be NULL at source."
     meta:
       owner: "data-platform"
@@ -187,7 +187,7 @@ models:
             - injury_reason
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: season
         description: "API season year on the injury row (from `$.league.season` in the response object)."
@@ -228,7 +228,7 @@ models:
       - name: injury_reason
         description: "Injury reason from `reason` on the injury row."
 
-  - name: stg_apif__d1_leagues
+  - name: stg_apif__bl1_leagues
     description: "Bundesliga D1 metadata and per-season coverage from GET /leagues. Grain: (league_code, league_api_id, season_api_year)."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -240,7 +240,7 @@ models:
             - season_api_year
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: league_api_id
         description: "API-Football league id (78 for Bundesliga)."
@@ -299,7 +299,7 @@ models:
       - name: has_coverage_odds
         description: "Coverage flag from `seasons[].coverage.odds`."
 
-  - name: stg_apif__d1_standings
+  - name: stg_apif__bl1_standings
     description: "League table from GET /standings (skipped when coverage.standings is false). Grain: (league_code, season, team_id, group_description). group_description is part of the grain because some competitions have multiple groups; for Bundesliga it is always a single group."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -312,7 +312,7 @@ models:
             - group_description
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: season
         description: "API season year for the standings snapshot."
@@ -355,7 +355,7 @@ models:
       - name: source_json
         description: "Full standings team row JSON for fields not promoted to columns."
 
-  - name: stg_apif__d1_rounds
+  - name: stg_apif__bl1_rounds
     description: "Round names from GET /fixtures/rounds (raw stores one block per API season with ``api_season_year``). Grain: (league_code, api_season_year, round_name)."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -367,7 +367,7 @@ models:
             - round_name
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: api_season_year
         description: "API season year this round list belongs to."
@@ -386,7 +386,7 @@ models:
       - name: source_json
         description: "Raw round value JSON/string preserved for lineage."
 
-  - name: stg_apif__d1_teams
+  - name: stg_apif__bl1_teams
     description: "Clubs and venues from GET /teams for league+season. Grain: (league_code, season, team_id)."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -398,7 +398,7 @@ models:
             - team_id
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: season
         description: "API season year for this team row (from `$.league.season` in the response object)."
@@ -438,13 +438,13 @@ models:
       - name: venue_capacity
         description: "Venue capacity from `venue.capacity`."
 
-  - name: stg_apif__d1_transfers
-    description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Raw grain: one row per transfer event per player as returned by the API; duplicates are resolved in base_apif__d1_transfers."
+  - name: stg_apif__bl1_transfers
+    description: "GET /transfers merged envelope (optional; disable with API_FOOTBALL_FETCH_TRANSFERS=0). Raw grain: one row per transfer event per player as returned by the API; duplicates are resolved in base_apif__bl1_transfers."
     config:
       tags: ["staging", "api_football", "player_context"]
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: player_id
         description: "Player id from API-Football."
@@ -477,7 +477,7 @@ models:
       - name: to_team_name_snapshot
         description: "Incoming club name snapshot from `transfers[].teams.in.name`."
 
-  - name: stg_apif__d1_fixture_events
+  - name: stg_apif__bl1_fixture_events
     description: "Per-fixture GET /fixtures/events (batched payload). Grain: (league_code, fixture_id, minute_elapsed, minute_extra, team_id, player_id, event_type, event_detail). Minute and player fields may legitimately be NULL at source (e.g. VAR decisions, team-level events); only entity-identity columns carry not_null."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -494,7 +494,7 @@ models:
             - event_detail
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id the event belongs to."
@@ -525,7 +525,7 @@ models:
       - name: source_json
         description: "Full event object JSON for fields not promoted to columns."
 
-  - name: stg_apif__d1_fixture_statistics
+  - name: stg_apif__bl1_fixture_statistics
     description: "Per-fixture GET /fixtures/statistics (batched payload). Grain: (league_code, fixture_id, team_id)."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -537,7 +537,7 @@ models:
             - team_id
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id these stats belong to."
@@ -584,7 +584,7 @@ models:
       - name: source_json
         description: "Full team statistics object JSON for fields not promoted to columns."
 
-  - name: stg_apif__d1_fixture_players
+  - name: stg_apif__bl1_fixture_players
     description: "Per-fixture GET /fixtures/players (batched payload). Grain: (league_code, fixture_id, team_id, player_id)."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -597,7 +597,7 @@ models:
             - player_id
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id these per-player stats belong to."
@@ -685,7 +685,7 @@ models:
       - name: source_json
         description: "Full player fixture object JSON for fields not promoted to columns."
 
-  - name: stg_apif__d1_predictions
+  - name: stg_apif__bl1_predictions
     description: "Per-fixture GET /predictions (batched payload). Grain: (league_code, fixture_id, prediction_json). prediction_json is in the grain to disambiguate multiple prediction variants per fixture; it is not asserted not_null because structure can vary at source."
     config:
       tags: ["staging", "api_football", "player_context"]
@@ -697,7 +697,7 @@ models:
             - prediction_json
     columns:
       - name: league_code
-        description: "Internal league code; always D1 (Bundesliga) for this MVP."
+        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id the prediction belongs to."

@@ -35,7 +35,7 @@ upcoming_candidates as (
         status_short
     from mart_fixture_results
     where
-        league_code = 'D1'
+        league_code = 'BL1'
         and status_short in ('NS', 'TBD')
         and fixture_date >= current_date()
 ),
@@ -541,7 +541,7 @@ final as (
         af.away_corners_conceded_per_match_recent,
         af.away_save_ratio_recent,
         case
-            when um.league_code = 'D1' then 'Bundesliga'
+            when um.league_code = 'BL1' then 'Bundesliga'
             else um.league_name
         end as league_name
     from upcoming_matchday as um

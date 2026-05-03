@@ -34,7 +34,7 @@ with src as (
                 event_detail
             order by raw_ingested_at desc
         ) as rn
-    from {{ ref('stg_apif__d1_fixture_events') }}
+    from {{ ref('stg_apif__bl1_fixture_events') }}
     where fixture_id is not null
 )
 

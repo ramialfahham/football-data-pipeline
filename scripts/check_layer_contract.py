@@ -16,19 +16,19 @@ CORE_FORBIDDEN_PATTERNS = (
 )
 
 EXPECTED_STAGING_MODELS = {
-    "stg_apif__d1_fixture_events.sql",
-    "stg_apif__d1_fixture_players.sql",
-    "stg_apif__d1_fixture_statistics.sql",
-    "stg_apif__d1_fixtures_next.sql",
-    "stg_apif__d1_injuries.sql",
-    "stg_apif__d1_leagues.sql",
-    "stg_apif__d1_lineups.sql",
-    "stg_apif__d1_players.sql",
-    "stg_apif__d1_predictions.sql",
-    "stg_apif__d1_rounds.sql",
-    "stg_apif__d1_standings.sql",
-    "stg_apif__d1_teams.sql",
-    "stg_apif__d1_transfers.sql",
+    "stg_apif__bl1_fixture_events.sql",
+    "stg_apif__bl1_fixture_players.sql",
+    "stg_apif__bl1_fixture_statistics.sql",
+    "stg_apif__bl1_fixtures_next.sql",
+    "stg_apif__bl1_injuries.sql",
+    "stg_apif__bl1_leagues.sql",
+    "stg_apif__bl1_lineups.sql",
+    "stg_apif__bl1_players.sql",
+    "stg_apif__bl1_predictions.sql",
+    "stg_apif__bl1_rounds.sql",
+    "stg_apif__bl1_standings.sql",
+    "stg_apif__bl1_teams.sql",
+    "stg_apif__bl1_transfers.sql",
 }
 
 
@@ -51,7 +51,7 @@ def check_staging_inventory(errors: list[str]) -> None:
     for name in unexpected:
         errors.append(
             f"Unexpected staging model in api_football: {name} "
-            "(only stg_apif__d1_*.sql inventory is allowed)."
+            "(only stg_apif__bl1_*.sql inventory is allowed)."
         )
 
     for name in missing:

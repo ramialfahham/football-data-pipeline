@@ -1,28 +1,13 @@
 {{ config(materialized='table') }}
 
-with src as (
-    select
-        league_code,
-        league_api_id,
-        league_name,
-        league_type,
-        country as league_country,
-        league_logo_url,
-        country_flag_url,
-        season_api_year,
-        raw_ingested_at
-    from {{ ref('stg_apif__d1_leagues') }}
-    where league_api_id is not null
-),
-
-ranked as (
+with latest_per_league as (
     select
         *,
         row_number() over (
             partition by league_code, league_api_id
-            order by raw_ingested_at desc, season_api_year desc
+            order by season_api_year desc, raw_ingested_at desc
         ) as rn
-    from src
+    from {{ ref('base_apif__bl1_leagues') }}
 )
 
 select
@@ -35,5 +20,5 @@ select
     league_logo_url,
     country_flag_url,
     raw_ingested_at
-from ranked
+from latest_per_league
 where rn = 1
