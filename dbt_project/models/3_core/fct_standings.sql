@@ -14,30 +14,38 @@ with current_snapshot as (
         losses_all as losses,
         raw_ingested_at,
         dbt_valid_from as snapshot_valid_from,
-        replace(league_code, 'D1', 'BL1') as league_code,
-        coalesce(group_description, league_name) as group_description
+        league_code,
+        group_description
     from {{ ref('snap_apif_d1_standings') }}
     where dbt_valid_to is null
+),
+
+season_keys as (
+    select season_api_year, league_code
+    from {{ ref('dim_season') }}
 )
 
 select
     {{ dbt_utils.generate_surrogate_key([
-        'league_code', 'season', 'team_id', 'group_description'
+        'cs.league_code', 'cs.season', 'cs.team_id', 'cs.group_description'
     ]) }} as standing_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'season']) }} as season_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'team_id']) }} as team_sk,
-    league_code,
-    season as season_api_year,
-    team_id as team_api_id,
-    group_description,
-    standing_rank,
-    points,
-    goals_diff,
-    form,
-    played,
-    wins,
-    draws,
-    losses,
-    raw_ingested_at,
-    snapshot_valid_from
-from current_snapshot
+    {{ dbt_utils.generate_surrogate_key(['cs.league_code', 'cs.season']) }} as season_sk,
+    {{ dbt_utils.generate_surrogate_key(['cs.league_code', 'cs.team_id']) }} as team_sk,
+    cs.league_code,
+    cs.season as season_api_year,
+    cs.team_id as team_api_id,
+    cs.group_description,
+    cs.standing_rank,
+    cs.points,
+    cs.goals_diff,
+    cs.form,
+    cs.played,
+    cs.wins,
+    cs.draws,
+    cs.losses,
+    cs.raw_ingested_at,
+    cs.snapshot_valid_from
+from current_snapshot as cs
+inner join season_keys as sk
+    on cs.league_code = sk.league_code
+    and cs.season = sk.season_api_year

@@ -372,8 +372,7 @@ models:
       - name: season_api_year
       - name: team_api_id
       - name: group_description
-        description: "Standings group label. Part of the grain because the API returns one row per (team, group). Falls back to the league name when the API omits it (e.g. Bundesliga, which has no sub-groups)."
-        tests: [not_null]
+        description: "Standings zone label (e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams where the API returns no zone significance."
       - name: standing_rank
         description: "Table position (1 = leader)."
       - name: points

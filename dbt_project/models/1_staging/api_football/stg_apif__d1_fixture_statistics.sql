@@ -7,7 +7,7 @@ blocks as (
     select
         src.ingested_at as raw_ingested_at,
         block_json,
-        coalesce(json_value(src.payload, '$.league_code'), 'D1') as league_code
+        'D1' as league_code
     from src,
         unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as block_json
 ),

@@ -1,28 +1,7 @@
 {{ config(materialized='table') }}
 
 with stg_apif__d1_fixture_statistics as (
-    select
-        fixture_id,
-        team_id,
-        shots_on_goal,
-        shots_off_goal,
-        shots_total,
-        shots_blocked,
-        shots_inside_box,
-        shots_outside_box,
-        fouls,
-        corner_kicks,
-        offsides,
-        ball_possession_percent,
-        yellow_cards,
-        red_cards,
-        goalkeeper_saves,
-        passes_total,
-        passes_accurate,
-        passes_accuracy_percent,
-        raw_ingested_at,
-        replace(league_code, 'D1', 'BL1') as league_code
-    from {{ ref('stg_apif__d1_fixture_statistics') }}
+    select * from {{ ref('stg_apif__d1_fixture_statistics') }}
 ),
 
 src as (
