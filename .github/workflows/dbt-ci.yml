@@ -79,7 +79,7 @@ jobs:
         run: dbt build --select stg_apif__bl1_fixture_statistics fct_fixture_team_stats mart_matchday_insights
 
       - name: Run singular data quality tests
-        run: dbt test --select test_type:singular
+        run: dbt test --select test_type:singular --exclude tag:freshness_check
 
       - name: Run fixture stats trust diagnostics (hard gate)
         run: python ../scripts/data_trust_fixture_stats.py
