@@ -51,7 +51,7 @@ Landing page
 - **Deeper stats than anyone** — more metrics, more history, more competitions
 - **Most fun and shareable** — built for group chats and sports bars, opinionated and visual
 - **All competitions in one place** — Bundesliga, WC, PL, La Liga — everything unified
-- **Multilingual from day one** — German, English, Finnish (browser locale default, manual switcher)
+- **Multilingual from day one** — German, English, Finnish, Spanish, French, Italian, Dutch, Portuguese (browser locale default, manual switcher)
 - Always something relevant — no dead states. Qualifier fallback, previous season fallback. Never empty.
 
 ---
