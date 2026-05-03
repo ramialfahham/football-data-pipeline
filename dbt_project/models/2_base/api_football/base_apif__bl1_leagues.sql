@@ -9,7 +9,7 @@ with src as (
         league_api_id,
         league_name,
         league_type,
-        country                         as league_country,
+        country as league_country,
         league_logo_url,
         country_flag_url,
         season_api_year,
@@ -30,7 +30,8 @@ with src as (
         has_coverage_odds,
         raw_ingested_at
     from {{ ref('stg_apif__bl1_leagues') }}
-    where league_api_id is not null
+    where
+        league_api_id is not null
         and season_api_year is not null
 ),
 

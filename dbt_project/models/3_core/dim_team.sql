@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 select
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'team_api_id']) }}  as team_sk,
+    {{ dbt_utils.generate_surrogate_key(['league_code', 'team_api_id']) }} as team_sk,
     league_code,
     team_api_id,
     team_name,

@@ -1,8 +1,8 @@
 {{ config(materialized='table') }}
 
 select
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'season_api_year']) }}  as season_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'league_api_id']) }}    as league_sk,
+    {{ dbt_utils.generate_surrogate_key(['league_code', 'season_api_year']) }} as season_sk,
+    {{ dbt_utils.generate_surrogate_key(['league_code', 'league_api_id']) }} as league_sk,
     league_code,
     season_api_year,
     season_start_date,
