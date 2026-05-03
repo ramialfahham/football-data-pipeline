@@ -13,6 +13,8 @@ CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bjson_query\s*\(", re.IGNORECASE),
     re.compile(r"\bunnest\s*\(", re.IGNORECASE),
     re.compile(r"\bsafe\.parse_json\s*\(", re.IGNORECASE),
+    # Core must not ref staging directly — go through base layer
+    re.compile(r"""ref\(\s*['"]stg_""", re.IGNORECASE),
 )
 
 EXPECTED_STAGING_MODELS = {

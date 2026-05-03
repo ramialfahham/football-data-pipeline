@@ -1,26 +1,22 @@
-{{ config(materialized='table') }}
-
-with base as (
-    select * from {{ ref('base_apif__bl1_fixture_players') }}
+with src as (
+    select * from {{ ref('stg_apif__bl1_fixture_players') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+        and player_id is not null
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['fixture_id', 'league_code', 'team_id', 'player_id']) }}
-        as fixture_player_stat_sk,
-    cast(fixture_id as int64) as fixture_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'team_id']) }} as team_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'player_id']) }} as player_sk,
     league_code,
-    fixture_id as fixture_api_id,
-    team_id as team_api_id,
-    player_id as player_api_id,
+    fixture_id,
+    team_id,
+    player_id,
     minutes_played,
     shirt_number,
     position_code,
     rating,
     is_captain,
     is_substitute,
-    coalesce(minutes_played, 0) > 0 and not coalesce(is_substitute, false) as is_starter,
     offsides,
     shots_total,
     shots_on,
@@ -49,4 +45,8 @@ select
     penalty_missed,
     penalty_saved,
     raw_ingested_at
-from base
+from src
+qualify row_number() over (
+    partition by fixture_id, team_id, player_id
+    order by raw_ingested_at desc
+) = 1
