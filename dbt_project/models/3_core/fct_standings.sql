@@ -4,7 +4,6 @@ with current_snapshot as (
     select
         season,
         team_id,
-        group_description,
         standing_rank,
         points,
         goals_diff,
@@ -15,7 +14,8 @@ with current_snapshot as (
         losses_all as losses,
         raw_ingested_at,
         dbt_valid_from as snapshot_valid_from,
-        replace(league_code, 'D1', 'BL1') as league_code
+        replace(league_code, 'D1', 'BL1') as league_code,
+        coalesce(group_description, league_name) as group_description
     from {{ ref('snap_apif_d1_standings') }}
     where dbt_valid_to is null
 )
