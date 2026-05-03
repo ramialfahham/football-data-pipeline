@@ -21,7 +21,7 @@ with leagues_src as (
         has_coverage_injuries,
         has_coverage_predictions,
         has_coverage_odds
-    from {{ ref('stg_apif__d1_leagues') }}
+    from {{ ref('stg_apif__bl1_leagues') }}
 ),
 
 ranked as (

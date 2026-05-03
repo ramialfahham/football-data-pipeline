@@ -61,7 +61,7 @@ Not allowed:
 - Business rules and feature engineering.
 - Cross-domain joins.
 
-**Hard contract:** `models/1_staging/api_football/` must contain exactly **13** `stg_apif__d1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Adding a 14th helper model in staging is a contract violation and must fail CI.
+**Hard contract:** `models/1_staging/api_football/` must contain exactly **13** `stg_apif__bl1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Adding a 14th helper model in staging is a contract violation and must fail CI.
 
 ## 2_base
 
@@ -107,10 +107,10 @@ Canonical dimension inventory for this project:
 | Dim | Grain | Source staging model | Notes |
 |-----|-------|----------------------|-------|
 | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
-| `dim_league` | (league_code, league_api_id) | `stg_apif__d1_leagues` | One row per configured league. |
-| `dim_season` | (league_code, season_api_year) | `stg_apif__d1_leagues` (seasons_json) | Carries API coverage flags that drive downstream conditional logic. |
-| `dim_team` | (league_code, team_api_id) | `stg_apif__d1_teams` | Deduplicated to latest-season snapshot; home-venue attributes denormalized until a first-class `dim_venue` is justified. |
-| `dim_player` | (league_code, player_api_id) | `stg_apif__d1_players` | Deduplicated to latest (team, season); `last_known_team_api_id` is a snapshot attribute, not a join key. |
+| `dim_league` | (league_code, league_api_id) | `stg_apif__bl1_leagues` | One row per configured league. |
+| `dim_season` | (league_code, season_api_year) | `stg_apif__bl1_leagues` (seasons_json) | Carries API coverage flags that drive downstream conditional logic. |
+| `dim_team` | (league_code, team_api_id) | `stg_apif__bl1_teams` | Deduplicated to latest-season snapshot; home-venue attributes denormalized until a first-class `dim_venue` is justified. |
+| `dim_player` | (league_code, player_api_id) | `stg_apif__bl1_players` | Deduplicated to latest (team, season); `last_known_team_api_id` is a snapshot attribute, not a join key. |
 
 All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
 
@@ -133,12 +133,12 @@ Canonical fact inventory for this project:
 
 | Fact | Grain | Source staging model(s) | Notes |
 |------|-------|-------------------------|-------|
-| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `stg_apif__d1_fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
-| `fct_standings` | `(season_sk, team_sk, group_description)` | `snap_apif_d1_standings` (from `stg_apif__d1_standings`) | Current snapshot only; history is in the dbt snapshot table. |
-| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `stg_apif__d1_fixture_statistics` | `statistics_lines_json` pivoted to named columns. |
-| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__d1_fixture_players` | `player_statistics_json[0]` flattened into measures. |
-| `fct_fixture_event` | `event_sk` hashed over full staging grain | `stg_apif__d1_fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
-| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `stg_apif__d1_transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
+| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `stg_apif__bl1_fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+| `fct_standings` | `(season_sk, team_sk, group_description)` | `snap_apif_d1_standings` (from `stg_apif__bl1_standings`) | Current snapshot only; history is in the dbt snapshot table. |
+| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `stg_apif__bl1_fixture_statistics` | `statistics_lines_json` pivoted to named columns. |
+| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__bl1_fixture_players` | `player_statistics_json[0]` flattened into measures. |
+| `fct_fixture_event` | `event_sk` hashed over full staging grain | `stg_apif__bl1_fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
+| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `stg_apif__bl1_transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
 
 All facts propagate `league_code` so they are safe to union across future leagues.
 

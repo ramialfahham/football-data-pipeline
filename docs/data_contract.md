@@ -1,6 +1,6 @@
-# Data contract: API-Football → BigQuery (Bundesliga D1)
+# Data contract: API-Football → BigQuery (Bundesliga BL1)
 
-League in scope: **D1**, German Bundesliga, API-Football league id `78`.
+League in scope: **BL1** (internal league_code), German Bundesliga, API-Football league id `78`. Raw BigQuery tables use the `D1` prefix (provider payload legacy — see competition registry).
 
 API references:
 
@@ -133,7 +133,7 @@ Support safe scheduling, not match statistics.
 
 ## Downstream
 
-Source-near columns for D1 live under `dbt_project/models/1_staging/api_football/`. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
+Source-near columns for BL1 live under `dbt_project/models/1_staging/api_football/` as `stg_apif__bl1_*` models. Note: the raw BigQuery tables retain the `D1` prefix (e.g. `RAW_D1_APIF_FIXTURES_NEXT`) as a legacy exception — `BL1` is the internal `league_code` used at staging and above; `D1` only appears as the raw table prefix from the provider payload. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
 
 ---
 
@@ -143,6 +143,6 @@ The project is scoped to D1 today, but every layer is already league-aware: inge
 
 1. **Configure ingestion.** Add an entry to `LEAGUES` in `ingestion/api_football/config.py` mapping the internal league code to its API-Football league id and the backfill window you want. This is the only code change in the Python package.
 2. **Declare the new raw source.** Add a league block to `dbt_project/models/1_staging/api_football/sources.yml` for the new `RAW_<CODE>_APIF_*` tables.
-3. **Stand up staging + core for the new code.** This is the only non-trivial step today: the current staging models are named `stg_apif__d1_*` and hardcoded to `raw_d1_apif_*` sources, so multi-league support requires either renaming them to `stg_apif__<code>_*` per league, or refactoring staging to be league-agnostic (reading all league sources and propagating `league_code`). The recommended path is the second; the refactor is scoped in the parked plan `multi-league-ready_refactor_fea19c5f` in the Cursor plans directory. Expect about one day of work. Core and marts do not need to change — they already key on `league_code`.
+3. **Stand up staging + core for the new code.** This is the only non-trivial step today: the current staging models are named `stg_apif__bl1_*` (internal `league_code`-based naming) and hardcoded to `raw_d1_apif_*` sources, so multi-league support requires either adding new `stg_apif__<code>_*` per league, or refactoring staging to be league-agnostic (reading all league sources and propagating `league_code`). The recommended path is the second; the refactor is scoped in the parked plan `multi-league-ready_refactor_fea19c5f` in the Cursor plans directory. Expect about one day of work. Core and marts do not need to change — they already key on `league_code`.
 
 After that, run ingestion + `dbt build` and the new league flows through the entire stack. No mart rewrites, no dashboard changes beyond an additional filter value.

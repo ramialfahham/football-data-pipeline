@@ -25,7 +25,7 @@ with src as (
             partition by fixture_id
             order by raw_ingested_at desc
         ) as rn
-    from {{ ref('stg_apif__d1_fixtures_next') }}
+    from {{ ref('stg_apif__bl1_fixtures_next') }}
     where fixture_id is not null
 )
 

@@ -5,7 +5,7 @@ with src as (
 
 season_blocks as (
     select
-        'D1' as league_code,
+        'BL1' as league_code,
         src.ingested_at as raw_ingested_at,
         season_block,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,

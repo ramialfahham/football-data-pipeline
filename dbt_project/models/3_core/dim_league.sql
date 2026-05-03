@@ -11,7 +11,7 @@ with src as (
         country_flag_url,
         season_api_year,
         raw_ingested_at
-    from {{ ref('stg_apif__d1_leagues') }}
+    from {{ ref('stg_apif__bl1_leagues') }}
     where league_api_id is not null
 ),
 

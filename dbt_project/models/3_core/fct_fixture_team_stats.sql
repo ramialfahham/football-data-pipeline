@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
-with stg_apif__d1_fixture_statistics as (
-    select * from {{ ref('stg_apif__d1_fixture_statistics') }}
+with stg_apif__bl1_fixture_statistics as (
+    select * from {{ ref('stg_apif__bl1_fixture_statistics') }}
 ),
 
 src as (
@@ -30,7 +30,7 @@ src as (
             partition by fixture_id, team_id
             order by raw_ingested_at desc
         ) as rn
-    from stg_apif__d1_fixture_statistics
+    from stg_apif__bl1_fixture_statistics
     where
         fixture_id is not null
         and team_id is not null

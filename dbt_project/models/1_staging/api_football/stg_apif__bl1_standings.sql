@@ -5,7 +5,7 @@ with src as (
 
 expanded_standings as (
     select
-        'D1' as league_code,
+        'BL1' as league_code,
         src.ingested_at as raw_ingested_at,
         league_block,
         stage_group,

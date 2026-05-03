@@ -1,11 +1,11 @@
 {{ config(materialized='table') }}
 
-with stg_apif__d1_players as (
-    select * from {{ ref('stg_apif__d1_players') }}
+with stg_apif__bl1_players as (
+    select * from {{ ref('stg_apif__bl1_players') }}
 ),
 
-stg_apif__d1_transfers as (
-    select * from {{ ref('base_apif__d1_transfers') }}
+stg_apif__bl1_transfers as (
+    select * from {{ ref('base_apif__bl1_transfers') }}
 ),
 
 players_src as (
@@ -22,7 +22,7 @@ players_src as (
         season_year as last_known_season_year,
         raw_ingested_at,
         1 as source_priority
-    from stg_apif__d1_players
+    from stg_apif__bl1_players
     where player_id is not null
 ),
 
@@ -40,7 +40,7 @@ transfers_src as (
         cast(null as int64) as last_known_season_year,
         raw_ingested_at,
         2 as source_priority
-    from stg_apif__d1_transfers
+    from stg_apif__bl1_transfers
     where player_id is not null
 ),
 

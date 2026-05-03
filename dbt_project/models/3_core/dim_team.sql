@@ -16,7 +16,7 @@ with stg_teams as (
         venue_capacity,
         season,
         raw_ingested_at
-    from {{ ref('stg_apif__d1_teams') }}
+    from {{ ref('stg_apif__bl1_teams') }}
     where team_id is not null
 ),
 
@@ -29,7 +29,7 @@ stg_fixtures as (
         away_team_id,
         away_team_name,
         raw_ingested_at
-    from {{ ref('stg_apif__d1_fixtures_next') }}
+    from {{ ref('stg_apif__bl1_fixtures_next') }}
 ),
 
 team_keys_from_teams as (
