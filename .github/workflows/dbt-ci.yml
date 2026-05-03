@@ -73,7 +73,7 @@ jobs:
         run: dbt build --selector staging
 
       - name: Build core transfer contracts
-        run: dbt build --select dim_date base_apif__bl1_transfers +dim_player +fct_transfer
+        run: dbt build --select dim_date dim_team dim_league dim_season base_apif__bl1_transfers +dim_player +fct_transfer
 
       - name: Build fixture statistics chain
         run: dbt build --select stg_apif__bl1_fixture_statistics fct_fixture fct_fixture_team_stats mart_matchday_insights
