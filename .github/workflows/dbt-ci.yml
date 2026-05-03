@@ -76,7 +76,7 @@ jobs:
         run: dbt build --select dim_date +dim_team +dim_league +dim_season base_apif__bl1_transfers +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats
 
       - name: Build mart layer
-        run: dbt build --select mart_matchday_insights
+        run: dbt build --select path:models/5_marts
 
       - name: Run singular data quality tests
         run: dbt test --select test_type:singular --exclude tag:freshness_check
