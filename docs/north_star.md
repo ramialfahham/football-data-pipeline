@@ -129,3 +129,4 @@ Quality bar first. Growth comes after the product deserves it.
 | [CFO / Financial Advisor](roles/cfo.md) | Cost tracking, revenue modeling, stage-gate investment decisions | |
 | [CTO / Tech Strategist](roles/cto.md) | Tech stack evolution, stage-appropriate architecture, build vs. buy | |
 | [Product Analyst](roles/product_analyst.md) | App tracking, funnel analysis, retention metrics, behavioural insight | |
+| [Legal Counsel](roles/legal_counsel.md) | Data licensing, user privacy, IP and commercial risk | |

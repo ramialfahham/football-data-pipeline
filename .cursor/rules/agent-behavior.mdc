@@ -20,9 +20,39 @@ State one short block: **intent → files/env touched → definition of done.** 
 - Never change `.env`, the ingest profile, the season-window constant, or fanout/cost caps to "make a run finish faster" or "unblock quickly" without explicit user confirmation in the same thread.
 - If API daily limits require multiple days or scheduled runs, say so and point at `docs/operations_guide.md`. Do not silently narrow scope (for example to a single season) while implying the broader configured band is satisfied.
 
+## Layer contract (non-negotiable)
+
+Each dbt layer has a strict purpose. Violating it is a quality defect, not a style preference.
+
+| Layer | Purpose |
+|-------|---------|
+| `1_staging` | Raw cleanup only: renaming, casting, unnesting, flattening. One model per raw source table. No business logic. No cross-source unions. |
+| `2_base` | First business logic: deduplication, UNION ALL across sources, entity alignment. Preparation for core. |
+| `3_core` | System of record: canonical dimensions and facts. Surrogate keys, grain enforcement. |
+| `4_intermediate` | Complex transforms and feature engineering that do not belong in a consumption model. |
+| `5_marts` | Consumption layer: flattened, denormalised, optimised for the app and analysis. |
+
+Full rules: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
+
+## Data quality is non-negotiable
+
+The user cannot manually verify numbers. Every metric and pipeline output must be covered by automated tests. "It looks right" is not acceptable.
+
+## Competition-agnostic by default
+
+`league_code` is the partition key on everything. Never hardcode a competition identifier in business logic. Every model, metric, and UI component must work for any value of `league_code` without modification.
+
+## Quality standards
+
+- No hacky solutions. If the clean solution takes longer, say so — do not ship a workaround.
+- No unnecessary complexity. Do not introduce abstractions not required by the current task.
+- No scope creep. Implement exactly what was agreed. Flag adjacent issues separately.
+- No half-finished implementations. If a task cannot be completed cleanly, say so before starting.
+
 ## Communication style
 
 - Plain language, technically accurate.
 - No filler, no analogies, no motivational text.
 - Use backticks for file, function, and column names.
 - When proposing a plan, keep it proportional to the request. Do not over-engineer simple tasks.
+- When something goes wrong, say what happened, why, and what the correct approach is. Do not bury it.
