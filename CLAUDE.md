@@ -14,7 +14,7 @@ Read this at the start of every session before doing anything else.
 
 A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → GitHub Pages match preview UI.
 
-Current live competition: **German Bundesliga (D1, API league id 78)**.
+Current live competition: **German Bundesliga (BL1, API league id 78)**. `BL1` is the internal `league_code`; `D1` is the raw table prefix only (`RAW_D1_APIF_*`).
 Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga, Serie A.
 
 ## Authoritative docs — read before making decisions
@@ -33,10 +33,11 @@ Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga
 ## Architecture decisions (non-negotiable)
 
 - **Layer contract**: staging = raw cleanup only; base = UNION ALL + dedup + first logic; core = facts/dims; marts = consumption.
-- **league_code** is the partition key on every model — never hardcode D1.
+- **league_code** is the partition key on every model — never hardcode a competition identifier in business logic.
 - **Form window**: last 5 matches, current season only. Before matchday 1 → fallback to qualifiers (for tournaments) or previous season (for leagues). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
 - **UI flow**: Landing (competition cards) → Fixture list (next round only) → Fixture detail (carousel/deep dive).
+- **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 
 ## Memory files
 
@@ -48,6 +49,10 @@ Read `MEMORY.md` there for the index. Key files:
 - `project_architecture.md` — layer design, CI order, form logic
 - `feedback_engineering.md` — engineering principles and past corrections
 - `user_profile.md` — who Rami is and how he works
+
+## Cursor integration
+
+This project uses Claude Code and Cursor interchangeably. Both tools follow the same rules. Cursor-facing rules live in `.cursor/rules/` and mirror `docs/working_agreement.md`. If you find a conflict between this file and a Cursor rule, `docs/working_agreement.md` is the authoritative source.
 
 ## Stack
 
