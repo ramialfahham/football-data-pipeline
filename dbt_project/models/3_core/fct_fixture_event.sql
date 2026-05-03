@@ -8,34 +8,8 @@
     so it stays as a degenerate attribute.
 #}
 
-with src as (
-    select
-        league_code,
-        fixture_id,
-        minute_elapsed,
-        minute_extra,
-        team_id,
-        team_name,
-        player_id,
-        player_name,
-        assist_player_name,
-        event_type,
-        event_detail,
-        event_comments,
-        raw_ingested_at,
-        row_number() over (
-            partition by
-                fixture_id,
-                minute_elapsed,
-                minute_extra,
-                team_id,
-                player_id,
-                event_type,
-                event_detail
-            order by raw_ingested_at desc
-        ) as rn
-    from {{ ref('stg_apif__bl1_fixture_events') }}
-    where fixture_id is not null
+with base as (
+    select * from {{ ref('base_apif__bl1_fixture_events') }}
 )
 
 select
@@ -64,5 +38,4 @@ select
     player_name as player_name_snapshot,
     assist_player_name,
     raw_ingested_at
-from src
-where rn = 1
+from base

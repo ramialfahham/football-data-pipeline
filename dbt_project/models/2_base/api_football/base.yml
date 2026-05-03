@@ -40,6 +40,89 @@ models:
       - name: season_api_year
         tests: [not_null]
 
+  - name: base_apif__bl1_fixtures_next
+    description: >
+      Deduplicated fixture rows from stg_apif__bl1_fixtures_next. Multiple
+      ingestion runs produce duplicate rows for the same fixture_id; this model
+      keeps only the most recently ingested version.
+      Output grain: fixture_id.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+    columns:
+      - name: fixture_id
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+
+  - name: base_apif__bl1_fixture_events
+    description: >
+      Deduplicated fixture event rows from stg_apif__bl1_fixture_events. Keeps
+      the most recently ingested version per event grain
+      (fixture_id, minute_elapsed, minute_extra, team_id, player_id,
+      event_type, event_detail).
+      Output grain: (fixture_id, minute_elapsed, minute_extra, team_id,
+      player_id, event_type, event_detail).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_id
+            - minute_elapsed
+            - minute_extra
+            - team_id
+            - player_id
+            - event_type
+            - event_detail
+    columns:
+      - name: fixture_id
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+
+  - name: base_apif__bl1_fixture_players
+    description: >
+      Deduplicated per-player match statistic rows from
+      stg_apif__bl1_fixture_players. Keeps the most recently ingested version
+      per (fixture_id, team_id, player_id).
+      Output grain: (fixture_id, team_id, player_id).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, team_id, player_id]
+    columns:
+      - name: fixture_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+
+  - name: base_apif__bl1_players
+    description: >
+      Canonical player entity resolved from two sources: stg_apif__bl1_players
+      (primary — has biographical attributes) and base_apif__bl1_transfers
+      (fallback — covers players known only from transfer history). Deduplicates
+      to one row per (league_code, player_api_id), preferring the players
+      endpoint and the most recent season snapshot.
+      Output grain: (league_code, player_api_id).
+    config:
+      tags: ["base", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, player_api_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_api_id
+        tests: [not_null]
+
   - name: base_apif__bl1_transfers
     description: >
       Deduplicated transfer events from stg_apif__bl1_transfers.
