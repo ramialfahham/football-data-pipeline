@@ -49,5 +49,6 @@ select
     cs.snapshot_valid_from
 from current_snapshot as cs
 inner join season_keys as sk
-        on cs.league_code = sk.league_code
+    on
+        cs.league_code = sk.league_code
         and cs.season = sk.season_api_year
