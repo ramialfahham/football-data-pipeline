@@ -15,6 +15,8 @@ CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bsafe\.parse_json\s*\(", re.IGNORECASE),
 )
 
+CORE_FORBIDDEN_REFS = re.compile(r"\bref\s*\(\s*['\"]stg_", re.IGNORECASE)
+
 EXPECTED_STAGING_MODELS = {
     "stg_apif__d1_fixture_events.sql",
     "stg_apif__d1_fixture_players.sql",
@@ -41,6 +43,12 @@ def check_core_forbidden_patterns(errors: list[str]) -> None:
                 errors.append(
                     f"{rel}: contains forbidden pattern in core: {pattern.pattern}"
                 )
+        if CORE_FORBIDDEN_REFS.search(content):
+            rel = sql_path.relative_to(REPO_ROOT).as_posix()
+            errors.append(
+                f"{rel}: core model references staging directly via ref('stg_...'); "
+                "route through the base layer instead."
+            )
 
 
 def check_staging_inventory(errors: list[str]) -> None:
