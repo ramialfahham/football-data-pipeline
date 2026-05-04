@@ -1,0 +1,9 @@
+[allowlist]
+  description = "Allowlist for known false-positives in this repo"
+
+  # dbt source() calls in staging models reference BigQuery raw table identifiers
+  # like 'raw_wc26_apif_fixture_players'. The string 'apif' combined with entropy
+  # in surrounding table names triggers the generic-api-key rule. These are not secrets.
+  regexes = [
+    '''source\(['"]api_football['"],\s*['"]raw_\w+_apif_\w+['"]\)''',
+  ]
