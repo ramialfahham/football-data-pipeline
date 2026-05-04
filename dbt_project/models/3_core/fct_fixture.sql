@@ -4,12 +4,8 @@ with bl1_fixtures as (
     select * from {{ ref('base_apif__bl1_fixtures_next') }}
 ),
 
-wc_fixtures as (
-    select * from {{ ref('base_apif__wc_fixtures_next') }}
-),
-
 base as (
-    {{ union_all(['bl1_fixtures', 'wc_fixtures']) }}
+    {{ union_all(['bl1_fixtures']) }}
 )
 
 select
