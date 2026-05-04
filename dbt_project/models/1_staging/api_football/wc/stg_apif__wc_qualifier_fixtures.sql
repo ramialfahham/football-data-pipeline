@@ -24,6 +24,7 @@ fixtures as (
 )
 
 select
+    raw_ingested_at,
     -- queried_league_id maps to the confederation qualifier league_code.
     -- Mapping is stable for WC 2026; update here when supporting_leagues changes in the registry.
     case queried_league_id
@@ -53,7 +54,6 @@ select
     json_value(fixture_el, '$.fixture.venue.id') as venue_id,
     json_value(fixture_el, '$.fixture.venue.name') as venue_name,
     json_value(fixture_el, '$.fixture.venue.city') as venue_city,
-    to_json_string(fixture_el) as source_json,
-    raw_ingested_at
+    to_json_string(fixture_el) as source_json
 from fixtures
 where safe_cast(json_value(fixture_el, '$.fixture.id') as int64) is not null
