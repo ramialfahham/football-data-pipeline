@@ -3,11 +3,12 @@ with src as (
     from {{ source('api_football', 'raw_wc26_apif_form_fixtures') }}
 ),
 
-team_blocks as (
+league_blocks as (
     select
         'WC26' as league_code,
         src.ingested_at as raw_ingested_at,
-        safe_cast(json_value(block_json, '$.team_id') as int64) as queried_team_id,
+        safe_cast(json_value(block_json, '$.queried_league_id') as int64) as queried_league_id,
+        safe_cast(json_value(block_json, '$.queried_season') as int64) as queried_season,
         block_json
     from src,
         unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as block_json
@@ -17,9 +18,10 @@ fixtures as (
     select
         league_code,
         raw_ingested_at,
-        queried_team_id,
+        queried_league_id,
+        queried_season,
         fixture_el
-    from team_blocks,
+    from league_blocks,
         unnest(
             coalesce(json_query_array(block_json, '$.response'), [])
         ) as fixture_el
@@ -28,7 +30,8 @@ fixtures as (
 select
     league_code,
     raw_ingested_at,
-    queried_team_id,
+    queried_league_id,
+    queried_season,
     safe_cast(json_value(fixture_el, '$.fixture.id') as int64) as fixture_id,
     safe_cast(
         timestamp(json_value(fixture_el, '$.fixture.date'))
@@ -50,6 +53,6 @@ select
 from fixtures
 where safe_cast(json_value(fixture_el, '$.fixture.id') as int64) is not null
 qualify row_number() over (
-    partition by queried_team_id, safe_cast(json_value(fixture_el, '$.fixture.id') as int64)
+    partition by safe_cast(json_value(fixture_el, '$.fixture.id') as int64)
     order by raw_ingested_at desc
 ) = 1

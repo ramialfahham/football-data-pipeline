@@ -24,6 +24,7 @@ def ingest_league(
     league_code: str,
     league_id: int,
     form_source: str = "league_only",
+    supporting_leagues: tuple = (),
 ) -> None:
     try:
         _ingestion_phase(league_code, "catalog (leagues + season plan)")
@@ -56,8 +57,8 @@ def ingest_league(
         )
         _ingestion_phase(league_code, "squad /players batch")
         load_squad_players_batch(ctx, league_code, seasons_list, team_ids)
-        if form_source == "all_internationals" and team_ids:
-            _ingestion_phase(league_code, "form fixtures (/fixtures?team={id}&last=N per team)")
-            load_form_fixtures(ctx, league_code, team_ids)
+        if form_source == "supporting_leagues" and supporting_leagues:
+            _ingestion_phase(league_code, "form fixtures (/fixtures?league={id}&season={year} per supporting league)")
+            load_form_fixtures(ctx, league_code, supporting_leagues)
     except Exception as e:
         ctx.errors.append(f"league {league_code}: {e}")
