@@ -35,6 +35,8 @@ class Competition:
     provider_league_id: int
     status: str
     name: str
+    form_source: str = "league_only"
+    supporting_leagues: tuple = ()  # only populated when form_source="supporting_leagues"
 
 
 _ALLOWED_STATUSES = {"active", "in_progress", "planned", "backlog", "completed"}
@@ -119,16 +121,18 @@ def _parse_competitions() -> list[Competition]:
                 f"Competition `{league_code}` has non-integer provider_league_id={provider_league_id_raw!r}."
             ) from exc
 
+        parsed_supporting_leagues: tuple = ()
         if (
             competition_type == "international_tournament"
-            and form_source == "all_internationals"
+            and form_source == "supporting_leagues"
             and status in {"active", "in_progress"}
         ):
             if not isinstance(supporting_leagues, list) or not supporting_leagues:
                 raise ValueError(
                     f"Competition `{league_code}` requires non-empty `supporting_leagues` "
-                    "for form_source=all_internationals."
+                    "for form_source=supporting_leagues."
                 )
+            sl_list = []
             for idx2, sl in enumerate(supporting_leagues):
                 if not isinstance(sl, dict):
                     raise ValueError(
@@ -139,11 +143,21 @@ def _parse_competitions() -> list[Competition]:
                         f"Competition `{league_code}` supporting_leagues[{idx2}] missing required `id`."
                     )
                 try:
-                    int(sl["id"])
+                    league_id_val = int(sl["id"])
                 except (TypeError, ValueError) as exc:
                     raise ValueError(
                         f"Competition `{league_code}` supporting_leagues[{idx2}] has non-integer id={sl.get('id')!r}."
                     ) from exc
+                season_val = sl.get("season")
+                if season_val is not None:
+                    try:
+                        season_val = int(season_val)
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f"Competition `{league_code}` supporting_leagues[{idx2}] has non-integer season={sl.get('season')!r}."
+                        ) from exc
+                sl_list.append({"id": league_id_val, "season": season_val})
+            parsed_supporting_leagues = tuple(sl_list)
 
         out.append(
             Competition(
@@ -152,6 +166,8 @@ def _parse_competitions() -> list[Competition]:
                 provider_league_id=provider_league_id,
                 status=status,
                 name=name,
+                form_source=form_source or "league_only",
+                supporting_leagues=parsed_supporting_leagues,
             )
         )
     if not out:

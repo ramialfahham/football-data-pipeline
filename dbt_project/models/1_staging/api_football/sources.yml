@@ -161,3 +161,9 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_form_fixtures
+        identifier: RAW_WC26_APIF_FORM_FIXTURES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
