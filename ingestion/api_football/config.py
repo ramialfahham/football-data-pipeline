@@ -35,6 +35,7 @@ class Competition:
     provider_league_id: int
     status: str
     name: str
+    form_source: str = "league_only"
 
 
 _ALLOWED_STATUSES = {"active", "in_progress", "planned", "backlog", "completed"}
@@ -152,6 +153,7 @@ def _parse_competitions() -> list[Competition]:
                 provider_league_id=provider_league_id,
                 status=status,
                 name=name,
+                form_source=form_source or "league_only",
             )
         )
     if not out:

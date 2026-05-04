@@ -93,7 +93,7 @@ def _load_api_football(request):
             )
 
         for comp in selected:
-            ingest_league(ctx, comp.league_code, comp.provider_league_id)
+            ingest_league(ctx, comp.league_code, comp.provider_league_id, comp.form_source)
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:
