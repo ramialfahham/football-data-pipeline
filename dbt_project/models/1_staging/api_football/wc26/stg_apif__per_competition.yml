@@ -709,22 +709,23 @@ models:
       - name: prediction_json
         description: "Stringified prediction object for stable hashing and lineage."
 
-  - name: stg_apif__wc26_form_fixtures
-    description: "Last-N fixtures per WC26 team from GET /fixtures?team={id}&last=N. Grain: (queried_team_id, fixture_id). Covers qualifier and international fixtures used for pre-tournament form. Deduplicated per team+fixture on most recent ingest."
+  - name: stg_apif__wc26_qualifier_fixtures
+    description: "Qualifier fixtures from GET /fixtures?league={id}&season={year} for WC26 supporting leagues. Grain: fixture_id (deduplicated on most recent ingest). Used as pre-tournament form fallback when WC26 tournament fixtures have no completed results."
     config:
       tags: ["staging", "api_football", "wc26"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
-            - queried_team_id
             - fixture_id
     columns:
       - name: league_code
         description: "Internal league code; always WC26 for this model."
         tests: [not_null]
-      - name: queried_team_id
-        description: "Team id used to query the form endpoint."
+      - name: queried_league_id
+        description: "League id used to query the supporting-league fixtures endpoint."
         tests: [not_null]
+      - name: queried_season
+        description: "Season year used to query the supporting-league fixtures endpoint."
       - name: fixture_id
         description: "API-Football fixture id from the form response."
         tests: [not_null]

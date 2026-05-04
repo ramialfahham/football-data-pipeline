@@ -1,13 +1,25 @@
 {{ config(materialized='table') }}
 
-with latest_per_league as (
+with bl1_leagues as (
+    select * from {{ ref('base_apif__bl1_leagues') }}
+),
+
+wc26_leagues as (
+    select * from {{ ref('base_apif__wc26_leagues') }}
+),
+
+all_leagues as (
+    {{ union_all(['bl1_leagues', 'wc26_leagues']) }}
+),
+
+latest_per_league as (
     select
         *,
         row_number() over (
-            partition by league_code, league_api_id
+            partition by league_api_id
             order by season_api_year desc, raw_ingested_at desc
         ) as rn
-    from {{ ref('base_apif__bl1_leagues') }}
+    from all_leagues
 )
 
 select
