@@ -6,7 +6,6 @@ with src as (
 select
     league_code,
     team_id as team_api_id,
-    team_name,
     team_code,
     team_country,
     founded_year as team_founded_year,
@@ -16,6 +15,7 @@ select
     venue_address,
     venue_city,
     venue_capacity,
+    team_name,
     raw_ingested_at
 from src
 qualify row_number() over (
