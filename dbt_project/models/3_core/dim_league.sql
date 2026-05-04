@@ -1,9 +1,15 @@
 {{ config(materialized='table') }}
 
-with all_leagues as (
+with bl1_leagues as (
     select * from {{ ref('base_apif__bl1_leagues') }}
-    union all
+),
+
+wc26_leagues as (
     select * from {{ ref('base_apif__wc26_leagues') }}
+),
+
+all_leagues as (
+    {{ union_all(['bl1_leagues', 'wc26_leagues']) }}
 ),
 
 latest_per_league as (

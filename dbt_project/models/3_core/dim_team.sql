@@ -1,5 +1,17 @@
 {{ config(materialized='table') }}
 
+with bl1_teams as (
+    select * from {{ ref('base_apif__bl1_teams') }}
+),
+
+wc26_teams as (
+    select * from {{ ref('base_apif__wc26_teams') }}
+),
+
+all_teams as (
+    {{ union_all(['bl1_teams', 'wc26_teams']) }}
+)
+
 select
     cast(team_api_id as int64) as team_sk,
     league_code,
@@ -15,11 +27,7 @@ select
     venue_city,
     venue_capacity,
     raw_ingested_at
-from (
-    select * from {{ ref('base_apif__bl1_teams') }}
-    union all
-    select * from {{ ref('base_apif__wc26_teams') }}
-)
+from all_teams
 qualify row_number() over (
     partition by team_api_id
     order by raw_ingested_at desc
