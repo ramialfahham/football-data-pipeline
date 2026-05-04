@@ -16,3 +16,7 @@ select
     venue_capacity,
     raw_ingested_at
 from {{ ref('base_apif__bl1_teams') }}
+qualify row_number() over (
+    partition by team_api_id
+    order by raw_ingested_at desc
+) = 1

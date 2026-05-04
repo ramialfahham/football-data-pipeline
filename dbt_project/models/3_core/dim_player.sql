@@ -18,3 +18,7 @@ select
     last_known_season_year,
     raw_ingested_at
 from base
+qualify row_number() over (
+    partition by player_api_id
+    order by raw_ingested_at desc
+) = 1
