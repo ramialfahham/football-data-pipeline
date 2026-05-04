@@ -4,12 +4,12 @@ with bl1_leagues as (
     select * from {{ ref('base_apif__bl1_leagues') }}
 ),
 
-wc26_leagues as (
-    select * from {{ ref('base_apif__wc26_leagues') }}
+wc_leagues as (
+    select * from {{ ref('base_apif__wc_leagues') }}
 ),
 
 all_leagues as (
-    {{ union_all(['bl1_leagues', 'wc26_leagues']) }}
+    {{ union_all(['bl1_leagues', 'wc_leagues']) }}
 )
 
 select

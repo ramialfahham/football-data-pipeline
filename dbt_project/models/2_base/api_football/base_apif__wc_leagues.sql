@@ -24,7 +24,7 @@ with src as (
         has_coverage_predictions,
         has_coverage_odds,
         raw_ingested_at
-    from {{ ref('stg_apif__wc26_leagues') }}
+    from {{ ref('stg_apif__wc_leagues') }}
     where
         league_api_id is not null
         and season_api_year is not null

@@ -1,5 +1,5 @@
 with src as (
-    select * from {{ ref('stg_apif__wc26_teams') }}
+    select * from {{ ref('stg_apif__wc_teams') }}
     where team_id is not null
 )
 

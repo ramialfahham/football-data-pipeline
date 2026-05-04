@@ -1,11 +1,11 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_wc26_apif_standings') }}
+    from {{ source('api_football', 'raw_wc_apif_standings') }}
 ),
 
 expanded_standings as (
     select
-        'WC26' as league_code,
+        'WC' as league_code,
         src.ingested_at as raw_ingested_at,
         league_block,
         stage_group,
