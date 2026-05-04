@@ -70,7 +70,7 @@ jobs:
         run: dbt parse
 
       - name: Build staging
-        run: dbt build --selector staging
+        run: dbt build --selector staging --exclude tag:wc26
 
       - name: Build core dims, facts, and marts
         run: dbt build --select path:models/2_base dim_date +dim_team +dim_league +dim_season +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats +fct_fixture +fct_fixture_event +fct_fixture_player_stats path:models/5_marts
