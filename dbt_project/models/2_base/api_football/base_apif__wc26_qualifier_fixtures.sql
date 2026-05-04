@@ -1,9 +1,5 @@
--- Qualifier fixtures used for WC26 pre-tournament form computation.
--- These come from supporting_leagues queries (e.g. UEFA WCQ, CONCACAF WCQ).
--- Nullable venue and round columns are not available in the form endpoint response.
-
 with src as (
-    select * from {{ ref('stg_apif__wc26_form_fixtures') }}
+    select * from {{ ref('stg_apif__wc26_qualifier_fixtures') }}
     where fixture_id is not null
 )
 

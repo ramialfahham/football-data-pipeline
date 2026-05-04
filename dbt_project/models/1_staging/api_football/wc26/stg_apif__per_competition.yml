@@ -709,7 +709,7 @@ models:
       - name: prediction_json
         description: "Stringified prediction object for stable hashing and lineage."
 
-  - name: stg_apif__wc26_form_fixtures
+  - name: stg_apif__wc26_qualifier_fixtures
     description: "Qualifier fixtures from GET /fixtures?league={id}&season={year} for WC26 supporting leagues. Grain: fixture_id (deduplicated on most recent ingest). Used as pre-tournament form fallback when WC26 tournament fixtures have no completed results."
     config:
       tags: ["staging", "api_football", "wc26"]

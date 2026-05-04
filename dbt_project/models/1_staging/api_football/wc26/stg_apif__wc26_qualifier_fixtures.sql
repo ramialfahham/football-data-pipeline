@@ -1,6 +1,6 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_wc26_apif_form_fixtures') }}
+    from {{ source('api_football', 'raw_wc26_apif_qualifier_fixtures') }}
 ),
 
 league_blocks as (

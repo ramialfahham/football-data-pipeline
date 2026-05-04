@@ -1,4 +1,4 @@
-"""Fetch qualifier fixtures per supporting league → RAW_{league_code}_APIF_FORM_FIXTURES."""
+"""Fetch qualifier fixtures per supporting league → RAW_{league_code}_APIF_QUALIFIER_FIXTURES."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from ..http_client import fetch_json
 from .context import PipelineContext
 
 
-def load_form_fixtures(
+def load_qualifier_fixtures(
     ctx: PipelineContext,
     league_code: str,
     supporting_leagues: tuple,
@@ -34,12 +34,12 @@ def load_form_fixtures(
             result = fetch_json("/fixtures", ctx.headers, params)
             append_api_errors(
                 result,
-                f"form_fixtures {league_code} league_id={league_id} season={season}",
+                f"qualifier_fixtures {league_code} league_id={league_id} season={season}",
                 ctx.errors,
             )
             fixture_count = len(result.get("response") or [])
             print(
-                f"[api-football] form_fixtures league={league_code} "
+                f"[api-football] qualifier_fixtures league={league_code} "
                 f"league_id={league_id} season={season} fixtures={fixture_count}",
                 flush=True,
             )
@@ -52,25 +52,25 @@ def load_form_fixtures(
             )
         except Exception as e:
             ctx.errors.append(
-                f"form_fixtures {league_code} league_id={league_id} season={season}: {e}"
+                f"qualifier_fixtures {league_code} league_id={league_id} season={season}: {e}"
             )
 
     if not league_blocks:
         print(
-            f"[api-football] form_fixtures league={league_code} no data fetched — skipping BQ write",
+            f"[api-football] qualifier_fixtures league={league_code} no data fetched — skipping BQ write",
             flush=True,
         )
         return
 
     payload = {"league_code": league_code, "response": league_blocks}
     try:
-        tbl = raw_league_table(league_code, "FORM_FIXTURES")
+        tbl = raw_league_table(league_code, "QUALIFIER_FIXTURES")
         load_json_to_bq(ctx.client, tbl, payload, as_json_payload=True)
         ctx.add_loaded(1)
         print(
-            f"[api-football] form_fixtures league={league_code} "
+            f"[api-football] qualifier_fixtures league={league_code} "
             f"leagues={len(league_blocks)} written to {tbl}",
             flush=True,
         )
     except Exception as e:
-        ctx.errors.append(f"form_fixtures BQ {league_code}: {e}")
+        ctx.errors.append(f"qualifier_fixtures BQ {league_code}: {e}")

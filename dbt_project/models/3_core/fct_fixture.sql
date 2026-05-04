@@ -8,12 +8,12 @@ wc26_fixtures as (
     select * from {{ ref('base_apif__wc26_fixtures_next') }}
 ),
 
-wc26_form_fixtures as (
-    select * from {{ ref('base_apif__wc26_form_fixtures') }}
+wc26_qualifier_fixtures as (
+    select * from {{ ref('base_apif__wc26_qualifier_fixtures') }}
 ),
 
 base as (
-    {{ union_all(['bl1_fixtures', 'wc26_fixtures', 'wc26_form_fixtures']) }}
+    {{ union_all(['bl1_fixtures', 'wc26_fixtures', 'wc26_qualifier_fixtures']) }}
 )
 
 select
