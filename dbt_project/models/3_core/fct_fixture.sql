@@ -8,12 +8,8 @@ wc_fixtures as (
     select * from {{ ref('base_apif__wc_fixtures_next') }}
 ),
 
-qualifier_fixtures as (
-    select * from {{ ref('base_apif__wc_qualifier_fixtures') }}
-),
-
 base as (
-    {{ union_all(['bl1_fixtures', 'wc_fixtures', 'qualifier_fixtures']) }}
+    {{ union_all(['bl1_fixtures', 'wc_fixtures']) }}
 )
 
 select
