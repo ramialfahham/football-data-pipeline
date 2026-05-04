@@ -7,9 +7,9 @@ league_blocks as (
     select
         'WC26' as league_code,
         src.ingested_at as raw_ingested_at,
+        block_json,
         safe_cast(json_value(block_json, '$.queried_league_id') as int64) as queried_league_id,
-        safe_cast(json_value(block_json, '$.queried_season') as int64) as queried_season,
-        block_json
+        safe_cast(json_value(block_json, '$.queried_season') as int64) as queried_season
     from src,
         unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as block_json
 ),
@@ -33,12 +33,8 @@ select
     queried_league_id,
     queried_season,
     safe_cast(json_value(fixture_el, '$.fixture.id') as int64) as fixture_id,
-    safe_cast(
-        timestamp(json_value(fixture_el, '$.fixture.date'))
-    as timestamp) as kickoff_datetime,
-    safe_cast(
-        date(timestamp(json_value(fixture_el, '$.fixture.date')))
-    as date) as fixture_date,
+    safe_cast(json_value(fixture_el, '$.fixture.date') as timestamp) as kickoff_datetime,
+    date(safe_cast(json_value(fixture_el, '$.fixture.date') as timestamp)) as fixture_date,
     json_value(fixture_el, '$.fixture.status.short') as status_short,
     safe_cast(json_value(fixture_el, '$.league.id') as int64) as league_api_id,
     json_value(fixture_el, '$.league.name') as league_name,
