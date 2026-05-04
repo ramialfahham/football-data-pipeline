@@ -107,10 +107,10 @@ Canonical dimension inventory for this project:
 | Dim | Grain | Source staging model | Notes |
 |-----|-------|----------------------|-------|
 | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
-| `dim_league` | (league_code, league_api_id) | `stg_apif__bl1_leagues` | One row per configured league. |
-| `dim_season` | (league_code, season_api_year) | `stg_apif__bl1_leagues` (seasons_json) | Carries API coverage flags that drive downstream conditional logic. |
-| `dim_team` | (league_code, team_api_id) | `stg_apif__bl1_teams` | Deduplicated to latest-season snapshot; home-venue attributes denormalized until a first-class `dim_venue` is justified. |
-| `dim_player` | (league_code, player_api_id) | `stg_apif__bl1_players` | Deduplicated to latest (team, season); `last_known_team_api_id` is a snapshot attribute, not a join key. |
+| `dim_league` | league_api_id | `stg_apif__bl1_leagues` | One row per configured league; surrogate key is the API integer directly. |
+| `dim_competition_season` | (league_api_id, season_api_year) | `stg_apif__bl1_leagues` (seasons_json) | Carries API coverage flags that drive downstream conditional logic. |
+| `dim_team` | team_api_id | `stg_apif__bl1_teams` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
+| `dim_player` | player_api_id | `stg_apif__bl1_players` | Globally scoped; surrogate key is the API integer directly; `last_known_team_api_id` is a snapshot attribute, not a join key. |
 
 All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
 

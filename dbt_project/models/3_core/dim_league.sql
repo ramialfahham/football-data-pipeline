@@ -11,7 +11,7 @@ with latest_per_league as (
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'league_api_id']) }} as league_sk,
+    cast(league_api_id as int64) as league_sk,
     league_code,
     league_api_id,
     league_name,

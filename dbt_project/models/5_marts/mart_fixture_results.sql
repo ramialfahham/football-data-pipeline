@@ -18,8 +18,8 @@ dim_league as (
     select * from {{ ref('dim_league') }}
 ),
 
-dim_season as (
-    select * from {{ ref('dim_season') }}
+dim_competition_season as (
+    select * from {{ ref('dim_competition_season') }}
 ),
 
 dim_date as (
@@ -76,5 +76,5 @@ from fct_fixture as f
 left join dim_team as home on f.home_team_sk = home.team_sk
 left join dim_team as away on f.away_team_sk = away.team_sk
 left join dim_league as l on f.league_sk = l.league_sk
-left join dim_season as s on f.season_sk = s.season_sk
+left join dim_competition_season as s on f.season_sk = s.season_sk
 left join dim_date as d on f.kickoff_date_sk = d.date_sk

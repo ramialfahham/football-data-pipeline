@@ -23,14 +23,12 @@ select
         'to_team_api_id',
         'transfer_type'
     ]) }} as transfer_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'player_id']) }} as player_sk,
+    cast(player_id as int64) as player_sk,
     case
-        when from_team_api_id is not null
-            then {{ dbt_utils.generate_surrogate_key(['league_code', 'from_team_api_id']) }}
+        when from_team_api_id is not null then cast(from_team_api_id as int64)
     end as from_team_sk,
     case
-        when to_team_api_id is not null
-            then {{ dbt_utils.generate_surrogate_key(['league_code', 'to_team_api_id']) }}
+        when to_team_api_id is not null then cast(to_team_api_id as int64)
     end as to_team_sk,
     cast(format_date('%Y%m%d', transfer_date) as int64) as transfer_date_sk,
     league_code,

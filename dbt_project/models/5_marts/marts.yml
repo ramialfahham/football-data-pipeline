@@ -43,11 +43,11 @@ models:
               to: ref('dim_league')
               field: league_sk
       - name: season_sk
-        description: "FK to dim_season."
+        description: "FK to dim_competition_season."
         tests:
           - not_null
           - relationships:
-              to: ref('dim_season')
+              to: ref('dim_competition_season')
               field: season_sk
       - name: home_team_sk
         description: "FK to dim_team for the home side."
@@ -146,11 +146,11 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: season_sk
-        description: "FK to dim_season."
+        description: "FK to dim_competition_season."
         tests:
           - not_null
           - relationships:
-              to: ref('dim_season')
+              to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
         description: "FK to dim_league."
@@ -220,11 +220,11 @@ models:
               to: ref('dim_player')
               field: player_sk
       - name: season_sk
-        description: "FK to dim_season."
+        description: "FK to dim_competition_season."
         tests:
           - not_null
           - relationships:
-              to: ref('dim_season')
+              to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
         description: "FK to dim_league."
@@ -298,7 +298,7 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_season')
+              to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
         tests:
@@ -355,7 +355,7 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_season')
+              to: ref('dim_competition_season')
               field: season_sk
       - name: league_sk
         tests:
@@ -551,7 +551,7 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_season')
+              to: ref('dim_competition_season')
               field: season_sk
       - name: home_team_sk
         tests:

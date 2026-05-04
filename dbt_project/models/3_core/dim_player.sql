@@ -5,7 +5,7 @@ with base as (
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'player_api_id']) }} as player_sk,
+    cast(player_api_id as int64) as player_sk,
     league_code,
     player_api_id,
     player_name,
@@ -18,3 +18,7 @@ select
     last_known_season_year,
     raw_ingested_at
 from base
+qualify row_number() over (
+    partition by player_api_id
+    order by raw_ingested_at desc
+) = 1

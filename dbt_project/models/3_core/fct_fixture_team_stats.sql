@@ -8,7 +8,7 @@ select
     {{ dbt_utils.generate_surrogate_key(['fixture_id', 'league_code', 'team_id']) }}
         as fixture_team_stat_sk,
     cast(fixture_id as int64) as fixture_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'team_id']) }} as team_sk,
+    cast(team_id as int64) as team_sk,
     league_code,
     fixture_id as fixture_api_id,
     team_id as team_api_id,
