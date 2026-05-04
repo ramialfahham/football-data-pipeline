@@ -123,6 +123,39 @@ models:
       - name: player_api_id
         tests: [not_null]
 
+  - name: base_apif__wc_fixtures_next
+    description: >
+      Deduplicated fixture rows from stg_apif__wc_fixtures_next.
+      Output grain: fixture_id.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+    columns:
+      - name: fixture_id
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+
+  - name: base_apif__wc_qualifier_fixtures
+    description: >
+      Deduplicated qualifier fixture rows from stg_apif__wc_qualifier_fixtures.
+      Each fixture is assigned its confederation league_code (WCQEU, WCQAF, WCQCA,
+      WCQSA, WCQAS, WCQIP, WCQOC) derived from the API queried_league_id.
+      These flow into fct_fixture as first-class fixtures alongside BL1 and WC.
+      Output grain: fixture_id.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+    columns:
+      - name: fixture_id
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+
   - name: base_apif__bl1_transfers
     description: >
       Deduplicated transfer events from stg_apif__bl1_transfers.

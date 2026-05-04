@@ -18,12 +18,14 @@
 #   completed    — finished, scope doc moved to docs/archive/
 #
 # form_source values:
-#   league_only        — form from fixtures within this competition only
-#   all_internationals — last N fixtures per team across all competitions
-#                        (used for national team tournaments)
+#   league_only          — form from fixtures within this competition only
+#   supporting_leagues   — form from qualifier/related competitions (international tournaments)
+#
+# raw_table_prefix convention: RAW_APIF_{LEAGUE_CODE}
+# Qualifier leagues derive from their parent's qualifier raw table; no independent raw table.
 
-version: "1.2"
-last_updated: "2026-04-27"
+version: "1.3"
+last_updated: "2026-05-04"
 owner: "CPO"
 
 competitions:
@@ -43,10 +45,9 @@ competitions:
     current_season: "2024"
     status: "active"
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_BL1" # existing tables use D1 from provider payload — keep as-is
+    raw_table_prefix: "RAW_APIF_BL1"
     notes: >
       First competition onboarded. Reference implementation for all future leagues.
-      Raw tables use D1 prefix (provider payload). Internal league_code is BL1.
 
   # -------------------------------------------------------------------------
   # IN PROGRESS
@@ -80,13 +81,130 @@ competitions:
       /fixtures?team={id}&last=10 per team. Returns last 10 international fixtures
       across all competitions. Initial backfill = 48 API calls.
     supporting_leagues:
-      - {id: 29, name: "WC Qualification Africa",                  season: 2023, stats: true}
-      - {id: 30, name: "WC Qualification Asia",                    season: 2026, stats: true}
-      - {id: 31, name: "WC Qualification CONCACAF",                season: 2026, stats: true}
-      - {id: 32, name: "WC Qualification Europe",                  season: 2024, stats: true}
-      - {id: 34, name: "WC Qualification South America",           season: 2026, stats: true}
-      - {id: 37, name: "WC Qualification Intercontinental Playoffs",season: 2026, stats: true}
-      - {id: 33, name: "WC Qualification Oceania",                 season: 2026, stats: false}
+      - {id: 29, name: "WC Qualification Africa",                   league_code: "WCQAF", season: 2023, stats: true}
+      - {id: 30, name: "WC Qualification Asia",                     league_code: "WCQAS", season: 2026, stats: true}
+      - {id: 31, name: "WC Qualification CONCACAF",                 league_code: "WCQCA", season: 2026, stats: true}
+      - {id: 32, name: "WC Qualification Europe",                   league_code: "WCQEU", season: 2024, stats: true}
+      - {id: 34, name: "WC Qualification South America",            league_code: "WCQSA", season: 2026, stats: true}
+      - {id: 37, name: "WC Qualification Intercontinental Playoffs", league_code: "WCQIP", season: 2026, stats: true}
+      - {id: 33, name: "WC Qualification Oceania",                  league_code: "WCQOC", season: 2026, stats: false}
+
+  # WC 2026 qualifier leagues — first-class competitions, one per confederation.
+  # Raw data is stored in RAW_APIF_WC_QUALIFIER_FIXTURES (fetched as part of WC ingestion).
+  # Fixtures flow into fct_fixture with their own league_code; form for WC teams is
+  # calculated from qualifier results before matchday 1.
+
+  # provider: null — qualifier fixtures derive from RAW_APIF_WC_QUALIFIER_FIXTURES (fetched
+  # as part of WC ingestion via supporting_leagues). No independent ingestion path yet.
+  # provider_league_id is the API-Football league ID, kept for reference and for the
+  # queried_league_id -> league_code mapping in stg_apif__wc_qualifier_fixtures.
+  # To make qualifiers independently ingestable: change provider to "api_football"
+  # and create per-league staging models reading from RAW_APIF_{LEAGUE_CODE}_FIXTURES_NEXT.
+
+  - league_code: "WCQEU"
+    name: "WC Qualification Europe"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 32
+    season_type: "calendar_year"
+    current_season: "2024"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "UEFA zone. Season 2024 (group + playoff stages)."
+
+  - league_code: "WCQAF"
+    name: "WC Qualification Africa"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 29
+    season_type: "calendar_year"
+    current_season: "2023"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "CAF zone. Season 2023."
+
+  - league_code: "WCQCA"
+    name: "WC Qualification CONCACAF"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 31
+    season_type: "calendar_year"
+    current_season: "2026"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "CONCACAF zone. Season 2026."
+
+  - league_code: "WCQSA"
+    name: "WC Qualification South America"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 34
+    season_type: "calendar_year"
+    current_season: "2026"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "CONMEBOL zone. Season 2026."
+
+  - league_code: "WCQAS"
+    name: "WC Qualification Asia"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 30
+    season_type: "calendar_year"
+    current_season: "2026"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "AFC zone. Season 2026."
+
+  - league_code: "WCQIP"
+    name: "WC Qualification Intercontinental Playoffs"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 37
+    season_type: "calendar_year"
+    current_season: "2026"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "Inter-confederation playoffs. Season 2026."
+
+  - league_code: "WCQOC"
+    name: "WC Qualification Oceania"
+    country: "International"
+    competition_type: "wc_qualifier"
+    provider: null
+    provider_league_code: null
+    provider_league_id: 33
+    season_type: "calendar_year"
+    current_season: "2026"
+    status: "in_progress"
+    form_source: "league_only"
+    raw_table_prefix: null
+    parent_competition: "WC"
+    notes: "OFC zone. Season 2026. No player statistics available."
 
   # -------------------------------------------------------------------------
   # PLANNED
@@ -103,7 +221,7 @@ competitions:
     current_season: "2024"
     status: "planned"
     form_source: "league_only"
-    raw_table_prefix: "RAW_PL_APIF"
+    raw_table_prefix: "RAW_APIF_PL"
     notes: "Big 5 — priority 1 after WC MVP."
 
   - league_code: "PD"
@@ -117,7 +235,7 @@ competitions:
     current_season: "2024"
     status: "planned"
     form_source: "league_only"
-    raw_table_prefix: "RAW_PD_APIF"
+    raw_table_prefix: "RAW_APIF_PD"
     notes: "Big 5 — priority 2 after WC MVP."
 
   - league_code: "SA"
@@ -131,7 +249,7 @@ competitions:
     current_season: "2024"
     status: "planned"
     form_source: "league_only"
-    raw_table_prefix: "RAW_SA_APIF"
+    raw_table_prefix: "RAW_APIF_SA"
     notes: "Big 5 — priority 3."
 
   - league_code: "L1"
@@ -145,7 +263,7 @@ competitions:
     current_season: "2024"
     status: "planned"
     form_source: "league_only"
-    raw_table_prefix: "RAW_L1_APIF"
+    raw_table_prefix: "RAW_APIF_L1"
     notes: "Big 5 — priority 4."
 
   - league_code: "BL2"
@@ -159,7 +277,7 @@ competitions:
     current_season: "2024"
     status: "planned"
     form_source: "league_only"
-    raw_table_prefix: "RAW_BL2_APIF"
+    raw_table_prefix: "RAW_APIF_BL2"
     notes: "German second division — planned after Big 5."
 
   # -------------------------------------------------------------------------
@@ -177,7 +295,7 @@ competitions:
     current_season: "2024"
     status: "backlog"
     form_source: "league_only"
-    raw_table_prefix: "RAW_UCL_APIF"
+    raw_table_prefix: "RAW_APIF_UCL"
     notes: "Evaluate after Big 5 onboarding."
 
 # -------------------------------------------------------------------------
@@ -188,6 +306,7 @@ competitions:
 #    Document the date in api_coverage_verified.
 # 3. Set status to "planned" before writing any code.
 #    Only CPO can approve moving from "backlog" to "planned".
-# 4. raw_table_prefix: RAW_{PROVIDER_CODE}_{PROVIDER_PREFIX}
+# 4. raw_table_prefix: RAW_APIF_{LEAGUE_CODE} (provider first, then league_code).
+#    Qualifier leagues set raw_table_prefix: null — data derives from parent raw table.
 #    Above staging, only league_code is used — never provider codes or IDs.
 # 5. When a competition ends: set status "completed", move scope doc to docs/archive/.
