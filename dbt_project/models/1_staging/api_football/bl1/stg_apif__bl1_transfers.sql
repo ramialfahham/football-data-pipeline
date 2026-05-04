@@ -1,6 +1,6 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_d1_apif_transfers') }}
+    from {{ source('api_football', 'raw_apif_bl1_transfers') }}
 ),
 
 exploded as (

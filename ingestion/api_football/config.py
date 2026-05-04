@@ -217,12 +217,12 @@ V1_SEASON_WINDOW_YEARS = 10
 
 
 def raw_league_table(league_code: str, entity: str) -> str:
-    """
-    League-first BigQuery **table name** (not project-qualified): ``RAW_D1_APIF_FIXTURES_NEXT``.
+    """BigQuery table name (not project-qualified): ``RAW_APIF_BL1_FIXTURES_NEXT``.
 
-    Puts competition code before the vendor segment so multiple leagues sort and filter cleanly.
+    Convention: RAW_APIF_{league_code}_{entity}
+    Provider first, then internal league_code, then endpoint.
     """
-    return f"RAW_{league_code}_APIF_{entity}"
+    return f"RAW_APIF_{league_code}_{entity}"
 
 
 def _provider() -> str:

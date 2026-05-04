@@ -5,80 +5,80 @@ sources:
     description: "Raw API-Football payloads; league-first table names (RAW_<league>_APIF_*). See docs/data_contract.md."
     schema: "{{ var('raw_schema') }}"
     tables:
-      - name: raw_d1_apif_fixtures_next
-        identifier: RAW_D1_APIF_FIXTURES_NEXT
+      - name: raw_apif_bl1_fixtures_next
+        identifier: RAW_APIF_BL1_FIXTURES_NEXT
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_leagues
-        identifier: RAW_D1_APIF_LEAGUES
+      - name: raw_apif_bl1_leagues
+        identifier: RAW_APIF_BL1_LEAGUES
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_standings
-        identifier: RAW_D1_APIF_STANDINGS
+      - name: raw_apif_bl1_standings
+        identifier: RAW_APIF_BL1_STANDINGS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_rounds
-        identifier: RAW_D1_APIF_ROUNDS
+      - name: raw_apif_bl1_rounds
+        identifier: RAW_APIF_BL1_ROUNDS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_teams
-        identifier: RAW_D1_APIF_TEAMS
+      - name: raw_apif_bl1_teams
+        identifier: RAW_APIF_BL1_TEAMS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_injuries
-        identifier: RAW_D1_APIF_INJURIES
+      - name: raw_apif_bl1_injuries
+        identifier: RAW_APIF_BL1_INJURIES
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_transfers
-        identifier: RAW_D1_APIF_TRANSFERS
+      - name: raw_apif_bl1_transfers
+        identifier: RAW_APIF_BL1_TRANSFERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_lineups
-        identifier: RAW_D1_APIF_LINEUPS
+      - name: raw_apif_bl1_lineups
+        identifier: RAW_APIF_BL1_LINEUPS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_fixture_events
-        identifier: RAW_D1_APIF_FIXTURE_EVENTS
+      - name: raw_apif_bl1_fixture_events
+        identifier: RAW_APIF_BL1_FIXTURE_EVENTS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_fixture_statistics
-        identifier: RAW_D1_APIF_FIXTURE_STATISTICS
+      - name: raw_apif_bl1_fixture_statistics
+        identifier: RAW_APIF_BL1_FIXTURE_STATISTICS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_fixture_players
-        identifier: RAW_D1_APIF_FIXTURE_PLAYERS
+      - name: raw_apif_bl1_fixture_players
+        identifier: RAW_APIF_BL1_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_predictions
-        identifier: RAW_D1_APIF_PREDICTIONS
+      - name: raw_apif_bl1_predictions
+        identifier: RAW_APIF_BL1_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_d1_apif_players
-        identifier: RAW_D1_APIF_PLAYERS
+      - name: raw_apif_bl1_players
+        identifier: RAW_APIF_BL1_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}

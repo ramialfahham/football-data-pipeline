@@ -43,7 +43,7 @@ competitions:
     current_season: "2024"
     status: "active"
     form_source: "league_only"
-    raw_table_prefix: "RAW_D1_APIF" # existing tables use D1 from provider payload — keep as-is
+    raw_table_prefix: "RAW_APIF_BL1" # existing tables use D1 from provider payload — keep as-is
     notes: >
       First competition onboarded. Reference implementation for all future leagues.
       Raw tables use D1 prefix (provider payload). Internal league_code is BL1.
