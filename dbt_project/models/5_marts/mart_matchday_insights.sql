@@ -256,6 +256,7 @@ past_team_matches as (
         fwo.opponent_total_shots,
         fwo.opponent_corner_kicks,
         tsc.form_season_api_year,
+        tsc.use_current_season,
         dense_rank() over (
             partition by tsc.upcoming_fixture_sk, tsc.team_sk
             order by fwo.round_order desc nulls last, fwo.kickoff_datetime desc
@@ -277,7 +278,7 @@ past_team_matches as (
 
 form_window_matches as (
     select * from past_team_matches
-    where recent_matchday_rank <= 5
+    where not use_current_season or recent_matchday_rank <= 5
 ),
 
 aggregated_form as (
