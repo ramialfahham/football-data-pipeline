@@ -5,21 +5,17 @@ with src as (
 
 league_blocks as (
     select
-        'WC' as league_code,
         src.ingested_at as raw_ingested_at,
         block_json,
-        safe_cast(json_value(block_json, '$.queried_league_id') as int64) as queried_league_id,
-        safe_cast(json_value(block_json, '$.queried_season') as int64) as queried_season
+        safe_cast(json_value(block_json, '$.queried_league_id') as int64) as queried_league_id
     from src,
         unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as block_json
 ),
 
 fixtures as (
     select
-        league_code,
         raw_ingested_at,
         queried_league_id,
-        queried_season,
         fixture_el
     from league_blocks,
         unnest(
@@ -28,27 +24,36 @@ fixtures as (
 )
 
 select
-    league_code,
     raw_ingested_at,
-    queried_league_id,
-    queried_season,
+    -- queried_league_id maps to the confederation qualifier league_code.
+    -- Mapping is stable for WC 2026; update here when supporting_leagues changes in the registry.
+    case queried_league_id
+        when 29 then 'WCQAF'
+        when 30 then 'WCQAS'
+        when 31 then 'WCQCA'
+        when 32 then 'WCQEU'
+        when 33 then 'WCQOC'
+        when 34 then 'WCQSA'
+        when 37 then 'WCQIP'
+        else concat('WCQUNK', cast(queried_league_id as string))
+    end as league_code,
     safe_cast(json_value(fixture_el, '$.fixture.id') as int64) as fixture_id,
-    safe_cast(json_value(fixture_el, '$.fixture.date') as timestamp) as kickoff_datetime,
     date(safe_cast(json_value(fixture_el, '$.fixture.date') as timestamp)) as fixture_date,
+    safe_cast(json_value(fixture_el, '$.fixture.date') as timestamp) as kickoff_datetime,
+    json_value(fixture_el, '$.fixture.timezone') as kickoff_timezone,
     json_value(fixture_el, '$.fixture.status.short') as status_short,
+    json_value(fixture_el, '$.fixture.status.long') as status_long,
+    safe_cast(json_value(fixture_el, '$.fixture.status.elapsed') as int64) as status_elapsed,
     safe_cast(json_value(fixture_el, '$.league.id') as int64) as league_api_id,
-    json_value(fixture_el, '$.league.name') as league_name,
     safe_cast(json_value(fixture_el, '$.league.season') as int64) as season,
+    json_value(fixture_el, '$.league.round') as round_name,
     safe_cast(json_value(fixture_el, '$.teams.home.id') as int64) as home_team_id,
-    json_value(fixture_el, '$.teams.home.name') as home_team_name,
     safe_cast(json_value(fixture_el, '$.teams.away.id') as int64) as away_team_id,
-    json_value(fixture_el, '$.teams.away.name') as away_team_name,
     safe_cast(json_value(fixture_el, '$.goals.home') as int64) as goals_home,
     safe_cast(json_value(fixture_el, '$.goals.away') as int64) as goals_away,
+    json_value(fixture_el, '$.fixture.venue.id') as venue_id,
+    json_value(fixture_el, '$.fixture.venue.name') as venue_name,
+    json_value(fixture_el, '$.fixture.venue.city') as venue_city,
     to_json_string(fixture_el) as source_json
 from fixtures
 where safe_cast(json_value(fixture_el, '$.fixture.id') as int64) is not null
-qualify row_number() over (
-    partition by safe_cast(json_value(fixture_el, '$.fixture.id') as int64)
-    order by raw_ingested_at desc
-) = 1
