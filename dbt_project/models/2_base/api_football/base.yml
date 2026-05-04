@@ -25,7 +25,7 @@ models:
       ingestion runs produce duplicate rows for the same
       (league_code, league_api_id, season_api_year); this model keeps only the
       most recently ingested version. Consumed by dim_league (collapsed to one
-      row per league) and dim_season (one row per season).
+      row per league) and dim_competition_season (one row per season).
       Output grain: (league_code, league_api_id, season_api_year).
     config:
       tags: ["base", "api_football", "league_context"]

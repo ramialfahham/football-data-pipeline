@@ -5,7 +5,7 @@ with base as (
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'player_api_id']) }} as player_sk,
+    cast(player_api_id as int64) as player_sk,
     league_code,
     player_api_id,
     player_name,

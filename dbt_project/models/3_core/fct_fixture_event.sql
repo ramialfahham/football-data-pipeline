@@ -23,8 +23,8 @@ select
         'event_detail'
     ]) }} as event_sk,
     cast(fixture_id as int64) as fixture_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'team_id']) }} as team_sk,
-    {{ dbt_utils.generate_surrogate_key(['league_code', 'player_id']) }} as player_sk,
+    cast(team_id as int64) as team_sk,
+    cast(player_id as int64) as player_sk,
     league_code,
     fixture_id as fixture_api_id,
     team_id as team_api_id,
