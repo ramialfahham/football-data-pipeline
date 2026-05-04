@@ -66,3 +66,13 @@ select
     json_value(transfer_el, '$.teams.in.name') as to_team_name_snapshot
 from transfer_rows
 where safe_cast(json_value(transfer_el, '$.date') as date) is not null
+qualify row_number() over (
+    partition by
+        league_code,
+        player_id,
+        safe_cast(json_value(transfer_el, '$.date') as date),
+        safe_cast(json_value(transfer_el, '$.teams.out.id') as int64),
+        safe_cast(json_value(transfer_el, '$.teams.in.id') as int64),
+        json_value(transfer_el, '$.type')
+    order by raw_ingested_at desc
+) = 1
