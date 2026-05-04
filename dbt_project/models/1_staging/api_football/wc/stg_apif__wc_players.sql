@@ -1,6 +1,6 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_wc_apif_players') }}
+    from {{ source('api_football', 'raw_apif_wc_players') }}
 ),
 
 team_blocks as (

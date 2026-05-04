@@ -83,86 +83,86 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_fixtures_next
-        identifier: RAW_WC_APIF_FIXTURES_NEXT
+      - name: raw_apif_wc_fixtures_next
+        identifier: RAW_APIF_WC_FIXTURES_NEXT
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_leagues
-        identifier: RAW_WC_APIF_LEAGUES
+      - name: raw_apif_wc_leagues
+        identifier: RAW_APIF_WC_LEAGUES
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_standings
-        identifier: RAW_WC_APIF_STANDINGS
+      - name: raw_apif_wc_standings
+        identifier: RAW_APIF_WC_STANDINGS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_rounds
-        identifier: RAW_WC_APIF_ROUNDS
+      - name: raw_apif_wc_rounds
+        identifier: RAW_APIF_WC_ROUNDS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_teams
-        identifier: RAW_WC_APIF_TEAMS
+      - name: raw_apif_wc_teams
+        identifier: RAW_APIF_WC_TEAMS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_injuries
-        identifier: RAW_WC_APIF_INJURIES
+      - name: raw_apif_wc_injuries
+        identifier: RAW_APIF_WC_INJURIES
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_transfers
-        identifier: RAW_WC_APIF_TRANSFERS
+      - name: raw_apif_wc_transfers
+        identifier: RAW_APIF_WC_TRANSFERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_lineups
-        identifier: RAW_WC_APIF_LINEUPS
+      - name: raw_apif_wc_lineups
+        identifier: RAW_APIF_WC_LINEUPS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_fixture_events
-        identifier: RAW_WC_APIF_FIXTURE_EVENTS
+      - name: raw_apif_wc_fixture_events
+        identifier: RAW_APIF_WC_FIXTURE_EVENTS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_fixture_statistics
-        identifier: RAW_WC_APIF_FIXTURE_STATISTICS
+      - name: raw_apif_wc_fixture_statistics
+        identifier: RAW_APIF_WC_FIXTURE_STATISTICS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_fixture_players
-        identifier: RAW_WC_APIF_FIXTURE_PLAYERS
+      - name: raw_apif_wc_fixture_players
+        identifier: RAW_APIF_WC_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_predictions
-        identifier: RAW_WC_APIF_PREDICTIONS
+      - name: raw_apif_wc_predictions
+        identifier: RAW_APIF_WC_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_players
-        identifier: RAW_WC_APIF_PLAYERS
+      - name: raw_apif_wc_players
+        identifier: RAW_APIF_WC_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_wc_apif_qualifier_fixtures
-        identifier: RAW_WC_APIF_QUALIFIER_FIXTURES
+      - name: raw_apif_wc_qualifier_fixtures
+        identifier: RAW_APIF_WC_QUALIFIER_FIXTURES
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
