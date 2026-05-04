@@ -2,6 +2,10 @@
 
 with base as (
     select * from {{ ref('base_apif__bl1_fixtures_next') }}
+    union all
+    select * from {{ ref('base_apif__wc26_fixtures_next') }}
+    union all
+    select * from {{ ref('base_apif__wc26_form_fixtures') }}
 )
 
 select
@@ -30,3 +34,7 @@ select
     venue_city as venue_city_snapshot,
     raw_ingested_at
 from base
+qualify row_number() over (
+    partition by fixture_id
+    order by raw_ingested_at desc
+) = 1
