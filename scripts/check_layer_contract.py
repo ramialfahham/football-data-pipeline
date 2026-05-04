@@ -35,7 +35,7 @@ def check_staging_inventory(errors: list[str]) -> None:
         rel = path.relative_to(REPO_ROOT).as_posix()
         errors.append(
             f"{rel}: staging SQL must live in a per-competition subdirectory "
-            "(e.g. bl1/ or wc26/), not directly under api_football/."
+            "(e.g. bl1/ or wc/), not directly under api_football/."
         )
 
 

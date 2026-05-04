@@ -1,5 +1,5 @@
 with src as (
-    select * from {{ ref('stg_apif__wc26_fixtures_next') }}
+    select * from {{ ref('stg_apif__wc_qualifier_fixtures') }}
     where fixture_id is not null
 )
 
@@ -10,18 +10,18 @@ select
     season,
     fixture_date,
     kickoff_datetime,
-    kickoff_timezone,
+    cast(null as string) as kickoff_timezone,
     status_short,
-    status_long,
-    status_elapsed,
-    round_name,
+    cast(null as string) as status_long,
+    cast(null as int64) as status_elapsed,
+    cast(null as string) as round_name,
     home_team_id,
     away_team_id,
     goals_home,
     goals_away,
-    venue_id,
-    venue_name,
-    venue_city,
+    cast(null as string) as venue_id,
+    cast(null as string) as venue_name,
+    cast(null as string) as venue_city,
     raw_ingested_at
 from src
 qualify row_number() over (

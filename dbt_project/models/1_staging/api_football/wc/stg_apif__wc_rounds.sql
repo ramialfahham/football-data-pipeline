@@ -1,11 +1,11 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_wc26_apif_rounds') }}
+    from {{ source('api_football', 'raw_apif_wc_rounds') }}
 ),
 
 season_blocks as (
     select
-        'WC26' as league_code,
+        'WC' as league_code,
         src.ingested_at as raw_ingested_at,
         season_block,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,

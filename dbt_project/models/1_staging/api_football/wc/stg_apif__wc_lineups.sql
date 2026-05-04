@@ -1,11 +1,11 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_wc26_apif_lineups') }}
+    from {{ source('api_football', 'raw_apif_wc_lineups') }}
 ),
 
 blocks as (
     select
-        'WC26' as league_code,
+        'WC' as league_code,
         src.ingested_at as raw_ingested_at,
         block_json
     from src,

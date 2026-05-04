@@ -14,17 +14,17 @@ version: 2
 # Freshness lives in sources.yml via loaded_at_field: ingested_at.
 
 models:
-  - name: stg_apif__wc26_fixtures_next
-    description: "One row per match from GET /fixtures (WC26). Grain: fixture_id. Envelope metadata as JSON strings plus core kickoff / teams / score columns and source_json."
+  - name: stg_apif__wc_fixtures_next
+    description: "One row per match from GET /fixtures ( WC). Grain: fixture_id. Envelope metadata as JSON strings plus core kickoff / teams / score columns and source_json."
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "medium"
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: raw_ingested_at
         description: "UTC timestamp when this raw table row was loaded (from ``ingested_at`` in BigQuery raw)."
@@ -81,14 +81,14 @@ models:
       - name: venue_city
         description: "Venue city from `fixture.venue.city`."
 
-  - name: stg_apif__wc26_players
+  - name: stg_apif__wc_players
     description: "One row per player per (league, team, season) from the merged /players squad pull. Grain: (league_code, team_id, season_year, player_id)."
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "medium"
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -98,7 +98,7 @@ models:
             - player_id
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: team_id
         description: "Club id for this squad row."
@@ -128,14 +128,14 @@ models:
       - name: source_json
         description: "Full player response object JSON for fields not promoted to columns."
 
-  - name: stg_apif__wc26_lineups
+  - name: stg_apif__wc_lineups
     description: "One row per team formation block per fixture from the batched lineups payload. Grain: (league_code, fixture_id, team_id)."
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "medium"
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -144,7 +144,7 @@ models:
             - team_id
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id for this lineup slice."
@@ -167,14 +167,14 @@ models:
       - name: source_json
         description: "Full team lineup object JSON for fields not promoted to columns."
 
-  - name: stg_apif__wc26_injuries
+  - name: stg_apif__wc_injuries
     description: "One row per injury report from GET /injuries. Grain: (league_code, season, player_id, team_id, fixture_id, injury_type, injury_reason). Type and reason are in the grain to disambiguate multiple reports for the same player+fixture and may legitimately be NULL at source."
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "medium"
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -187,7 +187,7 @@ models:
             - injury_reason
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: season
         description: "API season year on the injury row (from `$.league.season` in the response object)."
@@ -228,10 +228,10 @@ models:
       - name: injury_reason
         description: "Injury reason from `reason` on the injury row."
 
-  - name: stg_apif__wc26_leagues
-    description: "WC26 metadata and per-season coverage from GET /leagues. Grain: (league_code, league_api_id, season_api_year)."
+  - name: stg_apif__wc_leagues
+    description: "WC metadata and per-season coverage from GET /leagues. Grain: (league_code, league_api_id, season_api_year)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -240,7 +240,7 @@ models:
             - season_api_year
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: league_api_id
         description: "API-Football league id (1 for FIFA World Cup)."
@@ -299,10 +299,10 @@ models:
       - name: has_coverage_odds
         description: "Coverage flag from `seasons[].coverage.odds`."
 
-  - name: stg_apif__wc26_standings
-    description: "League table from GET /standings. Grain: (league_code, season, team_id, group_description). group_description is part of the grain because WC26 has multiple groups (A-L)."
+  - name: stg_apif__wc_standings
+    description: "League table from GET /standings. Grain: (league_code, season, team_id, group_description). group_description is part of the grain because WC has multiple groups (A-L)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -312,7 +312,7 @@ models:
             - group_description
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: season
         description: "API season year for the standings snapshot."
@@ -355,10 +355,10 @@ models:
       - name: source_json
         description: "Full standings team row JSON for fields not promoted to columns."
 
-  - name: stg_apif__wc26_rounds
+  - name: stg_apif__wc_rounds
     description: "Round names from GET /fixtures/rounds. Grain: (league_code, api_season_year, round_name)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -367,7 +367,7 @@ models:
             - round_name
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: api_season_year
         description: "API season year this round list belongs to."
@@ -386,10 +386,10 @@ models:
       - name: source_json
         description: "Raw round value JSON/string preserved for lineage."
 
-  - name: stg_apif__wc26_teams
-    description: "National teams and venues from GET /teams for WC26. Grain: (league_code, season, team_id)."
+  - name: stg_apif__wc_teams
+    description: "National teams and venues from GET /teams for WC. Grain: (league_code, season, team_id)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -398,7 +398,7 @@ models:
             - team_id
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: season
         description: "API season year for this team row."
@@ -438,13 +438,13 @@ models:
       - name: venue_capacity
         description: "Venue capacity from `venue.capacity`."
 
-  - name: stg_apif__wc26_transfers
-    description: "GET /transfers for WC26 teams. Raw grain: one row per transfer event per player as returned by the API."
+  - name: stg_apif__wc_transfers
+    description: "GET /transfers for WC teams. Raw grain: one row per transfer event per player as returned by the API."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: player_id
         description: "Player id from API-Football."
@@ -477,10 +477,10 @@ models:
       - name: to_team_name_snapshot
         description: "Incoming club name snapshot from `transfers[].teams.in.name`."
 
-  - name: stg_apif__wc26_fixture_events
+  - name: stg_apif__wc_fixture_events
     description: "Per-fixture GET /fixtures/events (batched payload). Grain: (league_code, fixture_id, minute_elapsed, minute_extra, team_id, player_id, event_type, event_detail). Minute and player fields may legitimately be NULL at source."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -494,7 +494,7 @@ models:
             - event_detail
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id the event belongs to."
@@ -525,10 +525,10 @@ models:
       - name: source_json
         description: "Full event object JSON for fields not promoted to columns."
 
-  - name: stg_apif__wc26_fixture_statistics
+  - name: stg_apif__wc_fixture_statistics
     description: "Per-fixture GET /fixtures/statistics (batched payload). Grain: (league_code, fixture_id, team_id)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -537,7 +537,7 @@ models:
             - team_id
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id these stats belong to."
@@ -584,10 +584,10 @@ models:
       - name: source_json
         description: "Full team statistics object JSON for fields not promoted to columns."
 
-  - name: stg_apif__wc26_fixture_players
+  - name: stg_apif__wc_fixture_players
     description: "Per-fixture GET /fixtures/players (batched payload). Grain: (league_code, fixture_id, team_id, player_id)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -597,7 +597,7 @@ models:
             - player_id
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id these per-player stats belong to."
@@ -685,10 +685,10 @@ models:
       - name: source_json
         description: "Full player fixture object JSON for fields not promoted to columns."
 
-  - name: stg_apif__wc26_predictions
+  - name: stg_apif__wc_predictions
     description: "Per-fixture GET /predictions (batched payload). Grain: (league_code, fixture_id, prediction_json)."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -697,7 +697,7 @@ models:
             - prediction_json
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: fixture_id
         description: "Fixture id the prediction belongs to."
@@ -709,17 +709,17 @@ models:
       - name: prediction_json
         description: "Stringified prediction object for stable hashing and lineage."
 
-  - name: stg_apif__wc26_qualifier_fixtures
-    description: "Qualifier fixtures from GET /fixtures?league={id}&season={year} for WC26 supporting leagues. Grain: fixture_id (deduplicated on most recent ingest). Used as pre-tournament form fallback when WC26 tournament fixtures have no completed results."
+  - name: stg_apif__wc_qualifier_fixtures
+    description: "Qualifier fixtures from GET /fixtures?league={id}&season={year} for WC supporting leagues. Grain: fixture_id (deduplicated on most recent ingest). Used as pre-tournament form fallback when WC tournament fixtures have no completed results."
     config:
-      tags: ["staging", "api_football", "wc26"]
+      tags: ["staging", "api_football", "wc"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
             - fixture_id
     columns:
       - name: league_code
-        description: "Internal league code; always WC26 for this model."
+        description: "Internal league code; always WC for this model."
         tests: [not_null]
       - name: queried_league_id
         description: "League id used to query the supporting-league fixtures endpoint."

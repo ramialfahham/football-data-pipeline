@@ -52,7 +52,7 @@ competitions:
   # IN PROGRESS
   # -------------------------------------------------------------------------
 
-  - league_code: "WC26"
+  - league_code: "WC"
     name: "FIFA World Cup 2026"
     country: "International"
     competition_type: "international_tournament"
@@ -63,7 +63,7 @@ competitions:
     current_season: "2026"
     status: "in_progress"
     form_source: "supporting_leagues"
-    raw_table_prefix: "RAW_WC26_APIF"
+    raw_table_prefix: "RAW_APIF_WC"
     team_count: 48
     match_count: 104
     start_date: "2026-06-11"
@@ -104,7 +104,7 @@ competitions:
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_PL_APIF"
-    notes: "Big 5 — priority 1 after WC26 MVP."
+    notes: "Big 5 — priority 1 after WC MVP."
 
   - league_code: "PD"
     name: "La Liga"
@@ -118,7 +118,7 @@ competitions:
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_PD_APIF"
-    notes: "Big 5 — priority 2 after WC26 MVP."
+    notes: "Big 5 — priority 2 after WC MVP."
 
   - league_code: "SA"
     name: "Serie A"

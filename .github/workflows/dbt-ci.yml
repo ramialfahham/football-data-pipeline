@@ -72,11 +72,11 @@ jobs:
       - name: Build BL1 staging
         run: dbt build --select path:models/1_staging/api_football/bl1
 
-      - name: Build WC26 staging
-        run: dbt build --select path:models/1_staging/api_football/wc26 --exclude stg_apif__wc26_injuries stg_apif__wc26_qualifier_fixtures
+      - name: Build WC staging
+        run: dbt build --select path:models/1_staging/api_football/wc --exclude stg_apif__wc_injuries stg_apif__wc_qualifier_fixtures
 
       - name: Build core dims, facts, and marts
-        run: dbt build --select path:models/2_base dim_date +dim_team +dim_league +dim_competition_season +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats +fct_fixture +fct_fixture_event +fct_fixture_player_stats path:models/5_marts --exclude tag:freshness_check stg_apif__wc26_injuries stg_apif__wc26_qualifier_fixtures base_apif__wc26_qualifier_fixtures
+        run: dbt build --select path:models/2_base dim_date +dim_team +dim_league +dim_competition_season +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats +fct_fixture +fct_fixture_event +fct_fixture_player_stats path:models/5_marts --exclude tag:freshness_check stg_apif__wc_injuries stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures
 
       - name: Run singular data quality tests
         run: dbt test --select test_type:singular --exclude tag:freshness_check

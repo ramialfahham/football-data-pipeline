@@ -1,11 +1,11 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_wc26_apif_injuries') }}
+    from {{ source('api_football', 'raw_apif_wc_teams') }}
 ),
 
 exploded as (
     select
-        'WC26' as league_code,
+        'WC' as league_code,
         src.ingested_at as raw_ingested_at,
         row_json,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,
@@ -23,15 +23,15 @@ select
     request_parameters_json,
     row_json as source_json,
     safe_cast(json_value(row_json, '$.league.season') as int64) as season,
-    safe_cast(json_value(row_json, '$.player.id') as int64) as player_id,
-    json_value(row_json, '$.player.name') as player_name,
-    json_value(row_json, '$.player.photo') as player_photo_url,
     safe_cast(json_value(row_json, '$.team.id') as int64) as team_id,
     json_value(row_json, '$.team.name') as team_name,
+    json_value(row_json, '$.team.code') as team_code,
+    json_value(row_json, '$.team.country') as team_country,
+    safe_cast(json_value(row_json, '$.team.founded') as int64) as founded_year,
     json_value(row_json, '$.team.logo') as team_logo_url,
-    safe_cast(json_value(row_json, '$.fixture.id') as int64) as fixture_id,
-    json_value(row_json, '$.league.name') as injury_league_name,
-    json_value(row_json, '$.league.country') as injury_league_country,
-    json_value(row_json, '$.type') as injury_type,
-    json_value(row_json, '$.reason') as injury_reason
+    json_value(row_json, '$.venue.id') as venue_id,
+    json_value(row_json, '$.venue.name') as venue_name,
+    json_value(row_json, '$.venue.address') as venue_address,
+    json_value(row_json, '$.venue.city') as venue_city,
+    safe_cast(json_value(row_json, '$.venue.capacity') as int64) as venue_capacity
 from exploded
