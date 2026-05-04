@@ -1,32 +1,7 @@
 {{ config(materialized='table') }}
 
-with src as (
-    select
-        league_code,
-        fixture_id,
-        league_api_id,
-        season,
-        fixture_date,
-        kickoff_datetime,
-        kickoff_timezone,
-        status_short,
-        status_long,
-        status_elapsed,
-        round_name,
-        home_team_id,
-        away_team_id,
-        goals_home,
-        goals_away,
-        venue_id as venue_api_id,
-        venue_name,
-        venue_city,
-        raw_ingested_at,
-        row_number() over (
-            partition by fixture_id
-            order by raw_ingested_at desc
-        ) as rn
-    from {{ ref('stg_apif__d1_fixtures_next') }}
-    where fixture_id is not null
+with base as (
+    select * from {{ ref('base_apif__bl1_fixtures_next') }}
 )
 
 select
@@ -50,9 +25,8 @@ select
     round_name,
     goals_home,
     goals_away,
-    venue_api_id,
+    venue_id as venue_api_id,
     venue_name as venue_name_snapshot,
     venue_city as venue_city_snapshot,
     raw_ingested_at
-from src
-where rn = 1
+from base

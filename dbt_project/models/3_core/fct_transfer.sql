@@ -11,7 +11,7 @@
 #}
 
 with src as (
-    select * from {{ ref('base_apif__d1_transfers') }}
+    select * from {{ ref('base_apif__bl1_transfers') }}
 )
 
 select

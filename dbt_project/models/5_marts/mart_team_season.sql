@@ -16,7 +16,15 @@ dim_team as (
 ),
 
 fct_standings as (
-    select * from {{ ref('fct_standings') }}
+    select
+        team_sk,
+        season_sk,
+        standing_rank,
+        form
+    from {{ ref('fct_standings') }}
+    qualify row_number() over (
+        partition by team_sk, season_sk order by standing_rank asc nulls last
+    ) = 1
 ),
 
 finished as (

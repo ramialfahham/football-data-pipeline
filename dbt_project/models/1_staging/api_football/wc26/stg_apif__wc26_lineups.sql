@@ -1,13 +1,13 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_d1_apif_lineups') }}
+    from {{ source('api_football', 'raw_wc26_apif_lineups') }}
 ),
 
 blocks as (
     select
+        'WC26' as league_code,
         src.ingested_at as raw_ingested_at,
-        block_json,
-        coalesce(json_value(src.payload, '$.league_code'), 'D1') as league_code
+        block_json
     from src,
         unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as block_json
 ),

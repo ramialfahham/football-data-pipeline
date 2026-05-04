@@ -1,0 +1,193 @@
+# Competition Registry
+# Single source of truth for all competitions in the platform.
+#
+# KEY PRINCIPLE:
+# - league_code         : our internal identifier — used in dbt models, naming conventions,
+#                         and everywhere above staging. Provider-agnostic.
+# - provider_league_code: the code as it appears in the provider's API payload (if any).
+# - provider_league_id  : the provider's numeric ID — used only in ingestion scripts and staging.
+#
+# Above staging, only league_code exists. Provider IDs never appear in core or marts.
+# Switching providers = new ingestion + new staging models only. Core and marts untouched.
+#
+# Status values:
+#   active       — ingestion running, models built, app-facing
+#   in_progress  — currently being onboarded
+#   planned      — approved, not yet implemented
+#   backlog      — considered, no timeline
+#   completed    — finished, scope doc moved to docs/archive/
+#
+# form_source values:
+#   league_only        — form from fixtures within this competition only
+#   all_internationals — last N fixtures per team across all competitions
+#                        (used for national team tournaments)
+
+version: "1.2"
+last_updated: "2026-04-27"
+owner: "CPO"
+
+competitions:
+
+  # -------------------------------------------------------------------------
+  # ACTIVE
+  # -------------------------------------------------------------------------
+
+  - league_code: "BL1"
+    name: "1. Fußball-Bundesliga"
+    country: "Germany"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: "D1"      # as it appears in api-football payload
+    provider_league_id: 78
+    season_type: "split_year"
+    current_season: "2024"
+    status: "active"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_D1_APIF" # existing tables use D1 from provider payload — keep as-is
+    notes: >
+      First competition onboarded. Reference implementation for all future leagues.
+      Raw tables use D1 prefix (provider payload). Internal league_code is BL1.
+
+  # -------------------------------------------------------------------------
+  # IN PROGRESS
+  # -------------------------------------------------------------------------
+
+  - league_code: "WC26"
+    name: "FIFA World Cup 2026"
+    country: "International"
+    competition_type: "international_tournament"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 1
+    season_type: "calendar_year"
+    current_season: "2026"
+    status: "in_progress"
+    form_source: "supporting_leagues"
+    raw_table_prefix: "RAW_WC26_APIF"
+    team_count: 48
+    match_count: 104
+    start_date: "2026-06-11"
+    end_date: "2026-07-19"
+    api_coverage_verified: "2026-04-27"
+    api_coverage:
+      fixtures: true
+      standings: true
+      statistics_fixtures: false    # not yet active — monitor, activate when available
+      statistics_players: false     # not yet active — monitor, activate when available
+      events: false
+      lineups: false
+    form_data_strategy: >
+      /fixtures?team={id}&last=10 per team. Returns last 10 international fixtures
+      across all competitions. Initial backfill = 48 API calls.
+    supporting_leagues:
+      - {id: 29, name: "WC Qualification Africa",                  season: 2023, stats: true}
+      - {id: 30, name: "WC Qualification Asia",                    season: 2026, stats: true}
+      - {id: 31, name: "WC Qualification CONCACAF",                season: 2026, stats: true}
+      - {id: 32, name: "WC Qualification Europe",                  season: 2024, stats: true}
+      - {id: 34, name: "WC Qualification South America",           season: 2026, stats: true}
+      - {id: 37, name: "WC Qualification Intercontinental Playoffs",season: 2026, stats: true}
+      - {id: 33, name: "WC Qualification Oceania",                 season: 2026, stats: false}
+
+  # -------------------------------------------------------------------------
+  # PLANNED
+  # -------------------------------------------------------------------------
+
+  - league_code: "PL"
+    name: "Premier League"
+    country: "England"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 39
+    season_type: "split_year"
+    current_season: "2024"
+    status: "planned"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_PL_APIF"
+    notes: "Big 5 — priority 1 after WC26 MVP."
+
+  - league_code: "PD"
+    name: "La Liga"
+    country: "Spain"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 140
+    season_type: "split_year"
+    current_season: "2024"
+    status: "planned"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_PD_APIF"
+    notes: "Big 5 — priority 2 after WC26 MVP."
+
+  - league_code: "SA"
+    name: "Serie A"
+    country: "Italy"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 135
+    season_type: "split_year"
+    current_season: "2024"
+    status: "planned"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_SA_APIF"
+    notes: "Big 5 — priority 3."
+
+  - league_code: "L1"
+    name: "Ligue 1"
+    country: "France"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 61
+    season_type: "split_year"
+    current_season: "2024"
+    status: "planned"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_L1_APIF"
+    notes: "Big 5 — priority 4."
+
+  - league_code: "BL2"
+    name: "2. Fußball-Bundesliga"
+    country: "Germany"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 79
+    season_type: "split_year"
+    current_season: "2024"
+    status: "planned"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_BL2_APIF"
+    notes: "German second division — planned after Big 5."
+
+  # -------------------------------------------------------------------------
+  # BACKLOG
+  # -------------------------------------------------------------------------
+
+  - league_code: "UCL"
+    name: "UEFA Champions League"
+    country: "Europe"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 2
+    season_type: "split_year"
+    current_season: "2024"
+    status: "backlog"
+    form_source: "league_only"
+    raw_table_prefix: "RAW_UCL_APIF"
+    notes: "Evaluate after Big 5 onboarding."
+
+# -------------------------------------------------------------------------
+# ONBOARDING RULES
+# -------------------------------------------------------------------------
+# 1. league_code: unique, uppercase, max 6 chars, provider-agnostic.
+# 2. provider_league_id: verify with a live API call before writing any code.
+#    Document the date in api_coverage_verified.
+# 3. Set status to "planned" before writing any code.
+#    Only CPO can approve moving from "backlog" to "planned".
+# 4. raw_table_prefix: RAW_{PROVIDER_CODE}_{PROVIDER_PREFIX}
+#    Above staging, only league_code is used — never provider codes or IDs.
+# 5. When a competition ends: set status "completed", move scope doc to docs/archive/.

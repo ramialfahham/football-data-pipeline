@@ -21,7 +21,9 @@ with current_snapshot as (
 ),
 
 season_keys as (
-    select season_api_year, league_code
+    select
+        season_api_year,
+        league_code
     from {{ ref('dim_season') }}
 )
 
@@ -47,5 +49,6 @@ select
     cs.snapshot_valid_from
 from current_snapshot as cs
 inner join season_keys as sk
-    on cs.league_code = sk.league_code
-    and cs.season = sk.season_api_year
+    on
+        cs.league_code = sk.league_code
+        and cs.season = sk.season_api_year

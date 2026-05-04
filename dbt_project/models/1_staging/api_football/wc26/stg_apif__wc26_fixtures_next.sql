@@ -1,11 +1,11 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_d1_apif_fixtures_next') }}
+    from {{ source('api_football', 'raw_wc26_apif_fixtures_next') }}
 ),
 
 exploded as (
     select
-        'D1' as league_code,
+        'WC26' as league_code,
         src.ingested_at as raw_ingested_at,
         match_json,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,

@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 with base as (
-    select * from {{ ref('base_apif__d1_fixture_statistics') }}
+    select * from {{ ref('base_apif__bl1_fixture_statistics') }}
 )
 
 select

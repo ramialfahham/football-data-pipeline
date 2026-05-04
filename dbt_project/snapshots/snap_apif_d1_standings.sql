@@ -47,6 +47,6 @@ select
     draws_all,
     losses_all,
     raw_ingested_at
-from {{ ref('stg_apif__d1_standings') }}
+from {{ ref('stg_apif__bl1_standings') }}
 
 {% endsnapshot %}

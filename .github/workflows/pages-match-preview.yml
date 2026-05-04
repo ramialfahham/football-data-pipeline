@@ -20,7 +20,7 @@ on:
       - ".github/workflows/pages-match-preview.yml"
       - "scripts/build_match_preview_site.sh"
       - "scripts/build_match_preview_site.ps1"
-      - "scripts/extract_show_json.py"
+      - "scripts/export_matchday_json.py"
       - "scripts/build_metric_glossary_json.py"
       - "scripts/inject_feedback_endpoint.py"
 
@@ -97,14 +97,11 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v4
 
-      - name: Export matchday JSON (dbt show)
-        working-directory: dbt_project
-        run: dbt show --select mart_matchday_insights --limit 9 --output json > ../artifacts/_show.json 2>&1
+      - name: Export matchday JSON
+        run: python scripts/export_matchday_json.py artifacts/matchday_insights.json
 
-      - name: Extract app JSON
-        run: |
-          python scripts/extract_show_json.py artifacts/_show.json artifacts/matchday_insights.json
-          python scripts/build_metric_glossary_json.py
+      - name: Build metric glossary JSON
+        run: python scripts/build_metric_glossary_json.py
 
       - name: Inject feedback Apps Script URL (optional)
         env:

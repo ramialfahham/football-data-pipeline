@@ -21,14 +21,15 @@ from .ingestion_lock import (
 from .config import (
     DATASET_ID,
     GCP_PROJECT_ID,
-    LEAGUES,
     V1_SEASON_WINDOW_YEARS,
     _apply_ingest_profile_defaults,
     _env_truthy,
+    include_in_progress_competitions,
     _ingest_profile_name,
     effective_season_max,
     effective_season_min,
     get_headers,
+    selected_competitions,
     season_year,
 )
 from .errors_quota import (
@@ -74,12 +75,31 @@ def _load_api_football(request):
             f"inferred_single_season={season_year()} API_FOOTBALL_SEASON={_raw!r} "
             f"API_FOOTBALL_SEASONS={_seasons_csv!r} API_FOOTBALL_ALL_SEASONS={_all_s} "
             f"v1_seasons_last_{V1_SEASON_WINDOW_YEARS}={_lo}-{_hi} "
-            f"fixtures_mode={_fx_mode!r} fanout_priority={_fan_pri!r} run_id={run_id}",
+            f"fixtures_mode={_fx_mode!r} fanout_priority={_fan_pri!r} "
+            f"include_in_progress={include_in_progress_competitions()} run_id={run_id}",
             flush=True,
         )
 
-        for league_code, league_id in LEAGUES.items():
-            ingest_league(ctx, league_code, league_id)
+        selected, skipped = selected_competitions()
+        selected_log = ", ".join(
+            f"{c.league_code}:{c.provider_league_id} ({c.status})" for c in selected
+        )
+        print(f"[api-football] selected_competitions={selected_log}", flush=True)
+        for comp, reason in skipped:
+            print(
+                f"[api-football] skipped_competition league={comp.league_code} "
+                f"provider_league_id={comp.provider_league_id} status={comp.status} reason={reason}",
+                flush=True,
+            )
+
+        for comp in selected:
+            ingest_league(
+                ctx,
+                comp.league_code,
+                comp.provider_league_id,
+                comp.form_source,
+                comp.supporting_leagues,
+            )
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:

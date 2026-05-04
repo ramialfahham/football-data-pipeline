@@ -1,64 +1,7 @@
 {{ config(materialized='table') }}
 
-with stg_apif__d1_fixture_players as (
-    select * from {{ ref('stg_apif__d1_fixture_players') }}
-),
-
-src as (
-    select
-        league_code,
-        fixture_id,
-        team_id,
-        player_id,
-        minutes_played,
-        shirt_number,
-        position_code,
-        rating,
-        is_captain,
-        is_substitute,
-        offsides,
-        shots_total,
-        shots_on,
-        goals_total,
-        goals_conceded,
-        goals_assists,
-        goals_saves,
-        passes_total,
-        passes_key,
-        passes_accuracy_percent,
-        tackles_total,
-        tackles_blocks,
-        tackles_interceptions,
-        duels_total,
-        duels_won,
-        dribbles_attempts,
-        dribbles_success,
-        dribbles_past,
-        fouls_drawn,
-        fouls_committed,
-        cards_yellow,
-        cards_red,
-        penalty_won,
-        penalty_committed,
-        penalty_scored,
-        penalty_missed,
-        penalty_saved,
-        raw_ingested_at,
-        row_number() over (
-            partition by fixture_id, team_id, player_id
-            order by raw_ingested_at desc
-        ) as rn
-    from stg_apif__d1_fixture_players
-    where
-        fixture_id is not null
-        and team_id is not null
-        and player_id is not null
-),
-
-latest as (
-    select *
-    from src
-    where rn = 1
+with base as (
+    select * from {{ ref('base_apif__bl1_fixture_players') }}
 )
 
 select
@@ -106,4 +49,4 @@ select
     penalty_missed,
     penalty_saved,
     raw_ingested_at
-from latest
+from base

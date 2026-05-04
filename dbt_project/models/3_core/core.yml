@@ -372,7 +372,7 @@ models:
       - name: season_api_year
       - name: team_api_id
       - name: group_description
-        description: "Standings zone label (e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams where the API returns no zone significance."
+        description: "Standings zone label assigned by the API (e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams where the API returns no zone significance. Part of the grain because the API may return one row per (team, zone)."
       - name: standing_rank
         description: "Table position (1 = leader)."
       - name: points

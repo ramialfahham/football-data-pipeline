@@ -5,7 +5,7 @@ with src as (
 
 exploded as (
     select
-        'D1' as league_code,
+        'BL1' as league_code,
         src.ingested_at as raw_ingested_at,
         row_json,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,
