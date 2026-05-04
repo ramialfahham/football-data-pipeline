@@ -42,12 +42,12 @@ def run() -> TrustResult:
     project = _project()
     client = bigquery.Client(project=project)
 
-    raw_rows = _single_int(client, f"select count(*) as c from `{project}.raw.RAW_D1_APIF_FIXTURE_STATISTICS`", "c")
+    raw_rows = _single_int(client, f"select count(*) as c from `{project}.raw.RAW_APIF_BL1_FIXTURE_STATISTICS`", "c")
     raw_rows_last_24h = _single_int(
         client,
         f"""
         select count(*) as c
-        from `{project}.raw.RAW_D1_APIF_FIXTURE_STATISTICS`
+        from `{project}.raw.RAW_APIF_BL1_FIXTURE_STATISTICS`
         where ingested_at >= timestamp_sub(current_timestamp(), interval 24 hour)
         """,
         "c",
@@ -57,7 +57,7 @@ def run() -> TrustResult:
         f"""
         with src as (
             select payload
-            from `{project}.raw.RAW_D1_APIF_FIXTURE_STATISTICS`
+            from `{project}.raw.RAW_APIF_BL1_FIXTURE_STATISTICS`
         ),
         blocks as (
             select block_json

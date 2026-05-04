@@ -1,6 +1,6 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_d1_apif_standings') }}
+    from {{ source('api_football', 'raw_apif_bl1_standings') }}
 ),
 
 expanded_standings as (

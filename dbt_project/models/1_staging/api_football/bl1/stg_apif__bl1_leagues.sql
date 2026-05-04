@@ -1,6 +1,6 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_d1_apif_leagues') }}
+    from {{ source('api_football', 'raw_apif_bl1_leagues') }}
 ),
 
 league_rows as (

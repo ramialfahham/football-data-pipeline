@@ -88,7 +88,7 @@ def read_latest_payload_json(
 
     Results are streamed via the BigQuery Storage Read API (gRPC) rather than the
     REST paginator because merged ``payload`` rows can exceed REST's 20 MiB per-row
-    response cap after several runs (notably ``raw_d1_apif_players``).
+    response cap after several runs (notably ``raw_apif_bl1_players``).
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     try:

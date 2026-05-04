@@ -9,67 +9,67 @@ with per_table as (
     select
         'fixtures_next' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_fixtures_next') }}
+    from {{ source('api_football', 'raw_apif_bl1_fixtures_next') }}
     union all
     select
         'leagues' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_leagues') }}
+    from {{ source('api_football', 'raw_apif_bl1_leagues') }}
     union all
     select
         'standings' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_standings') }}
+    from {{ source('api_football', 'raw_apif_bl1_standings') }}
     union all
     select
         'rounds' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_rounds') }}
+    from {{ source('api_football', 'raw_apif_bl1_rounds') }}
     union all
     select
         'teams' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_teams') }}
+    from {{ source('api_football', 'raw_apif_bl1_teams') }}
     union all
     select
         'injuries' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_injuries') }}
+    from {{ source('api_football', 'raw_apif_bl1_injuries') }}
     union all
     select
         'transfers' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_transfers') }}
+    from {{ source('api_football', 'raw_apif_bl1_transfers') }}
     union all
     select
         'lineups' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_lineups') }}
+    from {{ source('api_football', 'raw_apif_bl1_lineups') }}
     union all
     select
         'fixture_events' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_fixture_events') }}
+    from {{ source('api_football', 'raw_apif_bl1_fixture_events') }}
     union all
     select
         'fixture_statistics' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_fixture_statistics') }}
+    from {{ source('api_football', 'raw_apif_bl1_fixture_statistics') }}
     union all
     select
         'fixture_players' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_fixture_players') }}
+    from {{ source('api_football', 'raw_apif_bl1_fixture_players') }}
     union all
     select
         'predictions' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_predictions') }}
+    from {{ source('api_football', 'raw_apif_bl1_predictions') }}
     union all
     select
         'players' as source_entity,
         max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_d1_apif_players') }}
+    from {{ source('api_football', 'raw_apif_bl1_players') }}
 )
 
 select
