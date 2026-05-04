@@ -83,3 +83,81 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_fixtures_next
+        identifier: RAW_WC26_APIF_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_leagues
+        identifier: RAW_WC26_APIF_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_standings
+        identifier: RAW_WC26_APIF_STANDINGS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_rounds
+        identifier: RAW_WC26_APIF_ROUNDS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_teams
+        identifier: RAW_WC26_APIF_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_injuries
+        identifier: RAW_WC26_APIF_INJURIES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_transfers
+        identifier: RAW_WC26_APIF_TRANSFERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_lineups
+        identifier: RAW_WC26_APIF_LINEUPS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_fixture_events
+        identifier: RAW_WC26_APIF_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_fixture_statistics
+        identifier: RAW_WC26_APIF_FIXTURE_STATISTICS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_fixture_players
+        identifier: RAW_WC26_APIF_FIXTURE_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_predictions
+        identifier: RAW_WC26_APIF_PREDICTIONS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_wc26_apif_players
+        identifier: RAW_WC26_APIF_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
