@@ -1,5 +1,7 @@
 # football-data-pipeline
-Modular ELT pipeline to ingest and model football data from API-Football using Python, BigQuery, and dbt.
+Multi-competition football data platform: Python ingestion from API-Football → BigQuery → dbt → [live match preview app](https://ramialfahham.github.io/football-data-pipeline/match-preview/).
+
+The data pipeline is the foundation of a real product. The match preview web app is live at **https://ramialfahham.github.io/football-data-pipeline/match-preview/**.
 
 ## BigQuery layout (datasets)
 
@@ -15,19 +17,17 @@ dbt uses [`macros/generate_schema_name.sql`](dbt_project/macros/generate_schema_
 
 Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_project/docs/layering.md).
 
-**Competition scope:** ingestion and dbt models target **German Bundesliga (D1)** only (API-Football league id **78**). Adding a second competition means adding raw tables with a new league prefix and a parallel set of staging models; the `3_core` layer is already `league_code`-aware so dims and facts can union future leagues without schema changes.
+**Competition scope:** active competitions are **BL1** (German Bundesliga), **WC** (FIFA World Cup 2026), and the six confederation qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC). The competition registry lives in `docs/competition_registry.yml`; adding a new competition requires only a YAML entry and a set of staging models — no changes to the ingestion package.
 
 **Layer population (current state):**
 
 | Layer | Status | What is there |
 |-------|--------|---------------|
-| `1_staging` | populated | 13 `stg_apif__d1_*` models, one per ingested `RAW_D1_APIF_*` source. |
-| `2_base` | empty placeholder | Deferred until a second landing source exists. |
-| `3_core` | populated | 5 dims (`dim_date`, `dim_league`, `dim_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`), 1 snapshot (`snap_apif_d1_standings`). |
+| `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
+| `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
+| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`). |
 | `4_intermediate` | 1 model | `int_apif__raw_ingestion_spread` (ingestion-spread audit). |
-| `5_marts` | empty placeholder | Built on demand once a consumer is defined. |
-
-Until `2_base` and `5_marts` contain models, `dbt parse` / `dbt build` may warn that their folder configs apply to no resources; that is expected.
+| `5_marts` | populated | 7 models — `mart_matchday_insights` (powers the live app), `mart_fixture_results`, `mart_top_scorers`, `mart_team_rankings_current`, `mart_team_season`, `mart_player_season`, `mart_form_window_debug`. |
 
 ## dbt (local setup)
 

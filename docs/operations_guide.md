@@ -31,7 +31,7 @@ $env:PYTHONPATH = "."
 python -m ingestion.api_football.main
 ```
 
-The job prints phase markers such as `[api-football] league=D1 phase=fixtures` so long runs are not silent.
+The job prints phase markers such as `[api-football] league=BL1 phase=fixtures` so long runs are not silent. One competition is processed per phase cycle; the competition code appears in each log line.
 
 ### Exit codes
 
@@ -81,7 +81,7 @@ Whether to send `page=` on `/fixtures` in `season` mode. Default `0`. Set to `1`
 
 Hard cap on fixtures entering the per-fixture bundle (lineups, events, statistics, fixture players, predictions) in one run. Empty default means no extra cap beyond quota math and soft caps. Set when a specific daily budget must not be exceeded.
 
-> Fanout selection: before the per-fixture pass, the loader reads the merged payloads of the five batched raw tables and skips, per endpoint, any `fixture_id` already covered. Only fixtures that still need at least one endpoint enter the priority and budget math. The log line `[api-football] fanout_selection league=… target=… already_complete=… missing_any_endpoint=…` at the start of the phase shows how much work remains this run.
+> Fanout selection: before the per-fixture pass, the loader reads the merged payloads of the five batched raw tables and skips, per endpoint, any `fixture_id` already covered. Only fixtures that still need at least one endpoint enter the priority and budget math. The log line `[api-football] fanout_selection league={league_code} target=… already_complete=… missing_any_endpoint=…` at the start of the phase shows how much work remains this run.
 
 #### `API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER` (optional)
 
@@ -92,7 +92,7 @@ Fixture cap applied when the API does not return a daily quota header. Default `
 Order in which fixtures enter the per-fixture bundle.
 
 - `upcoming` (default): next few weeks first (see `API_FOOTBALL_FRESH_HORIZON_DAYS`). Best for product freshness.
-- `cursor`: walk the full list from a stored offset in `RAW_D1_APIF_INGEST_CURSOR`. Best for steadily advancing the archive across scheduled runs.
+- `cursor`: walk the full list from a stored offset in `RAW_APIF_{league_code}_INGEST_CURSOR`. Best for steadily advancing the archive across scheduled runs.
 - `season_chrono` / `chrono`: earliest kickoff first.
 
 #### `API_FOOTBALL_FRESH_HORIZON_DAYS` (optional)
@@ -154,13 +154,13 @@ python scripts\clear_apif_ingest_lock.py
 
 Three signals together tell you what happened.
 
-1. **Fanout selection (start of per-fixture phase).** The log line `[api-football] fanout_selection league=D1 target=… already_complete=… missing_any_endpoint=…` reports the number of in-scope fixtures, how many are already covered in all five per-match tables, and how many still miss at least one endpoint.
+1. **Fanout selection (start of per-fixture phase).** The log line `[api-football] fanout_selection league={league_code} target=… already_complete=… missing_any_endpoint=…` reports the number of in-scope fixtures, how many are already covered in all five per-match tables, and how many still miss at least one endpoint.
 
-2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the merged `RAW_D1_APIF_FIXTURES_NEXT` payload (`status.short` in `FT`, `AET`, `PEN`) against fixture ids present in each batched per-match payload (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`, `PREDICTIONS`) and emits `[api-football] ingest_completeness_json={...}`. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check, because the per-match tables can't legitimately cover them yet. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
+2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the merged `RAW_APIF_{league_code}_FIXTURES_NEXT` payload (`status.short` in `FT`, `AET`, `PEN`) against fixture ids present in each batched per-match payload (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`, `PREDICTIONS`) and emits `[api-football] ingest_completeness_json={...}`. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check, because the per-match tables can't legitimately cover them yet. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
 
    When `match_level_tables_cover_all_fixtures` is `false` during a multi-day backfill, the process exits `3` under the default `API_FOOTBALL_FAIL_ON_INCOMPLETE=1`. Set that env var to `0` until coverage catches up, or skip the check entirely with `API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1` (not recommended long-term).
 
-3. **Warehouse alignment.** The dbt model `int_apif__raw_ingestion_spread` summarises `MAX(ingested_at)` across raw D1 tables in one row, including `spread_minutes`. Build it with `dbt build --project-dir .\dbt_project --select int_apif__raw_ingestion_spread` to check alignment after deploys.
+3. **Warehouse alignment.** The dbt model `int_apif__raw_ingestion_spread` summarises `MAX(ingested_at)` across raw tables per competition in one row, including `spread_minutes`. Build it with `dbt build --project-dir .\dbt_project --select int_apif__raw_ingestion_spread` to check alignment after deploys.
 
 ---
 
@@ -174,7 +174,7 @@ Land a wide merged snapshot (many seasons, full fanout over time) without fighti
 2. Set `API_FOOTBALL_FAIL_ON_INCOMPLETE=0` until fanout coverage catches up. Optionally cap `API_FOOTBALL_LINEUPS_MAX_FIXTURES` per day.
 3. Use `API_FOOTBALL_FANOUT_PRIORITY=cursor` (and optionally `API_FOOTBALL_SKIP_PLAYERS=1` on cursor-only days) to walk the fixture list across runs.
 4. Clear a stale lock (`scripts/clear_apif_ingest_lock.py`) if exit `2` appears with no job running.
-5. Run `python -m ingestion.api_football.main` as often as quota allows until `ingest_completeness_json` reports `match_level_tables_cover_all_fixtures: true` for D1.
+5. Run `python -m ingestion.api_football.main` as often as quota allows until `ingest_completeness_json` reports `match_level_tables_cover_all_fixtures: true` for each competition.
 6. Return `API_FOOTBALL_FAIL_ON_INCOMPLETE` to `1` for normal operations.
 7. Run `dbt build --project-dir .\dbt_project --selector staging` (and downstream where it applies) after ingest succeeds so staging matches raw.
 
@@ -203,8 +203,9 @@ Refresh cheap league-wide tables daily and prioritise near-term matches for the 
 
 ## CI/CD guardrails
 
-GitHub Actions workflows enforce the layer contract and run dbt:
+GitHub Actions workflows enforce the layer contract, run Python tests, and run dbt:
 
+- `.github/workflows/python-ci.yml`: runs `pytest tests/ -v` on every PR and push to `main`. Covers pure-function unit tests for the ingestion package (merge logic, season inference, fanout scheduling).
 - `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, focused transfer contract build `dbt build --select dim_date dim_player fct_transfer`).
 - `.github/workflows/dbt-scheduled.yml`: twice-daily scheduled run (`04:00` and `16:00` UTC) with full DQ selector (`dbt build --selector dq`).
 - `.github/workflows/pages-match-preview.yml`: builds `+mart_matchday_insights`, exports `matchday_insights.json` and `metric_glossary.json`, assembles `site/match-preview/` into `_site/`, and deploys to **GitHub Pages** (manual `workflow_dispatch`, daily schedule, or on push to `main` when relevant paths change).
