@@ -1,13 +1,4 @@
-"""Tests for fixture_scheduling.py — coverage flags and the fanout gate.
-
-The coverage flag gate (_fixture_needs_any_endpoint) was the root cause of the
-WC statistics bug (PR #40): the API reports fixture_statistics=false for WC 2026
-(upcoming reference season), which caused all 2022/2018 finished fixtures to be
-skipped entirely. The fix: finished fixtures always get a stats attempt regardless
-of the coverage flag.
-
-These tests pin that fix as a regression test.
-"""
+"""Tests for fixture_scheduling.py — coverage flags and the fanout gate."""
 
 import pytest
 from ingestion.api_football.fixture_scheduling import _coverage_for_season
@@ -98,7 +89,7 @@ class TestFinishedFixtureIds:
 
 
 # ---------------------------------------------------------------------------
-# _fixture_needs_any_endpoint — the coverage flag gate (PR #40 regression)
+# _fixture_needs_any_endpoint — the coverage flag gate
 # ---------------------------------------------------------------------------
 
 def _covered_nothing() -> dict[str, set[int]]:
@@ -120,29 +111,29 @@ class TestFixtureNeedsAnyEndpoint:
                "fixture_players": True, "predictions": True}
         assert not _fixture_needs_any_endpoint(1, _covered_all(1), cov, finished_fixture_ids=set())
 
-    def test_wc2026_regression_finished_fixture_needs_stats(self):
-        # WC 2026 case: reference season is upcoming → stats flag is False.
-        # A 2022 World Cup finished fixture must still enter the fanout loop for stats.
+    def test_finished_fixture_needs_stats_regardless_of_coverage_flag(self):
+        # When the reference season is upcoming (e.g. any future tournament), the API
+        # reports fixture_statistics=false. Finished fixtures from prior seasons must
+        # still enter the fanout loop for stats — the flag reflects the reference season,
+        # not whether historical data exists.
         cov = {
             "fixture_lineups": True,
             "fixture_events": True,
-            "fixture_statistics": False,   # API says unsupported for WC 2026 reference season
+            "fixture_statistics": False,
             "fixture_players": True,
             "predictions": True,
         }
         covered = _covered_all(100)
-        # Everything covered except stats (which isn't in covered_all because stats=False
-        # means it was never fetched). Simulate: lineups/events/players/preds all covered,
-        # fx_stats not covered.
-        covered["fx_stats"] = set()
+        covered["fx_stats"] = set()  # stats not yet fetched
 
-        finished = {100}  # fixture 100 is FT
+        finished = {100}
         assert _fixture_needs_any_endpoint(100, covered, cov, finished_fixture_ids=finished), (
             "Finished fixture must need stats fetch even when coverage flag is False"
         )
 
-    def test_wc2026_regression_upcoming_fixture_respects_stats_flag(self):
-        # Upcoming fixture (not in finished_fixture_ids) should respect the flag.
+    def test_upcoming_fixture_respects_stats_coverage_flag(self):
+        # An unplayed fixture should respect the coverage flag — do not spend quota
+        # on an endpoint the competition genuinely does not support.
         cov = {
             "fixture_lineups": True,
             "fixture_events": True,
@@ -151,7 +142,7 @@ class TestFixtureNeedsAnyEndpoint:
             "predictions": True,
         }
         covered = _covered_all(200)
-        covered["fx_stats"] = set()  # stats not covered, but fixture is upcoming
+        covered["fx_stats"] = set()  # stats not covered, but fixture is not finished
 
         finished = set()  # fixture 200 is NOT finished
         # Since stats flag is False and fixture is not finished, stats endpoint is disabled.
