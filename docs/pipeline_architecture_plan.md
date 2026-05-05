@@ -1,6 +1,6 @@
 # Multi-competition pipeline architecture plan
 
-**Status:** Draft — steps 1–2 in progress, steps 3–9 not yet approved  
+**Status:** Step 1 ingestion fixes merged, re-run pending quota reset. Step 2 not started.  
 **Last updated:** 2026-05-05
 
 ---
@@ -13,6 +13,23 @@ Make it easy and straightforward to add any new league/competition. Adding a new
 3. Zero changes to shared intermediate or core models
 
 ---
+
+## Ingestion fixes merged (2026-05-05)
+
+- **PR #36**: `current_season` threaded from registry through ingestion — WC uses season 2026 correctly
+- **PR #37**: This architecture plan document
+- **PR #38**: Stats fetch always attempted for finished fixtures; stale staging model reference in CI trust script fixed
+- **PR #39**: All 7 qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC) made first-class competitions — ingested through the standard pipeline, same level of detail as BL1
+- **PR #40**: Fanout gate fixed — finished fixtures always enter the fanout loop for statistics regardless of reference season coverage flags (was silently skipping WC 2022 and WCQEU stats)
+
+## Ingestion status after last run (2026-05-05, quota exhausted mid-run)
+
+- BL1: complete ✓ (3,056/3,056 finished fixtures, all endpoints)
+- WC: fixtures and fanout complete except FIXTURE_STATISTICS (72/128 — will be fixed on next run with PR #40)
+- WCQEU: fixtures complete (741), lineups/events/players/predictions complete (740/740), FIXTURE_STATISTICS 0/740 (will be fixed on next run)
+- WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC: 0 fixtures — quota exhausted before they ran. Will complete on next run.
+
+**Next action: re-run ingestion after daily quota resets.**
 
 ## Current state
 
