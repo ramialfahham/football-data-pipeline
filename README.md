@@ -1,7 +1,8 @@
-# football-data-pipeline
-Multi-competition football data platform: Python ingestion from API-Football → BigQuery → dbt → [live match preview app](https://ramialfahham.github.io/football-data-pipeline/match-preview/).
+# football-data-pipeline — Matchday IQ
 
-The data pipeline is the foundation of a real product. The match preview web app is live at **https://ramialfahham.github.io/football-data-pipeline/match-preview/**.
+The data backend for **[Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)** — a pre-match football companion for fans. Open the app, instantly see what's on today, tap a match, and within seconds have five things worth saying about it.
+
+The pipeline ingests from API-Football → BigQuery → dbt → live web app. Multi-competition, multilingual, built to scale to all major competitions.
 
 ## BigQuery layout (datasets)
 
