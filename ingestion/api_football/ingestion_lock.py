@@ -15,7 +15,7 @@ from google.cloud import bigquery
 from google.cloud.bigquery import ScalarQueryParameter
 from google.cloud.exceptions import NotFound
 
-from .config import DATASET_ID, GCP_PROJECT_ID, _env_int
+from .settings import DATASET_ID, GCP_PROJECT_ID, _env_int
 
 LOCK_TABLE = "RAW_APIF_INGEST_LOCK"
 LOCK_NAME = "api_football"

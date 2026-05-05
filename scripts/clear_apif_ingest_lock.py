@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 
-# Repo root on path for ingestion.config
+# Repo root on path for ingestion.settings
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
@@ -13,7 +13,7 @@ if _ROOT not in sys.path:
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from ingestion.api_football.config import GCP_PROJECT_ID
+from ingestion.api_football.settings import GCP_PROJECT_ID
 from ingestion.api_football.ingestion_lock import (
     LOCK_NAME,
     ensure_ingest_lock_table,

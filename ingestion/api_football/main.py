@@ -32,7 +32,7 @@ References:
 
 from __future__ import annotations
 
-from .pipeline import _load_api_football
+from .orchestrator import _load_api_football
 
 try:
     import functions_framework

@@ -7,9 +7,9 @@ import time
 
 import requests
 
-from . import errors_quota
-from .config import base_url
-from .errors_quota import (
+from . import quota as errors_quota
+from .settings import base_url
+from .quota import (
     _flag_daily_quota_exhausted_once,
     _flatten_api_errors,
     _maybe_log_quota,

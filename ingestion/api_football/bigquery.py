@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from .config import DATASET_ID, GCP_PROJECT_ID
+from .settings import DATASET_ID, GCP_PROJECT_ID
 
 
 def _api_football_dataset_location() -> str:

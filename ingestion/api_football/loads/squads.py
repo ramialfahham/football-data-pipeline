@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import os
 
-from .. import errors_quota
-from ..bq import load_json_to_bq, read_latest_payload_json
-from ..config import raw_league_table
-from ..payload_merge import merge_players_squad
-from ..fanout import players_response_for_team
+from .. import quota as errors_quota
+from ..bigquery import load_json_to_bq, read_latest_payload_json
+from ..settings import raw_league_table
+from ..merge import merge_players_squad
+from ..fixture_scheduling import players_response_for_team
 from .context import PipelineContext
 
 

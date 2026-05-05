@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from .. import errors_quota
-from ..bq import load_json_to_bq, read_latest_payload_json
-from ..config import raw_league_table
-from ..errors_quota import append_api_errors
-from ..fanout import team_ids_for_league
+from .. import quota as errors_quota
+from ..bigquery import load_json_to_bq, read_latest_payload_json
+from ..settings import raw_league_table
+from ..quota import append_api_errors
+from ..fixture_scheduling import team_ids_for_league
 from ..http_client import fetch_merged_paged
-from ..payload_merge import merge_teams_envelope
+from ..merge import merge_teams_envelope
 from .context import PipelineContext
 
 

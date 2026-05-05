@@ -19,18 +19,18 @@ from __future__ import annotations
 
 import os
 
-from .. import errors_quota
-from ..bq import load_json_to_bq, read_latest_payload_json
+from .. import quota as errors_quota
+from ..bigquery import load_json_to_bq, read_latest_payload_json
 from ..completeness import _fixture_ids_from_fanout_payload
-from ..config import raw_league_table
-from ..errors_quota import append_api_errors
-from ..fanout import (
+from ..settings import raw_league_table
+from ..quota import append_api_errors
+from ..fixture_scheduling import (
     _budgeted_fixture_fanout_ids,
     _fanout_fixture_order,
     _write_fanout_cursor,
 )
 from ..http_client import fetch_json
-from ..payload_merge import merge_fanout_batched
+from ..merge import merge_fanout_batched
 from .context import PipelineContext
 
 # (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)

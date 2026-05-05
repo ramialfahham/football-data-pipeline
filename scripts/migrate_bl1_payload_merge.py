@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from ingestion.api_football.payload_merge import (
+from ingestion.api_football.merge import (
     merge_fanout_batched,
     merge_fixtures_envelope,
     merge_injuries_envelope,

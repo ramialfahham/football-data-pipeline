@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from .. import errors_quota
-from ..bq import load_json_to_bq, read_latest_payload_json
-from ..config import raw_league_table
-from ..errors_quota import append_api_errors
+from .. import quota as errors_quota
+from ..bigquery import load_json_to_bq, read_latest_payload_json
+from ..settings import raw_league_table
+from ..quota import append_api_errors
 from ..http_client import fetch_json
-from ..payload_merge import merge_rounds_season_blocks
+from ..merge import merge_rounds_season_blocks
 from .context import PipelineContext
 
 

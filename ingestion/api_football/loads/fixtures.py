@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 
-from .. import errors_quota
-from ..bq import load_json_to_bq, read_latest_payload_json
-from ..config import _env_int, raw_league_table
-from ..errors_quota import append_api_errors
+from .. import quota as errors_quota
+from ..bigquery import load_json_to_bq, read_latest_payload_json
+from ..settings import _env_int, raw_league_table
+from ..quota import append_api_errors
 from ..http_client import fetch_merged_paged
-from ..payload_merge import merge_fixtures_envelope
+from ..merge import merge_fixtures_envelope
 from ..seasons import _merge_merged_paged, fixtures_query_params
 from .context import PipelineContext
 
