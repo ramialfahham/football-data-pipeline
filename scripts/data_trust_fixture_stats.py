@@ -79,12 +79,12 @@ def run() -> TrustResult:
         "c",
     )
 
-    staging_rows = _single_int(client, f"select count(*) as c from `{project}.staging.stg_apif__d1_fixture_statistics`", "c")
+    staging_rows = _single_int(client, f"select count(*) as c from `{project}.staging.stg_apif__bl1_fixture_statistics`", "c")
     staging_shots_on_goal_non_null_rows = _single_int(
         client,
         f"""
         select count(*) as c
-        from `{project}.staging.stg_apif__d1_fixture_statistics`
+        from `{project}.staging.stg_apif__bl1_fixture_statistics`
         where shots_on_goal is not null
         """,
         "c",
