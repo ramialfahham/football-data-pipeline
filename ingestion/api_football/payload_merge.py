@@ -1,4 +1,14 @@
-"""Merge prior BigQuery payloads with this-run API data (cross-run completeness)."""
+"""Merge prior BigQuery payloads with this-run API data (cross-run completeness).
+
+Every raw table holds a single JSON payload row (the "merge-on-write" pattern).
+Before writing, we read the existing payload from BQ, merge it with the new API
+data, and write the result back. This makes each run additive: a fixture fetched
+on Monday survives Tuesday's run even if the API doesn't return it again.
+
+Each merge function defines its own deduplication key (fixture_id, team+season,
+player_id, etc.) so incoming data overwrites stale entries on the same key while
+preserving everything else.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +20,12 @@ def merge_fanout_batched(
     league_code: str,
     valid_fixture_ids: set[int] | None,
 ) -> dict:
-    """Batched fanout tables: one block per ``fixture_id``; incoming overwrites; prune to ``valid_fixture_ids``."""
+    """Merge per-fixture fanout blocks (lineups, events, stats, players, predictions).
+
+    Keyed by fixture_id; incoming overwrites existing for the same id. Entries
+    whose fixture_id is not in valid_fixture_ids are pruned — this prevents stale
+    rows from cancelled or removed fixtures accumulating indefinitely.
+    """
     by_id: dict[int, dict] = {}
     for row in (existing or {}).get("response") or []:
         fid = row.get("fixture_id")
@@ -60,6 +75,12 @@ def _fixture_id_from_match(item: dict) -> int | None:
 
 
 def merge_fixtures_envelope(existing: dict | None, incoming: dict) -> dict:
+    """Merge /fixtures responses across seasons and runs, keyed by fixture_id.
+
+    Multi-season ingestion calls /fixtures once per season; this merges all
+    seasons into a single payload so downstream code sees one unified fixture list.
+    Incoming overwrites existing for the same fixture_id (status updates, reschedules).
+    """
     by_id: dict[int, dict] = {}
     for it in (existing or {}).get("response") or []:
         fid = _fixture_id_from_match(it)
@@ -205,10 +226,12 @@ def merge_rounds_season_blocks(
     season: int,
     rounds_pl: dict,
 ) -> dict:
-    """
-    Store ``response`` as ``[{season, rounds: [...]}, ...]`` so cross-run merges stay correct.
+    """Merge rounds per season into a list of {season, rounds} blocks.
 
-    Legacy payloads (flat list of round name strings) are dropped when the first tagged write runs.
+    The API returns a flat list of round name strings per season call. We wrap
+    each in a season-tagged block so multi-season payloads stay mergeable across
+    runs. Legacy flat-list payloads (written before this format) are detected and
+    discarded on first tagged write rather than corrupting the merge.
     """
     raw_names = rounds_pl.get("response") or []
     names: list = []

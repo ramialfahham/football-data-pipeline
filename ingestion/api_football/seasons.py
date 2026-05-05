@@ -1,4 +1,17 @@
-"""Season discovery, fixture query params, and merged API envelope helpers."""
+"""Season discovery, fixture query params, and merged API envelope helpers.
+
+The API uses the competition start calendar year as its 'season' identifier
+(e.g. 2024 = the 2024/25 Bundesliga season). This module handles three concerns:
+
+1. Season discovery — which API season years to ingest for a given competition.
+   Domestic leagues use a rolling 10-year window; international tournaments use
+   current_season from the competition registry to avoid pulling irrelevant prior editions.
+
+2. Fixture query params — how to ask the API for fixtures (full season vs. date window).
+
+3. Envelope helpers — utilities for merging multi-season API responses into a
+   single payload before writing to BigQuery.
+"""
 
 from __future__ import annotations
 
@@ -100,16 +113,17 @@ def _seasons_for_ingestion(
     errors: list[str],
     current_season: int | None = None,
 ) -> list[int]:
-    """
-    Which competition start years to pull for this league.
+    """Return the list of API season years to ingest for this competition.
 
-    Precedence: ``API_FOOTBALL_SEASON`` → ``API_FOOTBALL_SEASONS`` (comma list) →
-    multi-season discovery when **ingest profile is full** (or ``API_FOOTBALL_ALL_SEASONS``)
-    → ``current_season`` from the registry → single inferred :func:`season_year`.
+    Resolution order (first match wins):
+    1. API_FOOTBALL_SEASON env var — single explicit season, no filtering.
+    2. API_FOOTBALL_SEASONS env var — explicit comma-separated list, filtered to band.
+    3. Full/paid ingest profile — discover all seasons from the API catalog, filter to band.
+    4. Fallback — single season: current_season from registry, or inferred from today's date.
 
-    ``current_season`` extends the band upper bound so that calendar-year competitions
-    (e.g. WC 2026 with current_season=2026) are not silently dropped by the split-year
-    domestic-league inferred max. It also serves as the single-season fallback.
+    The band (lo..hi) is the v1 10-year window of domestic season start years. For
+    international tournaments (e.g. WC 2026), current_season extends hi so a future
+    calendar-year tournament is not silently dropped by the split-year domestic-league max.
     """
     raw_single = os.getenv("API_FOOTBALL_SEASON", "").strip()
     if raw_single:

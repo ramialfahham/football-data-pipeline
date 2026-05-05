@@ -1,4 +1,15 @@
-"""Fixture ordering, fanout budgeting, coverage flags, and /players squad pulls."""
+"""Fixture ordering, fanout budgeting, coverage flags, and /players squad pulls.
+
+'Fanout' refers to the per-fixture HTTP bundle: for every finished fixture we
+fetch lineups, events, statistics, player ratings, and predictions — five API
+calls per match. This module controls which fixtures get fetched and in what order,
+respecting the daily API quota.
+
+Coverage flags (from GET /leagues) tell us which endpoints a competition supports.
+They are read once per run for the reference season (the latest season ingested)
+and applied to all fixtures. See fixture_fanout_load.py for how finished fixtures
+override the stats flag when the reference season is upcoming.
+"""
 
 from __future__ import annotations
 
@@ -56,10 +67,17 @@ def _bool_at(coverage: dict, *path: str, default: bool = True) -> bool:
 
 
 def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]:
-    """
-    Read ``/leagues`` season ``coverage`` when possible (guide: check flags before wasting calls).
+    """Extract API coverage flags for a specific season from the /leagues catalog response.
 
-    Unknown / missing paths default to **True** so we do not silently skip on unexpected shapes.
+    The API declares per-season which endpoints it supports (e.g. lineups, statistics).
+    We read these to avoid spending quota on endpoints that will always return empty.
+    Unknown or missing paths default to True — better to attempt and get an empty
+    response than to silently skip an endpoint that exists.
+
+    Important: these flags reflect the declared season, which is always the reference
+    (latest) season. For competitions with an upcoming reference season the stats flag
+    may be false even though prior seasons have stats. fixture_fanout_load.py handles
+    this by always attempting stats for finished fixtures regardless of this flag.
     """
     cov: dict = {}
     try:
@@ -204,12 +222,16 @@ def _budgeted_fixture_fanout_ids(
     league_code: str,
     errors: list[str],
 ) -> list[int]:
-    """
-    First ``N`` fixtures from ``ordered_fixture_ids`` that fit the daily budget for the
-    **per-fixture** bundle (lineups, events, statistics, …).
+    """Return the fixtures that fit within today's remaining API quota.
 
-    Free tier is ~**100 requests/day**; each fixture can consume multiple HTTP calls, plus
-    we reserve worst-case ``/players`` pagination per club. See ``_fixture_fanout_http_estimate``.
+    We estimate 5 HTTP calls per fixture (lineups, events, stats, players, predictions)
+    and reserve a block for /players squad pagination. The daily remaining call count
+    comes from the x-ratelimit-requests-remaining response header, updated after each
+    HTTP call. If the header has not yet been seen (first call of the day), we fall back
+    to a soft cap controlled by API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER.
+
+    The paid/full ingest profile sets the soft cap to -1 (unlimited) and relies entirely
+    on the header-based budget. The free-tier default is 6 fixtures per run.
     """
     sorted_ids = list(ordered_fixture_ids)
     if not sorted_ids:

@@ -275,12 +275,15 @@ def _env_int(name: str, default: int) -> int:
 
 
 def _infer_competition_season_start_year(now: datetime | None = None) -> int:
-    """
-    API ``season`` = competition **start calendar year** (e.g. 2025 for 2025/26).
+    """Infer the current API season start year for split-year domestic leagues.
 
-    Domestic leagues are modelled from **1 July**: on/after that date the active
-    campaign is ``calendar_year / (calendar_year+1)`` → API season = that year;
-    before July it is still the previous campaign → ``calendar_year - 1``.
+    The API uses the start calendar year as the season identifier (e.g. 2024 for
+    2024/25 Bundesliga). Domestic leagues start in July, so:
+    - On or after 1 July: the new season has started → return this calendar year.
+    - Before 1 July: the previous season is still active → return calendar year - 1.
+
+    This is only correct for split-year domestic leagues. For calendar-year
+    competitions (WC, qualifiers), use current_season from the registry instead.
     """
     today = (now or datetime.utcnow()).date()
     if today >= date(today.year, 7, 1):
