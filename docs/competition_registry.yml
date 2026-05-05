@@ -105,14 +105,14 @@ competitions:
     name: "WC Qualification Europe"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 32
     season_type: "calendar_year"
     current_season: "2024"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQEU"
     parent_competition: "WC"
     notes: "UEFA zone. Season 2024 (group + playoff stages)."
 
@@ -120,14 +120,14 @@ competitions:
     name: "WC Qualification Africa"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 29
     season_type: "calendar_year"
     current_season: "2023"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQAF"
     parent_competition: "WC"
     notes: "CAF zone. Season 2023."
 
@@ -135,14 +135,14 @@ competitions:
     name: "WC Qualification CONCACAF"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 31
     season_type: "calendar_year"
     current_season: "2026"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQCA"
     parent_competition: "WC"
     notes: "CONCACAF zone. Season 2026."
 
@@ -150,14 +150,14 @@ competitions:
     name: "WC Qualification South America"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 34
     season_type: "calendar_year"
     current_season: "2026"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQSA"
     parent_competition: "WC"
     notes: "CONMEBOL zone. Season 2026."
 
@@ -165,14 +165,14 @@ competitions:
     name: "WC Qualification Asia"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 30
     season_type: "calendar_year"
     current_season: "2026"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQAS"
     parent_competition: "WC"
     notes: "AFC zone. Season 2026."
 
@@ -180,14 +180,14 @@ competitions:
     name: "WC Qualification Intercontinental Playoffs"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 37
     season_type: "calendar_year"
     current_season: "2026"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQIP"
     parent_competition: "WC"
     notes: "Inter-confederation playoffs. Season 2026."
 
@@ -195,16 +195,16 @@ competitions:
     name: "WC Qualification Oceania"
     country: "International"
     competition_type: "wc_qualifier"
-    provider: null
+    provider: "api_football"
     provider_league_code: null
     provider_league_id: 33
     season_type: "calendar_year"
     current_season: "2026"
     status: "in_progress"
     form_source: "league_only"
-    raw_table_prefix: null
+    raw_table_prefix: "RAW_APIF_WCQOC"
     parent_competition: "WC"
-    notes: "OFC zone. Season 2026. No player statistics available."
+    notes: "OFC zone. Season 2026."
 
   # -------------------------------------------------------------------------
   # PLANNED
