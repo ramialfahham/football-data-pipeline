@@ -59,6 +59,7 @@ jobs:
       - name: Run ingestion
         working-directory: .
         env:
+          API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
           API_FOOTBALL_INCLUDE_IN_PROGRESS: "1"
         run: python -m ingestion.api_football.main
 
