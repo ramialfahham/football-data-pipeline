@@ -15,7 +15,7 @@ import os
 
 from google.cloud import bigquery
 
-from .bq import ensure_api_football_dataset
+from .bigquery import ensure_api_football_dataset
 from .completeness import (
     completeness_summary_line,
     fail_on_incomplete,
@@ -27,27 +27,31 @@ from .ingestion_lock import (
     new_run_id,
     release_ingest_lock,
 )
-from .config import (
+from .settings import (
     DATASET_ID,
     GCP_PROJECT_ID,
     V1_SEASON_WINDOW_YEARS,
     _apply_ingest_profile_defaults,
     _env_truthy,
-    include_in_progress_competitions,
     _ingest_profile_name,
+    get_headers,
+)
+from .season_inference import (
     effective_season_max,
     effective_season_min,
-    get_headers,
-    selected_competitions,
     season_year,
 )
-from .errors_quota import (
+from .registry import (
+    include_in_progress_competitions,
+    selected_competitions,
+)
+from .quota import (
     _bind_quota_error_sink,
     _dedupe_errors_preserve_order,
     reset_http_quota_exhausted,
 )
 from .loads.context import PipelineContext
-from .loads.league_pipeline import ingest_league
+from .loads.competition_runner import ingest_league
 
 
 def _load_api_football(request):

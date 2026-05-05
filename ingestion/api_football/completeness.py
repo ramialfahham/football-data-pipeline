@@ -8,8 +8,9 @@ from typing import Any
 
 from google.cloud import bigquery
 
-from .bq import read_latest_payload_json
-from .config import selected_leagues_map, raw_league_table
+from .bigquery import read_latest_payload_json
+from .registry import selected_leagues_map
+from .settings import raw_league_table
 
 # Batched fanout raw entities (fixture_id blocks).
 FANOUT_ENTITIES = (

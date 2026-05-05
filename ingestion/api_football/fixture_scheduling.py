@@ -1,14 +1,26 @@
-"""Fixture ordering, fanout budgeting, coverage flags, and /players squad pulls.
+"""Fixture scheduling: coverage flags, ordering, quota budgeting, and squad HTTP pulls.
 
-'Fanout' refers to the per-fixture HTTP bundle: for every finished fixture we
-fetch lineups, events, statistics, player ratings, and predictions — five API
-calls per match. This module controls which fixtures get fetched and in what order,
-respecting the daily API quota.
+'Fanout' refers to the per-fixture HTTP bundle fetched in loads/fanout.py. This module
+controls which fixtures are eligible and in what order, without making any HTTP calls
+itself (except for the squad /players helper used by loads/squads.py).
 
-Coverage flags (from GET /leagues) tell us which endpoints a competition supports.
-They are read once per run for the reference season (the latest season ingested)
-and applied to all fixtures. See fixture_fanout_load.py for how finished fixtures
-override the stats flag when the reference season is upcoming.
+Four concerns live here:
+
+1. Coverage flags — reads GET /leagues response to determine which endpoints a
+   competition supports (lineups, events, stats, predictions). Flags come from the
+   reference (latest) season; loads/fanout.py overrides the stats flag for finished
+   fixtures because an upcoming reference season may falsely report stats=false.
+
+2. Fixture ordering — three strategies: upcoming-first (default), chronological,
+   or cursor-based round-robin. The cursor is persisted in BQ so runs pick up where
+   the previous left off (useful for large historical backlogs).
+
+3. Quota budgeting — estimates HTTP calls per fixture (5) and reserves a block for
+   /players squad pagination. The daily remaining call count comes from API response
+   headers updated after each fetch_json call.
+
+4. Squad HTTP pulls — players_response_for_team fetches all /players pages for a
+   given team×season, respecting free-tier page caps.
 """
 
 from __future__ import annotations
@@ -19,9 +31,9 @@ from datetime import date, datetime, timedelta
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from .bq import load_json_to_bq
-from .config import DATASET_ID, GCP_PROJECT_ID, _env_int, raw_league_table
-from .errors_quota import append_api_errors, _last_requests_remaining
+from .bigquery import load_json_to_bq
+from .settings import DATASET_ID, GCP_PROJECT_ID, _env_int, raw_league_table
+from .quota import append_api_errors, _last_requests_remaining
 from .http_client import fetch_merged_paged
 
 
@@ -76,7 +88,7 @@ def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]
 
     Important: these flags reflect the declared season, which is always the reference
     (latest) season. For competitions with an upcoming reference season the stats flag
-    may be false even though prior seasons have stats. fixture_fanout_load.py handles
+    may be false even though prior seasons have stats. loads/fanout.py handles
     this by always attempting stats for finished fixtures regardless of this flag.
     """
     cov: dict = {}

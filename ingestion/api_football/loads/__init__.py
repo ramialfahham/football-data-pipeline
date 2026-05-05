@@ -1,1 +1,1 @@
-"""Per-domain API-Football → BigQuery load steps (called from ``pipeline``)."""
+"""Per-endpoint API-Football → BigQuery load steps (called from ``competition_runner``)."""

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from ..config import raw_league_table
-from ..errors_quota import append_api_errors
-from ..fanout import _coverage_for_season
+from ..settings import raw_league_table
+from ..quota import append_api_errors
+from ..fixture_scheduling import _coverage_for_season
 from ..http_client import fetch_json
-from ..bq import load_json_to_bq
+from ..bigquery import load_json_to_bq
 from ..seasons import _seasons_for_ingestion
 from .context import PipelineContext
 

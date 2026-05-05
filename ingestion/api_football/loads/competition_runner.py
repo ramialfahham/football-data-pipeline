@@ -12,15 +12,15 @@ domestic league, international tournament, qualifier — goes through the same s
 from __future__ import annotations
 
 from .context import PipelineContext
-from .fixture_fanout_load import run_fixture_fanout_and_persist
-from .fixtures_load import fetch_merge_and_persist_fixtures
-from .injuries_load import load_injuries_if_enabled
-from .league_catalog import fetch_catalog_persist_and_plan
-from .rounds_load import load_rounds_merged
-from .squad_players_load import load_squad_players_batch
-from .standings_load import load_standings_if_enabled
-from .teams_load import load_teams_merge_and_extend_ids
-from .transfers_load import load_transfers_if_enabled
+from .fanout import run_fixture_fanout_and_persist
+from .fixtures import fetch_merge_and_persist_fixtures
+from .injuries import load_injuries_if_enabled
+from .catalog import fetch_catalog_persist_and_plan
+from .rounds import load_rounds_merged
+from .squads import load_squad_players_batch
+from .standings import load_standings_if_enabled
+from .teams import load_teams_merge_and_extend_ids
+from .transfers import load_transfers_if_enabled
 
 
 def _ingestion_phase(league_code: str, step: str) -> None:
