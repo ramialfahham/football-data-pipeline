@@ -25,11 +25,12 @@ def ingest_league(
     league_id: int,
     form_source: str = "league_only",
     supporting_leagues: tuple = (),
+    current_season: int | None = None,
 ) -> None:
     try:
         _ingestion_phase(league_code, "catalog (leagues + season plan)")
         seasons_list, reference_season, cov = fetch_catalog_persist_and_plan(
-            ctx, league_code, league_id
+            ctx, league_code, league_id, current_season=current_season
         )
         _ingestion_phase(league_code, "fixtures (/fixtures merge -> BQ)")
         fixtures_merged, team_ids, fixture_ids = fetch_merge_and_persist_fixtures(

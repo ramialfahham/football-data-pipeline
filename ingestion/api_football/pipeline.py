@@ -99,6 +99,7 @@ def _load_api_football(request):
                 comp.provider_league_id,
                 comp.form_source,
                 comp.supporting_leagues,
+                comp.current_season,
             )
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
