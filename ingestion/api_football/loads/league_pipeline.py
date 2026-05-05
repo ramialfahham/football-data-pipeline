@@ -1,4 +1,13 @@
-"""One competition: catalog → core tables → fanout → squads."""
+"""Ingestion pipeline for a single competition: catalog → fixtures → standings → rounds → teams → injuries → transfers → fanout → squads.
+
+ingest_league() is called once per competition per run. It is intentionally sequential:
+each phase depends on data from the previous one (e.g. team_ids from fixtures feed the
+squad players fetch). All errors are caught per-competition so a failure in one does not
+abort the others.
+
+This is the single place to add or reorder ingestion phases. Every competition —
+domestic league, international tournament, qualifier — goes through the same steps.
+"""
 
 from __future__ import annotations
 

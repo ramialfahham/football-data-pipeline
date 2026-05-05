@@ -1,10 +1,18 @@
-"""Per-fixture HTTP fanout + batched RAW_* tables (lineups, events, stats, …).
+"""Per-fixture HTTP fanout: fetches and persists lineups, events, stats, players, predictions.
 
-Selection is **completeness-driven**: before spending any quota, read the current
-merged payloads for the five fanout tables and skip fixture ids (per endpoint)
-that are already covered. A run therefore only pays for work that actually
-advances completeness, which is what makes multi-day convergence monotonic
-without any operator-facing knob.
+For every finished fixture (status FT/AET/PEN) we call five API endpoints and store
+the results in batched RAW_* tables (one JSON payload per table, merged on write).
+
+Selection is completeness-driven: before spending any quota we read the current merged
+payloads and skip fixture_ids that are already covered per endpoint. A run therefore
+only pays for work that actually advances completeness. This makes daily runs converge
+monotonically without any operator intervention — re-run after a quota limit and it
+picks up exactly where it left off.
+
+Coverage flags (from GET /leagues) declare which endpoints a competition supports.
+For statistics specifically, finished fixtures always get a fetch attempt regardless
+of the coverage flag — the flag reflects the reference (latest) season, which for
+upcoming tournaments may be false even though prior seasons have data.
 """
 
 from __future__ import annotations
@@ -84,10 +92,15 @@ def _fixture_needs_any_endpoint(
     cov: dict[str, bool],
     finished_fixture_ids: set[int],
 ) -> bool:
+    """Return True if this fixture is missing data for at least one enabled endpoint.
+
+    For statistics, finished fixtures are always considered eligible regardless of
+    the coverage flag. Coverage flags come from the reference (latest) season; for
+    competitions with an upcoming reference season (e.g. WC 2026) the stats flag
+    may be false even though prior seasons have data — we must not gate finished
+    fixtures out of the fanout loop based on that.
+    """
     for key, _entity, cov_key in _FANOUT_ENTITY_KEYS:
-        # Coverage flags come from the reference (latest) season. For competitions
-        # with an upcoming reference season the flag may be false, but finished
-        # fixtures from prior seasons can still have data — always check them.
         effective_cov = cov.get(cov_key, True) or (
             cov_key == "fixture_statistics" and fixture_id in finished_fixture_ids
         )

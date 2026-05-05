@@ -28,6 +28,29 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
 - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
 
+## 1.2) Code Comments (Python and SQL)
+
+Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, and functions already describe what the code does. A comment is warranted when the reader would otherwise be left wondering why a decision was made, what constraint is being respected, or what non-obvious behaviour to expect.
+
+**Write a comment when:**
+- A design decision has a non-obvious reason (e.g. why a coverage flag is overridden for finished fixtures)
+- An invariant must hold for downstream code to be correct
+- A workaround exists for a specific API quirk or external constraint
+- The behaviour would surprise a competent reader unfamiliar with this domain
+
+**Do not write a comment when:**
+- The code already reads clearly from its identifiers and structure
+- You would only be paraphrasing what the next line does
+- The context is already captured in the PR description or a linked ticket
+
+**Module / file level:** Every Python module and every dbt model should open with a one-sentence docstring or comment stating its purpose and its place in the pipeline (e.g. "Fetches qualifier fixtures per supporting league and merges into a single BQ payload."). This is the first thing a new engineer reads.
+
+**Function / CTE level:** A short docstring on non-trivial functions. For SQL, a one-line comment before each CTE when its purpose is not obvious from its name.
+
+**Inline:** Reserve for genuinely surprising logic. One line is almost always enough. Avoid multi-line comment blocks.
+
+**Standard applied consistently across Python and SQL.** A senior engineer reading any file in this repo should be able to orient themselves within 30 seconds.
+
 ## 2) Documentation Policy
 
 - Every model must have a `description`.
