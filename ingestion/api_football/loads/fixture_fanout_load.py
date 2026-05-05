@@ -199,7 +199,11 @@ def run_fixture_fanout_and_persist(
                 )
             except Exception as e:
                 ctx.errors.append(f"fixtures/events {league_code} fixture {fixture_id}: {e}")
-        if cov["fixture_statistics"] and fixture_id not in covered["fx_stats"]:
+        # Always fetch stats for finished fixtures: coverage flags reflect the reference
+        # (latest) season, which for multi-season competitions like WC can be an upcoming
+        # edition whose API coverage says statistics_fixtures=false — but completed
+        # fixtures from prior editions do have stats available.
+        if (cov["fixture_statistics"] or fixture_id in finished_fixture_ids) and fixture_id not in covered["fx_stats"]:
             try:
                 fxs = fetch_json(
                     "/fixtures/statistics",
