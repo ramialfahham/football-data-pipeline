@@ -1,6 +1,6 @@
-# Data contract: API-Football → BigQuery (Bundesliga BL1)
+# Data contract: API-Football → BigQuery
 
-League in scope: **BL1** (internal league_code), German Bundesliga, API-Football league id `78`. Raw BigQuery tables use the `D1` prefix (provider payload legacy — see competition registry).
+Active competitions: **BL1** (German Bundesliga, API-Football league id `78`), **WC** (FIFA World Cup 2026, id `1`), and the six confederation qualifier leagues (`WCQEU`, `WCQAF`, `WCQCA`, `WCQSA`, `WCQAS`, `WCQIP`, `WCQOC`). Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{league_code}_{entity}` (e.g. `RAW_APIF_BL1_FIXTURES_NEXT`). The registry of active competitions lives in `docs/competition_registry.yml`.
 
 API references:
 
@@ -36,7 +36,7 @@ The five per-match raw tables (`RAW_D1_APIF_LINEUPS`, `RAW_D1_APIF_FIXTURE_EVENT
 A start-of-phase log line reports what the run will attempt:
 
 ```
-[api-football] fanout_selection league=D1 target=3074 already_complete=1501 missing_any_endpoint=1573
+[api-football] fanout_selection league=BL1 target=3074 already_complete=1501 missing_any_endpoint=1573
 ```
 
 Coverage advances monotonically across runs under any ordering (`upcoming`, `cursor`, `chrono`). Once every in-scope fixture is covered across all five endpoints, the fanout pass is a no-op.
@@ -48,7 +48,7 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
 Data is complete when four conditions hold:
 
 1. **Coverage** — every in-scope raw table for D1 has been refreshed, and staging has been rebuilt on top of that refresh.
-2. **History** — raw tables carry the multi-season window configured in `ingestion/api_football/config.py` (currently the last ten Bundesliga start years through the current campaign; see `V1_SEASON_WINDOW_YEARS`).
+2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
 3. **Freshness** — when new source data appears (matchdays, injuries, transfers), the next run merges it into the corresponding raw tables.
 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
 
@@ -71,15 +71,15 @@ Each row is one HTTP area and the BigQuery raw table where its merged payload li
 
 | Area | Endpoint(s) | BigQuery raw table |
 |------|----------------|-------------------|
-| Fixtures | `/fixtures` | `RAW_D1_APIF_FIXTURES_NEXT` |
-| League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_D1_APIF_LEAGUES` |
-| Standings | `/standings` | `RAW_D1_APIF_STANDINGS` |
-| Rounds | `/fixtures/rounds` | `RAW_D1_APIF_ROUNDS` |
-| Teams | `/teams` | `RAW_D1_APIF_TEAMS` |
-| Injuries | `/injuries` | `RAW_D1_APIF_INJURIES` |
-| Transfers | `/transfers` (when league and season are accepted) | `RAW_D1_APIF_TRANSFERS` |
-| Squad | `/players` per team, with `page=` merged where applicable | `RAW_D1_APIF_PLAYERS` |
-| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_D1_APIF_LINEUPS`, `RAW_D1_APIF_FIXTURE_EVENTS`, `RAW_D1_APIF_FIXTURE_STATISTICS`, `RAW_D1_APIF_FIXTURE_PLAYERS`, `RAW_D1_APIF_PREDICTIONS` |
+| Fixtures | `/fixtures` | `RAW_APIF_{league_code}_FIXTURES_NEXT` |
+| League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_APIF_{league_code}_LEAGUES` |
+| Standings | `/standings` | `RAW_APIF_{league_code}_STANDINGS` |
+| Rounds | `/fixtures/rounds` | `RAW_APIF_{league_code}_ROUNDS` |
+| Teams | `/teams` | `RAW_APIF_{league_code}_TEAMS` |
+| Injuries | `/injuries` | `RAW_APIF_{league_code}_INJURIES` |
+| Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_{league_code}_TRANSFERS` |
+| Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_{league_code}_PLAYERS` |
+| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_APIF_{league_code}_LINEUPS`, `RAW_APIF_{league_code}_FIXTURE_EVENTS`, `RAW_APIF_{league_code}_FIXTURE_STATISTICS`, `RAW_APIF_{league_code}_FIXTURE_PLAYERS`, `RAW_APIF_{league_code}_PREDICTIONS` |
 
 ### /fixtures query style
 
@@ -127,22 +127,22 @@ Support safe scheduling, not match statistics.
 | Purpose | BigQuery table |
 |---------|----------------|
 | Single-flight ingest lock | `RAW_APIF_INGEST_LOCK` |
-| Optional fanout cursor (rotating "where to continue") | `RAW_D1_APIF_INGEST_CURSOR` |
+| Optional fanout cursor (rotating "where to continue") | `RAW_APIF_{league_code}_INGEST_CURSOR` |
 
 ---
 
 ## Downstream
 
-Source-near columns for BL1 live under `dbt_project/models/1_staging/api_football/` as `stg_apif__bl1_*` models. Note: the raw BigQuery tables retain the `D1` prefix (e.g. `RAW_D1_APIF_FIXTURES_NEXT`) as a legacy exception — `BL1` is the internal `league_code` used at staging and above; `D1` only appears as the raw table prefix from the provider payload. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
+Staging models live under `dbt_project/models/1_staging/api_football/{league_code}/` and are named `stg_apif__{league_code}_{entity}` (e.g. `stg_apif__bl1_fixtures_next`, `stg_apif__wc_fixtures_next`). Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
 
 ---
 
-## Adding a new league
+## Adding a new competition
 
-The project is scoped to D1 today, but every layer is already league-aware: ingestion loops over a `LEAGUES` dict, dbt facts and dims carry `league_code` in their keys, and marts carry `league_code` as a column. Adding a league (e.g. Bundesliga 2 as `D2`, Premier League as `E1`) is a three-step recipe:
+Every layer is competition-aware: ingestion loops over the competition registry, dbt facts and dims carry `league_code` as a key, and marts carry `league_code` as a column. Adding a competition is a registry-driven recipe requiring no changes to the Python ingestion package:
 
-1. **Configure ingestion.** Add an entry to `LEAGUES` in `ingestion/api_football/config.py` mapping the internal league code to its API-Football league id and the backfill window you want. This is the only code change in the Python package.
-2. **Declare the new raw source.** Add a league block to `dbt_project/models/1_staging/api_football/sources.yml` for the new `RAW_<CODE>_APIF_*` tables.
-3. **Stand up staging + core for the new code.** This is the only non-trivial step today: the current staging models are named `stg_apif__bl1_*` (internal `league_code`-based naming) and hardcoded to `raw_d1_apif_*` sources, so multi-league support requires either adding new `stg_apif__<code>_*` per league, or refactoring staging to be league-agnostic (reading all league sources and propagating `league_code`). The recommended path is the second; the refactor is scoped in the parked plan `multi-league-ready_refactor_fea19c5f` in the Cursor plans directory. Expect about one day of work. Core and marts do not need to change — they already key on `league_code`.
+1. **Register the competition.** Add an entry to `docs/competition_registry.yml` with the `league_code`, API-Football `league_id`, display name, season window, and any flags (e.g. `is_qualifier`). This is the only change needed in the ingestion layer — the loader reads the registry at startup.
+2. **Declare the new raw source.** Add a source block to `dbt_project/models/1_staging/api_football/sources.yml` for the new `RAW_APIF_{league_code}_*` tables.
+3. **Add staging models.** Create `dbt_project/models/1_staging/api_football/{league_code}/stg_apif__{league_code}_*.sql` — one model per ingested raw table, following the same pattern as the `bl1` or `wc` folders. Core and marts do not need to change; they already union all staging sources by `league_code`.
 
-After that, run ingestion + `dbt build` and the new league flows through the entire stack. No mart rewrites, no dashboard changes beyond an additional filter value.
+After that, run ingestion + `dbt build` and the new competition flows through the entire stack.
