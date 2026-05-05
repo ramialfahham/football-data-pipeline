@@ -82,9 +82,16 @@ def _fixture_needs_any_endpoint(
     fixture_id: int,
     covered: dict[str, set[int]],
     cov: dict[str, bool],
+    finished_fixture_ids: set[int],
 ) -> bool:
     for key, _entity, cov_key in _FANOUT_ENTITY_KEYS:
-        if not cov.get(cov_key, True):
+        # Coverage flags come from the reference (latest) season. For competitions
+        # with an upcoming reference season the flag may be false, but finished
+        # fixtures from prior seasons can still have data — always check them.
+        effective_cov = cov.get(cov_key, True) or (
+            cov_key == "fixture_statistics" and fixture_id in finished_fixture_ids
+        )
+        if not effective_cov:
             continue
         if fixture_id not in covered[key]:
             return True
@@ -135,18 +142,18 @@ def run_fixture_fanout_and_persist(
     )
 
     covered = _already_covered_per_entity(ctx, league_code)
+    finished_fixture_ids = _finished_fixture_ids(fixtures_merged.get("response", []))
     ordered_missing = [
-        fid for fid in ordered_fanout if _fixture_needs_any_endpoint(fid, covered, cov)
+        fid for fid in ordered_fanout
+        if _fixture_needs_any_endpoint(fid, covered, cov, finished_fixture_ids)
     ]
     missing_index = {fixture_id: idx for idx, fixture_id in enumerate(ordered_missing)}
-    finished_fixture_ids = _finished_fixture_ids(fixtures_merged.get("response", []))
     ordered_missing = sorted(
         ordered_missing,
         key=lambda fixture_id: (
             0
             if (
-                cov.get("fixture_statistics", True)
-                and fixture_id in finished_fixture_ids
+                fixture_id in finished_fixture_ids
                 and fixture_id not in covered["fx_stats"]
             )
             else 1,
@@ -199,10 +206,6 @@ def run_fixture_fanout_and_persist(
                 )
             except Exception as e:
                 ctx.errors.append(f"fixtures/events {league_code} fixture {fixture_id}: {e}")
-        # Always fetch stats for finished fixtures: coverage flags reflect the reference
-        # (latest) season, which for multi-season competitions like WC can be an upcoming
-        # edition whose API coverage says statistics_fixtures=false — but completed
-        # fixtures from prior editions do have stats available.
         if (cov["fixture_statistics"] or fixture_id in finished_fixture_ids) and fixture_id not in covered["fx_stats"]:
             try:
                 fxs = fetch_json(
