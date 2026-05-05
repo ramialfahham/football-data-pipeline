@@ -98,20 +98,26 @@ def _seasons_for_ingestion(
     league_id: int,
     headers: dict,
     errors: list[str],
+    current_season: int | None = None,
 ) -> list[int]:
     """
     Which competition start years to pull for this league.
 
     Precedence: ``API_FOOTBALL_SEASON`` → ``API_FOOTBALL_SEASONS`` (comma list) →
     multi-season discovery when **ingest profile is full** (or ``API_FOOTBALL_ALL_SEASONS``)
-    → single inferred :func:`season_year`.
+    → ``current_season`` from the registry → single inferred :func:`season_year`.
 
-    Multi-season discovery reads ``/leagues?id=`` first; if fewer than two years appear,
-    merges ``GET /leagues/seasons?league=`` when available.
+    ``current_season`` extends the band upper bound so that calendar-year competitions
+    (e.g. WC 2026 with current_season=2026) are not silently dropped by the split-year
+    domestic-league inferred max. It also serves as the single-season fallback.
     """
     raw_single = os.getenv("API_FOOTBALL_SEASON", "").strip()
     if raw_single:
         return [int(raw_single)]
+
+    lo = effective_season_min()
+    hi = effective_season_max() if current_season is None else max(effective_season_max(), current_season)
+    fallback = current_season if current_season is not None else season_year()
 
     csv = os.getenv("API_FOOTBALL_SEASONS", "").strip()
     if csv:
@@ -121,16 +127,14 @@ def _seasons_for_ingestion(
             if not x:
                 continue
             years.append(int(x))
-        lo = effective_season_min()
-        hi = effective_season_max()
         out = sorted({y for y in years if lo <= y <= hi})
         if not out and years:
             errors.append(
                 "API_FOOTBALL_SEASONS: every year was outside "
                 f"the active season band ({lo}..{hi}); using inferred single season"
             )
-            return [season_year()]
-        return out or [season_year()]
+            return [fallback]
+        return out or [fallback]
 
     want_multi = _ingest_profile_name() in ("full", "paid", "complete") or _env_truthy(
         "API_FOOTBALL_ALL_SEASONS"
@@ -145,8 +149,6 @@ def _seasons_for_ingestion(
                     f"multi-season: only {len(discovered)} year(s) from /leagues and "
                     f"/leagues/seasons for league_id={league_id} — check API response and plan."
                 )
-        lo = effective_season_min()
-        hi = effective_season_max()
         filt = [y for y in discovered if lo <= y <= hi]
         if not filt:
             if discovered:
@@ -154,10 +156,10 @@ def _seasons_for_ingestion(
                     "multi-season: no API seasons fall inside "
                     f"the active season band ({lo}..{hi}); using inferred single season"
                 )
-            return [season_year()]
+            return [fallback]
         return filt
 
-    return [season_year()]
+    return [fallback]
 
 
 def _merge_merged_paged(dst: dict | None, src: dict) -> dict:
