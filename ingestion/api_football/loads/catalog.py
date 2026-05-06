@@ -24,13 +24,19 @@ def fetch_catalog_persist_and_plan(
     """
     league_catalog = fetch_json("/leagues", ctx.headers, params={"id": league_id})
     append_api_errors(league_catalog, f"leagues/catalog {league_code}", ctx.errors)
-    load_json_to_bq(
-        ctx.client,
-        raw_league_table(league_code, "LEAGUES"),
-        league_catalog,
-        as_json_payload=True,
-    )
-    ctx.add_loaded(1)
+    if league_catalog.get("response"):
+        load_json_to_bq(
+            ctx.client,
+            raw_league_table(league_code, "LEAGUES"),
+            league_catalog,
+            as_json_payload=True,
+        )
+        ctx.add_loaded(1)
+    else:
+        ctx.errors.append(
+            f"leagues/catalog {league_code}: API returned no response data; "
+            "skipping BigQuery write to preserve existing data"
+        )
 
     seasons_list = _seasons_for_ingestion(league_catalog, league_id, ctx.headers, ctx.errors, current_season=current_season)
     reference_season = max(seasons_list)
