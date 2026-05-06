@@ -16,7 +16,7 @@ Extend with `--selector downstream` when those layers exist. Encode the same ord
 
 ## Prerequisites
 
-- [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the GCP project that owns the raw dataset. The ingest merge read-back streams via the BigQuery Storage Read API (gRPC) to avoid REST's 20 MiB per-row cap on merged payloads, so the identity running the loader needs `bigquery.readsessions.create`, included in `roles/bigquery.user` and `roles/bigquery.dataViewer`.
+- [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) for the GCP project that owns the raw dataset. The ingest merge read-back streams via the BigQuery Storage Read API (gRPC) to avoid REST's 20 MiB per-row cap on merged payloads, so the identity running the loader needs `bigquery.readsessions.create`. This permission is included in `roles/bigquery.user` but **not** in `roles/bigquery.dataViewer` — grant `roles/bigquery.user` explicitly.
 - `.env` at the repo root, copied from `.env.example`, with `API_FOOTBALL_API_KEY` set. Never commit `.env`.
 - Activated repo `.venv` (see `README.md`) with dependencies installed: `pip install -r requirements.txt`. `python-dotenv` loads `.env` automatically at startup.
 
