@@ -1,11 +1,19 @@
 """Tests for fixture_scheduling.py — coverage flags and the fanout gate."""
 
 import pytest
-from ingestion.api_football.fixture_scheduling import _coverage_for_season
-from ingestion.api_football.loads.fanout import (
-    _fixture_needs_any_endpoint,
-    _finished_fixture_ids,
+from datetime import date
+from ingestion.api_football.fixture_scheduling import (
+    _coverage_for_season,
     _FANOUT_ENTITY_KEYS,
+    _fixture_needs_any_endpoint,
+    CompetitionFanoutInput,
+    build_global_fanout_queue,
+)
+from ingestion.api_football.loads.fanout import (
+    # Re-exported from fixture_scheduling — verify backward-compat imports still work.
+    _fixture_needs_any_endpoint,  # noqa: F811
+    _finished_fixture_ids,
+    _FANOUT_ENTITY_KEYS,  # noqa: F811
 )
 
 
@@ -171,3 +179,142 @@ class TestFixtureNeedsAnyEndpoint:
         covered["lineups"] = {50}  # only lineups covered
 
         assert _fixture_needs_any_endpoint(50, covered, cov, finished_fixture_ids=set())
+
+
+# ---------------------------------------------------------------------------
+# build_global_fanout_queue — two-tier priority ordering
+# ---------------------------------------------------------------------------
+
+def _all_cov() -> dict[str, bool]:
+    return {
+        "fixture_lineups": True, "fixture_events": True, "fixture_statistics": True,
+        "fixture_players": True, "predictions": True,
+    }
+
+
+def _make_input(
+    league_code: str,
+    fixture_ids: set[int],
+    covered_ids: set[int],
+    finished_ids: set[int],
+    kickoff_by_id: dict[int, date] | None = None,
+) -> CompetitionFanoutInput:
+    covered = {key: set(covered_ids) for key, _, _ in _FANOUT_ENTITY_KEYS}
+    return CompetitionFanoutInput(
+        league_code=league_code,
+        fixture_ids=fixture_ids,
+        covered=covered,
+        cov=_all_cov(),
+        kickoff_by_id=kickoff_by_id or {},
+        finished_fixture_ids=finished_ids,
+    )
+
+
+class TestBuildGlobalFanoutQueue:
+    def test_empty_inputs_returns_empty(self):
+        assert build_global_fanout_queue([]) == []
+
+    def test_fully_covered_competition_produces_nothing(self):
+        inp = _make_input("BL1", {1, 2}, covered_ids={1, 2}, finished_ids={1, 2})
+        assert build_global_fanout_queue([inp]) == []
+
+    def test_finished_fixtures_before_upcoming(self):
+        # Fixture 10 = finished, missing. Fixture 20 = upcoming, missing.
+        # Finished must appear before upcoming in queue regardless of kickoff date.
+        inp = _make_input(
+            "BL1",
+            fixture_ids={10, 20},
+            covered_ids=set(),
+            finished_ids={10},
+            kickoff_by_id={
+                10: date(2025, 3, 1),  # older kickoff but finished
+                20: date(2025, 2, 1),  # newer kickoff but upcoming
+            },
+        )
+        queue = build_global_fanout_queue([inp])
+        lc_fids = [(lc, fid) for lc, fid in queue]
+        finished_entry = ("BL1", 10)
+        upcoming_entry = ("BL1", 20)
+        assert finished_entry in lc_fids
+        assert upcoming_entry in lc_fids
+        assert lc_fids.index(finished_entry) < lc_fids.index(upcoming_entry)
+
+    def test_finished_gaps_ordered_oldest_first(self):
+        # Within finished tier, oldest kickoff date first.
+        inp = _make_input(
+            "BL1",
+            fixture_ids={1, 2, 3},
+            covered_ids=set(),
+            finished_ids={1, 2, 3},
+            kickoff_by_id={
+                1: date(2025, 3, 15),
+                2: date(2024, 8, 10),  # oldest
+                3: date(2025, 1, 5),
+            },
+        )
+        queue = build_global_fanout_queue([inp])
+        fids = [fid for _, fid in queue]
+        assert fids == [2, 3, 1]  # sorted by kickoff ascending
+
+    def test_upcoming_ordered_nearest_first(self):
+        # Within upcoming tier, nearest kickoff first.
+        inp = _make_input(
+            "BL1",
+            fixture_ids={10, 11, 12},
+            covered_ids=set(),
+            finished_ids=set(),
+            kickoff_by_id={
+                10: date(2026, 6, 1),  # nearest
+                11: date(2026, 8, 15),
+                12: date(2026, 7, 4),
+            },
+        )
+        queue = build_global_fanout_queue([inp])
+        fids = [fid for _, fid in queue]
+        assert fids == [10, 12, 11]  # sorted by kickoff ascending
+
+    def test_cross_competition_interleaving(self):
+        # BL1 has two finished gaps; WC has one older finished gap.
+        # WC's older finished gap must appear before BL1's newer ones.
+        inp_bl1 = _make_input(
+            "BL1",
+            fixture_ids={1, 2},
+            covered_ids=set(),
+            finished_ids={1, 2},
+            kickoff_by_id={1: date(2025, 4, 1), 2: date(2025, 4, 15)},
+        )
+        inp_wc = _make_input(
+            "WC",
+            fixture_ids={100},
+            covered_ids=set(),
+            finished_ids={100},
+            kickoff_by_id={100: date(2024, 12, 1)},  # much older
+        )
+        queue = build_global_fanout_queue([inp_bl1, inp_wc])
+        fids_lcs = [(lc, fid) for lc, fid in queue]
+        # WC fixture 100 (Dec 2024) must come before BL1 fixtures (Apr 2025)
+        wc_idx = next(i for i, (lc, fid) in enumerate(fids_lcs) if lc == "WC")
+        bl1_idxs = [i for i, (lc, fid) in enumerate(fids_lcs) if lc == "BL1"]
+        assert all(wc_idx < bi for bi in bl1_idxs)
+
+    def test_already_covered_fixture_excluded(self):
+        inp = _make_input(
+            "BL1",
+            fixture_ids={1, 2},
+            covered_ids={1},  # fixture 1 is already covered
+            finished_ids={1, 2},
+            kickoff_by_id={1: date(2025, 1, 1), 2: date(2025, 2, 1)},
+        )
+        queue = build_global_fanout_queue([inp])
+        fids = [fid for _, fid in queue]
+        assert 1 not in fids
+        assert 2 in fids
+
+    def test_league_code_preserved_in_queue(self):
+        # Each entry must carry the correct league_code so the fetcher knows where to write.
+        inp_bl1 = _make_input("BL1", {10}, set(), {10}, {10: date(2025, 1, 1)})
+        inp_wc = _make_input("WC", {20}, set(), {20}, {20: date(2025, 1, 1)})
+        queue = build_global_fanout_queue([inp_bl1, inp_wc])
+        lc_map = {fid: lc for lc, fid in queue}
+        assert lc_map[10] == "BL1"
+        assert lc_map[20] == "WC"

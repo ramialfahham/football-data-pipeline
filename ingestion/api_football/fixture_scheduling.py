@@ -4,7 +4,7 @@
 controls which fixtures are eligible and in what order, without making any HTTP calls
 itself (except for the squad /players helper used by loads/squads.py).
 
-Four concerns live here:
+Five concerns live here:
 
 1. Coverage flags — reads GET /leagues response to determine which endpoints a
    competition supports (lineups, events, stats, predictions). Flags come from the
@@ -19,13 +19,20 @@ Four concerns live here:
    /players squad pagination. The daily remaining call count comes from API response
    headers updated after each fetch_json call.
 
-4. Squad HTTP pulls — players_response_for_team fetches all /players pages for a
+4. Global completeness-driven fanout — CompetitionFanoutInput + build_global_fanout_queue
+   implement a two-tier priority queue across all competitions: finished fixtures with
+   missing data are ordered oldest-first (fills historical gaps); upcoming fixtures are
+   ordered nearest-first (keeps app fresh). The queue is budget-capped globally so quota
+   is never wasted on competitions that are already complete.
+
+5. Squad HTTP pulls — players_response_for_team fetches all /players pages for a
    given team×season, respecting free-tier page caps.
 """
 
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
 from google.cloud import bigquery
@@ -35,6 +42,150 @@ from .bigquery import load_json_to_bq
 from .settings import DATASET_ID, GCP_PROJECT_ID, _env_int, raw_league_table
 from .quota import append_api_errors, _last_requests_remaining
 from .http_client import fetch_merged_paged
+
+# (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)
+# Defined here so fixture_scheduling.py can gate the fanout queue without importing loads/.
+_FANOUT_ENTITY_KEYS: tuple[tuple[str, str, str], ...] = (
+    ("lineups", "LINEUPS", "fixture_lineups"),
+    ("events", "FIXTURE_EVENTS", "fixture_events"),
+    ("fx_stats", "FIXTURE_STATISTICS", "fixture_statistics"),
+    ("fx_players", "FIXTURE_PLAYERS", "fixture_players"),
+    ("preds", "PREDICTIONS", "predictions"),
+)
+
+
+def _fixture_needs_any_endpoint(
+    fixture_id: int,
+    covered: dict[str, set[int]],
+    cov: dict[str, bool],
+    finished_fixture_ids: set[int],
+) -> bool:
+    """Return True if this fixture is missing data for at least one enabled endpoint.
+
+    For statistics, finished fixtures are always considered eligible regardless of
+    the coverage flag. Coverage flags come from the reference (latest) season; for
+    competitions with an upcoming reference season (e.g. WC 2026) the stats flag
+    may be false even though prior seasons have data — we must not gate finished
+    fixtures out of the fanout loop based on that.
+    """
+    for key, _entity, cov_key in _FANOUT_ENTITY_KEYS:
+        effective_cov = cov.get(cov_key, True) or (
+            cov_key == "fixture_statistics" and fixture_id in finished_fixture_ids
+        )
+        if not effective_cov:
+            continue
+        if fixture_id not in covered[key]:
+            return True
+    return False
+
+
+@dataclass
+class CompetitionFanoutInput:
+    """Per-competition inputs for the global fanout queue builder."""
+    league_code: str
+    fixture_ids: set[int]
+    covered: dict[str, set[int]]       # shell_key → set of already-covered fixture_ids
+    cov: dict[str, bool]               # coverage flags from /leagues (which endpoints exist)
+    kickoff_by_id: dict[int, date]
+    finished_fixture_ids: set[int] = field(default_factory=set)
+
+
+def build_global_fanout_queue(
+    inputs: list[CompetitionFanoutInput],
+) -> list[tuple[str, int]]:
+    """Build a globally-ordered fanout queue across all competitions.
+
+    Two-tier priority:
+    - Tier 1: finished fixtures (FT/AET/PEN) missing any endpoint, ordered oldest kickoff first.
+      Fills historical gaps systematically — every run makes guaranteed forward progress.
+    - Tier 2: upcoming/unplayed fixtures missing any endpoint, ordered nearest kickoff first.
+      Keeps app data fresh for the next matchday.
+
+    Returns list of (league_code, fixture_id) pairs. Budget capping is done by the caller
+    via _budgeted_global_fanout_ids so this function stays pure and testable.
+    """
+    finished_missing: list[tuple[date, str, int]] = []
+    upcoming_missing: list[tuple[date, str, int]] = []
+
+    for inp in inputs:
+        for fid in inp.fixture_ids:
+            if not _fixture_needs_any_endpoint(fid, inp.covered, inp.cov, inp.finished_fixture_ids):
+                continue
+            kickoff = inp.kickoff_by_id.get(fid, date.max)
+            if fid in inp.finished_fixture_ids:
+                finished_missing.append((kickoff, inp.league_code, fid))
+            else:
+                upcoming_missing.append((kickoff, inp.league_code, fid))
+
+    finished_missing.sort(key=lambda x: (x[0], x[1], x[2]))
+    upcoming_missing.sort(key=lambda x: (x[0], x[1], x[2]))
+
+    queue: list[tuple[str, int]] = []
+    queue.extend((lc, fid) for _, lc, fid in finished_missing)
+    queue.extend((lc, fid) for _, lc, fid in upcoming_missing)
+    return queue
+
+
+def _budgeted_global_fanout_ids(
+    queue: list[tuple[str, int]],
+    all_team_ids: set[int],
+    errors: list[str],
+) -> list[tuple[str, int]]:
+    """Apply the daily API quota budget to the global fanout queue.
+
+    Works identically to _budgeted_fixture_fanout_ids but operates on the cross-competition
+    queue rather than a single competition's list. Budget is computed once globally so quota
+    is shared fairly across all competitions rather than being allocated per-competition.
+    """
+    if not queue:
+        return []
+
+    raw = os.getenv("API_FOOTBALL_LINEUPS_MAX_FIXTURES", "").strip()
+    explicit: int | None = None if raw == "" else max(0, int(raw))
+
+    buf = _env_int("API_FOOTBALL_QUOTA_BUFFER", 5)
+    players_reserve_calls = _env_int("API_FOOTBALL_PLAYERS_RESERVE_CALLS", 20)
+    if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
+        reserve_players = buf
+    else:
+        reserve_players = max(buf, players_reserve_calls + buf)
+    cpf = _fixture_fanout_http_estimate()
+
+    if _last_requests_remaining is not None:
+        budget = max(0, _last_requests_remaining - reserve_players)
+        max_fixtures = budget // cpf if cpf else 0
+        cap = min(len(queue), max_fixtures)
+        if explicit is not None:
+            cap = min(cap, explicit)
+        if cap == 0 and queue:
+            soft_fb = _env_int("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", 6)
+            if soft_fb >= 0:
+                cap = min(len(queue), soft_fb)
+            if explicit is not None:
+                cap = min(cap, explicit)
+            errors.append(
+                f"global_fanout: quota header left no budget after ~{reserve_players} "
+                f"reserved for /players; using soft cap {cap} of {len(queue)} fixtures instead"
+            )
+        elif cap < len(queue):
+            errors.append(
+                f"global_fanout: capped to {cap} of {len(queue)} fixtures "
+                f"(~{cpf} HTTP/fixture; reserve ~{reserve_players} for /players)"
+            )
+        return queue[:cap]
+
+    soft = _env_int("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", 6)
+    cap = len(queue)
+    if explicit is not None:
+        cap = min(cap, explicit)
+    elif soft >= 0:
+        cap = min(cap, soft)
+    if cap < len(queue):
+        errors.append(
+            f"global_fanout: capped to {cap} of {len(queue)} fixtures "
+            f"(no daily quota header yet; soft cap {soft}; set API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER=-1 to disable)"
+        )
+    return queue[:cap]
 
 
 def team_ids_for_league(
