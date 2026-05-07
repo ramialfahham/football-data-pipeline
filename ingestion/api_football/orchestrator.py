@@ -51,7 +51,8 @@ from .quota import (
     reset_http_quota_exhausted,
 )
 from .loads.context import PipelineContext
-from .loads.competition_runner import ingest_league
+from .loads.competition_runner import run_cheap_phases, run_squads_for_competition
+from .loads.fanout import run_global_fanout_and_persist
 
 
 def _load_api_football(request):
@@ -105,15 +106,26 @@ def _load_api_football(request):
                 flush=True,
             )
 
+        # Phase 1: cheap phases for all competitions (catalog, fixtures, standings, etc.)
+        results = []
         for comp in selected:
-            ingest_league(
+            result = run_cheap_phases(
                 ctx,
                 comp.league_code,
                 comp.provider_league_id,
-                comp.form_source,
-                comp.supporting_leagues,
-                comp.current_season,
+                current_season=comp.current_season,
+                history_seasons=comp.history_seasons,
             )
+            if result is not None:
+                results.append(result)
+
+        # Phase 2: global completeness-driven fanout across all competitions
+        if results:
+            run_global_fanout_and_persist(ctx, results)
+
+        # Phase 3: squad /players batch per competition
+        for result in results:
+            run_squads_for_competition(ctx, result)
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:

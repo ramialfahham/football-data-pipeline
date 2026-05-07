@@ -43,6 +43,7 @@ competitions:
     provider_league_id: 78
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 10             # backfill window: last N season start years
     status: "active"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL1"
@@ -62,6 +63,7 @@ competitions:
     provider_league_id: 1
     season_type: "calendar_year"
     current_season: "2026"
+    history_seasons: 1
     status: "in_progress"
     form_source: "supporting_leagues"
     raw_table_prefix: "RAW_APIF_WC"
@@ -110,6 +112,7 @@ competitions:
     provider_league_id: 32
     season_type: "calendar_year"
     current_season: "2024"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQEU"
@@ -125,6 +128,7 @@ competitions:
     provider_league_id: 29
     season_type: "calendar_year"
     current_season: "2023"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQAF"
@@ -140,6 +144,7 @@ competitions:
     provider_league_id: 31
     season_type: "calendar_year"
     current_season: "2026"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQCA"
@@ -155,6 +160,7 @@ competitions:
     provider_league_id: 34
     season_type: "calendar_year"
     current_season: "2026"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQSA"
@@ -170,6 +176,7 @@ competitions:
     provider_league_id: 30
     season_type: "calendar_year"
     current_season: "2026"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQAS"
@@ -185,6 +192,7 @@ competitions:
     provider_league_id: 37
     season_type: "calendar_year"
     current_season: "2026"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQIP"
@@ -200,6 +208,7 @@ competitions:
     provider_league_id: 33
     season_type: "calendar_year"
     current_season: "2026"
+    history_seasons: 1
     status: "in_progress"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQOC"
@@ -219,6 +228,7 @@ competitions:
     provider_league_id: 39
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 10
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PL"
@@ -233,6 +243,7 @@ competitions:
     provider_league_id: 140
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 10
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PD"
@@ -247,6 +258,7 @@ competitions:
     provider_league_id: 135
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 10
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_SA"
@@ -261,6 +273,7 @@ competitions:
     provider_league_id: 61
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 10
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_L1"
@@ -275,6 +288,7 @@ competitions:
     provider_league_id: 79
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 10
     status: "planned"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL2"
@@ -293,6 +307,7 @@ competitions:
     provider_league_id: 2
     season_type: "split_year"
     current_season: "2024"
+    history_seasons: 5
     status: "backlog"
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_UCL"

@@ -107,6 +107,7 @@ def _seasons_for_ingestion(
     headers: dict,
     errors: list[str],
     current_season: int | None = None,
+    history_seasons: int | None = None,
 ) -> list[int]:
     """Return the list of API season years to ingest for this competition.
 
@@ -119,12 +120,21 @@ def _seasons_for_ingestion(
     The band (lo..hi) is the v1 10-year window of domestic season start years. For
     international tournaments (e.g. WC 2026), current_season extends hi so a future
     calendar-year tournament is not silently dropped by the split-year domestic-league max.
+
+    history_seasons narrows lo to (current_season - history_seasons + 1) when set,
+    capped at the global effective_season_min(). This is the CPO-approved backfill window
+    per competition stored in the registry.
     """
     raw_single = os.getenv("API_FOOTBALL_SEASON", "").strip()
     if raw_single:
         return [int(raw_single)]
 
-    lo = effective_season_min()
+    global_lo = effective_season_min()
+    if history_seasons is not None and current_season is not None and history_seasons >= 1:
+        competition_lo = current_season - (history_seasons - 1)
+        lo = max(global_lo, competition_lo)
+    else:
+        lo = global_lo
     hi = effective_season_max() if current_season is None else max(effective_season_max(), current_season)
     fallback = current_season if current_season is not None else season_year()
 

@@ -16,6 +16,7 @@ def fetch_catalog_persist_and_plan(
     league_code: str,
     league_id: int,
     current_season: int | None = None,
+    history_seasons: int | None = None,
 ) -> tuple[list[int], int, dict[str, bool]]:
     """
     Load league metadata to BigQuery, derive seasons to ingest, print coverage summary.
@@ -42,7 +43,10 @@ def fetch_catalog_persist_and_plan(
             "skipping BigQuery write to preserve existing data"
         )
 
-    seasons_list = _seasons_for_ingestion(league_catalog, league_id, ctx.headers, ctx.errors, current_season=current_season)
+    seasons_list = _seasons_for_ingestion(
+        league_catalog, league_id, ctx.headers, ctx.errors,
+        current_season=current_season, history_seasons=history_seasons,
+    )
     reference_season = max(seasons_list)
     cov = _coverage_for_season(league_catalog, reference_season)
     print(

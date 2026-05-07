@@ -28,6 +28,7 @@ class Competition:
     form_source: str = "league_only"
     supporting_leagues: tuple = ()
     current_season: int | None = None  # from registry; used to bound season discovery for non-split-year competitions
+    history_seasons: int | None = None  # CPO-approved backfill window (number of season start years)
 
 
 _ALLOWED_STATUSES = {"active", "in_progress", "planned", "backlog", "completed"}
@@ -158,6 +159,16 @@ def _parse_competitions() -> list[Competition]:
             except (TypeError, ValueError):
                 pass
 
+        history_seasons_raw = entry.get("history_seasons")
+        history_seasons: int | None = None
+        if history_seasons_raw is not None:
+            try:
+                hs = int(history_seasons_raw)
+                if hs >= 1:
+                    history_seasons = hs
+            except (TypeError, ValueError):
+                pass
+
         out.append(
             Competition(
                 league_code=league_code,
@@ -168,6 +179,7 @@ def _parse_competitions() -> list[Competition]:
                 form_source=form_source or "league_only",
                 supporting_leagues=parsed_supporting_leagues,
                 current_season=current_season,
+                history_seasons=history_seasons,
             )
         )
     if not out:
