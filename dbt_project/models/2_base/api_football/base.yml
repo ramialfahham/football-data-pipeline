@@ -40,6 +40,32 @@ models:
       - name: season_api_year
         tests: [not_null]
 
+  - name: base_apif__bl1_standings
+    description: >
+      Deduplicated standings rows from stg_apif__bl1_standings. The API
+      returns one row per (team, season) reflecting the team's current
+      league position; the ingestion merge replaces the entire season block
+      on each refresh, so the raw payload always reflects the latest API
+      state. This base model defensively keeps only the most recently
+      ingested version per (league_code, season, team_id). group_description
+      is propagated as the team's current standings zone (a changing
+      attribute, not part of the grain).
+      Output grain: (league_code, season, team_id).
+    config:
+      tags: ["base", "api_football", "standings_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: standing_rank
+        tests: [not_null]
+
   - name: base_apif__bl1_fixtures_next
     description: >
       Deduplicated fixture rows from stg_apif__bl1_fixtures_next. Multiple

@@ -1,23 +1,11 @@
 {{ config(materialized='table') }}
 
-with current_snapshot as (
-    select
-        season,
-        team_id,
-        standing_rank,
-        points,
-        goals_diff,
-        form,
-        played_all as played,
-        wins_all as wins,
-        draws_all as draws,
-        losses_all as losses,
-        raw_ingested_at,
-        dbt_valid_from as snapshot_valid_from,
-        league_code,
-        group_description
-    from {{ ref('snap_apif_d1_standings') }}
-    where dbt_valid_to is null
+with bl1_standings as (
+    select * from {{ ref('base_apif__bl1_standings') }}
+),
+
+base as (
+    {{ union_all(['bl1_standings']) }}
 ),
 
 season_keys as (
@@ -42,13 +30,12 @@ select
     cs.points,
     cs.goals_diff,
     cs.form,
-    cs.played,
-    cs.wins,
-    cs.draws,
-    cs.losses,
-    cs.raw_ingested_at,
-    cs.snapshot_valid_from
-from current_snapshot as cs
+    cs.played_all as played,
+    cs.wins_all as wins,
+    cs.draws_all as draws,
+    cs.losses_all as losses,
+    cs.raw_ingested_at
+from base as cs
 inner join season_keys as sk
     on
         cs.league_code = sk.league_code

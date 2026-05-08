@@ -134,7 +134,7 @@ Canonical fact inventory for this project:
 | Fact | Grain | Source staging model(s) | Notes |
 |------|-------|-------------------------|-------|
 | `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `stg_apif__bl1_fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
-| `fct_standings` | `(season_sk, team_sk, group_description)` | `snap_apif_d1_standings` (from `stg_apif__bl1_standings`) | Current snapshot only; history is in the dbt snapshot table. |
+| `fct_standings` | `(season_sk, team_sk, group_description)` | `base_apif__bl1_standings` (from `stg_apif__bl1_standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__bl1_fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__bl1_fixture_players` | `player_statistics_json[0]` flattened into measures. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `stg_apif__bl1_fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
@@ -144,12 +144,7 @@ All facts propagate `league_code` so they are safe to union across future league
 
 ### Snapshots
 
-Some endpoints only return the current state (notably `/standings`). To preserve history without inflating fact grain, we use dbt's native `snapshots` feature:
-
-- Snapshot files live in `dbt_project/snapshots/` and target the **`snapshots`** BigQuery dataset (configured via `dbt_project.yml`).
-- Naming convention: `snap_<source>_<table>` (e.g. `snap_apif_d1_standings`).
-- `strategy='check'` with `check_cols` on the measure columns; `dbt snapshot` is run as part of the daily pipeline before `dbt build`.
-- Core facts (`fct_standings`) read the current version (`where dbt_valid_to is null`); historical queries read the snapshot directly.
+The project does not currently use dbt snapshots. The product surfaces only the current state of every entity, so adding SCD2 history without a downstream consumer is over-engineering — and the `unique_key` design is easy to get wrong (a previous `snap_apif_d1_standings` snapshot included `group_description` in the key, which leaked stale zone rows into `fct_standings`). If a future feature genuinely needs SCD2 history, configure `unique_key` from the entity's stable identity only and put changing attributes in `check_cols`.
 
 ## 4_intermediate
 

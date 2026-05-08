@@ -120,7 +120,7 @@ models:
       - name: raw_ingested_at
 
   - name: mart_team_season
-    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank / latest_form come from fct_standings for the current snapshot; null for historical seasons not in the current snapshot."
+    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank / latest_form come from fct_standings; null for seasons absent from the current /standings API response."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -189,9 +189,9 @@ models:
       - name: clean_sheets
         tests: [not_null]
       - name: latest_rank
-        description: "Rank from fct_standings (current snapshot). Null if the team is not in the current standings snapshot for that season."
+        description: "Rank from fct_standings. Null if the team is not in the current /standings API response for that season."
       - name: latest_form
-        description: "Recent-form string from fct_standings (e.g. WDLWW). Null for non-current-snapshot seasons."
+        description: "Recent-form string from fct_standings (e.g. WDLWW). Null when standings are absent for that season."
 
   - name: mart_player_season
     description: "Per-player, per-season rollup. Grain: (player_sk, season_sk). Aggregates come from fct_fixture_player_stats joined to fct_fixture filtered to finished matches. A player who transfers mid-season produces one row per season; per-fixture team attribution lives in the core fact."
@@ -590,13 +590,13 @@ models:
         description: "Number of fixtures in this upcoming matchday (same round_name, league, season)."
         tests: [not_null]
       - name: home_league_rank
-        description: "Current table rank for the home team from mart_team_season.latest_rank (standings snapshot); null if absent."
+        description: "Current table rank for the home team from mart_team_season.latest_rank; null if absent from current standings."
         tests:
           - not_null:
               config:
                 where: "league_code = 'BL1' and fixture_date >= current_date()"
       - name: away_league_rank
-        description: "Current table rank for the away team from mart_team_season.latest_rank (standings snapshot); null if absent."
+        description: "Current table rank for the away team from mart_team_season.latest_rank; null if absent from current standings."
         tests:
           - not_null:
               config:
