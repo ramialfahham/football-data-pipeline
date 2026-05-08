@@ -3,8 +3,8 @@
 {#
     Per-team, per-season rollup. Counts derive from finished matches only
     (status_short in FT, AET, PEN) so unplayed fixtures don't skew aggregates.
-    Latest rank joins from fct_standings; teams absent from the current
-    standings snapshot (e.g. historical seasons) get null.
+    Latest rank joins from fct_standings; teams absent from current standings
+    (e.g. historical seasons no longer in the API response) get null.
 #}
 
 with fct_fixture as (
@@ -16,12 +16,10 @@ dim_team as (
 ),
 
 fct_standings as (
-    -- The snapshot keeps one row per (team, season, group_description); when a
-    -- team moves between zones (Champions League → Europa League etc.) the old
-    -- zone row stays as dbt_valid_to=null. Picking min(standing_rank) here used
-    -- to surface the team's best historical rank across zones (e.g. Stuttgart
-    -- shown as rank 4 from a stale CL-zone row when the current EL-zone row
-    -- says rank 5). Pick the most recently snapshot-validated row instead.
+    -- Defensive dedup: fct_standings sources from base_apif__bl1_standings
+    -- which is already one row per (team, season). Order by raw_ingested_at
+    -- desc so any future grain change (e.g. multiple rows per team-season)
+    -- still picks the most recent observation rather than an arbitrary one.
     select
         team_sk,
         season_sk,
@@ -29,7 +27,7 @@ fct_standings as (
         form
     from {{ ref('fct_standings') }}
     qualify row_number() over (
-        partition by team_sk, season_sk order by snapshot_valid_from desc nulls last
+        partition by team_sk, season_sk order by raw_ingested_at desc nulls last
     ) = 1
 ),
 

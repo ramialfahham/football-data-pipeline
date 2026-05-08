@@ -324,7 +324,7 @@ models:
         description: "UTC timestamp of the raw row this fact row was derived from."
 
   - name: fct_standings
-    description: "Current league standings. Grain: (season_sk, team_sk, group_description). Sources the ``dbt_valid_to is null`` row per key from snap_apif_d1_standings. Historical analysis queries the snapshot directly."
+    description: "Current league standings. Grain: (season_sk, team_sk, group_description). Sources from base_apif__bl1_standings (one row per (team, season) reflecting the latest API state for that season)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -379,8 +379,6 @@ models:
         description: "Losses (all)."
       - name: raw_ingested_at
         description: "UTC timestamp of the raw row this fact row was derived from."
-      - name: snapshot_valid_from
-        description: "Timestamp the current snapshot version became valid (from dbt snapshot bookkeeping)."
 
   - name: fct_fixture_team_stats
     description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). Staging prepares and types all measure columns; core keys and constrains the fact grain."
