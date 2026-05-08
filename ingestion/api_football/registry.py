@@ -217,8 +217,3 @@ def selected_competitions() -> tuple[list[Competition], list[tuple[Competition, 
             "Review competition status values and API_FOOTBALL_INCLUDE_IN_PROGRESS."
         )
     return selected, skipped
-
-
-def selected_leagues_map() -> dict[str, int]:
-    comps, _ = selected_competitions()
-    return {c.league_code: c.provider_league_id for c in comps}

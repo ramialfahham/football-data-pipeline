@@ -1,15 +1,30 @@
-"""Post-ingest checks: fanout coverage vs merged fixture list (for monitoring / alerts)."""
+"""Post-ingest checks: fanout coverage vs merged fixture list (for monitoring / alerts).
+
+Two distinct signals come out of this module:
+
+1. **Pipeline health** — does the machinery work? The orchestrator hard-fails the
+   workflow only when an *active* competition is incomplete (registry status
+   ``active``). ``in_progress`` competitions are by definition still backfilling
+   on the current API tier and stay green; they surface as warnings in the
+   completeness report.
+
+2. **Data completeness** — how much data do we have? The full per-competition,
+   per-endpoint coverage report is rendered as a markdown table to
+   ``$GITHUB_STEP_SUMMARY`` on every run, so the state is visible without
+   scrolling logs.
+"""
 
 from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 from google.cloud import bigquery
 
 from .bigquery import read_latest_payload_json
-from .registry import selected_leagues_map
+from .registry import selected_competitions
 from .settings import raw_league_table
 
 # Batched fanout raw entities (fixture_id blocks).
@@ -115,7 +130,9 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         out["skipped"] = True
         return out
 
-    for league_code in selected_leagues_map():
+    selected, _skipped = selected_competitions()
+    for comp in selected:
+        league_code = comp.league_code
         fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
         fx_payload = read_latest_payload_json(client, fx_tbl)
         all_fixture_ids = _fixture_ids_from_fixtures_payload(fx_payload)
@@ -123,6 +140,7 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
             fx_payload, statuses=FINISHED_STATUS_SHORT
         )
         league_block: dict[str, Any] = {
+            "registry_status": comp.status,
             "fixture_total_count": len(all_fixture_ids),
             "fixture_expected_count": len(expected),
             "fixture_unplayed_count": len(all_fixture_ids - expected),
@@ -169,3 +187,144 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
 def completeness_summary_line(report: dict[str, Any]) -> str:
     """Single-line JSON for log scrapers (e.g. Cloud Logging alerts on textPayload)."""
     return f"[api-football] ingest_completeness_json={json.dumps(report, ensure_ascii=True)}"
+
+
+def evaluate_completeness_outcome(report: dict[str, Any]) -> dict[str, Any]:
+    """Decide whether the run should hard-fail or stay green based on registry status.
+
+    Hard-fail when an ``active`` competition has incomplete fanout coverage on
+    finished fixtures. ``in_progress`` competitions are by design still
+    backfilling on the current API tier; their incompleteness is a soft warning.
+
+    Returns a dict with::
+
+        {
+            "hard_fail": bool,
+            "active_failures":   [ {league_code, missing_endpoints: [...], total_missing: int}, ... ],
+            "in_progress_partial": [ {league_code, missing_endpoints: [...], total_missing: int}, ... ],
+        }
+
+    The orchestrator uses ``hard_fail`` for the exit code and the
+    ``active_failures`` list to compose a precise failure message.
+    """
+    out: dict[str, Any] = {
+        "hard_fail": False,
+        "active_failures": [],
+        "in_progress_partial": [],
+    }
+    if report.get("skipped"):
+        return out
+    for league_code, block in (report.get("leagues") or {}).items():
+        if block.get("match_level_tables_cover_all_fixtures", True):
+            continue
+        missing_endpoints = []
+        total_missing = 0
+        for entity, info in (block.get("fanout") or {}).items():
+            if not info.get("complete", True):
+                missing_endpoints.append({
+                    "endpoint": entity,
+                    "missing_count": info.get("missing_count", 0),
+                    "expected_count": info.get("expected_count", 0),
+                })
+                total_missing += info.get("missing_count", 0)
+        record = {
+            "league_code": league_code,
+            "missing_endpoints": missing_endpoints,
+            "total_missing": total_missing,
+        }
+        status = (block.get("registry_status") or "").strip().lower()
+        if status == "active":
+            out["active_failures"].append(record)
+        else:
+            out["in_progress_partial"].append(record)
+    if out["active_failures"] and fail_on_incomplete():
+        out["hard_fail"] = True
+    return out
+
+
+_GREEN = "✅"
+_YELLOW = "🟡"
+
+
+def _coverage_cell(block: dict[str, Any]) -> str:
+    """Render the per-competition coverage cell for the markdown table."""
+    if block.get("note"):
+        return "—"
+    fanout = block.get("fanout") or {}
+    if not fanout:
+        return "—"
+    if all(info.get("complete") for info in fanout.values()):
+        return f"{_GREEN} all {len(fanout)} endpoints 100%"
+    parts = []
+    for entity, info in fanout.items():
+        cov = info.get("covered_count", 0)
+        exp = info.get("expected_count", 0)
+        pct = f"{(cov / exp * 100):.1f}%" if exp else "n/a"
+        if info.get("complete"):
+            parts.append(f"{entity} {pct}")
+        else:
+            parts.append(f"{_YELLOW} {entity} {pct}")
+    return ", ".join(parts)
+
+
+def completeness_markdown_summary(
+    report: dict[str, Any],
+    *,
+    notes: list[str] | None = None,
+    now: datetime | None = None,
+) -> str:
+    """Render the run's completeness state as a GitHub-flavoured markdown summary.
+
+    Designed for ``$GITHUB_STEP_SUMMARY`` so the per-competition coverage table
+    is visible on the workflow run page without scrolling logs.
+    """
+    when = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M UTC")
+    lines: list[str] = [f"## Ingestion completeness — {when}", ""]
+    if report.get("skipped"):
+        lines.append("Completeness check was skipped (`API_FOOTBALL_SKIP_COMPLETENESS_CHECK`).")
+        return "\n".join(lines) + "\n"
+
+    leagues = report.get("leagues") or {}
+    if not leagues:
+        lines.append("No competitions reported.")
+        return "\n".join(lines) + "\n"
+
+    lines.append("| Competition | Status | Finished / Total | Coverage | Backfill remaining |")
+    lines.append("|---|---|---|---|---|")
+    for league_code in sorted(leagues.keys()):
+        block = leagues[league_code]
+        status = block.get("registry_status") or "?"
+        finished = block.get("fixture_expected_count", 0)
+        total = block.get("fixture_total_count", 0)
+        coverage = _coverage_cell(block)
+        missing = sum(
+            (info.get("missing_count") or 0)
+            for info in (block.get("fanout") or {}).values()
+        )
+        backfill = "—" if missing == 0 else f"{missing} fixture-endpoint pairs"
+        lines.append(
+            f"| {league_code} | {status} | {finished} / {total} | {coverage} | {backfill} |"
+        )
+
+    if notes:
+        lines.extend(["", "### Run notes", ""])
+        for n in notes:
+            lines.append(f"- {n}")
+    return "\n".join(lines) + "\n"
+
+
+def write_step_summary_if_configured(markdown: str) -> bool:
+    """Append ``markdown`` to ``$GITHUB_STEP_SUMMARY`` when running in GitHub Actions.
+
+    Returns ``True`` when the file was written, ``False`` when the env var is
+    unset (e.g. local runs). No-op outside GitHub Actions; safe to always call.
+    """
+    path = os.getenv("GITHUB_STEP_SUMMARY", "").strip()
+    if not path:
+        return False
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(markdown)
+        return True
+    except OSError:
+        return False

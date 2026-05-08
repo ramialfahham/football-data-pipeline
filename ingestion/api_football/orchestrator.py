@@ -17,9 +17,11 @@ from google.cloud import bigquery
 
 from .bigquery import ensure_api_football_dataset
 from .completeness import (
+    completeness_markdown_summary,
     completeness_summary_line,
-    fail_on_incomplete,
+    evaluate_completeness_outcome,
     run_ingest_completeness_checks,
+    write_step_summary_if_configured,
 )
 from .ingestion_lock import (
     acquire_ingest_lock,
@@ -138,16 +140,46 @@ def _load_api_football(request):
 
         report = run_ingest_completeness_checks(client)
         print(completeness_summary_line(report), flush=True)
-        match_ok = report.get(
-            "match_level_tables_cover_all_fixtures",
-            report.get("all_fanout_complete", True),
-        )
-        if fail_on_incomplete() and not report.get("skipped") and not match_ok:
-            msg += (
-                " Per-match raw tables (lineups, events, statistics, "
-                "fixture players, predictions) do not yet cover every finished "
-                "fixture (status FT/AET/PEN) in the merged fixtures list."
+
+        # Tiered outcome: hard-fail only when an `active` competition is
+        # incomplete; in_progress competitions warn and stay green.
+        outcome = evaluate_completeness_outcome(report)
+
+        # Always render the markdown summary so the per-competition coverage
+        # state is visible on every workflow run page.
+        notes: list[str] = []
+        notes.append(f"Loaded {ctx.tables_loaded} API-Football tables.")
+        if outcome["in_progress_partial"]:
+            partial_codes = ", ".join(
+                f"{p['league_code']} ({p['total_missing']} missing)"
+                for p in outcome["in_progress_partial"]
             )
+            notes.append(
+                f"in_progress backfill still in flight: {partial_codes}. "
+                "Run is green; coverage will close over subsequent days."
+            )
+        if outcome["active_failures"]:
+            for f in outcome["active_failures"]:
+                eps = ", ".join(
+                    f"{m['endpoint']} ({m['missing_count']}/{m['expected_count']})"
+                    for m in f["missing_endpoints"]
+                )
+                notes.append(
+                    f"ACTIVE competition incomplete: {f['league_code']} — {eps}"
+                )
+        markdown = completeness_markdown_summary(report, notes=notes)
+        write_step_summary_if_configured(markdown)
+
+        if outcome["hard_fail"]:
+            failed = "; ".join(
+                f"{f['league_code']} missing "
+                + ", ".join(
+                    f"{m['endpoint']} ({m['missing_count']}/{m['expected_count']})"
+                    for m in f["missing_endpoints"]
+                )
+                for f in outcome["active_failures"]
+            )
+            msg += f" Active competitions incomplete: {failed}"
             return msg, 503
 
         return msg, 200
