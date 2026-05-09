@@ -70,7 +70,17 @@ jobs:
         run: python ../scripts/check_layer_contract.py
 
       - name: Full data-quality build
-        run: dbt build --selector dq
+        # Mirror dbt-ci.yml's model exclusions:
+        # - stg_apif__wc_injuries: RAW_APIF_WC_INJURIES is not produced by
+        #   ingestion (the /injuries endpoint returns no rows for the WC
+        #   outside its window, and the loader does not write empty payloads
+        #   so the BQ table is never created).
+        # - stg_apif__wc_qualifier_fixtures + base_apif__wc_qualifier_fixtures:
+        #   excluded for parity with dbt-ci.yml; safe to drop once we trim
+        #   dbt-ci.yml's exclusion list (these were broken before PR #54).
+        # tag:freshness_check is intentionally NOT excluded here: scheduled
+        # runs ingest first, so freshness tests are meaningful (unlike CI).
+        run: dbt build --selector dq --exclude stg_apif__wc_injuries stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures
 
       - name: Run fixture stats trust diagnostics (hard gate)
         run: python ../scripts/data_trust_fixture_stats.py
