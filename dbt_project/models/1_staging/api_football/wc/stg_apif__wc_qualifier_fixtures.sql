@@ -25,6 +25,7 @@ fixtures as (
 
 select
     raw_ingested_at,
+    queried_league_id,
     -- queried_league_id maps to the confederation qualifier league_code.
     -- Mapping is stable for WC 2026; update here when supporting_leagues changes in the registry.
     case queried_league_id
