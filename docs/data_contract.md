@@ -49,7 +49,7 @@ Data is complete when four conditions hold:
 
 1. **Coverage** — every in-scope raw table for D1 has been refreshed, and staging has been rebuilt on top of that refresh.
 2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
-3. **Freshness** — when new source data appears (matchdays, injuries, transfers), the next run merges it into the corresponding raw tables.
+3. **Freshness** — when new source data appears (matchdays, transfers), the next run merges it into the corresponding raw tables.
 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
 
 Heavy per-match coverage typically takes several runs under daily API limits; that is expected behaviour, not an outage. Each check below answers one of the four conditions:
@@ -76,7 +76,6 @@ Each row is one HTTP area and the BigQuery raw table where its merged payload li
 | Standings | `/standings` | `RAW_APIF_{league_code}_STANDINGS` |
 | Rounds | `/fixtures/rounds` | `RAW_APIF_{league_code}_ROUNDS` |
 | Teams | `/teams` | `RAW_APIF_{league_code}_TEAMS` |
-| Injuries | `/injuries` | `RAW_APIF_{league_code}_INJURIES` |
 | Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_{league_code}_TRANSFERS` |
 | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_{league_code}_PLAYERS` |
 | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_APIF_{league_code}_LINEUPS`, `RAW_APIF_{league_code}_FIXTURE_EVENTS`, `RAW_APIF_{league_code}_FIXTURE_STATISTICS`, `RAW_APIF_{league_code}_FIXTURE_PLAYERS`, `RAW_APIF_{league_code}_PREDICTIONS` |
@@ -87,11 +86,11 @@ Default is `season` (`league` + `season` only). Alternative modes `from_to` and 
 
 ### Pagination
 
-`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, `/injuries`, `/standings`, or `/transfers`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in per endpoint with `API_FOOTBALL_FIXTURE_USE_PAGE=1` or `API_FOOTBALL_TRANSFERS_USE_PAGE=1` only when the key is known to support it.
+`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, `/standings`, or `/transfers`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in per endpoint with `API_FOOTBALL_FIXTURE_USE_PAGE=1` or `API_FOOTBALL_TRANSFERS_USE_PAGE=1` only when the key is known to support it.
 
 ### Coverage flags
 
-`/leagues` exposes `coverage` flags per season. When a flag says the API does not provide a resource for that season (standings, injuries, per-fixture events, etc.), ingestion skips the corresponding calls instead of spending quota on guaranteed-empty responses. See the beginner's guide for envelope and flag behaviour.
+`/leagues` exposes `coverage` flags per season. When a flag says the API does not provide a resource for that season (standings, per-fixture events, etc.), ingestion skips the corresponding calls instead of spending quota on guaranteed-empty responses. See the beginner's guide for envelope and flag behaviour.
 
 ---
 
@@ -108,7 +107,6 @@ Mapping from a typical API-Football subscription list to what this repository in
 | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
 | Players & coaches | Partly — squad `/players` per club; coach may appear on lineup payloads where the API returns it; no separate "coaches only" ingest |
 | Player transfers | Yes — `GET /transfers` by team |
-| Injuries | Yes — `GET /injuries` |
 | Pre-match / in-play odds | Not in this repo (no odds ingest) |
 | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats |
 | Predictions | Yes — `GET /predictions` |

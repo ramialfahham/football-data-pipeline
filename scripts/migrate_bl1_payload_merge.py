@@ -15,7 +15,6 @@ Merge keys per endpoint:
   STANDINGS          : league.season
   ROUNDS             : season block
   TEAMS              : (team.id, league.season)
-  INJURIES           : (season, player.id, team.id, fixture.id, type, reason)
   TRANSFERS          : player.id
   LINEUPS            : fixture_id
   FIXTURE_EVENTS     : fixture_id
@@ -46,7 +45,6 @@ from google.cloud.exceptions import NotFound
 from ingestion.api_football.merge import (
     merge_fanout_batched,
     merge_fixtures_envelope,
-    merge_injuries_envelope,
     merge_standings_envelope,
     merge_teams_envelope,
     merge_transfers_envelope,
@@ -186,7 +184,6 @@ def main(dry_run: bool) -> None:
         "STANDINGS",
         "ROUNDS",
         "TEAMS",
-        "INJURIES",
         "TRANSFERS",
         "LINEUPS",
         "FIXTURE_EVENTS",
@@ -228,8 +225,6 @@ def main(dry_run: bool) -> None:
                 merged = _merge_rounds(d1_payload, bl1_payload)
             elif ep == "TEAMS":
                 merged = merge_teams_envelope(d1_payload, bl1_payload or {"response": []})
-            elif ep == "INJURIES":
-                merged = merge_injuries_envelope(d1_payload, bl1_payload or {"response": []})
             elif ep == "TRANSFERS":
                 merged = merge_transfers_envelope(d1_payload, bl1_payload or {"response": []})
             elif ep in FANOUT_ENDPOINTS:

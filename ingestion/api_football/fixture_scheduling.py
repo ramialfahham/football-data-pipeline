@@ -262,7 +262,6 @@ def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]
 
     return {
         "standings": b("standings"),
-        "injuries": b("injuries"),
         "predictions": b("predictions"),
         "fixture_events": b("fixtures", "events"),
         "fixture_lineups": b("fixtures", "lineups"),
