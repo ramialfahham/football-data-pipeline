@@ -35,12 +35,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_bl1_injuries
-        identifier: RAW_APIF_BL1_INJURIES
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_bl1_transfers
         identifier: RAW_APIF_BL1_TRANSFERS
         loaded_at_field: ingested_at
@@ -109,12 +103,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_wc_teams
         identifier: RAW_APIF_WC_TEAMS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_injuries
-        identifier: RAW_APIF_WC_INJURIES
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}

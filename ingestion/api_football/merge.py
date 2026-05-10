@@ -153,39 +153,6 @@ def merge_teams_envelope(existing: dict | None, incoming: dict) -> dict:
     return out
 
 
-def _injury_key(item: dict) -> tuple | None:
-    try:
-        season = int((item.get("league") or {}).get("season"))
-        pid = int((item.get("player") or {}).get("id"))
-        tid = int((item.get("team") or {}).get("id"))
-        fx = (item.get("fixture") or {}).get("id")
-        fid = int(fx) if fx is not None else -1
-        typ = str(item.get("type") or "")
-        reason = str(item.get("reason") or "")
-        return (season, pid, tid, fid, typ, reason)
-    except (TypeError, ValueError):
-        return None
-
-
-def merge_injuries_envelope(existing: dict | None, incoming: dict) -> dict:
-    by_k: dict[tuple, dict] = {}
-    for it in (existing or {}).get("response") or []:
-        k = _injury_key(it)
-        if k is not None:
-            by_k[k] = it
-    for it in incoming.get("response") or []:
-        k = _injury_key(it)
-        if k is not None:
-            by_k[k] = it
-    resp = list(by_k.values())
-    out = {k: v for k, v in incoming.items() if k not in ("response", "errors", "results", "paging")}
-    out["response"] = resp
-    out["errors"] = list(incoming.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
-
-
 def _transfer_player_key(row: dict) -> int | None:
     try:
         return int((row.get("player") or {}).get("id"))

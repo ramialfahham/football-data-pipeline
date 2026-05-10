@@ -2,9 +2,8 @@
 API-Football → BigQuery raw loads (D1 MVP).
 
 **Ingestion model:** one job loads the raw tables this repo defines (fixtures, league
-metadata, standings, teams, injuries, top lists, transfers, squad ``/players``, and
-per-fixture bundles). There is no hidden “extra” data tier—only API coverage and your
-plan’s limits.
+metadata, standings, teams, transfers, squad ``/players``, and per-fixture bundles).
+There is no hidden “extra” data tier—only API coverage and your plan’s limits.
 
 **Configuration:** unset ``API_FOOTBALL_INGEST_PROFILE`` for the warehouse default
 (every season the API lists for D1, no slow pacing, generous page caps via ``setdefault``).

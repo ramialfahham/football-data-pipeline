@@ -32,11 +32,6 @@ with per_table as (
     from {{ source('api_football', 'raw_apif_bl1_teams') }}
     union all
     select
-        'injuries' as source_entity,
-        max(ingested_at) as max_ingested_at
-    from {{ source('api_football', 'raw_apif_bl1_injuries') }}
-    union all
-    select
         'transfers' as source_entity,
         max(ingested_at) as max_ingested_at
     from {{ source('api_football', 'raw_apif_bl1_transfers') }}
