@@ -15,6 +15,8 @@ CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bsafe\.parse_json\s*\(", re.IGNORECASE),
     # Core must not ref staging directly — go through base layer
     re.compile(r"""ref\(\s*['"]stg_""", re.IGNORECASE),
+    # Multi-competition union belongs in base only; core reads a single base per endpoint.
+    re.compile(r"\bunion_all\s*\(", re.IGNORECASE),
 )
 
 def check_core_forbidden_patterns(errors: list[str]) -> None:

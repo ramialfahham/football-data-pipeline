@@ -90,9 +90,12 @@ python scripts/diagnostics/inspect_raw_payload.py --table RAW_APIF_<league_code>
 
 Completeness state for these tables is shown in the **Ingestion status as of 2026-05-10** section above.
 
-The aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table referenced in the original (2026-05-05) plan is **obsolete and stale** since PR #39 / #48 made each qualifier a first-class competition. The dbt source declaration `raw_apif_wc_qualifier_fixtures` and the staging/base models that read it are leftovers — they will be removed in Step 2.
+The aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table referenced in the original (2026-05-05) plan is **obsolete and stale** since PR #39 / #48 made each qualifier a first-class competition. The dbt source declaration `raw_apif_wc_qualifier_fixtures` and the staging/base models that read it were removed in Step 2.1 (multi-competition foundation PR).
 
 ### Step 2 — Expand core layer to full BL1 parity across all competitions
+
+
+**Step 2.1 sequencing correction:** The original plan split fixtures (2.1) from leagues/teams (2.6). `fct_fixture` relationship tests require `dim_competition_season`, `dim_league`, and `dim_team` to already include qualifier rows. PR 2.1 therefore bundles the three unified bases (leagues, teams, fixtures_next) with the dim and fixture refactors in one merge unit so BL1 stays green.
 
 **No mart changes in this step.** Scope is data-flow plumbing only; form-source dispatch (qualifiers → WC group stage) is Step 3.
 
@@ -106,16 +109,16 @@ Goal: every fact in `3_core` covers BL1 + WC + 7 qualifier confederations, sourc
 
 #### Architectural decision — manual UNION list + CI guarantee (not auto-discovery)
 
-The technical north star (`docs/north_star.md`) says "adding a new competition requires only ingestion config + a staging model". The literal reading would force auto-discovery in base (Jinja over `graph.nodes`). I'm deliberately not going that route. Decision and rationale, as senior analytics engineer:
+The technical north star (`docs/north_star.md`) documents ingestion + staging + mechanical base `ref()` lines, with no core/mart edits per competition once bases exist for an endpoint. The literal "staging only" reading would force auto-discovery in base (Jinja over `graph.nodes`). I'm deliberately not going that route. Decision and rationale, as senior analytics engineer:
 
 - Each base model lists its component stagings explicitly with `ref()`. Adding a competition means adding one `ref()` line per base — mechanical, ~10 lines total across all bases.
-- A CI test (`assert_all_registry_competitions_in_base.sql`, see test table below) fails if a competition exists in `competition_registry.yml` with status `active` or `in_progress` but does not appear in every base model that the competition is expected to feed. The test names the missing base, so you can never forget.
+- Singular tests (`assert_base_*_covers_active_competition_var.sql`, see test table below) fail if any `league_code` in `vars.active_competition_league_codes` is missing from a unified base; `scripts/check_registry_var_sync.py` keeps that var aligned with the registry (`active` / `in_progress`).
 - **Why not auto-discovery**: dbt's strength is explicit `ref()` lineage — visible in `dbt docs`, the lineage graph, and `dbt --select +model` selectors. `graph.nodes` enumeration hides those edges from dbt's graph and is a rare pattern that's harder for future contributors to read. Adding a competition is quarterly cadence, not daily — the cost of editing ~10 mechanical `ref()` lines is negligible compared to the cost of debugging Jinja-graph magic the one time it goes wrong.
-- **The north star's spirit is preserved**: zero changes to **core, intermediate, or marts** when adding a competition. Base edits remain mechanical and CI-guaranteed. The north-star line will be updated separately to say: *"ingestion config + staging models + one ref per base UNION (mechanical, CI-checked)"*.
+- **The north star's spirit is preserved**: zero changes to **core, intermediate, or marts** when adding a competition once unified bases cover that endpoint. Base edits remain mechanical and CI-guaranteed.
 
 For each endpoint surface listed below, the work pattern is identical:
 
-1. Declare per-confederation raw sources in `sources.yml` (7 new entries — `raw_apif_wcqeu_<endpoint>` … `raw_apif_wcqoc_<endpoint>`)
+1. Declare per-confederation raw sources in `sources.yml` (21 table entries for leagues, teams, fixtures_next per WCQ code)
 2. Add a WC staging model if missing (`stg_apif__wc_<endpoint>`)
 3. Add 7 per-confederation staging models (`stg_apif__wcqeu_<endpoint>`, etc.)
 4. Add or extend the base model so it UNION ALLs BL1 + WC + 7 qualifiers and dedupes
@@ -149,18 +152,18 @@ Total work for Step 2:
 
 #### Cleanup tasks (part of Step 2)
 
-- [ ] Remove `raw_apif_wc_qualifier_fixtures` from `sources.yml` (no longer written)
-- [ ] Delete `stg_apif__wc_qualifier_fixtures.sql` and `base_apif__wc_qualifier_fixtures.sql`
-- [ ] Drop the BQ table `RAW_APIF_WC_QUALIFIER_FIXTURES` via a small one-shot script under `scripts/`
-- [ ] Drop the `--exclude stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures` flags from both workflow files
+- [x] Remove `raw_apif_wc_qualifier_fixtures` from `sources.yml` (no longer written)
+- [x] Delete `stg_apif__wc_qualifier_fixtures.sql` and `base_apif__wc_qualifier_fixtures.sql`
+- [x] Drop the BQ table `RAW_APIF_WC_QUALIFIER_FIXTURES` via `scripts/drop_raw_apif_wc_qualifier_fixtures.py` (run `--apply` after merge)
+- [x] Drop the `--exclude stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures` flags from both workflow files
 
 #### Tests required for Step 2 (added in CI)
 
 | Test | Assertion |
 |---|---|
-| `assert_all_registry_competitions_in_base.sql` | For every `league_code` in `competition_registry.yml` with status `active` or `in_progress`, and for every base model in `2_base/api_football/`, the base contains ≥ 1 row tagged with that `league_code`. Failure names the missing (`league_code`, base) pair so the engineer knows exactly which `ref()` to add. **This is the manual-UNION guarantee.** |
-| `assert_no_union_in_core.sql` | A `check_layer_contract` extension that fails if any model in `3_core/` contains `union_all` macros or multiple `base_apif__*` `ref()` calls. Enforces "core is source-agnostic" structurally, not just by convention. |
-| `assert_fct_fixture_all_active_competitions_present.sql` | Every `league_code` with registry status `active` or `in_progress` has ≥ 1 row in `fct_fixture` |
+| `assert_base_leagues_covers_active_competition_var.sql` (and teams / fixtures_next variants) | Every `league_code` in `vars.active_competition_league_codes` has ≥ 1 row in the unified base (must match registry; enforced by `check_registry_var_sync.py`). **Manual-UNION guarantee.** |
+| `check_layer_contract.py` | Fails if any `3_core/*.sql` contains `union_all(` — core reads a single base per endpoint. |
+| `assert_fct_fixture_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_fixture` |
 | `assert_fct_standings_all_active_competitions_present.sql` | Same shape, for standings |
 | `assert_fct_fixture_team_stats_all_active_competitions_present.sql` | Same shape, for stats |
 | `assert_fct_fixture_event_all_active_competitions_present.sql` | Same shape, for events |
@@ -252,7 +255,7 @@ This is the only point where the live BL1 web app is at risk. Do not merge until
 1. Add entry to `docs/competition_registry.yml`
 2. Run ingestion — raw tables auto-created
 3. Add per-endpoint staging models (`stg_apif__<league_code>_<endpoint>.sql`) — 1:1 with raw, JSON cast only. ~10 stagings for full BL1 parity.
-4. Add one `ref()` line per base model (`base_apif__<endpoint>`) to include the new staging in the UNION. CI test `assert_all_registry_competitions_in_base` tells you exactly which bases need updating.
+4. Add one `ref()` line per base model (`base_apif__<endpoint>`) to include the new staging in the UNION. Singular tests `assert_base_*_covers_active_competition_var` flag a missing `league_code` in a base.
 5. Create `mart_matchday_insights_{league_code}.sql` — selects from intermediate with `where league_code = '...'`
 6. Add competition card to web app
 
@@ -268,7 +271,7 @@ Steps 3–4 are mechanical edits with CI guarantees. **Zero changes to `3_core`,
 - **Step 7 migration timing**: how to validate BL1 regression without breaking the live export
 
 **Decided in this update (no longer open):**
-- Base architecture: manual UNION list with `assert_all_registry_competitions_in_base.sql` CI guarantee, not auto-discovery
+- Base architecture: manual UNION list with `assert_base_*_covers_active_competition_var` singular tests + `scripts/check_registry_var_sync.py`, not auto-discovery
 - Existing per-competition bases (`base_apif__bl1_*`, `base_apif__wc_*`) are replaced by single `base_apif__<endpoint>` models as part of Step 2; core stops UNIONing
 - Pre-tournament WC form uses *all* qualifier matches per participant, not last 5
 
@@ -280,12 +283,12 @@ Step 2 is too large for one PR. Split by endpoint surface so each PR's blast rad
 
 | Step | Branch name | Scope |
 |---|---|---|
-| 2.1 | `feature/core-fixtures-multi-competition` | Fixtures end-to-end: 7 qualifier stagings + union base + `fct_fixture` expansion + active-competitions test + the qualifier-aggregate cleanup tasks |
+| 2.1 | `feature/core-multi-competition-foundation` | Fixtures plus dim foundation (bundled): unified bases leagues/teams/fixtures_next, core single-base refs, WCQ stagings and sources, qualifier aggregate removal, registry/var sync and singular tests. |
 | 2.2 | `feature/core-standings-multi-competition` | Standings: WC + 7 qualifier stagings + union base + `fct_standings` expansion + test |
 | 2.3 | `feature/core-fixture-stats-multi-competition` | Fixture statistics: same shape |
 | 2.4 | `feature/core-fixture-events-multi-competition` | Fixture events: same shape |
 | 2.5 | `feature/core-fixture-players-multi-competition` | Fixture players + `dim_player` expansion |
-| 2.6 | `feature/core-teams-transfers-leagues-multi-competition` | Teams (qualifier additions to `dim_team`), transfers, leagues (qualifier additions to `dim_league` / `dim_competition_season`) |
+| 2.6 | `feature/core-transfers-lineups-predictions-multi-competition` | Transfers, lineups, predictions (teams/leagues/fixtures covered in 2.1). |
 | 3–4 | `feature/intermediate-team-form` | Per the draft Step 3 below — needs approval before starting |
 | 5 | `feature/mart-wc-matchday-insights` | Per Step 5 below — needs Step 2–4 complete |
 | 6 | `feature/web-app-competition-selector` | Per Step 6 below |

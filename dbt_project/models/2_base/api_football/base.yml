@@ -1,13 +1,11 @@
 version: 2
 
 models:
-  - name: base_apif__bl1_teams
+  - name: base_apif__teams
     description: >
-      Complete set of teams known to this league: teams from the /teams endpoint
-      plus any team seen only as a fixture opponent. Deduplicated to the
-      latest-season snapshot per (league_code, team_api_id); team_name falls
-      back to the most recent fixture occurrence when absent from /teams.
-      Output grain: (league_code, team_api_id).
+      Unified teams across all onboarded competitions (explicit ref() per
+      competition staging). Same enrichment as BL1: /teams plus fixture-derived
+      keys and name fallback. Output grain: (league_code, team_api_id).
     config:
       tags: ["base", "api_football", "team_context"]
     tests:
@@ -19,14 +17,12 @@ models:
       - name: team_api_id
         tests: [not_null]
 
-  - name: base_apif__bl1_leagues
+  - name: base_apif__leagues
     description: >
-      Deduplicated league-season rows from stg_apif__bl1_leagues. Multiple
-      ingestion runs produce duplicate rows for the same
-      (league_code, league_api_id, season_api_year); this model keeps only the
-      most recently ingested version. Consumed by dim_league (collapsed to one
-      row per league) and dim_competition_season (one row per season).
-      Output grain: (league_code, league_api_id, season_api_year).
+      Unified league-season rows across all onboarded competitions (explicit
+      ref() per competition staging). Deduplicated per
+      (league_code, league_api_id, season_api_year). Feeds dim_league and
+      dim_competition_season. Output grain: (league_code, league_api_id, season_api_year).
     config:
       tags: ["base", "api_football", "league_context"]
     tests:
@@ -38,6 +34,22 @@ models:
       - name: league_api_id
         tests: [not_null]
       - name: season_api_year
+        tests: [not_null]
+
+  - name: base_apif__fixtures_next
+    description: >
+      Unified fixtures across all onboarded competitions (explicit ref() per
+      competition staging). Deduplicated per fixture_id. Feeds fct_fixture.
+      Output grain: fixture_id.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+    columns:
+      - name: fixture_id
+        tests: [not_null]
+      - name: league_code
         tests: [not_null]
 
   - name: base_apif__bl1_standings
@@ -64,23 +76,6 @@ models:
       - name: team_id
         tests: [not_null]
       - name: standing_rank
-        tests: [not_null]
-
-  - name: base_apif__bl1_fixtures_next
-    description: >
-      Deduplicated fixture rows from stg_apif__bl1_fixtures_next. Multiple
-      ingestion runs produce duplicate rows for the same fixture_id; this model
-      keeps only the most recently ingested version.
-      Output grain: fixture_id.
-    config:
-      tags: ["base", "api_football", "fixture_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fixture_id]
-    columns:
-      - name: fixture_id
-        tests: [not_null]
-      - name: league_code
         tests: [not_null]
 
   - name: base_apif__bl1_fixture_events
@@ -147,39 +142,6 @@ models:
       - name: league_code
         tests: [not_null]
       - name: player_api_id
-        tests: [not_null]
-
-  - name: base_apif__wc_fixtures_next
-    description: >
-      Deduplicated fixture rows from stg_apif__wc_fixtures_next.
-      Output grain: fixture_id.
-    config:
-      tags: ["base", "api_football", "fixture_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fixture_id]
-    columns:
-      - name: fixture_id
-        tests: [not_null]
-      - name: league_code
-        tests: [not_null]
-
-  - name: base_apif__wc_qualifier_fixtures
-    description: >
-      Deduplicated qualifier fixture rows from stg_apif__wc_qualifier_fixtures.
-      Each fixture is assigned its confederation league_code (WCQEU, WCQAF, WCQCA,
-      WCQSA, WCQAS, WCQIP, WCQOC) derived from the API queried_league_id.
-      These flow into fct_fixture as first-class fixtures alongside BL1 and WC.
-      Output grain: fixture_id.
-    config:
-      tags: ["base", "api_football", "fixture_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fixture_id]
-    columns:
-      - name: fixture_id
-        tests: [not_null]
-      - name: league_code
         tests: [not_null]
 
   - name: base_apif__bl1_transfers
