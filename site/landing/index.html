@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<!--
+  Matchday IQ — Landing page (v0 static mockup)
+  ============================================
+  This file is the approved visual reference for the landing page
+  ("Deliverable A" per docs/pipeline_architecture_plan.md).
+
+  Status:    static mockup, sample data baked in
+  Next step: wire to JSON export from `mart_landing_competitions`
+             (Step 5 of the pipeline plan)
+
+  Inherits the dark gradient + Inter typography established by
+  site/match-preview/index.html. Defines the language switcher
+  pattern (top-right pill + dropdown) and the competition-card
+  layout (logo + name + round + kickoff) to be re-used across
+  the rest of the app.
+
+  Logos come from API-Football's CDN (media.api-sports.io/football/leagues/<id>.png).
+  Trademarks belong to their respective rights holders; production
+  use requires licensing review.
+
+  Languages supported (per north_star.md + Arabic addition):
+    DE, EN, ES, FR, IT, NL, PT, FI, AR
+  Localized competition names (e.g. "WM 2026" / "World Cup 2026" /
+  "Mundial 2026") live in the i18n strings file, not in this template.
+-->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matchday IQ — Wettbewerbe</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Cooler, calmer palette. Single accent. Personality comes from logos. */
+    --bg: #07091a;
+    --bg-elev: #11152e;
+    --card-bg: #161b38;
+    --card-bg-hover: #1c2349;
+    --border: rgba(255,255,255,0.07);
+    --text: #f1f3fb;
+    --text-secondary: #98a3c9;
+    --text-tertiary: #5c6792;
+    --accent: #6ea8fe;       /* refined blue — sportier, less playful */
+    --accent-bright: #93c5fd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: radial-gradient(ellipse at top, #1a2055 0%, var(--bg) 65%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 720px; margin: 0 auto; }
+
+  /* Top bar (brand + language switcher) */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 28px;
+  }
+  .brand {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #93c5fd 0%, #c7d2fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .tagline { color: var(--text-secondary); font-size: 14px; font-weight: 400; margin-top: -2px; margin-bottom: 28px; }
+
+  /* Language switcher */
+  .lang {
+    position: relative;
+    font-family: inherit;
+  }
+  .lang-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    font-family: inherit;
+  }
+  .lang-btn:hover {
+    background: var(--card-bg-hover);
+    border-color: rgba(167, 139, 250, 0.3);
+  }
+  .lang-btn .globe { font-size: 14px; opacity: 0.8; }
+  .lang-btn .code { letter-spacing: 0.04em; }
+  .lang-btn .caret { font-size: 10px; opacity: 0.5; transition: transform 0.2s ease; }
+  .lang.open .lang-btn .caret { transform: rotate(180deg); }
+
+  .lang-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 1px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    z-index: 100;
+  }
+  .lang.open .lang-menu { display: flex; }
+
+  .lang-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    font-family: inherit;
+  }
+  .lang-option:hover { background: var(--card-bg-hover); color: var(--text); }
+  .lang-option.active { color: var(--accent-bright); font-weight: 600; }
+  .lang-option .code-tag {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+  .lang-option.active .code-tag { color: var(--accent-bright); }
+
+  .section-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.1em;
+    margin: 32px 0 12px;
+  }
+
+  .cards { display: flex; flex-direction: column; gap: 12px; }
+
+  .card {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    text-decoration: none;
+    color: inherit;
+  }
+  .card:hover {
+    background: var(--card-bg-hover);
+    border-color: rgba(110, 168, 254, 0.35);
+    transform: translateY(-1px);
+  }
+  .card:active { transform: translateY(0); }
+
+  .badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .badge img {
+    width: 76%;
+    height: 76%;
+    object-fit: contain;
+  }
+  /* Fallback letters if a logo fails to load (alt attribute renders) */
+  .badge img[alt]::before {
+    content: attr(alt);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-elev);
+    color: var(--text);
+    font-weight: 800;
+    font-size: 18px;
+  }
+
+  .body { min-width: 0; }
+  .comp-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .meta .dot {
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .round { font-weight: 600; color: var(--text-secondary); }
+  .kickoff {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .kickoff-when { font-size: 14px; font-weight: 600; color: var(--text); }
+  .kickoff-relative { font-size: 12px; color: var(--accent-bright); font-weight: 500; }
+
+  .card.imminent .kickoff-relative { color: #fcd34d; font-weight: 600; }
+  .card.imminent .kickoff-relative::before { content: "● "; color: #fcd34d; }
+
+  .chevron { color: var(--text-tertiary); font-size: 18px; flex-shrink: 0; }
+  .card:hover .chevron { color: var(--accent-bright); }
+
+  .section.upcoming .card { opacity: 0.85; }
+  .section.upcoming .card .kickoff-when { color: var(--text-secondary); }
+
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  footer a { color: var(--text-secondary); text-decoration: none; }
+
+  @media (min-width: 640px) {
+    body { padding: 40px 24px 80px; }
+    .brand { font-size: 36px; }
+    .cards { gap: 14px; }
+    .card { padding: 22px 22px 22px 0; }
+    .badge { width: 60px; height: 60px; }
+    .comp-name { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="topbar">
+    <div class="brand">Matchday IQ</div>
+    <div class="lang" id="lang">
+      <button class="lang-btn" type="button" onclick="document.getElementById('lang').classList.toggle('open')">
+        <span class="globe">🌐</span>
+        <span class="code">DE</span>
+        <span class="caret">▾</span>
+      </button>
+      <div class="lang-menu" role="menu">
+        <button class="lang-option active" role="menuitem"><span>Deutsch</span><span class="code-tag">DE</span></button>
+        <button class="lang-option" role="menuitem"><span>English</span><span class="code-tag">EN</span></button>
+        <button class="lang-option" role="menuitem"><span>Español</span><span class="code-tag">ES</span></button>
+        <button class="lang-option" role="menuitem"><span>Français</span><span class="code-tag">FR</span></button>
+        <button class="lang-option" role="menuitem"><span>Italiano</span><span class="code-tag">IT</span></button>
+        <button class="lang-option" role="menuitem"><span>Nederlands</span><span class="code-tag">NL</span></button>
+        <button class="lang-option" role="menuitem"><span>Português</span><span class="code-tag">PT</span></button>
+        <button class="lang-option" role="menuitem"><span>Suomi</span><span class="code-tag">FI</span></button>
+        <button class="lang-option" role="menuitem"><span>العربية</span><span class="code-tag">AR</span></button>
+      </div>
+    </div>
+  </header>
+  <p class="tagline">Football analytics for fans</p>
+
+  <div class="section-label">Heute &amp; diese Woche</div>
+  <section class="section cards">
+
+    <a href="#" class="card imminent">
+      <div class="badge"><img src="https://media.api-sports.io/football/leagues/140.png" alt="LL"></div>
+      <div class="body">
+        <div class="comp-name">LaLiga</div>
+        <div class="meta"><span class="round">Jornada 36</span></div>
+        <div class="kickoff">
+          <span class="kickoff-when">Sa 11.05. · 14:00</span>
+          <span class="kickoff-relative">in 4 Std</span>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+
+    <a href="#" class="card imminent">
+      <div class="badge"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
+      <div class="body">
+        <div class="comp-name">Bundesliga</div>
+        <div class="meta"><span class="round">33. Spieltag</span></div>
+        <div class="kickoff">
+          <span class="kickoff-when">Sa 11.05. · 15:30</span>
+          <span class="kickoff-relative">in 5 Std</span>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+
+    <a href="#" class="card">
+      <div class="badge"><img src="https://media.api-sports.io/football/leagues/39.png" alt="PL"></div>
+      <div class="body">
+        <div class="comp-name">Premier League</div>
+        <div class="meta"><span class="round">Matchweek 37</span></div>
+        <div class="kickoff">
+          <span class="kickoff-when">Sa 11.05. · 16:00</span>
+          <span class="kickoff-relative">in 6 Std</span>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+
+    <a href="#" class="card">
+      <div class="badge"><img src="https://media.api-sports.io/football/leagues/135.png" alt="SA"></div>
+      <div class="body">
+        <div class="comp-name">Serie A</div>
+        <div class="meta"><span class="round">Giornata 36</span></div>
+        <div class="kickoff">
+          <span class="kickoff-when">So 12.05. · 20:45</span>
+          <span class="kickoff-relative">morgen</span>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+
+  </section>
+
+  <div class="section-label">Demnächst</div>
+  <section class="section upcoming cards">
+
+    <a href="#" class="card">
+      <div class="badge"><img src="https://media.api-sports.io/football/leagues/1.png" alt="WC"></div>
+      <div class="body">
+        <div class="comp-name">WM 2026</div>
+        <div class="meta"><span class="round">Gruppenphase · Spieltag 1</span></div>
+        <div class="kickoff">
+          <span class="kickoff-when">Do 11.06. · 20:00</span>
+          <span class="kickoff-relative">in 32 Tagen</span>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+
+  </section>
+
+  <footer>
+    Datenstand: 10.05.2026 · 19:00 UTC · <a href="#">Feedback</a>
+  </footer>
+
+</div>
+
+</body>
+</html>
