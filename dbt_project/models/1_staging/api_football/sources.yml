@@ -149,8 +149,128 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_qualifier_fixtures
-        identifier: RAW_APIF_WC_QUALIFIER_FIXTURES
+      - name: raw_apif_wcqeu_leagues
+        identifier: RAW_APIF_WCQEU_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqeu_teams
+        identifier: RAW_APIF_WCQEU_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqeu_fixtures_next
+        identifier: RAW_APIF_WCQEU_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqaf_leagues
+        identifier: RAW_APIF_WCQAF_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqaf_teams
+        identifier: RAW_APIF_WCQAF_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqaf_fixtures_next
+        identifier: RAW_APIF_WCQAF_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqca_leagues
+        identifier: RAW_APIF_WCQCA_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqca_teams
+        identifier: RAW_APIF_WCQCA_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqca_fixtures_next
+        identifier: RAW_APIF_WCQCA_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqsa_leagues
+        identifier: RAW_APIF_WCQSA_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqsa_teams
+        identifier: RAW_APIF_WCQSA_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqsa_fixtures_next
+        identifier: RAW_APIF_WCQSA_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqas_leagues
+        identifier: RAW_APIF_WCQAS_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqas_teams
+        identifier: RAW_APIF_WCQAS_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqas_fixtures_next
+        identifier: RAW_APIF_WCQAS_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqip_leagues
+        identifier: RAW_APIF_WCQIP_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqip_teams
+        identifier: RAW_APIF_WCQIP_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqip_fixtures_next
+        identifier: RAW_APIF_WCQIP_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqoc_leagues
+        identifier: RAW_APIF_WCQOC_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqoc_teams
+        identifier: RAW_APIF_WCQOC_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqoc_fixtures_next
+        identifier: RAW_APIF_WCQOC_FIXTURES_NEXT
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}

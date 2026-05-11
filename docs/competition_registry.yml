@@ -22,7 +22,8 @@
 #   supporting_leagues   — form from qualifier/related competitions (international tournaments)
 #
 # raw_table_prefix convention: RAW_APIF_{LEAGUE_CODE}
-# Qualifier leagues derive from their parent's qualifier raw table; no independent raw table.
+# Each competition has its own raw tables (WCQ confederations included).
+# Update vars.active_competition_league_codes in dbt_project/dbt_project.yml for active competitions; CI checks sync.
 
 version: "1.3"
 last_updated: "2026-05-04"
@@ -91,17 +92,8 @@ competitions:
       - {id: 37, name: "WC Qualification Intercontinental Playoffs", league_code: "WCQIP", season: 2026, stats: true}
       - {id: 33, name: "WC Qualification Oceania",                  league_code: "WCQOC", season: 2026, stats: false}
 
-  # WC 2026 qualifier leagues — first-class competitions, one per confederation.
-  # Raw data is stored in RAW_APIF_WC_QUALIFIER_FIXTURES (fetched as part of WC ingestion).
-  # Fixtures flow into fct_fixture with their own league_code; form for WC teams is
-  # calculated from qualifier results before matchday 1.
-
-  # provider: null — qualifier fixtures derive from RAW_APIF_WC_QUALIFIER_FIXTURES (fetched
-  # as part of WC ingestion via supporting_leagues). No independent ingestion path yet.
-  # provider_league_id is the API-Football league ID, kept for reference and for the
-  # queried_league_id -> league_code mapping in stg_apif__wc_qualifier_fixtures.
-  # To make qualifiers independently ingestable: change provider to "api_football"
-  # and create per-league staging models reading from RAW_APIF_{LEAGUE_CODE}_FIXTURES_NEXT.
+  # WC 2026 qualifier confederations — first-class competitions (PR #39 / #48).
+  # Each has its own raw tables RAW_APIF_WCQ*_* ingested like BL1/WC.
 
   - league_code: "WCQEU"
     name: "WC Qualification Europe"

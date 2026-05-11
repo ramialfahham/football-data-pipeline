@@ -1,0 +1,282 @@
+version: 2
+
+models:
+  - name: stg_apif__wcqeu_leagues
+    description: WC qualifier confederation WCQEU — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqaf_leagues
+    description: WC qualifier confederation WCQAF — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqca_leagues
+    description: WC qualifier confederation WCQCA — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqsa_leagues
+    description: WC qualifier confederation WCQSA — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqas_leagues
+    description: WC qualifier confederation WCQAS — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqip_leagues
+    description: WC qualifier confederation WCQIP — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqoc_leagues
+    description: WC qualifier confederation WCQOC — GET /leagues; same shape as stg_apif__bl1_leagues.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, league_api_id, season_api_year]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+
+  - name: stg_apif__wcqeu_teams
+    description: WC qualifier confederation WCQEU — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqaf_teams
+    description: WC qualifier confederation WCQAF — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqca_teams
+    description: WC qualifier confederation WCQCA — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqsa_teams
+    description: WC qualifier confederation WCQSA — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqas_teams
+    description: WC qualifier confederation WCQAS — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqip_teams
+    description: WC qualifier confederation WCQIP — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqoc_teams
+    description: WC qualifier confederation WCQOC — GET /teams; same shape as stg_apif__bl1_teams.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqeu_fixtures_next
+    description: WC qualifier confederation WCQEU — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+
+  - name: stg_apif__wcqaf_fixtures_next
+    description: WC qualifier confederation WCQAF — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+
+  - name: stg_apif__wcqca_fixtures_next
+    description: WC qualifier confederation WCQCA — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+
+  - name: stg_apif__wcqsa_fixtures_next
+    description: WC qualifier confederation WCQSA — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+
+  - name: stg_apif__wcqas_fixtures_next
+    description: WC qualifier confederation WCQAS — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+
+  - name: stg_apif__wcqip_fixtures_next
+    description: WC qualifier confederation WCQIP — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+
+  - name: stg_apif__wcqoc_fixtures_next
+    description: WC qualifier confederation WCQOC — GET /fixtures; same shape as stg_apif__bl1_fixtures_next.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]

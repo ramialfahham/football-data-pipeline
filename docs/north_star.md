@@ -108,7 +108,7 @@ Quality bar first. Growth comes after the product deserves it.
 
 ## Technical north star
 
-- Adding a new competition requires **only ingestion config + a staging model** — no changes to core or marts.
+- Adding a new competition requires **ingestion config, per-endpoint staging models, and one `ref()` line per base UNION** (mechanical, CI-checked via `assert_base_*_covers_active_competition_var` + `scripts/check_registry_var_sync.py`). **No changes to core, intermediate, or marts** once the endpoint surfaces exist in unified bases.
 - `league_code` is the partition key on everything. Never hardcode a competition.
 - Data quality is automated and enforced. The product must be trustworthy at all times without manual verification.
 - Architecture: Python ingestion → BigQuery raw → dbt (staging → base UNION ALL → core → marts) → GitHub Pages UI.

@@ -1,11 +1,7 @@
 {{ config(materialized='table') }}
 
-with bl1_standings as (
+with base as (
     select * from {{ ref('base_apif__bl1_standings') }}
-),
-
-base as (
-    {{ union_all(['bl1_standings']) }}
 ),
 
 season_keys as (
