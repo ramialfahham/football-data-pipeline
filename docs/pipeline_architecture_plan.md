@@ -1,7 +1,7 @@
 # Multi-competition pipeline architecture plan
 
-**Status:** Step 1 ingestion fixes merged, re-run pending quota reset. Step 2 not started.  
-**Last updated:** 2026-05-05
+**Status:** Step 1 complete (all ingestion verified end-to-end). Step 2 partially done (dims now include WC; qualifier dims + all facts still pending). Step 3 onwards still draft.  
+**Last updated:** 2026-05-10
 
 ---
 
@@ -22,18 +22,37 @@ Make it easy and straightforward to add any new league/competition. Adding a new
 - **PR #39**: All 7 qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC) made first-class competitions — ingested through the standard pipeline, same level of detail as BL1
 - **PR #40**: Fanout gate fixed — finished fixtures always enter the fanout loop for statistics regardless of reference season coverage flags (was silently skipping WC 2022 and WCQEU stats)
 
-## Ingestion status after last run (2026-05-05, quota exhausted mid-run)
+## Subsequent architectural changes (2026-05-06 → 2026-05-10)
 
-- BL1: complete ✓ (3,056/3,056 finished fixtures, all endpoints)
-- WC: fixtures and fanout complete except FIXTURE_STATISTICS (72/128 — will be fixed on next run with PR #40)
-- WCQEU: fixtures complete (741), lineups/events/players/predictions complete (740/740), FIXTURE_STATISTICS 0/740 (will be fixed on next run)
-- WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC: 0 fixtures — quota exhausted before they ran. Will complete on next run.
+These changed inputs and constraints to Step 2 and need to be reflected in the plan:
 
-**Next action: re-run ingestion after daily quota resets.**
+- **PR #48 — Global completeness-driven fanout**: priority queue across all competitions, with `history_seasons` per competition. Combined with PR #39, **each qualifier confederation is now a first-class competition with its own per-confederation raw tables** (`RAW_APIF_WCQEU_*`, `RAW_APIF_WCQAF_*`, etc.). The earlier aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table is no longer written and is stale since 2026-05-05.
+- **PR #49 — Catalog guard**: `/leagues` writes only when the API returns non-empty `response`, preventing daily-quota errors from wiping valid leagues data via WRITE_TRUNCATE.
+- **PR #51 — `mart_team_season` rank fix**: short-term workaround at the mart layer (use latest `snapshot_valid_from` for dedup) so the matchday-preview UI shows correct Tabellenplatz.
+- **PR #52 — Standings snapshot removed**: `snap_apif_d1_standings` deleted. `fct_standings` now sources from `base_apif__bl1_standings` (regular table dedup), not from an SCD2 snapshot. There is currently no snapshot anywhere in the project.
+- **PR #53 — Tiered completeness gate + run summary**: scheduled workflow hard-fails only when an `active` competition is incomplete; `in_progress` competitions warn and stay green. Every run renders a per-competition coverage table to `$GITHUB_STEP_SUMMARY`. This is the always-on observability for the pipeline.
+- **PR #56 — Injuries removal**: the entire injury surface (ingestion call, `merge_injuries_envelope`, dbt sources, staging models, `fct_injury` mention in deferred-fact list) is deleted. Injuries are no longer ingested for any competition and the architecture should not reference them.
+- **Diagnostic scripts** added under `scripts/diagnostics/`: `inspect_raw_payload.py`, `probe_time_travel.py`, `restore_from_time_travel.py`. Used today to restore `RAW_APIF_BL1_LEAGUES` from BigQuery time travel after a quota-induced WRITE_TRUNCATE corruption.
+
+## Ingestion status as of 2026-05-10
+
+| Competition | Finished fixtures | Fanout coverage | Notes |
+|---|---|---|---|
+| BL1 | 3,056 / 3,056 | ✅ all 5 endpoints 100% | active |
+| WC | 128 / 128 | ✅ all 5 endpoints 100% | active |
+| WCQEU | 740 / 740 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 99.9% (1 missing) | in_progress |
+| WCQAF | 540 / 540 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~20% (434 missing) | in_progress |
+| WCQCA | 330 / 330 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~55% (148 missing) | in_progress |
+| WCQSA | 269 / 269 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 99.3% (2 missing) | in_progress |
+| WCQAS | 681 / 681 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~45% (372 missing) | in_progress |
+| WCQIP | 4 / 4 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS ~25% (3 missing) | in_progress |
+| WCQOC | 18 / 18 | LINEUPS/EVENTS/PLAYERS/PRED 100%; STATS 0% (18 missing) | in_progress |
+
+BL1 and WC are fully complete; qualifier statistics will converge to 100% over additional scheduled runs as the global fanout prioritizes missing fixtures. The completeness target is **0% gap** — any qualifier fixture without statistics is treated as incomplete until backfilled.
 
 ## Current state
 
-- `mart_matchday_insights.sql` is BL1-only (line 38: `where league_code = 'BL1'`), exported to the web app — **must not break**
+- `mart_matchday_insights.sql` is BL1-only (`where league_code = 'BL1'`), exported to the web app — **must not break**
 - All form logic (~400 lines) is embedded in the mart — no intermediate layer
 - Known metric bugs (not yet fixed):
   - `dense_rank()` on `round_order desc` gives 5 matchdays not 5 games — postponed rounds eat slots
@@ -41,41 +60,99 @@ Make it easy and straightforward to add any new league/competition. Adding a new
   - Previous-season fallback `form_season_api_year - 1` is domestic-league-only; wrong for WC (calendar year)
 - One intermediate model exists (`int_apif__raw_ingestion_spread`) — ingestion monitoring, not business logic
 - Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
+- Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
+- No SCD2 snapshots in the project; injuries are not ingested (see PR #52 and PR #56 above)
+- Dim layer already covers WC: `dim_league`, `dim_competition_season`, `dim_team` UNION BL1 + WC base models. Qualifier confederations are **not** yet in any dim.
+- All fact tables are still BL1-only — they read only from BL1 base models
+- WC base models exist for: `_fixtures_next`, `_leagues`, `_teams`. WC base models do not yet exist for: `_standings`, `_fixture_statistics`, `_fixture_events`, `_fixture_players`, `_players`, `_transfers`.
 
 ---
 
 ## Execution order
 
-### Step 1 — Verify WC ingestion (prerequisite)
+### Step 1 — Verify WC ingestion (prerequisite) — DONE
 
-Confirm these raw tables are populated after the ingestion run:
+WC and the 7 qualifier confederations are each first-class competitions in the registry, ingested through the standard pipeline with their own per-confederation raw tables.
 
-| Table | Expected rows |
+Per-competition raw tables (BL1 reference shown for comparison; same endpoint suffixes for all):
+
+| League code | Status | Raw tables produced |
+|---|---|---|
+| `BL1` | active | `RAW_APIF_BL1_FIXTURES_NEXT`, `_LEAGUES`, `_STANDINGS`, `_ROUNDS`, `_TEAMS`, `_TRANSFERS`, `_LINEUPS`, `_FIXTURE_EVENTS`, `_FIXTURE_STATISTICS`, `_FIXTURE_PLAYERS`, `_PREDICTIONS`, `_PLAYERS` |
+| `WC` | active | same set, `WC` prefix |
+| `WCQEU`, `WCQAF`, `WCQCA`, `WCQSA`, `WCQAS`, `WCQIP`, `WCQOC` | in_progress | same set per confederation, `WCQ<XX>` prefix |
+
+Verify with the diagnostic script when needed:
+
+```bash
+python scripts/diagnostics/inspect_raw_payload.py --table RAW_APIF_<league_code>_<entity>
+```
+
+Completeness state for these tables is shown in the **Ingestion status as of 2026-05-10** section above.
+
+The aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table referenced in the original (2026-05-05) plan is **obsolete and stale** since PR #39 / #48 made each qualifier a first-class competition. The dbt source declaration `raw_apif_wc_qualifier_fixtures` and the staging/base models that read it are leftovers — they will be removed in Step 2.
+
+### Step 2 — Expand core layer to full BL1 parity across all competitions
+
+**No mart changes in this step.** Scope is data-flow plumbing only; form-source dispatch (qualifiers → WC group stage) is Step 3.
+
+Goal: every fact in `3_core` covers BL1 + WC + 7 qualifier confederations, sourced by the same shape of base model as BL1 uses today. Every dim covers the same 9 competitions.
+
+#### Layer discipline (re-stated)
+
+- **Staging is 1:1 with raw.** One staging model per raw table — JSON unnesting, casting, no UNION ALL, no business logic.
+- **Base is the unification point.** UNION ALL across competitions + dedup happens here. Each endpoint gets one base model that unions all its per-competition stagings.
+- **Core consumes base only.** Facts UNION nothing — they read from the single base per endpoint and join through dims.
+
+For each endpoint surface listed below, the work pattern is identical:
+
+1. Declare per-confederation raw sources in `sources.yml` (7 new entries — `raw_apif_wcqeu_<endpoint>` … `raw_apif_wcqoc_<endpoint>`)
+2. Add a WC staging model if missing (`stg_apif__wc_<endpoint>`)
+3. Add 7 per-confederation staging models (`stg_apif__wcqeu_<endpoint>`, etc.)
+4. Add or extend the base model so it UNION ALLs BL1 + WC + 7 qualifiers and dedupes
+5. Expand the corresponding fact (drop BL1-only references)
+6. Add the active-competitions presence test for that fact
+
+#### Per-endpoint scope
+
+| Endpoint surface | Affected fact / dim | New stagings needed | Base model |
+|---|---|---|---|
+| Fixtures | `fct_fixture`, `dim_team` (via fixture teams) | 8 (WC already exists; 7 qualifiers new) | `base_apif__fixtures_next` (new — union of `base_apif__bl1_fixtures_next` + WC + qualifiers, OR refactor existing bases into a single union model) |
+| Standings | `fct_standings`, `dim_league`, `dim_competition_season` | 1 WC + 7 qualifiers = 8 | `base_apif__standings` (new union) |
+| Fixture statistics | `fct_fixture_team_stats` | 1 WC + 7 qualifiers = 8 | `base_apif__fixture_statistics` (new union) |
+| Fixture events | `fct_fixture_event` | 1 WC + 7 qualifiers = 8 | `base_apif__fixture_events` (new union) |
+| Fixture players | `fct_fixture_player_stats` | 1 WC + 7 qualifiers = 8 | `base_apif__fixture_players` (new union) |
+| Teams | `dim_team` | 7 qualifiers (WC + BL1 already exist) | extend existing `dim_team` to read a single union base |
+| Players | `dim_player` | 1 WC + 7 qualifiers = 8 | `base_apif__players` (new union) |
+| Transfers | `fct_transfer` | 1 WC + 7 qualifiers = 8 | `base_apif__transfers` (new union) |
+| Leagues | `dim_league`, `dim_competition_season` | 7 qualifiers (WC + BL1 already exist) | extend existing `base_apif__leagues` union |
+| Predictions / Lineups | (deferred facts, not built) | leave for later when facts are built | — |
+
+Total: 60 new per-confederation staging models + ~10 new or extended base models + 6 fact expansions + 6 active-competitions tests.
+
+#### Cleanup tasks (part of Step 2)
+
+- [ ] Remove `raw_apif_wc_qualifier_fixtures` from `sources.yml` (no longer written)
+- [ ] Delete `stg_apif__wc_qualifier_fixtures.sql` and `base_apif__wc_qualifier_fixtures.sql`
+- [ ] Drop the BQ table `RAW_APIF_WC_QUALIFIER_FIXTURES` via a small one-shot script under `scripts/`
+- [ ] Drop the `--exclude stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures` flags from both workflow files
+
+#### Tests required for Step 2 (added in CI)
+
+| Test | Assertion |
 |---|---|
-| `RAW_APIF_WC_FIXTURES` | WC 2026 fixtures |
-| `RAW_APIF_WC_TEAMS` | WC participant teams |
-| `RAW_APIF_WC_LEAGUES` | WC league metadata |
-| `RAW_APIF_WC_QUALIFIER_FIXTURES` | UEFA/CAF/CONCACAF/CONMEBOL/AFC/OFC qualifier fixtures |
+| `assert_fct_fixture_all_active_competitions_present.sql` | Every `league_code` with registry status `active` or `in_progress` has ≥ 1 row |
+| `assert_fct_standings_all_active_competitions_present.sql` | Same shape, for standings |
+| `assert_fct_fixture_team_stats_all_active_competitions_present.sql` | Same shape, for stats |
+| `assert_fct_fixture_event_all_active_competitions_present.sql` | Same shape, for events |
+| `assert_fct_fixture_player_stats_all_active_competitions_present.sql` | Same shape, for player stats |
+| `assert_dim_team_all_active_competitions_present.sql` | Every team appearing in any fact has a `dim_team` row |
+| `assert_dim_player_all_active_competitions_present.sql` | Same shape, for players |
+| `assert_dim_league_all_active_competitions_present.sql` | Every `league_code` in registry → row in `dim_league` |
 
-If any are empty: re-run ingestion from the worktree with `API_FOOTBALL_INCLUDE_IN_PROGRESS=1`.
+> **Risk:** Expanding the facts touches the BL1 data path. After each endpoint surface PR, re-run the existing BL1 trust diagnostics (`assert_fct_fixture_finished_goals_not_null`, `assert_fct_fixture_goals_plausible`, `data_trust_fixture_stats.py`) and verify the matchday-preview JSON export for BL1 is unchanged before merging.
 
-### Step 2 — Expand core layer to include WC + qualifier data
-
-**No mart changes in this step.**
-
-Expand staging/base/core models so WC and qualifier data flow through `fct_fixture`, `dim_team`, `dim_league`, `dim_competition_season`.
-
-Checklist:
-- [ ] Add staging models for `RAW_APIF_WC_FIXTURES` → `stg_apif__wc_fixtures.sql`
-- [ ] Add staging for `RAW_APIF_WC_QUALIFIER_FIXTURES` → fan out by `queried_league_id` to per-qualifier staging (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC)
-- [ ] Expand `base_apif__fixtures.sql` (UNION ALL) to include WC + all qualifier staging models
-- [ ] Expand `dim_team` to include WC teams
-- [ ] Expand `dim_league` to include WC + qualifier league rows
-- [ ] Expand `dim_competition_season` to include WC 2026 (calendar year, no split)
-- [ ] Expand `fct_fixture` to remove BL1-only filter and include WC + qualifier fixtures
-- [ ] Add CI test: `assert_fct_fixture_all_active_competitions_present.sql` — every `league_code` in the registry with status `active` or `in_progress` must have at least one row in `fct_fixture`
-
-> **Risk:** `fct_fixture` expansion touches the BL1 data path. Run `assert_fct_fixture_finished_goals_not_null` and `assert_fct_fixture_goals_plausible` after this step before merging.
+> **Completeness gating:** Qualifier statistics are still backfilling (see ingestion status table). The tiered completeness gate (PR #53) keeps the scheduled workflow green while backfill converges. Step 2 fact expansions surface the partial data, but the matchday-preview UI will not consume WC / qualifier facts until Steps 5+ wire them in.
 
 ### Step 3 — Intermediate layer (new models)
 
@@ -175,10 +252,17 @@ Steps 3–4 require zero dbt model changes.
 
 ## Branch / PR plan
 
-| Step | Branch name | PR |
+Step 2 is too large for one PR. Split by endpoint surface so each PR's blast radius is bounded and the BL1 data path is regression-tested incrementally:
+
+| Step | Branch name | Scope |
 |---|---|---|
-| 1–2 | `feature/core-multi-competition` | TBD |
-| 3–4 | `feature/intermediate-team-form` | TBD |
-| 5 | `feature/mart-wc-matchday-insights` | TBD |
-| 6 | `feature/web-app-competition-selector` | TBD |
-| 7 | `refactor/bl1-mart-use-intermediate` | TBD |
+| 2.1 | `feature/core-fixtures-multi-competition` | Fixtures end-to-end: 7 qualifier stagings + union base + `fct_fixture` expansion + active-competitions test + the qualifier-aggregate cleanup tasks |
+| 2.2 | `feature/core-standings-multi-competition` | Standings: WC + 7 qualifier stagings + union base + `fct_standings` expansion + test |
+| 2.3 | `feature/core-fixture-stats-multi-competition` | Fixture statistics: same shape |
+| 2.4 | `feature/core-fixture-events-multi-competition` | Fixture events: same shape |
+| 2.5 | `feature/core-fixture-players-multi-competition` | Fixture players + `dim_player` expansion |
+| 2.6 | `feature/core-teams-transfers-leagues-multi-competition` | Teams (qualifier additions to `dim_team`), transfers, leagues (qualifier additions to `dim_league` / `dim_competition_season`) |
+| 3–4 | `feature/intermediate-team-form` | Per the draft Step 3 below — needs approval before starting |
+| 5 | `feature/mart-wc-matchday-insights` | Per Step 5 below — needs Step 2–4 complete |
+| 6 | `feature/web-app-competition-selector` | Per Step 6 below |
+| 7 | `refactor/bl1-mart-use-intermediate` | Per Step 7 below — only after Step 5 is live and validated |
