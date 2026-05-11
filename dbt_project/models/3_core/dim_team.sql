@@ -1,15 +1,7 @@
 {{ config(materialized='table') }}
 
-with bl1_teams as (
-    select * from {{ ref('base_apif__bl1_teams') }}
-),
-
-wc_teams as (
-    select * from {{ ref('base_apif__wc_teams') }}
-),
-
-all_teams as (
-    {{ union_all(['bl1_teams', 'wc_teams']) }}
+with all_teams as (
+    select * from {{ ref('base_apif__teams') }}
 )
 
 select

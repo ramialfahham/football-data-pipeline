@@ -23,6 +23,8 @@ dbt build --project-dir .\dbt_project --selector base
 
 Build and test staging models, then base models, against BigQuery.
 
+`dbt_project/dbt_project.yml` defines `vars.active_competition_league_codes` (must match `docs/competition_registry.yml` active + in_progress; enforced by `python scripts/check_registry_var_sync.py`). Passing ad-hoc `--vars` that shrinks that list weakens the singular coverage tests — avoid unless you know why.
+
 If ingestion Python changed, also compile-check it:
 
 ```powershell

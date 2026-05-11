@@ -69,13 +69,15 @@ jobs:
       - name: Enforce layer contract
         run: python ../scripts/check_layer_contract.py
 
+      - name: Check registry/var sync
+        run: python ../scripts/check_registry_var_sync.py
+
       - name: Full data-quality build
         # The dq selector is fqn=* (all nodes); --exclude is honoured directly
         # without the named selector (named --selector silently drops --exclude).
-        # We mirror dbt-ci.yml's qualifier-fixtures exclusions until those models
-        # are addressed; tag:freshness_check is intentionally NOT excluded here:
-        # scheduled runs ingest first, so freshness tests are meaningful.
-        run: dbt build --exclude stg_apif__wc_qualifier_fixtures base_apif__wc_qualifier_fixtures
+        # tag:freshness_check is intentionally NOT excluded here: scheduled runs
+        # ingest first, so freshness tests are meaningful.
+        run: dbt build
 
       - name: Run fixture stats trust diagnostics (hard gate)
         run: python ../scripts/data_trust_fixture_stats.py

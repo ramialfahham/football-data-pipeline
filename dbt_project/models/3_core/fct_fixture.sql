@@ -1,11 +1,7 @@
 {{ config(materialized='table') }}
 
-with bl1_fixtures as (
-    select * from {{ ref('base_apif__bl1_fixtures_next') }}
-),
-
-base as (
-    {{ union_all(['bl1_fixtures']) }}
+with base as (
+    select * from {{ ref('base_apif__fixtures_next') }}
 )
 
 select
