@@ -291,15 +291,33 @@ stg_fixtures as (
 ),
 
 team_keys as (
-    select league_code, team_api_id from stg_teams
+    select
+        league_code,
+        team_api_id
+    from stg_teams
+
     union all
-    select league_code, home_team_id as team_api_id from stg_fixtures where home_team_id is not null
+
+    select
+        league_code,
+        home_team_id as team_api_id
+    from stg_fixtures
+    where home_team_id is not null
+
     union all
-    select league_code, away_team_id as team_api_id from stg_fixtures where away_team_id is not null
+
+    select
+        league_code,
+        away_team_id as team_api_id
+    from stg_fixtures
+    where away_team_id is not null
 ),
 
 distinct_team_keys as (
-    select distinct league_code, team_api_id from team_keys
+    select distinct
+        league_code,
+        team_api_id
+    from team_keys
 ),
 
 teams_latest as (

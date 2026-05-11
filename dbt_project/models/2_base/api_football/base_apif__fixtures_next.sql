@@ -3,23 +3,57 @@
 -- Output grain: fixture_id.
 
 with src as (
-    select * from {{ ref('stg_apif__bl1_fixtures_next') }} where fixture_id is not null
+    select *
+    from {{ ref('stg_apif__bl1_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wc_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wc_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqeu_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqeu_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqaf_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqaf_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqca_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqca_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqsa_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqsa_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqas_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqas_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqip_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqip_fixtures_next') }}
+    where fixture_id is not null
+
     union all
-    select * from {{ ref('stg_apif__wcqoc_fixtures_next') }} where fixture_id is not null
+
+    select *
+    from {{ ref('stg_apif__wcqoc_fixtures_next') }}
+    where fixture_id is not null
 )
 
 select
