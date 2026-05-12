@@ -189,7 +189,7 @@ models:
       - name: clean_sheets
         tests: [not_null]
       - name: latest_rank
-        description: "Rank from fct_standings. Null if the team is not in the current /standings API response for that season."
+        description: "Rank from fct_standings for the team's standings row (after deduping multiple fct rows per team-season). Not unique across teams in the same league-season: qualifiers and tournaments reuse rank numbers across parallel groups or phases, and the API may repeat the same group_description label for different groups."
       - name: latest_form
         description: "Recent-form string from fct_standings (e.g. WDLWW). Null when standings are absent for that season."
 
