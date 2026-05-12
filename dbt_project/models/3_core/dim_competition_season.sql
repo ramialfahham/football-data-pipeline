@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
-with all_leagues as (
-    select * from {{ ref('base_apif__leagues') }}
+with import_base_apif__competition_seasons as (
+    select * from {{ ref('base_apif__competition_seasons') }}
 )
 
 select
@@ -26,8 +26,4 @@ select
     has_coverage_predictions,
     has_coverage_odds,
     raw_ingested_at
-from all_leagues
-qualify row_number() over (
-    partition by league_api_id, season_api_year
-    order by raw_ingested_at desc
-) = 1
+from import_base_apif__competition_seasons

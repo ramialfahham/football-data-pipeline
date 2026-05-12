@@ -53,7 +53,7 @@ models:
         description: "True when day_of_week is Sunday or Saturday."
 
   - name: dim_league
-    description: "Canonical league dimension. Grain: league_api_id. One row per configured league; deduplicated to the latest raw ingestion per natural key."
+    description: "Canonical league dimension. Grain: league_api_id. Sourced from base_apif__league_entity (latest season row per league_api_id); surrogate key is the API integer directly."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -89,7 +89,7 @@ models:
         description: "UTC timestamp of the raw row this dimension row was derived from."
 
   - name: dim_competition_season
-    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
+    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -151,7 +151,7 @@ models:
         description: "UTC timestamp of the raw row this dimension row was derived from."
 
   - name: dim_team
-    description: "Canonical team dimension. Grain: team_api_id (globally unique in API-Football). Deduplicated to the latest season's snapshot per team; venue attributes are the current home venue from the latest /teams payload."
+    description: "Canonical team dimension. Grain: team_api_id (globally unique in API-Football). Sourced from base_apif__teams_global (latest ingest per team across league rows). Venue attributes are from the winning row's /teams payload."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -193,7 +193,12 @@ models:
         description: "UTC timestamp of the raw row this dimension row was derived from."
 
   - name: dim_player
-    description: "Canonical player dimension. Grain: player_api_id (globally unique in API-Football). A player keeps one row even when they change teams within a season; the last known team and season are retained as snapshot attributes rather than joinable keys, because team attribution belongs on facts that involve player and team simultaneously."
+    description: >
+      Canonical player dimension. Grain: player_api_id (globally unique in API-Football).
+      Sourced from base_apif__players_global (latest ingest per player across league rows).
+      A player keeps one row even when they change teams within a season; the last known team
+      and season are retained as snapshot attributes rather than joinable keys, because team
+      attribution belongs on facts that involve player and team simultaneously.
     meta:
       owner: "data-platform"
       domain: "football"

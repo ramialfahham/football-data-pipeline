@@ -1,17 +1,7 @@
 {{ config(materialized='table') }}
 
-with all_leagues as (
-    select * from {{ ref('base_apif__leagues') }}
-),
-
-latest_per_league as (
-    select
-        *,
-        row_number() over (
-            partition by league_api_id
-            order by season_api_year desc, raw_ingested_at desc
-        ) as rn
-    from all_leagues
+with import_base_apif__league_entity as (
+    select * from {{ ref('base_apif__league_entity') }}
 )
 
 select
@@ -24,5 +14,4 @@ select
     league_logo_url,
     country_flag_url,
     raw_ingested_at
-from latest_per_league
-where rn = 1
+from import_base_apif__league_entity

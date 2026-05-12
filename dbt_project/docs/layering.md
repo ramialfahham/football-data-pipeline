@@ -107,10 +107,10 @@ Canonical dimension inventory for this project:
 | Dim | Grain | Source staging model | Notes |
 |-----|-------|----------------------|-------|
 | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
-| `dim_league` | league_api_id | `stg_apif__bl1_leagues` | One row per configured league; surrogate key is the API integer directly. |
-| `dim_competition_season` | (league_api_id, season_api_year) | `stg_apif__bl1_leagues` (seasons_json) | Carries API coverage flags that drive downstream conditional logic. |
-| `dim_team` | team_api_id | `stg_apif__bl1_teams` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
-| `dim_player` | player_api_id | `stg_apif__bl1_players` | Globally scoped; surrogate key is the API integer directly; `last_known_team_api_id` is a snapshot attribute, not a join key. |
+| `dim_league` | league_api_id | `base_apif__league_entity` | One row per configured league; surrogate key is the API integer directly. |
+| `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
+| `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
+| `dim_player` | player_api_id | `base_apif__players_global` | Globally scoped; surrogate key is the API integer directly; `last_known_team_api_id` is a snapshot attribute, not a join key. |
 
 All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
 
@@ -133,7 +133,7 @@ Canonical fact inventory for this project:
 
 | Fact | Grain | Source staging model(s) | Notes |
 |------|-------|-------------------------|-------|
-| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `stg_apif__bl1_fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
 | `fct_standings` | `(season_sk, team_sk, group_description)` | `base_apif__standings` (from per-competition `stg_apif__*_standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__bl1_fixture_players` | `player_statistics_json[0]` flattened into measures. |

@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
-with all_teams as (
-    select * from {{ ref('base_apif__teams') }}
+with import_base_apif__teams_global as (
+    select * from {{ ref('base_apif__teams_global') }}
 )
 
 select
@@ -19,8 +19,4 @@ select
     venue_city,
     venue_capacity,
     raw_ingested_at
-from all_teams
-qualify row_number() over (
-    partition by team_api_id
-    order by raw_ingested_at desc
-) = 1
+from import_base_apif__teams_global

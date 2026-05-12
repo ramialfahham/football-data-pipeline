@@ -1,6 +1,6 @@
 {{ config(materialized='table') }}
 
-with base as (
+with import_base_apif__fixtures_next as (
     select * from {{ ref('base_apif__fixtures_next') }}
 )
 
@@ -29,8 +29,4 @@ select
     venue_name as venue_name_snapshot,
     venue_city as venue_city_snapshot,
     raw_ingested_at
-from base
-qualify row_number() over (
-    partition by fixture_id
-    order by raw_ingested_at desc
-) = 1
+from import_base_apif__fixtures_next
