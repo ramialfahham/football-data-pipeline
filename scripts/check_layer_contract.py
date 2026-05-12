@@ -6,7 +6,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DBT_MODELS = REPO_ROOT / "dbt_project" / "models"
 CORE_DIR = DBT_MODELS / "3_core"
+INTERMEDIATE_DIR = DBT_MODELS / "4_intermediate"
 STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
+
+# Intermediate must not depend on marts (DAG flows int → mart only).
+INTERMEDIATE_FORBIDDEN_MART_REF = re.compile(
+    r"""ref\s*\(\s*['"]mart_""",
+    re.IGNORECASE,
+)
 
 CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bjson_value\s*\(", re.IGNORECASE),
@@ -30,6 +37,19 @@ def check_core_forbidden_patterns(errors: list[str]) -> None:
                 )
 
 
+def check_intermediate_no_mart_refs(errors: list[str]) -> None:
+    if not INTERMEDIATE_DIR.is_dir():
+        return
+    for sql_path in sorted(INTERMEDIATE_DIR.rglob("*.sql")):
+        content = sql_path.read_text(encoding="utf-8")
+        if INTERMEDIATE_FORBIDDEN_MART_REF.search(content):
+            rel = sql_path.relative_to(REPO_ROOT).as_posix()
+            errors.append(
+                f"{rel}: intermediate layer must not ref() mart_* models "
+                f"(matched {INTERMEDIATE_FORBIDDEN_MART_REF.pattern})"
+            )
+
+
 def check_staging_inventory(errors: list[str]) -> None:
     # Staging models must live in a per-competition subdirectory, never at the root level.
     root_sql = sorted(STAGING_API_DIR.glob("*.sql"))
@@ -44,6 +64,7 @@ def check_staging_inventory(errors: list[str]) -> None:
 def main() -> int:
     errors: list[str] = []
     check_core_forbidden_patterns(errors)
+    check_intermediate_no_mart_refs(errors)
     check_staging_inventory(errors)
 
     if errors:

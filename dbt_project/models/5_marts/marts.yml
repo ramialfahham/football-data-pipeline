@@ -12,7 +12,7 @@ version: 2
 
 models:
   - name: mart_fixture_results
-    description: "Flat fixture table, one row per fixture with both teams, league, season, and kickoff-date denormalised. View (cheap to rebuild). Default consumer shape for dashboards and ad-hoc SQL."
+    description: "Flat fixture table, one row per fixture with both teams, league, season, and kickoff-date denormalised. Thin view over int_matchday__fixture_denormalized (cheap to rebuild). Default consumer shape for dashboards and ad-hoc SQL."
     meta:
       owner: "data-platform"
       domain: "football"

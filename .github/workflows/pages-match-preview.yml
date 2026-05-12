@@ -11,6 +11,7 @@ on:
       - "ingestion/**"
       - "dbt_project/models/1_staging/**"
       - "dbt_project/models/3_core/**"
+      - "dbt_project/models/4_intermediate/matchday/**"
       - "site/**"
       - "dbt_project/models/5_marts/mart_matchday_insights.sql"
       - "dbt_project/models/5_marts/mart_team_season.sql"

@@ -13,49 +13,16 @@
 
 with
 
-mart_fixture_results as (select * from {{ ref('mart_fixture_results') }}),
-
-fct_fixture as (select * from {{ ref('fct_fixture') }}),
-
-upcoming_candidates as (
-    select
-        fixture_sk,
-        league_code,
-        season_api_year,
-        fixture_date,
-        kickoff_datetime,
-        round_name,
-        home_team_sk,
-        away_team_sk,
-        home_team_name,
-        away_team_name,
-        safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as upcoming_round_order
-    from mart_fixture_results
-    where
-        status_short in ('NS', 'TBD')
-        and fixture_date >= current_date()
+import_int_matchday__upcoming_round_fixtures as (
+    select * from {{ ref('int_matchday__upcoming_round_fixtures') }}
 ),
 
-next_round as (
-    select
-        league_code,
-        season_api_year,
-        round_name
-    from upcoming_candidates
-    qualify row_number() over (
-        partition by league_code, season_api_year
-        order by fixture_date asc, kickoff_datetime asc
-    ) = 1
+import_int_matchday__finished_fixture_team_leg as (
+    select * from {{ ref('int_matchday__finished_fixture_team_leg') }}
 ),
 
 upcoming_matchday as (
-    select uc.*
-    from upcoming_candidates as uc
-    inner join next_round as nr
-        on
-            uc.league_code = nr.league_code
-            and uc.season_api_year = nr.season_api_year
-            and uc.round_name = nr.round_name
+    select * from import_int_matchday__upcoming_round_fixtures
 ),
 
 team_context as (
@@ -93,41 +60,12 @@ finished_legs as (
         season_api_year,
         kickoff_datetime,
         round_name,
-        safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as round_order,
-        home_team_sk as team_sk,
-        goals_home as goals_for,
-        goals_away as goals_against,
-        case
-            when goals_home > goals_away then 'W'
-            when goals_home < goals_away then 'L'
-            else 'D'
-        end as result
-    from fct_fixture
-    where
-        status_short in ('FT', 'AET', 'PEN')
-        and goals_home is not null
-        and goals_away is not null
-    union all
-    select
-        fixture_sk,
-        league_code,
-        season_api_year,
-        kickoff_datetime,
-        round_name,
-        safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as round_order,
-        away_team_sk,
-        goals_away,
-        goals_home,
-        case
-            when goals_away > goals_home then 'W'
-            when goals_away < goals_home then 'L'
-            else 'D'
-        end as result
-    from fct_fixture
-    where
-        status_short in ('FT', 'AET', 'PEN')
-        and goals_home is not null
-        and goals_away is not null
+        round_order,
+        team_sk,
+        goals_for,
+        goals_against,
+        result
+    from import_int_matchday__finished_fixture_team_leg
 ),
 
 ranked as (

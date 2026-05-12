@@ -53,12 +53,12 @@ BL1 and WC are fully complete; qualifier statistics will converge to 100% over a
 ## Current state
 
 - `mart_matchday_insights.sql` is BL1-only (`where league_code = 'BL1'`), exported to the web app — **must not break**
-- All form logic (~400 lines) is embedded in the mart — no intermediate layer
+- Form and matchday spine live in `int_matchday__*` models; the mart joins those intermediates with `mart_team_season`
 - Known metric bugs (not yet fixed):
   - `dense_rank()` on `round_order desc` gives 5 matchdays not 5 games — postponed rounds eat slots
   - `coalesce(stat, 0)` deflates averages when stats are absent
   - Previous-season fallback `form_season_api_year - 1` is domestic-league-only; wrong for WC (calendar year)
-- One intermediate model exists (`int_apif__raw_ingestion_spread`) — ingestion monitoring, not business logic
+- Intermediate: `int_pipeline__raw_ingestion_spread` (ingestion monitoring); `int_matchday__*` (fixture denorm, finished legs + stats, upcoming round, team form metrics). **Rule:** `4_intermediate` models must not `ref()` any `mart_*` model.
 - Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
 - Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
 - No SCD2 snapshots in the project; injuries are not ingested (see PR #52 and PR #56 above)
