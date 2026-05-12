@@ -164,8 +164,9 @@ Total work for Step 2:
 | `assert_base_leagues_covers_active_competition_var.sql` (and teams / fixtures_next variants) | Every `league_code` in `vars.active_competition_league_codes` has ≥ 1 row in the unified base (must match registry; enforced by `check_registry_var_sync.py`). **Manual-UNION guarantee.** |
 | `check_layer_contract.py` | Fails if any `3_core/*.sql` contains `union_all(` — core reads a single base per endpoint. |
 | `assert_fct_fixture_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_fixture` |
+| `assert_base_fixture_statistics_covers_active_competition_var.sql` | Every var `league_code` with fixture-statistics coverage has ≥ 1 row in `base_apif__fixture_statistics` |
 | `assert_fct_standings_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_standings` |
-| `assert_fct_fixture_team_stats_all_active_competitions_present.sql` | Same shape, for stats |
+| `assert_fct_fixture_team_stats_covers_active_competition_var.sql` | Every var `league_code` with fixture-statistics coverage has ≥ 1 row in `fct_fixture_team_stats` |
 | `assert_fct_fixture_event_all_active_competitions_present.sql` | Same shape, for events |
 | `assert_fct_fixture_player_stats_all_active_competitions_present.sql` | Same shape, for player stats |
 | `assert_dim_team_all_active_competitions_present.sql` | Every team appearing in any fact has a `dim_team` row |

@@ -73,6 +73,25 @@ models:
       - name: standing_rank
         tests: [not_null]
 
+  - name: base_apif__fixture_statistics
+    description: >
+      Unified per-team fixture statistics across all onboarded competitions
+      (explicit ref() per competition staging). Deduplicated per
+      (league_code, fixture_id, team_id). Feeds fct_fixture_team_stats.
+      Output grain: (league_code, fixture_id, team_id).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
   - name: base_apif__bl1_fixture_events
     description: >
       Deduplicated fixture event rows from stg_apif__bl1_fixture_events. Keeps
