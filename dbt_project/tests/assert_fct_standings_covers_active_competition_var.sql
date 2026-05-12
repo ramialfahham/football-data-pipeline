@@ -1,12 +1,27 @@
--- Proves each var league_code has at least one row in fct_standings (after dim join).
--- Registry/var sync: scripts/check_registry_var_sync.py in CI.
+-- Same rule as assert_base_standings_covers_active_competition_var: only leagues
+-- with current-season has_coverage_standings must appear in fct_standings.
 {{ config(severity = 'error') }}
 
-with expected as (
+with expected_codes as (
     {%- for code in var('active_competition_league_codes') %}
-    select '{{ code }}' as league_code{% if not loop.last %} union all{% endif %}
+    select '{{ code }}' as league_code
+    {%- if not loop.last %}
+
+    union all
+    {% endif %}
     {%- endfor %}
 ),
+
+standings_required as (
+    select distinct l.league_code
+    from expected_codes as e
+    inner join {{ ref('base_apif__leagues') }} as l
+        on e.league_code = l.league_code
+    where
+        l.season_is_current
+        and coalesce(l.has_coverage_standings, false)
+),
+
 counts as (
     select
         league_code,
@@ -15,7 +30,7 @@ counts as (
     group by league_code
 )
 
-select e.league_code
-from expected as e
-left join counts as c on e.league_code = c.league_code
+select r.league_code
+from standings_required as r
+left join counts as c on r.league_code = c.league_code
 where c.n is null or c.n < 1
