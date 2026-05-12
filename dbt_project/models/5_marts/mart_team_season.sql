@@ -16,7 +16,7 @@ dim_team as (
 ),
 
 fct_standings as (
-    -- Defensive dedup: fct_standings sources from base_apif__bl1_standings
+    -- Defensive dedup: fct_standings sources from base_apif__standings
     -- which is already one row per (team, season). Order by raw_ingested_at
     -- desc so any future grain change (e.g. multiple rows per team-season)
     -- still picks the most recent observation rather than an arbitrary one.

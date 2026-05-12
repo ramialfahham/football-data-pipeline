@@ -280,3 +280,108 @@ models:
         tests: [not_null]
       - name: fixture_id
         tests: [not_null, unique]
+
+  - name: stg_apif__wcqeu_standings
+    description: WC qualifier confederation WCQEU — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqaf_standings
+    description: WC qualifier confederation WCQAF — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqca_standings
+    description: WC qualifier confederation WCQCA — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqsa_standings
+    description: WC qualifier confederation WCQSA — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqas_standings
+    description: WC qualifier confederation WCQAS — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqip_standings
+    description: WC qualifier confederation WCQIP — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqoc_standings
+    description: WC qualifier confederation WCQOC — GET /standings; same shape as stg_apif__bl1_standings.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_description]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]

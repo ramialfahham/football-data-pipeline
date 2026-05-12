@@ -1,6 +1,6 @@
 """Drop the orphaned snap_apif_d1_standings table after the snapshot was removed.
 
-The dbt snapshot is replaced by base_apif__bl1_standings (one row per
+The dbt snapshot is replaced by base_apif__standings (one row per
 (league_code, season, team_id) deduplicated from staging). The snapshot's
 SCD2 history was never consumed downstream, and its (league_code, season,
 team_id, group_description) unique_key caused stale-zone rows to leak into

@@ -324,7 +324,7 @@ models:
         description: "UTC timestamp of the raw row this fact row was derived from."
 
   - name: fct_standings
-    description: "Current league standings. Grain: (season_sk, team_sk, group_description). Sources from base_apif__bl1_standings (one row per (team, season) reflecting the latest API state for that season)."
+    description: "Current league standings. Grain: (season_sk, team_sk, group_description). Sources from base_apif__standings (one row per (league_code, team, season) reflecting the latest API state for that season)."
     meta:
       owner: "data-platform"
       domain: "football"

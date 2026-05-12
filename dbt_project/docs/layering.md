@@ -134,7 +134,7 @@ Canonical fact inventory for this project:
 | Fact | Grain | Source staging model(s) | Notes |
 |------|-------|-------------------------|-------|
 | `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `stg_apif__bl1_fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
-| `fct_standings` | `(season_sk, team_sk, group_description)` | `base_apif__bl1_standings` (from `stg_apif__bl1_standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
+| `fct_standings` | `(season_sk, team_sk, group_description)` | `base_apif__standings` (from per-competition `stg_apif__*_standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__bl1_fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__bl1_fixture_players` | `player_statistics_json[0]` flattened into measures. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `stg_apif__bl1_fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
