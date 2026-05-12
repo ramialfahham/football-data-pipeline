@@ -120,7 +120,7 @@ models:
       - name: raw_ingested_at
 
   - name: mart_team_season
-    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank / latest_form come from fct_standings; null for seasons absent from the current /standings API response."
+    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -192,6 +192,8 @@ models:
         description: "Rank from fct_standings for the team's standings row (after deduping multiple fct rows per team-season). Not unique across teams in the same league-season: qualifiers and tournaments reuse rank numbers across parallel groups or phases, and the API may repeat the same group_description label for different groups."
       - name: latest_form
         description: "Recent-form string from fct_standings (e.g. WDLWW). Null when standings are absent for that season."
+      - name: standings_group_description
+        description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
 
   - name: mart_player_season
     description: "Per-player, per-season rollup. Grain: (player_sk, season_sk). Aggregates come from fct_fixture_player_stats joined to fct_fixture filtered to finished matches. A player who transfers mid-season produces one row per season; per-fixture team attribution lives in the core fact."

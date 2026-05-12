@@ -3,8 +3,10 @@
 {#
     Per-team, per-season rollup. Counts derive from finished matches only
     (status_short in FT, AET, PEN) so unplayed fixtures don't skew aggregates.
-    Latest rank joins from fct_standings; teams absent from current standings
-    (e.g. historical seasons no longer in the API response) get null.
+    latest_rank, latest_form, and standings_group_description join from
+    fct_standings; teams absent from current standings get nulls. When several
+    fct_standings rows exist per (team_sk, season_sk), one row is kept (latest
+    raw_ingested_at).
 #}
 
 with fct_fixture as (
@@ -16,15 +18,14 @@ dim_team as (
 ),
 
 fct_standings as (
-    -- Defensive dedup: fct_standings sources from base_apif__standings
-    -- which is already one row per (team, season). Order by raw_ingested_at
-    -- desc so any future grain change (e.g. multiple rows per team-season)
-    -- still picks the most recent observation rather than an arbitrary one.
+    -- Defensive dedup: fct_standings grain includes group_description; a team
+    -- can have multiple rows per season (e.g. qualifiers). Pick latest ingest.
     select
         team_sk,
         season_sk,
         standing_rank,
-        form
+        form,
+        group_description
     from {{ ref('fct_standings') }}
     qualify row_number() over (
         partition by team_sk, season_sk order by raw_ingested_at desc nulls last
@@ -126,7 +127,8 @@ select
     agg.points,
     agg.clean_sheets,
     st.standing_rank as latest_rank,
-    st.form as latest_form
+    st.form as latest_form,
+    st.group_description as standings_group_description
 from agg
 left join dim_team as t on agg.team_sk = t.team_sk
 left join fct_standings as st

@@ -179,7 +179,7 @@ Canonical mart inventory for this project:
 | Mart | Grain | Materialization | Notes |
 |------|-------|-----------------|-------|
 | `mart_fixture_results` | fixture_sk | view | Flat fixture table with both teams, league, season, and kickoff-date denormalized; default consumer shape. |
-| `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank / form joined from `fct_standings`. |
+| `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
 | `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
 | `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
 
