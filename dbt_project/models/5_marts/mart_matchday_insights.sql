@@ -483,6 +483,8 @@ final as (
         mfc.upcoming_matchday_fixture_count,
         home_ts.latest_rank as home_league_rank,
         away_ts.latest_rank as away_league_rank,
+        home_ts.standings_group_description as home_standings_group_description,
+        away_ts.standings_group_description as away_standings_group_description,
         hf.home_form_season_api_year,
         hf.home_form_games_played,
         hf.home_form_matchdays_used,

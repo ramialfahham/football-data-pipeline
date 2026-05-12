@@ -603,6 +603,10 @@ models:
           - not_null:
               config:
                 where: "league_code = 'BL1' and fixture_date >= current_date()"
+      - name: home_standings_group_description
+        description: "API standings group/stage label for the home team (mart_team_season.standings_group_description); null if standings absent. Same source row as home_league_rank."
+      - name: away_standings_group_description
+        description: "API standings group/stage label for the away team; null if standings absent. Same source row as away_league_rank."
       - name: home_form_games_played
         description: "Home: count of finished matches included in the form window (all games in the last five completed matchdays). 0 when no prior matches exist; never null."
         tests: [not_null]
