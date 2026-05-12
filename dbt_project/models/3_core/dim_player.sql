@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
-with base as (
-    select * from {{ ref('base_apif__bl1_players') }}
+with import_base_apif__players_global as (
+    select * from {{ ref('base_apif__players_global') }}
 )
 
 select
@@ -17,8 +17,4 @@ select
     last_known_team_api_id,
     last_known_season_year,
     raw_ingested_at
-from base
-qualify row_number() over (
-    partition by player_api_id
-    order by raw_ingested_at desc
-) = 1
+from import_base_apif__players_global

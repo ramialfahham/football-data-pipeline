@@ -8,7 +8,7 @@
     so it stays as a degenerate attribute.
 #}
 
-with base as (
+with import_base_apif__bl1_fixture_events as (
     select * from {{ ref('base_apif__bl1_fixture_events') }}
 )
 
@@ -38,4 +38,4 @@ select
     player_name as player_name_snapshot,
     assist_player_name,
     raw_ingested_at
-from base
+from import_base_apif__bl1_fixture_events
