@@ -1,10 +1,10 @@
 {{ config(materialized='table') }}
 
-with base as (
-    select * from {{ ref('base_apif__bl1_standings') }}
+with import_base_apif__standings as (
+    select * from {{ ref('base_apif__standings') }}
 ),
 
-season_keys as (
+import_dim_competition_season as (
     select
         season_api_year,
         league_code,
@@ -31,8 +31,8 @@ select
     cs.draws_all as draws,
     cs.losses_all as losses,
     cs.raw_ingested_at
-from base as cs
-inner join season_keys as sk
+from import_base_apif__standings as cs
+inner join import_dim_competition_season as sk
     on
         cs.league_code = sk.league_code
         and cs.season = sk.season_api_year

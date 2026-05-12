@@ -29,7 +29,7 @@ These changed inputs and constraints to Step 2 and need to be reflected in the p
 - **PR #48 — Global completeness-driven fanout**: priority queue across all competitions, with `history_seasons` per competition. Combined with PR #39, **each qualifier confederation is now a first-class competition with its own per-confederation raw tables** (`RAW_APIF_WCQEU_*`, `RAW_APIF_WCQAF_*`, etc.). The earlier aggregate `RAW_APIF_WC_QUALIFIER_FIXTURES` table is no longer written and is stale since 2026-05-05.
 - **PR #49 — Catalog guard**: `/leagues` writes only when the API returns non-empty `response`, preventing daily-quota errors from wiping valid leagues data via WRITE_TRUNCATE.
 - **PR #51 — `mart_team_season` rank fix**: short-term workaround at the mart layer (use latest `snapshot_valid_from` for dedup) so the matchday-preview UI shows correct Tabellenplatz.
-- **PR #52 — Standings snapshot removed**: `snap_apif_d1_standings` deleted. `fct_standings` now sources from `base_apif__bl1_standings` (regular table dedup), not from an SCD2 snapshot. There is currently no snapshot anywhere in the project.
+- **PR #52 — Standings snapshot removed**: `snap_apif_d1_standings` deleted. `fct_standings` now sources from unified `base_apif__standings` (regular table dedup across competitions), not from an SCD2 snapshot. There is currently no snapshot anywhere in the project.
 - **PR #53 — Tiered completeness gate + run summary**: scheduled workflow hard-fails only when an `active` competition is incomplete; `in_progress` competitions warn and stay green. Every run renders a per-competition coverage table to `$GITHUB_STEP_SUMMARY`. This is the always-on observability for the pipeline.
 - **PR #56 — Injuries removal**: the entire injury surface (ingestion call, `merge_injuries_envelope`, dbt sources, staging models, `fct_injury` mention in deferred-fact list) is deleted. Injuries are no longer ingested for any competition and the architecture should not reference them.
 - **Diagnostic scripts** added under `scripts/diagnostics/`: `inspect_raw_payload.py`, `probe_time_travel.py`, `restore_from_time_travel.py`. Used today to restore `RAW_APIF_BL1_LEAGUES` from BigQuery time travel after a quota-induced WRITE_TRUNCATE corruption.
@@ -62,9 +62,9 @@ BL1 and WC are fully complete; qualifier statistics will converge to 100% over a
 - Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
 - Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
 - No SCD2 snapshots in the project; injuries are not ingested (see PR #52 and PR #56 above)
-- Dim layer already covers WC: `dim_league`, `dim_competition_season`, `dim_team` UNION BL1 + WC base models. Qualifier confederations are **not** yet in any dim.
-- All fact tables are still BL1-only — they read only from BL1 base models
-- WC base models exist for: `_fixtures_next`, `_leagues`, `_teams`. WC base models do not yet exist for: `_standings`, `_fixture_statistics`, `_fixture_events`, `_fixture_players`, `_players`, `_transfers`.
+- Dims `dim_league`, `dim_competition_season`, and `dim_team` read unified `base_apif__leagues` / `base_apif__teams` (PR #59 — all registry competitions with staging).
+- `fct_fixture` reads `base_apif__fixtures_next` (PR #59). `fct_standings` reads `base_apif__standings` (Step 2.2). Other facts remain BL1-only until their Step 2.x PRs.
+- Per-competition bases for leagues, teams, fixtures, and standings are superseded by unified `base_apif__*` models with explicit `ref()` lists; remaining endpoints follow the same pattern in the plan table.
 
 ---
 
@@ -164,7 +164,7 @@ Total work for Step 2:
 | `assert_base_leagues_covers_active_competition_var.sql` (and teams / fixtures_next variants) | Every `league_code` in `vars.active_competition_league_codes` has ≥ 1 row in the unified base (must match registry; enforced by `check_registry_var_sync.py`). **Manual-UNION guarantee.** |
 | `check_layer_contract.py` | Fails if any `3_core/*.sql` contains `union_all(` — core reads a single base per endpoint. |
 | `assert_fct_fixture_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_fixture` |
-| `assert_fct_standings_all_active_competitions_present.sql` | Same shape, for standings |
+| `assert_fct_standings_covers_active_competition_var.sql` | Every var `league_code` has ≥ 1 row in `fct_standings` |
 | `assert_fct_fixture_team_stats_all_active_competitions_present.sql` | Same shape, for stats |
 | `assert_fct_fixture_event_all_active_competitions_present.sql` | Same shape, for events |
 | `assert_fct_fixture_player_stats_all_active_competitions_present.sql` | Same shape, for player stats |

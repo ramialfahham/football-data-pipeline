@@ -52,16 +52,11 @@ models:
       - name: league_code
         tests: [not_null]
 
-  - name: base_apif__bl1_standings
+  - name: base_apif__standings
     description: >
-      Deduplicated standings rows from stg_apif__bl1_standings. The API
-      returns one row per (team, season) reflecting the team's current
-      league position; the ingestion merge replaces the entire season block
-      on each refresh, so the raw payload always reflects the latest API
-      state. This base model defensively keeps only the most recently
-      ingested version per (league_code, season, team_id). group_description
-      is propagated as the team's current standings zone (a changing
-      attribute, not part of the grain).
+      Unified standings across all onboarded competitions (explicit ref() per
+      competition staging). Deduplicated per (league_code, season, team_id).
+      Feeds fct_standings. group_description is the API zone/stage label.
       Output grain: (league_code, season, team_id).
     config:
       tags: ["base", "api_football", "standings_context"]
