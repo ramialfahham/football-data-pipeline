@@ -15,7 +15,7 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
   - staging: `stg_<source>__<entity>`
   - base: `base_<domain>__<entity>`
   - core: `core_<entity>`
-  - intermediate: `int_<domain>__<purpose>`
+  - intermediate: `int_<domain>__<purpose>` — use **`int_matchday__*`** for matchday preview / form / fixture denorm spine, **`int_pipeline__*`** for ingestion or warehouse-operation helpers (for example raw load-time spread). Intermediate must not `ref()` any `mart_*` model.
   - marts: `mart_<consumer_or_domain>__<purpose>`
 - Columns use lowercase snake_case.
 - Boolean columns start with `is_` or `has_`.

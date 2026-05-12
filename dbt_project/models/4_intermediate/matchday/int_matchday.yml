@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: int_matchday__fixture_denormalized
+    description: >
+      One row per fixture with teams, league, season, and kickoff denormalised (same column set as mart_fixture_results).
+      Materialised as a table; mart_fixture_results is a thin view for the stable consumer name.
+    config:
+      tags: ["intermediate", "football", "matchday"]
+
+  - name: int_matchday__finished_fixture_team_leg
+    description: >
+      Finished matches as two rows per fixture (home and away team) with team stats and opponent shot/corner aggregates.
+      Grain (fixture_sk, team_sk).
+    config:
+      tags: ["intermediate", "football", "matchday"]
+
+  - name: int_matchday__upcoming_round_fixtures
+    description: >
+      Earliest not-started round per (league_code, season_api_year) with one row per fixture in that round.
+      League-agnostic; consumer marts apply league filters (e.g. BL1 for mart_matchday_insights).
+    config:
+      tags: ["intermediate", "football", "matchday"]
+
+  - name: int_matchday__team_form_metrics
+    description: >
+      Per (upcoming fixture_sk, team_sk) form aggregates for the configured window (last five completed matchdays
+      when current season has games; else prior season), with ratio-of-sums rates. Grain (fixture_sk, team_sk)
+      for upcoming fixtures only.
+    config:
+      tags: ["intermediate", "football", "matchday"]

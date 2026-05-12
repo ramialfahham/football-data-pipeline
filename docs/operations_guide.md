@@ -160,7 +160,7 @@ Three signals together tell you what happened.
 
    When `match_level_tables_cover_all_fixtures` is `false` during a multi-day backfill, the process exits `3` under the default `API_FOOTBALL_FAIL_ON_INCOMPLETE=1`. Set that env var to `0` until coverage catches up, or skip the check entirely with `API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1` (not recommended long-term).
 
-3. **Warehouse alignment.** The dbt model `int_apif__raw_ingestion_spread` summarises `MAX(ingested_at)` across raw tables per competition in one row, including `spread_minutes`. Build it with `dbt build --project-dir .\dbt_project --select int_apif__raw_ingestion_spread` to check alignment after deploys.
+3. **Warehouse alignment.** The dbt model `int_pipeline__raw_ingestion_spread` summarises `MAX(ingested_at)` across raw tables per competition in one row, including `spread_minutes`. Build it with `dbt build --project-dir .\dbt_project --select int_pipeline__raw_ingestion_spread` to check alignment after deploys.
 
 ---
 
@@ -197,7 +197,7 @@ Refresh cheap league-wide tables daily and prioritise near-term matches for the 
 |-------|----------|
 | Raw tables, merge model, endpoint map | [`data_contract.md`](data_contract.md) |
 | dbt layers and naming | `dbt_project/docs/layering.md` |
-| Raw load-time spread (D1) | dbt model `int_apif__raw_ingestion_spread` |
+| Raw load-time spread (D1) | dbt model `int_pipeline__raw_ingestion_spread` |
 
 ---
 

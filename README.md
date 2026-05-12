@@ -27,7 +27,7 @@ Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_proje
 | `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
 | `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
 | `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`). |
-| `4_intermediate` | 1 model | `int_apif__raw_ingestion_spread` (ingestion-spread audit). |
+| `4_intermediate` | 5 models | `int_pipeline__raw_ingestion_spread` (ingestion-spread audit); `int_matchday__fixture_denormalized`, `int_matchday__finished_fixture_team_leg`, `int_matchday__upcoming_round_fixtures`, `int_matchday__team_form_metrics` (matchday spine + form). |
 | `5_marts` | populated | 7 models — `mart_matchday_insights` (powers the live app), `mart_fixture_results`, `mart_top_scorers`, `mart_team_rankings_current`, `mart_team_season`, `mart_player_season`, `mart_form_window_debug`. |
 
 ## dbt (local setup)

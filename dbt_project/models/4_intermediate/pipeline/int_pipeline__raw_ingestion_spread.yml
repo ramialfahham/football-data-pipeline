@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: int_apif__raw_ingestion_spread
+  - name: int_pipeline__raw_ingestion_spread
     description: >
       Single-row summary of max(ingested_at) across each D1 raw API-Football source.
       spread_minutes measures how far apart the newest and oldest "latest row" times are—
