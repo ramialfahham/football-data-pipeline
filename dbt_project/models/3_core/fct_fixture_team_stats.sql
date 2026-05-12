@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
-with base as (
-    select * from {{ ref('base_apif__bl1_fixture_statistics') }}
+with import_base_apif__fixture_statistics as (
+    select * from {{ ref('base_apif__fixture_statistics') }}
 )
 
 select
@@ -29,4 +29,4 @@ select
     passes_accurate,
     passes_accuracy_percent,
     raw_ingested_at
-from base
+from import_base_apif__fixture_statistics

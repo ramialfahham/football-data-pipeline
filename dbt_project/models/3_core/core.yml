@@ -381,7 +381,7 @@ models:
         description: "UTC timestamp of the raw row this fact row was derived from."
 
   - name: fct_fixture_team_stats
-    description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). Staging prepares and types all measure columns; core keys and constrains the fact grain."
+    description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). Sources from unified base_apif__fixture_statistics; staging pivots API lines to typed columns."
     meta:
       owner: "data-platform"
       domain: "football"
