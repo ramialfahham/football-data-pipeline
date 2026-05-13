@@ -159,7 +159,7 @@ Not allowed:
 - End-user-facing table design (naming, flattening, and optimization for a specific consumer are **marts** concerns).
 - **`ref('mart_*')`.** Intermediate feeds marts, not the reverse. CI runs `scripts/check_layer_contract.py` to fail on any `4_intermediate/**/*.sql` that references a mart.
 
-**Naming in this repo:** `int_matchday__*` holds matchday preview / form / fixture-denorm spine; `int_pipeline__*` holds ingestion-monitoring or warehouse-operation helpers (for example raw load-time spread).
+**Naming in this repo:** `int_matchday__*` holds matchday preview / form / fixture-denorm spine; `int_team_season__*` holds team-season rollups helpers (e.g. deduped standings for marts); `int_pipeline__*` holds ingestion-monitoring or warehouse-operation helpers (for example raw load-time spread).
 
 ## 5_marts
 
