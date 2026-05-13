@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: int_team_season__standings_primary
+    description: >
+      Deduplicated standings snapshot per team-season: one row per (team_sk, season_sk)
+      chosen by latest raw_ingested_at when the core fact has multiple rows (e.g. parallel groups).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - team_sk
+            - season_sk
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: standing_rank
+        description: "API rank from the chosen row (same semantics as mart_team_season.latest_rank source)."
+      - name: form
+        description: "Recent-form string from the chosen row (latest_form in marts)."
+      - name: group_description
+        description: "Standings group/stage label from the chosen row."

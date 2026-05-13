@@ -13,6 +13,8 @@ import_fct_fixture_team_stats as (
 finished_legs as (
     select
         f.fixture_sk,
+        f.league_sk,
+        f.season_sk,
         f.league_code,
         f.season_api_year,
         f.kickoff_datetime,
@@ -35,6 +37,8 @@ finished_legs as (
     union all
     select
         f.fixture_sk,
+        f.league_sk,
+        f.season_sk,
         f.league_code,
         f.season_api_year,
         f.kickoff_datetime,
@@ -60,6 +64,8 @@ finished_team_stats as (
     select
         fl.fixture_sk,
         fl.team_sk,
+        fl.league_sk,
+        fl.season_sk,
         fl.opponent_team_sk,
         fl.league_code,
         fl.season_api_year,
@@ -86,6 +92,8 @@ finished_team_stats as (
 select
     fts.fixture_sk,
     fts.team_sk,
+    fts.league_sk,
+    fts.season_sk,
     fts.league_code,
     fts.season_api_year,
     fts.kickoff_datetime,

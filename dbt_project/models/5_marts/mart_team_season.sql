@@ -2,83 +2,36 @@
 
 {#
     Per-team, per-season rollup. Counts derive from finished matches only
-    (status_short in FT, AET, PEN) so unplayed fixtures don't skew aggregates.
+    (status_short in FT, AET, PEN) via int_matchday__finished_fixture_team_leg
+    so logic stays aligned with matchday form. Null goals are excluded there.
     latest_rank, latest_form, and standings_group_description join from
-    fct_standings; teams absent from current standings get nulls. When several
-    fct_standings rows exist per (team_sk, season_sk), one row is kept (latest
-    raw_ingested_at).
+    int_team_season__standings_primary; teams absent from standings get nulls.
 #}
 
-with fct_fixture as (
-    select * from {{ ref('fct_fixture') }}
+with import_int_matchday__finished_fixture_team_leg as (
+    select * from {{ ref('int_matchday__finished_fixture_team_leg') }}
 ),
 
 dim_team as (
     select * from {{ ref('dim_team') }}
 ),
 
-fct_standings as (
-    -- Defensive dedup: fct_standings grain includes group_description; a team
-    -- can have multiple rows per season (e.g. qualifiers). Pick latest ingest.
-    select
-        team_sk,
-        season_sk,
-        standing_rank,
-        form,
-        group_description
-    from {{ ref('fct_standings') }}
-    qualify row_number() over (
-        partition by team_sk, season_sk order by raw_ingested_at desc nulls last
-    ) = 1
-),
-
-finished as (
-    select
-        fixture_sk,
-        league_sk,
-        season_sk,
-        home_team_sk,
-        away_team_sk,
-        league_code,
-        season_api_year,
-        goals_home,
-        goals_away
-    from fct_fixture
-    where status_short in ('FT', 'AET', 'PEN')
+import_int_team_season__standings_primary as (
+    select * from {{ ref('int_team_season__standings_primary') }}
 ),
 
 legs as (
     select
-        home_team_sk as team_sk,
+        team_sk,
         league_sk,
         season_sk,
         league_code,
         season_api_year,
         fixture_sk,
-        goals_home as goals_for,
-        goals_away as goals_against,
-        case
-            when goals_home > goals_away then 'W'
-            when goals_home < goals_away then 'L'
-            else 'D'
-        end as result
-    from finished
-    union all
-    select
-        away_team_sk as team_sk,
-        league_sk,
-        season_sk,
-        league_code,
-        season_api_year,
-        fixture_sk,
-        goals_away as goals_for,
-        goals_home as goals_against,
-        case
-            when goals_away > goals_home then 'W'
-            when goals_away < goals_home then 'L'
-            else 'D'
-        end as result
-    from finished
+        goals_for,
+        goals_against,
+        result
+    from import_int_matchday__finished_fixture_team_leg
 ),
 
 agg as (
@@ -131,5 +84,5 @@ select
     st.group_description as standings_group_description
 from agg
 left join dim_team as t on agg.team_sk = t.team_sk
-left join fct_standings as st
+left join import_int_team_season__standings_primary as st
     on agg.team_sk = st.team_sk and agg.season_sk = st.season_sk

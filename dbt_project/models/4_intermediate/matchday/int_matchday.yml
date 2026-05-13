@@ -11,7 +11,7 @@ models:
   - name: int_matchday__finished_fixture_team_leg
     description: >
       Finished matches as two rows per fixture (home and away team) with team stats and opponent shot/corner aggregates.
-      Grain (fixture_sk, team_sk).
+      Includes league_sk and season_sk for team-season rollups. Grain (fixture_sk, team_sk).
     config:
       tags: ["intermediate", "football", "matchday"]
 
