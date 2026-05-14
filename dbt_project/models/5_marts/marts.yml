@@ -380,8 +380,8 @@ models:
       - name: current_rank
         tests: [not_null]
 
-  - name: mart_matchday_insights
-    description: "Upcoming matchday surface for pre-match comparison. Grain: one row per fixture in the nearest upcoming round per competition. Form metrics aggregate the last five completed matchdays before the upcoming round; per-match rates divide by games in that window."
+  - name: mart_matchday_insights_bl1
+    description: "Bundesliga (BL1) upcoming matchday surface for pre-match comparison. Grain: one row per fixture in the nearest upcoming round. Form metrics aggregate the last five completed matchdays before the upcoming round; per-match rates divide by games in that window. mart_matchday_insights is a thin view over this model for a stable export name."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -677,3 +677,14 @@ models:
         description: "Home: sum(saves) / (sum(saves) + sum(goals_against)) over the form window."
       - name: away_save_ratio_recent
         description: "Away: save ratio over the form window."
+
+  - name: mart_matchday_insights
+    description: >
+      Stable BigQuery relation for export_matchday_json.py and GitHub Pages (unchanged name).
+      Thin view over mart_matchday_insights_bl1 — same columns and rows; no business logic here.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]

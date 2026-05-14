@@ -18,7 +18,7 @@ models:
   - name: int_matchday__upcoming_round_fixtures
     description: >
       Earliest not-started round per (league_code, season_api_year) with one row per fixture in that round.
-      League-agnostic; consumer marts apply league filters (e.g. BL1 for mart_matchday_insights).
+      League-agnostic; consumer marts apply league filters (e.g. BL1 for mart_matchday_insights_bl1).
     config:
       tags: ["intermediate", "football", "matchday"]
 
