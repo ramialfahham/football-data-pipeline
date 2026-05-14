@@ -187,7 +187,7 @@ Total work for Step 2:
    - **After the first finished match of the current season:** use **only** the **current** competition. Rolling window = the **last five finished matches** in that `league_code` + current `season_api_year`, ordered by kickoff (deterministic tie-break). **Until five such matches exist**, include **every** finished match played so far (matchday 1 → one game, matchday 3 → up to three games, etc.). **Never** use `dense_rank()` on `round_order` to fake five slots when postponements leave gaps — the window is **games**, not **matchdays**.
 
 2. **WC (`form_source: supporting_leagues`)**  
-   - **Before WC “day 1”** (before the team has any finished **`league_code = 'WC'`** match in the 2026 tournament, relative to the reference fixture’s kickoff): form uses **all** finished qualifier legs for that team across every internal `league_code` listed under the WC’s `supporting_leagues` in **`docs/competition_registry.yml`** (no cap at five).  
+   - **Before WC “day 1”** (before the team has any finished **`league_code = 'WC'`** tournament match, relative to the reference fixture’s kickoff): form uses **all** finished qualifier legs for that team across every internal `league_code` listed under the WC’s `supporting_leagues` in **`docs/competition_registry.yml`** (no cap at five).  
    - **After** the team’s first finished WC tournament match (FT / AET / PEN): use **only** `league_code = 'WC'` finished legs — same **up-to-five finished games** rolling rule as domestic (kickoff order, cap at five once enough games exist).
 
 3. **Season boundaries**  
