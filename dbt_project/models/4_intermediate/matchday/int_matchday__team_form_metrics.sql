@@ -13,6 +13,9 @@
 
   Sums do not coalesce missing stats to 0; rates are null when undefined. Product expectation:
   optional gaps stay rare (ingestion completeness); see docs/pipeline_architecture_plan.md.
+  Form legs are deduped on (upcoming_fixture_sk, team_sk, fixture_sk) before aggregation so join
+  fan-out cannot double-count points or goals. finishing_efficiency_recent is null when aggregate
+  goals exceed aggregate shots on goal (inconsistent or sparse stats).
 #}
 
 with import_int_matchday__finished_fixture_team_leg as (
@@ -284,6 +287,21 @@ form_window_matches as (
     select * from wc_window
 ),
 
+-- One row per (upcoming fixture, team, historical fixture); guards join duplication.
+form_window_matches_dedup as (
+    select * except (leg_dedup_rn)
+    from (
+        select
+            *,
+            row_number() over (
+                partition by upcoming_fixture_sk, team_sk, fixture_sk
+                order by kickoff_datetime desc, fixture_sk desc
+            ) as leg_dedup_rn
+        from form_window_matches
+    )
+    where leg_dedup_rn = 1
+),
+
 aggregated_form as (
     select
         upcoming_fixture_sk as fixture_sk,
@@ -294,7 +312,7 @@ aggregated_form as (
         count(distinct round_name) as form_matchdays_used,
         count(distinct case when shots_on_goal is not null then fixture_sk end) as stat_coverage_form_games,
         sum(
-            case result
+            case upper(trim(result))
                 when 'W' then 3
                 when 'D' then 1
                 else 0
@@ -311,7 +329,7 @@ aggregated_form as (
         sum(passes_accurate) as passes_accurate_sum_form,
         sum(passes_total) as passes_total_sum_form,
         sum(goalkeeper_saves) as goalkeeper_saves_sum_form
-    from form_window_matches
+    from form_window_matches_dedup
     group by upcoming_fixture_sk, team_sk
 )
 
@@ -345,7 +363,11 @@ select
     ) as shot_share_recent,
     safe_divide(shots_inside_box_sum_form, total_shots_sum_form) as danger_zone_ratio_recent,
     safe_divide(shots_on_goal_sum_form, total_shots_sum_form) as shot_accuracy_recent,
-    safe_divide(goals_for_sum_form, shots_on_goal_sum_form) as finishing_efficiency_recent,
+    case
+        when shots_on_goal_sum_form is null or shots_on_goal_sum_form = 0 then null
+        when goals_for_sum_form > shots_on_goal_sum_form then null
+        else safe_divide(goals_for_sum_form, shots_on_goal_sum_form)
+    end as finishing_efficiency_recent,
     safe_divide(passes_accurate_sum_form, passes_total_sum_form) as pass_accuracy_recent,
     safe_divide(passes_total_sum_form, form_games_played) as passes_per_match_recent,
     safe_divide(corner_kicks_sum_form, form_games_played) as corner_kicks_per_match_recent,
