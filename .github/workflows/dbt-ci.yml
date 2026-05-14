@@ -60,6 +60,9 @@ jobs:
       - name: dbt deps
         run: dbt deps
 
+      - name: dbt seed
+        run: dbt seed
+
       - name: Enforce layer contract
         run: python ../scripts/check_layer_contract.py
 

@@ -17,3 +17,13 @@ seeds:
       - name: description
         description: "Knappe Erklärung unter der Kennzahl; Formfenster-Bezug steht in der Fußnote der Seite."
         tests: [not_null]
+
+  - name: wc_supporting_league_codes
+    description: >
+      Maps parent tournament league_code (WC) to supporting qualifier league_codes for pre-tournament
+      form. Keep in sync with docs/competition_registry.yml supporting_leagues for WC.
+    columns:
+      - name: parent_league_code
+        tests: [not_null]
+      - name: supporting_league_code
+        tests: [not_null]
