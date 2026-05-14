@@ -58,9 +58,9 @@ Landing page
 
 ## What we show (and what we don't)
 
-**Show**: form-based metrics grounded in real warehouse data — goals, shots, pass accuracy, save rate, points capture, danger zone ratio, and more — over the last 5 matches.
+**Show**: form-based metrics grounded in real warehouse data — goals, shots, pass accuracy, save rate, points capture, danger zone ratio, and more. **In-season** domestic leagues: a **rolling window of up to the last five finished matches** in the current competition; **before the season starts**, the **full previous season** for that league. **WC:** before the team’s first finished WC match, **all** relevant qualifier matches; after that, **up to the last five finished WC matches** only. Optional stats the API does not supply are shown as **“Not provided”** (not fabricated zeros).
 
-**Don't show**: fabricated win probabilities, unmodelled KPIs, anything we can't back with data. Data honesty is non-negotiable.
+**Don't show**: fabricated win probabilities, unmodelled KPIs, anything we can't back with data. Data honesty is non-negotiable. **Integrity failures** (e.g. finished fixture without a valid scoreline) must **fail the pipeline** — they are not a UX copy problem.
 
 ---
 
@@ -84,7 +84,7 @@ Multiple revenue streams, built in layers:
 | After WC | Premier League, La Liga, Serie A | 📋 |
 | Future | All major competitions | 🌍 |
 
-**WC 2026 note**: Before the first match, form metrics use the last 5 qualifier matches per team (all confederation qualifiers + inter-confederation playoffs, filtered to WC 2026 participants). Once WC matches begin, qualifier data is dropped — current tournament games only.
+**WC 2026 note**: Before the team’s first **finished WC tournament** match, form uses **all** finished qualifier matches for that team across the confederation + inter-confederation competitions linked to WC 2026 in the registry. After that, only **WC** `league_code` matches count — **up to the last five** finished tournament games (same rolling idea as domestic in-season).
 
 ---
 
