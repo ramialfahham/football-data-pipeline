@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<!--
+  Matchday IQ — Fixture-list page (v0 static mockup)
+  ==================================================
+  Approved visual reference for the fixture-list page
+  ("Deliverable B" per docs/pipeline_architecture_plan.md).
+  Inherits dark gradient + Inter + blue accent + logo treatment from
+  site/landing/index.html (PR #60).
+
+  Design principle (CPO decision):
+  This view is for NAVIGATION — "which match should I focus on". It
+  intentionally shows NO team stats. The user sees teams + kickoff,
+  taps through to the fixture-detail page where the form metrics
+  (standing, PPG, etc., per PR #68 form-source rules) actually live.
+
+  Keeping the list view stat-free has two benefits: (1) faster to scan,
+  more matches visible per screen height; (2) no truncation problems
+  for long team names ("Borussia Mönchengladbach") competing with a
+  stats column.
+-->
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matchday IQ — Bundesliga · 33. Spieltag</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07091a;
+    --bg-elev: #11152e;
+    --card-bg: #161b38;
+    --card-bg-hover: #1c2349;
+    --border: rgba(255,255,255,0.07);
+    --text: #f1f3fb;
+    --text-secondary: #98a3c9;
+    --text-tertiary: #5c6792;
+    --accent: #6ea8fe;
+    --accent-bright: #93c5fd;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: radial-gradient(ellipse at top, #1a2055 0%, var(--bg) 65%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px 16px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 720px; margin: 0 auto; }
+
+  /* Top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 24px;
+  }
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 0;
+    text-decoration: none;
+  }
+  .back:hover { color: var(--text); }
+  .back .arrow { font-size: 16px; }
+
+  .lang { position: relative; font-family: inherit; }
+  .lang-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    font-family: inherit;
+  }
+  .lang-btn:hover { background: var(--card-bg-hover); border-color: rgba(110, 168, 254, 0.35); }
+  .lang-btn .globe { font-size: 14px; opacity: 0.8; }
+  .lang-btn .caret { font-size: 10px; opacity: 0.5; }
+
+  /* Competition context (subheader) */
+  .context {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 0 28px;
+  }
+  .context .logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .context .logo img { width: 76%; height: 76%; object-fit: contain; }
+  .context h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-bottom: 2px;
+  }
+  .context .round {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .context .round-meta {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  /* Day section header */
+  .day-header {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.1em;
+    margin: 24px 0 12px;
+  }
+
+  /* Time subgroup label */
+  .time-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-bright);
+    margin: 14px 0 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Fixture rows */
+  .fixtures { display: flex; flex-direction: column; gap: 8px; }
+
+  .fixture {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    text-decoration: none;
+    color: inherit;
+  }
+  .fixture:hover {
+    background: var(--card-bg-hover);
+    border-color: rgba(110, 168, 254, 0.3);
+    transform: translateY(-1px);
+  }
+  .fixture:active { transform: translateY(0); }
+
+  .teams { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+  .team-row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .team-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .team-logo img { width: 78%; height: 78%; object-fit: contain; }
+
+  .team-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .chevron {
+    color: var(--text-tertiary);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .fixture:hover .chevron { color: var(--accent-bright); }
+
+  /* Footer */
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 11px;
+  }
+  footer a { color: var(--text-secondary); text-decoration: none; }
+
+  @media (min-width: 640px) {
+    body { padding: 32px 24px 80px; }
+    .context h1 { font-size: 26px; }
+    .context .logo { width: 64px; height: 64px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="topbar">
+    <a href="#" class="back"><span class="arrow">←</span><span>Wettbewerbe</span></a>
+    <div class="lang">
+      <button class="lang-btn" type="button">
+        <span class="globe">🌐</span>
+        <span class="code">DE</span>
+        <span class="caret">▾</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="context">
+    <div class="logo"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
+    <div>
+      <h1>Bundesliga</h1>
+      <div class="round">33. Spieltag</div>
+      <div class="round-meta">9 Spiele · 9.–11. Mai 2026</div>
+    </div>
+  </section>
+
+  <!-- FRIDAY -->
+  <div class="day-header">Freitag, 9. Mai</div>
+
+  <div class="time-label">20:30</div>
+  <div class="fixtures">
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/169.png" alt="SGE"></div>
+          <div class="team-name">Eintracht Frankfurt</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/173.png" alt="RBL"></div>
+          <div class="team-name">RB Leipzig</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+  </div>
+
+  <!-- SATURDAY -->
+  <div class="day-header">Samstag, 10. Mai</div>
+
+  <div class="time-label">15:30</div>
+  <div class="fixtures">
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/157.png" alt="FCB"></div>
+          <div class="team-name">Bayern München</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/170.png" alt="FCA"></div>
+          <div class="team-name">FC Augsburg</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/165.png" alt="BVB"></div>
+          <div class="team-name">Borussia Dortmund</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/164.png" alt="M05"></div>
+          <div class="team-name">1. FSV Mainz 05</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/172.png" alt="VFB"></div>
+          <div class="team-name">VfB Stuttgart</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/168.png" alt="B04"></div>
+          <div class="team-name">Bayer Leverkusen</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/162.png" alt="SVW"></div>
+          <div class="team-name">Werder Bremen</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/167.png" alt="TSG"></div>
+          <div class="team-name">TSG Hoffenheim</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/161.png" alt="WOB"></div>
+          <div class="team-name">VfL Wolfsburg</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/180.png" alt="FCH"></div>
+          <div class="team-name">1. FC Heidenheim</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+  </div>
+
+  <div class="time-label">18:30</div>
+  <div class="fixtures">
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/163.png" alt="BMG"></div>
+          <div class="team-name">Borussia Mönchengladbach</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/182.png" alt="FCU"></div>
+          <div class="team-name">1. FC Union Berlin</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+  </div>
+
+  <!-- SUNDAY -->
+  <div class="day-header">Sonntag, 11. Mai</div>
+
+  <div class="time-label">15:30</div>
+  <div class="fixtures">
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/160.png" alt="SCF"></div>
+          <div class="team-name">SC Freiburg</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/186.png" alt="STP"></div>
+          <div class="team-name">FC St. Pauli</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+  </div>
+
+  <div class="time-label">17:30</div>
+  <div class="fixtures">
+    <a href="#" class="fixture">
+      <div class="teams">
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/192.png" alt="KOE"></div>
+          <div class="team-name">1. FC Köln</div>
+        </div>
+        <div class="team-row">
+          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/175.png" alt="HSV"></div>
+          <div class="team-name">Hamburger SV</div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+  </div>
+
+  <footer>
+    Datenstand: 11.05.2026 · 14:00 UTC · <a href="#">Feedback</a>
+  </footer>
+
+</div>
+
+</body>
+</html>
