@@ -58,7 +58,7 @@ Landing page
 
 ## What we show (and what we don't)
 
-**Show**: form-based metrics grounded in real warehouse data — goals, shots, pass accuracy, save rate, points capture, danger zone ratio, and more. **In-season** domestic leagues: a **rolling window of up to the last five finished matches** in the current competition; **before the season starts**, the **full previous season** for that league. **WC:** before the team’s first finished WC match, **all** relevant qualifier matches; after that, **up to the last five finished WC matches** only. Optional stats the API does not supply are shown as **“Not provided”** (not fabricated zeros).
+**Show**: form-based metrics grounded in real warehouse data — goals, shots, pass accuracy, save rate, points capture, danger zone ratio, and more. **In-season** domestic leagues: a **rolling window of up to the last five finished matches** in the current competition; **before the season starts**, the **full previous season** for that league. **WC:** before the team’s first finished WC match, **all** relevant qualifier matches; after that, **up to the last five finished WC matches** only. When the warehouse exposes a metric as null (optional stat missing or undefined rate), the **mobile-first** match preview shows **“-”** for that value only — cards and fixtures stay visible; we do **not** fabricate zeros.
 
 **Don't show**: fabricated win probabilities, unmodelled KPIs, anything we can't back with data. Data honesty is non-negotiable. **Integrity failures** (e.g. finished fixture without a valid scoreline) must **fail the pipeline** — they are not a UX copy problem.
 
