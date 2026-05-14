@@ -1,7 +1,6 @@
 # Multi-competition pipeline architecture plan
 
-**Status:** Step 1 complete. Step 2 architecture decided (manual-UNION base + CI guarantee + core source-agnostic); execution split into 6 endpoint-surface PRs (2.1 through 2.6). Step 3 onwards still draft.  
-**Last updated:** 2026-05-10
+**Status:** Step 1 complete. Step 2 architecture decided (manual-UNION base + CI guarantee + core source-agnostic); execution split into 6 endpoint-surface PRs (2.1 through 2.6). **Step 3 matchday-form design is locked in this doc (2026-05-14)** — see **Need from you (Rami)** at the end for four confirmations before the implementation PR ships to production JSON.
 
 ---
 
@@ -10,7 +9,7 @@
 Make it easy and straightforward to add any new league/competition. Adding a new competition should require:
 1. One entry in `docs/competition_registry.yml`
 2. One new mart file (`mart_matchday_insights_{league_code}.sql`)
-3. Zero changes to shared intermediate or core models
+3. **Registry-driven extensions** to shared **`int_matchday__*`** intermediates where the form/upcoming-round behaviour is shared; **no** ad hoc business logic in `3_core`. (Core schema changes are separate gated PRs when new facts are introduced.)
 
 ---
 
@@ -54,10 +53,10 @@ BL1 and WC are fully complete; qualifier statistics will converge to 100% over a
 
 - `mart_matchday_insights_bl1.sql` is BL1-only (`where league_code = 'BL1'`); `mart_matchday_insights.sql` is a thin view for the stable export name — **must not break**
 - Form and matchday spine live in `int_matchday__*` models; the mart joins those intermediates with `mart_team_season`
-- Known metric bugs (not yet fixed):
+- Known metric gaps vs **Step 3 (locked)** — implementation PR will close:
   - `dense_rank()` on `round_order desc` gives 5 matchdays not 5 games — postponed rounds eat slots
   - `coalesce(stat, 0)` deflates averages when stats are absent
-  - Previous-season fallback `form_season_api_year - 1` is domestic-league-only; wrong for WC (calendar year)
+  - Previous-season fallback `form_season_api_year - 1` is domestic-league-only; calendar-year / WC paths need registry-driven dispatch (see Step 3)
 - Intermediate: `int_pipeline__raw_ingestion_spread` (ingestion monitoring); `int_matchday__*` (fixture denorm, finished legs + stats, upcoming round, team form metrics). **Rule:** `4_intermediate` models must not `ref()` any `mart_*` model.
 - Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
 - Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
@@ -177,104 +176,90 @@ Total work for Step 2:
 
 > **Completeness gating:** Qualifier statistics are still backfilling (see ingestion status table). The tiered completeness gate (PR #53) keeps the scheduled workflow green while backfill converges. Step 2 fact expansions surface the partial data, but the matchday-preview UI will not consume WC / qualifier facts until Steps 5+ wire them in.
 
-### Step 3 — Intermediate layer (new models)
+### Step 3 — Matchday form & fixture spine (intermediate; design locked)
 
-> **Status: DRAFT — not yet approved. Needs review before implementation.**
+> **Status: DESIGN LOCKED (2026-05-14).** Implement in `dbt_project/models/4_intermediate/matchday/` by evolving **`int_matchday__team_form_metrics`** (and related ints). Older drafts in this file referred to `int_apif__team_form` / `int_apif__fixture_enriched`; those map to **`int_matchday__team_form_metrics`** and **`int_matchday__fixture_denormalized`** (already one row per fixture with core dims).
 
-Two new models in `dbt_project/models/4_intermediate/api_football/`:
+#### Locked rules
 
-#### `int_apif__team_form.sql`
+1. **Five finished games, not five matchdays**  
+   Rank eligible prior legs with **`row_number()`** over **kickoff descending** (with a deterministic tie-break, e.g. `fixture_sk`), within the allowed league/season set. **Do not** use `dense_rank()` on `round_order` for the window (postponed rounds must not consume slots). *Today's production still uses matchday rank; moving to five games is an intentional metric correction once implemented.*
 
-Single source of form computation for all competitions. Replaces embedded logic in `mart_matchday_insights`.
+2. **Season boundary**  
+   Never mix seasons for form legs vs the reference upcoming fixture. **Previous-season fallback** applies only to **`form_source: league_only`** domestic **split-year** leagues (`season_api_year - 1`, same `league_code`). **WC / calendar-year** paths use qualifier or WC legs as per dispatch — no `season_api_year - 1` shortcut for WC.
 
-Design decisions (to be confirmed):
-- **5 games, not 5 matchdays**: `row_number()` ordered by `fixture_date desc` (or `fixture_id desc`), not `dense_rank()` on `round_order`
-- **Season boundary**: `where season_api_year = <reference_season>` — no cross-season mixing
-- **No `coalesce(stat, 0)` on averages**: use `avg(stat) filter (where stat is not null)`; null rendered as "—" in UI
-- **Form source dispatch by `league_code` (per-team, per-fixture)**:
-  - BL1 (and other domestic leagues): form from last 5 fixtures in same `league_code` + `season_api_year`
-  - WC, pre-tournament for this team (team has not yet played its first WC 2026 fixture with status FT/AET/PEN): form computed from **all** qualifier fixtures the team participated in across qualifier `league_code`s (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC). Not last 5 — every qualifier match the team played in this WC's qualifier window.
-  - WC, after this team's first WC fixture: form from last 5 `league_code = 'WC'` fixtures only; qualifier data dropped.
-  - Dispatch is **per-team-per-fixture**, not tournament-wide. Different teams enter group stage at different match-days; each team's form switches independently.
-- **Previous-season fallback** (< 5 games in current season, applies only to leagues; WC uses qualifier window instead):
-  - Domestic leagues (split year): `season_api_year - 1` (same `league_code`)
-  - Calendar-year tournaments (WC): no previous-season fallback; the pre-tournament qualifier window covers it
-  - Controlled by `season_type` from `dim_competition_season`
+3. **Missing per-match stats**  
+   Do **not** use `coalesce(stat, 0)` where zero would be read as a measured value in **rates** shown to fans. Use null-safe aggregates; **null → null rate** in marts (UI **“—”**). *Parts of `int_matchday__team_form_metrics` still coalesce today; the implementation PR aligns with this rule.*
 
-Output: one row per `(league_code, team_id, as_of_fixture_id)` with form metrics.
+4. **Form source dispatch (per team, per upcoming fixture)** — prefer **`form_source`** and **`supporting_leagues`** from **`docs/competition_registry.yml`** (plus `dim_league` / `dim_competition_season`) over hard-coded competition lists.
+   - **`league_only`** (e.g. BL1): last **five** finished **games** in that `league_code` and chosen form season.
+   - **`supporting_leagues`** (WC):
+     - **Until** the team has a finished WC match (**FT / AET / PEN**) with `kickoff_datetime` **strictly before** this upcoming fixture’s kickoff: include **all** finished legs for that team across every internal `league_code` that belongs to the WC’s configured supporting qualifier competitions (registry list), subject only to normal season / ingestion bounds already in facts — **not** capped at five games.
+     - **After** that first finished WC match: only **`league_code = 'WC'`** legs, last **five** games (same `row_number` rule as BL1).
 
-#### `int_apif__fixture_enriched.sql`
+5. **Marts stay thin**  
+   `mart_matchday_insights_bl1`, future `mart_matchday_insights_wc`, and the **`mart_matchday_insights`** shim keep **filters + column order + display labels**; **no** dispatch or window math duplicated there.
 
-Enriched fixture rows joining `fct_fixture` → `dim_team` (home/away) → `dim_league` → `dim_competition_season`.
+#### Implementation defaults (analytics engineering; revise only via this doc)
 
-- No league filter — covers all competitions
-- Replaces repeated join boilerplate in every mart
-
-Output: one row per fixture with dimension attributes denormalized.
+- **First WC match** = earliest finished WC leg (FT/AET/PEN) for the team with `kickoff_datetime <` the reference upcoming fixture kickoff.
+- **Supporting qualifier set** = the WC registry row’s `supporting_leagues` mapped to **`league_code`** values ingested in this warehouse (not free-text names).
 
 ### Step 4 — Intermediate-layer tests
 
-Add before building any mart:
+Add or extend before shipping changed JSON to fans:
 
 | Test | Assertion |
 |---|---|
-| `assert_team_form_max_5_games.sql` | No team has > 5 form rows for any reference fixture |
-| `assert_team_form_same_season_only.sql` | All form fixtures share `season_api_year` with reference fixture |
-| `assert_team_form_no_zero_avg_when_no_stats.sql` | `avg_shots` etc. are null, never 0, when no stat rows exist |
-| `assert_fixture_enriched_no_missing_league_code.sql` | Every row in `int_apif__fixture_enriched` has non-null `league_code` |
+| `assert_team_form_max_5_games.sql` | On paths capped at five games: no team contributes **> 5** legs to the window per reference `(fixture_sk, team_sk)` |
+| `assert_team_form_same_season_only.sql` | Legs obey the season / dispatch rule for that path (not a blind `season_api_year = ref.season_api_year` if the spec says otherwise) |
+| `assert_team_form_no_zero_avg_when_no_stats.sql` | Displayed rates are **null**, never **0**, when inputs are missing |
+| Fixture grain | Extend existing tests on **`int_matchday__fixture_denormalized`** if new columns are added |
 
-Seed test: known 6-game sequence for one BL1 team → assert only 5 most recent appear in form output.
+**Seed / scenario test:** six finished games in sequence → only the **five** most recent by kickoff enter the capped window.
 
-### Step 5 — WC mart (new file, does not touch BL1 mart)
+### Step 5 — WC mart (new file; does not change BL1)
 
 `mart_matchday_insights_wc.sql`:
 
-- Selects from `int_apif__fixture_enriched` filtered to `league_code = 'WC'`
-- Joins `int_apif__team_form` with form-source logic for WC
-- **Same column contract as `mart_matchday_insights`** so web app can consume both with the same query shape
-- Add test: `assert_mart_wc_column_contract_matches_bl1.sql`
+- Thin mart: `league_code = 'WC'` on the same upcoming-round + form spine as BL1.
+- **Identical column contract to `mart_matchday_insights_bl1`** for the web renderer.
+- Singular test: **`assert_mart_wc_column_contract_matches_bl1.sql`**.
 
-### Step 6 — Wire WC mart to web app
+### Step 6 — Wire WC to the web app
 
-- Web app gets a competition selector (BL1 / WC)
-- Both marts expose identical column names; selector is a filter parameter
-- BL1 tab must be regression-tested before this ships
+- Selector (BL1 vs WC) and/or second export; BL1 regression required.
 
-### Step 7 — Migrate BL1 mart to intermediate models
+### Step 7 — BL1 behaviour vs legacy numbers
 
-Only after WC mart is validated and live.
+`mart_matchday_insights_bl1` is already structurally thin. After **`int_matchday__team_form_metrics`** matches Step 3, run **full regression** on exported JSON (or document every intentional delta in the PR).
 
-1. Rewrite `mart_matchday_insights` to select from `int_apif__team_form` + `int_apif__fixture_enriched`
-2. Keep `where league_code = 'BL1'` — intentional, not a bug
-3. Drop 400-line embedded form SQL
-4. Run full regression: BL1 numbers must match pre-migration output exactly (or document intentional corrections)
+### Step 8 — New competition (repeatable)
 
-This is the only point where the live BL1 web app is at risk. Do not merge until all tests pass and numbers are verified.
+1. Registry → ingestion → staging → base `ref()` + coverage tests  
+2. `mart_matchday_insights_<league_code>.sql` thin mart
 
-### Step 8 — Adding any new competition (repeatable pattern)
-
-1. Add entry to `docs/competition_registry.yml`
-2. Run ingestion — raw tables auto-created
-3. Add per-endpoint staging models (`stg_apif__<league_code>_<endpoint>.sql`) — 1:1 with raw, JSON cast only. ~10 stagings for full BL1 parity.
-4. Add one `ref()` line per base model (`base_apif__<endpoint>`) to include the new staging in the UNION. Singular tests `assert_base_*_covers_active_competition_var` flag a missing `league_code` in a base.
-5. Create `mart_matchday_insights_{league_code}.sql` — selects from intermediate with `where league_code = '...'`
-6. Add competition card to web app
-
-Steps 3–4 are mechanical edits with CI guarantees. **Zero changes to `3_core`, `4_intermediate`, or any other `5_marts` model.**
+**Scope discipline:** Steps 3–4 touch **`4_intermediate`** and **tests**. **No `3_core` changes** as part of form dispatch. Step 5 **adds** a mart. **`mart_matchday_insights` (shim)** keeps the stable BigQuery name for the exporter.
 
 ---
 
-## Open questions / not yet decided
+## Open questions (narrow)
 
-- **Step 3 form source dispatch implementation**: per-team-per-fixture dispatch (qualifier vs WC) is decided; the exact SQL — likely a CASE-WHEN on "has this team played any WC fixture with status FT/AET/PEN as of the reference fixture's date?" — needs writing during Step 3 implementation
-- **Step 3 qualifier window boundary**: which dates count as "qualifier window for WC 2026" — needs analytics engineer to set bounds (probably the registry `current_season` years for each WCQ* league)
-- **Step 6 web app competition selector**: frontend design not planned here
-- **Step 7 migration timing**: how to validate BL1 regression without breaking the live export
+- **Optional hard calendar for qualifiers:** Default = **no** extra date cut-out beyond what is already implied by `season_api_year` / ingested facts. Add explicit bounds here only if product requires them.
+- **Step 6 UX** lives in product / site repos.
 
-**Decided in this update (no longer open):**
-- Base architecture: manual UNION list with `assert_base_*_covers_active_competition_var` singular tests + `scripts/check_registry_var_sync.py`, not auto-discovery
-- Existing per-competition bases (`base_apif__bl1_*`, `base_apif__wc_*`) are replaced by single `base_apif__<endpoint>` models as part of Step 2; core stops UNIONing
-- Pre-tournament WC form uses *all* qualifier matches per participant, not last 5
+**Already locked (was “open”):** per-team WC vs qualifier dispatch; all qualifier games pre-first-WC; five WC-only games after; no fake-zero averages.
+
+---
+
+## Need from you (Rami)
+
+Reply in one message (even “yes to all” or “no to #1”):
+
+1. **BL1 window:** OK to ship the change from **five completed matchdays** to **five finished games** (numbers **can** change vs today)?
+2. **WC pre-tournament:** Still **every** qualifying match (no cap), until first finished WC match for that team?
+3. **Missing stats:** OK to show **blank / “—”** instead of **0.0** for rates when stats are missing?
+4. **Sign-off:** Reply **`Step 3 locked as written`** or list edits — that authorises the implementation PR to these rules.
 
 ---
 
@@ -290,7 +275,7 @@ Step 2 is too large for one PR. Split by endpoint surface so each PR's blast rad
 | 2.4 | `feature/core-fixture-events-multi-competition` | Fixture events: same shape |
 | 2.5 | `feature/core-fixture-players-multi-competition` | Fixture players + `dim_player` expansion |
 | 2.6 | `feature/core-transfers-lineups-predictions-multi-competition` | Transfers, lineups, predictions (teams/leagues/fixtures covered in 2.1). |
-| 3–4 | `feature/intermediate-team-form` | Per the draft Step 3 below — needs approval before starting |
+| 3–4 | `feature/intermediate-team-form` | Implement **locked Step 3** in `int_matchday__*` + tests (separate PR; CPO sign-off at end of this doc) |
 | 5 | `feature/mart-wc-matchday-insights` | Per Step 5 below — needs Step 2–4 complete |
 | 6 | `feature/web-app-competition-selector` | Per Step 6 below |
 | 7 | `refactor/bl1-mart-use-intermediate` | Per Step 7 below — only after Step 5 is live and validated |
