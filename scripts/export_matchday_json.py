@@ -1,8 +1,9 @@
 """Export marts.mart_matchday_insights from BigQuery to app-ready matchday_insights.json.
 
-The relation is a union of competition-specific marts (BL1 + WC) behind the stable
-mart_matchday_insights name. Reads the already-materialised mart directly — no row cap,
-no CLI output parsing.
+The relation is a thin view over mart_matchday_insights_bl1 (stable name for the app).
+BL1-only until the match-preview UI can switch or filter by league_code; WC remains
+in mart_matchday_insights_wc for warehouse consumers. Reads the materialised mart
+directly — no row cap, no CLI output parsing.
 
 Output format: {"show": [...rows...]} — matches the shape the UI expects.
 

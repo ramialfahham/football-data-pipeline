@@ -95,9 +95,9 @@ jobs:
         working-directory: dbt_project
         run: dbt seed
 
-      - name: Build all upstream of mart_matchday_insights
+      - name: Build matchday marts (Pages export + WC sibling)
         working-directory: dbt_project
-        run: dbt run --select +mart_matchday_insights
+        run: dbt run --select +mart_matchday_insights +mart_matchday_insights_wc
 
       - name: Run data quality tests
         working-directory: dbt_project
