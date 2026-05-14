@@ -2,7 +2,7 @@
 
 **Status:** Step 1 complete. Step 2 architecture decided (manual-UNION base + CI guarantee + core source-agnostic); execution split into 6 endpoint-surface PRs (2.1 through 2.6). **Step 3 matchday-form rules are locked** — CPO clarifications **2026-05-15** are recorded under **CPO decisions (recorded)**.
 
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-16
 
 ## Goal
 
@@ -246,7 +246,7 @@ Add or extend before shipping changed JSON to fans:
 
 ## Open questions (narrow)
 
-- **Optional hard calendar for qualifiers:** Default = **no** extra date cut-out beyond what is already implied by `season_api_year` / ingested facts. Add explicit bounds here only if product requires them.
+- **Optional hard calendar for qualifier form (what it is for):** Today we trust **whatever finished qualifier matches are already in the warehouse** for the WC-linked `league_code`s (registry seasons / ingestion scope). A **“hard calendar”** would mean **extra** explicit rules like “only matches with `kickoff_datetime` between date A and date B count toward pre-WC form” — for example to drop **friendlies**, **old-cycle** games, or anything outside a legal/product definition of “this World Cup’s qualification story.” **Default stays: no extra cut-out** unless you later decide you need one. If you never need it, this item stays open as “not doing” and implementation ignores it.
 - **Step 6 UX** lives in product / site repos.
 
 **Already locked:** dispatch rules; “all qualifiers pre-WC”; rolling five in-season; display policy for optional API gaps.
