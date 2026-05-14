@@ -248,7 +248,7 @@
     }
 
     const COPY = {
-      foot: "Formfenster: die fünf zuletzt abgeschlossenen Spieltage vor diesem Spieltag (nach Rundennummer); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster.",
+      foot: "Formfenster: bis zu den letzten fünf abgeschlossenen Spielen vor diesem Spiel (nach Anstoßzeit); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster. Fehlt eine Kennzahl in den Daten, zeigen wir „-“ (keine erfundenen Nullen).",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
       feedbackError: "Feedback konnte nicht gesendet werden.",
       feedbackErrorDetailPrefix: "Feedback nicht gespeichert:",
@@ -261,15 +261,19 @@
       return Number.isFinite(n) ? n : 0;
     }
 
+    /** Missing numeric metric in JSON (null / undefined): show hyphen only (mobile-first). */
     function fmtDe(x, decimals) {
-      if (x === null || x === undefined) return "0" + (decimals > 0 ? "," + "0".repeat(decimals) : "");
+      if (x === null || x === undefined) return "-";
       const n = Number(x);
-      if (!Number.isFinite(n)) return "0" + (decimals > 0 ? "," + "0".repeat(decimals) : "");
+      if (!Number.isFinite(n)) return "-";
       return n.toFixed(decimals).replace(".", ",");
     }
 
     function fmtDePct(x) {
-      return `${fmtDe(nz(x) * 100, 0)}%`;
+      if (x === null || x === undefined) return "-";
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "-";
+      return `${fmtDe(n * 100, 0)}%`;
     }
 
     function berlinKickoff(iso) {
@@ -334,17 +338,21 @@
     }
 
     function pointsDisplay(r, side) {
-      const pts = side === "home" ? nz(r.home_points_won_sum_form) : nz(r.away_points_won_sum_form);
-      const games = side === "home" ? nz(r.home_form_games_played) : nz(r.away_form_games_played);
+      const ptsRaw = side === "home" ? r.home_points_won_sum_form : r.away_points_won_sum_form;
+      const gamesRaw = side === "home" ? r.home_form_games_played : r.away_form_games_played;
+      const games = Number(gamesRaw);
+      if (!Number.isFinite(games) || games === 0) return "-";
+      if (ptsRaw === null || ptsRaw === undefined) return "-";
+      const pts = Number(ptsRaw);
+      if (!Number.isFinite(pts)) return "-";
       const maxPts = 3 * games;
-      if (games === 0) return "—";
       return `${pts}/${maxPts}`;
     }
 
     function rankLabel(v) {
-      if (v === null || v === undefined || v === "") return "—";
+      if (v === null || v === undefined || v === "") return "-";
       const n = Number(v);
-      return Number.isFinite(n) ? String(n) : "—";
+      return Number.isFinite(n) ? String(n) : "-";
     }
 
     /** Optional: metric_glossary.json → map metric_key → { label, description } */
