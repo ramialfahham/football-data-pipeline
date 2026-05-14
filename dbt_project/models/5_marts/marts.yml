@@ -905,8 +905,8 @@ models:
   - name: mart_matchday_insights
     description: >
       Stable BigQuery relation for export_matchday_json.py and GitHub Pages (unchanged name).
-      Union of mart_matchday_insights_bl1 and mart_matchday_insights_wc — identical column contracts;
-      filter by league_code in consumers.
+      Thin view over mart_matchday_insights_bl1 only until the match-preview UI supports multiple
+      competitions; mart_matchday_insights_wc is the WC sibling with the same column contract.
     meta:
       owner: "data-platform"
       domain: "football"

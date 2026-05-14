@@ -2,9 +2,8 @@
 
 {#
   Stable relation name for scripts and GitHub Pages export (marts.mart_matchday_insights).
-  Union of competition-specific marts with identical column contracts (BL1 + WC).
+  Thin view over BL1 only: the static match-preview UI is not multi-competition yet.
+  WC lives in mart_matchday_insights_wc (same column contract); union for export when UI is ready.
 #}
 
 select * from {{ ref('mart_matchday_insights_bl1') }}
-union all
-select * from {{ ref('mart_matchday_insights_wc') }}

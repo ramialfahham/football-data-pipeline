@@ -8,9 +8,12 @@
 -- with the underlying sum columns it was computed from.
 -- Only rows where both teams have form data (form_games_played > 0).
 -- Skips comparisons when the displayed rate or a required sum is null (honest nulls).
+-- Source: BL1 + WC marts (export view mart_matchday_insights is BL1-only for Pages until multi-UI).
 
 with src as (
-    select * from {{ ref('mart_matchday_insights') }}
+    select * from {{ ref('mart_matchday_insights_bl1') }}
+    union all
+    select * from {{ ref('mart_matchday_insights_wc') }}
 ),
 
 checks as (
