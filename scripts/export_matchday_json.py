@@ -1,7 +1,7 @@
-"""Export mart_matchday_insights from BigQuery to app-ready matchday_insights.json.
+"""Export marts.mart_matchday_insights from BigQuery to app-ready matchday_insights.json.
 
-Replaces the dbt show --limit N hack. Reads the already-materialised mart table
-directly — no row cap, no CLI output parsing, no re-running the query through dbt.
+The relation is a thin view over mart_matchday_insights_bl1 (stable name for the app).
+Reads the already-materialised mart directly — no row cap, no CLI output parsing.
 
 Output format: {"show": [...rows...]} — matches the shape the UI expects.
 

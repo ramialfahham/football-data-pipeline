@@ -52,7 +52,7 @@ BL1 and WC are fully complete; qualifier statistics will converge to 100% over a
 
 ## Current state
 
-- `mart_matchday_insights.sql` is BL1-only (`where league_code = 'BL1'`), exported to the web app — **must not break**
+- `mart_matchday_insights_bl1.sql` is BL1-only (`where league_code = 'BL1'`); `mart_matchday_insights.sql` is a thin view for the stable export name — **must not break**
 - Form and matchday spine live in `int_matchday__*` models; the mart joins those intermediates with `mart_team_season`
 - Known metric bugs (not yet fixed):
   - `dense_rank()` on `round_order desc` gives 5 matchdays not 5 games — postponed rounds eat slots
