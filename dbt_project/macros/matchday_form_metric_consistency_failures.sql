@@ -1,22 +1,9 @@
-{{
-    config(
-        tags=["dq", "mart", "form_metrics"]
-    )
-}}
-
--- Fails if any derived rate or ratio metric is arithmetically inconsistent
--- with the underlying sum columns it was computed from.
--- Only rows where both teams have form data (form_games_played > 0).
--- Skips comparisons when the displayed rate or a required sum is null (honest nulls).
--- Source: BL1 + WC marts (export view mart_matchday_insights is BL1-only for Pages until multi-UI).
-
-with src as (
-    select * from {{ ref('mart_matchday_insights_bl1') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_wc') }}
-),
-
-checks as (
+{% macro matchday_form_metric_consistency_failures(relation) %}
+{#
+  Returns rows where denormalized form rates on a matchday insights mart disagree with
+  their underlying sum columns. One mart per invocation; no cross-mart UNION ALL.
+#}
+with checks as (
     select
         fixture_sk,
         home_team_sk,
@@ -160,7 +147,7 @@ checks as (
             )
         end as away_save_ratio_err
 
-    from src
+    from {{ relation }}
     where
         home_form_games_played > 0
         and away_form_games_played > 0
@@ -189,3 +176,4 @@ where
     or away_danger_zone_err > 0.0001
     or home_save_ratio_err > 0.0001
     or away_save_ratio_err > 0.0001
+{% endmacro %}
