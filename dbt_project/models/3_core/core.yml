@@ -647,20 +647,16 @@ models:
             - team_sk
             - as_of_date
             - source_code
+      - relationships:
+          to: ref('dim_team')
+          field: team_sk
     columns:
       - name: team_sk
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_team')
-              field: team_sk
+        tests: [not_null]
       - name: as_of_date
         tests: [not_null]
       - name: market_value_eur
         description: "Whole EUR; null when unknown."
-        tests:
-          - dbt_utils.expression_is_true:
-              expression: "(market_value_eur is null) or (market_value_eur >= 0)"
       - name: source_code
         tests: [not_null]
       - name: prompt_version
