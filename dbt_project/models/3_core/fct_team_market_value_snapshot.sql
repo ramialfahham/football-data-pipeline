@@ -12,7 +12,11 @@ with import_wc_team_market_value_snapshot as (
 
 select
     cast(team_sk as int64) as team_sk,
-    cast(as_of_date as date) as as_of_date,
+    coalesce(
+        safe_cast(as_of_date as date),
+        safe.parse_date('%Y-%m-%d', cast(as_of_date as string)),
+        safe.parse_date('%Y%m%d', cast(as_of_date as string))
+    ) as as_of_date,
     cast(source_code as string) as source_code,
     cast(prompt_version as string) as prompt_version,
     safe_cast(market_value_eur as int64) as market_value_eur
