@@ -660,7 +660,7 @@ models:
         description: "Whole EUR; null when unknown."
         tests:
           - dbt_utils.expression_is_true:
-              expression: "market_value_eur is null or market_value_eur >= 0"
+              expression: "(market_value_eur is null) or (market_value_eur >= 0)"
       - name: source_code
         tests: [not_null]
       - name: prompt_version
