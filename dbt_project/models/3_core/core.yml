@@ -647,12 +647,13 @@ models:
             - team_sk
             - as_of_date
             - source_code
-      - relationships:
-          to: ref('dim_team')
-          field: team_sk
     columns:
       - name: team_sk
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: as_of_date
         tests: [not_null]
       - name: market_value_eur
