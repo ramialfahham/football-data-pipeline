@@ -629,3 +629,38 @@ models:
       - name: to_team_api_id
       - name: to_team_name_snapshot
       - name: raw_ingested_at
+
+  - name: fct_team_market_value_snapshot
+    description: >
+      Team-level squad market value estimate snapshots (published-style total EUR). Grain:
+      (team_sk, as_of_date, source_code). Sourced from seed wc_team_market_value_snapshot until
+      automated ingest exists.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "fact", "market_value"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - team_sk
+            - as_of_date
+            - source_code
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: as_of_date
+        tests: [not_null]
+      - name: market_value_eur
+        description: "Whole EUR; null when unknown."
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "market_value_eur is null or market_value_eur >= 0"
+      - name: source_code
+        tests: [not_null]
+      - name: prompt_version
