@@ -671,7 +671,12 @@ models:
         description: "Away: save ratio over the form window."
 
   - name: mart_matchday_insights_wc
-    description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights_bl1; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
+    description: >
+      FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same core columns as
+      mart_matchday_insights_bl1 plus optional squad value estimates (home_market_value_eur,
+      away_market_value_eur, market_value_as_of_date) from int_team__market_value_latest. league_code
+      is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in
+      the season (see int_matchday__team_form_metrics).
     meta:
       owner: "data-platform"
       domain: "football"
@@ -901,6 +906,16 @@ models:
       - name: away_corners_conceded_per_match_recent
       - name: home_save_ratio_recent
       - name: away_save_ratio_recent
+      - name: home_market_value_eur
+        description: >
+          Home team published-style squad market value (EUR). Denormalized from metric market_value_eur;
+          null when no snapshot exists for the team.
+      - name: away_market_value_eur
+        description: >
+          Away team published-style squad market value (EUR). Denormalized from metric market_value_eur;
+          null when no snapshot exists for the team.
+      - name: market_value_as_of_date
+        description: "Snapshot date for home/away market value estimates; null when both sides lack a value."
 
   - name: mart_team_market_value
     description: >

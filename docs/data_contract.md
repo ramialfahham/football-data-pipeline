@@ -122,7 +122,7 @@ Mapping from a typical API-Football subscription list to what this repository in
 
 Published-style **national-team squad market value** estimates (whole EUR) are not provided by API-Football. They are loaded from the dbt seed `wc_team_market_value_snapshot` (columns: `team_sk`, `as_of_date`, `market_value_eur`, `source_code`, `prompt_version`), typically updated twice monthly after external research. `team_sk` is the API-Football national team id (same as `dim_team.team_sk` for `league_code = 'WC'`).
 
-Downstream: `fct_team_market_value_snapshot` → `int_team__market_value_latest` → `mart_team_market_value` (metric `market_value_eur`). Fixture-level export columns on `mart_matchday_insights_wc` are joined in a separate change. Automated ingest (e.g. LLM-assisted) may replace the seed later; raw table naming will follow `RAW_{source}_{entity}` when added.
+Downstream: `fct_team_market_value_snapshot` → `int_team__market_value_latest` → `mart_team_market_value` (metric `market_value_eur`). `mart_matchday_insights_wc` exposes `home_market_value_eur`, `away_market_value_eur`, and `market_value_as_of_date` for fixture export (denormalized from the team metric). Automated ingest (e.g. LLM-assisted) may replace the seed later; raw table naming will follow `RAW_{source}_{entity}` when added.
 
 ---
 

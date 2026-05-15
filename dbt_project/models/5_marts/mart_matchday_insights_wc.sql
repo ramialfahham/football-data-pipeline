@@ -1,10 +1,12 @@
 {{ config(materialized='view') }}
 
 {#
-  FIFA World Cup (WC) matchday preview mart: same column contract as mart_matchday_insights_bl1.
+  FIFA World Cup (WC) matchday preview mart: BL1 column contract plus optional squad value estimates.
   league_code filter is WC only; upstream int_matchday__* models stay league-agnostic.
   Form before the team's first finished WC leg in the season uses supporting qualifier leagues
   (see int_matchday__team_form_metrics and seed wc_supporting_league_codes).
+  home_market_value_eur / away_market_value_eur are denormalized instances of metric market_value_eur
+  (see mart_team_market_value and int_team__market_value_latest).
 #}
 
 with import_int_matchday__upcoming_round_fixtures as (
@@ -18,6 +20,10 @@ import_int_matchday__team_form_metrics as (
 
 mart_team_season as (
     select * from {{ ref('mart_team_season') }}
+),
+
+team_market_value_latest as (
+    select * from {{ ref('int_team__market_value_latest') }}
 ),
 
 team_form_metrics as (
@@ -175,7 +181,10 @@ final as (
         af.away_corner_kicks_per_match_recent,
         af.away_corners_conceded_per_match_recent,
         af.away_save_ratio_recent,
-        um.league_name
+        um.league_name,
+        home_mv.market_value_eur as home_market_value_eur,
+        away_mv.market_value_eur as away_market_value_eur,
+        coalesce(home_mv.as_of_date, away_mv.as_of_date) as market_value_as_of_date
     from import_int_matchday__upcoming_round_fixtures as um
     left join mart_team_season as home_ts
         on
@@ -193,6 +202,10 @@ final as (
         on
             um.fixture_sk = af.fixture_sk
             and um.away_team_sk = af.away_team_sk
+    left join team_market_value_latest as home_mv
+        on um.home_team_sk = home_mv.team_sk
+    left join team_market_value_latest as away_mv
+        on um.away_team_sk = away_mv.team_sk
 )
 
 select *
