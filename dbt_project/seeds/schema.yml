@@ -27,3 +27,32 @@ seeds:
         tests: [not_null]
       - name: supporting_league_code
         tests: [not_null]
+
+  - name: wc_team_market_value_snapshot
+    description: >
+      Twice-monthly WC national-team squad market value estimates (EUR). team_sk matches dim_team.team_sk
+      (API-Football national team id). Append rows per snapshot run; dbt builds fct_team_market_value_snapshot.
+    config:
+      column_types:
+        team_sk: int64
+        as_of_date: date
+        market_value_eur: int64
+        source_code: string
+        prompt_version: string
+    columns:
+      - name: team_sk
+        tests: [not_null]
+      - name: as_of_date
+        tests: [not_null]
+      - name: market_value_eur
+        description: "Published-style total squad estimate in whole EUR; null when unknown."
+      - name: source_code
+        tests: [not_null]
+      - name: prompt_version
+        description: "Version of the research prompt or ingest job (e.g. wc_squad_value_v1)."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - team_sk
+            - as_of_date
+            - source_code
