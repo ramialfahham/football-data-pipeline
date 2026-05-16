@@ -4,56 +4,148 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Matchday IQ · Bundesliga</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #070c1a;
-      --panel: #101a34;
-      --panel-soft: #162349;
-      --line: #2a3c74;
-      --text: #ecf1ff;
-      --muted: #a8b5df;
+      /* Aligned with site/landing/ + site/fixture-list/ */
+      --bg: #07091a;
+      --bg-elev: #11152e;
+      --panel: #161b38;
+      --panel-soft: #1c2349;
+      --line: rgba(255, 255, 255, 0.07);
+      --line-strong: rgba(255, 255, 255, 0.12);
+      --text: #f1f3fb;
+      --muted: #98a3c9;
+      --text-tertiary: #5c6792;
+      --accent: #6ea8fe;
+      --accent-bright: #93c5fd;
+      /* Performance semantic: green = better-of-pair on a metric.
+         Reserved for value comparison only — never for navigation/system. */
+      --positive: #34d399;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
-    .app { max-width: 720px; margin: 0 auto; padding: 16px 12px 28px; }
-    .start {
-      background: linear-gradient(140deg, #243b8f, #6a2fbe);
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 10px;
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at top, #1a2055 0%, var(--bg) 65%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
+    .app { max-width: 720px; margin: 0 auto; padding: 16px 12px 28px; }
+
+    /* Top bar: persistent brand left + language switcher right.
+       Brand is visible on every subpage as identity anchor (tap → landing).
+       Back navigation lives on its own row below (.backbar). */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0 4px;
+    }
+    .brand {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #93c5fd 0%, #c7d2fe 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-decoration: none;
+      line-height: 1;
+    }
+
+    /* Back navigation row, sits below the topbar */
+    .backbar {
+      padding: 0 0 14px;
+    }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: none;
+    }
+    .back:hover { color: var(--text); }
+    .back .arrow { font-size: 1rem; }
+
+    .lang { position: relative; font-family: inherit; }
+    .lang-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .lang-btn:hover { background: var(--panel-soft); }
+    .lang-btn .globe { font-size: 0.85rem; opacity: 0.8; }
+    .lang-btn .caret { font-size: 0.65rem; opacity: 0.55; }
+
+    /* Off-screen nav buttons — preserved for swipe-handler keyboard
+       fallback + feedback-modal trigger; not user-visible.
+       Replaced visually by .foot-link below. */
+    .match-nav-hidden { position: absolute; left: -9999px; }
+
+    /* Foot link (subtle text affordance, e.g. Feedback) */
+    .foot-actions { margin-top: 12px; text-align: center; }
+    .foot-link {
+      color: var(--accent-bright);
+      font-size: 0.8rem;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .foot-link:hover { color: var(--text); }
+
+    /* Legacy classes retained for back-compat (hidden) */
+    .start, .sub, .nav-hint, .competition-block { display: none; }
+
     h1 { margin: 0; font-size: 1.35rem; }
-    .sub { margin: 6px 0 0; font-size: 0.9rem; color: #e8eeff; }
-    .meta { margin-top: 8px; color: #dbe3ff; font-size: 0.8rem; }
+    .meta { margin-top: 8px; color: var(--muted); font-size: 0.8rem; }
     .competition-block {
-      background: rgba(17, 29, 62, 0.96);
-      border: 1px solid #2e447f;
+      background: var(--panel);
+      border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 10px 12px;
+      padding: 12px 14px;
       margin-bottom: 12px;
     }
     .competition-line {
-      color: #dbe4ff;
+      color: var(--text);
       font-size: 0.96rem;
       line-height: 1.3;
-      font-weight: 600;
+      font-weight: 700;
     }
     .competition-note {
       margin-top: 4px;
-      color: #b9c8f0;
+      color: var(--muted);
       font-size: 0.8rem;
       line-height: 1.35;
     }
     .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
     button, .btn {
-      border: 1px solid #8898d8;
-      background: #1d2f67;
-      color: white;
-      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 999px;
       padding: 8px 12px;
       cursor: pointer;
       font-size: 0.85rem;
+      font-family: inherit;
     }
+    button:hover, .btn:hover { background: var(--panel-soft); border-color: var(--line-strong); }
     .nav-hint { font-size: 0.75rem; color: var(--muted); flex: 1; min-width: 140px; }
     .carousel-wrap { position: relative; margin-top: 12px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
     .carousel {
@@ -64,7 +156,7 @@
       -webkit-overflow-scrolling: touch;
     }
     .carousel::-webkit-scrollbar { height: 6px; }
-    .carousel::-webkit-scrollbar-thumb { background: #3d5294; border-radius: 4px; }
+    .carousel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
     .card {
       min-width: 100%;
       flex: 0 0 100%;
@@ -72,42 +164,117 @@
       background: var(--panel);
       padding: 14px;
     }
+    /* Match header: centered home + vs + away with logos */
     .fixture {
-      font-size: 1.15rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-      line-height: 1.25;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 14px;
+      margin: 10px 0 18px;
+    }
+    .fixture-team {
       display: flex;
-      justify-content: space-between;
-      align-items: baseline;
+      flex-direction: column;
+      align-items: center;
       gap: 10px;
+      min-width: 0;
     }
-    .fixture-home { text-align: left; }
-    .fixture-away { text-align: right; margin-left: auto; }
-    .kickoff { color: var(--muted); font-size: 0.82rem; margin-bottom: 6px; }
-    .ranks { color: #c8d4f8; font-size: 0.8rem; margin-bottom: 10px; line-height: 1.35; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: var(--panel-soft);
-      border-radius: 10px;
-      overflow: hidden;
-      font-size: 0.82rem;
+    .team-logo-lg {
+      width: 60px;
+      height: 60px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    th, td { padding: 8px 6px; border-bottom: none; vertical-align: middle; }
-    th {
-      color: #d7e0ff;
+    .team-logo-lg img {
+      width: 76%;
+      height: 76%;
+      object-fit: contain;
+    }
+    .team-name-lg {
+      font-size: 1rem;
       font-weight: 700;
-      font-size: 0.78rem;
+      line-height: 1.2;
       text-align: center;
-      background: rgba(12, 22, 52, 0.92);
-      border-bottom: 1px solid #3b4f89;
+      color: var(--text);
+      letter-spacing: -0.01em;
     }
-    th:first-child, td:first-child { text-align: center; width: 23%; }
-    th:nth-child(2), td:nth-child(2) { text-align: center; width: 54%; }
-    th:nth-child(3), td:nth-child(3) { text-align: center; width: 23%; }
-    tbody tr + tr td { border-top: 1px solid #3f568f; }
-    .metric-name { color: #dce4ff; vertical-align: top; }
+    .fixture-vs {
+      color: var(--text-tertiary);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    /* Legacy classes retained for backward compat */
+    .fixture-home, .fixture-away { text-align: center; }
+    .kickoff {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+    .ranks { color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; line-height: 1.35; }
+
+    /* Form context line, sits below the match header to set the window once */
+    .form-context {
+      color: var(--text-tertiary);
+      font-size: 0.72rem;
+      text-align: center;
+      margin: -4px 0 16px;
+      letter-spacing: 0.01em;
+      line-height: 1.4;
+    }
+
+    /* Metrics: flat list of rows. Grouping is encoded as alternating
+       background tints (band-a / band-b). Group boundaries emerge from
+       color changes between adjacent rows. No explicit group headers. */
+    .metrics {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .metric {
+      padding: 12px 14px;
+    }
+    .metric + .metric { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+    .metric-band-a { background: var(--panel); }
+    .metric-band-b { background: var(--panel-soft); }
+    /* Hide the row-divider between two same-band rows; keep the implied
+       group-boundary divider visible where bands change. */
+    .metric-band-a + .metric-band-a,
+    .metric-band-b + .metric-band-b { border-top-color: rgba(255, 255, 255, 0.03); }
+    .metric-band-a + .metric-band-b,
+    .metric-band-b + .metric-band-a { border-top-color: var(--line-strong); }
+
+    .metric-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 8px;
+      letter-spacing: 0.01em;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+    .metric-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      text-align: center;
+      line-height: 1.1;
+      transition: color 0.15s ease;
+    }
+    .metric-value.is-winning { color: var(--positive); font-weight: 800; }
     .metric-title {
       font-weight: 700;
       font-size: 0.86rem;
@@ -121,10 +288,10 @@
       margin-top: 4px;
       font-weight: 400;
     }
-    .metric-row-block-a td { background: rgba(38, 57, 112, 0.56); }
-    .metric-row-block-b td { background: rgba(15, 27, 60, 0.78); }
-    .metric-row-block-a td { border-top-color: #4b64a6; }
-    .metric-row-block-b td { border-top-color: #2f447a; }
+    .metric-row-block-a td { background: var(--panel-soft); }
+    .metric-row-block-b td { background: var(--panel); }
+    .metric-row-block-a td { border-top-color: var(--line-strong); }
+    .metric-row-block-b td { border-top-color: var(--line); }
     .num {
       font-variant-numeric: tabular-nums;
       font-size: 0.92rem;
@@ -144,20 +311,20 @@
     }
     .modal {
       width: min(520px, 96vw);
-      background: #0f1a37;
-      border: 1px solid #334b88;
+      background: var(--panel);
+      border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 14px;
+      padding: 16px;
     }
-    .modal h2 { margin: 0 0 10px; font-size: 1.1rem; }
+    .modal h2 { margin: 0 0 10px; font-size: 1.1rem; font-weight: 700; }
     .field { margin-bottom: 10px; }
-    .field label { display: block; margin-bottom: 6px; font-size: 0.82rem; color: #d8e2ff; }
+    .field label { display: block; margin-bottom: 6px; font-size: 0.82rem; color: var(--muted); }
     .field textarea, .field select {
       width: 100%;
-      border: 1px solid #4d65a7;
+      border: 1px solid var(--line);
       border-radius: 8px;
-      background: #111f44;
-      color: #f1f5ff;
+      background: var(--bg-elev);
+      color: var(--text);
       padding: 8px;
       font-size: 0.85rem;
     }
@@ -179,24 +346,35 @@
 </head>
 <body>
   <div class="app">
-    <section class="start">
-      <h1>Matchday IQ</h1>
-      <p class="sub">Football analytics for fans</p>
-      <div class="controls">
-        <span class="nav-hint">Wischen oder Tippen: nächstes / vorheriges Spiel</span>
-        <button type="button" id="prev-btn" aria-label="Vorheriges Spiel">&larr;</button>
-        <button type="button" id="next-btn" aria-label="Nächstes Spiel">&rarr;</button>
-        <button class="btn" id="feedback-open-btn" type="button">Feedback</button>
+    <header class="topbar">
+      <a href="#" class="brand">Matchday IQ</a>
+      <div class="lang">
+        <button class="lang-btn" type="button">
+          <span class="globe">🌐</span>
+          <span class="code">DE</span>
+          <span class="caret">▾</span>
+        </button>
       </div>
-    </section>
-    <section class="competition-block">
-      <div class="competition-line" id="competition-context"></div>
-      <div class="competition-note">Form- und Leistungswerte basieren auf den letzten 5 abgeschlossenen Spieltagen.</div>
-    </section>
+    </header>
+    <nav class="backbar">
+      <!-- TODO: wire to the deployed fixture-list URL once it's live.
+           Until then href="#" is a visual placeholder (link is inert). -->
+      <a href="#" class="back"><span class="arrow">←</span><span>Spieltag</span></a>
+    </nav>
+    <!-- Buttons retained off-screen for swipe-handler keyboard fallback and
+         the feedback-modal trigger. Replaced visually by the foot-link below. -->
+    <div class="match-nav-hidden">
+      <button type="button" id="prev-btn" aria-label="Vorheriges Spiel"></button>
+      <button type="button" id="next-btn" aria-label="Nächstes Spiel"></button>
+      <button id="feedback-open-btn" type="button"></button>
+    </div>
     <div class="carousel-wrap">
       <div class="carousel" id="carousel" role="region" aria-label="Spiele"></div>
     </div>
     <p class="foot" id="foot-note"></p>
+    <p class="foot-actions">
+      <a href="#" id="feedback-link" class="foot-link">Feedback geben</a>
+    </p>
   </div>
   <div class="modal-backdrop" id="feedback-modal-backdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
@@ -248,7 +426,7 @@
     }
 
     const COPY = {
-      foot: "Formfenster: bis zu den letzten fünf abgeschlossenen Spielen vor diesem Spiel (nach Anstoßzeit); Kennzahlen sind Summen über alle Spiele im Fenster geteilt durch die jeweilige Spielanzahl. Punkteausbeute = erzielte Punkte von maximal 3 × Spiele im Fenster. Fehlt eine Kennzahl in den Daten, zeigen wir „-“ (keine erfundenen Nullen).",
+      foot: "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. Prozentwerte sind kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
       feedbackError: "Feedback konnte nicht gesendet werden.",
       feedbackErrorDetailPrefix: "Feedback nicht gespeichert:",
@@ -322,10 +500,13 @@
     }
 
     function matchContextLine(row) {
+      const competition = competitionDisplayLabel(row);
+      const season = seasonDisplayLabel(row);
+      const compSeason = [competition, season].filter(Boolean).join(" · ");
       const stage = normalizedStageLabel(row);
       const substage = String(row && row.substage_display_label ? row.substage_display_label : "").trim();
       const kickoff = kickoffDisplayLabel(row);
-      return [stage, substage, kickoff].filter(Boolean).join(" · ");
+      return [compSeason, stage, substage, kickoff].filter(Boolean).join(" · ");
     }
 
     function setCompetitionContext(rows) {
@@ -391,28 +572,49 @@
     }
 
     function metricTableRows(r, g) {
-      const G = g || {};
-      const row = (homeKey, awayKey, fallbackLabel, homeVal, awayVal, group) => ({
-        label: glLabel(G, homeKey, awayKey, fallbackLabel),
-        explain: glExplain(G, homeKey, awayKey),
-        home: homeVal,
-        away: awayVal,
-        group,
+      // Grouping is encoded as alternating background bands ("a" vs "b") on
+      // the rendered rows — no separate group header labels. The band flips
+      // every time the next metric belongs to a new semantic group, so the
+      // user sees a tinted block for each group without spending vertical
+      // space on a header.
+      const m = (label, homeVal, awayVal, homeNum, awayNum, band, opts = {}) => ({
+        label, home: homeVal, away: awayVal, homeNum, awayNum, band,
+        lowerIsBetter: !!opts.lowerIsBetter,
       });
+      const pct = (v) => (v === null || v === undefined || isNaN(Number(v))) ? null : Number(v) * 100;
+      const num = (v) => (v === null || v === undefined || isNaN(Number(v))) ? null : Number(v);
       return [
-        row("", "", "Tabellenplatz", rankLabel(r.home_league_rank), rankLabel(r.away_league_rank), "a"),
-        row("home_points_won_sum_form", "away_points_won_sum_form", "Punkte (letzte 5 Spiele)", pointsDisplay(r, "home"), pointsDisplay(r, "away"), "a"),
-        row("home_goals_per_match_recent", "away_goals_per_match_recent", "Tore pro Spiel", fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1), "b"),
-        row("home_goals_against_per_match_recent", "away_goals_against_per_match_recent", "Gegentore pro Spiel", fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1), "b"),
-        row("home_shots_per_match_recent", "away_shots_per_match_recent", "Schüsse pro Spiel", fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1), "a"),
-        row("home_shot_accuracy_recent", "away_shot_accuracy_recent", "Schussgenauigkeit", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent), "a"),
-        row("home_danger_zone_ratio_recent", "away_danger_zone_ratio_recent", "Anteil Abschlüsse im Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent), "a"),
-        row("home_finishing_efficiency_recent", "away_finishing_efficiency_recent", "Abschlusseffizienz", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent), "a"),
-        row("home_passes_per_match_recent", "away_passes_per_match_recent", "Pässe pro Spiel", fmtDe(r.home_passes_per_match_recent, 0), fmtDe(r.away_passes_per_match_recent, 0), "b"),
-        row("home_pass_accuracy_recent", "away_pass_accuracy_recent", "Passgenauigkeit", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent), "b"),
-        row("home_corner_kicks_per_match_recent", "away_corner_kicks_per_match_recent", "Ecken pro Spiel", fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1), "a"),
-        row("home_corners_conceded_per_match_recent", "away_corners_conceded_per_match_recent", "Ecken gegen sich pro Spiel", fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1), "a"),
-        row("home_save_ratio_recent", "away_save_ratio_recent", "Anteil gehaltener Schüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent), "b"),
+        // Tabellenstand & Form
+        m("Tabellenplatz", rankLabel(r.home_league_rank), rankLabel(r.away_league_rank),
+          num(r.home_league_rank), num(r.away_league_rank), "a", { lowerIsBetter: true }),
+        m("Punkteausbeute", pointsDisplay(r, "home"), pointsDisplay(r, "away"),
+          num(r.home_points_won_sum_form), num(r.away_points_won_sum_form), "a"),
+        // Tore
+        m("Ø Tore", fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1),
+          num(r.home_goals_per_match_recent), num(r.away_goals_per_match_recent), "b"),
+        m("Ø Gegentore", fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1),
+          num(r.home_goals_against_per_match_recent), num(r.away_goals_against_per_match_recent), "b", { lowerIsBetter: true }),
+        // Abschluss & Effizienz
+        m("Ø Schüsse", fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1),
+          num(r.home_shots_per_match_recent), num(r.away_shots_per_match_recent), "a"),
+        m("Schüsse aufs Tor", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent),
+          pct(r.home_shot_accuracy_recent), pct(r.away_shot_accuracy_recent), "a"),
+        m("Schüsse aus dem Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent),
+          pct(r.home_danger_zone_ratio_recent), pct(r.away_danger_zone_ratio_recent), "a"),
+        m("Trefferquote", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent),
+          pct(r.home_finishing_efficiency_recent), pct(r.away_finishing_efficiency_recent), "a"),
+        // Spielaufbau
+        m("Ø Pässe", fmtDe(r.home_passes_per_match_recent, 0), fmtDe(r.away_passes_per_match_recent, 0),
+          num(r.home_passes_per_match_recent), num(r.away_passes_per_match_recent), "b"),
+        m("Angekommene Pässe", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent),
+          pct(r.home_pass_accuracy_recent), pct(r.away_pass_accuracy_recent), "b"),
+        // Standards & Defensive
+        m("Ø Ecken", fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1),
+          num(r.home_corner_kicks_per_match_recent), num(r.away_corner_kicks_per_match_recent), "a"),
+        m("Ø Ecken gegen", fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1),
+          num(r.home_corners_conceded_per_match_recent), num(r.away_corners_conceded_per_match_recent), "a", { lowerIsBetter: true }),
+        m("Gehaltene Torschüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent),
+          pct(r.home_save_ratio_recent), pct(r.away_save_ratio_recent), "b"),
       ];
     }
 
@@ -421,22 +623,39 @@
       return label || missingLabel;
     }
 
-    function renderTable(rows) {
-      const head = `<tr><th>Heim</th><th>Kennzahl</th><th>Gast</th></tr>`;
-      const body = rows.map((m) => {
-        const sub = m.explain
-          ? `<div class="metric-desc">${escHtml(m.explain)}</div>`
-          : "";
-        const rowClass = m.group === "a" ? "metric-row-block-a" : "metric-row-block-b";
-        return `
-        <tr class="${rowClass}">
-          <td class="num">${m.home}</td>
-          <td class="metric-name"><div class="metric-title">${escHtml(m.label)}</div>${sub}</td>
-          <td class="num">${m.away}</td>
-        </tr>`;
-      }).join("");
-      return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    function renderMetrics(rows) {
+      return `<div class="metrics">${rows.map(renderMetricRow).join("")}</div>`;
     }
+
+    function renderMetricRow(m) {
+      // Decide who's "winning" this metric — affects subtle color highlight.
+      let homeWin = false, awayWin = false;
+      const hHas = m.homeNum !== null && Number.isFinite(m.homeNum);
+      const aHas = m.awayNum !== null && Number.isFinite(m.awayNum);
+      if (hHas && aHas) {
+        if (m.lowerIsBetter) {
+          homeWin = m.homeNum < m.awayNum;
+          awayWin = m.awayNum < m.homeNum;
+        } else {
+          homeWin = m.homeNum > m.awayNum;
+          awayWin = m.awayNum > m.homeNum;
+        }
+      }
+      const homeCls = "metric-value" + (homeWin ? " is-winning" : "");
+      const awayCls = "metric-value" + (awayWin ? " is-winning" : "");
+      const bandCls = "metric metric-band-" + (m.band || "a");
+      return `
+        <div class="${bandCls}">
+          <div class="metric-label">${escHtml(m.label)}</div>
+          <div class="metric-row">
+            <div class="${homeCls}">${m.home}</div>
+            <div class="${awayCls}">${m.away}</div>
+          </div>
+        </div>`;
+    }
+
+    // Kept as alias for any external code calling renderTable
+    function renderTable(rows) { return renderMetrics(rows); }
 
     let activeFixtureId = null;
 
@@ -538,10 +757,42 @@
         article.dataset.fixtureId = row.fixture_api_id;
         const homeTeam = teamNameLabel(row.home_team_name, "DATA_ERROR_HOME_TEAM");
         const awayTeam = teamNameLabel(row.away_team_name, "DATA_ERROR_AWAY_TEAM");
+        // TODO: replace name-based lookup with API team id from the mart.
+        // home_team_sk / away_team_sk are hash surrogate keys, not API team_ids.
+        // Once mart_matchday_insights exposes `home_team_api_id` and
+        // `away_team_api_id`, drop TEAM_LOGO_BY_NAME and read those directly.
+        // Until then: any team not in the map renders without a logo (page
+        // still works; only the logo is blank).
+        const TEAM_LOGO_BY_NAME = {
+          "Bayern München": 157, "Borussia Dortmund": 165, "Bayer Leverkusen": 168,
+          "VfB Stuttgart": 172, "Eintracht Frankfurt": 169, "RB Leipzig": 173,
+          "FC Augsburg": 170, "1. FSV Mainz 05": 164, "Werder Bremen": 162,
+          "TSG Hoffenheim": 167, "Borussia Mönchengladbach": 163,
+          "Hamburger SV": 175, "SC Freiburg": 160, "VfL Wolfsburg": 161,
+          "1. FC Heidenheim": 180, "1. FC Union Berlin": 182, "FC St. Pauli": 186,
+          "1. FC Köln": 192,
+        };
+        const logoUrl = (teamName) => {
+          const id = TEAM_LOGO_BY_NAME[teamName];
+          return id ? `https://media.api-sports.io/football/teams/${id}.png` : "";
+        };
+        const homeLogoUrl = logoUrl(homeTeam);
+        const awayLogoUrl = logoUrl(awayTeam);
         article.innerHTML = `
           <div class="kickoff">${escHtml(matchContextLine(row))}</div>
-          <div class="fixture"><span class="fixture-home">${escHtml(homeTeam)}</span><span class="fixture-away">${escHtml(awayTeam)}</span></div>
-          ${renderTable(metricTableRows(row, g))}
+          <div class="fixture">
+            <div class="fixture-team fixture-home">
+              <div class="team-logo-lg"><img src="${escHtml(homeLogoUrl)}" alt="${escHtml(homeTeam)}"></div>
+              <div class="team-name-lg">${escHtml(homeTeam)}</div>
+            </div>
+            <div class="fixture-vs">vs</div>
+            <div class="fixture-team fixture-away">
+              <div class="team-logo-lg"><img src="${escHtml(awayLogoUrl)}" alt="${escHtml(awayTeam)}"></div>
+              <div class="team-name-lg">${escHtml(awayTeam)}</div>
+            </div>
+          </div>
+          <div class="form-context">Form: letzte 5 Spiele</div>
+          ${renderMetrics(metricTableRows(row, g))}
         `;
         carousel.appendChild(article);
       });
@@ -563,6 +814,13 @@
     document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
     document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
     document.getElementById("feedback-open-btn").addEventListener("click", openFeedbackModal);
+    const feedbackLink = document.getElementById("feedback-link");
+    if (feedbackLink) {
+      feedbackLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        openFeedbackModal();
+      });
+    }
     document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
     document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
     document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
