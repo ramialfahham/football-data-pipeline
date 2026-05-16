@@ -2,11 +2,10 @@
 
 Two distinct signals come out of this module:
 
-1. **Pipeline health** — does the machinery work? The orchestrator hard-fails the
-   workflow only when an *active* competition is incomplete (registry status
-   ``active``). ``in_progress`` competitions are by definition still backfilling
-   on the current API tier and stay green; they surface as warnings in the
-   completeness report.
+1. **Pipeline health** — the orchestrator hard-fails when any competition with
+   ``ingest_completeness_gate: hard`` is incomplete on finished fixtures, or when
+   fixture-statistics backfill is stagnant run-over-run. ``gate: soft`` competitions
+   are reported only.
 
 2. **Data completeness** — how much data do we have? The full per-competition,
    per-endpoint coverage report is rendered as a markdown table to
@@ -23,9 +22,12 @@ from typing import Any
 
 from google.cloud import bigquery
 
-from .bigquery import read_latest_payload_json
+from .bigquery import load_json_to_bq, read_latest_payload_json
 from .registry import selected_competitions
 from .settings import raw_league_table
+
+COMPLETENESS_SNAPSHOT_TABLE = "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT"
+_STATS_ENTITY = "FIXTURE_STATISTICS"
 
 # Batched fanout raw entities (fixture_id blocks).
 FANOUT_ENTITIES = (
@@ -141,6 +143,7 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         )
         league_block: dict[str, Any] = {
             "registry_status": comp.status,
+            "ingest_completeness_gate": comp.ingest_completeness_gate,
             "fixture_total_count": len(all_fixture_ids),
             "fixture_expected_count": len(expected),
             "fixture_unplayed_count": len(all_fixture_ids - expected),
@@ -184,33 +187,99 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
     return out
 
 
+def fixture_statistics_missing_by_league(report: dict[str, Any]) -> dict[str, int]:
+    """Per-league count of finished fixtures still missing FIXTURE_STATISTICS."""
+    out: dict[str, int] = {}
+    for league_code, block in (report.get("leagues") or {}).items():
+        stats = (block.get("fanout") or {}).get(_STATS_ENTITY) or {}
+        out[league_code] = int(stats.get("missing_count") or 0)
+    return out
+
+
+def load_prior_fixture_statistics_missing(
+    client: bigquery.Client,
+) -> dict[str, int] | None:
+    """Previous run's per-league statistics missing counts, or None if first run."""
+    payload = read_latest_payload_json(client, COMPLETENESS_SNAPSHOT_TABLE)
+    if not payload:
+        return None
+    raw = payload.get("fixture_statistics_missing")
+    if not isinstance(raw, dict):
+        return None
+    return {str(k): int(v) for k, v in raw.items()}
+
+
+def persist_fixture_statistics_missing(
+    client: bigquery.Client,
+    report: dict[str, Any],
+    *,
+    run_id: str,
+) -> None:
+    """Store this run's statistics gap signature for stagnation checks on the next run."""
+    if report.get("skipped"):
+        return
+    payload = {
+        "run_id": run_id,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "fixture_statistics_missing": fixture_statistics_missing_by_league(report),
+    }
+    load_json_to_bq(
+        client,
+        COMPLETENESS_SNAPSHOT_TABLE,
+        payload,
+        as_json_payload=True,
+    )
+
+
+def detect_stagnant_statistics_backfill(
+    report: dict[str, Any],
+    prior_missing: dict[str, int] | None,
+) -> list[dict[str, Any]]:
+    """Leagues with hard gate whose FIXTURE_STATISTICS missing_count did not decrease."""
+    if prior_missing is None:
+        return []
+    stagnant: list[dict[str, Any]] = []
+    current = fixture_statistics_missing_by_league(report)
+    for league_code, block in (report.get("leagues") or {}).items():
+        if (block.get("ingest_completeness_gate") or "soft") != "hard":
+            continue
+        prev = prior_missing.get(league_code, 0)
+        now = current.get(league_code, 0)
+        if now > 0 and now >= prev:
+            stagnant.append({
+                "league_code": league_code,
+                "missing_count": now,
+                "prior_missing_count": prev,
+            })
+    return stagnant
+
+
 def completeness_summary_line(report: dict[str, Any]) -> str:
     """Single-line JSON for log scrapers (e.g. Cloud Logging alerts on textPayload)."""
     return f"[api-football] ingest_completeness_json={json.dumps(report, ensure_ascii=True)}"
 
 
-def evaluate_completeness_outcome(report: dict[str, Any]) -> dict[str, Any]:
-    """Decide whether the run should hard-fail or stay green based on registry status.
+def evaluate_completeness_outcome(
+    report: dict[str, Any],
+    *,
+    prior_fixture_statistics_missing: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Decide whether the ingest run should hard-fail.
 
-    Hard-fail when an ``active`` competition has incomplete fanout coverage on
-    finished fixtures. ``in_progress`` competitions are by design still
-    backfilling on the current API tier; their incompleteness is a soft warning.
+    Hard-fail when any competition with ``ingest_completeness_gate: hard`` is
+    incomplete, or when statistics backfill for a hard-gated league is stagnant
+    (missing_count unchanged and still > 0 vs the prior run).
 
-    Returns a dict with::
-
-        {
-            "hard_fail": bool,
-            "active_failures":   [ {league_code, missing_endpoints: [...], total_missing: int}, ... ],
-            "in_progress_partial": [ {league_code, missing_endpoints: [...], total_missing: int}, ... ],
-        }
-
-    The orchestrator uses ``hard_fail`` for the exit code and the
-    ``active_failures`` list to compose a precise failure message.
+    Returns ``hard_gated_failures``, ``soft_partial``, ``stagnant_statistics``,
+    and legacy ``active_failures`` (subset of hard-gated with registry status active).
     """
     out: dict[str, Any] = {
         "hard_fail": False,
+        "hard_gated_failures": [],
         "active_failures": [],
         "in_progress_partial": [],
+        "soft_partial": [],
+        "stagnant_statistics": [],
     }
     if report.get("skipped"):
         return out
@@ -232,12 +301,24 @@ def evaluate_completeness_outcome(report: dict[str, Any]) -> dict[str, Any]:
             "missing_endpoints": missing_endpoints,
             "total_missing": total_missing,
         }
+        gate = (block.get("ingest_completeness_gate") or "soft").strip().lower()
         status = (block.get("registry_status") or "").strip().lower()
-        if status == "active":
-            out["active_failures"].append(record)
+        if gate == "hard":
+            out["hard_gated_failures"].append(record)
+            if status == "active":
+                out["active_failures"].append(record)
         else:
-            out["in_progress_partial"].append(record)
-    if out["active_failures"] and fail_on_incomplete():
+            out["soft_partial"].append(record)
+            if status == "in_progress":
+                out["in_progress_partial"].append(record)
+
+    out["stagnant_statistics"] = detect_stagnant_statistics_backfill(
+        report, prior_fixture_statistics_missing
+    )
+
+    if fail_on_incomplete() and (
+        out["hard_gated_failures"] or out["stagnant_statistics"]
+    ):
         out["hard_fail"] = True
     return out
 
@@ -293,7 +374,9 @@ def completeness_markdown_summary(
     lines.append("|---|---|---|---|---|")
     for league_code in sorted(leagues.keys()):
         block = leagues[league_code]
-        status = block.get("registry_status") or "?"
+        reg_status = block.get("registry_status") or "?"
+        gate = block.get("ingest_completeness_gate") or "soft"
+        status = f"{reg_status} ({gate} gate)"
         finished = block.get("fixture_expected_count", 0)
         total = block.get("fixture_total_count", 0)
         coverage = _coverage_cell(block)

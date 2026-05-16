@@ -902,6 +902,38 @@ models:
       - name: home_save_ratio_recent
       - name: away_save_ratio_recent
 
+  - name: mart_team_market_value
+    description: >
+      WC national teams with latest squad market value estimate. Grain: team_sk. Metric name:
+      market_value_eur. Populated when wc_team_market_value_snapshot seed (or future ingest) has rows.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "market_value", "wc"]
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["WC"]
+      - name: team_name
+        tests: [not_null]
+      - name: as_of_date
+        description: "Snapshot date for market_value_eur; null when no estimate loaded."
+      - name: market_value_eur
+        description: "Published-style total squad estimate in whole EUR; null when unknown."
+      - name: source_code
+        description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
+
   - name: mart_matchday_insights
     description: >
       Stable BigQuery relation for export_matchday_json.py and GitHub Pages (unchanged name).
