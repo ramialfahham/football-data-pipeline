@@ -106,6 +106,46 @@ class TestMergeFanoutBatched:
         ids = [r["fixture_id"] for r in result["response"]]
         assert ids == sorted(ids)
 
+    def test_empty_statistics_does_not_overwrite_nonempty(self):
+        existing = {
+            "league_code": "WCQAF",
+            "response": [
+                {
+                    "fixture_id": 256075,
+                    "statistics": [{"team": {"id": 1}, "statistics": [{"type": "Shots on Goal"}]}],
+                }
+            ],
+        }
+        incoming = {
+            "league_code": "WCQAF",
+            "response": [{"fixture_id": 256075, "statistics": []}],
+        }
+        result = merge_fanout_batched(
+            existing, incoming, league_code="WCQAF", valid_fixture_ids={256075}
+        )
+        row = result["response"][0]
+        assert row["fixture_id"] == 256075
+        assert len(row["statistics"]) == 1
+
+    def test_nonempty_statistics_overwrites_empty(self):
+        existing = {
+            "league_code": "WCQAF",
+            "response": [{"fixture_id": 256075, "statistics": []}],
+        }
+        incoming = {
+            "league_code": "WCQAF",
+            "response": [
+                {
+                    "fixture_id": 256075,
+                    "statistics": [{"team": {"id": 1}, "statistics": [{"type": "Shots on Goal"}]}],
+                }
+            ],
+        }
+        result = merge_fanout_batched(
+            existing, incoming, league_code="WCQAF", valid_fixture_ids={256075}
+        )
+        assert len(result["response"][0]["statistics"]) == 1
+
 
 # ---------------------------------------------------------------------------
 # merge_rounds_season_blocks

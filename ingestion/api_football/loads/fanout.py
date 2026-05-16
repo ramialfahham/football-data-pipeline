@@ -30,7 +30,6 @@ from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq, read_latest_payload_json
 from ..completeness import _fixture_ids_from_fanout_payload
 from ..settings import raw_league_table
-from ..quota import append_api_errors
 from ..fixture_scheduling import (
     # Re-exported for backward compatibility (tests import from this module).
     _FANOUT_ENTITY_KEYS,
@@ -47,12 +46,27 @@ from ..fixture_scheduling import (
 )
 from ..http_client import fetch_json
 from ..merge import merge_fanout_batched
+from ..quota import append_api_errors
 from .context import CompetitionRunResult, PipelineContext
 
 
 def _batched_shell(league_code: str) -> dict[str, dict]:
     base = {"league_code": league_code, "response": []}
     return {key: dict(base) for key, _entity, _cov_key in _FANOUT_ENTITY_KEYS}
+
+
+def _fanout_fetch_json(
+    ctx: PipelineContext,
+    path: str,
+    params: dict,
+    error_label: str,
+) -> dict | None:
+    """Return API payload, or None when daily quota is exhausted (no shell append)."""
+    if errors_quota._http_quota_exhausted:
+        return None
+    data = fetch_json(path, headers=ctx.headers, params=params)
+    append_api_errors(data, error_label, ctx.errors)
+    return data
 
 
 def _already_covered_per_entity(
@@ -132,75 +146,76 @@ def _fetch_fixture_endpoints(
     """Make HTTP calls for one fixture's missing endpoints and accumulate into shells."""
     if cov.get("fixture_lineups", True) and fixture_id not in covered["lineups"]:
         try:
-            lineups = fetch_json(
+            lineups = _fanout_fetch_json(
+                ctx,
                 "/fixtures/lineups",
-                headers=ctx.headers,
-                params={"fixture": fixture_id},
+                {"fixture": fixture_id},
+                f"lineups {league_code} fixture {fixture_id}",
             )
-            append_api_errors(lineups, f"lineups {league_code} fixture {fixture_id}", ctx.errors)
-            sh["lineups"]["response"].append(
-                {"fixture_id": fixture_id, "lineups": lineups.get("response", [])}
-            )
+            if lineups is not None:
+                sh["lineups"]["response"].append(
+                    {"fixture_id": fixture_id, "lineups": lineups.get("response", [])}
+                )
         except Exception as e:
             ctx.errors.append(f"lineups {league_code} fixture {fixture_id}: {e}")
     if cov.get("fixture_events", True) and fixture_id not in covered["events"]:
         try:
-            ev = fetch_json(
+            ev = _fanout_fetch_json(
+                ctx,
                 "/fixtures/events",
-                headers=ctx.headers,
-                params={"fixture": fixture_id},
+                {"fixture": fixture_id},
+                f"fixtures/events {league_code} fixture {fixture_id}",
             )
-            append_api_errors(ev, f"fixtures/events {league_code} fixture {fixture_id}", ctx.errors)
-            sh["events"]["response"].append(
-                {"fixture_id": fixture_id, "events": ev.get("response", [])}
-            )
+            if ev is not None:
+                sh["events"]["response"].append(
+                    {"fixture_id": fixture_id, "events": ev.get("response", [])}
+                )
         except Exception as e:
             ctx.errors.append(f"fixtures/events {league_code} fixture {fixture_id}: {e}")
     if (cov.get("fixture_statistics", True) or fixture_id in finished_fixture_ids) and fixture_id not in covered["fx_stats"]:
         try:
-            fxs = fetch_json(
+            fxs = _fanout_fetch_json(
+                ctx,
                 "/fixtures/statistics",
-                headers=ctx.headers,
-                params={"fixture": fixture_id},
+                {"fixture": fixture_id},
+                f"fixtures/statistics {league_code} fixture {fixture_id}",
             )
-            append_api_errors(
-                fxs, f"fixtures/statistics {league_code} fixture {fixture_id}", ctx.errors
-            )
-            sh["fx_stats"]["response"].append(
-                {"fixture_id": fixture_id, "statistics": fxs.get("response", [])}
-            )
+            if fxs is not None:
+                sh["fx_stats"]["response"].append(
+                    {"fixture_id": fixture_id, "statistics": fxs.get("response", [])}
+                )
         except Exception as e:
             ctx.errors.append(
                 f"fixtures/statistics {league_code} fixture {fixture_id}: {e}"
             )
     if cov.get("fixture_players", True) and fixture_id not in covered["fx_players"]:
         try:
-            fxp = fetch_json(
+            fxp = _fanout_fetch_json(
+                ctx,
                 "/fixtures/players",
-                headers=ctx.headers,
-                params={"fixture": fixture_id},
+                {"fixture": fixture_id},
+                f"fixtures/players {league_code} fixture {fixture_id}",
             )
-            append_api_errors(
-                fxp, f"fixtures/players {league_code} fixture {fixture_id}", ctx.errors
-            )
-            sh["fx_players"]["response"].append(
-                {"fixture_id": fixture_id, "players": fxp.get("response", [])}
-            )
+            if fxp is not None:
+                sh["fx_players"]["response"].append(
+                    {"fixture_id": fixture_id, "players": fxp.get("response", [])}
+                )
         except Exception as e:
             ctx.errors.append(
                 f"fixtures/players {league_code} fixture {fixture_id}: {e}"
             )
     if cov.get("predictions", True) and fixture_id not in covered["preds"]:
         try:
-            pr = fetch_json(
+            pr = _fanout_fetch_json(
+                ctx,
                 "/predictions",
-                headers=ctx.headers,
-                params={"fixture": fixture_id},
+                {"fixture": fixture_id},
+                f"predictions {league_code} fixture {fixture_id}",
             )
-            append_api_errors(pr, f"predictions {league_code} fixture {fixture_id}", ctx.errors)
-            sh["preds"]["response"].append(
-                {"fixture_id": fixture_id, "predictions": pr.get("response", [])}
-            )
+            if pr is not None:
+                sh["preds"]["response"].append(
+                    {"fixture_id": fixture_id, "predictions": pr.get("response", [])}
+                )
         except Exception as e:
             ctx.errors.append(f"predictions {league_code} fixture {fixture_id}: {e}")
 

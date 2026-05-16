@@ -12,6 +12,42 @@ preserving everything else.
 
 from __future__ import annotations
 
+# Keys on per-fixture fanout rows (one key per RAW batched table payload).
+_FANOUT_PAYLOAD_KEYS: tuple[str, ...] = (
+    "lineups",
+    "events",
+    "statistics",
+    "players",
+    "predictions",
+)
+
+
+def _fanout_row_payload_key(row: dict) -> str | None:
+    for key in _FANOUT_PAYLOAD_KEYS:
+        if key in row:
+            return key
+    return None
+
+
+def _fanout_payload_nonempty(row: dict, payload_key: str) -> bool:
+    """True when the endpoint payload is present (non-empty list or truthy value)."""
+    value = row.get(payload_key)
+    if value is None:
+        return False
+    if isinstance(value, list):
+        return len(value) > 0
+    return bool(value)
+
+
+def _keep_existing_fanout_row(existing_row: dict, incoming_row: dict) -> bool:
+    """Do not replace a non-empty fanout block with an empty one (quota skip or API [])."""
+    payload_key = _fanout_row_payload_key(incoming_row) or _fanout_row_payload_key(existing_row)
+    if payload_key is None:
+        return False
+    return _fanout_payload_nonempty(existing_row, payload_key) and not _fanout_payload_nonempty(
+        incoming_row, payload_key
+    )
+
 
 def merge_fanout_batched(
     existing: dict | None,
@@ -33,8 +69,12 @@ def merge_fanout_batched(
             by_id[int(fid)] = row
     for row in incoming.get("response") or []:
         fid = row.get("fixture_id")
-        if fid is not None:
-            by_id[int(fid)] = row
+        if fid is None:
+            continue
+        fid_int = int(fid)
+        if fid_int in by_id and _keep_existing_fanout_row(by_id[fid_int], row):
+            continue
+        by_id[fid_int] = row
     if valid_fixture_ids is not None:
         by_id = {k: v for k, v in by_id.items() if k in valid_fixture_ids}
     return {"league_code": league_code, "response": [by_id[k] for k in sorted(by_id.keys())]}
