@@ -29,9 +29,12 @@ class Competition:
     supporting_leagues: tuple = ()
     current_season: int | None = None  # from registry; used to bound season discovery for non-split-year competitions
     history_seasons: int | None = None  # CPO-approved backfill window (number of season start years)
+    # hard: incomplete fanout fails the run; soft: report only
+    ingest_completeness_gate: str = "soft"
 
 
 _ALLOWED_STATUSES = {"active", "in_progress", "planned", "backlog", "completed"}
+_COMPLETENESS_GATES = frozenset({"hard", "soft"})
 
 
 def _repo_root() -> Path:
@@ -169,6 +172,19 @@ def _parse_competitions() -> list[Competition]:
             except (TypeError, ValueError):
                 pass
 
+        gate_raw = str(entry.get("ingest_completeness_gate", "")).strip().lower()
+        if gate_raw:
+            if gate_raw not in _COMPLETENESS_GATES:
+                raise ValueError(
+                    f"Competition `{league_code}` has invalid ingest_completeness_gate="
+                    f"{gate_raw!r}. Allowed: hard, soft."
+                )
+            ingest_completeness_gate = gate_raw
+        elif status == "active":
+            ingest_completeness_gate = "hard"
+        else:
+            ingest_completeness_gate = "soft"
+
         out.append(
             Competition(
                 league_code=league_code,
@@ -180,6 +196,7 @@ def _parse_competitions() -> list[Competition]:
                 supporting_leagues=parsed_supporting_leagues,
                 current_season=current_season,
                 history_seasons=history_seasons,
+                ingest_completeness_gate=ingest_completeness_gate,
             )
         )
     if not out:

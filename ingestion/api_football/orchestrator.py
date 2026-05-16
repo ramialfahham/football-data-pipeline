@@ -20,6 +20,8 @@ from .completeness import (
     completeness_markdown_summary,
     completeness_summary_line,
     evaluate_completeness_outcome,
+    load_prior_fixture_statistics_missing,
+    persist_fixture_statistics_missing,
     run_ingest_completeness_checks,
     write_step_summary_if_configured,
 )
@@ -138,48 +140,69 @@ def _load_api_football(request):
                 tail += f" ... (+{len(uniq) - 40} more distinct notes)"
             msg += f" Notes: {tail}"
 
+        prior_stats_missing = load_prior_fixture_statistics_missing(client)
         report = run_ingest_completeness_checks(client)
         print(completeness_summary_line(report), flush=True)
 
-        # Tiered outcome: hard-fail only when an `active` competition is
-        # incomplete; in_progress competitions warn and stay green.
-        outcome = evaluate_completeness_outcome(report)
+        outcome = evaluate_completeness_outcome(
+            report,
+            prior_fixture_statistics_missing=prior_stats_missing,
+        )
+        persist_fixture_statistics_missing(client, report, run_id=run_id)
 
         # Always render the markdown summary so the per-competition coverage
         # state is visible on every workflow run page.
         notes: list[str] = []
         notes.append(f"Loaded {ctx.tables_loaded} API-Football tables.")
-        if outcome["in_progress_partial"]:
+        if outcome["soft_partial"]:
             partial_codes = ", ".join(
                 f"{p['league_code']} ({p['total_missing']} missing)"
-                for p in outcome["in_progress_partial"]
+                for p in outcome["soft_partial"]
+            )
+            notes.append(f"soft gate — backfill in flight: {partial_codes}")
+        if outcome["stagnant_statistics"]:
+            stagnant_codes = ", ".join(
+                f"{s['league_code']} (stats missing {s['prior_missing_count']} → {s['missing_count']})"
+                for s in outcome["stagnant_statistics"]
             )
             notes.append(
-                f"in_progress backfill still in flight: {partial_codes}. "
-                "Run is green; coverage will close over subsequent days."
+                f"STAGNANT statistics backfill (no progress since last run): {stagnant_codes}"
             )
-        if outcome["active_failures"]:
-            for f in outcome["active_failures"]:
+        if outcome["hard_gated_failures"]:
+            for f in outcome["hard_gated_failures"]:
                 eps = ", ".join(
                     f"{m['endpoint']} ({m['missing_count']}/{m['expected_count']})"
                     for m in f["missing_endpoints"]
                 )
                 notes.append(
-                    f"ACTIVE competition incomplete: {f['league_code']} — {eps}"
+                    f"hard gate incomplete: {f['league_code']} — {eps}"
                 )
         markdown = completeness_markdown_summary(report, notes=notes)
         write_step_summary_if_configured(markdown)
 
         if outcome["hard_fail"]:
-            failed = "; ".join(
-                f"{f['league_code']} missing "
-                + ", ".join(
-                    f"{m['endpoint']} ({m['missing_count']}/{m['expected_count']})"
-                    for m in f["missing_endpoints"]
+            parts: list[str] = []
+            if outcome["hard_gated_failures"]:
+                parts.append(
+                    "incomplete: "
+                    + "; ".join(
+                        f"{f['league_code']} missing "
+                        + ", ".join(
+                            f"{m['endpoint']} ({m['missing_count']}/{m['expected_count']})"
+                            for m in f["missing_endpoints"]
+                        )
+                        for f in outcome["hard_gated_failures"]
+                    )
                 )
-                for f in outcome["active_failures"]
-            )
-            msg += f" Active competitions incomplete: {failed}"
+            if outcome["stagnant_statistics"]:
+                parts.append(
+                    "stagnant stats: "
+                    + ", ".join(
+                        f"{s['league_code']} ({s['missing_count']} unchanged)"
+                        for s in outcome["stagnant_statistics"]
+                    )
+                )
+            msg += " Completeness gate failed: " + "; ".join(parts)
             return msg, 503
 
         return msg, 200
