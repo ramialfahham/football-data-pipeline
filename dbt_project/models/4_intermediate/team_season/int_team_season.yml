@@ -31,3 +31,32 @@ models:
         description: "Recent-form string from the chosen row (latest_form in marts)."
       - name: group_description
         description: "Standings group/stage label from the chosen row."
+
+  - name: int_team_season__profile_metrics
+    description: >
+      Per (league_code, season_api_year, team_sk) advanced metrics aggregated over all finished legs
+      in that season. Same sum/rate semantics as int_matchday__team_form_metrics without a five-game cap.
+      mart_team_season_profile exposes only the latest season_api_year per league_code.
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - season_api_year
+            - team_sk
+    columns:
+      - name: team_season_sk
+        tests: [not_null]
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: season_games_played
+        tests: [not_null]
