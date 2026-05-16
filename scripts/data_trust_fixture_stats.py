@@ -17,6 +17,7 @@ class TrustResult:
     staging_shots_on_goal_non_null_rows: int
     core_rows: int
     core_shots_on_goal_non_null_rows: int
+    upcoming_bl1_fixture_rows: int
     mart_rows: int
     pass_trust_gate: bool
     reasons: list[str]
@@ -99,6 +100,15 @@ def run() -> TrustResult:
         """,
         "c",
     )
+    upcoming_bl1_fixture_rows = _single_int(
+        client,
+        f"""
+        select count(*) as c
+        from `{project}.intermediate.int_matchday__upcoming_round_fixtures`
+        where league_code = 'BL1'
+        """,
+        "c",
+    )
     mart_rows = _single_int(client, f"select count(*) as c from `{project}.marts.mart_matchday_insights`", "c")
 
     reasons: list[str] = []
@@ -112,8 +122,10 @@ def run() -> TrustResult:
         reasons.append("staging shots_on_goal is entirely null")
     if core_shots_on_goal_non_null_rows == 0:
         reasons.append("core fixture team stats shots_on_goal is entirely null")
-    if mart_rows == 0:
-        reasons.append("mart matchday insights has zero rows")
+    if mart_rows == 0 and upcoming_bl1_fixture_rows > 0:
+        reasons.append(
+            "mart matchday insights has zero rows but BL1 has upcoming round fixtures"
+        )
 
     return TrustResult(
         raw_rows=raw_rows,
@@ -123,6 +135,7 @@ def run() -> TrustResult:
         staging_shots_on_goal_non_null_rows=staging_shots_on_goal_non_null_rows,
         core_rows=core_rows,
         core_shots_on_goal_non_null_rows=core_shots_on_goal_non_null_rows,
+        upcoming_bl1_fixture_rows=upcoming_bl1_fixture_rows,
         mart_rows=mart_rows,
         pass_trust_gate=(len(reasons) == 0),
         reasons=reasons,
@@ -136,7 +149,10 @@ def main() -> int:
         for reason in result.reasons:
             print(f" - {reason}")
         return 1
-    print("fixture stats trust gate passed")
+    print(
+        "fixture stats trust gate passed "
+        f"(mart_rows={result.mart_rows}, upcoming_bl1={result.upcoming_bl1_fixture_rows})"
+    )
     return 0
 
 
