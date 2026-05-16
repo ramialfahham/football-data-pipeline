@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from ingestion.api_football.completeness import (
     completeness_markdown_summary,
+    detect_stagnant_statistics_backfill,
     evaluate_completeness_outcome,
 )
 
@@ -24,9 +25,12 @@ def _league_block(
     finished: int,
     total: int,
     missing_per_endpoint: dict[str, int] | None = None,
+    gate: str | None = None,
 ) -> dict:
     """Build a per-league block in the shape the report uses."""
     missing_per_endpoint = missing_per_endpoint or {}
+    if gate is None:
+        gate = "hard" if status == "active" else "soft"
     fanout = {}
     for entity in ("LINEUPS", "FIXTURE_EVENTS", "FIXTURE_STATISTICS",
                    "FIXTURE_PLAYERS", "PREDICTIONS"):
@@ -41,6 +45,7 @@ def _league_block(
     all_complete = all(info["complete"] for info in fanout.values())
     return {
         "registry_status": status,
+        "ingest_completeness_gate": gate,
         "fixture_total_count": total,
         "fixture_expected_count": finished,
         "fixture_unplayed_count": total - finished,
@@ -83,23 +88,56 @@ class TestEvaluateCompletenessOutcome:
         assert f["missing_endpoints"][0]["endpoint"] == "FIXTURE_STATISTICS"
         assert f["missing_endpoints"][0]["missing_count"] == 5
 
-    def test_in_progress_partial_does_not_hard_fail(self):
+    def test_in_progress_soft_gate_does_not_hard_fail(self):
         report = {
             "skipped": False,
             "leagues": {
                 "BL1": _league_block(status="active", finished=100, total=100),
-                "WCQAF": _league_block(
-                    status="in_progress", finished=540, total=557,
-                    missing_per_endpoint={"FIXTURE_STATISTICS": 434},
+                "WCQOC": _league_block(
+                    status="in_progress", finished=18, total=18,
+                    missing_per_endpoint={"FIXTURE_STATISTICS": 18},
+                    gate="soft",
                 ),
             },
         }
         outcome = evaluate_completeness_outcome(report)
         assert outcome["hard_fail"] is False
-        assert outcome["active_failures"] == []
-        assert len(outcome["in_progress_partial"]) == 1
-        assert outcome["in_progress_partial"][0]["league_code"] == "WCQAF"
-        assert outcome["in_progress_partial"][0]["total_missing"] == 434
+        assert outcome["hard_gated_failures"] == []
+        assert len(outcome["soft_partial"]) == 1
+
+    def test_in_progress_hard_gate_triggers_hard_fail(self):
+        report = {
+            "skipped": False,
+            "leagues": {
+                "WCQAF": _league_block(
+                    status="in_progress", finished=540, total=557,
+                    missing_per_endpoint={"FIXTURE_STATISTICS": 434},
+                    gate="hard",
+                ),
+            },
+        }
+        outcome = evaluate_completeness_outcome(report)
+        assert outcome["hard_fail"] is True
+        assert len(outcome["hard_gated_failures"]) == 1
+        assert outcome["hard_gated_failures"][0]["league_code"] == "WCQAF"
+
+    def test_stagnant_statistics_triggers_hard_fail(self):
+        report = {
+            "skipped": False,
+            "leagues": {
+                "WCQAF": _league_block(
+                    status="in_progress", finished=540, total=557,
+                    missing_per_endpoint={"FIXTURE_STATISTICS": 434},
+                    gate="hard",
+                ),
+            },
+        }
+        prior = {"WCQAF": 434}
+        stagnant = detect_stagnant_statistics_backfill(report, prior)
+        assert len(stagnant) == 1
+        outcome = evaluate_completeness_outcome(report, prior_fixture_statistics_missing=prior)
+        assert outcome["hard_fail"] is True
+        assert len(outcome["stagnant_statistics"]) == 1
 
     def test_mixed_active_and_in_progress_failures(self):
         # Active failure should hard-fail the run; in_progress partials still
@@ -114,21 +152,25 @@ class TestEvaluateCompletenessOutcome:
                 "WCQAF": _league_block(
                     status="in_progress", finished=540, total=557,
                     missing_per_endpoint={"FIXTURE_STATISTICS": 434},
+                    gate="soft",
                 ),
             },
         }
         outcome = evaluate_completeness_outcome(report)
         assert outcome["hard_fail"] is True
         assert [f["league_code"] for f in outcome["active_failures"]] == ["BL1"]
-        assert [p["league_code"] for p in outcome["in_progress_partial"]] == ["WCQAF"]
+        assert [p["league_code"] for p in outcome["soft_partial"]] == ["WCQAF"]
 
     def test_skipped_report_returns_no_failures(self):
         report = {"skipped": True}
         outcome = evaluate_completeness_outcome(report)
         assert outcome == {
             "hard_fail": False,
+            "hard_gated_failures": [],
             "active_failures": [],
             "in_progress_partial": [],
+            "soft_partial": [],
+            "stagnant_statistics": [],
         }
 
 
@@ -145,7 +187,7 @@ class TestCompletenessMarkdownSummary:
         md = completeness_markdown_summary(report, now=self._FROZEN_TIME)
         assert "## Ingestion completeness — 2026-05-08 06:04 UTC" in md
         assert "| Competition | Status | Finished / Total | Coverage | Backfill remaining |" in md
-        assert "| BL1 | active | 3056 / 3074 |" in md
+        assert "| BL1 | active (hard gate) | 3056 / 3074 |" in md
         assert "all 5 endpoints 100%" in md
         assert "| — |" in md.splitlines()[-1]  # backfill cell empty for complete
 
