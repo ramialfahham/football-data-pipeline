@@ -195,6 +195,54 @@ models:
       - name: standings_group_description
         description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
 
+  - name: mart_team_season_profile
+    description: >
+      Latest-season advanced team profile per league (full finished-leg window, same metric depth as
+      matchday form). Grain: one row per team in max(season_api_year) for each league_code. Use for
+      off-season consumption and before matchday 1 when mart_matchday_insights has no upcoming fixtures.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - team_sk
+    columns:
+      - name: team_season_sk
+        tests: [not_null, unique]
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: season_games_played
+        tests: [not_null]
+      - name: played
+        description: "Finished matches from mart_team_season; null when standings rollup absent."
+
   - name: mart_player_season
     description: "Per-player, per-season rollup. Grain: (player_sk, season_sk). Aggregates come from fct_fixture_player_stats joined to fct_fixture filtered to finished matches. A player who transfers mid-season produces one row per season; per-fixture team attribution lives in the core fact."
     meta:
