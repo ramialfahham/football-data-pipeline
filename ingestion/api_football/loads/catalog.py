@@ -17,6 +17,8 @@ def fetch_catalog_persist_and_plan(
     league_id: int,
     current_season: int | None = None,
     history_seasons: int | None = None,
+    *,
+    poll_mode: bool = False,
 ) -> tuple[list[int], int, dict[str, bool]]:
     """
     Load league metadata to BigQuery, derive seasons to ingest, print coverage summary.
@@ -48,10 +50,13 @@ def fetch_catalog_persist_and_plan(
         current_season=current_season, history_seasons=history_seasons,
     )
     reference_season = max(seasons_list)
+    if poll_mode:
+        seasons_list = [reference_season]
     cov = _coverage_for_season(league_catalog, reference_season)
     print(
         f"[api-football] league={league_code} seasons_to_ingest={seasons_list} "
-        f"coverage_ref_season={reference_season}",
+        f"coverage_ref_season={reference_season}"
+        f"{' poll_mode=1' if poll_mode else ''}",
         flush=True,
     )
     return seasons_list, reference_season, cov

@@ -30,6 +30,30 @@ def _ingestion_phase(league_code: str, step: str) -> None:
     print(f"[api-football] league={league_code} phase={step}", flush=True)
 
 
+def run_poll_phases(
+    ctx: PipelineContext,
+    league_code: str,
+    league_id: int,
+    current_season: int | None = None,
+    history_seasons: int | None = None,
+) -> None:
+    """Idle competition: catalog + latest-season fixtures only (detect new season / matches)."""
+    try:
+        _ingestion_phase(league_code, "poll catalog (leagues + latest season plan)")
+        seasons_list, _reference_season, _cov = fetch_catalog_persist_and_plan(
+            ctx,
+            league_code,
+            league_id,
+            current_season=current_season,
+            history_seasons=history_seasons,
+            poll_mode=True,
+        )
+        _ingestion_phase(league_code, "poll fixtures (latest season only)")
+        fetch_merge_and_persist_fixtures(ctx, league_code, league_id, seasons_list)
+    except Exception as e:
+        ctx.errors.append(f"league {league_code} poll phases: {e}")
+
+
 def run_cheap_phases(
     ctx: PipelineContext,
     league_code: str,
