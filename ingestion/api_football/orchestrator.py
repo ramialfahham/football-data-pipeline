@@ -55,7 +55,12 @@ from .quota import (
     reset_http_quota_exhausted,
 )
 from .loads.context import PipelineContext
-from .loads.competition_runner import run_cheap_phases, run_squads_for_competition
+from .ingest_plan import resolve_ingest_mode
+from .loads.competition_runner import (
+    run_cheap_phases,
+    run_poll_phases,
+    run_squads_for_competition,
+)
 from .loads.fanout import run_global_fanout_and_persist
 
 
@@ -110,9 +115,24 @@ def _load_api_football(request):
                 flush=True,
             )
 
-        # Phase 1: cheap phases for all competitions (catalog, fixtures, standings, etc.)
+        # Phase 1: full cheap phases or poll-only (catalog + latest-season fixtures).
         results = []
         for comp in selected:
+            ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp)
+            print(
+                f"[api-football] league={comp.league_code} ingest_mode={ingest_mode} "
+                f"reason={ingest_reason}",
+                flush=True,
+            )
+            if ingest_mode == "poll":
+                run_poll_phases(
+                    ctx,
+                    comp.league_code,
+                    comp.provider_league_id,
+                    current_season=comp.current_season,
+                    history_seasons=comp.history_seasons,
+                )
+                continue
             result = run_cheap_phases(
                 ctx,
                 comp.league_code,
