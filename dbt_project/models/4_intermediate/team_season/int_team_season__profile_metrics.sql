@@ -26,11 +26,11 @@ season_legs_dedup as (
 
 aggregated_season as (
     select
+        league_code,
+        season_api_year,
         team_sk,
         any_value(league_sk) as league_sk,
         any_value(season_sk) as season_sk,
-        league_code,
-        season_api_year,
         count(distinct fixture_sk) as season_games_played,
         count(distinct round_name) as season_matchdays_used,
         count(distinct case when shots_on_goal is not null then fixture_sk end) as stat_coverage_season_games,
