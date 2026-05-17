@@ -1,0 +1,425 @@
+<!doctype html>
+<!--
+  Matchday IQ — Per-team season retrospective page
+  ================================================
+  Powers the post-season state and pre-MD1 fallback view for the next
+  season. Data source: marts.mart_team_season_insights (one row per
+  (league_code, team) for the latest season per league), exported to
+  team_season_insights.json by scripts/export_team_season_json.py.
+
+  Design locked May 2026 with Rami:
+  - Header: SAISONRÜCKBLICK tag + 84px logo + team name (1.9rem) +
+    single subtitle "Bundesliga · Saison 2025/26 · komplett"
+  - Metrics: same 13 rows as fixture-detail, same six-group banding
+    (rank/output | scoring | shooting | passing | set pieces | keeper)
+  - Carousel walks teams in final-standings order (latest_rank ASC)
+  - Back-link returns to Bundesliga landing card (currently inert
+    until the landing page is deployed)
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Matchday IQ · Saisonrückblick</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07091a;
+      --bg-elev: #11152e;
+      --panel: #161b38;
+      --panel-soft: #1c2349;
+      --line: rgba(255, 255, 255, 0.07);
+      --line-strong: rgba(255, 255, 255, 0.12);
+      --text: #f1f3fb;
+      --muted: #98a3c9;
+      --text-tertiary: #5c6792;
+      --accent: #6ea8fe;
+      --accent-bright: #93c5fd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at top, #1a2055 0%, var(--bg) 65%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app { max-width: 720px; margin: 0 auto; padding: 16px 12px 28px; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .brand {
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #93c5fd 0%, #c7d2fe 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-decoration: none;
+      line-height: 1;
+    }
+    .lang-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .lang-btn:hover { background: var(--panel-soft); }
+    .lang-btn .globe { font-size: 0.85rem; opacity: 0.8; }
+    .lang-btn .caret { font-size: 0.65rem; opacity: 0.55; }
+
+    .backbar { padding: 0 0 14px; }
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 0;
+      text-decoration: none;
+    }
+    .back:hover { color: var(--text); }
+    .back .arrow { font-size: 1rem; }
+
+    /* Off-screen swipe-handler keyboard fallback (preserves a11y) */
+    .team-nav-hidden { position: absolute; left: -9999px; }
+
+    .carousel-wrap {
+      position: relative;
+      margin-top: 4px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .carousel {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .carousel::-webkit-scrollbar { height: 6px; }
+    .carousel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+    .card {
+      min-width: 100%;
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      background: var(--panel);
+      padding: 18px 14px 16px;
+    }
+
+    .team-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .page-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: -4px;
+    }
+    .team-logo-lg {
+      width: 84px;
+      height: 84px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .team-logo-lg img { width: 76%; height: 76%; object-fit: contain; }
+    .team-name {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      text-align: center;
+      line-height: 1.1;
+      margin-top: -2px;
+    }
+    .team-subtitle {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-align: center;
+      letter-spacing: 0;
+      line-height: 1.35;
+      margin-top: -8px;
+    }
+
+    /* Metric list: two columns — labels left-aligned in the left column,
+       values right-aligned in the right column. Same banded grouping
+       pattern as the fixture-detail page (#78) so visual rhythm is
+       identical across both views. */
+    .metrics {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .metric {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+    }
+    .metric + .metric { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+    .metric-band-a { background: var(--panel); }
+    .metric-band-b { background: var(--panel-soft); }
+    .metric-band-a + .metric-band-a,
+    .metric-band-b + .metric-band-b { border-top-color: rgba(255, 255, 255, 0.03); }
+    .metric-band-a + .metric-band-b,
+    .metric-band-b + .metric-band-a { border-top-color: var(--line-strong); }
+    .metric-label {
+      text-align: left;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+    }
+    .metric-value {
+      text-align: right;
+      font-size: 1.1rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+
+    .foot {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: 14px;
+      line-height: 1.45;
+    }
+
+    .empty-state {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .empty-state strong { color: var(--text); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a href="#" class="brand">Matchday IQ</a>
+      <button class="lang-btn" type="button">
+        <span class="globe">🌐</span>
+        <span class="code">DE</span>
+        <span class="caret">▾</span>
+      </button>
+    </header>
+    <nav class="backbar">
+      <!-- TODO: wire to the deployed landing URL once it's live.
+           Until then href="#" is a visual placeholder (link is inert). -->
+      <a href="#" class="back"><span class="arrow">←</span><span id="back-label">Bundesliga</span></a>
+    </nav>
+    <div class="team-nav-hidden">
+      <button type="button" id="prev-btn" aria-label="Vorheriges Team"></button>
+      <button type="button" id="next-btn" aria-label="Nächstes Team"></button>
+    </div>
+    <div class="carousel-wrap">
+      <div class="carousel" id="carousel" role="region" aria-label="Teams in der Tabellenreihenfolge"></div>
+    </div>
+    <p class="foot" id="foot-note"></p>
+  </div>
+
+  <script>
+    const FOOT = "„Ø“ markiert Durchschnittswerte pro Spiel über die komplette Saison. Prozentwerte sind kumulierte Quoten — Summe der Treffer geteilt durch Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+
+    function nz(x) {
+      const n = Number(x);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function fmtDe(x, decimals) {
+      if (x === null || x === undefined) return "-";
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "-";
+      return n.toFixed(decimals).replace(".", ",");
+    }
+
+    function fmtDePct(x) {
+      if (x === null || x === undefined) return "-";
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "-";
+      return `${fmtDe(n * 100, 0)}%`;
+    }
+
+    function escHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function pointsDisplay(row) {
+      const played = Number(row.played);
+      const points = Number(row.points);
+      if (!Number.isFinite(played) || played === 0) return "-";
+      if (!Number.isFinite(points)) return "-";
+      return `${points}/${played * 3}`;
+    }
+
+    function rankDisplay(row) {
+      const r = Number(row.latest_rank);
+      return Number.isFinite(r) ? String(r) : "-";
+    }
+
+    function seasonDisplayLabel(row) {
+      const y = Number(row && row.season_api_year);
+      if (Number.isFinite(y)) return `Saison ${y}/${y + 1}`;
+      return "Saison";
+    }
+
+    function competitionDisplayLabel(row) {
+      // Map league_code → display name. Production-bound; extend as we add
+      // more competitions to the team-season export.
+      const code = String(row && row.league_code ? row.league_code : "").trim();
+      const NAMES = { BL1: "Bundesliga" };
+      return NAMES[code] || code || "Wettbewerb";
+    }
+
+    function subtitleLine(row) {
+      const comp = competitionDisplayLabel(row);
+      const season = seasonDisplayLabel(row);
+      return `${comp} · ${season} · komplett`;
+    }
+
+    function metricRows(row) {
+      // Order and band assignments mirror site/match-preview/index.html
+      // exactly. Six groups:
+      //   a: Tabellenplatz, Punkteausbeute        (rank/output)
+      //   b: Ø Tore, Ø Gegentore                  (scoring)
+      //   a: Ø Schüsse … Trefferquote             (shot volume + quality)
+      //   b: Ø Pässe, Angekommene Pässe           (passing)
+      //   a: Ø Ecken, Ø Ecken gegen               (set pieces)
+      //   b: Gehaltene Torschüsse                 (keeper)
+      const rows = [
+        { label: "Tabellenplatz",             value: rankDisplay(row),                                band: "a" },
+        { label: "Punkteausbeute",            value: pointsDisplay(row),                              band: "a" },
+        { label: "Ø Tore",                    value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
+        { label: "Ø Gegentore",               value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
+        { label: "Ø Schüsse",                 value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
+        { label: "Schüsse aufs Tor",          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
+        { label: "Schüsse aus dem Strafraum", value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
+        { label: "Trefferquote",              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
+        { label: "Ø Pässe",                   value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
+        { label: "Angekommene Pässe",         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
+        { label: "Ø Ecken",                   value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
+        { label: "Ø Ecken gegen",             value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
+        { label: "Gehaltene Torschüsse",      value: fmtDePct(row.save_ratio_season),                 band: "b" },
+      ];
+      return rows.map((r) => `
+        <div class="metric metric-band-${r.band}">
+          <div class="metric-label">${escHtml(r.label)}</div>
+          <div class="metric-value">${escHtml(r.value)}</div>
+        </div>`).join("");
+    }
+
+    function teamLogoUrl(row) {
+      const raw = String(row && row.team_logo_url ? row.team_logo_url : "").trim();
+      return raw;
+    }
+
+    function renderCard(row) {
+      const teamName = String(row.team_name || "").trim() || "Unbekanntes Team";
+      const logoUrl = teamLogoUrl(row);
+      return `
+        <article class="card">
+          <div class="team-header">
+            <div class="page-tag">Saisonrückblick</div>
+            <div class="team-logo-lg"><img src="${escHtml(logoUrl)}" alt="${escHtml(teamName)}"></div>
+            <div class="team-name">${escHtml(teamName)}</div>
+            <div class="team-subtitle">${escHtml(subtitleLine(row))}</div>
+          </div>
+          <div class="metrics">${metricRows(row)}</div>
+        </article>`;
+    }
+
+    function renderEmpty(message) {
+      const carousel = document.getElementById("carousel");
+      carousel.innerHTML = `
+        <article class="card">
+          <div class="empty-state">
+            <strong>Saisonrückblick noch nicht verfügbar.</strong><br>
+            ${escHtml(message)}
+          </div>
+        </article>`;
+    }
+
+    function render(rows) {
+      const carousel = document.getElementById("carousel");
+      // Defensive sort by rank ascending — exporter already orders this way,
+      // but resilient to mart changes / manual edits.
+      const sorted = [...rows].sort((a, b) => nz(a.latest_rank) - nz(b.latest_rank));
+
+      // Update back-label and subtitle competition name from first row
+      const first = sorted[0] || {};
+      const backLabel = document.getElementById("back-label");
+      const comp = competitionDisplayLabel(first);
+      if (backLabel && comp) backLabel.textContent = comp;
+
+      carousel.innerHTML = sorted.map(renderCard).join("");
+      document.getElementById("foot-note").textContent = FOOT;
+    }
+
+    function scrollByCard(dir) {
+      const el = document.getElementById("carousel");
+      el.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" });
+    }
+    document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
+    document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") scrollByCard(-1);
+      else if (e.key === "ArrowRight") scrollByCard(1);
+    });
+
+    fetch("./team_season_insights.json")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((payload) => {
+        const teams = (payload && Array.isArray(payload.teams)) ? payload.teams : [];
+        if (!teams.length) {
+          renderEmpty("Die Daten werden zum Saisonende veröffentlicht.");
+          return;
+        }
+        render(teams);
+      })
+      .catch((err) => {
+        renderEmpty(`Daten konnten nicht geladen werden: ${String(err)}`);
+      });
+  </script>
+</body>
+</html>
