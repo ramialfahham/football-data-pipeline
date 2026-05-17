@@ -52,13 +52,30 @@
 
   .page { max-width: 720px; margin: 0 auto; }
 
-  /* Top bar */
+  /* Top bar: persistent brand left + language switcher right.
+     Brand is visible on every subpage as identity anchor (tap → landing).
+     Back navigation lives on its own row below (.backbar) — mirrors the
+     pattern shipped on site/match-preview/ in PR #78. */
   .topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 0 24px;
+    padding: 4px 0;
   }
+  .brand {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #93c5fd 0%, #c7d2fe 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-decoration: none;
+    line-height: 1;
+  }
+
+  /* Back navigation row, sits below the topbar */
+  .backbar { padding: 0 0 14px; }
   .back {
     display: inline-flex;
     align-items: center;
@@ -70,7 +87,7 @@
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    padding: 6px 0;
+    padding: 4px 0;
     text-decoration: none;
   }
   .back:hover { color: var(--text); }
@@ -96,12 +113,13 @@
   .lang-btn .globe { font-size: 14px; opacity: 0.8; }
   .lang-btn .caret { font-size: 10px; opacity: 0.5; }
 
-  /* Competition context (subheader) */
+  /* Competition context (subheader).
+     Top padding kept tight because .backbar already provides 14px above. */
   .context {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 16px 0 28px;
+    padding: 8px 0 28px;
   }
   .context .logo {
     width: 56px;
@@ -232,7 +250,7 @@
 <div class="page">
 
   <header class="topbar">
-    <a href="#" class="back"><span class="arrow">←</span><span>Wettbewerbe</span></a>
+    <a href="#" class="brand">Matchday IQ</a>
     <div class="lang">
       <button class="lang-btn" type="button">
         <span class="globe">🌐</span>
@@ -241,6 +259,9 @@
       </button>
     </div>
   </header>
+  <nav class="backbar">
+    <a href="#" class="back"><span class="arrow">←</span><span>Wettbewerbe</span></a>
+  </nav>
 
   <section class="context">
     <div class="logo"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
