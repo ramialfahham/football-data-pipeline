@@ -164,13 +164,27 @@
       background: var(--panel);
       padding: 14px;
     }
+    /* Small uppercase page-type tag at the top of each fixture card.
+       Mirrors the SAISONRÜCKBLICK tag on the team-season page so both
+       views share the same header pattern: tag → identity → context. */
+    .preview-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      text-align: center;
+      margin-top: 4px;
+      margin-bottom: 10px;
+    }
+
     /* Match header: centered home + vs + away with logos */
     .fixture {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 14px;
-      margin: 10px 0 18px;
+      margin: 0 0 10px;
     }
     .fixture-team {
       display: flex;
@@ -211,12 +225,16 @@
     }
     /* Legacy classes retained for backward compat */
     .fixture-home, .fixture-away { text-align: center; }
+    /* Match context (competition + matchday + kickoff datetime).
+       Sits below the teams as a single subtitle line — same role as
+       .team-subtitle on the team-season page. */
     .kickoff {
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 500;
-      margin-bottom: 4px;
-      line-height: 1.35;
+      text-align: center;
+      margin: 0 0 4px;
+      line-height: 1.4;
     }
     .ranks { color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; line-height: 1.35; }
 
@@ -779,7 +797,7 @@
         const homeLogoUrl = logoUrl(homeTeam);
         const awayLogoUrl = logoUrl(awayTeam);
         article.innerHTML = `
-          <div class="kickoff">${escHtml(matchContextLine(row))}</div>
+          <div class="preview-tag">Spielvorschau</div>
           <div class="fixture">
             <div class="fixture-team fixture-home">
               <div class="team-logo-lg"><img src="${escHtml(homeLogoUrl)}" alt="${escHtml(homeTeam)}"></div>
@@ -791,6 +809,7 @@
               <div class="team-name-lg">${escHtml(awayTeam)}</div>
             </div>
           </div>
+          <div class="kickoff">${escHtml(matchContextLine(row))}</div>
           <div class="form-context">Form: letzte 5 Spiele</div>
           ${renderMetrics(metricTableRows(row, g))}
         `;
