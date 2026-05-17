@@ -195,11 +195,11 @@ models:
       - name: standings_group_description
         description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
 
-  - name: mart_team_season_profile
+  - name: mart_team_season_insights
     description: >
-      Latest-season advanced team profile per league (full finished-leg window, same metric depth as
-      matchday form). Grain: one row per team in max(season_api_year) for each league_code. Use for
-      off-season consumption and before matchday 1 when mart_matchday_insights has no upcoming fixtures.
+      Latest-season team insights per league (full finished-leg window, same metric depth as matchday
+      form). Grain: one row per team in max(season_api_year) for each league_code. Use for off-season
+      consumption and before matchday 1 when mart_matchday_insights has no upcoming fixtures.
     meta:
       owner: "data-platform"
       domain: "football"

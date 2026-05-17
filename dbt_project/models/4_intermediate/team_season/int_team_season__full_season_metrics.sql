@@ -3,7 +3,7 @@
 {#
   Per (league_code, season_api_year, team_sk) advanced metrics over all finished legs in that season.
   Same sum/rate definitions as int_matchday__team_form_metrics (full window, no five-game cap).
-  Grain: (league_code, season_api_year, team_sk). Consumer marts filter to the latest season per league.
+  Grain: (league_code, season_api_year, team_sk). mart_team_season_insights keeps latest season per league.
 #}
 
 with import_int_matchday__finished_fixture_team_leg as (
