@@ -1,13 +1,13 @@
 {{
     config(
-        tags=["dq", "mart", "season_profile"]
+        tags=["dq", "mart", "season_insights"]
     )
 }}
 
 -- Fails when derived season rates are inconsistent with underlying sums (same rules as matchday form).
 
 with src as (
-    select * from {{ ref('mart_team_season_profile') }}
+    select * from {{ ref('mart_team_season_insights') }}
     where season_games_played > 0
 ),
 
