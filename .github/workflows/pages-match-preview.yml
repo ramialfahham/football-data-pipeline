@@ -13,10 +13,12 @@ on:
       - "dbt_project/models/3_core/**"
       - "dbt_project/models/4_intermediate/matchday/**"
       - "dbt_project/models/4_intermediate/team_season/**"
+      - "dbt_project/models/4_intermediate/wc/**"
       - "site/**"
       - "dbt_project/models/5_marts/mart_matchday_insights.sql"
       - "dbt_project/models/5_marts/mart_matchday_insights_bl1.sql"
       - "dbt_project/models/5_marts/mart_matchday_insights_wc.sql"
+      - "dbt_project/models/5_marts/mart_wc_pre_tournament_insights.sql"
       - "dbt_project/models/5_marts/mart_team_season.sql"
       - "dbt_project/models/5_marts/mart_team_season_insights.sql"
       - "dbt_project/models/5_marts/marts.yml"
@@ -99,11 +101,23 @@ jobs:
 
       - name: Build matchday marts (Pages export + WC sibling) + team-season insights
         working-directory: dbt_project
-        run: dbt run --select +mart_matchday_insights +mart_matchday_insights_wc +mart_team_season_insights
+        run: >-
+          dbt run --select
+          +mart_matchday_insights +mart_matchday_insights_wc
+          +mart_team_season_insights +mart_wc_pre_tournament_insights
 
       - name: Run data quality tests
         working-directory: dbt_project
-        run: dbt test --select fct_fixture int_matchday__team_form_metrics mart_matchday_insights_bl1 mart_matchday_insights_wc assert_mart_matchday_insights_metric_consistency --exclude tag:debug
+        run: >-
+          dbt test --select
+          fct_fixture int_matchday__team_form_metrics
+          mart_matchday_insights_bl1 mart_matchday_insights_wc
+          mart_wc_pre_tournament_insights
+          assert_mart_matchday_insights_metric_consistency
+          assert_mart_wc_pre_tournament_insights_team_count
+          assert_mart_wc_pre_tournament_insights_metric_consistency
+          assert_mart_wc_pre_tournament_insights_complete_implies_coverage
+          --exclude tag:debug
 
       - name: Configure Pages
         uses: actions/configure-pages@v4
@@ -113,6 +127,9 @@ jobs:
 
       - name: Export team-season insights JSON
         run: python scripts/export_team_season_json.py artifacts/team_season_insights.json
+
+      - name: Export WC pre-tournament insights JSON
+        run: python scripts/export_wc_pre_tournament_json.py artifacts/wc_pre_tournament_insights.json
 
       - name: Build metric glossary JSON
         run: python scripts/build_metric_glossary_json.py

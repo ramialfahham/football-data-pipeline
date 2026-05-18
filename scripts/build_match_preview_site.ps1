@@ -3,6 +3,7 @@
 #   /fixture-list/             → upcoming fixtures (empty during off-season)
 #   /match-preview/            → fixture-detail page + matchday insights JSON
 #   /team-season/              → per-team season retrospective + team-season insights JSON
+#   /wc-pre-tournament/        → WC qualifier-window team JSON (UI: site/wc-pre-tournament/)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
 $SiteRoot = Join-Path $Root "_site"
@@ -33,4 +34,13 @@ New-Item -ItemType Directory -Force -Path $TsOut | Out-Null
 Copy-Item (Join-Path $Root "site\team-season\index.html") $TsOut -Force
 Copy-Item (Join-Path $Root "artifacts\team_season_insights.json") $TsOut -Force
 
-Write-Host "Published tree at $SiteRoot (serve _site and open /, /fixture-list/, /match-preview/, or /team-season/)."
+$WcOut = Join-Path $SiteRoot "wc-pre-tournament"
+New-Item -ItemType Directory -Force -Path $WcOut | Out-Null
+$WcHtml = Join-Path $Root "site\wc-pre-tournament\index.html"
+if (Test-Path $WcHtml) {
+    Copy-Item $WcHtml $WcOut -Force
+}
+Copy-Item (Join-Path $Root "artifacts\wc_pre_tournament_insights.json") $WcOut -Force
+Copy-Item (Join-Path $Root "artifacts\metric_glossary.json") $WcOut -Force
+
+Write-Host "Published tree at $SiteRoot (serve _site and open /, /fixture-list/, /match-preview/, /team-season/, or /wc-pre-tournament/)."
