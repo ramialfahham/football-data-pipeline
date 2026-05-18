@@ -253,7 +253,7 @@
   </div>
 
   <script>
-    const FOOT = "„Ø“ markiert Durchschnittswerte pro Spiel über die komplette Saison. Prozentwerte sind kumulierte Quoten — Summe der Treffer geteilt durch Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    const FOOT = "„Ø“ markiert Durchschnittswerte pro Spiel über die komplette Saison. „%“ markiert kumulierte Quoten — Summe der Treffer geteilt durch Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
 
     function nz(x) {
       const n = Number(x);
@@ -328,14 +328,14 @@
         { label: "Ø Tore",                    value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
         { label: "Ø Gegentore",               value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
         { label: "Ø Schüsse",                 value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
-        { label: "Schüsse aufs Tor",          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
-        { label: "Schüsse aus dem Strafraum", value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
-        { label: "Trefferquote",              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
-        { label: "Ø Pässe",                   value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
-        { label: "Angekommene Pässe",         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
-        { label: "Ø Ecken",                   value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
-        { label: "Ø Ecken gegen",             value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
-        { label: "Gehaltene Torschüsse",      value: fmtDePct(row.save_ratio_season),                 band: "b" },
+        { label: "% Schüsse aufs Tor",          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
+        { label: "% Schüsse aus dem Strafraum", value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
+        { label: "% Trefferquote",              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
+        { label: "Ø Pässe",                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
+        { label: "% Angekommene Pässe",         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
+        { label: "Ø Ecken",                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
+        { label: "Ø Ecken gegen",               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
+        { label: "% Gehaltene Torschüsse",      value: fmtDePct(row.save_ratio_season),                 band: "b" },
       ];
       return rows.map((r) => `
         <div class="metric metric-band-${r.band}">

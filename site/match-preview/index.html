@@ -442,7 +442,7 @@
     }
 
     const COPY = {
-      foot: "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. Prozentwerte sind kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.",
+      foot: "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.",
       feedbackThanks: "Danke! Feedback wurde gesendet.",
       feedbackError: "Feedback konnte nicht gesendet werden.",
       feedbackErrorDetailPrefix: "Feedback nicht gespeichert:",
@@ -613,23 +613,23 @@
         // Abschluss & Effizienz
         m("Ø Schüsse", fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1),
           num(r.home_shots_per_match_recent), num(r.away_shots_per_match_recent), "a"),
-        m("Schüsse aufs Tor", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent),
+        m("% Schüsse aufs Tor", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent),
           pct(r.home_shot_accuracy_recent), pct(r.away_shot_accuracy_recent), "a"),
-        m("Schüsse aus dem Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent),
+        m("% Schüsse aus dem Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent),
           pct(r.home_danger_zone_ratio_recent), pct(r.away_danger_zone_ratio_recent), "a"),
-        m("Trefferquote", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent),
+        m("% Trefferquote", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent),
           pct(r.home_finishing_efficiency_recent), pct(r.away_finishing_efficiency_recent), "a"),
         // Spielaufbau
         m("Ø Pässe", fmtDe(r.home_passes_per_match_recent, 0), fmtDe(r.away_passes_per_match_recent, 0),
           num(r.home_passes_per_match_recent), num(r.away_passes_per_match_recent), "b"),
-        m("Angekommene Pässe", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent),
+        m("% Angekommene Pässe", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent),
           pct(r.home_pass_accuracy_recent), pct(r.away_pass_accuracy_recent), "b"),
         // Standards & Defensive
         m("Ø Ecken", fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1),
           num(r.home_corner_kicks_per_match_recent), num(r.away_corner_kicks_per_match_recent), "a"),
         m("Ø Ecken gegen", fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1),
           num(r.home_corners_conceded_per_match_recent), num(r.away_corners_conceded_per_match_recent), "a", { lowerIsBetter: true }),
-        m("Gehaltene Torschüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent),
+        m("% Gehaltene Torschüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent),
           pct(r.home_save_ratio_recent), pct(r.away_save_ratio_recent), "b"),
       ];
     }
