@@ -229,6 +229,47 @@
   }
   .fixture:hover .chevron { color: var(--accent-bright); }
 
+  /* Off-season empty state: no upcoming fixtures.
+     Shown until the next season's calendar is published and ingested. */
+  .empty {
+    margin-top: 8px;
+    padding: 32px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    text-align: center;
+  }
+  .empty .headline {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .empty .sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 18px;
+  }
+  .empty .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--accent-bright);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .empty .cta:hover {
+    background: var(--card-bg-hover);
+    border-color: rgba(110, 168, 254, 0.35);
+  }
+
   /* Footer */
   footer {
     margin-top: 48px;
@@ -250,7 +291,7 @@
 <div class="page">
 
   <header class="topbar">
-    <a href="#" class="brand">Matchday IQ</a>
+    <a href="../" class="brand">Matchday IQ</a>
     <div class="lang">
       <button class="lang-btn" type="button">
         <span class="globe">🌐</span>
@@ -260,166 +301,31 @@
     </div>
   </header>
   <nav class="backbar">
-    <a href="#" class="back"><span class="arrow">←</span><span>Wettbewerbe</span></a>
+    <a href="../" class="back"><span class="arrow">←</span><span>Wettbewerbe</span></a>
   </nav>
 
   <section class="context">
     <div class="logo"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
     <div>
       <h1>Bundesliga</h1>
-      <div class="round">33. Spieltag</div>
-      <div class="round-meta">9 Spiele · 9.–11. Mai 2026</div>
+      <div class="round">Saisonpause</div>
+      <div class="round-meta">Neue Saison startet im August 2026</div>
     </div>
   </section>
 
-  <!-- FRIDAY -->
-  <div class="day-header">Freitag, 9. Mai</div>
-
-  <div class="time-label">20:30</div>
-  <div class="fixtures">
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/169.png" alt="SGE"></div>
-          <div class="team-name">Eintracht Frankfurt</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/173.png" alt="RBL"></div>
-          <div class="team-name">RB Leipzig</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-  </div>
-
-  <!-- SATURDAY -->
-  <div class="day-header">Samstag, 10. Mai</div>
-
-  <div class="time-label">15:30</div>
-  <div class="fixtures">
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/157.png" alt="FCB"></div>
-          <div class="team-name">Bayern München</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/170.png" alt="FCA"></div>
-          <div class="team-name">FC Augsburg</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/165.png" alt="BVB"></div>
-          <div class="team-name">Borussia Dortmund</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/164.png" alt="M05"></div>
-          <div class="team-name">1. FSV Mainz 05</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/172.png" alt="VFB"></div>
-          <div class="team-name">VfB Stuttgart</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/168.png" alt="B04"></div>
-          <div class="team-name">Bayer Leverkusen</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/162.png" alt="SVW"></div>
-          <div class="team-name">Werder Bremen</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/167.png" alt="TSG"></div>
-          <div class="team-name">TSG Hoffenheim</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/161.png" alt="WOB"></div>
-          <div class="team-name">VfL Wolfsburg</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/180.png" alt="FCH"></div>
-          <div class="team-name">1. FC Heidenheim</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-  </div>
-
-  <div class="time-label">18:30</div>
-  <div class="fixtures">
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/163.png" alt="BMG"></div>
-          <div class="team-name">Borussia Mönchengladbach</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/182.png" alt="FCU"></div>
-          <div class="team-name">1. FC Union Berlin</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-  </div>
-
-  <!-- SUNDAY -->
-  <div class="day-header">Sonntag, 11. Mai</div>
-
-  <div class="time-label">15:30</div>
-  <div class="fixtures">
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/160.png" alt="SCF"></div>
-          <div class="team-name">SC Freiburg</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/186.png" alt="STP"></div>
-          <div class="team-name">FC St. Pauli</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-  </div>
-
-  <div class="time-label">17:30</div>
-  <div class="fixtures">
-    <a href="#" class="fixture">
-      <div class="teams">
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/192.png" alt="KOE"></div>
-          <div class="team-name">1. FC Köln</div>
-        </div>
-        <div class="team-row">
-          <div class="team-logo"><img src="https://media.api-sports.io/football/teams/175.png" alt="HSV"></div>
-          <div class="team-name">Hamburger SV</div>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-  </div>
+  <!-- Off-season state: no upcoming fixtures.
+       Stays until the BL1 26/27 calendar is published and the matchday
+       mart starts returning rows again. When fixtures are available
+       this section will render day/time-grouped cards (see git history
+       for the in-season layout). -->
+  <section class="empty">
+    <div class="headline">Keine kommenden Spiele</div>
+    <div class="sub">Die Bundesliga-Saison 2025/26 ist beendet. Bis zum Start der neuen Saison gibt es hier keine Spielvorschau.</div>
+    <a href="../team-season/" class="cta">Saisonrückblick 2025/26 ansehen <span>›</span></a>
+  </section>
 
   <footer>
-    Datenstand: 11.05.2026 · 14:00 UTC · <a href="#">Feedback</a>
+    <a href="#">Feedback</a>
   </footer>
 
 </div>
