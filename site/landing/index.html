@@ -291,74 +291,21 @@
   </header>
   <p class="tagline">Football analytics for fans</p>
 
-  <div class="section-label">Heute &amp; diese Woche</div>
+  <div class="section-label">Wettbewerbe</div>
   <section class="section cards">
 
-    <a href="#" class="card imminent">
-      <div class="badge"><img src="https://media.api-sports.io/football/leagues/140.png" alt="LL"></div>
-      <div class="body">
-        <div class="comp-name">LaLiga</div>
-        <div class="meta"><span class="round">Jornada 36</span></div>
-        <div class="kickoff">
-          <span class="kickoff-when">Sa 11.05. · 14:00</span>
-          <span class="kickoff-relative">in 4 Std</span>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-
-    <a href="#" class="card imminent">
+    <!-- Bundesliga: off-season state.
+         CTA goes directly to /team-season/ — the per-team season retrospective
+         is the live content during the BL1 25/26 → 26/27 gap.
+         Once next season starts, this card will flip back to "next matchday"
+         with a kickoff timestamp (per the form-source dispatch rules). -->
+    <a href="./team-season/" class="card">
       <div class="badge"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
       <div class="body">
         <div class="comp-name">Bundesliga</div>
-        <div class="meta"><span class="round">33. Spieltag</span></div>
+        <div class="meta"><span class="round">Saison 2025/26 beendet</span></div>
         <div class="kickoff">
-          <span class="kickoff-when">Sa 11.05. · 15:30</span>
-          <span class="kickoff-relative">in 5 Std</span>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-
-    <a href="#" class="card">
-      <div class="badge"><img src="https://media.api-sports.io/football/leagues/39.png" alt="PL"></div>
-      <div class="body">
-        <div class="comp-name">Premier League</div>
-        <div class="meta"><span class="round">Matchweek 37</span></div>
-        <div class="kickoff">
-          <span class="kickoff-when">Sa 11.05. · 16:00</span>
-          <span class="kickoff-relative">in 6 Std</span>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-
-    <a href="#" class="card">
-      <div class="badge"><img src="https://media.api-sports.io/football/leagues/135.png" alt="SA"></div>
-      <div class="body">
-        <div class="comp-name">Serie A</div>
-        <div class="meta"><span class="round">Giornata 36</span></div>
-        <div class="kickoff">
-          <span class="kickoff-when">So 12.05. · 20:45</span>
-          <span class="kickoff-relative">morgen</span>
-        </div>
-      </div>
-      <div class="chevron">›</div>
-    </a>
-
-  </section>
-
-  <div class="section-label">Demnächst</div>
-  <section class="section upcoming cards">
-
-    <a href="#" class="card">
-      <div class="badge"><img src="https://media.api-sports.io/football/leagues/1.png" alt="WC"></div>
-      <div class="body">
-        <div class="comp-name">WM 2026</div>
-        <div class="meta"><span class="round">Gruppenphase · Spieltag 1</span></div>
-        <div class="kickoff">
-          <span class="kickoff-when">Do 11.06. · 20:00</span>
-          <span class="kickoff-relative">in 32 Tagen</span>
+          <span class="kickoff-when">Saisonrückblick ansehen</span>
         </div>
       </div>
       <div class="chevron">›</div>
@@ -367,7 +314,7 @@
   </section>
 
   <footer>
-    Datenstand: 10.05.2026 · 19:00 UTC · <a href="#">Feedback</a>
+    <a href="#">Feedback</a>
   </footer>
 
 </div>

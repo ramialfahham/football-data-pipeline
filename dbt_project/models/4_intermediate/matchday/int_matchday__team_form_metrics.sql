@@ -360,9 +360,6 @@ form_metrics as (
         fc.team_sk,
         fc.form_season_api_year,
         fc.form_window_five_capped,
-        coalesce(af.form_games_played, 0) as form_games_played,
-        coalesce(af.form_matchdays_used, 0) as form_matchdays_used,
-        coalesce(af.stat_coverage_form_games, 0) as stat_coverage_form_games,
         af.points_won_sum_form,
         af.goals_for_sum_form,
         af.goals_against_sum_form,
@@ -374,7 +371,10 @@ form_metrics as (
         af.opponent_corner_kicks_sum_form,
         af.passes_accurate_sum_form,
         af.passes_total_sum_form,
-        af.goalkeeper_saves_sum_form
+        af.goalkeeper_saves_sum_form,
+        coalesce(af.form_games_played, 0) as form_games_played,
+        coalesce(af.form_matchdays_used, 0) as form_matchdays_used,
+        coalesce(af.stat_coverage_form_games, 0) as stat_coverage_form_games
     from form_context as fc
     left join aggregated_form as af
         on

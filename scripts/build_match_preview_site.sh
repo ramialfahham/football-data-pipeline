@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Assemble GitHub Pages artifact: static UI + JSON exports.
-#   /                          → redirect to /match-preview/
+#   /                          → landing (competition overview + entry hub)
+#   /fixture-list/             → upcoming fixtures (empty during off-season)
 #   /match-preview/            → fixture-detail page + matchday insights JSON
 #   /team-season/              → per-team season retrospective + team-season insights JSON
 set -euo pipefail
@@ -8,8 +9,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SITE_OUT="${ROOT}/_site"
 mkdir -p "${SITE_OUT}"
 
-# Root redirect
-cp -f "${ROOT}/site/index.html" "${SITE_OUT}/"
+# Landing AT root (replaces the previous redirect-to-match-preview pattern)
+cp -f "${ROOT}/site/landing/index.html" "${SITE_OUT}/index.html"
+
+# /fixture-list/
+FL_OUT="${SITE_OUT}/fixture-list"
+mkdir -p "${FL_OUT}"
+cp -f "${ROOT}/site/fixture-list/index.html" "${FL_OUT}/"
 
 # /match-preview/
 MP_OUT="${SITE_OUT}/match-preview"
