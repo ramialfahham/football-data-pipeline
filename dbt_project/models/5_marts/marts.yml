@@ -632,17 +632,9 @@ models:
         description: "Number of fixtures in this upcoming matchday (same round_name, league, season)."
         tests: [not_null]
       - name: home_league_rank
-        description: "Current table rank for the home team from mart_team_season.latest_rank; null if absent from current standings."
-        tests:
-          - not_null:
-              config:
-                where: "league_code = 'BL1' and fixture_date >= current_date()"
+        description: "Current table rank for the home team from mart_team_season.latest_rank; null before standings exist for the season (e.g. pre–matchday 1)."
       - name: away_league_rank
-        description: "Current table rank for the away team from mart_team_season.latest_rank; null if absent from current standings."
-        tests:
-          - not_null:
-              config:
-                where: "league_code = 'BL1' and fixture_date >= current_date()"
+        description: "Current table rank for the away team from mart_team_season.latest_rank; null before standings exist for the season (e.g. pre–matchday 1)."
       - name: home_standings_group_description
         description: "API standings group/stage label for the home team (mart_team_season.standings_group_description); null if standings absent. Same source row as home_league_rank."
       - name: away_standings_group_description
