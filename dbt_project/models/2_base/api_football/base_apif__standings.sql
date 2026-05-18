@@ -17,6 +17,7 @@
     'import_stg_pd_standings',
     'import_stg_bl2_standings',
     'import_stg_l1_standings',
+    'import_stg_vl_standings',
     'import_stg_sa_standings',
 ] %}
 

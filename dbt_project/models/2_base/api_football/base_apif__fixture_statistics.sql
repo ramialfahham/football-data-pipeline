@@ -17,6 +17,7 @@
     'import_stg_pd_fixture_statistics',
     'import_stg_bl2_fixture_statistics',
     'import_stg_l1_fixture_statistics',
+    'import_stg_vl_fixture_statistics',
     'import_stg_sa_fixture_statistics',
 ] %}
 

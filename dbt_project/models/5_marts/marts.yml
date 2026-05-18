@@ -794,6 +794,15 @@ models:
           expression: "league_code = 'L1'"
           name: mart_matchday_insights_l1_league_code_is_l1
 
+  - name: mart_matchday_insights_vl
+    description: "Veikkausliiga (VL) matchday surface; same column contract as mart_matchday_insights_bl1."
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'VL'"
+          name: mart_matchday_insights_vl_league_code_is_vl
+
   - name: mart_matchday_insights_wc
     description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights_bl1; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
     meta:

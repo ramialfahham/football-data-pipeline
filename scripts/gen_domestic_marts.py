@@ -7,6 +7,7 @@ for code, name in [
     ("BL2", "2. Bundesliga"),
     ("SA", "Serie A"),
     ("L1", "Ligue 1"),
+    ("VL", "Veikkausliiga"),
 ]:
     t = src.replace("BL1", code)
     t = t.replace(

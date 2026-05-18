@@ -299,6 +299,23 @@ competitions:
     raw_table_prefix: "RAW_APIF_L1"
     notes: "2025/26 season only at onboarding; mart_matchday_insights_l1 + team_season_insights."
 
+  - league_code: "VL"
+    name: "Veikkausliiga"
+    country: "Finland"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 244
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "in_progress"
+    ingest_completeness_gate: soft
+    form_source: "league_only"
+    raw_table_prefix: "RAW_APIF_VL"
+    api_coverage_verified: "2026-05-18"
+    notes: "2025 season at onboarding; mart_matchday_insights_vl + team_season_insights."
+
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)
   # -------------------------------------------------------------------------

@@ -81,6 +81,12 @@ with src as (
     select *
     from {{ ref('stg_apif__l1_fixtures_next') }}
     where fixture_id is not null
+
+    union all
+
+    select *
+    from {{ ref('stg_apif__vl_fixtures_next') }}
+    where fixture_id is not null
 )
 
 select

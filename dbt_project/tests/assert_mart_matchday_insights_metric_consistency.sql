@@ -23,6 +23,8 @@ with src as (
     union all
     select * from {{ ref('mart_matchday_insights_l1') }}
     union all
+    select * from {{ ref('mart_matchday_insights_vl') }}
+    union all
     select * from {{ ref('mart_matchday_insights_wc') }}
 ),
 

@@ -7,10 +7,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 
+# Set per run; each tuple is (league_code, staging folder).
 LEAGUES = [
-    ("SA", "sa"),
-    ("L1", "l1"),
+    ("VL", "vl"),
 ]
+
+# Last domestic league already in base unions (anchor for append patches).
+ANCHOR_FOLDER = "l1"
 
 ENTITIES = [
     ("fixtures_next", "FIXTURES_NEXT"),
@@ -160,7 +163,7 @@ def patch_sources() -> None:
 def patch_fixtures_next() -> None:
     path = REPO / "dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql"
     text = path.read_text(encoding="utf-8")
-    anchor = """    from {{ ref('stg_apif__bl2_fixtures_next') }}
+    anchor = f"""    from {{{{ ref('stg_apif__{ANCHOR_FOLDER}_fixtures_next') }}}}
     where fixture_id is not null
 )"""
     adds = ""
@@ -178,9 +181,9 @@ def patch_fixtures_next() -> None:
 def patch_list_model(rel_path: str, cte_suffix: str, cte_body: str) -> None:
     path = REPO / rel_path
     text = path.read_text(encoding="utf-8")
-    list_key = f"'import_stg_bl2_{cte_suffix}',"
+    list_key = f"'import_stg_{ANCHOR_FOLDER}_{cte_suffix}',"
     if list_key not in text:
-        raise SystemExit(f"bl2 list anchor missing in {rel_path}")
+        raise SystemExit(f"{ANCHOR_FOLDER} list anchor missing in {rel_path}")
     for _code, folder in LEAGUES:
         cte_name = f"import_stg_{folder}_{cte_suffix}"
         if cte_name in text:
@@ -210,7 +213,7 @@ def patch_list_model(rel_path: str, cte_suffix: str, cte_body: str) -> None:
 def patch_leagues() -> None:
     path = REPO / "dbt_project/models/2_base/api_football/base_apif__leagues.sql"
     text = path.read_text(encoding="utf-8")
-    anchor = """    from {{ ref('stg_apif__bl2_leagues') }}
+    anchor = f"""    from {{{{ ref('stg_apif__{ANCHOR_FOLDER}_leagues') }}}}
     where league_api_id is not null and season_api_year is not null
 ),
 
@@ -254,6 +257,8 @@ def patch_dbt_project_yml() -> None:
         text = text.replace("    - BL2\n", "    - BL2\n    - L1\n", 1)
     if "    - SA\n" not in text:
         text = text.replace("    - PL\n", "    - PL\n    - SA\n", 1)
+    if "    - VL\n" not in text:
+        text = text.replace("    - SA\n", "    - SA\n    - VL\n", 1)
     path.write_text(text, encoding="utf-8")
     print("patched dbt_project.yml")
 
