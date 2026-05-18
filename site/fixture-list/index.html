@@ -22,8 +22,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matchday IQ — Bundesliga · 33. Spieltag</title>
+<title>Matchday IQ — Bundesliga</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="../i18n.js" defer></script>
 <style>
   :root {
     --bg: #07091a;
@@ -291,7 +292,7 @@
 <div class="page">
 
   <header class="topbar">
-    <a href="../" class="brand">Matchday IQ</a>
+    <a href="../" class="brand" data-i18n="common.brand">Matchday IQ</a>
     <div class="lang">
       <button class="lang-btn" type="button">
         <span class="globe">🌐</span>
@@ -301,15 +302,15 @@
     </div>
   </header>
   <nav class="backbar">
-    <a href="../" class="back"><span class="arrow">←</span><span>Wettbewerbe</span></a>
+    <a href="../" class="back"><span class="arrow">←</span><span data-i18n="fixtureList.back">Wettbewerbe</span></a>
   </nav>
 
   <section class="context">
     <div class="logo"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
     <div>
-      <h1>Bundesliga</h1>
-      <div class="round">Saisonpause</div>
-      <div class="round-meta">Neue Saison startet im August 2026</div>
+      <h1 data-i18n="fixtureList.context.title">Bundesliga</h1>
+      <div class="round" data-i18n="fixtureList.context.round">Saisonpause</div>
+      <div class="round-meta" data-i18n="fixtureList.context.note">Neue Saison startet im August 2026</div>
     </div>
   </section>
 
@@ -319,13 +320,13 @@
        this section will render day/time-grouped cards (see git history
        for the in-season layout). -->
   <section class="empty">
-    <div class="headline">Keine kommenden Spiele</div>
-    <div class="sub">Die Bundesliga-Saison 2025/26 ist beendet. Bis zum Start der neuen Saison gibt es hier keine Spielvorschau.</div>
-    <a href="../team-season/" class="cta">Saisonrückblick 2025/26 ansehen <span>›</span></a>
+    <div class="headline" data-i18n="fixtureList.empty.headline">Keine kommenden Spiele</div>
+    <div class="sub" data-i18n="fixtureList.empty.sub">Die Bundesliga-Saison 2025/26 ist beendet. Bis zum Start der neuen Saison gibt es hier keine Spielvorschau.</div>
+    <a href="../team-season/" class="cta"><span data-i18n="fixtureList.empty.cta">Saisonrückblick 2025/26 ansehen</span> <span>›</span></a>
   </section>
 
   <footer>
-    <a href="#">Feedback</a>
+    <a href="#" data-i18n="common.feedback">Feedback</a>
   </footer>
 
 </div>

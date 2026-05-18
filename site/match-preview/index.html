@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Matchday IQ · Bundesliga</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="../i18n.js" defer></script>
   <style>
     :root {
       /* Aligned with site/landing/ + site/fixture-list/ */
@@ -365,7 +366,7 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <a href="../" class="brand">Matchday IQ</a>
+      <a href="../" class="brand" data-i18n="common.brand">Matchday IQ</a>
       <div class="lang">
         <button class="lang-btn" type="button">
           <span class="globe">🌐</span>
@@ -375,28 +376,28 @@
       </div>
     </header>
     <nav class="backbar">
-      <a href="../fixture-list/" class="back"><span class="arrow">←</span><span>Spieltag</span></a>
+      <a href="../fixture-list/" class="back"><span class="arrow">←</span><span data-i18n="matchPreview.back">Spieltag</span></a>
     </nav>
     <!-- Buttons retained off-screen for swipe-handler keyboard fallback and
          the feedback-modal trigger. Replaced visually by the foot-link below. -->
     <div class="match-nav-hidden">
-      <button type="button" id="prev-btn" aria-label="Vorheriges Spiel"></button>
-      <button type="button" id="next-btn" aria-label="Nächstes Spiel"></button>
+      <button type="button" id="prev-btn" aria-label="Vorheriges Spiel" data-i18n-attr="aria-label:matchPreview.ariaPrev"></button>
+      <button type="button" id="next-btn" aria-label="Nächstes Spiel" data-i18n-attr="aria-label:matchPreview.ariaNext"></button>
       <button id="feedback-open-btn" type="button"></button>
     </div>
     <div class="carousel-wrap">
-      <div class="carousel" id="carousel" role="region" aria-label="Spiele"></div>
+      <div class="carousel" id="carousel" role="region" aria-label="Spiele" data-i18n-attr="aria-label:matchPreview.ariaCarousel"></div>
     </div>
     <p class="foot" id="foot-note"></p>
     <p class="foot-actions">
-      <a href="#" id="feedback-link" class="foot-link">Feedback geben</a>
+      <a href="#" id="feedback-link" class="foot-link" data-i18n="common.feedback">Feedback geben</a>
     </p>
   </div>
   <div class="modal-backdrop" id="feedback-modal-backdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
-      <h2 id="feedback-modal-title">Kurzes Feedback</h2>
+      <h2 id="feedback-modal-title" data-i18n="matchPreview.feedback.modalTitle">Kurzes Feedback</h2>
       <div class="field">
-        <label id="feedback-q1-label" for="feedback-ease">Wie einfach war die Nutzung? (1–5)</label>
+        <label id="feedback-q1-label" for="feedback-ease" data-i18n="matchPreview.feedback.q1">Wie einfach war die Nutzung? (1–5)</label>
         <select id="feedback-ease">
           <option value="5">5</option>
           <option value="4">4</option>
@@ -406,7 +407,7 @@
         </select>
       </div>
       <div class="field">
-        <label id="feedback-q2-label" for="feedback-clarity">Wie verständlich waren die Kennzahlen? (1–5)</label>
+        <label id="feedback-q2-label" for="feedback-clarity" data-i18n="matchPreview.feedback.q2">Wie verständlich waren die Kennzahlen? (1–5)</label>
         <select id="feedback-clarity">
           <option value="5">5</option>
           <option value="4">4</option>
@@ -416,12 +417,12 @@
         </select>
       </div>
       <div class="field">
-        <label id="feedback-q3-label" for="feedback-comment">Was sollen wir zuerst verbessern?</label>
+        <label id="feedback-q3-label" for="feedback-comment" data-i18n="matchPreview.feedback.q3">Was sollen wir zuerst verbessern?</label>
         <textarea id="feedback-comment" rows="4" maxlength="500"></textarea>
       </div>
       <div class="modal-actions">
-        <button id="feedback-cancel-btn" type="button">Abbrechen</button>
-        <button id="feedback-submit-btn" type="button">Senden</button>
+        <button id="feedback-cancel-btn" type="button" data-i18n="matchPreview.feedback.cancel">Abbrechen</button>
+        <button id="feedback-submit-btn" type="button" data-i18n="matchPreview.feedback.submit">Senden</button>
       </div>
     </div>
   </div>
@@ -441,14 +442,18 @@
       return okHost && okPath;
     }
 
-    const COPY = {
-      foot: "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.",
-      feedbackThanks: "Danke! Feedback wurde gesendet.",
-      feedbackError: "Feedback konnte nicht gesendet werden.",
-      feedbackErrorDetailPrefix: "Feedback nicht gespeichert:",
-      feedbackNotConfigured:
-        "Kein Feedback-Endpunkt in dieser Seite: Trage die Web-App-URL (…/exec) in site/match-preview/index.html ein ODER setze das GitHub-Actions-Geheimnis FEEDBACK_APPS_SCRIPT_URL und lasse „Deploy match preview“ neu laufen.",
-    };
+    // German fallback strings — used if i18n.js fails to load. Production
+    // strings live in /i18n/<lang>.json under the "matchPreview" namespace.
+    // Helpers below read from window.t() which prefers the JSON value and
+    // falls back to these constants when the key is missing.
+    const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    const FALLBACK_FEEDBACK_THANKS = "Danke! Feedback wurde gesendet.";
+    const FALLBACK_FEEDBACK_ERROR = "Feedback konnte nicht gesendet werden.";
+    const FALLBACK_FEEDBACK_ERROR_PREFIX = "Feedback nicht gespeichert:";
+    const FALLBACK_FEEDBACK_NOT_CONFIGURED = "Kein Feedback-Endpunkt in dieser Seite: Trage die Web-App-URL (…/exec) in site/match-preview/index.html ein ODER setze das GitHub-Actions-Geheimnis FEEDBACK_APPS_SCRIPT_URL und lasse „Deploy match preview“ neu laufen.";
+
+    // Safe wrappers — work even if i18n.js hasn't defined window.t yet.
+    function t(key, fallback) { return (window.t ? window.t(key, fallback) : fallback); }
 
     function nz(x) {
       const n = Number(x);
@@ -601,35 +606,35 @@
       const num = (v) => (v === null || v === undefined || isNaN(Number(v))) ? null : Number(v);
       return [
         // Tabellenstand & Form
-        m("Tabellenplatz", rankLabel(r.home_league_rank), rankLabel(r.away_league_rank),
+        m(t("metric.tabellenplatz", "Tabellenplatz"), rankLabel(r.home_league_rank), rankLabel(r.away_league_rank),
           num(r.home_league_rank), num(r.away_league_rank), "a", { lowerIsBetter: true }),
-        m("Punkteausbeute", pointsDisplay(r, "home"), pointsDisplay(r, "away"),
+        m(t("metric.punkteausbeute", "Punkteausbeute"), pointsDisplay(r, "home"), pointsDisplay(r, "away"),
           num(r.home_points_won_sum_form), num(r.away_points_won_sum_form), "a"),
         // Tore
-        m("Ø Tore", fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1),
+        m(t("metric.tore", "Ø Tore"), fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1),
           num(r.home_goals_per_match_recent), num(r.away_goals_per_match_recent), "b"),
-        m("Ø Gegentore", fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1),
+        m(t("metric.gegentore", "Ø Gegentore"), fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1),
           num(r.home_goals_against_per_match_recent), num(r.away_goals_against_per_match_recent), "b", { lowerIsBetter: true }),
         // Abschluss & Effizienz
-        m("Ø Schüsse", fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1),
+        m(t("metric.schuesse", "Ø Schüsse"), fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1),
           num(r.home_shots_per_match_recent), num(r.away_shots_per_match_recent), "a"),
-        m("% Schüsse aufs Tor", fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent),
+        m(t("metric.schuesseAufsTor", "% Schüsse aufs Tor"), fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent),
           pct(r.home_shot_accuracy_recent), pct(r.away_shot_accuracy_recent), "a"),
-        m("% Schüsse aus dem Strafraum", fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent),
+        m(t("metric.schuesseAusStrafraum", "% Schüsse aus dem Strafraum"), fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent),
           pct(r.home_danger_zone_ratio_recent), pct(r.away_danger_zone_ratio_recent), "a"),
-        m("% Trefferquote", fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent),
+        m(t("metric.trefferquote", "% Trefferquote"), fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent),
           pct(r.home_finishing_efficiency_recent), pct(r.away_finishing_efficiency_recent), "a"),
         // Spielaufbau
-        m("Ø Pässe", fmtDe(r.home_passes_per_match_recent, 0), fmtDe(r.away_passes_per_match_recent, 0),
+        m(t("metric.paesse", "Ø Pässe"), fmtDe(r.home_passes_per_match_recent, 0), fmtDe(r.away_passes_per_match_recent, 0),
           num(r.home_passes_per_match_recent), num(r.away_passes_per_match_recent), "b"),
-        m("% Angekommene Pässe", fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent),
+        m(t("metric.angekommenePaesse", "% Angekommene Pässe"), fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent),
           pct(r.home_pass_accuracy_recent), pct(r.away_pass_accuracy_recent), "b"),
         // Standards & Defensive
-        m("Ø Ecken", fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1),
+        m(t("metric.ecken", "Ø Ecken"), fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1),
           num(r.home_corner_kicks_per_match_recent), num(r.away_corner_kicks_per_match_recent), "a"),
-        m("Ø Ecken gegen", fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1),
+        m(t("metric.eckenGegen", "Ø Ecken gegen"), fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1),
           num(r.home_corners_conceded_per_match_recent), num(r.away_corners_conceded_per_match_recent), "a", { lowerIsBetter: true }),
-        m("% Gehaltene Torschüsse", fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent),
+        m(t("metric.gehalteneTorschuesse", "% Gehaltene Torschüsse"), fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent),
           pct(r.home_save_ratio_recent), pct(r.away_save_ratio_recent), "b"),
       ];
     }
@@ -675,15 +680,8 @@
 
     let activeFixtureId = null;
 
-    function setFeedbackCopy() {
-      document.getElementById("feedback-open-btn").textContent = "Feedback";
-      document.getElementById("feedback-modal-title").textContent = "Kurzes Feedback";
-      document.getElementById("feedback-q1-label").textContent = "Wie einfach war die Nutzung? (1–5)";
-      document.getElementById("feedback-q2-label").textContent = "Wie verständlich waren die Kennzahlen? (1–5)";
-      document.getElementById("feedback-q3-label").textContent = "Was sollen wir zuerst verbessern?";
-      document.getElementById("feedback-cancel-btn").textContent = "Abbrechen";
-      document.getElementById("feedback-submit-btn").textContent = "Senden";
-    }
+    // (setFeedbackCopy removed — feedback modal labels are now driven
+    //  by data-i18n attributes on the modal elements directly.)
 
     function showToast(message, isError = false) {
       const toast = document.getElementById("feedback-toast");
@@ -707,7 +705,7 @@
 
     async function submitFeedback() {
       if (!isFeedbackEndpointConfigured()) {
-        showToast(COPY.feedbackNotConfigured, true);
+        showToast(t("matchPreview.feedback.notConfigured", FALLBACK_FEEDBACK_NOT_CONFIGURED), true);
         return;
       }
       const ease = Number(document.getElementById("feedback-ease").value);
@@ -717,7 +715,7 @@
         ease_score: ease,
         clarity_score: clarity,
         improvement_text: comment,
-        language: "de",
+        language: (window.MATCHDAYIQ_LANG || "de"),
         fixture_id: activeFixtureId,
         app_version: "pages-match-preview",
         submitted_at: new Date().toISOString(),
@@ -732,28 +730,27 @@
         const body = await resp.json().catch(() => null);
         const appOk = !!(body && body.ok);
         if (!resp.ok) {
-          showToast(`${COPY.feedbackError} (HTTP ${resp.status})`, true);
+          showToast(`${t("matchPreview.feedback.error", FALLBACK_FEEDBACK_ERROR)} (HTTP ${resp.status})`, true);
           return;
         }
         if (!appOk) {
           const detail = body && body.error ? String(body.error) : "unknown_error";
-          showToast(`${COPY.feedbackErrorDetailPrefix} ${detail}`, true);
+          showToast(`${t("matchPreview.feedback.errorDetailPrefix", FALLBACK_FEEDBACK_ERROR_PREFIX)} ${detail}`, true);
           return;
         }
         closeFeedbackModal();
         document.getElementById("feedback-comment").value = "";
-        showToast(COPY.feedbackThanks);
+        showToast(t("matchPreview.feedback.thanks", FALLBACK_FEEDBACK_THANKS));
       } catch (err) {
         const hint = err && String(err.message || err).includes("fetch")
           ? " Netzwerk/CORS prüfen; Web-App auf „Jeder“?"
           : "";
-        showToast(`${COPY.feedbackError}${hint}`, true);
+        showToast(`${t("matchPreview.feedback.error", FALLBACK_FEEDBACK_ERROR)}${hint}`, true);
       }
     }
 
     function render(rows, g) {
-      document.getElementById("foot-note").textContent = COPY.foot;
-      setFeedbackCopy();
+      document.getElementById("foot-note").textContent = t("matchPreview.foot", FALLBACK_FOOT);
 
       const sorted = [...rows].sort((a, b) => {
         const ta = new Date(a.kickoff_datetime).getTime();
@@ -795,7 +792,7 @@
         const homeLogoUrl = logoUrl(homeTeam);
         const awayLogoUrl = logoUrl(awayTeam);
         article.innerHTML = `
-          <div class="preview-tag">Spielvorschau</div>
+          <div class="preview-tag">${escHtml(t("matchPreview.tag", "Spielvorschau"))}</div>
           <div class="fixture">
             <div class="fixture-team fixture-home">
               <div class="team-logo-lg"><img src="${escHtml(homeLogoUrl)}" alt="${escHtml(homeTeam)}"></div>
@@ -808,7 +805,7 @@
             </div>
           </div>
           <div class="kickoff">${escHtml(matchContextLine(row))}</div>
-          <div class="form-context">Form: letzte 5 Spiele</div>
+          <div class="form-context">${escHtml(t("matchPreview.formContext", "Form: letzte 5 Spiele"))}</div>
           ${renderMetrics(metricTableRows(row, g))}
         `;
         carousel.appendChild(article);
@@ -828,33 +825,47 @@
       el.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" });
     }
 
-    document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
-    document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
-    document.getElementById("feedback-open-btn").addEventListener("click", openFeedbackModal);
-    const feedbackLink = document.getElementById("feedback-link");
-    if (feedbackLink) {
-      feedbackLink.addEventListener("click", (e) => {
-        e.preventDefault();
-        openFeedbackModal();
+    function start() {
+      document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
+      document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
+      document.getElementById("feedback-open-btn").addEventListener("click", openFeedbackModal);
+      const feedbackLink = document.getElementById("feedback-link");
+      if (feedbackLink) {
+        feedbackLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          openFeedbackModal();
+        });
+      }
+      document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
+      document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
+      document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
+        if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
       });
-    }
-    document.getElementById("feedback-cancel-btn").addEventListener("click", closeFeedbackModal);
-    document.getElementById("feedback-submit-btn").addEventListener("click", submitFeedback);
-    document.getElementById("feedback-modal-backdrop").addEventListener("click", (ev) => {
-      if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
-    });
 
-    Promise.all([
-      fetch("./matchday_insights.json").then((r) => r.json()),
-      fetch("./metric_glossary.json").then((r) => r.json()).catch(() => ({ metrics: [] })),
-    ])
-      .then(([payload, glossaryPayload]) => {
-        render(payload.show || [], glossaryMap(glossaryPayload));
-      })
-      .catch((err) => {
-        document.getElementById("carousel").innerHTML =
-          `<article class="card">Daten konnten nicht geladen werden: ${err}</article>`;
-      });
+      // Wait for both i18n (translations) and the data fetch so the rendered
+      // carousel uses translated labels on first paint.
+      const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
+      Promise.all([
+        i18nReady,
+        fetch("./matchday_insights.json").then((r) => r.json()),
+        fetch("./metric_glossary.json").then((r) => r.json()).catch(() => ({ metrics: [] })),
+      ])
+        .then(([_, payload, glossaryPayload]) => {
+          render(payload.show || [], glossaryMap(glossaryPayload));
+        })
+        .catch((err) => {
+          document.getElementById("carousel").innerHTML =
+            `<article class="card">${escHtml(t("matchPreview.errorPrefix", "Daten konnten nicht geladen werden:"))} ${escHtml(String(err))}</article>`;
+        });
+    }
+
+    // Deferred scripts (i18n.js) run after parsing but before DOMContentLoaded.
+    // Wait for DCL so window.MATCHDAYIQ_I18N_READY is defined when start() runs.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+      start();
+    }
   </script>
 </body>
 </html>
