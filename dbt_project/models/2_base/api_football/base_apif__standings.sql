@@ -231,7 +231,8 @@ import_stg_wcqoc_standings as (
     from {{ ref('stg_apif__wcqoc_standings') }}
     where
         team_id is not null
-        and season is not null,
+        and season is not null
+),
 
 import_stg_pl_standings as (
     select
@@ -255,7 +256,54 @@ import_stg_pl_standings as (
     where
         team_id is not null
         and season is not null
-)
+),
+
+import_stg_pd_standings as (
+    select
+        league_code,
+        league_api_id,
+        league_name,
+        season,
+        team_id,
+        team_name,
+        standing_rank,
+        points,
+        goals_diff,
+        form,
+        group_description,
+        played_all,
+        wins_all,
+        draws_all,
+        losses_all,
+        raw_ingested_at
+    from {{ ref('stg_apif__pd_standings') }}
+    where
+        team_id is not null
+        and season is not null
+),
+
+import_stg_bl2_standings as (
+    select
+        league_code,
+        league_api_id,
+        league_name,
+        season,
+        team_id,
+        team_name,
+        standing_rank,
+        points,
+        goals_diff,
+        form,
+        group_description,
+        played_all,
+        wins_all,
+        draws_all,
+        losses_all,
+        raw_ingested_at
+    from {{ ref('stg_apif__bl2_standings') }}
+    where
+        team_id is not null
+        and season is not null
 ),
 
 unioned_standings as (

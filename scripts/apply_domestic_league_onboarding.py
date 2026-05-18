@@ -83,24 +83,25 @@ def patch_list_model(
 ) -> None:
     path = REPO / rel_path
     text = path.read_text(encoding="utf-8")
-    for _code, folder in LEAGUES:
-        cte_name = f"import_stg_{folder}_{cte_suffix}"
-        if cte_name in text:
-            continue
-        text = text.replace(
-            "    'import_stg_wcqoc_" + cte_suffix + "',\n]",
-            "    'import_stg_wcqoc_" + cte_suffix + "',\n"
-            + "".join(f"    'import_stg_{f}_{cte_suffix}',\n" for _c, f in LEAGUES)
-            + "]",
-            1,
-        )
-        anchor = "import_stg_wcqoc_" + cte_suffix + " as ("
-        pos = text.rfind(anchor)
-        if pos < 0:
-            raise SystemExit(f"anchor missing in {rel_path}")
-        close = text.find("\n),", pos)
-        block = cte_body.format(folder=folder)
-        text = text[: close] + ",\n\n" + block + text[close:]
+    if any(f"import_stg_{folder}_{cte_suffix}" in text for _code, folder in LEAGUES):
+        print(f"{rel_path} already patched")
+        return
+    text = text.replace(
+        "    'import_stg_wcqoc_" + cte_suffix + "',\n]",
+        "    'import_stg_wcqoc_" + cte_suffix + "',\n"
+        + "".join(f"    'import_stg_{f}_{cte_suffix}',\n" for _c, f in LEAGUES)
+        + "]",
+        1,
+    )
+    anchor = "import_stg_wcqoc_" + cte_suffix + " as ("
+    pos = text.rfind(anchor)
+    if pos < 0:
+        raise SystemExit(f"anchor missing in {rel_path}")
+    close = text.find("\n),", pos)
+    if close < 0:
+        raise SystemExit(f"wcqoc CTE close missing in {rel_path}")
+    blocks = ",\n\n".join(cte_body.format(folder=folder) for _code, folder in LEAGUES)
+    text = text[:close] + "\n),\n\n" + blocks + text[close:]
     path.write_text(text, encoding="utf-8")
     print(f"patched {rel_path}")
 
