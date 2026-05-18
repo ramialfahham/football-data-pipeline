@@ -66,7 +66,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
-    ingest_completeness_gate: hard
+    ingest_completeness_gate: soft
     form_source: "supporting_leagues"
     raw_table_prefix: "RAW_APIF_WC"
     team_count: 48
@@ -81,6 +81,10 @@ competitions:
       statistics_players: false     # not yet active — monitor, activate when available
       events: false
       lineups: false
+    notes: >
+      Soft completeness gate so scheduled ingest and dbt keep running during the
+      tournament when the API lags or WCQOC-style gaps cannot close. dbt/UI still
+      enforce metric completeness via is_*_complete flags.
     form_data_strategy: >
       /fixtures?team={id}&last=10 per team. Returns last 10 international fixtures
       across all competitions. Initial backfill = 48 API calls.
