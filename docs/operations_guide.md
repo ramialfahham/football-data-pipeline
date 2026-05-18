@@ -69,6 +69,10 @@ Explicit values for any individual variable override the profile defaults.
 
 ### Tuning knobs
 
+#### `API_FOOTBALL_LEAGUE_CODES` (optional)
+
+Comma-separated allowlist of `league_code` values to ingest (e.g. `PL,PD,BL2`). When set, only those codes run after the usual active / in-progress policy filter. Used in PR CI to bootstrap raw tables for newly onboarded leagues without re-ingesting the full registry.
+
 #### `API_FOOTBALL_FIXTURES_MODE` (optional)
 
 How `/fixtures` is queried. Default `season` (`league` + `season` only). Alternative modes: `from_to` (date range) and `next` (upcoming matches — usually paid-only).

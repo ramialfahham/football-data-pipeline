@@ -210,6 +210,17 @@ def include_in_progress_competitions() -> bool:
     return _env_truthy("API_FOOTBALL_INCLUDE_IN_PROGRESS", default=False)
 
 
+def _league_codes_filter() -> frozenset[str] | None:
+    """Optional comma-separated allowlist (e.g. ``PL,PD,BL2`` for CI bootstrap)."""
+    raw = os.getenv("API_FOOTBALL_LEAGUE_CODES", "").strip()
+    if not raw:
+        return None
+    codes = frozenset(part.strip().upper() for part in raw.split(",") if part.strip())
+    if not codes:
+        raise ValueError("API_FOOTBALL_LEAGUE_CODES is set but contains no league codes.")
+    return codes
+
+
 def selected_competitions() -> tuple[list[Competition], list[tuple[Competition, str]]]:
     selected: list[Competition] = []
     skipped: list[tuple[Competition, str]] = []
@@ -228,9 +239,24 @@ def selected_competitions() -> tuple[list[Competition], list[tuple[Competition, 
             )
         else:
             skipped.append((comp, f"status={comp.status} is excluded by policy"))
+    codes_filter = _league_codes_filter()
+    if codes_filter is not None:
+        kept: list[Competition] = []
+        for comp in selected:
+            if comp.league_code in codes_filter:
+                kept.append(comp)
+            else:
+                skipped.append(
+                    (
+                        comp,
+                        f"excluded by API_FOOTBALL_LEAGUE_CODES allowlist ({sorted(codes_filter)})",
+                    )
+                )
+        selected = kept
     if not selected:
         raise ValueError(
             "No competitions selected for ingestion. "
-            "Review competition status values and API_FOOTBALL_INCLUDE_IN_PROGRESS."
+            "Review competition status values, API_FOOTBALL_INCLUDE_IN_PROGRESS, "
+            "and API_FOOTBALL_LEAGUE_CODES."
         )
     return selected, skipped

@@ -75,6 +75,17 @@ jobs:
       - name: Parse project
         run: dbt parse
 
+      - name: Bootstrap ingest PL PD BL2 raw tables
+        working-directory: .
+        env:
+          API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
+          API_FOOTBALL_INCLUDE_IN_PROGRESS: "1"
+          API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2"
+          API_FOOTBALL_SKIP_INGEST_LOCK: "1"
+        run: |
+          export PYTHONPATH=.
+          python -m ingestion.api_football.main
+
       - name: Build BL1 staging
         run: dbt build --select path:models/1_staging/api_football/bl1
 
