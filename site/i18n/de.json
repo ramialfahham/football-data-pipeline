@@ -1,0 +1,86 @@
+{
+  "common": {
+    "brand": "Matchday IQ",
+    "feedback": "Feedback geben",
+    "unavailable": "nicht verfügbar"
+  },
+  "metric": {
+    "tabellenplatz": "Tabellenplatz",
+    "punkteausbeute": "Punkteausbeute",
+    "tore": "Ø Tore",
+    "gegentore": "Ø Gegentore",
+    "schuesse": "Ø Schüsse",
+    "schuesseAufsTor": "% Schüsse aufs Tor",
+    "schuesseAusStrafraum": "% Schüsse aus dem Strafraum",
+    "trefferquote": "% Trefferquote",
+    "paesse": "Ø Pässe",
+    "angekommenePaesse": "% Angekommene Pässe",
+    "ecken": "Ø Ecken",
+    "eckenGegen": "Ø Ecken gegen",
+    "gehalteneTorschuesse": "% Gehaltene Torschüsse"
+  },
+  "landing": {
+    "tagline": "Football analytics for fans",
+    "sectionLabel": "Wettbewerbe",
+    "bundesliga": {
+      "title": "Bundesliga",
+      "state": "Saison 2025/26 beendet",
+      "cta": "Saisonrückblick ansehen"
+    }
+  },
+  "fixtureList": {
+    "back": "Wettbewerbe",
+    "context": {
+      "title": "Bundesliga",
+      "round": "Saisonpause",
+      "note": "Neue Saison startet im August 2026"
+    },
+    "empty": {
+      "headline": "Keine kommenden Spiele",
+      "sub": "Die Bundesliga-Saison 2025/26 ist beendet. Bis zum Start der neuen Saison gibt es hier keine Spielvorschau.",
+      "cta": "Saisonrückblick 2025/26 ansehen"
+    }
+  },
+  "teamSeason": {
+    "back": "Bundesliga",
+    "tag": "Saisonrückblick",
+    "subtitle": "{{competition}} · Saison {{seasonStart}}/{{seasonEnd}} · komplett",
+    "competition": {
+      "BL1": "Bundesliga"
+    },
+    "empty": {
+      "headline": "Saisonrückblick noch nicht verfügbar.",
+      "subPending": "Die Daten werden zum Saisonende veröffentlicht.",
+      "errorPrefix": "Daten konnten nicht geladen werden:"
+    },
+    "missingTeamName": "Unbekanntes Team",
+    "foot": "„Ø“ markiert Durchschnittswerte pro Spiel über die komplette Saison. „%“ markiert kumulierte Quoten — Summe der Treffer geteilt durch Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen."
+  },
+  "matchPreview": {
+    "back": "Spieltag",
+    "tag": "Spielvorschau",
+    "formContext": "Form: letzte 5 Spiele",
+    "errorPrefix": "Daten konnten nicht geladen werden:",
+    "foot": "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.",
+    "feedback": {
+      "modalTitle": "Kurzes Feedback",
+      "q1": "Wie einfach war die Nutzung? (1–5)",
+      "q2": "Wie verständlich waren die Kennzahlen? (1–5)",
+      "q3": "Was sollen wir zuerst verbessern?",
+      "cancel": "Abbrechen",
+      "submit": "Senden",
+      "thanks": "Danke! Feedback wurde gesendet.",
+      "error": "Feedback konnte nicht gesendet werden.",
+      "errorDetailPrefix": "Feedback nicht gespeichert:",
+      "notConfigured": "Kein Feedback-Endpunkt in dieser Seite: Trage die Web-App-URL (…/exec) in site/match-preview/index.html ein ODER setze das GitHub-Actions-Geheimnis FEEDBACK_APPS_SCRIPT_URL und lasse „Deploy match preview“ neu laufen."
+    },
+    "ariaPrev": "Vorheriges Spiel",
+    "ariaNext": "Nächstes Spiel",
+    "ariaCarousel": "Spiele"
+  },
+  "teamSeasonAria": {
+    "prev": "Vorheriges Team",
+    "next": "Nächstes Team",
+    "carousel": "Teams in der Tabellenreihenfolge"
+  }
+}

@@ -22,6 +22,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Matchday IQ · Saisonrückblick</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="../i18n.js" defer></script>
   <style>
     :root {
       --bg: #07091a;
@@ -232,7 +233,7 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <a href="../" class="brand">Matchday IQ</a>
+      <a href="../" class="brand" data-i18n="common.brand">Matchday IQ</a>
       <button class="lang-btn" type="button">
         <span class="globe">🌐</span>
         <span class="code">DE</span>
@@ -240,20 +241,27 @@
       </button>
     </header>
     <nav class="backbar">
-      <a href="../" class="back"><span class="arrow">←</span><span id="back-label">Bundesliga</span></a>
+      <a href="../" class="back"><span class="arrow">←</span><span id="back-label" data-i18n="teamSeason.back">Bundesliga</span></a>
     </nav>
     <div class="team-nav-hidden">
-      <button type="button" id="prev-btn" aria-label="Vorheriges Team"></button>
-      <button type="button" id="next-btn" aria-label="Nächstes Team"></button>
+      <button type="button" id="prev-btn" aria-label="Vorheriges Team" data-i18n-attr="aria-label:teamSeasonAria.prev"></button>
+      <button type="button" id="next-btn" aria-label="Nächstes Team" data-i18n-attr="aria-label:teamSeasonAria.next"></button>
     </div>
     <div class="carousel-wrap">
-      <div class="carousel" id="carousel" role="region" aria-label="Teams in der Tabellenreihenfolge"></div>
+      <div class="carousel" id="carousel" role="region" aria-label="Teams in der Tabellenreihenfolge" data-i18n-attr="aria-label:teamSeasonAria.carousel"></div>
     </div>
     <p class="foot" id="foot-note"></p>
   </div>
 
   <script>
-    const FOOT = "„Ø“ markiert Durchschnittswerte pro Spiel über die komplette Saison. „%“ markiert kumulierte Quoten — Summe der Treffer geteilt durch Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    // German fallback strings — used if i18n.js fails to load. Production
+    // strings live in /i18n/<lang>.json. Helpers below read from window.t()
+    // which falls back to the inline fallback if the JSON key is missing.
+    const FOOT_FALLBACK = "„Ø“ markiert Durchschnittswerte pro Spiel über die komplette Saison. „%“ markiert kumulierte Quoten — Summe der Treffer geteilt durch Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+
+    // Safe wrapper around window.t — works even if i18n.js hasn't defined it yet.
+    function t(key, fallback) { return (window.t ? window.t(key, fallback) : fallback); }
+    function tFmt(key, vars, fallback) { return (window.tFmt ? window.tFmt(key, vars, fallback) : fallback); }
 
     function nz(x) {
       const n = Number(x);
@@ -293,24 +301,24 @@
       return Number.isFinite(r) ? String(r) : "-";
     }
 
-    function seasonDisplayLabel(row) {
-      const y = Number(row && row.season_api_year);
-      if (Number.isFinite(y)) return `Saison ${y}/${y + 1}`;
-      return "Saison";
-    }
-
     function competitionDisplayLabel(row) {
-      // Map league_code → display name. Production-bound; extend as we add
-      // more competitions to the team-season export.
+      // Resolve via i18n's teamSeason.competition.<code> namespace; falls
+      // back to the raw league_code (e.g., "BL1") if the language file
+      // doesn't know the competition yet.
       const code = String(row && row.league_code ? row.league_code : "").trim();
-      const NAMES = { BL1: "Bundesliga" };
-      return NAMES[code] || code || "Wettbewerb";
+      if (!code) return t("teamSeason.competition.unknown", "Wettbewerb");
+      return t("teamSeason.competition." + code, code);
     }
 
     function subtitleLine(row) {
       const comp = competitionDisplayLabel(row);
-      const season = seasonDisplayLabel(row);
-      return `${comp} · ${season} · komplett`;
+      const y = Number(row && row.season_api_year);
+      if (!Number.isFinite(y)) return comp;
+      return tFmt(
+        "teamSeason.subtitle",
+        { competition: comp, seasonStart: y, seasonEnd: y + 1 },
+        `${comp} · Saison ${y}/${y + 1} · komplett`
+      );
     }
 
     function metricRows(row) {
@@ -323,19 +331,19 @@
       //   a: Ø Ecken, Ø Ecken gegen               (set pieces)
       //   b: Gehaltene Torschüsse                 (keeper)
       const rows = [
-        { label: "Tabellenplatz",             value: rankDisplay(row),                                band: "a" },
-        { label: "Punkteausbeute",            value: pointsDisplay(row),                              band: "a" },
-        { label: "Ø Tore",                    value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
-        { label: "Ø Gegentore",               value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
-        { label: "Ø Schüsse",                 value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
-        { label: "% Schüsse aufs Tor",          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
-        { label: "% Schüsse aus dem Strafraum", value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
-        { label: "% Trefferquote",              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
-        { label: "Ø Pässe",                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
-        { label: "% Angekommene Pässe",         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
-        { label: "Ø Ecken",                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
-        { label: "Ø Ecken gegen",               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
-        { label: "% Gehaltene Torschüsse",      value: fmtDePct(row.save_ratio_season),                 band: "b" },
+        { label: t("metric.tabellenplatz",         "Tabellenplatz"),               value: rankDisplay(row),                                band: "a" },
+        { label: t("metric.punkteausbeute",        "Punkteausbeute"),              value: pointsDisplay(row),                              band: "a" },
+        { label: t("metric.tore",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
+        { label: t("metric.gegentore",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
+        { label: t("metric.schuesse",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
+        { label: t("metric.schuesseAufsTor",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
+        { label: t("metric.schuesseAusStrafraum",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
+        { label: t("metric.trefferquote",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
+        { label: t("metric.paesse",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
+        { label: t("metric.angekommenePaesse",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
+        { label: t("metric.ecken",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
+        { label: t("metric.eckenGegen",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
+        { label: t("metric.gehalteneTorschuesse", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
       ];
       return rows.map((r) => `
         <div class="metric metric-band-${r.band}">
@@ -350,12 +358,12 @@
     }
 
     function renderCard(row) {
-      const teamName = String(row.team_name || "").trim() || "Unbekanntes Team";
+      const teamName = String(row.team_name || "").trim() || t("teamSeason.missingTeamName", "Unbekanntes Team");
       const logoUrl = teamLogoUrl(row);
       return `
         <article class="card">
           <div class="team-header">
-            <div class="page-tag">Saisonrückblick</div>
+            <div class="page-tag">${escHtml(t("teamSeason.tag", "Saisonrückblick"))}</div>
             <div class="team-logo-lg"><img src="${escHtml(logoUrl)}" alt="${escHtml(teamName)}"></div>
             <div class="team-name">${escHtml(teamName)}</div>
             <div class="team-subtitle">${escHtml(subtitleLine(row))}</div>
@@ -369,7 +377,7 @@
       carousel.innerHTML = `
         <article class="card">
           <div class="empty-state">
-            <strong>Saisonrückblick noch nicht verfügbar.</strong><br>
+            <strong>${escHtml(t("teamSeason.empty.headline", "Saisonrückblick noch nicht verfügbar."))}</strong><br>
             ${escHtml(message)}
           </div>
         </article>`;
@@ -381,14 +389,14 @@
       // but resilient to mart changes / manual edits.
       const sorted = [...rows].sort((a, b) => nz(a.latest_rank) - nz(b.latest_rank));
 
-      // Update back-label and subtitle competition name from first row
+      // Update back-label competition name from first row
       const first = sorted[0] || {};
       const backLabel = document.getElementById("back-label");
       const comp = competitionDisplayLabel(first);
       if (backLabel && comp) backLabel.textContent = comp;
 
       carousel.innerHTML = sorted.map(renderCard).join("");
-      document.getElementById("foot-note").textContent = FOOT;
+      document.getElementById("foot-note").textContent = t("teamSeason.foot", FOOT_FALLBACK);
     }
 
     function scrollByCard(dir) {
@@ -402,22 +410,36 @@
       else if (e.key === "ArrowRight") scrollByCard(1);
     });
 
-    fetch("./team_season_insights.json")
-      .then((r) => {
+    function start() {
+      // Wait for both i18n (translations) and the data fetch so the rendered
+      // carousel uses translated labels on first paint.
+      const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
+      const dataReady = fetch("./team_season_insights.json").then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
-      })
-      .then((payload) => {
-        const teams = (payload && Array.isArray(payload.teams)) ? payload.teams : [];
-        if (!teams.length) {
-          renderEmpty("Die Daten werden zum Saisonende veröffentlicht.");
-          return;
-        }
-        render(teams);
-      })
-      .catch((err) => {
-        renderEmpty(`Daten konnten nicht geladen werden: ${String(err)}`);
       });
+
+      Promise.all([i18nReady, dataReady])
+        .then(([_, payload]) => {
+          const teams = (payload && Array.isArray(payload.teams)) ? payload.teams : [];
+          if (!teams.length) {
+            renderEmpty(t("teamSeason.empty.subPending", "Die Daten werden zum Saisonende veröffentlicht."));
+            return;
+          }
+          render(teams);
+        })
+        .catch((err) => {
+          renderEmpty(t("teamSeason.empty.errorPrefix", "Daten konnten nicht geladen werden:") + " " + String(err));
+        });
+    }
+
+    // Deferred scripts (i18n.js) run after parsing but before DOMContentLoaded.
+    // Wait for DCL so window.MATCHDAYIQ_I18N_READY is defined when start() runs.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+      start();
+    }
   </script>
 </body>
 </html>

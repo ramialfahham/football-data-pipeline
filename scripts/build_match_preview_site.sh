@@ -9,8 +9,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SITE_OUT="${ROOT}/_site"
 mkdir -p "${SITE_OUT}"
 
-# Landing AT root (replaces the previous redirect-to-match-preview pattern)
-cp -f "${ROOT}/site/landing/index.html" "${SITE_OUT}/index.html"
+# Landing AT root + shared i18n assets
+cp -f "${ROOT}/site/index.html" "${SITE_OUT}/index.html"
+cp -f "${ROOT}/site/i18n.js" "${SITE_OUT}/i18n.js"
+mkdir -p "${SITE_OUT}/i18n"
+cp -f "${ROOT}/site/i18n/"*.json "${SITE_OUT}/i18n/"
 
 # /fixture-list/
 FL_OUT="${SITE_OUT}/fixture-list"

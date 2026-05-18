@@ -29,6 +29,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matchday IQ — Wettbewerbe</title>
+<script src="./i18n.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -269,7 +270,7 @@
 <div class="page">
 
   <header class="topbar">
-    <div class="brand">Matchday IQ</div>
+    <div class="brand" data-i18n="common.brand">Matchday IQ</div>
     <div class="lang" id="lang">
       <button class="lang-btn" type="button" onclick="document.getElementById('lang').classList.toggle('open')">
         <span class="globe">🌐</span>
@@ -289,9 +290,9 @@
       </div>
     </div>
   </header>
-  <p class="tagline">Football analytics for fans</p>
+  <p class="tagline" data-i18n="landing.tagline">Football analytics for fans</p>
 
-  <div class="section-label">Wettbewerbe</div>
+  <div class="section-label" data-i18n="landing.sectionLabel">Wettbewerbe</div>
   <section class="section cards">
 
     <!-- Bundesliga: off-season state.
@@ -302,10 +303,10 @@
     <a href="./team-season/" class="card">
       <div class="badge"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
       <div class="body">
-        <div class="comp-name">Bundesliga</div>
-        <div class="meta"><span class="round">Saison 2025/26 beendet</span></div>
+        <div class="comp-name" data-i18n="landing.bundesliga.title">Bundesliga</div>
+        <div class="meta"><span class="round" data-i18n="landing.bundesliga.state">Saison 2025/26 beendet</span></div>
         <div class="kickoff">
-          <span class="kickoff-when">Saisonrückblick ansehen</span>
+          <span class="kickoff-when" data-i18n="landing.bundesliga.cta">Saisonrückblick ansehen</span>
         </div>
       </div>
       <div class="chevron">›</div>
@@ -314,7 +315,7 @@
   </section>
 
   <footer>
-    <a href="#">Feedback</a>
+    <a href="#" data-i18n="common.feedback">Feedback</a>
   </footer>
 
 </div>

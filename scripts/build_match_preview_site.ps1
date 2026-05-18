@@ -8,8 +8,12 @@ $Root = Split-Path $PSScriptRoot -Parent
 $SiteRoot = Join-Path $Root "_site"
 New-Item -ItemType Directory -Force -Path $SiteRoot | Out-Null
 
-# Landing AT root (replaces the previous redirect-to-match-preview pattern)
-Copy-Item (Join-Path $Root "site\landing\index.html") (Join-Path $SiteRoot "index.html") -Force
+# Landing AT root + shared i18n assets
+Copy-Item (Join-Path $Root "site\index.html") (Join-Path $SiteRoot "index.html") -Force
+Copy-Item (Join-Path $Root "site\i18n.js") (Join-Path $SiteRoot "i18n.js") -Force
+$I18nOut = Join-Path $SiteRoot "i18n"
+New-Item -ItemType Directory -Force -Path $I18nOut | Out-Null
+Copy-Item (Join-Path $Root "site\i18n\*.json") $I18nOut -Force
 
 # /fixture-list/
 $FlOut = Join-Path $SiteRoot "fixture-list"
