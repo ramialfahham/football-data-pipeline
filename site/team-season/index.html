@@ -268,7 +268,11 @@
       return Number.isFinite(n) ? n : 0;
     }
 
+    // Number formatters delegate to window.fmtNum/fmtPct (locale-aware,
+    // defined by i18n.js). Local fallback names kept for backward compat.
     function fmtDe(x, decimals) {
+      if (typeof window.fmtNum === "function") return window.fmtNum(x, decimals);
+      // Fallback if i18n.js failed to load: keep DE comma-separator.
       if (x === null || x === undefined) return "-";
       const n = Number(x);
       if (!Number.isFinite(n)) return "-";
@@ -276,6 +280,7 @@
     }
 
     function fmtDePct(x) {
+      if (typeof window.fmtPct === "function") return window.fmtPct(x);
       if (x === null || x === undefined) return "-";
       const n = Number(x);
       if (!Number.isFinite(n)) return "-";

@@ -272,21 +272,25 @@
   <header class="topbar">
     <div class="brand" data-i18n="common.brand">Matchday IQ</div>
     <div class="lang" id="lang">
-      <button class="lang-btn" type="button" onclick="document.getElementById('lang').classList.toggle('open')">
+      <button class="lang-btn" type="button">
         <span class="globe">🌐</span>
         <span class="code">DE</span>
         <span class="caret">▾</span>
       </button>
+      <!-- Options with data-lang in SUPPORTED (see site/i18n.js) are
+           rendered as live switchers. Other entries are hidden at runtime
+           by installLangSwitcher() — they stay in markup so adding a new
+           language is just a matter of dropping a JSON file. -->
       <div class="lang-menu" role="menu">
-        <button class="lang-option active" role="menuitem"><span>Deutsch</span><span class="code-tag">DE</span></button>
-        <button class="lang-option" role="menuitem"><span>English</span><span class="code-tag">EN</span></button>
-        <button class="lang-option" role="menuitem"><span>Español</span><span class="code-tag">ES</span></button>
-        <button class="lang-option" role="menuitem"><span>Français</span><span class="code-tag">FR</span></button>
-        <button class="lang-option" role="menuitem"><span>Italiano</span><span class="code-tag">IT</span></button>
-        <button class="lang-option" role="menuitem"><span>Nederlands</span><span class="code-tag">NL</span></button>
-        <button class="lang-option" role="menuitem"><span>Português</span><span class="code-tag">PT</span></button>
-        <button class="lang-option" role="menuitem"><span>Suomi</span><span class="code-tag">FI</span></button>
-        <button class="lang-option" role="menuitem"><span>العربية</span><span class="code-tag">AR</span></button>
+        <button class="lang-option" role="menuitem" data-lang="de"><span>Deutsch</span><span class="code-tag">DE</span></button>
+        <button class="lang-option" role="menuitem" data-lang="en"><span>English</span><span class="code-tag">EN</span></button>
+        <button class="lang-option" role="menuitem" data-lang="es"><span>Español</span><span class="code-tag">ES</span></button>
+        <button class="lang-option" role="menuitem" data-lang="fr"><span>Français</span><span class="code-tag">FR</span></button>
+        <button class="lang-option" role="menuitem" data-lang="it"><span>Italiano</span><span class="code-tag">IT</span></button>
+        <button class="lang-option" role="menuitem" data-lang="nl"><span>Nederlands</span><span class="code-tag">NL</span></button>
+        <button class="lang-option" role="menuitem" data-lang="pt"><span>Português</span><span class="code-tag">PT</span></button>
+        <button class="lang-option" role="menuitem" data-lang="fi"><span>Suomi</span><span class="code-tag">FI</span></button>
+        <button class="lang-option" role="menuitem" data-lang="ar"><span>العربية</span><span class="code-tag">AR</span></button>
       </div>
     </div>
   </header>
