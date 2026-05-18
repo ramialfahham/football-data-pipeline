@@ -17,6 +17,7 @@ def fetch_catalog_persist_and_plan(
     league_id: int,
     current_season: int | None = None,
     history_seasons: int | None = None,
+    season_type: str = "split_year",
     *,
     poll_mode: bool = False,
 ) -> tuple[list[int], int, dict[str, bool]]:
@@ -46,8 +47,13 @@ def fetch_catalog_persist_and_plan(
         )
 
     seasons_list = _seasons_for_ingestion(
-        league_catalog, league_id, ctx.headers, ctx.errors,
-        current_season=current_season, history_seasons=history_seasons,
+        league_catalog,
+        league_id,
+        ctx.headers,
+        ctx.errors,
+        current_season=current_season,
+        history_seasons=history_seasons,
+        season_type=season_type,
     )
     reference_season = max(seasons_list)
     if poll_mode:

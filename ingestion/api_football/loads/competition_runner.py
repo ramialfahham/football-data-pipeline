@@ -36,6 +36,7 @@ def run_poll_phases(
     league_id: int,
     current_season: int | None = None,
     history_seasons: int | None = None,
+    season_type: str = "split_year",
 ) -> None:
     """Idle competition: catalog + latest-season fixtures only (detect new season / matches)."""
     try:
@@ -46,6 +47,7 @@ def run_poll_phases(
             league_id,
             current_season=current_season,
             history_seasons=history_seasons,
+            season_type=season_type,
             poll_mode=True,
         )
         _ingestion_phase(league_code, "poll fixtures (latest season only)")
@@ -60,6 +62,7 @@ def run_cheap_phases(
     league_id: int,
     current_season: int | None = None,
     history_seasons: int | None = None,
+    season_type: str = "split_year",
 ) -> CompetitionRunResult | None:
     """Run all cheap (non-fanout) ingestion phases for one competition.
 
@@ -70,8 +73,12 @@ def run_cheap_phases(
     try:
         _ingestion_phase(league_code, "catalog (leagues + season plan)")
         seasons_list, reference_season, cov = fetch_catalog_persist_and_plan(
-            ctx, league_code, league_id,
-            current_season=current_season, history_seasons=history_seasons,
+            ctx,
+            league_code,
+            league_id,
+            current_season=current_season,
+            history_seasons=history_seasons,
+            season_type=season_type,
         )
         _ingestion_phase(league_code, "fixtures (/fixtures merge -> BQ)")
         fixtures_merged, team_ids, fixture_ids = fetch_merge_and_persist_fixtures(
@@ -120,6 +127,7 @@ def ingest_league(
     supporting_leagues: tuple = (),
     current_season: int | None = None,
     history_seasons: int | None = None,
+    season_type: str = "split_year",
 ) -> None:
     """Legacy single-competition ingestion (cheap phases + per-competition fanout + squads).
 
@@ -127,8 +135,12 @@ def ingest_league(
     run_global_fanout_and_persist → run_squads_for_competition for the two-phase design.
     """
     result = run_cheap_phases(
-        ctx, league_code, league_id,
-        current_season=current_season, history_seasons=history_seasons,
+        ctx,
+        league_code,
+        league_id,
+        current_season=current_season,
+        history_seasons=history_seasons,
+        season_type=season_type,
     )
     if result is None:
         return

@@ -307,14 +307,14 @@ competitions:
     provider_league_code: null
     provider_league_id: 244
     season_type: "calendar_year"
-    current_season: "2025"
-    history_seasons: 1
+    current_season: "2026"
+    history_seasons: 2
     status: "in_progress"
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_VL"
     api_coverage_verified: "2026-05-18"
-    notes: "2025 season at onboarding; mart_matchday_insights_vl + team_season_insights."
+    notes: "2026 campaign (current) + 2025 (form fallback); calendar-year league."
 
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)
@@ -345,6 +345,10 @@ competitions:
 # 1. league_code: unique, uppercase, max 6 chars, provider-agnostic.
 # 2. provider_league_id: verify with a live API call before writing any code.
 #    Document the date in api_coverage_verified.
+# 2b. current_season is optional — ingestion resolves the active year from the API
+#     catalog (season.current) first, then season_type inference. Use only as a
+#     manual override when the API flag is missing. Set history_seasons for how
+#     many season years to load (2 = current + prior for form fallback).
 # 3. Set status to "planned" before writing any code.
 #    Only CPO can approve moving from "backlog" to "planned".
 # 4. raw_table_prefix: RAW_APIF_{LEAGUE_CODE} (provider first, then league_code).

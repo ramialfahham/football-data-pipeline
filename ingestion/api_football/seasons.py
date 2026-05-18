@@ -101,6 +101,54 @@ def _season_years_from_leagues_seasons_endpoint(
     return sorted(out)
 
 
+def _api_current_season_year(league_catalog: dict) -> int | None:
+    """Season year flagged ``current`` in the /leagues catalog (API source of truth)."""
+    for item in (league_catalog.get("response") or []):
+        for season in (item.get("seasons") or []):
+            if not season.get("current"):
+                continue
+            try:
+                return int(season["year"])
+            except (TypeError, ValueError, KeyError):
+                continue
+    return None
+
+
+def _default_profile_max_band_seasons() -> int:
+    """Max seasons ingested per run on economy/default profile (form = current + prior)."""
+    raw = os.getenv("API_FOOTBALL_DEFAULT_PROFILE_MAX_SEASONS", "3").strip()
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 3
+
+
+def _resolve_current_season_year(
+    *,
+    season_type: str,
+    registry_current: int | None,
+    league_catalog: dict,
+) -> int:
+    """Pick the active API season year.
+
+    Order (no hard-coded league years):
+    1. API /leagues catalog season with ``current: true``
+    2. Type-specific inference (split-year July rule or calendar-year today)
+    3. Registry ``current_season`` — optional manual override only
+    """
+    api_current = _api_current_season_year(league_catalog)
+    if api_current is not None:
+        return api_current
+    if season_type == "calendar_year":
+        if registry_current is not None:
+            return registry_current
+        return date.today().year
+    inferred = season_year()
+    if registry_current is not None:
+        return registry_current
+    return inferred
+
+
 def _seasons_for_ingestion(
     league_catalog: dict,
     league_id: int,
@@ -108,35 +156,42 @@ def _seasons_for_ingestion(
     errors: list[str],
     current_season: int | None = None,
     history_seasons: int | None = None,
+    season_type: str = "split_year",
 ) -> list[int]:
     """Return the list of API season years to ingest for this competition.
+
+    Active season year comes from :func:`_resolve_current_season_year` (API ``current``
+    flag first, then type inference, then optional registry override).
 
     Resolution order (first match wins):
     1. API_FOOTBALL_SEASON env var — single explicit season, no filtering.
     2. API_FOOTBALL_SEASONS env var — explicit comma-separated list, filtered to band.
     3. Full/paid ingest profile — discover all seasons from the API catalog, filter to band.
-    4. Fallback — single season: current_season from registry, or inferred from today's date.
+    4. Default profile — ``history_seasons`` band (current + prior seasons for form),
+       capped at ``API_FOOTBALL_DEFAULT_PROFILE_MAX_SEASONS`` (default 3).
+    5. Fallback — single resolved current season only.
 
-    The band (lo..hi) is the v1 10-year window of domestic season start years. For
-    international tournaments (e.g. WC 2026), current_season extends hi so a future
-    calendar-year tournament is not silently dropped by the split-year domestic-league max.
-
-    history_seasons narrows lo to (current_season - history_seasons + 1) when set,
-    capped at the global effective_season_min(). This is the CPO-approved backfill window
-    per competition stored in the registry.
+    ``history_seasons`` in the registry sets how many season start years back from
+    the resolved current season to include (e.g. 2 = current + one prior for form).
     """
     raw_single = os.getenv("API_FOOTBALL_SEASON", "").strip()
     if raw_single:
         return [int(raw_single)]
 
+    resolved_current = _resolve_current_season_year(
+        season_type=season_type,
+        registry_current=current_season,
+        league_catalog=league_catalog,
+    )
+
     global_lo = effective_season_min()
-    if history_seasons is not None and current_season is not None and history_seasons >= 1:
-        competition_lo = current_season - (history_seasons - 1)
+    if history_seasons is not None and history_seasons >= 1:
+        competition_lo = resolved_current - (history_seasons - 1)
         lo = max(global_lo, competition_lo)
     else:
         lo = global_lo
-    hi = effective_season_max() if current_season is None else max(effective_season_max(), current_season)
-    fallback = current_season if current_season is not None else season_year()
+    hi = resolved_current
+    fallback = resolved_current
 
     csv = os.getenv("API_FOOTBALL_SEASONS", "").strip()
     if csv:
@@ -177,6 +232,12 @@ def _seasons_for_ingestion(
                 )
             return [fallback]
         return filt
+
+    band = list(range(lo, hi + 1))
+    if history_seasons is not None and band:
+        max_band = _default_profile_max_band_seasons()
+        if len(band) <= max_band:
+            return band
 
     return [fallback]
 
