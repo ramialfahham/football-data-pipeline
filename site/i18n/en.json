@@ -1,0 +1,86 @@
+{
+  "common": {
+    "brand": "Matchday IQ",
+    "feedback": "Give feedback",
+    "unavailable": "not available"
+  },
+  "metric": {
+    "tabellenplatz": "League position",
+    "punkteausbeute": "Points won",
+    "tore": "Ø Goals",
+    "gegentore": "Ø Goals against",
+    "schuesse": "Ø Shots",
+    "schuesseAufsTor": "% Shots on target",
+    "schuesseAusStrafraum": "% Shots from box",
+    "trefferquote": "% Conversion rate",
+    "paesse": "Ø Passes",
+    "angekommenePaesse": "% Pass accuracy",
+    "ecken": "Ø Corners",
+    "eckenGegen": "Ø Corners against",
+    "gehalteneTorschuesse": "% Save percentage"
+  },
+  "landing": {
+    "tagline": "Football analytics for fans",
+    "sectionLabel": "Competitions",
+    "bundesliga": {
+      "title": "Bundesliga",
+      "state": "2025/26 season ended",
+      "cta": "View season recap"
+    }
+  },
+  "fixtureList": {
+    "back": "Competitions",
+    "context": {
+      "title": "Bundesliga",
+      "round": "Off-season",
+      "note": "New season starts in August 2026"
+    },
+    "empty": {
+      "headline": "No upcoming matches",
+      "sub": "The Bundesliga 2025/26 season has ended. Until the new season starts, there are no match previews here.",
+      "cta": "View 2025/26 season recap"
+    }
+  },
+  "teamSeason": {
+    "back": "Bundesliga",
+    "tag": "Season Review",
+    "subtitle": "{{competition}} · {{seasonStart}}/{{seasonEnd}} season · complete",
+    "competition": {
+      "BL1": "Bundesliga"
+    },
+    "empty": {
+      "headline": "Season recap not yet available.",
+      "subPending": "Data will be published at season end.",
+      "errorPrefix": "Data could not be loaded:"
+    },
+    "missingTeamName": "Unknown team",
+    "foot": "“Ø” marks per-match averages over the complete season. “%” marks cumulative ratios — sum of hits divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros."
+  },
+  "matchPreview": {
+    "back": "Matchday",
+    "tag": "Match Preview",
+    "formContext": "Form: last 5 matches",
+    "errorPrefix": "Data could not be loaded:",
+    "foot": "Form window: up to five most recent completed matches of the current season. Before season start, the previous season in full. During the World Cup: all qualifying matches of the team up to its first World Cup match, then only World Cup matches. “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",
+    "feedback": {
+      "modalTitle": "Quick feedback",
+      "q1": "How easy was it to use? (1–5)",
+      "q2": "How clear were the metrics? (1–5)",
+      "q3": "What should we improve first?",
+      "cancel": "Cancel",
+      "submit": "Send",
+      "thanks": "Thanks! Feedback received.",
+      "error": "Feedback couldn't be sent.",
+      "errorDetailPrefix": "Feedback not saved:",
+      "notConfigured": "No feedback endpoint configured on this page. Set the web-app URL (…/exec) in site/match-preview/index.html OR set the GitHub Actions secret FEEDBACK_APPS_SCRIPT_URL and re-run “Deploy match preview”."
+    },
+    "ariaPrev": "Previous match",
+    "ariaNext": "Next match",
+    "ariaCarousel": "Matches"
+  },
+  "teamSeasonAria": {
+    "prev": "Previous team",
+    "next": "Next team",
+    "carousel": "Teams in standings order"
+  }
+}

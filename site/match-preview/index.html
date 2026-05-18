@@ -460,8 +460,11 @@
       return Number.isFinite(n) ? n : 0;
     }
 
-    /** Missing numeric metric in JSON (null / undefined): show hyphen only (mobile-first). */
+    /** Locale-aware number formatter — delegates to window.fmtNum
+     *  (defined by i18n.js). Falls back to DE comma-separator if i18n
+     *  failed to load, so legacy behavior is preserved. */
     function fmtDe(x, decimals) {
+      if (typeof window.fmtNum === "function") return window.fmtNum(x, decimals);
       if (x === null || x === undefined) return "-";
       const n = Number(x);
       if (!Number.isFinite(n)) return "-";
@@ -469,6 +472,7 @@
     }
 
     function fmtDePct(x) {
+      if (typeof window.fmtPct === "function") return window.fmtPct(x);
       if (x === null || x === undefined) return "-";
       const n = Number(x);
       if (!Number.isFinite(n)) return "-";
@@ -476,7 +480,11 @@
     }
 
     function berlinKickoff(iso) {
-      return new Intl.DateTimeFormat("de-DE", {
+      // Locale comes from window.MATCHDAYIQ_LOCALE (set by i18n.js) so the
+      // weekday name + 12/24h time formatting follows the active language.
+      // Timezone stays Europe/Berlin since BL1 fixtures are scheduled there.
+      const locale = window.MATCHDAYIQ_LOCALE || "de-DE";
+      return new Intl.DateTimeFormat(locale, {
         timeZone: TZ,
         weekday: "long",
         day: "2-digit",
