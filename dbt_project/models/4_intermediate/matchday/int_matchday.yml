@@ -33,6 +33,9 @@ models:
       qualifier uncapped window). Grain (fixture_sk, team_sk) for upcoming fixtures only.
     config:
       tags: ["intermediate", "football", "matchday"]
+    columns:
+      - name: form_games_played
+        tests: [not_null]
     tests:
       - dbt_utils.expression_is_true:
           expression: "not form_window_five_capped or form_games_played <= 5"

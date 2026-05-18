@@ -331,6 +331,55 @@ aggregated_form as (
         sum(goalkeeper_saves) as goalkeeper_saves_sum_form
     from form_window_matches_dedup
     group by upcoming_fixture_sk, team_sk
+),
+
+-- Every upcoming (fixture, team) gets a row; zero legs → form_games_played = 0 (not absent).
+form_context as (
+    select
+        upcoming_fixture_sk as fixture_sk,
+        team_sk,
+        form_season_api_year,
+        use_five_game_cap as form_window_five_capped
+    from non_wc_season
+    union all
+    select
+        tfc.upcoming_fixture_sk as fixture_sk,
+        tfc.team_sk,
+        tfc.season_api_year as form_season_api_year,
+        coalesce(wtc.n_wc_tournament_before, 0) > 0 as form_window_five_capped
+    from wc_context as tfc
+    left join wc_tournament_counts as wtc
+        on
+            tfc.upcoming_fixture_sk = wtc.upcoming_fixture_sk
+            and tfc.team_sk = wtc.team_sk
+),
+
+form_metrics as (
+    select
+        fc.fixture_sk,
+        fc.team_sk,
+        fc.form_season_api_year,
+        fc.form_window_five_capped,
+        coalesce(af.form_games_played, 0) as form_games_played,
+        coalesce(af.form_matchdays_used, 0) as form_matchdays_used,
+        coalesce(af.stat_coverage_form_games, 0) as stat_coverage_form_games,
+        af.points_won_sum_form,
+        af.goals_for_sum_form,
+        af.goals_against_sum_form,
+        af.total_shots_sum_form,
+        af.opponent_total_shots_sum_form,
+        af.shots_inside_box_sum_form,
+        af.shots_on_goal_sum_form,
+        af.corner_kicks_sum_form,
+        af.opponent_corner_kicks_sum_form,
+        af.passes_accurate_sum_form,
+        af.passes_total_sum_form,
+        af.goalkeeper_saves_sum_form
+    from form_context as fc
+    left join aggregated_form as af
+        on
+            fc.fixture_sk = af.fixture_sk
+            and fc.team_sk = af.team_sk
 )
 
 select
@@ -376,4 +425,4 @@ select
         goalkeeper_saves_sum_form,
         nullif(goalkeeper_saves_sum_form + goals_against_sum_form, 0)
     ) as save_ratio_recent
-from aggregated_form
+from form_metrics
