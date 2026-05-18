@@ -320,7 +320,7 @@ stg_fixtures as (
         away_team_id,
         away_team_name,
         raw_ingested_at
-
+    from {{ ref('stg_apif__bl2_fixtures_next') }}
     union all
 
     select
@@ -343,6 +343,17 @@ stg_fixtures as (
         away_team_name,
         raw_ingested_at
     from {{ ref('stg_apif__l1_fixtures_next') }}
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__vl_fixtures_next') }}
 
 ),
 

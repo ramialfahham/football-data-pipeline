@@ -354,7 +354,8 @@ with src as (
         has_coverage_predictions,
         has_coverage_odds,
         raw_ingested_at
-
+    from {{ ref('stg_apif__bl2_leagues') }}
+    where league_api_id is not null and season_api_year is not null
     union all
 
     select
@@ -411,7 +412,8 @@ with src as (
         has_coverage_predictions,
         has_coverage_odds,
         raw_ingested_at
-
+    from {{ ref('stg_apif__l1_leagues') }}
+    where league_api_id is not null and season_api_year is not null
     union all
 
     select
