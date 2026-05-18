@@ -710,6 +710,45 @@ models:
       - name: away_save_ratio_recent
         description: "Away: save ratio over the form window."
 
+  - name: mart_wc_pre_tournament_insights
+    description: >
+      WC tournament participants with qualifier-window team metrics before the finals. Grain: team_sk
+      for the current WC season on fct_fixture. Each is_*_complete flag is true only when every
+      qualifier leg has the raw stats required for that metric; the app shows values when complete only.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "wc", "consumer"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'WC'"
+          name: mart_wc_pre_tournament_insights_league_code_is_wc
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: qualifier_games_played
+        description: "Finished qualifier legs in the pre-tournament window; 0 when none."
+        tests: [not_null]
+      - name: is_goals_per_match_complete
+        description: "True when every qualifier leg has scores (goals-based rates are defined)."
+        tests: [not_null]
+      - name: is_shots_per_match_complete
+        description: "True when every qualifier leg has shots_total (UI may show shots_per_match_pretournament)."
+        tests: [not_null]
+
   - name: mart_matchday_insights_wc
     description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights_bl1; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
     meta:
