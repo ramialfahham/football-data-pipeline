@@ -251,36 +251,6 @@ competitions:
     raw_table_prefix: "RAW_APIF_PD"
     notes: "2025/26 season only at onboarding; mart_matchday_insights_pd + team_season_insights."
 
-  - league_code: "SA"
-    name: "Serie A"
-    country: "Italy"
-    competition_type: "domestic_league"
-    provider: "api_football"
-    provider_league_code: null
-    provider_league_id: 135
-    season_type: "split_year"
-    current_season: "2024"
-    history_seasons: 10
-    status: "planned"
-    form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_SA"
-    notes: "Big 5 — priority 3."
-
-  - league_code: "L1"
-    name: "Ligue 1"
-    country: "France"
-    competition_type: "domestic_league"
-    provider: "api_football"
-    provider_league_code: null
-    provider_league_id: 61
-    season_type: "split_year"
-    current_season: "2024"
-    history_seasons: 10
-    status: "planned"
-    form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_L1"
-    notes: "Big 5 — priority 4."
-
   - league_code: "BL2"
     name: "2. Fußball-Bundesliga"
     country: "Germany"
@@ -296,6 +266,38 @@ competitions:
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL2"
     notes: "2025/26 season only at onboarding; mart_matchday_insights_bl2 + team_season_insights."
+
+  - league_code: "SA"
+    name: "Serie A"
+    country: "Italy"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 135
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "in_progress"
+    ingest_completeness_gate: soft
+    form_source: "league_only"
+    raw_table_prefix: "RAW_APIF_SA"
+    notes: "2025/26 season only at onboarding; mart_matchday_insights_sa + team_season_insights."
+
+  - league_code: "L1"
+    name: "Ligue 1"
+    country: "France"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 61
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "in_progress"
+    ingest_completeness_gate: soft
+    form_source: "league_only"
+    raw_table_prefix: "RAW_APIF_L1"
+    notes: "2025/26 season only at onboarding; mart_matchday_insights_l1 + team_season_insights."
 
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)

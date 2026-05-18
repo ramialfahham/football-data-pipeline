@@ -75,12 +75,12 @@ jobs:
       - name: Parse project
         run: dbt parse
 
-      - name: Bootstrap ingest PL PD BL2 raw tables
+      - name: Bootstrap ingest domestic league raw tables
         working-directory: .
         env:
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
           API_FOOTBALL_INCLUDE_IN_PROGRESS: "1"
-          API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2"
+          API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2,SA,L1"
           API_FOOTBALL_SKIP_INGEST_LOCK: "1"
         run: |
           export PYTHONPATH=.
@@ -92,8 +92,8 @@ jobs:
       - name: Build WC + WCQ staging
         run: dbt build --select path:models/1_staging/api_football/wc path:models/1_staging/api_football/wcq
 
-      - name: Build PL PD BL2 staging
-        run: dbt build --select path:models/1_staging/api_football/pl path:models/1_staging/api_football/pd path:models/1_staging/api_football/bl2
+      - name: Build domestic league staging
+        run: dbt build --select path:models/1_staging/api_football/pl path:models/1_staging/api_football/pd path:models/1_staging/api_football/bl2 path:models/1_staging/api_football/sa path:models/1_staging/api_football/l1
 
       - name: Build core dims, facts, intermediate, and marts
         run: dbt build --select path:models/2_base dim_date +dim_team +dim_league +dim_competition_season +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats +fct_fixture +fct_fixture_event +fct_fixture_player_stats +fct_team_market_value_snapshot path:models/4_intermediate path:models/5_marts --exclude tag:freshness_check
