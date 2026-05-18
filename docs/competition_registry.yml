@@ -219,10 +219,6 @@ competitions:
     parent_competition: "WC"
     notes: "OFC zone. Season 2026. API catalog has no fixture statistics; soft gate only."
 
-  # -------------------------------------------------------------------------
-  # PLANNED
-  # -------------------------------------------------------------------------
-
   - league_code: "PL"
     name: "Premier League"
     country: "England"
@@ -231,12 +227,13 @@ competitions:
     provider_league_code: null
     provider_league_id: 39
     season_type: "split_year"
-    current_season: "2024"
-    history_seasons: 10
-    status: "planned"
+    current_season: "2025"
+    history_seasons: 1
+    status: "in_progress"
+    ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PL"
-    notes: "Big 5 — priority 1 after WC MVP."
+    notes: "2025/26 season only at onboarding; mart_matchday_insights_pl + team_season_insights."
 
   - league_code: "PD"
     name: "La Liga"
@@ -246,12 +243,13 @@ competitions:
     provider_league_code: null
     provider_league_id: 140
     season_type: "split_year"
-    current_season: "2024"
-    history_seasons: 10
-    status: "planned"
+    current_season: "2025"
+    history_seasons: 1
+    status: "in_progress"
+    ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PD"
-    notes: "Big 5 — priority 2 after WC MVP."
+    notes: "2025/26 season only at onboarding; mart_matchday_insights_pd + team_season_insights."
 
   - league_code: "SA"
     name: "Serie A"
@@ -291,12 +289,17 @@ competitions:
     provider_league_code: null
     provider_league_id: 79
     season_type: "split_year"
-    current_season: "2024"
-    history_seasons: 10
-    status: "planned"
+    current_season: "2025"
+    history_seasons: 1
+    status: "in_progress"
+    ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL2"
-    notes: "German second division — planned after Big 5."
+    notes: "2025/26 season only at onboarding; mart_matchday_insights_bl2 + team_season_insights."
+
+  # -------------------------------------------------------------------------
+  # PLANNED (remaining Big 5)
+  # -------------------------------------------------------------------------
 
   # -------------------------------------------------------------------------
   # BACKLOG

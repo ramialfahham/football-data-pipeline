@@ -749,6 +749,33 @@ models:
         description: "True when every qualifier leg has shots_total (UI may show shots_per_match_pretournament)."
         tests: [not_null]
 
+  - name: mart_matchday_insights_pl
+    description: "Premier League (PL) matchday surface; same column contract as mart_matchday_insights_bl1. league_only form (full previous season before MD1, then last five in-season)."
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'PL'"
+          name: mart_matchday_insights_pl_league_code_is_pl
+
+  - name: mart_matchday_insights_pd
+    description: "La Liga (PD) matchday surface; same column contract as mart_matchday_insights_bl1."
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'PD'"
+          name: mart_matchday_insights_pd_league_code_is_pd
+
+  - name: mart_matchday_insights_bl2
+    description: "2. Bundesliga (BL2) matchday surface; same column contract as mart_matchday_insights_bl1."
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'BL2'"
+          name: mart_matchday_insights_bl2_league_code_is_bl2
+
   - name: mart_matchday_insights_wc
     description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights_bl1; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
     meta:

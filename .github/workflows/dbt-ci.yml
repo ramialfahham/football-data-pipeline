@@ -81,6 +81,9 @@ jobs:
       - name: Build WC + WCQ staging
         run: dbt build --select path:models/1_staging/api_football/wc path:models/1_staging/api_football/wcq
 
+      - name: Build PL PD BL2 staging
+        run: dbt build --select path:models/1_staging/api_football/pl path:models/1_staging/api_football/pd path:models/1_staging/api_football/bl2
+
       - name: Build core dims, facts, intermediate, and marts
         run: dbt build --select path:models/2_base dim_date +dim_team +dim_league +dim_competition_season +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats +fct_fixture +fct_fixture_event +fct_fixture_player_stats +fct_team_market_value_snapshot path:models/4_intermediate path:models/5_marts --exclude tag:freshness_check
 
