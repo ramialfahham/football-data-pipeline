@@ -160,14 +160,16 @@
   "fixtureList": {
     "back": "Competitions",
     "context": {
-      "title": "Bundesliga",
-      "round": "Off-season",
-      "note": "New season starts in August 2026"
+      "roundOffSeason": "Off-season",
+      "roundDateRange": "{{startDate}} – {{endDate}}",
+      "roundSingleDate": "{{date}}",
+      "fixtureCountSingular": "{{count}} match",
+      "fixtureCountPlural": "{{count}} matches"
     },
     "empty": {
       "headline": "No upcoming matches",
-      "sub": "The Bundesliga 2025/26 season has ended. Until the new season starts, there are no match previews here.",
-      "cta": "View 2025/26 season recap"
+      "subOffSeason": "Season is over. No previews here until the new season starts.",
+      "cta": "View season recap"
     }
   },
   "teamSeason": {

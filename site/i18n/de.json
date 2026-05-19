@@ -160,14 +160,16 @@
   "fixtureList": {
     "back": "Wettbewerbe",
     "context": {
-      "title": "Bundesliga",
-      "round": "Saisonpause",
-      "note": "Neue Saison startet im August 2026"
+      "roundOffSeason": "Saisonpause",
+      "roundDateRange": "{{startDate}} – {{endDate}}",
+      "roundSingleDate": "{{date}}",
+      "fixtureCountSingular": "{{count}} Spiel",
+      "fixtureCountPlural": "{{count}} Spiele"
     },
     "empty": {
       "headline": "Keine kommenden Spiele",
-      "sub": "Die Bundesliga-Saison 2025/26 ist beendet. Bis zum Start der neuen Saison gibt es hier keine Spielvorschau.",
-      "cta": "Saisonrückblick 2025/26 ansehen"
+      "subOffSeason": "Die Saison ist beendet. Bis zur neuen Saison gibt es hier keine Spielvorschau.",
+      "cta": "Saisonrückblick ansehen"
     }
   },
   "teamSeason": {
