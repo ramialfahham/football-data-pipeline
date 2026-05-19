@@ -740,7 +740,7 @@
       }
     }
 
-    function render(rows, defs, manifest) {
+    function render(rows, defs, manifest, requestedFixtureId) {
       document.getElementById("foot-note").textContent = t("matchPreview.foot", FALLBACK_FOOT);
 
       const sorted = [...rows].sort((a, b) => {
@@ -753,6 +753,19 @@
 
       const carousel = document.getElementById("carousel");
       carousel.innerHTML = "";
+
+      // If a specific fixture was requested via ?fixture=<id>, find its index
+      // in the sorted list so we can scroll the carousel to it after render.
+      // Coerce types defensively — fixture_api_id is numeric in the JSON,
+      // but the URL param arrives as a string.
+      const wantId = requestedFixtureId == null ? null : String(requestedFixtureId);
+      let targetIndex = -1;
+      if (wantId !== null) {
+        targetIndex = sorted.findIndex((r) => String(r.fixture_api_id) === wantId);
+      }
+      // Seed activeFixtureId with the requested one (so feedback context tags
+      // the right fixture even before the scroll handler fires).
+      if (targetIndex >= 0) activeFixtureId = Number(sorted[targetIndex].fixture_api_id);
 
       sorted.forEach((row) => {
         if (activeFixtureId === null) activeFixtureId = row.fixture_api_id;
@@ -809,6 +822,22 @@
         const el = cards[i];
         if (el && el.dataset.fixtureId) activeFixtureId = Number(el.dataset.fixtureId);
       }, { passive: true });
+
+      // Deep-link to the requested fixture by scrolling the carousel to its
+      // card. Uses "auto" (instant) rather than "smooth" so users don't see
+      // the first card flash before scroll — they land directly on the
+      // fixture they clicked from the fixture list.
+      if (targetIndex >= 0) {
+        const cards = carousel.querySelectorAll(".card");
+        const target = cards[targetIndex];
+        if (target) {
+          // Defer one frame so the carousel layout has settled and
+          // scrollLeft has a meaningful target width to multiply against.
+          requestAnimationFrame(() => {
+            carousel.scrollTo({ left: target.offsetLeft, behavior: "auto" });
+          });
+        }
+      }
     }
 
     function scrollByCard(dir) {
@@ -841,6 +870,11 @@
       const matchdayUrl = validLeague
         ? `../data/${validLeague}/matchday_insights.json`
         : "./matchday_insights.json";
+      // Deep-link target: ?fixture=<api_id> scrolls the carousel to that
+      // specific match. Validated to digits-only so we don't pass user
+      // input into DOM queries.
+      const fixtureParamRaw = (params.get("fixture") || "").trim();
+      const requestedFixtureId = /^\d+$/.test(fixtureParamRaw) ? fixtureParamRaw : null;
 
       // Update back-link to preserve the ?league= param so users return to
       // the right fixture-list.
@@ -859,7 +893,7 @@
         fetch("./metric_definitions.json").then((r) => r.json()),
       ])
         .then(([_, payload, manifest, defs]) => {
-          render(payload.show || [], defs, manifest);
+          render(payload.show || [], defs, manifest, requestedFixtureId);
         })
         .catch((err) => {
           document.getElementById("carousel").innerHTML =
