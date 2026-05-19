@@ -388,7 +388,11 @@
       return "no_data";
     }
 
-    function competitionLabel(code) {
+    function competitionLabel(code, sourceMart) {
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      if (mu && typeof mu.competitionDisplayName === "function") {
+        return mu.competitionDisplayName(code, sourceMart, tt, "landing");
+      }
       return tt("competitions." + code, code);
     }
 
@@ -409,7 +413,8 @@
     function renderDomesticCard(entry) {
       const code = entry.league_code;
       const phase = phaseFor(entry);
-      const name = competitionLabel(code);
+      const sourceMart = phase === "matchday" ? entry.matchday_source_mart : null;
+      const name = competitionLabel(code, sourceMart);
       let stateText = "";
       let ctaText = "";
       let href = null;
@@ -452,7 +457,7 @@
       // anyway — if it 404s, we'll add the page next.
       const name = competitionLabel("WC");
       const subtitle = wcSubtitle();
-      const cta = tt("landing.cta.wc", "Pre-tournament outlook");
+      const cta = tt("landing.cta.wcPretournament", "Qualifier outlook");
       return `
         <a class="card is-wc" href="./wc-pre-tournament/">
           <div class="badge"><img src="${escHtml(logoUrl("WC"))}" alt="WC"></div>

@@ -14,6 +14,7 @@ New-Item -ItemType Directory -Force -Path $SiteRoot | Out-Null
 # Landing AT root + shared i18n assets
 Copy-Item (Join-Path $Root "site\index.html") (Join-Path $SiteRoot "index.html") -Force
 Copy-Item (Join-Path $Root "site\i18n.js") (Join-Path $SiteRoot "i18n.js") -Force
+Copy-Item (Join-Path $Root "site\manifest-utils.js") (Join-Path $SiteRoot "manifest-utils.js") -Force
 $I18nOut = Join-Path $SiteRoot "i18n"
 New-Item -ItemType Directory -Force -Path $I18nOut | Out-Null
 Copy-Item (Join-Path $Root "site\i18n\*.json") $I18nOut -Force

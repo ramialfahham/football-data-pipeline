@@ -15,6 +15,7 @@ mkdir -p "${SITE_OUT}"
 # Landing AT root + shared i18n assets
 cp -f "${ROOT}/site/index.html" "${SITE_OUT}/index.html"
 cp -f "${ROOT}/site/i18n.js" "${SITE_OUT}/i18n.js"
+cp -f "${ROOT}/site/manifest-utils.js" "${SITE_OUT}/manifest-utils.js"
 mkdir -p "${SITE_OUT}/i18n"
 cp -f "${ROOT}/site/i18n/"*.json "${SITE_OUT}/i18n/"
 
