@@ -452,24 +452,61 @@
         </${tag}>`;
     }
 
-    function renderWcCard() {
-      // WC pre-tournament page may not exist yet (see slice 3). Link
-      // anyway — if it 404s, we'll add the page next.
-      const name = competitionLabel("WC");
+    function wcManifestBlock(manifest) {
+      if (manifest && manifest.wc && typeof manifest.wc === "object") {
+        return manifest.wc;
+      }
+      if (manifest && manifest.wc_pre_tournament_path) {
+        return {
+          league_code: "WC",
+          matchday_row_count: 0,
+          wc_pre_tournament_path: manifest.wc_pre_tournament_path,
+        };
+      }
+      return null;
+    }
+
+    function phaseForWc(wc) {
+      const m = Number(wc && wc.matchday_row_count) || 0;
+      if (m > 0) return "matchday";
+      if (wc && wc.wc_pre_tournament_path) return "pretournament";
+      return "no_data";
+    }
+
+    function renderWcCard(manifest) {
+      const wc = wcManifestBlock(manifest);
+      if (!wc) return "";
+      const phase = phaseForWc(wc);
+      const name = competitionLabel("WC", phase === "matchday" ? wc.matchday_source_mart : null);
       const subtitle = wcSubtitle();
-      const cta = tt("landing.cta.wcPretournament", "Qualifier outlook");
+      let stateText = subtitle;
+      let cta = "";
+      let href = null;
+      if (phase === "matchday") {
+        stateText = tt("landing.state.matchdayUpcoming", "Next matchday");
+        cta = tt("landing.cta.matchday", "Preview matchday");
+        href = "./fixture-list/?league=wc";
+      } else if (phase === "pretournament") {
+        cta = tt("landing.cta.wcPretournament", "Qualifier outlook");
+        href = "./wc-pre-tournament/";
+      } else {
+        cta = tt("landing.cta.unavailable", "Coming soon");
+      }
+      const tag = phase === "no_data" ? "div" : "a";
+      const hrefAttr = href ? ` href="${escHtml(href)}"` : "";
+      const cardCls = phase === "no_data" ? "card is-wc is-disabled" : "card is-wc";
       return `
-        <a class="card is-wc" href="./wc-pre-tournament/">
+        <${tag} class="${cardCls}"${hrefAttr}>
           <div class="badge"><img src="${escHtml(logoUrl("WC"))}" alt="WC"></div>
           <div class="body">
             <div class="comp-name">${escHtml(name)}</div>
-            <div class="meta"><span class="round">${escHtml(subtitle)}</span></div>
+            <div class="meta"><span class="round">${escHtml(stateText)}</span></div>
             <div class="kickoff">
               <span class="kickoff-when">${escHtml(cta)}</span>
             </div>
           </div>
           <div class="chevron">›</div>
-        </a>`;
+        </${tag}>`;
     }
 
     function sortedDomestic(entries) {
@@ -488,9 +525,9 @@
       const domestic = Array.isArray(manifest && manifest.domestic_leagues)
         ? sortedDomestic(manifest.domestic_leagues)
         : [];
-      const includeWc = !!(manifest && manifest.wc_pre_tournament_path);
+      const wcCard = renderWcCard(manifest);
       const parts = [];
-      if (includeWc) parts.push(renderWcCard());
+      if (wcCard) parts.push(wcCard);
       parts.push(...domestic.map(renderDomesticCard));
       if (!parts.length) {
         root.classList.remove("is-loading");
@@ -515,7 +552,11 @@
             domestic_leagues: [
               { league_code: "BL1", matchday_row_count: 0, team_season_row_count: 1 },
             ],
-            wc_pre_tournament_path: "wc-pre-tournament/wc_pre_tournament_insights.json",
+            wc: {
+              league_code: "WC",
+              matchday_row_count: 0,
+              wc_pre_tournament_path: "wc-pre-tournament/wc_pre_tournament_insights.json",
+            },
           });
           return;
         }

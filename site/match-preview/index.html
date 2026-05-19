@@ -740,7 +740,35 @@
       }
     }
 
-    function render(rows, defs, manifest, requestedFixtureId) {
+    function formContextLine(row, leagueCode) {
+      if (leagueCode === "wc") {
+        if (row.home_form_from_qualifiers || row.away_form_from_qualifiers) {
+          return t("matchPreview.formContextQualifier", "Form: qualifying matches");
+        }
+        return t("matchPreview.formContextTournament", "Form: World Cup matches");
+      }
+      return t("matchPreview.formContext", "Form: last 5 matches");
+    }
+
+    function teamLogoUrl(row, side, teamName, leagueCode) {
+      const key = side + "_team_logo_url";
+      const fromMart = row && row[key] ? String(row[key]).trim() : "";
+      if (fromMart) return fromMart;
+      if (leagueCode === "wc") return "";
+      const TEAM_LOGO_BY_NAME = {
+        "Bayern München": 157, "Borussia Dortmund": 165, "Bayer Leverkusen": 168,
+        "VfB Stuttgart": 172, "Eintracht Frankfurt": 169, "RB Leipzig": 173,
+        "FC Augsburg": 170, "1. FSV Mainz 05": 164, "Werder Bremen": 162,
+        "TSG Hoffenheim": 167, "Borussia Mönchengladbach": 163,
+        "Hamburger SV": 175, "SC Freiburg": 160, "VfL Wolfsburg": 161,
+        "1. FC Heidenheim": 180, "1. FC Union Berlin": 182, "FC St. Pauli": 186,
+        "1. FC Köln": 192,
+      };
+      const id = TEAM_LOGO_BY_NAME[teamName];
+      return id ? `https://media.api-sports.io/football/teams/${id}.png` : "";
+    }
+
+    function render(rows, defs, manifest, requestedFixtureId, leagueCode) {
       document.getElementById("foot-note").textContent = t("matchPreview.foot", FALLBACK_FOOT);
 
       const sorted = [...rows].sort((a, b) => {
@@ -774,27 +802,8 @@
         article.dataset.fixtureId = row.fixture_api_id;
         const homeTeam = teamNameLabel(row.home_team_name, "DATA_ERROR_HOME_TEAM");
         const awayTeam = teamNameLabel(row.away_team_name, "DATA_ERROR_AWAY_TEAM");
-        // TODO: replace name-based lookup with API team id from the mart.
-        // home_team_sk / away_team_sk are hash surrogate keys, not API team_ids.
-        // Once mart_matchday_insights exposes `home_team_api_id` and
-        // `away_team_api_id`, drop TEAM_LOGO_BY_NAME and read those directly.
-        // Until then: any team not in the map renders without a logo (page
-        // still works; only the logo is blank).
-        const TEAM_LOGO_BY_NAME = {
-          "Bayern München": 157, "Borussia Dortmund": 165, "Bayer Leverkusen": 168,
-          "VfB Stuttgart": 172, "Eintracht Frankfurt": 169, "RB Leipzig": 173,
-          "FC Augsburg": 170, "1. FSV Mainz 05": 164, "Werder Bremen": 162,
-          "TSG Hoffenheim": 167, "Borussia Mönchengladbach": 163,
-          "Hamburger SV": 175, "SC Freiburg": 160, "VfL Wolfsburg": 161,
-          "1. FC Heidenheim": 180, "1. FC Union Berlin": 182, "FC St. Pauli": 186,
-          "1. FC Köln": 192,
-        };
-        const logoUrl = (teamName) => {
-          const id = TEAM_LOGO_BY_NAME[teamName];
-          return id ? `https://media.api-sports.io/football/teams/${id}.png` : "";
-        };
-        const homeLogoUrl = logoUrl(homeTeam);
-        const awayLogoUrl = logoUrl(awayTeam);
+        const homeLogoUrl = teamLogoUrl(row, "home", homeTeam, leagueCode);
+        const awayLogoUrl = teamLogoUrl(row, "away", awayTeam, leagueCode);
         article.innerHTML = `
           <div class="preview-tag">${escHtml(t("matchPreview.tag", "Spielvorschau"))}</div>
           <div class="fixture">
@@ -809,7 +818,7 @@
             </div>
           </div>
           <div class="kickoff">${escHtml(matchContextLine(row))}</div>
-          <div class="form-context">${escHtml(t("matchPreview.formContext", "Form: letzte 5 Spiele"))}</div>
+          <div class="form-context">${escHtml(formContextLine(row, leagueCode))}</div>
           ${renderMetrics(metricTableRows(row, defs, manifest))}
         `;
         carousel.appendChild(article);
@@ -893,7 +902,7 @@
         fetch("./metric_definitions.json").then((r) => r.json()),
       ])
         .then(([_, payload, manifest, defs]) => {
-          render(payload.show || [], defs, manifest, requestedFixtureId);
+          render(payload.show || [], defs, manifest, requestedFixtureId, validLeague);
         })
         .catch((err) => {
           document.getElementById("carousel").innerHTML =
