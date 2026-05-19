@@ -19,6 +19,7 @@ class TrustResult:
     core_shots_on_goal_non_null_rows: int
     upcoming_bl1_fixture_rows: int
     mart_rows: int
+    mart_relegation_rows: int
     pass_trust_gate: bool
     reasons: list[str]
 
@@ -110,6 +111,11 @@ def run() -> TrustResult:
         "c",
     )
     mart_rows = _single_int(client, f"select count(*) as c from `{project}.marts.mart_matchday_insights`", "c")
+    mart_relegation_rows = _single_int(
+        client,
+        f"select count(*) as c from `{project}.marts.mart_matchday_insights_bl1_relegation`",
+        "c",
+    )
 
     reasons: list[str] = []
     if raw_rows == 0:
@@ -122,9 +128,11 @@ def run() -> TrustResult:
         reasons.append("staging shots_on_goal is entirely null")
     if core_shots_on_goal_non_null_rows == 0:
         reasons.append("core fixture team stats shots_on_goal is entirely null")
-    if mart_rows == 0 and upcoming_bl1_fixture_rows > 0:
+    consumer_mart_rows = mart_rows + mart_relegation_rows
+    if consumer_mart_rows == 0 and upcoming_bl1_fixture_rows > 0:
         reasons.append(
-            "mart matchday insights has zero rows but BL1 has upcoming round fixtures"
+            "mart_matchday_insights and mart_matchday_insights_bl1_relegation are both "
+            "empty but BL1 has upcoming round fixtures"
         )
 
     return TrustResult(
@@ -137,6 +145,7 @@ def run() -> TrustResult:
         core_shots_on_goal_non_null_rows=core_shots_on_goal_non_null_rows,
         upcoming_bl1_fixture_rows=upcoming_bl1_fixture_rows,
         mart_rows=mart_rows,
+        mart_relegation_rows=mart_relegation_rows,
         pass_trust_gate=(len(reasons) == 0),
         reasons=reasons,
     )
@@ -151,7 +160,8 @@ def main() -> int:
         return 1
     print(
         "fixture stats trust gate passed "
-        f"(mart_rows={result.mart_rows}, upcoming_bl1={result.upcoming_bl1_fixture_rows})"
+        f"(mart_rows={result.mart_rows}, mart_relegation_rows={result.mart_relegation_rows}, "
+        f"upcoming_bl1={result.upcoming_bl1_fixture_rows})"
     )
     return 0
 
