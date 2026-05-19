@@ -225,7 +225,15 @@ deduped as ("""
         adds += LEAGUES_UNION.format(folder=folder)
     if not adds:
         return
-    text = text.replace(anchor, adds + "\n),\n\ndeduped as (", 1)
+    text = text.replace(
+        anchor,
+        f"""    from {{{{ ref('stg_apif__{ANCHOR_FOLDER}_leagues') }}}}
+    where league_api_id is not null and season_api_year is not null{adds}
+),
+
+deduped as (""",
+        1,
+    )
     path.write_text(text, encoding="utf-8")
     print("patched base_apif__leagues.sql")
 
@@ -245,7 +253,15 @@ team_keys as ("""
         adds += TEAMS_FX_UNION.format(folder=folder)
     if not adds:
         return
-    text = text.replace(anchor, adds + "\n\n),\n\nteam_keys as (", 1)
+    text = text.replace(
+        anchor,
+        """    from {{ ref('stg_apif__bl2_fixtures_next') }}""" + adds + """
+
+),
+
+team_keys as (""",
+        1,
+    )
     path.write_text(text, encoding="utf-8")
     print("patched base_apif__teams.sql")
 

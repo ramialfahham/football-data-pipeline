@@ -229,7 +229,7 @@ deduped as ("""
         raw_ingested_at
     from {{{{ ref('stg_apif__{folder}_leagues') }}}}
     where league_api_id is not null and season_api_year is not null"""
-    text = text.replace(anchor, block + "\n),\n\ndeduped as (", 1)
+    text = text.replace(anchor, anchor.replace("),\n\ndeduped as (", "") + block + "\n),\n\ndeduped as (", 1)
     path.write_text(text, encoding="utf-8")
     print("patched base_apif__leagues.sql")
 
@@ -248,7 +248,11 @@ stg_fixtures as ("""
     b1 = ""
     for _c, folder in LEAGUES:
         b1 += "\n    union all\n\n" + TEAMS_STG_BODY.format(folder=folder)
-    text = text.replace(anchor1, b1 + "\n\n),\n\nstg_fixtures as (", 1)
+    text = text.replace(
+        anchor1,
+        anchor1.replace("),\n\nstg_fixtures as (", "") + b1 + "\n\n),\n\nstg_fixtures as (",
+        1,
+    )
 
     anchor2 = """    from {{ ref('stg_apif__wcqoc_fixtures_next') }}
 ),
@@ -257,7 +261,11 @@ team_keys as ("""
     b2 = ""
     for _c, folder in LEAGUES:
         b2 += "\n    union all\n\n" + TEAMS_FX_BODY.format(folder=folder)
-    text = text.replace(anchor2, b2 + "\n\n),\n\nteam_keys as (", 1)
+    text = text.replace(
+        anchor2,
+        anchor2.replace("),\n\nteam_keys as (", "") + b2 + "\n\n),\n\nteam_keys as (",
+        1,
+    )
     path.write_text(text, encoding="utf-8")
     print("patched base_apif__teams.sql")
 
