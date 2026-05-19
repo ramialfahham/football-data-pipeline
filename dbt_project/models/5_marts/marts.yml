@@ -429,7 +429,7 @@ models:
         tests: [not_null]
 
   - name: mart_matchday_insights_bl1
-    description: "Bundesliga (BL1) upcoming matchday surface for pre-match comparison. Grain: one row per fixture in the nearest upcoming round. Form metrics aggregate the last five completed matchdays before the upcoming round; per-match rates divide by games in that window. mart_matchday_insights is a thin view over this model for a stable export name."
+    description: "Bundesliga (BL1) upcoming matchday surface for pre-match comparison. Grain: one row per fixture in the nearest upcoming round (excludes relegation play-off rounds in var bl1_relegation_round_names; use mart_matchday_insights_bl1_relegation). Form metrics aggregate the last five completed matchdays before the upcoming round; per-match rates divide by games in that window. mart_matchday_insights is a thin view over this model for a stable export name."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -709,6 +709,35 @@ models:
         description: "Home: sum(saves) / (sum(saves) + sum(goals_against)) over the form window."
       - name: away_save_ratio_recent
         description: "Away: save ratio over the form window."
+
+  - name: mart_matchday_insights_bl1_relegation
+    description: >
+      BL1 relegation play-off matchday surface. Same metrics as mart_matchday_insights_bl1 plus
+      home_form_league_code and away_form_league_code (BL1 vs BL2). Form uses each team's domestic
+      league; standings join on form league + season.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "consumer", "pre_match", "relegation"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'BL1'"
+          name: mart_matchday_insights_bl1_relegation_league_code_is_bl1
+      - dbt_utils.expression_is_true:
+          expression: "round_name in ('Final', 'Relegation Round')"
+          name: mart_matchday_insights_bl1_relegation_round_name
+    columns:
+      - name: home_form_league_code
+        description: "Domestic league used for home team form (BL1 or BL2)."
+        tests: [not_null]
+      - name: away_form_league_code
+        description: "Domestic league used for away team form (BL1 or BL2)."
+        tests: [not_null]
 
   - name: mart_wc_pre_tournament_insights
     description: >
@@ -1072,6 +1101,7 @@ models:
       Stable BigQuery relation for export_matchday_json.py and GitHub Pages (unchanged name).
       Thin view over mart_matchday_insights_bl1 only until the match-preview UI supports multiple
       competitions; mart_matchday_insights_wc is the WC sibling with the same column contract.
+      During BL1 relegation play-offs use mart_matchday_insights_bl1_relegation for export instead.
     meta:
       owner: "data-platform"
       domain: "football"
