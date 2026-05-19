@@ -15,7 +15,9 @@ import_int_wc__participant_teams as (
 ),
 
 supporting_leagues as (
-    select supporting_league_code as league_code
+    select
+        supporting_league_code as league_code,
+        qualifier_season_api_year
     from {{ ref('wc_supporting_league_codes') }}
 ),
 
@@ -61,7 +63,9 @@ qualifier_legs_raw as (
     inner join import_int_wc__participant_teams as pt
         on leg.team_sk = pt.team_sk
     inner join supporting_leagues as sl
-        on leg.league_code = sl.league_code
+        on
+            leg.league_code = sl.league_code
+            and leg.season_api_year = sl.qualifier_season_api_year
     left join first_wc_tournament_leg as fw
         on leg.team_sk = fw.team_sk
     where

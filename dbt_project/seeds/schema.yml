@@ -31,11 +31,14 @@ seeds:
   - name: wc_supporting_league_codes
     description: >
       Maps parent tournament league_code (WC) to supporting qualifier league_codes for pre-tournament
-      form. Keep in sync with docs/competition_registry.yml supporting_leagues for WC.
+      form. qualifier_season_api_year is the active qualifying campaign season on API-Football
+      (competition_registry current_season per WCQ*). Keep in sync with docs/competition_registry.yml.
     columns:
       - name: parent_league_code
         tests: [not_null]
       - name: supporting_league_code
+        tests: [not_null]
+      - name: qualifier_season_api_year
         tests: [not_null]
 
   - name: wc_team_market_value_snapshot
