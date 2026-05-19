@@ -241,6 +241,19 @@ GitHub Actions workflows are split by change type so UI-only PRs do not run live
 
 Local preview of the same HTML and JSON layout: run `scripts/export_matchday_insights.ps1`, then `.\scripts\build_match_preview_site.ps1` (Windows) or `bash scripts/build_match_preview_site.sh` (Linux/macOS), and serve the `_site` folder with a static file server (open `/match-preview/`).
 
+### Play-off / promotion windows (BL1, BL2, L1)
+
+When a domestic league enters a play-off window, API-Football may still return NS fixtures with `round_name` labels such as `Final`. The landing card phase follows **`pages_export_manifest.json` row counts**, not calendar assumptions.
+
+| Step | Action |
+|------|--------|
+| Investigate | Query `int_matchday__upcoming_round_fixtures` and `mart_matchday_insights` for distinct `round_name` by `league_code`. Document in [`playoff_window_policy.md`](playoff_window_policy.md). |
+| Configure | Add or update dbt vars (`bl2_playoff_round_names`, `l1_relegation_round_names`, etc.) and extend `mart_matchday_insights` exclusions. BL1 keeps `mart_matchday_insights_bl1_relegation` + export fallback. |
+| Verify | `dbt test --select assert_mart_matchday_insights_excludes_playoff_rounds`; re-run `export_pages_data.py`; confirm manifest `matchday_row_count` and UI phase on staging Pages. |
+| CPO | Sign off in `playoff_window_policy.md` before enabling a new exclusion list or a dedicated L1 relegation mart. |
+
+Do not patch `_site` JSON by hand to force recap/matchday — change the mart or exporter.
+
 Required repository secrets for Workload Identity Federation:
 
 - `GCP_WORKLOAD_IDENTITY_PROVIDER`
