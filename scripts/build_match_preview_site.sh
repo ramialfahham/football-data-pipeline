@@ -26,7 +26,8 @@ MP_OUT="${SITE_OUT}/match-preview"
 mkdir -p "${MP_OUT}"
 cp -f "${ROOT}/site/match-preview/index.html" "${MP_OUT}/"
 cp -f "${ROOT}/artifacts/matchday_insights.json" "${MP_OUT}/"
-cp -f "${ROOT}/artifacts/metric_glossary.json" "${MP_OUT}/"
+cp -f "${ROOT}/site/match-preview/metric_manifest.json" "${MP_OUT}/"
+cp -f "${ROOT}/site/match-preview/metric_definitions.json" "${MP_OUT}/"
 
 # /team-season/
 TS_OUT="${SITE_OUT}/team-season"
@@ -41,6 +42,5 @@ if [ -f "${ROOT}/site/wc-pre-tournament/index.html" ]; then
   cp -f "${ROOT}/site/wc-pre-tournament/index.html" "${WC_OUT}/"
 fi
 cp -f "${ROOT}/artifacts/wc_pre_tournament_insights.json" "${WC_OUT}/"
-cp -f "${ROOT}/artifacts/metric_glossary.json" "${WC_OUT}/"
 
 echo "Published tree at ${SITE_OUT} (upload _site as Pages root)."

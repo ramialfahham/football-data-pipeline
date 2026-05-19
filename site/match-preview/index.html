@@ -565,31 +565,26 @@
       return Number.isFinite(n) ? String(n) : "-";
     }
 
-    /** Optional: metric_glossary.json → map metric_key → { label, description } */
-    function glossaryMap(glossaryPayload) {
-      const m = Object.create(null);
-      const list = (glossaryPayload && glossaryPayload.metrics) || [];
-      list.forEach((e) => {
-        if (e && e.metric_key) m[e.metric_key] = { label: e.label || "", description: e.description || "" };
-      });
-      return m;
-    }
+    const LEGACY_METRIC_LABEL_KEYS = {
+      league_rank: "metric.tabellenplatz",
+      points_won_form: "metric.punkteausbeute",
+      goals_per_match_recent: "metric.tore",
+      goals_against_per_match_recent: "metric.gegentore",
+      shots_per_match_recent: "metric.schuesse",
+      shot_accuracy_recent: "metric.schuesseAufsTor",
+      danger_zone_ratio_recent: "metric.schuesseAusStrafraum",
+      finishing_efficiency_recent: "metric.trefferquote",
+      passes_per_match_recent: "metric.paesse",
+      pass_accuracy_recent: "metric.angekommenePaesse",
+      corner_kicks_per_match_recent: "metric.ecken",
+      corners_conceded_per_match_recent: "metric.eckenGegen",
+      save_ratio_recent: "metric.gehalteneTorschuesse",
+    };
 
-    function glLabel(g, homeKey, awayKey, fallback) {
-      const a = g[homeKey];
-      const b = g[awayKey];
-      if (a && b && a.label && a.label === b.label) {
-        return a.label.replace(/^Home /i, "").replace(/^Away /i, "");
-      }
-      return fallback;
-    }
-
-    function glExplain(g, homeKey, awayKey) {
-      const G = g || {};
-      const a = G[homeKey];
-      const b = G[awayKey];
-      const d = (a && a.description) || (b && b.description) || "";
-      return String(d).trim();
+    function metricLabel(metricId) {
+      const legacy = LEGACY_METRIC_LABEL_KEYS[metricId];
+      const fallback = legacy ? t(legacy, metricId) : metricId;
+      return t(`metrics.${metricId}.label`, fallback);
     }
 
     function escHtml(s) {
@@ -600,51 +595,39 @@
         .replace(/"/g, "&quot;");
     }
 
-    function metricTableRows(r, g) {
-      // Grouping is encoded as alternating background bands ("a" vs "b") on
-      // the rendered rows — no separate group header labels. The band flips
-      // every time the next metric belongs to a new semantic group, so the
-      // user sees a tinted block for each group without spending vertical
-      // space on a header.
-      const m = (label, homeVal, awayVal, homeNum, awayNum, band, opts = {}) => ({
-        label, home: homeVal, away: awayVal, homeNum, awayNum, band,
-        lowerIsBetter: !!opts.lowerIsBetter,
-      });
+    function metricTableRows(r, defs, manifest) {
       const pct = (v) => (v === null || v === undefined || isNaN(Number(v))) ? null : Number(v) * 100;
       const num = (v) => (v === null || v === undefined || isNaN(Number(v))) ? null : Number(v);
-      return [
-        // Tabellenstand & Form
-        m(t("metric.tabellenplatz", "Tabellenplatz"), rankLabel(r.home_league_rank), rankLabel(r.away_league_rank),
-          num(r.home_league_rank), num(r.away_league_rank), "a", { lowerIsBetter: true }),
-        m(t("metric.punkteausbeute", "Punkteausbeute"), pointsDisplay(r, "home"), pointsDisplay(r, "away"),
-          num(r.home_points_won_sum_form), num(r.away_points_won_sum_form), "a"),
-        // Tore
-        m(t("metric.tore", "Ø Tore"), fmtDe(r.home_goals_per_match_recent, 1), fmtDe(r.away_goals_per_match_recent, 1),
-          num(r.home_goals_per_match_recent), num(r.away_goals_per_match_recent), "b"),
-        m(t("metric.gegentore", "Ø Gegentore"), fmtDe(r.home_goals_against_per_match_recent, 1), fmtDe(r.away_goals_against_per_match_recent, 1),
-          num(r.home_goals_against_per_match_recent), num(r.away_goals_against_per_match_recent), "b", { lowerIsBetter: true }),
-        // Abschluss & Effizienz
-        m(t("metric.schuesse", "Ø Schüsse"), fmtDe(r.home_shots_per_match_recent, 1), fmtDe(r.away_shots_per_match_recent, 1),
-          num(r.home_shots_per_match_recent), num(r.away_shots_per_match_recent), "a"),
-        m(t("metric.schuesseAufsTor", "% Schüsse aufs Tor"), fmtDePct(r.home_shot_accuracy_recent), fmtDePct(r.away_shot_accuracy_recent),
-          pct(r.home_shot_accuracy_recent), pct(r.away_shot_accuracy_recent), "a"),
-        m(t("metric.schuesseAusStrafraum", "% Schüsse aus dem Strafraum"), fmtDePct(r.home_danger_zone_ratio_recent), fmtDePct(r.away_danger_zone_ratio_recent),
-          pct(r.home_danger_zone_ratio_recent), pct(r.away_danger_zone_ratio_recent), "a"),
-        m(t("metric.trefferquote", "% Trefferquote"), fmtDePct(r.home_finishing_efficiency_recent), fmtDePct(r.away_finishing_efficiency_recent),
-          pct(r.home_finishing_efficiency_recent), pct(r.away_finishing_efficiency_recent), "a"),
-        // Spielaufbau
-        m(t("metric.paesse", "Ø Pässe"), fmtDe(r.home_passes_per_match_recent, 0), fmtDe(r.away_passes_per_match_recent, 0),
-          num(r.home_passes_per_match_recent), num(r.away_passes_per_match_recent), "b"),
-        m(t("metric.angekommenePaesse", "% Angekommene Pässe"), fmtDePct(r.home_pass_accuracy_recent), fmtDePct(r.away_pass_accuracy_recent),
-          pct(r.home_pass_accuracy_recent), pct(r.away_pass_accuracy_recent), "b"),
-        // Standards & Defensive
-        m(t("metric.ecken", "Ø Ecken"), fmtDe(r.home_corner_kicks_per_match_recent, 1), fmtDe(r.away_corner_kicks_per_match_recent, 1),
-          num(r.home_corner_kicks_per_match_recent), num(r.away_corner_kicks_per_match_recent), "a"),
-        m(t("metric.eckenGegen", "Ø Ecken gegen"), fmtDe(r.home_corners_conceded_per_match_recent, 1), fmtDe(r.away_corners_conceded_per_match_recent, 1),
-          num(r.home_corners_conceded_per_match_recent), num(r.away_corners_conceded_per_match_recent), "a", { lowerIsBetter: true }),
-        m(t("metric.gehalteneTorschuesse", "% Gehaltene Torschüsse"), fmtDePct(r.home_save_ratio_recent), fmtDePct(r.away_save_ratio_recent),
-          pct(r.home_save_ratio_recent), pct(r.away_save_ratio_recent), "b"),
-      ];
+      const formatDisplay = (raw, format, side) => {
+        if (format === "points_fraction") return pointsDisplay(r, side);
+        if (format === "integer") return rankLabel(raw);
+        if (format === "percent") return fmtDePct(raw);
+        if (format === "decimal_0") return fmtDe(raw, 0);
+        return fmtDe(raw, 1);
+      };
+      const compareNum = (raw, format, side) => {
+        if (format === "points_fraction") {
+          const pts = side === "home" ? r.home_points_won_sum_form : r.away_points_won_sum_form;
+          return num(pts);
+        }
+        if (format === "percent") return pct(raw);
+        return num(raw);
+      };
+      const list = (manifest && manifest.metrics) || [];
+      return list.map(({ metric_id: metricId, band }) => {
+        const def = (defs && defs[metricId]) || {};
+        const homeRaw = def.home_column ? r[def.home_column] : null;
+        const awayRaw = def.away_column ? r[def.away_column] : null;
+        return {
+          label: metricLabel(metricId),
+          home: formatDisplay(homeRaw, def.format, "home"),
+          away: formatDisplay(awayRaw, def.format, "away"),
+          homeNum: compareNum(homeRaw, def.format, "home"),
+          awayNum: compareNum(awayRaw, def.format, "away"),
+          band: band || "a",
+          lowerIsBetter: !!def.lower_is_better,
+        };
+      });
     }
 
     function teamNameLabel(v, missingLabel) {
@@ -757,7 +740,7 @@
       }
     }
 
-    function render(rows, g) {
+    function render(rows, defs, manifest) {
       document.getElementById("foot-note").textContent = t("matchPreview.foot", FALLBACK_FOOT);
 
       const sorted = [...rows].sort((a, b) => {
@@ -814,7 +797,7 @@
           </div>
           <div class="kickoff">${escHtml(matchContextLine(row))}</div>
           <div class="form-context">${escHtml(t("matchPreview.formContext", "Form: letzte 5 Spiele"))}</div>
-          ${renderMetrics(metricTableRows(row, g))}
+          ${renderMetrics(metricTableRows(row, defs, manifest))}
         `;
         carousel.appendChild(article);
       });
@@ -856,10 +839,11 @@
       Promise.all([
         i18nReady,
         fetch("./matchday_insights.json").then((r) => r.json()),
-        fetch("./metric_glossary.json").then((r) => r.json()).catch(() => ({ metrics: [] })),
+        fetch("./metric_manifest.json").then((r) => r.json()),
+        fetch("./metric_definitions.json").then((r) => r.json()),
       ])
-        .then(([_, payload, glossaryPayload]) => {
-          render(payload.show || [], glossaryMap(glossaryPayload));
+        .then(([_, payload, manifest, defs]) => {
+          render(payload.show || [], defs, manifest);
         })
         .catch((err) => {
           document.getElementById("carousel").innerHTML =

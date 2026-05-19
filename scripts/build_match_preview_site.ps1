@@ -26,7 +26,8 @@ $MpOut = Join-Path $SiteRoot "match-preview"
 New-Item -ItemType Directory -Force -Path $MpOut | Out-Null
 Copy-Item (Join-Path $Root "site\match-preview\index.html") $MpOut -Force
 Copy-Item (Join-Path $Root "artifacts\matchday_insights.json") $MpOut -Force
-Copy-Item (Join-Path $Root "artifacts\metric_glossary.json") $MpOut -Force
+Copy-Item (Join-Path $Root "site\match-preview\metric_manifest.json") $MpOut -Force
+Copy-Item (Join-Path $Root "site\match-preview\metric_definitions.json") $MpOut -Force
 
 # /team-season/
 $TsOut = Join-Path $SiteRoot "team-season"
@@ -41,6 +42,5 @@ if (Test-Path $WcHtml) {
     Copy-Item $WcHtml $WcOut -Force
 }
 Copy-Item (Join-Path $Root "artifacts\wc_pre_tournament_insights.json") $WcOut -Force
-Copy-Item (Join-Path $Root "artifacts\metric_glossary.json") $WcOut -Force
 
 Write-Host "Published tree at $SiteRoot (serve _site and open /, /fixture-list/, /match-preview/, /team-season/, or /wc-pre-tournament/)."

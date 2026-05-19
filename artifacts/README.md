@@ -3,7 +3,7 @@
 This folder contains a lightweight shareable artifact for the upcoming **Bundesliga** matchday (internal `league_code` D1 in the warehouse):
 
 - `matchday_insights.json`: exported `dbt show` from `mart_matchday_insights` with `--limit 9` (one row per fixture; nine is the maximum fixtures per Bundesliga round). Rows include `league_name` **Bundesliga** for display.
-- `metric_glossary.json`: built from [`dbt_project/seeds/metric_glossary.csv`](../dbt_project/seeds/metric_glossary.csv) via `scripts/build_metric_glossary_json.py` — `metric_key`, `label`, and `description` only; run `scripts/export_matchday_insights.ps1` to refresh both files.
+- Metric labels/descriptions: [`site/i18n/de.json`](../site/i18n/de.json) and [`site/i18n/en.json`](../site/i18n/en.json) under `metrics.<metric_id>`. Column bindings: [`dbt_project/seeds/metric_definitions.csv`](../dbt_project/seeds/metric_definitions.csv) → `site/match-preview/metric_definitions.json` via `scripts/export_metric_definitions_json.py`.
 - `matchday_style_clash.html`: bold-social card view with metric explanations
 
 Feedback collection (anonymous, in-app modal):
