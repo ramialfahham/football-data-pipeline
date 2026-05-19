@@ -1,13 +1,14 @@
-"""Export domestic league JSON for GitHub Pages under artifacts/data/{league}/.
+"""Export domestic league and WC JSON for GitHub Pages under artifacts/data/{league}/.
 
 Queries unified marts with WHERE league_code (no per-league mart relations). BL1 matchday
 uses mart_matchday_insights filtered to BL1; when empty, falls back to
-mart_matchday_insights_bl1_relegation.
+mart_matchday_insights_bl1_relegation. WC matchday uses mart_matchday_insights_wc.
 
 Writes:
   artifacts/data/{league_lower}/matchday_insights.json   {"show": [...]}
   artifacts/data/{league_lower}/team_season_insights.json {"teams": [...]}
-  artifacts/pages_export_manifest.json
+  artifacts/data/wc/matchday_insights.json               {"show": [...]}  (WC only)
+  artifacts/pages_export_manifest.json  (domestic_leagues[] + wc{})
   artifacts/matchday_insights.json (legacy BL1 compat)
   artifacts/team_season_insights.json (legacy BL1 compat)
 
@@ -32,6 +33,8 @@ MARTS_DATASET = "marts"
 MATCHDAY_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_insights"
 TEAM_SEASON_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_team_season_insights"
 RELEGATION_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_insights_bl1_relegation"
+WC_MATCHDAY_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_insights_wc"
+WC_PRE_TOURNAMENT_PATH = "wc-pre-tournament/wc_pre_tournament_insights.json"
 
 
 def _dbt_active_league_codes() -> list[str]:
@@ -90,6 +93,16 @@ def fetch_matchday_rows(client, league_code: str) -> tuple[list[dict], str]:
     if relegation_rows:
         return relegation_rows, "mart_matchday_insights_bl1_relegation"
     return rows, "mart_matchday_insights"
+
+
+def fetch_wc_matchday_rows(client) -> tuple[list[dict], str]:
+    sql = (
+        f"select * from `{WC_MATCHDAY_MART}` "
+        "order by fixture_date asc, kickoff_datetime asc, fixture_sk asc"
+    )
+    print(f"Querying {WC_MATCHDAY_MART} ...", flush=True)
+    rows = _bigquery_rows_to_dicts(list(client.query(sql).result()))
+    return rows, "mart_matchday_insights_wc"
 
 
 def fetch_team_season_rows(client, league_code: str) -> list[dict]:
@@ -154,10 +167,22 @@ def export_all(artifacts_root: pathlib.Path | None = None) -> dict:
             }
         )
 
+    wc_matchday_rows, wc_source_mart = fetch_wc_matchday_rows(client)
+    wc_dir = data_root / "wc"
+    wc_matchday_path = wc_dir / "matchday_insights.json"
+    write_json(wc_matchday_path, {"show": wc_matchday_rows})
+    print(f"Wrote {wc_matchday_path} ({len(wc_matchday_rows)} rows)", flush=True)
+
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "domestic_leagues": leagues_manifest,
-        "wc_pre_tournament_path": "wc-pre-tournament/wc_pre_tournament_insights.json",
+        "wc": {
+            "league_code": "WC",
+            "matchday_path": "data/wc/matchday_insights.json",
+            "matchday_row_count": len(wc_matchday_rows),
+            "matchday_source_mart": wc_source_mart,
+            "wc_pre_tournament_path": WC_PRE_TOURNAMENT_PATH,
+        },
         "legacy_compat": {
             "matchday_insights": "match-preview/matchday_insights.json",
             "team_season_insights": "team-season/team_season_insights.json",
