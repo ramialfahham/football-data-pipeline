@@ -94,6 +94,9 @@ jobs:
       - name: dbt deps
         run: dbt deps
 
+      - name: Lint SQL (sqlfluff + dbt templater needs GCP)
+        run: sqlfluff lint models
+
       - name: dbt seed
         run: dbt seed
 
