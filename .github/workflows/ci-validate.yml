@@ -105,6 +105,10 @@ jobs:
                 priority: interactive
           EOF
 
+      - name: dbt deps
+        working-directory: dbt_project
+        run: dbt deps
+
       - name: Lint SQL
         working-directory: dbt_project
         run: sqlfluff lint models
