@@ -1,7 +1,7 @@
 {{ config(materialized='view') }}
 
 {#
-  FIFA World Cup (WC) matchday preview mart: same column contract as mart_matchday_insights_bl1.
+  FIFA World Cup (WC) matchday preview mart: same column contract as mart_matchday_insights.
   league_code filter is WC only; upstream int_matchday__* models stay league-agnostic.
   Form before the team's first finished WC leg in the season uses supporting qualifier leagues
   (see int_matchday__team_form_metrics and seed wc_supporting_league_codes).

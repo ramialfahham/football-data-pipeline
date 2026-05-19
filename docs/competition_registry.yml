@@ -233,7 +233,7 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PL"
-    notes: "2025/26 season only at onboarding; mart_matchday_insights_pl + team_season_insights."
+    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "PD"
     name: "La Liga"
@@ -249,7 +249,7 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PD"
-    notes: "2025/26 season only at onboarding; mart_matchday_insights_pd + team_season_insights."
+    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "BL2"
     name: "2. Fußball-Bundesliga"
@@ -265,7 +265,7 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL2"
-    notes: "2025/26 season only at onboarding; mart_matchday_insights_bl2 + team_season_insights."
+    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "SA"
     name: "Serie A"
@@ -281,7 +281,7 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_SA"
-    notes: "2025/26 season only at onboarding; mart_matchday_insights_sa + team_season_insights."
+    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "L1"
     name: "Ligue 1"
@@ -297,7 +297,7 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_L1"
-    notes: "2025/26 season only at onboarding; mart_matchday_insights_l1 + team_season_insights."
+    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "VL"
     name: "Veikkausliiga"

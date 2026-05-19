@@ -2,9 +2,11 @@
 # Assemble GitHub Pages artifact: static UI + JSON exports.
 #   /                          → landing (competition overview + entry hub)
 #   /fixture-list/             → upcoming fixtures (empty during off-season)
-#   /match-preview/            → fixture-detail page + matchday insights JSON
-#   /team-season/              → per-team season retrospective + team-season insights JSON
+#   /data/{league}/              → per-league matchday + team-season JSON (manifest-driven)
+#   /match-preview/            → fixture-detail page + legacy BL1 matchday JSON (compat)
+#   /team-season/              → per-team season retrospective + legacy BL1 JSON (compat)
 #   /wc-pre-tournament/          → WC qualifier-window team JSON (UI: site/wc-pre-tournament/)
+#   /pages_export_manifest.json → export contract for multi-league UI wiring
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SITE_OUT="${ROOT}/_site"
@@ -25,7 +27,11 @@ cp -f "${ROOT}/site/fixture-list/index.html" "${FL_OUT}/"
 MP_OUT="${SITE_OUT}/match-preview"
 mkdir -p "${MP_OUT}"
 cp -f "${ROOT}/site/match-preview/index.html" "${MP_OUT}/"
-cp -f "${ROOT}/artifacts/matchday_insights.json" "${MP_OUT}/"
+if [ -f "${ROOT}/artifacts/data/bl1/matchday_insights.json" ]; then
+  cp -f "${ROOT}/artifacts/data/bl1/matchday_insights.json" "${MP_OUT}/matchday_insights.json"
+elif [ -f "${ROOT}/artifacts/matchday_insights.json" ]; then
+  cp -f "${ROOT}/artifacts/matchday_insights.json" "${MP_OUT}/"
+fi
 cp -f "${ROOT}/site/match-preview/metric_manifest.json" "${MP_OUT}/"
 cp -f "${ROOT}/site/match-preview/metric_definitions.json" "${MP_OUT}/"
 
@@ -33,7 +39,20 @@ cp -f "${ROOT}/site/match-preview/metric_definitions.json" "${MP_OUT}/"
 TS_OUT="${SITE_OUT}/team-season"
 mkdir -p "${TS_OUT}"
 cp -f "${ROOT}/site/team-season/index.html" "${TS_OUT}/"
-cp -f "${ROOT}/artifacts/team_season_insights.json" "${TS_OUT}/"
+if [ -f "${ROOT}/artifacts/data/bl1/team_season_insights.json" ]; then
+  cp -f "${ROOT}/artifacts/data/bl1/team_season_insights.json" "${TS_OUT}/team_season_insights.json"
+elif [ -f "${ROOT}/artifacts/team_season_insights.json" ]; then
+  cp -f "${ROOT}/artifacts/team_season_insights.json" "${TS_OUT}/"
+fi
+
+# /data/{league}/ + manifest
+if [ -d "${ROOT}/artifacts/data" ]; then
+  mkdir -p "${SITE_OUT}/data"
+  cp -r "${ROOT}/artifacts/data/." "${SITE_OUT}/data/"
+fi
+if [ -f "${ROOT}/artifacts/pages_export_manifest.json" ]; then
+  cp -f "${ROOT}/artifacts/pages_export_manifest.json" "${SITE_OUT}/"
+fi
 
 # /wc-pre-tournament/ (JSON only until Claude adds index.html)
 WC_OUT="${SITE_OUT}/wc-pre-tournament"

@@ -185,6 +185,8 @@ Canonical mart inventory for this project:
 | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
 | `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
 | `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
+| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | Domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+| `mart_team_season_insights` | (league_code, team_sk) | table | Latest season per league; slice by `league_code` at export/UI. |
 
 ## Testing Guidance by Layer
 

@@ -1,31 +1,22 @@
-"""Export marts.mart_matchday_insights from BigQuery to app-ready matchday_insights.json.
+"""Export BL1 matchday insights JSON (legacy single-file entry point).
 
-The relation is a thin view over mart_matchday_insights_bl1 (stable name for the app).
-BL1-only until the match-preview UI can switch or filter by league_code; WC remains
-in mart_matchday_insights_wc for warehouse consumers. Reads the materialised mart
-directly — no row cap, no CLI output parsing.
-
-Output format: {"show": [...rows...]} — matches the shape the UI expects.
+Prefer `python scripts/export_pages_data.py` for all domestic leagues and the
+Pages manifest. Queries mart_matchday_insights with league_code = BL1, or the
+relegation mart when that slice is empty.
 
 Usage:
     python scripts/export_matchday_json.py <output_path>
-
-Authentication: uses Application Default Credentials (set by google-github-actions/auth
-in CI, or by `gcloud auth application-default login` locally).
 """
 from __future__ import annotations
 
-import json
 import pathlib
 import sys
 
+_SCRIPTS_DIR = pathlib.Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
-GCP_PROJECT = "football-data-pipeline-gcp"
-MART_TABLE = f"{GCP_PROJECT}.marts.mart_matchday_insights"
-
-
-def _bigquery_rows_to_dicts(rows) -> list[dict]:
-    return [dict(row.items()) for row in rows]
+from export_pages_data import domestic_league_codes, fetch_matchday_rows, write_json
 
 
 def main() -> int:
@@ -33,25 +24,23 @@ def main() -> int:
         print("Usage: export_matchday_json.py <output_path>")
         return 1
 
-    output_path = pathlib.Path(sys.argv[1])
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if "BL1" not in domestic_league_codes():
+        print("export_matchday_json: BL1 is not in domestic export list", file=sys.stderr)
+        return 1
 
+    output_path = pathlib.Path(sys.argv[1])
     try:
         from google.cloud import bigquery
     except ImportError:
         print("google-cloud-bigquery is not installed. Run: pip install -r requirements.txt")
         return 1
 
+    from export_pages_data import GCP_PROJECT
+
     client = bigquery.Client(project=GCP_PROJECT)
-    query = f"SELECT * FROM `{MART_TABLE}`"
-
-    print(f"Querying {MART_TABLE} ...", flush=True)
-    rows = list(client.query(query).result())
-    print(f"Retrieved {len(rows)} rows.", flush=True)
-
-    payload = {"show": _bigquery_rows_to_dicts(rows)}
-    output_path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-    print(f"Wrote {output_path} ({len(rows)} rows)")
+    rows, source_mart = fetch_matchday_rows(client, "BL1")
+    write_json(output_path, {"show": rows})
+    print(f"Wrote {output_path} ({len(rows)} rows, source_mart={source_mart})")
     return 0
 
 
