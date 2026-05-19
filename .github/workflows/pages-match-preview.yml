@@ -22,15 +22,10 @@ on:
       - "dbt_project/models/1_staging/api_football/vl/**"
       - "site/**"
       - "dbt_project/models/5_marts/mart_matchday_insights.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_bl1.sql"
+      - "dbt_project/models/5_marts/mart_matchday_insights_bl1_relegation.sql"
       - "dbt_project/models/5_marts/mart_matchday_insights_wc.sql"
       - "dbt_project/models/5_marts/mart_wc_pre_tournament_insights.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_pl.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_pd.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_bl2.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_sa.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_l1.sql"
-      - "dbt_project/models/5_marts/mart_matchday_insights_vl.sql"
+      - "dbt_project/macros/domestic_league_codes_in_clause.sql"
       - "dbt_project/models/5_marts/mart_team_season.sql"
       - "dbt_project/models/5_marts/mart_team_season_insights.sql"
       - "dbt_project/models/5_marts/marts.yml"
@@ -44,6 +39,7 @@ on:
       - "scripts/build_match_preview_site.ps1"
       - "scripts/export_matchday_json.py"
       - "scripts/export_team_season_json.py"
+      - "scripts/export_pages_data.py"
       - "scripts/build_metric_glossary_json.py"
       - "scripts/inject_feedback_endpoint.py"
 
@@ -117,7 +113,8 @@ jobs:
         working-directory: dbt_project
         run: >-
           dbt run --select
-          +mart_matchday_insights +mart_matchday_insights_wc
+          mart_matchday_insights mart_matchday_insights_wc
+          mart_matchday_insights_bl1_relegation
           +mart_team_season_insights +mart_wc_pre_tournament_insights
 
       - name: Run data quality tests
@@ -125,7 +122,7 @@ jobs:
         run: >-
           dbt test --select
           fct_fixture int_matchday__team_form_metrics
-          mart_matchday_insights_bl1 mart_matchday_insights_wc
+          mart_matchday_insights mart_matchday_insights_wc
           mart_wc_pre_tournament_insights
           assert_mart_matchday_insights_metric_consistency
           assert_mart_wc_pre_tournament_insights_team_count
@@ -136,11 +133,8 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v4
 
-      - name: Export matchday JSON
-        run: python scripts/export_matchday_json.py artifacts/matchday_insights.json
-
-      - name: Export team-season insights JSON
-        run: python scripts/export_team_season_json.py artifacts/team_season_insights.json
+      - name: Export Pages data (per-league JSON + manifest)
+        run: python scripts/export_pages_data.py
 
       - name: Export WC pre-tournament insights JSON
         run: python scripts/export_wc_pre_tournament_json.py artifacts/wc_pre_tournament_insights.json

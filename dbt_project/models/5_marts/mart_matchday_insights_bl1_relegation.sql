@@ -1,7 +1,7 @@
 {{ config(materialized='view') }}
 
 {#
-  BL1 relegation play-off matchday surface. Same metric columns as mart_matchday_insights_bl1;
+  BL1 relegation play-off matchday surface. Same metric columns as mart_matchday_insights;
   form uses each team's domestic league (BL1 or BL2) via int_matchday__team_form_metrics_relegation.
   Standings join on form league + form season, not the BL1 fixture season_sk alone.
 #}

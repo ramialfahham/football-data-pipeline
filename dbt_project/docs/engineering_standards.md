@@ -126,3 +126,10 @@ Before release to prod:
 - Never commit API keys, service account files, or secret env values.
 - Use environment variables for external API authentication.
 - Keep service roles least-privileged where possible.
+
+## 11) GitHub Pages export contract
+
+- **Source of league list:** `vars.active_competition_league_codes` in `dbt_project.yml`, domestic subset only (exclude `WC` and `WCQ*`).
+- **Warehouse:** One `mart_matchday_insights` for all domestic leagues (`league_code` on every row); `mart_matchday_insights_bl1_relegation` only for BL1 play-offs; `mart_matchday_insights_wc` for WC; one `mart_team_season_insights` table for all leagues. Do not add per-league filter views or codegen copies in `5_marts`.
+- **Exporter:** `scripts/export_pages_data.py` queries unified marts with `WHERE league_code = @code`, writes `artifacts/data/{league_lower}/…`, and `artifacts/pages_export_manifest.json`. BL1 matchday falls back to the relegation mart when the domestic slice is empty.
+- **Site layout:** `_site/data/{league}/` plus manifest at `_site/pages_export_manifest.json`; `match-preview/matchday_insights.json` is optional BL1 compat copy until the UI reads the manifest.

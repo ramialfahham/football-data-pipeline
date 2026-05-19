@@ -8,22 +8,10 @@
 -- with the underlying sum columns it was computed from.
 -- Only rows where both teams have form data (form_games_played > 0).
 -- Skips comparisons when the displayed rate or a required sum is null (honest nulls).
--- Source: BL1 + WC marts (export view mart_matchday_insights is BL1-only for Pages until multi-UI).
+-- Source: unified domestic mart + WC sibling.
 
 with src as (
-    select * from {{ ref('mart_matchday_insights_bl1') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_pl') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_pd') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_bl2') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_sa') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_l1') }}
-    union all
-    select * from {{ ref('mart_matchday_insights_vl') }}
+    select * from {{ ref('mart_matchday_insights') }}
     union all
     select * from {{ ref('mart_matchday_insights_wc') }}
 ),
@@ -31,6 +19,7 @@ with src as (
 checks as (
     select
         fixture_sk,
+        league_code,
         home_team_sk,
         away_team_sk,
 

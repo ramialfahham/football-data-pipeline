@@ -428,8 +428,13 @@ models:
       - name: current_rank
         tests: [not_null]
 
-  - name: mart_matchday_insights_bl1
-    description: "Bundesliga (BL1) upcoming matchday surface for pre-match comparison. Grain: one row per fixture in the nearest upcoming round (excludes relegation play-off rounds in var bl1_relegation_round_names; use mart_matchday_insights_bl1_relegation). Form metrics aggregate the last five completed matchdays before the upcoming round; per-match rates divide by games in that window. mart_matchday_insights is a thin view over this model for a stable export name."
+  - name: mart_matchday_insights
+    description: >
+      Domestic league matchday surface for pre-match comparison. Grain: one row per upcoming
+      fixture per league_code (active domestic competitions from vars.active_competition_league_codes).
+      BL1 excludes relegation play-off rounds (var bl1_relegation_round_names); use
+      mart_matchday_insights_bl1_relegation during play-offs. WC uses mart_matchday_insights_wc.
+      Export and UI slice with WHERE league_code; do not add per-league mart copies.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -608,7 +613,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
-        description: "Internal pipeline league key (BL1 for Bundesliga in this model). Use league_name for display."
+        description: "Internal pipeline league key (BL1, PL, PD, …). Filter for export/UI; use league_name for display."
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
@@ -621,7 +626,7 @@ models:
       - name: upcoming_round_order
         description: "Trailing integer parsed from round_name for ordering past rounds (null if not parseable)."
       - name: league_name
-        description: "Human-readable league name; Bundesliga for all rows in this model."
+        description: "Human-readable league name from upstream fixture context."
       - name: home_team_name
         tests:
           - not_null
@@ -712,7 +717,7 @@ models:
 
   - name: mart_matchday_insights_bl1_relegation
     description: >
-      BL1 relegation play-off matchday surface. Same metrics as mart_matchday_insights_bl1 plus
+      BL1 relegation play-off matchday surface. Same metrics as mart_matchday_insights plus
       home_form_league_code and away_form_league_code (BL1 vs BL2). Form uses each team's domestic
       league; standings join on form league + season.
     meta:
@@ -778,62 +783,8 @@ models:
         description: "True when every qualifier leg has shots_total (UI may show shots_per_match_pretournament)."
         tests: [not_null]
 
-  - name: mart_matchday_insights_pl
-    description: "Premier League (PL) matchday surface; same column contract as mart_matchday_insights_bl1. league_only form (full previous season before MD1, then last five in-season)."
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'PL'"
-          name: mart_matchday_insights_pl_league_code_is_pl
-
-  - name: mart_matchday_insights_pd
-    description: "La Liga (PD) matchday surface; same column contract as mart_matchday_insights_bl1."
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'PD'"
-          name: mart_matchday_insights_pd_league_code_is_pd
-
-  - name: mart_matchday_insights_bl2
-    description: "2. Bundesliga (BL2) matchday surface; same column contract as mart_matchday_insights_bl1."
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'BL2'"
-          name: mart_matchday_insights_bl2_league_code_is_bl2
-
-  - name: mart_matchday_insights_sa
-    description: "Serie A (SA) matchday surface; same column contract as mart_matchday_insights_bl1."
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'SA'"
-          name: mart_matchday_insights_sa_league_code_is_sa
-
-  - name: mart_matchday_insights_l1
-    description: "Ligue 1 (L1) matchday surface; same column contract as mart_matchday_insights_bl1."
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'L1'"
-          name: mart_matchday_insights_l1_league_code_is_l1
-
-  - name: mart_matchday_insights_vl
-    description: "Veikkausliiga (VL) matchday surface; same column contract as mart_matchday_insights_bl1."
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'VL'"
-          name: mart_matchday_insights_vl_league_code_is_vl
-
   - name: mart_matchday_insights_wc
-    description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights_bl1; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
+    description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -1095,16 +1046,3 @@ models:
         description: "Published-style total squad estimate in whole EUR; null when unknown."
       - name: source_code
         description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
-
-  - name: mart_matchday_insights
-    description: >
-      Stable BigQuery relation for export_matchday_json.py and GitHub Pages (unchanged name).
-      Thin view over mart_matchday_insights_bl1 only until the match-preview UI supports multiple
-      competitions; mart_matchday_insights_wc is the WC sibling with the same column contract.
-      During BL1 relegation play-offs use mart_matchday_insights_bl1_relegation for export instead.
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "high"
-    config:
-      tags: ["marts", "football", "consumer", "pre_match"]
