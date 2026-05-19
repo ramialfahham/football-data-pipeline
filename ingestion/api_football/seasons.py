@@ -101,6 +101,18 @@ def _season_years_from_leagues_seasons_endpoint(
     return sorted(out)
 
 
+def _parse_iso_date(raw: object) -> date | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()[:10]
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
 def _api_current_season_year(league_catalog: dict) -> int | None:
     """Season year flagged ``current`` in the /leagues catalog (API source of truth)."""
     for item in (league_catalog.get("response") or []):
@@ -112,6 +124,31 @@ def _api_current_season_year(league_catalog: dict) -> int | None:
             except (TypeError, ValueError, KeyError):
                 continue
     return None
+
+
+def _most_recent_completed_season_year(league_catalog: dict) -> int | None:
+    """Latest catalog season whose ``end`` date is strictly before today (off-season fallback)."""
+    today = date.today()
+    best: int | None = None
+    for item in (league_catalog.get("response") or []):
+        for season in (item.get("seasons") or []):
+            end = _parse_iso_date(season.get("end"))
+            if end is None or end >= today:
+                continue
+            yi = _coerce_api_season_year(
+                season.get("year"),
+                context="leagues/catalog completed season.year",
+                errors=None,
+            )
+            if yi is not None and (best is None or yi > best):
+                best = yi
+    return best
+
+
+def _latest_catalog_season_year(league_catalog: dict) -> int | None:
+    """Highest season year listed in the catalog (when no ``current`` or completed row applies)."""
+    years = _season_years_from_leagues_catalog(league_catalog, errors=None)
+    return years[-1] if years else None
 
 
 def _default_profile_max_band_seasons() -> int:
@@ -133,12 +170,20 @@ def _resolve_current_season_year(
 
     Order (no hard-coded league years):
     1. API /leagues catalog season with ``current: true``
-    2. Type-specific inference (split-year July rule or calendar-year today)
-    3. Registry ``current_season`` — optional manual override only
+    2. Most recent completed season in the catalog (``end`` before today)
+    3. Latest season year in the catalog when dates are missing
+    4. Type-specific inference (split-year July rule or calendar-year today)
+    5. Registry ``current_season`` — optional manual override only
     """
     api_current = _api_current_season_year(league_catalog)
     if api_current is not None:
         return api_current
+    completed = _most_recent_completed_season_year(league_catalog)
+    if completed is not None:
+        return completed
+    latest = _latest_catalog_season_year(league_catalog)
+    if latest is not None:
+        return latest
     if season_type == "calendar_year":
         if registry_current is not None:
             return registry_current
@@ -236,8 +281,9 @@ def _seasons_for_ingestion(
     band = list(range(lo, hi + 1))
     if history_seasons is not None and band:
         max_band = _default_profile_max_band_seasons()
-        if len(band) <= max_band:
-            return band
+        if len(band) > max_band:
+            return band[-max_band:]
+        return band
 
     return [fallback]
 

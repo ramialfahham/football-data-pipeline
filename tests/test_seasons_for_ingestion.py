@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ingestion.api_football.seasons import (
     _api_current_season_year,
+    _most_recent_completed_season_year,
     _resolve_current_season_year,
     _seasons_for_ingestion,
 )
@@ -39,6 +40,27 @@ class TestResolveCurrentSeasonYear:
             == 2026
         )
 
+    def test_completed_season_when_no_current_flag(self):
+        catalog = {
+            "response": [
+                {
+                    "seasons": [
+                        {"year": 2024, "current": False, "end": "2024-05-31"},
+                        {"year": 2025, "current": False, "end": "2025-05-31"},
+                    ],
+                }
+            ]
+        }
+        assert _most_recent_completed_season_year(catalog) == 2025
+        assert (
+            _resolve_current_season_year(
+                season_type="split_year",
+                registry_current=2024,
+                league_catalog=catalog,
+            )
+            == 2025
+        )
+
     def test_split_year_uses_july_rule_when_api_missing(self, monkeypatch):
         monkeypatch.setattr(
             "ingestion.api_football.seasons.season_year",
@@ -71,10 +93,11 @@ class TestSeasonsForIngestion:
         )
         assert seasons == [2025, 2026]
 
-    def test_wide_history_stays_single_season_on_default_profile(self, monkeypatch):
+    def test_wide_history_truncates_to_profile_cap_on_default_profile(self, monkeypatch):
         monkeypatch.delenv("API_FOOTBALL_SEASON", raising=False)
         monkeypatch.delenv("API_FOOTBALL_SEASONS", raising=False)
         monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "default")
+        monkeypatch.setenv("API_FOOTBALL_DEFAULT_PROFILE_MAX_SEASONS", "3")
 
         catalog = {
             "response": [
@@ -92,4 +115,4 @@ class TestSeasonsForIngestion:
             history_seasons=10,
             season_type="split_year",
         )
-        assert seasons == [2025]
+        assert seasons == [2023, 2024, 2025]
