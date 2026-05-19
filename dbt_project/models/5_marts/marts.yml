@@ -433,8 +433,10 @@ models:
       Domestic league matchday surface for pre-match comparison. Grain: one row per upcoming
       fixture per league_code (active domestic competitions from vars.active_competition_league_codes).
       BL1 excludes relegation play-off rounds (var bl1_relegation_round_names); use
-      mart_matchday_insights_bl1_relegation during play-offs. WC uses mart_matchday_insights_wc.
-      Export and UI slice with WHERE league_code; do not add per-league mart copies.
+      mart_matchday_insights_bl1_relegation during play-offs. BL2 promotion and L1 relegation
+      play-offs are excluded via bl2_playoff_round_names and l1_relegation_round_names. WC uses
+      mart_matchday_insights_wc. Export and UI slice with WHERE league_code; do not add per-league
+      mart copies.
     meta:
       owner: "data-platform"
       domain: "football"

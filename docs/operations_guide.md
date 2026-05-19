@@ -215,8 +215,8 @@ GitHub Actions workflows are split by change type so UI-only PRs do not run live
 
 | Workflow | When it runs | What it does |
 |----------|----------------|----------------|
-| `ci-validate.yml` | Every PR and push to `main` | Layer contract, registry/var sync, `dbt parse` (no GCP). `sqlfluff lint` only when `dbt_project/models/**/*.sql` changed. |
-| `ci-data-build.yml` | PR/push when `dbt_project/**`, `ingestion/**`, registry, trust scripts, or CI workflows change; also `workflow_dispatch` | WIF → BigQuery: conditional bootstrap ingest, `dbt build --selector staging`, `dbt build --selector downstream`, singular tests, fixture stats trust gate. |
+| `ci-validate.yml` | Every PR and push to `main` | Layer contract, registry/var sync, `dbt parse` (no GCP). |
+| `ci-data-build.yml` | PR/push when `dbt_project/**`, `ingestion/**`, registry, trust scripts, or CI workflows change; also `workflow_dispatch` | WIF → BigQuery: `sqlfluff lint`, conditional bootstrap ingest, `dbt build --selector staging`, `dbt build --selector downstream`, singular tests, fixture stats trust gate. |
 | `ci-ui.yml` | PR/push when `site/**` or Pages build/export scripts change | JSON syntax checks; `scripts/check_ui_i18n_metrics.py` (manifest ↔ i18n). No GCP. |
 | `python-ci.yml` | Every PR and push to `main` | `pytest tests/ -v` (ingestion unit tests). |
 | `security-secrets.yml` | Every PR and push to `main` | Gitleaks secret scan. |

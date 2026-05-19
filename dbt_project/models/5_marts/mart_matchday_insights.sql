@@ -5,7 +5,8 @@
   active domestic competition (vars.active_competition_league_codes minus WC/WCQ*).
   Grain: one row per upcoming fixture; slice by league_code at export or in the app.
   BL1 regular season excludes relegation play-off rounds; use mart_matchday_insights_bl1_relegation
-  for that window. WC uses mart_matchday_insights_wc (qualifier form rules).
+  for that window. BL2 promotion and L1 relegation play-offs are excluded from this mart
+  (vars bl2_playoff_round_names, l1_relegation_round_names). WC uses mart_matchday_insights_wc.
 #}
 
 with import_int_matchday__upcoming_round_fixtures as (
@@ -15,6 +16,14 @@ with import_int_matchday__upcoming_round_fixtures as (
         and not (
             league_code = 'BL1'
             and round_name in {{ bl1_relegation_round_names_in_clause() }}
+        )
+        and not (
+            league_code = 'BL2'
+            and round_name in {{ bl2_playoff_round_names_in_clause() }}
+        )
+        and not (
+            league_code = 'L1'
+            and round_name in {{ l1_relegation_round_names_in_clause() }}
         )
 ),
 
