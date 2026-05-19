@@ -33,7 +33,6 @@ team_form_metrics as (
 home_form as (
     select
         fixture_sk,
-        league_code,
         team_sk as home_team_sk,
         form_season_api_year as home_form_season_api_year,
         form_games_played as home_form_games_played,
@@ -70,7 +69,6 @@ home_form as (
 away_form as (
     select
         fixture_sk,
-        league_code,
         team_sk as away_team_sk,
         form_season_api_year as away_form_season_api_year,
         form_games_played as away_form_games_played,
@@ -197,12 +195,10 @@ final as (
         on
             um.fixture_sk = hf.fixture_sk
             and um.home_team_sk = hf.home_team_sk
-            and um.league_code = hf.league_code
     left join away_form as af
         on
             um.fixture_sk = af.fixture_sk
             and um.away_team_sk = af.away_team_sk
-            and um.league_code = af.league_code
 )
 
 select *

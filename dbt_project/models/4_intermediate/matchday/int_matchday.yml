@@ -30,13 +30,10 @@ models:
       WC: qualifier supporting leagues (seed wc_supporting_league_codes) until the first WC leg, then last up
       to five WC legs. Sums omit coalesce-to-zero on optional stats; rates are null when undefined.
       form_window_five_capped is true when the window used the five-game cap (not the full prior-season /
-      qualifier uncapped window). Grain (fixture_sk, team_sk) for upcoming fixtures only; league_code
-      is the upcoming fixture's competition (WC for tournament rows).
+      qualifier uncapped window). Grain (fixture_sk, team_sk) for upcoming fixtures only.
     config:
       tags: ["intermediate", "football", "matchday"]
     columns:
-      - name: league_code
-        tests: [not_null]
       - name: form_games_played
         tests: [not_null]
     tests:
