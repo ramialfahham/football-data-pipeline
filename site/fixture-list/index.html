@@ -369,9 +369,24 @@
       return /^[a-z0-9]+$/.test(raw) ? raw : "";
     }
 
-    function competitionName(code) {
+    /** Categorize a matchday_source_mart name — kept in sync with the same
+     *  helper in site/index.html so labeling is identical across both pages. */
+    function sourceMartKind(mart) {
+      if (typeof mart !== "string") return "regular";
+      if (/relegation/i.test(mart)) return "relegation";
+      return "regular";
+    }
+
+    function competitionName(code, kind) {
       const upper = code.toUpperCase();
-      return tt("competitions." + upper, upper);
+      const base = tt("competitions." + upper, upper);
+      if (kind === "relegation") {
+        const suffix = tt("competitions.relegationSuffix", "Relegation");
+        return tt("competitions.labelWithSuffix",
+          { competition: base, suffix: suffix },
+          `${base} · ${suffix}`);
+      }
+      return base;
     }
 
     function logoUrl(code) {
@@ -512,13 +527,13 @@
         </section>`;
     }
 
-    function updateContextHeader(code, rows) {
+    function updateContextHeader(code, rows, kind) {
       const logoEl = document.getElementById("comp-logo");
       const titleEl = document.getElementById("comp-title");
       const roundEl = document.getElementById("comp-round");
       const metaEl = document.getElementById("comp-round-meta");
 
-      const compName = competitionName(code);
+      const compName = competitionName(code, kind);
       titleEl.textContent = compName;
       logoEl.src = logoUrl(code);
       logoEl.alt = code.toUpperCase();
@@ -563,9 +578,21 @@
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
         .catch(() => null);
 
-      Promise.all([i18nReady, dataReady]).then(([_, payload]) => {
+      // Also fetch the manifest so we can read matchday_source_mart for this
+      // league — drives relegation/playoff labeling without UI hardcoding.
+      // 404 is fine (legacy deploy / local without build); kind defaults to "regular".
+      const manifestReady = fetch("../pages_export_manifest.json")
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+
+      Promise.all([i18nReady, dataReady, manifestReady]).then(([_, payload, manifest]) => {
         const rows = (payload && Array.isArray(payload.show)) ? payload.show : [];
-        updateContextHeader(code, rows);
+        const upper = code.toUpperCase();
+        const entry = (manifest && Array.isArray(manifest.domestic_leagues))
+          ? manifest.domestic_leagues.find((e) => String(e.league_code).toUpperCase() === upper)
+          : null;
+        const kind = entry ? sourceMartKind(entry.matchday_source_mart) : "regular";
+        updateContextHeader(code, rows, kind);
         if (!rows.length) {
           renderEmpty(code);
         } else {
