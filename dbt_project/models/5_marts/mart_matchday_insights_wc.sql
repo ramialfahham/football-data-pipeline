@@ -162,6 +162,7 @@ final as (
         um.away_team_sk,
         um.away_team_name,
         um.upcoming_matchday_fixture_count,
+        um.league_name,
         home_pt.team_logo_url as home_team_logo_url,
         away_pt.team_logo_url as away_team_logo_url,
         home_ts.latest_rank as home_league_rank,
@@ -401,8 +402,7 @@ final as (
             else afm.save_ratio_recent
         end as away_save_ratio_recent,
         coalesce(hwb.n_wc_tournament_before, 0) = 0 as home_form_from_qualifiers,
-        coalesce(awb.n_wc_tournament_before, 0) = 0 as away_form_from_qualifiers,
-        um.league_name
+        coalesce(awb.n_wc_tournament_before, 0) = 0 as away_form_from_qualifiers
     from import_int_matchday__upcoming_round_fixtures as um
     left join mart_team_season as home_ts
         on
