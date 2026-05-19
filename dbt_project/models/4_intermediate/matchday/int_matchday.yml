@@ -62,8 +62,8 @@ models:
 
   - name: int_matchday__team_form_metrics_relegation
     description: >
-      Form metrics for relegation fixtures using per-team form_league_code (BL1 or BL2).
-      Same window rules as int_matchday__team_form_metrics non-WC path.
+      Rolling last-five completed legs for relegation fixtures. Domestic legs use per-team
+      form_league_code (BL1 or BL2); completed BL1 play-off legs count for both teams.
     config:
       tags: ["intermediate", "football", "matchday", "relegation"]
     columns:

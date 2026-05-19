@@ -10,11 +10,7 @@ with import_int_matchday__upcoming_round_fixtures as (
     select * from {{ ref('int_matchday__upcoming_round_fixtures') }}
     where
         league_code = 'BL1'
-        and round_name not in (
-            {% for round_label in var('bl1_relegation_round_names') %}
-                '{{ round_label }}'{% if not loop.last %}, {% endif %}
-            {% endfor %}
-        )
+        and round_name not in {{ bl1_relegation_round_names_in_clause() }}
 ),
 
 import_int_matchday__team_form_metrics as (

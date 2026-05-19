@@ -1,9 +1,9 @@
 {{ config(materialized='table') }}
 
 {#
-  Per (relegation fixture_sk, team_sk) form using each team's domestic league (BL1 or BL2).
-  Same Step 3 rules as int_matchday__team_form_metrics non-WC path, but legs are read from
-  form_league_code (see int_matchday__relegation_team_form_league). Grain: (fixture_sk, team_sk).
+  Per (relegation fixture_sk, team_sk) rolling last-five completed legs before kickoff.
+  Domestic legs use form_league_code (BL1 or BL2). Completed BL1 play-off legs also count for
+  both teams (API files the tie under BL1). Grain: (fixture_sk, team_sk).
 #}
 
 with import_int_matchday__finished_fixture_team_leg as (
@@ -63,8 +63,16 @@ current_counts as (
     inner join import_int_matchday__finished_fixture_team_leg as fwo
         on
             tfl.team_sk = fwo.team_sk
-            and tfl.form_league_code = fwo.league_code
             and tfl.season_api_year = fwo.season_api_year
+            and (
+                (
+                    tfl.form_league_code = fwo.league_code
+                )
+                or (
+                    fwo.league_code = 'BL1'
+                    and fwo.round_name in {{ bl1_relegation_round_names_in_clause() }}
+                )
+            )
             and (
                 tfl.upcoming_kickoff_datetime > fwo.kickoff_datetime
                 or (
@@ -128,8 +136,16 @@ ranked as (
     inner join import_int_matchday__finished_fixture_team_leg as fwo
         on
             tsc.team_sk = fwo.team_sk
-            and tsc.form_league_code = fwo.league_code
             and tsc.form_season_api_year = fwo.season_api_year
+            and (
+                (
+                    tsc.form_league_code = fwo.league_code
+                )
+                or (
+                    fwo.league_code = 'BL1'
+                    and fwo.round_name in {{ bl1_relegation_round_names_in_clause() }}
+                )
+            )
             and (
                 tsc.upcoming_kickoff_datetime > fwo.kickoff_datetime
                 or (
