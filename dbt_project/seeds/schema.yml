@@ -1,21 +1,31 @@
 version: 2
 
 seeds:
-  - name: metric_glossary
+  - name: metric_definitions
     description: >
-      Kurze deutsche Labels und Erklärungen für die Match-Preview-UI. metric_key entspricht
-      Spalten in mart_matchday_insights; Zahlen und Formatierung kommen aus dem Mart.
+      Canonical metric ids and mart column bindings (no locale-specific copy).
+      Labels and descriptions live in site/i18n/*.json under metrics.<metric_id>.
+    config:
+      +full_refresh: true
     columns:
-      - name: metric_key
-        description: "Stable id; same as the mart column name for that metric."
+      - name: metric_id
+        description: "Stable semantic metric id (language-neutral)."
         tests:
           - not_null
           - unique
-      - name: label
-        description: "Kurzbeschriftung (oft Heim/Gast unterscheidbar)."
+      - name: home_column
+        description: "Mart column for the home team value (match-preview paired metrics)."
+      - name: away_column
+        description: "Mart column for the away team value (match-preview paired metrics)."
+      - name: single_column
+        description: "Mart column when the metric is not split home/away (e.g. WC pre-tournament)."
+      - name: lower_is_better
+        description: "True when a lower numeric value is better for comparison highlighting."
+      - name: format
+        description: "UI format: integer, decimal_0, decimal_1, percent, points_fraction."
         tests: [not_null]
-      - name: description
-        description: "Knappe Erklärung unter der Kennzahl; Formfenster-Bezug steht in der Fußnote der Seite."
+      - name: context
+        description: "Where this binding applies: match_preview, wc_pretournament, etc."
         tests: [not_null]
 
   - name: wc_supporting_league_codes

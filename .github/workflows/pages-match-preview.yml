@@ -34,7 +34,9 @@ on:
       - "dbt_project/models/5_marts/mart_team_season.sql"
       - "dbt_project/models/5_marts/mart_team_season_insights.sql"
       - "dbt_project/models/5_marts/marts.yml"
-      - "dbt_project/seeds/metric_glossary.csv"
+      - "dbt_project/seeds/metric_definitions.csv"
+      - "site/match-preview/metric_manifest.json"
+      - "site/match-preview/metric_definitions.json"
       - "dbt_project/seeds/wc_supporting_league_codes.csv"
       - "dbt_project/seeds/schema.yml"
       - ".github/workflows/pages-match-preview.yml"
@@ -143,8 +145,8 @@ jobs:
       - name: Export WC pre-tournament insights JSON
         run: python scripts/export_wc_pre_tournament_json.py artifacts/wc_pre_tournament_insights.json
 
-      - name: Build metric glossary JSON
-        run: python scripts/build_metric_glossary_json.py
+      - name: Export metric definitions JSON for site
+        run: python scripts/export_metric_definitions_json.py
 
       - name: Inject feedback Apps Script URL (optional)
         env:

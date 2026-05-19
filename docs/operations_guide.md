@@ -216,7 +216,7 @@ GitHub Actions workflows enforce the layer contract, run Python tests, and run d
 - `.github/workflows/python-ci.yml`: runs `pytest tests/ -v` on every PR and push to `main`. Covers pure-function unit tests for the ingestion package (merge logic, season inference, fanout scheduling).
 - `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, focused transfer contract build `dbt build --select dim_date dim_player fct_transfer`).
 - `.github/workflows/dbt-scheduled.yml`: twice-daily scheduled run (`04:00` and `16:00` UTC) with full DQ selector (`dbt build --selector dq`).
-- `.github/workflows/pages-match-preview.yml`: builds `+mart_matchday_insights` and `+mart_matchday_insights_wc`, exports `matchday_insights.json` and `metric_glossary.json`, assembles `site/match-preview/` into `_site/`, and deploys to **GitHub Pages** (manual `workflow_dispatch`, daily schedule, or on push to `main` when relevant paths change). **`marts.mart_matchday_insights` is BL1-only** for that JSON until the match-preview UI supports multiple competitions (WC stays in `mart_matchday_insights_wc`).
+- `.github/workflows/pages-match-preview.yml`: builds `+mart_matchday_insights` and `+mart_matchday_insights_wc`, exports `matchday_insights.json` and syncs metric definitions for the site, assembles `site/match-preview/` into `_site/`, and deploys to **GitHub Pages** (manual `workflow_dispatch`, daily schedule, or on push to `main` when relevant paths change). **`marts.mart_matchday_insights` is BL1-only** for that JSON until the match-preview UI supports multiple competitions (WC stays in `mart_matchday_insights_wc`).
 
 ### Shareable Bundesliga match preview (GitHub Pages)
 
