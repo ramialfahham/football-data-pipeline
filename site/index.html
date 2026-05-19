@@ -1,28 +1,19 @@
 <!DOCTYPE html>
 <!--
-  Matchday IQ — Landing page (v0 static mockup)
-  ============================================
-  This file is the approved visual reference for the landing page
-  ("Deliverable A" per docs/pipeline_architecture_plan.md).
+  Matchday IQ — Landing page
+  ==========================
+  Renders one card per active competition, driven by
+  /pages_export_manifest.json (built by scripts/export_pages_data.py).
 
-  Status:    static mockup, sample data baked in
-  Next step: wire to JSON export from `mart_landing_competitions`
-             (Step 5 of the pipeline plan)
+  Phase derivation (client-side):
+    - matchday_row_count > 0           → "matchday"     → /fixture-list/?league=<code>
+    - team_season_row_count > 0        → "season_recap" → /team-season/?league=<code>
+    - both zero                        → "no_data"      → disabled
+  Plus a separate WC card linked to /wc-pre-tournament/ when the
+  manifest exposes wc_pre_tournament_path.
 
-  Inherits the dark gradient + Inter typography established by
-  site/match-preview/index.html. Defines the language switcher
-  pattern (top-right pill + dropdown) and the competition-card
-  layout (logo + name + round + kickoff) to be re-used across
-  the rest of the app.
-
-  Logos come from API-Football's CDN (media.api-sports.io/football/leagues/<id>.png).
-  Trademarks belong to their respective rights holders; production
-  use requires licensing review.
-
-  Languages supported (per north_star.md + Arabic addition):
-    DE, EN, ES, FR, IT, NL, PT, FI, AR
-  Localized competition names (e.g. "WM 2026" / "World Cup 2026" /
-  "Mundial 2026") live in the i18n strings file, not in this template.
+  Competition display names come from i18n (top-level competitions.*).
+  Logos come from API-Football's CDN.
 -->
 <html lang="de">
 <head>
@@ -247,6 +238,31 @@
   .section.upcoming .card { opacity: 0.85; }
   .section.upcoming .card .kickoff-when { color: var(--text-secondary); }
 
+  /* No-data card: surface the competition but make non-actionable */
+  .card.is-disabled { opacity: 0.55; cursor: default; pointer-events: none; }
+  .card.is-disabled:hover { transform: none; background: var(--card-bg); border-color: var(--border); }
+
+  /* WC card: visually flagged as the upcoming tournament */
+  .card.is-wc .kickoff-when { color: #fbbf24; font-weight: 600; }
+  .card.is-wc .kickoff-when::before { content: "● "; color: #fbbf24; }
+
+  /* Loading skeleton — shown while the manifest fetch is in flight */
+  .cards.is-loading .card { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.65; }
+    50% { opacity: 1; }
+  }
+  .empty-state {
+    padding: 32px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
   footer {
     margin-top: 48px;
     text-align: center;
@@ -297,25 +313,16 @@
   <p class="tagline" data-i18n="landing.tagline">Football analytics for fans</p>
 
   <div class="section-label" data-i18n="landing.sectionLabel">Wettbewerbe</div>
-  <section class="section cards">
-
-    <!-- Bundesliga: off-season state.
-         CTA goes directly to /team-season/ — the per-team season retrospective
-         is the live content during the BL1 25/26 → 26/27 gap.
-         Once next season starts, this card will flip back to "next matchday"
-         with a kickoff timestamp (per the form-source dispatch rules). -->
-    <a href="./team-season/" class="card">
-      <div class="badge"><img src="https://media.api-sports.io/football/leagues/78.png" alt="BL"></div>
+  <section class="section cards is-loading" id="cards">
+    <!-- Skeleton placeholder while manifest loads -->
+    <div class="card is-disabled">
+      <div class="badge"></div>
       <div class="body">
-        <div class="comp-name" data-i18n="landing.bundesliga.title">Bundesliga</div>
-        <div class="meta"><span class="round" data-i18n="landing.bundesliga.state">Saison 2025/26 beendet</span></div>
-        <div class="kickoff">
-          <span class="kickoff-when" data-i18n="landing.bundesliga.cta">Saisonrückblick ansehen</span>
-        </div>
+        <div class="comp-name">&nbsp;</div>
+        <div class="meta"><span class="round">&nbsp;</span></div>
       </div>
-      <div class="chevron">›</div>
-    </a>
-
+      <div class="chevron"></div>
+    </div>
   </section>
 
   <footer>
@@ -323,6 +330,200 @@
   </footer>
 
 </div>
+
+<script>
+  /*
+   * Landing renderer
+   * ================
+   * Reads /pages_export_manifest.json (written by scripts/export_pages_data.py)
+   * and builds one card per domestic league + an optional WC card. Phase is
+   * derived from row counts on the manifest — no separate phase field needed.
+   *
+   * Order:
+   *   1. WC (always first when present — strategic content for the next ~24 days)
+   *   2. Domestic leagues in "live first → recap → no-data" order, then alpha
+   *
+   * Each card is i18n-aware: competition names come from competitions.<CODE>,
+   * state strings come from landing.state.*, CTAs from landing.cta.*.
+   */
+  (function () {
+    // Provider league IDs for API-Football CDN logos. Mirrors
+    // docs/competition_registry.yml — keep in sync when adding leagues.
+    const LEAGUE_LOGO_IDS = {
+      BL1: 78,
+      BL2: 79,
+      PL: 39,
+      PD: 140,
+      SA: 135,
+      L1: 61,
+      VL: 244,
+      WC: 1,
+    };
+    const WC_KICKOFF_ISO = "2026-06-11T20:00:00+02:00";
+
+    function logoUrl(code) {
+      const id = LEAGUE_LOGO_IDS[code];
+      return id ? `https://media.api-sports.io/football/leagues/${id}.png` : "";
+    }
+
+    function tt(key, fallback, vars) {
+      // Defensive wrapper — i18n.js may not be loaded if offline.
+      if (vars && typeof window.tFmt === "function") return window.tFmt(key, vars, fallback);
+      if (typeof window.t === "function") return window.t(key, fallback);
+      return fallback;
+    }
+
+    function escHtml(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function phaseFor(entry) {
+      const m = Number(entry.matchday_row_count) || 0;
+      const t = Number(entry.team_season_row_count) || 0;
+      if (m > 0) return "matchday";
+      if (t > 0) return "season_recap";
+      return "no_data";
+    }
+
+    function competitionLabel(code) {
+      return tt("competitions." + code, code);
+    }
+
+    function daysUntilWc() {
+      const target = new Date(WC_KICKOFF_ISO).getTime();
+      const now = Date.now();
+      const ms = target - now;
+      return Math.floor(ms / (1000 * 60 * 60 * 24));
+    }
+
+    function wcSubtitle() {
+      const d = daysUntilWc();
+      if (d < 0) return tt("landing.wcKickoffPast", "Tournament in progress");
+      if (d === 0) return tt("landing.wcKickoffToday", "Kickoff today");
+      return tt("landing.wcCountdown", `Kickoff in ${d} days`, { days: d });
+    }
+
+    function renderDomesticCard(entry) {
+      const code = entry.league_code;
+      const phase = phaseFor(entry);
+      const name = competitionLabel(code);
+      let stateText = "";
+      let ctaText = "";
+      let href = null;
+      let disabled = false;
+
+      if (phase === "matchday") {
+        stateText = tt("landing.state.matchdayUpcoming", "Next matchday");
+        ctaText = tt("landing.cta.matchday", "Preview matchday");
+        href = `./fixture-list/?league=${code.toLowerCase()}`;
+      } else if (phase === "season_recap") {
+        stateText = tt("landing.state.seasonEnded", "Season ended");
+        ctaText = tt("landing.cta.recap", "View season recap");
+        href = `./team-season/?league=${code.toLowerCase()}`;
+      } else {
+        stateText = tt("landing.state.comingSoon", "Coming soon");
+        ctaText = tt("landing.cta.unavailable", "Coming soon");
+        disabled = true;
+      }
+
+      const cardCls = disabled ? "card is-disabled" : "card";
+      const tag = disabled ? "div" : "a";
+      const hrefAttr = disabled ? "" : ` href="${escHtml(href)}"`;
+
+      return `
+        <${tag} class="${cardCls}"${hrefAttr}>
+          <div class="badge"><img src="${escHtml(logoUrl(code))}" alt="${escHtml(code)}"></div>
+          <div class="body">
+            <div class="comp-name">${escHtml(name)}</div>
+            <div class="meta"><span class="round">${escHtml(stateText)}</span></div>
+            <div class="kickoff">
+              <span class="kickoff-when">${escHtml(ctaText)}</span>
+            </div>
+          </div>
+          <div class="chevron">›</div>
+        </${tag}>`;
+    }
+
+    function renderWcCard() {
+      // WC pre-tournament page may not exist yet (see slice 3). Link
+      // anyway — if it 404s, we'll add the page next.
+      const name = competitionLabel("WC");
+      const subtitle = wcSubtitle();
+      const cta = tt("landing.cta.wc", "Pre-tournament outlook");
+      return `
+        <a class="card is-wc" href="./wc-pre-tournament/">
+          <div class="badge"><img src="${escHtml(logoUrl("WC"))}" alt="WC"></div>
+          <div class="body">
+            <div class="comp-name">${escHtml(name)}</div>
+            <div class="meta"><span class="round">${escHtml(subtitle)}</span></div>
+            <div class="kickoff">
+              <span class="kickoff-when">${escHtml(cta)}</span>
+            </div>
+          </div>
+          <div class="chevron">›</div>
+        </a>`;
+    }
+
+    function sortedDomestic(entries) {
+      // Live first (matchday), then recap, then no-data; alpha within each.
+      const rank = { matchday: 0, season_recap: 1, no_data: 2 };
+      return [...entries].sort((a, b) => {
+        const ra = rank[phaseFor(a)] ?? 9;
+        const rb = rank[phaseFor(b)] ?? 9;
+        if (ra !== rb) return ra - rb;
+        return String(a.league_code).localeCompare(String(b.league_code));
+      });
+    }
+
+    function render(manifest) {
+      const root = document.getElementById("cards");
+      const domestic = Array.isArray(manifest && manifest.domestic_leagues)
+        ? sortedDomestic(manifest.domestic_leagues)
+        : [];
+      const includeWc = !!(manifest && manifest.wc_pre_tournament_path);
+      const parts = [];
+      if (includeWc) parts.push(renderWcCard());
+      parts.push(...domestic.map(renderDomesticCard));
+      if (!parts.length) {
+        root.classList.remove("is-loading");
+        root.innerHTML = `<div class="empty-state">${escHtml(tt("landing.state.comingSoon", "Coming soon"))}</div>`;
+        return;
+      }
+      root.classList.remove("is-loading");
+      root.innerHTML = parts.join("");
+    }
+
+    function start() {
+      const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
+      const manifestReady = fetch("./pages_export_manifest.json")
+        .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .catch(() => null);
+
+      Promise.all([i18nReady, manifestReady]).then(([_, manifest]) => {
+        if (!manifest) {
+          // No manifest available (local preview without build, or 404).
+          // Fall back to a static BL1 recap card so the page is never empty.
+          render({
+            domestic_leagues: [
+              { league_code: "BL1", matchday_row_count: 0, team_season_row_count: 1 },
+            ],
+            wc_pre_tournament_path: "wc-pre-tournament/wc_pre_tournament_insights.json",
+          });
+          return;
+        }
+        render(manifest);
+      });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+      start();
+    }
+  })();
+</script>
 
 </body>
 </html>

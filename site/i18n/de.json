@@ -129,35 +129,53 @@
       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren in der Quali."
     }
   },
+  "competitions": {
+    "BL1": "Bundesliga",
+    "BL2": "2. Bundesliga",
+    "PL": "Premier League",
+    "PD": "La Liga",
+    "SA": "Serie A",
+    "L1": "Ligue 1",
+    "VL": "Veikkausliiga",
+    "WC": "WM 2026"
+  },
   "landing": {
     "tagline": "Football analytics for fans",
     "sectionLabel": "Wettbewerbe",
-    "bundesliga": {
-      "title": "Bundesliga",
-      "state": "Saison 2025/26 beendet",
-      "cta": "Saisonrückblick ansehen"
-    }
+    "state": {
+      "matchdayUpcoming": "Nächster Spieltag",
+      "seasonEnded": "Saison beendet",
+      "comingSoon": "Bald verfügbar"
+    },
+    "cta": {
+      "matchday": "Spielvorschau ansehen",
+      "recap": "Saisonrückblick ansehen",
+      "wc": "WM-Vorschau ansehen",
+      "unavailable": "Bald verfügbar"
+    },
+    "wcCountdown": "Anstoß in {{days}} Tagen",
+    "wcKickoffToday": "Anstoß heute",
+    "wcKickoffPast": "Turnier läuft"
   },
   "fixtureList": {
     "back": "Wettbewerbe",
     "context": {
-      "title": "Bundesliga",
-      "round": "Saisonpause",
-      "note": "Neue Saison startet im August 2026"
+      "roundOffSeason": "Saisonpause",
+      "roundDateRange": "{{startDate}} – {{endDate}}",
+      "roundSingleDate": "{{date}}",
+      "fixtureCountSingular": "{{count}} Spiel",
+      "fixtureCountPlural": "{{count}} Spiele"
     },
     "empty": {
       "headline": "Keine kommenden Spiele",
-      "sub": "Die Bundesliga-Saison 2025/26 ist beendet. Bis zum Start der neuen Saison gibt es hier keine Spielvorschau.",
-      "cta": "Saisonrückblick 2025/26 ansehen"
+      "subOffSeason": "Die Saison ist beendet. Bis zur neuen Saison gibt es hier keine Spielvorschau.",
+      "cta": "Saisonrückblick ansehen"
     }
   },
   "teamSeason": {
     "back": "Bundesliga",
     "tag": "Saisonrückblick",
     "subtitle": "{{competition}} · Saison {{seasonStart}}/{{seasonEnd}} · komplett",
-    "competition": {
-      "BL1": "Bundesliga"
-    },
     "empty": {
       "headline": "Saisonrückblick noch nicht verfügbar.",
       "subPending": "Die Daten werden zum Saisonende veröffentlicht.",
@@ -192,5 +210,26 @@
     "prev": "Vorheriges Team",
     "next": "Nächstes Team",
     "carousel": "Teams in der Tabellenreihenfolge"
+  },
+  "wcPreTournament": {
+    "back": "Wettbewerbe",
+    "tag": "Quali-Bilanz",
+    "subtitle": "WM 2026 · Qualifikation",
+    "countdownDays": "Anstoß in {{days}} Tagen",
+    "countdownToday": "Anstoß heute",
+    "countdownPast": "Turnier läuft",
+    "qualifierGamesSuffix": "{{count}} Qualifikationsspiele",
+    "empty": {
+      "headline": "WM-Daten noch nicht verfügbar.",
+      "subPending": "Daten werden vor dem ersten Spiel veröffentlicht.",
+      "errorPrefix": "Daten konnten nicht geladen werden:"
+    },
+    "missingTeamName": "Unbekannte Mannschaft",
+    "foot": "Werte basieren auf allen abgeschlossenen Qualifikationsspielen jeder Mannschaft. „Ø“ markiert Durchschnittswerte pro Spiel; „%“ markiert kumulierte Quoten über alle Qualifikationsspiele. Konföderationen mit lückenhafter API-Statistik können einzelne Kennzahlen mit „nicht verfügbar“ ausweisen — keine erfundenen Nullen.",
+    "aria": {
+      "prev": "Vorherige Mannschaft",
+      "next": "Nächste Mannschaft",
+      "carousel": "WM-Mannschaften alphabetisch"
+    }
   }
 }

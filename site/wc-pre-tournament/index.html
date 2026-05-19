@@ -1,0 +1,388 @@
+<!doctype html>
+<!--
+  Matchday IQ — WC 2026 pre-tournament outlook
+  =============================================
+  One card per team in the World Cup 2026 field (48 teams). Each card
+  shows the team's qualifying-window aggregate metrics — the same form
+  data the form-source dispatch will surface to pre-match previews once
+  the tournament kicks off.
+
+  Data: marts.mart_wc_pre_tournament_insights, exported to
+        /wc-pre-tournament/wc_pre_tournament_insights.json by
+        scripts/export_wc_pre_tournament_json.py.
+
+  Metric set: 14 wc_pretournament-context metrics from
+              site/match-preview/metric_definitions.json. Labels +
+              descriptions come from i18n's metrics.* namespace.
+-->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Matchday IQ · WM 2026 · Quali-Bilanz</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="../i18n.js" defer></script>
+  <style>
+    :root {
+      --bg: #07091a;
+      --bg-elev: #11152e;
+      --panel: #161b38;
+      --panel-soft: #1c2349;
+      --line: rgba(255, 255, 255, 0.07);
+      --line-strong: rgba(255, 255, 255, 0.12);
+      --text: #f1f3fb;
+      --muted: #98a3c9;
+      --text-tertiary: #5c6792;
+      --accent: #6ea8fe;
+      --accent-bright: #93c5fd;
+      --positive: #34d399;
+      --wc-accent: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at top, #1a2055 0%, var(--bg) 65%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app { max-width: 720px; margin: 0 auto; padding: 16px 12px 28px; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 0;
+    }
+    .brand {
+      font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #93c5fd 0%, #c7d2fe 100%);
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent; text-decoration: none; line-height: 1;
+    }
+    .lang-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 12px; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 999px; color: var(--text); font-size: 0.8rem;
+      font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    .lang-btn:hover { background: var(--panel-soft); }
+    .lang-btn .globe { font-size: 0.85rem; opacity: 0.8; }
+    .lang-btn .caret { font-size: 0.65rem; opacity: 0.55; }
+
+    .backbar { padding: 0 0 14px; }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--muted); background: transparent; border: 0;
+      font-family: inherit; font-size: 0.85rem; font-weight: 500;
+      cursor: pointer; padding: 4px 0; text-decoration: none;
+    }
+    .back:hover { color: var(--text); }
+    .back .arrow { font-size: 1rem; }
+
+    .team-nav-hidden { position: absolute; left: -9999px; }
+
+    .carousel-wrap {
+      position: relative; margin-top: 4px;
+      border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
+    }
+    .carousel {
+      display: flex; overflow-x: auto;
+      scroll-snap-type: x mandatory; scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .carousel::-webkit-scrollbar { height: 6px; }
+    .carousel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+    .card {
+      min-width: 100%; flex: 0 0 100%; scroll-snap-align: start;
+      background: var(--panel); padding: 18px 14px 16px;
+    }
+
+    .team-header {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; margin-bottom: 18px;
+    }
+    .page-tag {
+      font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--wc-accent);
+      margin-bottom: -4px;
+    }
+    .team-logo-lg {
+      width: 84px; height: 84px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .team-logo-lg img { width: 76%; height: 76%; object-fit: contain; }
+    .team-name {
+      font-size: 1.9rem; font-weight: 800;
+      letter-spacing: -0.02em; text-align: center;
+      line-height: 1.1; margin-top: -2px;
+    }
+    .team-subtitle {
+      font-size: 0.88rem; font-weight: 500; color: var(--muted);
+      text-align: center; line-height: 1.35; margin-top: -8px;
+    }
+
+    .metrics {
+      border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    }
+    .metric {
+      display: grid; grid-template-columns: 1fr 1fr;
+      align-items: center; gap: 12px; padding: 14px 16px;
+    }
+    .metric + .metric { border-top: 1px solid rgba(255, 255, 255, 0.04); }
+    .metric-band-a { background: var(--panel); }
+    .metric-band-b { background: var(--panel-soft); }
+    .metric-band-a + .metric-band-a,
+    .metric-band-b + .metric-band-b { border-top-color: rgba(255, 255, 255, 0.03); }
+    .metric-band-a + .metric-band-b,
+    .metric-band-b + .metric-band-a { border-top-color: var(--line-strong); }
+    .metric-label {
+      text-align: left; font-size: 1.1rem; font-weight: 600;
+      color: var(--muted); letter-spacing: -0.01em; line-height: 1.25;
+    }
+    .metric-value {
+      text-align: right; font-size: 1.1rem; font-weight: 800;
+      font-variant-numeric: tabular-nums; color: var(--text);
+      line-height: 1; letter-spacing: -0.01em;
+    }
+
+    .foot {
+      color: var(--muted); font-size: 0.75rem;
+      margin-top: 14px; line-height: 1.45;
+    }
+    .empty-state {
+      padding: 32px 16px; text-align: center;
+      color: var(--muted); font-size: 0.9rem; line-height: 1.5;
+    }
+    .empty-state strong { color: var(--text); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a href="../" class="brand" data-i18n="common.brand">Matchday IQ</a>
+      <div class="lang">
+        <button class="lang-btn" type="button">
+          <span class="globe">🌐</span>
+          <span class="code">DE</span>
+          <span class="caret">▾</span>
+        </button>
+      </div>
+    </header>
+    <nav class="backbar">
+      <a href="../" class="back"><span class="arrow">←</span><span data-i18n="wcPreTournament.back">Wettbewerbe</span></a>
+    </nav>
+    <div class="team-nav-hidden">
+      <button type="button" id="prev-btn" aria-label="Vorherige Mannschaft" data-i18n-attr="aria-label:wcPreTournament.aria.prev"></button>
+      <button type="button" id="next-btn" aria-label="Nächste Mannschaft" data-i18n-attr="aria-label:wcPreTournament.aria.next"></button>
+    </div>
+    <div class="carousel-wrap">
+      <div class="carousel" id="carousel" role="region" aria-label="WM-Mannschaften alphabetisch" data-i18n-attr="aria-label:wcPreTournament.aria.carousel"></div>
+    </div>
+    <p class="foot" id="foot-note"></p>
+  </div>
+
+  <script>
+    /*
+     * WC 2026 pre-tournament renderer
+     * ================================
+     * Loads three resources:
+     *   1. /wc-pre-tournament/wc_pre_tournament_insights.json  (per-team rows)
+     *   2. /match-preview/metric_definitions.json              (metric→column map)
+     *   3. i18n (translations)
+     *
+     * Renders one card per WC team with the 14 wc_pretournament-context
+     * metrics. Metric label + format come from metric_definitions; values
+     * come from each team row's `single_column` field. Display labels
+     * resolved via i18n metrics.<id>.label.
+     */
+
+    const FOOT_FALLBACK = `Werte basieren auf allen abgeschlossenen Qualifikationsspielen jeder Mannschaft. „Ø" markiert Durchschnittswerte pro Spiel; „%" markiert kumulierte Quoten über alle Qualifikationsspiele. Konföderationen mit lückenhafter API-Statistik können einzelne Kennzahlen mit „nicht verfügbar" ausweisen — keine erfundenen Nullen.`;
+    const WC_KICKOFF_ISO = "2026-06-11T20:00:00+02:00";
+
+    /** Bands for the 14 wc_pretournament metrics — mirrors the
+     *  match-preview banding scheme (output → scoring → shooting →
+     *  passing → set-pieces → keeper). */
+    const WC_METRIC_BANDS = {
+      qualifier_games_played: "a",
+      points_capture_pretournament: "a",
+      goals_per_match_pretournament: "b",
+      goals_against_per_match_pretournament: "b",
+      shots_per_match_pretournament: "a",
+      shot_share_pretournament: "a",
+      danger_zone_ratio_pretournament: "a",
+      shot_accuracy_pretournament: "a",
+      finishing_efficiency_pretournament: "a",
+      passes_per_match_pretournament: "b",
+      pass_accuracy_pretournament: "b",
+      corner_kicks_per_match_pretournament: "a",
+      corners_conceded_per_match_pretournament: "a",
+      save_ratio_pretournament: "b",
+    };
+    const WC_METRIC_ORDER = Object.keys(WC_METRIC_BANDS);
+
+    function t(key, fallback) { return (window.t ? window.t(key, fallback) : fallback); }
+    function tFmt(key, vars, fallback) { return (window.tFmt ? window.tFmt(key, vars, fallback) : fallback); }
+
+    function escHtml(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function fmtNum(x, decimals) {
+      if (typeof window.fmtNum === "function") return window.fmtNum(x, decimals);
+      if (x === null || x === undefined) return "-";
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "-";
+      return n.toFixed(decimals).replace(".", ",");
+    }
+    function fmtPct(x) {
+      if (typeof window.fmtPct === "function") return window.fmtPct(x);
+      if (x === null || x === undefined) return "-";
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "-";
+      return `${fmtNum(n * 100, 0)}%`;
+    }
+    function fmtInt(x) {
+      if (x === null || x === undefined) return "-";
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "-";
+      return String(Math.round(n));
+    }
+
+    function formatValue(format, value) {
+      switch (format) {
+        case "integer": return fmtInt(value);
+        case "decimal_0": return fmtNum(value, 0);
+        case "decimal_1": return fmtNum(value, 1);
+        case "decimal_2": return fmtNum(value, 2);
+        case "percent": return fmtPct(value);
+        default: return value == null ? "-" : String(value);
+      }
+    }
+
+    function daysUntilKickoff() {
+      const target = new Date(WC_KICKOFF_ISO).getTime();
+      return Math.floor((target - Date.now()) / (1000 * 60 * 60 * 24));
+    }
+
+    function countdownText() {
+      const d = daysUntilKickoff();
+      if (d < 0) return t("wcPreTournament.countdownPast", "Turnier läuft");
+      if (d === 0) return t("wcPreTournament.countdownToday", "Anstoß heute");
+      return tFmt("wcPreTournament.countdownDays", { days: d }, `Anstoß in ${d} Tagen`);
+    }
+
+    function subtitleFor(row) {
+      const games = Number(row && row.qualifier_games_played);
+      const countdown = countdownText();
+      if (Number.isFinite(games) && games > 0) {
+        const gamesText = tFmt("wcPreTournament.qualifierGamesSuffix", { count: games }, `${games} qualifying matches`);
+        return `${countdown} · ${gamesText}`;
+      }
+      return countdown;
+    }
+
+    function teamLogoUrl(row) {
+      return String(row && row.team_logo_url ? row.team_logo_url : "").trim();
+    }
+
+    function metricRowFor(row, metricId, defs) {
+      const def = defs[metricId];
+      if (!def) return "";
+      const band = WC_METRIC_BANDS[metricId] || "a";
+      const column = def.single_column;
+      const value = column ? row[column] : null;
+      const label = t("metrics." + metricId + ".label", metricId);
+      const formatted = formatValue(def.format, value);
+      return `
+        <div class="metric metric-band-${band}">
+          <div class="metric-label">${escHtml(label)}</div>
+          <div class="metric-value">${escHtml(formatted)}</div>
+        </div>`;
+    }
+
+    function renderCard(row, defs) {
+      const teamName = String(row.team_name || "").trim() || t("wcPreTournament.missingTeamName", "Unbekannte Mannschaft");
+      const logoUrl = teamLogoUrl(row);
+      return `
+        <article class="card">
+          <div class="team-header">
+            <div class="page-tag">${escHtml(t("wcPreTournament.tag", "Quali-Bilanz"))}</div>
+            <div class="team-logo-lg"><img src="${escHtml(logoUrl)}" alt="${escHtml(teamName)}"></div>
+            <div class="team-name">${escHtml(teamName)}</div>
+            <div class="team-subtitle">${escHtml(subtitleFor(row))}</div>
+          </div>
+          <div class="metrics">${WC_METRIC_ORDER.map((id) => metricRowFor(row, id, defs)).join("")}</div>
+        </article>`;
+    }
+
+    function renderEmpty(message) {
+      document.getElementById("carousel").innerHTML = `
+        <article class="card">
+          <div class="empty-state">
+            <strong>${escHtml(t("wcPreTournament.empty.headline", "WM-Daten noch nicht verfügbar."))}</strong><br>
+            ${escHtml(message)}
+          </div>
+        </article>`;
+    }
+
+    function render(teams, defs) {
+      // Alphabetical by team_name. Group draw isn't in the data shape yet;
+      // alphabetical is deterministic and reviewable.
+      const sorted = [...teams].sort((a, b) =>
+        String(a.team_name || "").localeCompare(String(b.team_name || ""))
+      );
+      document.getElementById("carousel").innerHTML = sorted.map((r) => renderCard(r, defs)).join("");
+      document.getElementById("foot-note").textContent = t("wcPreTournament.foot", FOOT_FALLBACK);
+    }
+
+    function scrollByCard(dir) {
+      const el = document.getElementById("carousel");
+      el.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" });
+    }
+    document.getElementById("prev-btn").addEventListener("click", () => scrollByCard(-1));
+    document.getElementById("next-btn").addEventListener("click", () => scrollByCard(1));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") scrollByCard(-1);
+      else if (e.key === "ArrowRight") scrollByCard(1);
+    });
+
+    function start() {
+      const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
+      const dataReady = fetch("./wc_pre_tournament_insights.json").then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      });
+      const defsReady = fetch("../match-preview/metric_definitions.json").then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      });
+
+      Promise.all([i18nReady, dataReady, defsReady])
+        .then(([_, payload, defs]) => {
+          // Accept both {"teams": [...]} and {"show": [...]} shapes for resilience.
+          const teams = (payload && (Array.isArray(payload.teams) ? payload.teams
+                          : Array.isArray(payload.show) ? payload.show : []));
+          if (!teams.length) {
+            renderEmpty(t("wcPreTournament.empty.subPending", "Daten werden vor dem ersten Spiel veröffentlicht."));
+            return;
+          }
+          render(teams, defs);
+        })
+        .catch((err) => {
+          renderEmpty(t("wcPreTournament.empty.errorPrefix", "Daten konnten nicht geladen werden:") + " " + String(err));
+        });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+    } else {
+      start();
+    }
+  </script>
+</body>
+</html>
