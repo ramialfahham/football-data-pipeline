@@ -137,9 +137,7 @@
     "SA": "Serie A",
     "L1": "Ligue 1",
     "VL": "Veikkausliiga",
-    "WC": "WM 2026",
-    "relegationSuffix": "Relegation",
-    "labelWithSuffix": "{{competition}} · {{suffix}}"
+    "WC": "WM 2026"
   },
   "landing": {
     "tagline": "Football analytics for fans",
@@ -149,10 +147,14 @@
       "seasonEnded": "Saison beendet",
       "comingSoon": "Bald verfügbar"
     },
+    "context": {
+      "relegationSuffix": "Relegation"
+    },
     "cta": {
       "matchday": "Spielvorschau ansehen",
       "recap": "Saisonrückblick ansehen",
-      "wc": "Quali-Bilanz ansehen",
+      "wc": "WM-Vorschau ansehen",
+      "wcPretournament": "Quali-Bilanz ansehen",
       "unavailable": "Bald verfügbar"
     },
     "wcCountdown": "Anstoß in {{days}} Tagen",
@@ -162,6 +164,7 @@
   "fixtureList": {
     "back": "Wettbewerbe",
     "context": {
+      "relegationSuffix": "Relegation",
       "roundOffSeason": "Saisonpause",
       "roundDateRange": "{{startDate}} – {{endDate}}",
       "roundSingleDate": "{{date}}",
