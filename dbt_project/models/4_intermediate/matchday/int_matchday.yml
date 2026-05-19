@@ -40,3 +40,38 @@ models:
       - dbt_utils.expression_is_true:
           expression: "not form_window_five_capped or form_games_played <= 5"
           name: int_matchday_team_form_five_cap_implies_at_most_five_games
+
+  - name: int_matchday__relegation_upcoming_fixtures
+    description: >
+      BL1 relegation play-off fixtures (round_name in var bl1_relegation_round_names).
+      Subset of int_matchday__upcoming_round_fixtures; same grain.
+    config:
+      tags: ["intermediate", "football", "matchday", "relegation"]
+
+  - name: int_matchday__relegation_team_form_league
+    description: >
+      Per (fixture_sk, team_sk) domestic league used for form on relegation ties (BL1 vs BL2).
+      Picks the league with the most finished legs in the fixture season; tie-break BL1.
+    config:
+      tags: ["intermediate", "football", "matchday", "relegation"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - team_sk
+
+  - name: int_matchday__team_form_metrics_relegation
+    description: >
+      Rolling last-five completed legs for relegation fixtures. Domestic legs use per-team
+      form_league_code (BL1 or BL2); completed BL1 play-off legs count for both teams.
+    config:
+      tags: ["intermediate", "football", "matchday", "relegation"]
+    columns:
+      - name: form_league_code
+        tests: [not_null]
+      - name: form_games_played
+        tests: [not_null]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "not form_window_five_capped or form_games_played <= 5"
+          name: int_matchday_relegation_form_five_cap_implies_at_most_five_games

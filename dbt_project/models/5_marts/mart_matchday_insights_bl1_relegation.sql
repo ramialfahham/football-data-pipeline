@@ -1,20 +1,17 @@
 {{ config(materialized='view') }}
 
 {#
-  Canonical Bundesliga (BL1) matchday preview mart: upcoming round + form + standings.
-  league_code filter is BL1 only; upstream int_matchday__* models stay league-agnostic.
-  Consumer export uses mart_matchday_insights (thin view) for a stable BigQuery name.
+  BL1 relegation play-off matchday surface. Same metric columns as mart_matchday_insights_bl1;
+  form uses each team's domestic league (BL1 or BL2) via int_matchday__team_form_metrics_relegation.
+  Standings join on form league + form season, not the BL1 fixture season_sk alone.
 #}
 
-with import_int_matchday__upcoming_round_fixtures as (
-    select * from {{ ref('int_matchday__upcoming_round_fixtures') }}
-    where
-        league_code = 'BL1'
-        and round_name not in {{ bl1_relegation_round_names_in_clause() }}
+with import_int_matchday__relegation_upcoming_fixtures as (
+    select * from {{ ref('int_matchday__relegation_upcoming_fixtures') }}
 ),
 
-import_int_matchday__team_form_metrics as (
-    select * from {{ ref('int_matchday__team_form_metrics') }}
+import_int_matchday__team_form_metrics_relegation as (
+    select * from {{ ref('int_matchday__team_form_metrics_relegation') }}
 ),
 
 mart_team_season as (
@@ -22,13 +19,14 @@ mart_team_season as (
 ),
 
 team_form_metrics as (
-    select * from import_int_matchday__team_form_metrics
+    select * from import_int_matchday__team_form_metrics_relegation
 ),
 
 home_form as (
     select
         fixture_sk,
         team_sk as home_team_sk,
+        form_league_code as home_form_league_code,
         form_season_api_year as home_form_season_api_year,
         form_games_played as home_form_games_played,
         form_matchdays_used as home_form_matchdays_used,
@@ -65,6 +63,7 @@ away_form as (
     select
         fixture_sk,
         team_sk as away_team_sk,
+        form_league_code as away_form_league_code,
         form_season_api_year as away_form_season_api_year,
         form_games_played as away_form_games_played,
         form_matchdays_used as away_form_matchdays_used,
@@ -114,6 +113,8 @@ final as (
         um.away_team_sk,
         um.away_team_name,
         um.upcoming_matchday_fixture_count,
+        hf.home_form_league_code,
+        af.away_form_league_code,
         home_ts.latest_rank as home_league_rank,
         away_ts.latest_rank as away_league_rank,
         home_ts.standings_group_description as home_standings_group_description,
@@ -176,19 +177,8 @@ final as (
         af.away_corner_kicks_per_match_recent,
         af.away_corners_conceded_per_match_recent,
         af.away_save_ratio_recent,
-        case
-            when um.league_code = 'BL1' then 'Bundesliga'
-            else um.league_name
-        end as league_name
-    from import_int_matchday__upcoming_round_fixtures as um
-    left join mart_team_season as home_ts
-        on
-            um.home_team_sk = home_ts.team_sk
-            and um.season_sk = home_ts.season_sk
-    left join mart_team_season as away_ts
-        on
-            um.away_team_sk = away_ts.team_sk
-            and um.season_sk = away_ts.season_sk
+        'Bundesliga Relegation' as league_name
+    from import_int_matchday__relegation_upcoming_fixtures as um
     left join home_form as hf
         on
             um.fixture_sk = hf.fixture_sk
@@ -197,6 +187,16 @@ final as (
         on
             um.fixture_sk = af.fixture_sk
             and um.away_team_sk = af.away_team_sk
+    left join mart_team_season as home_ts
+        on
+            um.home_team_sk = home_ts.team_sk
+            and hf.home_form_league_code = home_ts.league_code
+            and hf.home_form_season_api_year = home_ts.season_api_year
+    left join mart_team_season as away_ts
+        on
+            um.away_team_sk = away_ts.team_sk
+            and af.away_form_league_code = away_ts.league_code
+            and af.away_form_season_api_year = away_ts.season_api_year
 )
 
 select *
