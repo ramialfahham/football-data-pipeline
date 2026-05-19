@@ -287,6 +287,7 @@ stg_fixtures as (
         away_team_id,
         away_team_name,
         raw_ingested_at
+    from {{ ref('stg_apif__wcqoc_fixtures_next') }}
 
     union all
 
