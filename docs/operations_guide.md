@@ -211,12 +211,26 @@ Refresh cheap league-wide tables daily and prioritise near-term matches for the 
 
 ## CI/CD guardrails
 
-GitHub Actions workflows enforce the layer contract, run Python tests, and run dbt:
+GitHub Actions workflows are split by change type so UI-only PRs do not run live ingest or full BigQuery builds.
 
-- `.github/workflows/python-ci.yml`: runs `pytest tests/ -v` on every PR and push to `main`. Covers pure-function unit tests for the ingestion package (merge logic, season inference, fanout scheduling).
-- `.github/workflows/dbt-ci.yml`: PR/push validation (`check_layer_contract.py`, `sqlfluff lint`, `dbt parse`, `dbt build --selector staging`, focused transfer contract build `dbt build --select dim_date dim_player fct_transfer`).
-- `.github/workflows/dbt-scheduled.yml`: twice-daily scheduled run (`04:00` and `16:00` UTC) with full DQ selector (`dbt build --selector dq`).
-- `.github/workflows/pages-match-preview.yml`: builds `+mart_matchday_insights` and `+mart_matchday_insights_wc`, exports `matchday_insights.json` and syncs metric definitions for the site, assembles `site/match-preview/` into `_site/`, and deploys to **GitHub Pages** (manual `workflow_dispatch`, daily schedule, or on push to `main` when relevant paths change). **`marts.mart_matchday_insights` is BL1-only** for that JSON until the match-preview UI supports multiple competitions (WC stays in `mart_matchday_insights_wc`).
+| Workflow | When it runs | What it does |
+|----------|----------------|----------------|
+| `ci-validate.yml` | Every PR and push to `main` | Layer contract, registry/var sync, `dbt parse` (no GCP). `sqlfluff lint` only when `dbt_project/models/**/*.sql` changed. |
+| `ci-data-build.yml` | PR/push when `dbt_project/**`, `ingestion/**`, registry, trust scripts, or CI workflows change; also `workflow_dispatch` | WIF → BigQuery: conditional bootstrap ingest, `dbt build --selector staging`, `dbt build --selector downstream`, singular tests, fixture stats trust gate. |
+| `ci-ui.yml` | PR/push when `site/**` or Pages build/export scripts change | JSON syntax checks; `scripts/check_ui_i18n_metrics.py` (manifest ↔ i18n). No GCP. |
+| `python-ci.yml` | Every PR and push to `main` | `pytest tests/ -v` (ingestion unit tests). |
+| `security-secrets.yml` | Every PR and push to `main` | Gitleaks secret scan. |
+| `dbt-scheduled.yml` | Twice daily (`04:00`, `16:00` UTC) + manual | **Full ingest** for all active competitions, then `dbt build` (incl. freshness). Source of truth for raw tables used by PR builds. |
+| `pages-match-preview.yml` | Push to `main` (path-filtered), daily schedule, manual | Build matchday marts, `export_pages_data.py` → `data/{league}/`, assemble `_site`, deploy GitHub Pages. |
+
+### Conditional ingest on PR data builds
+
+`ci-data-build` runs bootstrap ingest (`API_FOOTBALL_LEAGUE_CODES=PL,PD,BL2,SA,L1,VL`) only when `ingestion/**`, `docs/competition_registry.yml`, or `dbt_project/models/1_staging/**` change, or when you run **ci-data-build → Run workflow** with **Force bootstrap ingest** checked. BL1 and WC/WCQ raw are assumed to exist from `dbt-scheduled` (not re-ingested on every PR). If a data PR fails for missing raw, re-run the workflow with ingest forced.
+
+### Branch protection (recommended)
+
+- **Required:** `validate` (from `ci-validate`), `python-ci` / `test`, `secret-scan`
+- **Optional / path-gated:** `data-build`, `ui-checks` — do not require globally; they only run when relevant paths change (skipped jobs do not block merge)
 
 ### Shareable Bundesliga match preview (GitHub Pages)
 
@@ -244,6 +258,6 @@ python .\scripts\check_layer_contract.py
 
 ### Simple operations playbook (lean baseline)
 
-- **Where to check failed runs:** GitHub Actions tab -> `dbt-ci` / `dbt-scheduled` workflow runs.
+- **Where to check failed runs:** GitHub Actions tab → `ci-validate`, `ci-data-build`, `ci-ui`, or `dbt-scheduled` workflow runs.
 - **What to do when marts are stale:** rerun `dbt-scheduled` via workflow_dispatch; if it still fails, inspect the failed dbt step first (`dbt deps`, contract check, then build).
 - **Where WIF secrets live:** GitHub repo -> Settings -> Secrets and variables -> Actions (`GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`).
