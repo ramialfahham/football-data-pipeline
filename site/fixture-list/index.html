@@ -25,6 +25,7 @@
 <title>Matchday IQ — Bundesliga</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="../i18n.js" defer></script>
+<script src="../manifest-utils.js" defer></script>
 <style>
   :root {
     --bg: #07091a;
@@ -369,24 +370,13 @@
       return /^[a-z0-9]+$/.test(raw) ? raw : "";
     }
 
-    /** Categorize a matchday_source_mart name — kept in sync with the same
-     *  helper in site/index.html so labeling is identical across both pages. */
-    function sourceMartKind(mart) {
-      if (typeof mart !== "string") return "regular";
-      if (/relegation/i.test(mart)) return "relegation";
-      return "regular";
-    }
-
-    function competitionName(code, kind) {
+    function competitionName(code, sourceMart) {
       const upper = code.toUpperCase();
-      const base = tt("competitions." + upper, upper);
-      if (kind === "relegation") {
-        const suffix = tt("competitions.relegationSuffix", "Relegation");
-        return tt("competitions.labelWithSuffix",
-          { competition: base, suffix: suffix },
-          `${base} · ${suffix}`);
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      if (mu && typeof mu.competitionDisplayName === "function") {
+        return mu.competitionDisplayName(upper, sourceMart, tt, "fixtureList");
       }
-      return base;
+      return tt("competitions." + upper, upper);
     }
 
     function logoUrl(code) {
@@ -527,13 +517,13 @@
         </section>`;
     }
 
-    function updateContextHeader(code, rows, kind) {
+    function updateContextHeader(code, rows, sourceMart) {
       const logoEl = document.getElementById("comp-logo");
       const titleEl = document.getElementById("comp-title");
       const roundEl = document.getElementById("comp-round");
       const metaEl = document.getElementById("comp-round-meta");
 
-      const compName = competitionName(code, kind);
+      const compName = competitionName(code, sourceMart);
       titleEl.textContent = compName;
       logoEl.src = logoUrl(code);
       logoEl.alt = code.toUpperCase();
@@ -574,25 +564,22 @@
         return;
       }
 
-      const dataReady = fetch(`../data/${code}/matchday_insights.json`)
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
-        .catch(() => null);
-
-      // Also fetch the manifest so we can read matchday_source_mart for this
-      // league — drives relegation/playoff labeling without UI hardcoding.
-      // 404 is fine (legacy deploy / local without build); kind defaults to "regular".
       const manifestReady = fetch("../pages_export_manifest.json")
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
 
-      Promise.all([i18nReady, dataReady, manifestReady]).then(([_, payload, manifest]) => {
+      const dataReady = fetch(`../data/${code}/matchday_insights.json`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+        .catch(() => null);
+
+      Promise.all([i18nReady, manifestReady, dataReady]).then(([_, manifest, payload]) => {
         const rows = (payload && Array.isArray(payload.show)) ? payload.show : [];
-        const upper = code.toUpperCase();
-        const entry = (manifest && Array.isArray(manifest.domestic_leagues))
-          ? manifest.domestic_leagues.find((e) => String(e.league_code).toUpperCase() === upper)
+        const mu = globalThis.MATCHDAYIQ_MANIFEST;
+        const entry = mu && typeof mu.manifestEntryForLeague === "function"
+          ? mu.manifestEntryForLeague(manifest, code)
           : null;
-        const kind = entry ? sourceMartKind(entry.matchday_source_mart) : "regular";
-        updateContextHeader(code, rows, kind);
+        const sourceMart = entry && entry.matchday_source_mart ? entry.matchday_source_mart : null;
+        updateContextHeader(code, rows, sourceMart);
         if (!rows.length) {
           renderEmpty(code);
         } else {

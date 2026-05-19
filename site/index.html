@@ -21,6 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matchday IQ — Wettbewerbe</title>
 <script src="./i18n.js" defer></script>
+<script src="./manifest-utils.js" defer></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -387,31 +388,12 @@
       return "no_data";
     }
 
-    /**
-     * Categorize a matchday_source_mart name — generic so future
-     * relegation/playoff marts (e.g. mart_matchday_insights_l1_relegation)
-     * automatically slot in without UI changes.
-     *
-     * Returns: "regular" | "relegation"
-     */
-    function sourceMartKind(mart) {
-      if (typeof mart !== "string") return "regular";
-      // Convention: any mart whose name contains "relegation" is treated
-      // as a relegation/promotion playoff. Add patterns here if the data
-      // layer introduces new mart families (e.g. "_playoff", "_qualifier").
-      if (/relegation/i.test(mart)) return "relegation";
-      return "regular";
-    }
-
-    function competitionLabel(code, kind) {
-      const base = tt("competitions." + code, code);
-      if (kind === "relegation") {
-        const suffix = tt("competitions.relegationSuffix", "Relegation");
-        return tt("competitions.labelWithSuffix",
-          { competition: base, suffix: suffix },
-          `${base} · ${suffix}`);
+    function competitionLabel(code, sourceMart) {
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      if (mu && typeof mu.competitionDisplayName === "function") {
+        return mu.competitionDisplayName(code, sourceMart, tt, "landing");
       }
-      return base;
+      return tt("competitions." + code, code);
     }
 
     function daysUntilWc() {
@@ -431,12 +413,8 @@
     function renderDomesticCard(entry) {
       const code = entry.league_code;
       const phase = phaseFor(entry);
-      // When the matchday data comes from a relegation/playoff mart, label
-      // the card accordingly. The signal lives on entry.matchday_source_mart;
-      // the kind classifier is generic so future relegation marts inherit
-      // the labeling automatically (no UI change per league).
-      const kind = phase === "matchday" ? sourceMartKind(entry.matchday_source_mart) : "regular";
-      const name = competitionLabel(code, kind);
+      const sourceMart = phase === "matchday" ? entry.matchday_source_mart : null;
+      const name = competitionLabel(code, sourceMart);
       let stateText = "";
       let ctaText = "";
       let href = null;
@@ -479,7 +457,7 @@
       // anyway — if it 404s, we'll add the page next.
       const name = competitionLabel("WC");
       const subtitle = wcSubtitle();
-      const cta = tt("landing.cta.wc", "Pre-tournament outlook");
+      const cta = tt("landing.cta.wcPretournament", "Qualifier outlook");
       return `
         <a class="card is-wc" href="./wc-pre-tournament/">
           <div class="badge"><img src="${escHtml(logoUrl("WC"))}" alt="WC"></div>
