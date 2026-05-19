@@ -43,6 +43,24 @@ jobs:
       - name: Check registry/var sync
         run: python scripts/check_registry_var_sync.py
 
+      - name: Create dbt profile for parse
+        run: |
+          mkdir -p /home/runner/.dbt
+          cat > /home/runner/.dbt/profiles.yml <<'EOF'
+          football_data_pipeline:
+            target: ci
+            outputs:
+              ci:
+                type: bigquery
+                method: oauth
+                project: football-data-pipeline-gcp
+                dataset: dbt_analytics
+                threads: 4
+                timeout_seconds: 300
+                location: EU
+                priority: interactive
+          EOF
+
       - name: dbt deps
         working-directory: dbt_project
         run: dbt deps
