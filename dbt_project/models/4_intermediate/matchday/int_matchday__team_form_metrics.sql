@@ -29,7 +29,8 @@ import_int_matchday__upcoming_round_fixtures as (
 supporting_leagues as (
     select
         parent_league_code,
-        supporting_league_code
+        supporting_league_code,
+        qualifier_season_api_year
     from {{ ref('wc_supporting_league_codes') }}
 ),
 
@@ -242,6 +243,7 @@ wc_ranked as (
         on
             sl_wc_support.parent_league_code = 'WC'
             and fwo.league_code = sl_wc_support.supporting_league_code
+            and fwo.season_api_year = sl_wc_support.qualifier_season_api_year
     where
         (
             coalesce(wtc.n_wc_tournament_before, 0) = 0

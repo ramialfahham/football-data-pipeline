@@ -20,7 +20,7 @@ leg_coverage as (
         pt.team_sk,
         pt.league_code as tournament_league_code,
         pt.season_api_year as tournament_season_api_year,
-        count(leg.fixture_sk) as qualifier_games_played,
+        count(distinct leg.fixture_sk) as qualifier_games_played,
         count(distinct leg.round_name) as qualifier_matchdays_used,
         countif(leg.shots_on_goal is not null) as legs_with_shots_on_goal,
         countif(leg.shots_total is not null) as legs_with_shots_total,
