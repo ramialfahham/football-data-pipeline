@@ -1,0 +1,48 @@
+name: ci-ui
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ui:
+              - 'site/**'
+              - 'scripts/build_match_preview_site.sh'
+              - 'scripts/build_match_preview_site.ps1'
+              - 'scripts/export_pages_data.py'
+              - 'scripts/check_ui_i18n_metrics.py'
+
+  ui-checks:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate JSON syntax (i18n + metric manifest)
+        run: |
+          python -m json.tool site/i18n/en.json > /dev/null
+          python -m json.tool site/i18n/de.json > /dev/null
+          python -m json.tool site/match-preview/metric_manifest.json > /dev/null
+          python -m json.tool site/match-preview/metric_definitions.json > /dev/null
+
+      - name: Check metric_manifest vs i18n metrics namespace
+        run: python scripts/check_ui_i18n_metrics.py

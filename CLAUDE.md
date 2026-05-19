@@ -60,5 +60,5 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
 - BigQuery (GCP project `football-data-pipeline-gcp`)
 - dbt (project in `dbt_project/`)
 - SQLFluff for SQL linting
-- GitHub Actions for CI (`dbt-ci.yml`) and scheduled runs (`dbt-scheduled.yml`)
+- GitHub Actions for CI (`ci-validate.yml`, `ci-data-build.yml`, `ci-ui.yml`) and scheduled runs (`dbt-scheduled.yml`)
 - GitHub Pages for the match preview UI (`pages-match-preview.yml`)

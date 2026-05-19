@@ -1,14 +1,47 @@
-name: dbt-ci
+name: ci-data-build
 
 on:
   pull_request:
-  workflow_dispatch:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_ingest:
+        description: Force bootstrap ingest (PL, PD, BL2, SA, L1, VL)
+        type: boolean
+        default: false
 
 jobs:
-  validate-and-build:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      data: ${{ steps.filter.outputs.data }}
+      ingest: ${{ steps.filter.outputs.ingest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            data:
+              - 'dbt_project/**'
+              - 'ingestion/**'
+              - 'docs/competition_registry.yml'
+              - 'scripts/check_*.py'
+              - 'scripts/data_trust_*.py'
+              - 'requirements.txt'
+              - '.github/workflows/ci-*.yml'
+            ingest:
+              - 'ingestion/**'
+              - 'docs/competition_registry.yml'
+              - 'dbt_project/models/1_staging/**'
+
+  data-build:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.data == 'true'
     permissions:
       contents: read
       id-token: write
@@ -28,7 +61,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r ../requirements.txt
+          pip install -r requirements.txt
 
       - name: Create dbt profile for CI
         run: |
@@ -63,19 +96,10 @@ jobs:
       - name: dbt seed
         run: dbt seed
 
-      - name: Enforce layer contract
-        run: python ../scripts/check_layer_contract.py
-
-      - name: Check registry/var sync
-        run: python ../scripts/check_registry_var_sync.py
-
-      - name: Lint SQL
-        run: sqlfluff lint models
-
-      - name: Parse project
-        run: dbt parse
-
       - name: Bootstrap ingest domestic league raw tables
+        if: |
+          (github.event_name == 'workflow_dispatch' && inputs.run_ingest == true) ||
+          needs.changes.outputs.ingest == 'true'
         working-directory: .
         env:
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
@@ -86,17 +110,11 @@ jobs:
           export PYTHONPATH=.
           python -m ingestion.api_football.main
 
-      - name: Build BL1 staging
-        run: dbt build --select path:models/1_staging/api_football/bl1
+      - name: Build staging
+        run: dbt build --selector staging
 
-      - name: Build WC + WCQ staging
-        run: dbt build --select path:models/1_staging/api_football/wc path:models/1_staging/api_football/wcq
-
-      - name: Build domestic league staging
-        run: dbt build --select path:models/1_staging/api_football/pl path:models/1_staging/api_football/pd path:models/1_staging/api_football/bl2 path:models/1_staging/api_football/sa path:models/1_staging/api_football/l1 path:models/1_staging/api_football/vl
-
-      - name: Build core dims, facts, intermediate, and marts
-        run: dbt build --select path:models/2_base dim_date +dim_team +dim_league +dim_competition_season +dim_player +fct_transfer +fct_standings +fct_fixture_team_stats +fct_fixture +fct_fixture_event +fct_fixture_player_stats +fct_team_market_value_snapshot path:models/4_intermediate path:models/5_marts --exclude tag:freshness_check
+      - name: Build base through marts
+        run: dbt build --selector downstream --exclude tag:freshness_check
 
       - name: Run singular data quality tests
         run: dbt test --select test_type:singular --exclude tag:freshness_check
