@@ -69,6 +69,14 @@ Explicit values for any individual variable override the profile defaults.
 
 ### Tuning knobs
 
+#### `API_FOOTBALL_LEAGUE_CODES` (optional)
+
+Comma-separated allowlist of `league_code` values to ingest (e.g. `PL,PD,BL2`). When set, only those codes run after the usual active / in-progress policy filter. Used in PR CI to bootstrap raw tables for newly onboarded leagues without re-ingesting the full registry.
+
+#### Season discovery (registry + ingest)
+
+The active API season year is **not** taken from a fixed registry year by default. Each run calls `/leagues` and uses the season row with `current: true`. Registry `current_season` is an optional override when that flag is missing. Registry `history_seasons` sets how many season years to load backward from the resolved current year (e.g. `2` = current + one prior for form). On the default ingest profile, at most `API_FOOTBALL_DEFAULT_PROFILE_MAX_SEASONS` years (default `3`) are loaded per run; wider backfills use `API_FOOTBALL_INGEST_PROFILE=full` or `API_FOOTBALL_ALL_SEASONS=1`.
+
 #### `API_FOOTBALL_FIXTURES_MODE` (optional)
 
 How `/fixtures` is queried. Default `season` (`league` + `season` only). Alternative modes: `from_to` (date range) and `next` (upcoming matches — usually paid-only).

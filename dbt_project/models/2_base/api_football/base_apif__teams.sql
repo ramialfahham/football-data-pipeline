@@ -288,6 +288,74 @@ stg_fixtures as (
         away_team_name,
         raw_ingested_at
     from {{ ref('stg_apif__wcqoc_fixtures_next') }}
+
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__pl_fixtures_next') }}
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__pd_fixtures_next') }}
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__bl2_fixtures_next') }}
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__sa_fixtures_next') }}
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__l1_fixtures_next') }}
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__vl_fixtures_next') }}
+
 ),
 
 team_keys as (

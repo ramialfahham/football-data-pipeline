@@ -13,6 +13,12 @@
     'import_stg_wcqas_fixture_statistics',
     'import_stg_wcqip_fixture_statistics',
     'import_stg_wcqoc_fixture_statistics',
+    'import_stg_pl_fixture_statistics',
+    'import_stg_pd_fixture_statistics',
+    'import_stg_bl2_fixture_statistics',
+    'import_stg_l1_fixture_statistics',
+    'import_stg_vl_fixture_statistics',
+    'import_stg_sa_fixture_statistics',
 ] %}
 
 with import_stg_bl1_fixture_statistics as (
@@ -262,6 +268,174 @@ import_stg_wcqoc_fixture_statistics as (
         passes_accuracy_percent,
         raw_ingested_at
     from {{ ref('stg_apif__wcqoc_fixture_statistics') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+),
+
+import_stg_pl_fixture_statistics as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        shots_on_goal,
+        shots_off_goal,
+        shots_total,
+        shots_blocked,
+        shots_inside_box,
+        shots_outside_box,
+        fouls,
+        corner_kicks,
+        offsides,
+        ball_possession_percent,
+        yellow_cards,
+        red_cards,
+        goalkeeper_saves,
+        passes_total,
+        passes_accurate,
+        passes_accuracy_percent,
+        raw_ingested_at
+    from {{ ref('stg_apif__pl_fixture_statistics') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+),
+
+import_stg_pd_fixture_statistics as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        shots_on_goal,
+        shots_off_goal,
+        shots_total,
+        shots_blocked,
+        shots_inside_box,
+        shots_outside_box,
+        fouls,
+        corner_kicks,
+        offsides,
+        ball_possession_percent,
+        yellow_cards,
+        red_cards,
+        goalkeeper_saves,
+        passes_total,
+        passes_accurate,
+        passes_accuracy_percent,
+        raw_ingested_at
+    from {{ ref('stg_apif__pd_fixture_statistics') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+),
+
+import_stg_bl2_fixture_statistics as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        shots_on_goal,
+        shots_off_goal,
+        shots_total,
+        shots_blocked,
+        shots_inside_box,
+        shots_outside_box,
+        fouls,
+        corner_kicks,
+        offsides,
+        ball_possession_percent,
+        yellow_cards,
+        red_cards,
+        goalkeeper_saves,
+        passes_total,
+        passes_accurate,
+        passes_accuracy_percent,
+        raw_ingested_at
+    from {{ ref('stg_apif__bl2_fixture_statistics') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+),
+
+import_stg_sa_fixture_statistics as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        shots_on_goal,
+        shots_off_goal,
+        shots_total,
+        shots_blocked,
+        shots_inside_box,
+        shots_outside_box,
+        fouls,
+        corner_kicks,
+        offsides,
+        ball_possession_percent,
+        yellow_cards,
+        red_cards,
+        goalkeeper_saves,
+        passes_total,
+        passes_accurate,
+        passes_accuracy_percent,
+        raw_ingested_at
+    from {{ ref('stg_apif__sa_fixture_statistics') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+),
+
+import_stg_l1_fixture_statistics as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        shots_on_goal,
+        shots_off_goal,
+        shots_total,
+        shots_blocked,
+        shots_inside_box,
+        shots_outside_box,
+        fouls,
+        corner_kicks,
+        offsides,
+        ball_possession_percent,
+        yellow_cards,
+        red_cards,
+        goalkeeper_saves,
+        passes_total,
+        passes_accurate,
+        passes_accuracy_percent,
+        raw_ingested_at
+    from {{ ref('stg_apif__l1_fixture_statistics') }}
+    where
+        fixture_id is not null
+        and team_id is not null
+),
+
+import_stg_vl_fixture_statistics as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        shots_on_goal,
+        shots_off_goal,
+        shots_total,
+        shots_blocked,
+        shots_inside_box,
+        shots_outside_box,
+        fouls,
+        corner_kicks,
+        offsides,
+        ball_possession_percent,
+        yellow_cards,
+        red_cards,
+        goalkeeper_saves,
+        passes_total,
+        passes_accurate,
+        passes_accuracy_percent,
+        raw_ingested_at
+    from {{ ref('stg_apif__vl_fixture_statistics') }}
     where
         fixture_id is not null
         and team_id is not null

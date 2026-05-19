@@ -27,6 +27,7 @@ class Competition:
     name: str
     form_source: str = "league_only"
     supporting_leagues: tuple = ()
+    season_type: str = "split_year"  # split_year | calendar_year — drives season hi/lo in ingestion
     current_season: int | None = None  # from registry; used to bound season discovery for non-split-year competitions
     history_seasons: int | None = None  # CPO-approved backfill window (number of season start years)
     # hard: incomplete fanout fails the run; soft: report only
@@ -154,6 +155,13 @@ def _parse_competitions() -> list[Competition]:
                 sl_list.append({"id": league_id_val, "season": season_val})
             parsed_supporting_leagues = tuple(sl_list)
 
+        season_type = str(entry.get("season_type", "split_year")).strip().lower() or "split_year"
+        if season_type not in ("split_year", "calendar_year"):
+            raise ValueError(
+                f"Competition `{league_code}` has invalid season_type={season_type!r}. "
+                "Allowed: split_year, calendar_year."
+            )
+
         current_season_raw = entry.get("current_season")
         current_season: int | None = None
         if current_season_raw is not None:
@@ -194,6 +202,7 @@ def _parse_competitions() -> list[Competition]:
                 name=name,
                 form_source=form_source or "league_only",
                 supporting_leagues=parsed_supporting_leagues,
+                season_type=season_type,
                 current_season=current_season,
                 history_seasons=history_seasons,
                 ingest_completeness_gate=ingest_completeness_gate,
@@ -208,6 +217,17 @@ def _parse_competitions() -> list[Competition]:
 
 def include_in_progress_competitions() -> bool:
     return _env_truthy("API_FOOTBALL_INCLUDE_IN_PROGRESS", default=False)
+
+
+def _league_codes_filter() -> frozenset[str] | None:
+    """Optional comma-separated allowlist (e.g. ``PL,PD,BL2`` for CI bootstrap)."""
+    raw = os.getenv("API_FOOTBALL_LEAGUE_CODES", "").strip()
+    if not raw:
+        return None
+    codes = frozenset(part.strip().upper() for part in raw.split(",") if part.strip())
+    if not codes:
+        raise ValueError("API_FOOTBALL_LEAGUE_CODES is set but contains no league codes.")
+    return codes
 
 
 def selected_competitions() -> tuple[list[Competition], list[tuple[Competition, str]]]:
@@ -228,9 +248,24 @@ def selected_competitions() -> tuple[list[Competition], list[tuple[Competition, 
             )
         else:
             skipped.append((comp, f"status={comp.status} is excluded by policy"))
+    codes_filter = _league_codes_filter()
+    if codes_filter is not None:
+        kept: list[Competition] = []
+        for comp in selected:
+            if comp.league_code in codes_filter:
+                kept.append(comp)
+            else:
+                skipped.append(
+                    (
+                        comp,
+                        f"excluded by API_FOOTBALL_LEAGUE_CODES allowlist ({sorted(codes_filter)})",
+                    )
+                )
+        selected = kept
     if not selected:
         raise ValueError(
             "No competitions selected for ingestion. "
-            "Review competition status values and API_FOOTBALL_INCLUDE_IN_PROGRESS."
+            "Review competition status values, API_FOOTBALL_INCLUDE_IN_PROGRESS, "
+            "and API_FOOTBALL_LEAGUE_CODES."
         )
     return selected, skipped

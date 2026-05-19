@@ -131,6 +131,7 @@ def _load_api_football(request):
                     comp.provider_league_id,
                     current_season=comp.current_season,
                     history_seasons=comp.history_seasons,
+                    season_type=comp.season_type,
                 )
                 continue
             result = run_cheap_phases(
@@ -139,6 +140,7 @@ def _load_api_football(request):
                 comp.provider_league_id,
                 current_season=comp.current_season,
                 history_seasons=comp.history_seasons,
+                season_type=comp.season_type,
             )
             if result is not None:
                 results.append(result)

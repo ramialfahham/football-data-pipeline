@@ -59,8 +59,6 @@ def decide_ingest_mode(
 
 
 def _reference_season(comp: Competition, fixtures_payload: dict | None) -> int:
-    if comp.current_season is not None:
-        return int(comp.current_season)
     years: list[int] = []
     for item in (fixtures_payload or {}).get("response") or []:
         league = item.get("league") or {}
@@ -72,6 +70,8 @@ def _reference_season(comp: Competition, fixtures_payload: dict | None) -> int:
                 continue
     if years:
         return max(years)
+    if comp.current_season is not None:
+        return int(comp.current_season)
     return 0
 
 
