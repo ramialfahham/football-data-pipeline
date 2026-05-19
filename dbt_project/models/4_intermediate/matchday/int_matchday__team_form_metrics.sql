@@ -338,6 +338,7 @@ form_context as (
     select
         upcoming_fixture_sk as fixture_sk,
         team_sk,
+        league_code,
         form_season_api_year,
         use_five_game_cap as form_window_five_capped
     from non_wc_season
@@ -345,6 +346,7 @@ form_context as (
     select
         tfc.upcoming_fixture_sk as fixture_sk,
         tfc.team_sk,
+        tfc.league_code,
         tfc.season_api_year as form_season_api_year,
         coalesce(wtc.n_wc_tournament_before, 0) > 0 as form_window_five_capped
     from wc_context as tfc
@@ -358,6 +360,7 @@ form_metrics as (
     select
         fc.fixture_sk,
         fc.team_sk,
+        fc.league_code,
         fc.form_season_api_year,
         fc.form_window_five_capped,
         af.points_won_sum_form,
@@ -385,6 +388,7 @@ form_metrics as (
 select
     fixture_sk,
     team_sk,
+    league_code,
     form_season_api_year,
     form_window_five_capped,
     form_games_played,
