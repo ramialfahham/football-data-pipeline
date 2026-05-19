@@ -25,6 +25,7 @@
 <title>Matchday IQ — Bundesliga</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="../i18n.js" defer></script>
+<script src="../manifest-utils.js" defer></script>
 <style>
   :root {
     --bg: #07091a;
@@ -369,8 +370,12 @@
       return /^[a-z0-9]+$/.test(raw) ? raw : "";
     }
 
-    function competitionName(code) {
+    function competitionName(code, sourceMart) {
       const upper = code.toUpperCase();
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      if (mu && typeof mu.competitionDisplayName === "function") {
+        return mu.competitionDisplayName(upper, sourceMart, tt, "fixtureList");
+      }
       return tt("competitions." + upper, upper);
     }
 
@@ -512,13 +517,13 @@
         </section>`;
     }
 
-    function updateContextHeader(code, rows) {
+    function updateContextHeader(code, rows, sourceMart) {
       const logoEl = document.getElementById("comp-logo");
       const titleEl = document.getElementById("comp-title");
       const roundEl = document.getElementById("comp-round");
       const metaEl = document.getElementById("comp-round-meta");
 
-      const compName = competitionName(code);
+      const compName = competitionName(code, sourceMart);
       titleEl.textContent = compName;
       logoEl.src = logoUrl(code);
       logoEl.alt = code.toUpperCase();
@@ -559,13 +564,22 @@
         return;
       }
 
+      const manifestReady = fetch("../pages_export_manifest.json")
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+
       const dataReady = fetch(`../data/${code}/matchday_insights.json`)
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
         .catch(() => null);
 
-      Promise.all([i18nReady, dataReady]).then(([_, payload]) => {
+      Promise.all([i18nReady, manifestReady, dataReady]).then(([_, manifest, payload]) => {
         const rows = (payload && Array.isArray(payload.show)) ? payload.show : [];
-        updateContextHeader(code, rows);
+        const mu = globalThis.MATCHDAYIQ_MANIFEST;
+        const entry = mu && typeof mu.manifestEntryForLeague === "function"
+          ? mu.manifestEntryForLeague(manifest, code)
+          : null;
+        const sourceMart = entry && entry.matchday_source_mart ? entry.matchday_source_mart : null;
+        updateContextHeader(code, rows, sourceMart);
         if (!rows.length) {
           renderEmpty(code);
         } else {
