@@ -307,12 +307,13 @@
     }
 
     function competitionDisplayLabel(row) {
-      // Resolve via i18n's teamSeason.competition.<code> namespace; falls
-      // back to the raw league_code (e.g., "BL1") if the language file
-      // doesn't know the competition yet.
+      // Resolve via i18n's top-level competitions.<CODE> namespace (shared
+      // across all pages — landing, fixture-list, team-season, match-preview).
+      // Falls back to the raw league_code if the language file is missing
+      // an entry for this competition.
       const code = String(row && row.league_code ? row.league_code : "").trim();
-      if (!code) return t("teamSeason.competition.unknown", "Wettbewerb");
-      return t("teamSeason.competition." + code, code);
+      if (!code) return t("competitions.unknown", "Wettbewerb");
+      return t("competitions." + code, code);
     }
 
     function subtitleLine(row) {
@@ -415,11 +416,29 @@
       else if (e.key === "ArrowRight") scrollByCard(1);
     });
 
+    /**
+     * Resolve the data URL for this team-season view.
+     *
+     * - `?league=<code>` (case-insensitive) → `../data/<code-lower>/team_season_insights.json`
+     *   (the manifest-driven multi-league export path).
+     * - No param → `./team_season_insights.json` (legacy BL1 sibling — kept
+     *   for backward compat with the original deploy + local previews).
+     */
+    function dataUrlForLeague() {
+      const params = new URLSearchParams(window.location.search);
+      const raw = (params.get("league") || "").trim().toLowerCase();
+      if (!raw) return "./team_season_insights.json";
+      // Guard against odd input — only [a-z0-9] allowed in league codes.
+      if (!/^[a-z0-9]+$/.test(raw)) return "./team_season_insights.json";
+      return `../data/${raw}/team_season_insights.json`;
+    }
+
     function start() {
       // Wait for both i18n (translations) and the data fetch so the rendered
       // carousel uses translated labels on first paint.
       const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
-      const dataReady = fetch("./team_season_insights.json").then((r) => {
+      const url = dataUrlForLeague();
+      const dataReady = fetch(url).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       });

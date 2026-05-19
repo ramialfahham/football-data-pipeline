@@ -833,12 +833,28 @@
         if (ev.target.id === "feedback-modal-backdrop") closeFeedbackModal();
       });
 
+      // Resolve the matchday-insights URL: ?league=<code> → per-league export,
+      // otherwise the legacy sibling (BL1 deep-link compat).
+      const params = new URLSearchParams(window.location.search);
+      const leagueParam = (params.get("league") || "").trim().toLowerCase();
+      const validLeague = /^[a-z0-9]+$/.test(leagueParam) ? leagueParam : "";
+      const matchdayUrl = validLeague
+        ? `../data/${validLeague}/matchday_insights.json`
+        : "./matchday_insights.json";
+
+      // Update back-link to preserve the ?league= param so users return to
+      // the right fixture-list.
+      const backLink = document.querySelector(".backbar .back");
+      if (backLink && validLeague) {
+        backLink.setAttribute("href", `../fixture-list/?league=${validLeague}`);
+      }
+
       // Wait for both i18n (translations) and the data fetch so the rendered
       // carousel uses translated labels on first paint.
       const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
       Promise.all([
         i18nReady,
-        fetch("./matchday_insights.json").then((r) => r.json()),
+        fetch(matchdayUrl).then((r) => r.json()),
         fetch("./metric_manifest.json").then((r) => r.json()),
         fetch("./metric_definitions.json").then((r) => r.json()),
       ])

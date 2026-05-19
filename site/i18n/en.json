@@ -129,35 +129,53 @@
       "description": "Saves as a share of saves plus goals conceded in qualifying."
     }
   },
+  "competitions": {
+    "BL1": "Bundesliga",
+    "BL2": "2. Bundesliga",
+    "PL": "Premier League",
+    "PD": "La Liga",
+    "SA": "Serie A",
+    "L1": "Ligue 1",
+    "VL": "Veikkausliiga",
+    "WC": "World Cup 2026"
+  },
   "landing": {
     "tagline": "Football analytics for fans",
     "sectionLabel": "Competitions",
-    "bundesliga": {
-      "title": "Bundesliga",
-      "state": "2025/26 season ended",
-      "cta": "View season recap"
-    }
+    "state": {
+      "matchdayUpcoming": "Next matchday",
+      "seasonEnded": "Season ended",
+      "comingSoon": "Coming soon"
+    },
+    "cta": {
+      "matchday": "Preview matchday",
+      "recap": "View season recap",
+      "wc": "Pre-tournament outlook",
+      "unavailable": "Coming soon"
+    },
+    "wcCountdown": "Kickoff in {{days}} days",
+    "wcKickoffToday": "Kickoff today",
+    "wcKickoffPast": "Tournament in progress"
   },
   "fixtureList": {
     "back": "Competitions",
     "context": {
-      "title": "Bundesliga",
-      "round": "Off-season",
-      "note": "New season starts in August 2026"
+      "roundOffSeason": "Off-season",
+      "roundDateRange": "{{startDate}} – {{endDate}}",
+      "roundSingleDate": "{{date}}",
+      "fixtureCountSingular": "{{count}} match",
+      "fixtureCountPlural": "{{count}} matches"
     },
     "empty": {
       "headline": "No upcoming matches",
-      "sub": "The Bundesliga 2025/26 season has ended. Until the new season starts, there are no match previews here.",
-      "cta": "View 2025/26 season recap"
+      "subOffSeason": "Season is over. No previews here until the new season starts.",
+      "cta": "View season recap"
     }
   },
   "teamSeason": {
     "back": "Bundesliga",
     "tag": "Season Review",
     "subtitle": "{{competition}} · {{seasonStart}}/{{seasonEnd}} season · complete",
-    "competition": {
-      "BL1": "Bundesliga"
-    },
     "empty": {
       "headline": "Season recap not yet available.",
       "subPending": "Data will be published at season end.",
@@ -192,5 +210,26 @@
     "prev": "Previous team",
     "next": "Next team",
     "carousel": "Teams in standings order"
+  },
+  "wcPreTournament": {
+    "back": "Competitions",
+    "tag": "Qualifier form",
+    "subtitle": "World Cup 2026 · Qualifying",
+    "countdownDays": "Kickoff in {{days}} days",
+    "countdownToday": "Kickoff today",
+    "countdownPast": "Tournament in progress",
+    "qualifierGamesSuffix": "{{count}} qualifying matches",
+    "empty": {
+      "headline": "World Cup data not yet available.",
+      "subPending": "Data is published before the first match.",
+      "errorPrefix": "Data could not be loaded:"
+    },
+    "missingTeamName": "Unknown team",
+    "foot": "Values are based on every completed qualifying match for each team. “Ø” marks per-match averages; “%” marks cumulative ratios across all qualifying matches. Confederations with patchy API statistics may show “not available” for some metrics — no fabricated zeros.",
+    "aria": {
+      "prev": "Previous team",
+      "next": "Next team",
+      "carousel": "World Cup teams alphabetical"
+    }
   }
 }
