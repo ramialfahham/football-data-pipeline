@@ -129,14 +129,33 @@
       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren in der Quali."
     }
   },
+  "competitions": {
+    "BL1": "Bundesliga",
+    "BL2": "2. Bundesliga",
+    "PL": "Premier League",
+    "PD": "La Liga",
+    "SA": "Serie A",
+    "L1": "Ligue 1",
+    "VL": "Veikkausliiga",
+    "WC": "WM 2026"
+  },
   "landing": {
     "tagline": "Football analytics for fans",
     "sectionLabel": "Wettbewerbe",
-    "bundesliga": {
-      "title": "Bundesliga",
-      "state": "Saison 2025/26 beendet",
-      "cta": "Saisonrückblick ansehen"
-    }
+    "state": {
+      "matchdayUpcoming": "Nächster Spieltag",
+      "seasonEnded": "Saison beendet",
+      "comingSoon": "Bald verfügbar"
+    },
+    "cta": {
+      "matchday": "Spielvorschau ansehen",
+      "recap": "Saisonrückblick ansehen",
+      "wc": "WM-Vorschau ansehen",
+      "unavailable": "Bald verfügbar"
+    },
+    "wcCountdown": "Anstoß in {{days}} Tagen",
+    "wcKickoffToday": "Anstoß heute",
+    "wcKickoffPast": "Turnier läuft"
   },
   "fixtureList": {
     "back": "Wettbewerbe",
@@ -155,9 +174,6 @@
     "back": "Bundesliga",
     "tag": "Saisonrückblick",
     "subtitle": "{{competition}} · Saison {{seasonStart}}/{{seasonEnd}} · komplett",
-    "competition": {
-      "BL1": "Bundesliga"
-    },
     "empty": {
       "headline": "Saisonrückblick noch nicht verfügbar.",
       "subPending": "Die Daten werden zum Saisonende veröffentlicht.",
