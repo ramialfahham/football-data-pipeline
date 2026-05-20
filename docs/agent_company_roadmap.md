@@ -42,6 +42,8 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 - `Analytics Engineer` + `Data Engineer`: ingestion, dbt, tests, reliability.
 - `UI Expert`: frontend implementation after approved spec.
 - `QA`: release gate.
+- `Data Scientist / ML Expert`: prediction design, model validation, explainability, and drift monitoring.
+- `Product Ops / Portfolio Manager` (funnel owner): intake, scoring, sequencing, and anti-scope-creep enforcement.
 - `CFO` + `Legal Counsel`: cost/licensing/compliance approvals.
 
 Do not skip role order for product-facing changes:
@@ -49,6 +51,43 @@ Do not skip role order for product-facing changes:
 2. Data validation
 3. Frontend build
 4. QA sign-off
+
+---
+
+## Idea funnel and working mode (how and when to bring ideas)
+
+### Where ideas go
+
+- Capture all ideas in GitHub Issues with label `idea`.
+- Every idea includes: user value, target competitions, target languages, and expected cost impact (`low`/`medium`/`high`).
+- No direct implementation from chat ideas; every idea must pass funnel stages first.
+
+### Weekly funnel rhythm
+
+1. **Collect** (continuous): ideas land in `idea` queue.
+2. **Triage** (1x/week): funnel owner removes duplicates and clarifies scope.
+3. **Score** (1x/week): apply intake score and budget screen.
+4. **Select**: move only top items into `Next`; keep one objective in `Now`.
+5. **Decide**: escalate only gate-triggering items to CPO.
+
+### Capacity split (default)
+
+- 60% reliability and data trust
+- 25% product improvements (analytics content, UX polish)
+- 15% exploration (predictions, new competitions, new languages)
+
+If reliability degrades, exploration drops to `0%` until recovery.
+
+### Intake template (required fields)
+
+- Problem statement
+- User value
+- Competitions impacted (`league_code` list)
+- Languages impacted
+- Data dependencies
+- Delivery risk
+- Cost impact (Cursor/API/infra)
+- "What we will not do" (scope boundary)
 
 ---
 
@@ -70,6 +109,10 @@ You are required only for:
 4. Stage transitions:
    - architecture spend step-up
    - new competition rollout with meaningful quota/cost impact
+5. Prediction/ML decisions:
+   - new model family choice
+   - explainability method change
+   - promotion from shadow mode to user-facing predictions
 
 If none of the above is triggered, agents proceed autonomously.
 
@@ -174,7 +217,23 @@ Exit criteria:
 - no unresolved metric ambiguity in release PRs,
 - quality gates pass consistently.
 
-## Stage 2 - Lean growth instrumentation
+## Stage 2 - Explainable prediction foundation
+
+Goal: ship prediction capability early, but transparently and safely.
+
+Deliverables:
+- `Data Scientist / ML Expert` role operating with Football Analytics + BI alignment
+- baseline explainable models (e.g. calibrated logistic/Poisson-style approach) before complex black-box models
+- feature and target definitions documented per competition
+- prediction outputs include confidence and explanation fields
+- shadow-mode validation before user-visible rollout
+
+Exit criteria:
+- prediction quality exceeds agreed baseline on holdout windows,
+- explanations are readable by non-technical fans,
+- legal/commercial and UX gates pass.
+
+## Stage 3 - Lean growth instrumentation
 
 Goal: measure usage and sharing without heavy overhead.
 
@@ -186,7 +245,7 @@ Deliverables:
 Exit criteria:
 - roadmap prioritization uses behavioral evidence, not intuition.
 
-## Stage 3 - Scale preparation
+## Stage 4 - Scale preparation
 
 Goal: prepare architecture and economics for larger reach.
 
