@@ -18,7 +18,7 @@ The flow stores only anonymous product feedback (no name/email/user account).
 6. **Publish:** Run the workflow **Deploy match preview (GitHub Pages)** on `main` (or push a change that triggers it). The build injects the URL into the page; the **Feedback** button appears and POSTs to your script.
 7. **Verify:** Submit feedback from the live site → confirm a new row appears on the **`feedback`** tab.
 
-**Local HTML only:** skip steps 5–6; in `artifacts/matchday_style_clash.html` replace `FEEDBACK_ENDPOINT` with your `/exec` URL and open the file from a folder that also contains `matchday_insights.json` and `metric_glossary.json`.
+**Local mirror of the live app:** skip steps 5–6; keep `site/match-preview/index.html` as-is, run `scripts/export_matchday_insights.ps1` (Windows) or `python scripts/export_pages_data.py` + `python scripts/export_wc_pre_tournament_json.py artifacts/wc_pre_tournament_insights.json` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve `_site/` and open `/`.
 
 ## Does it work end-to-end?
 
@@ -28,7 +28,7 @@ The flow stores only anonymous product feedback (no name/email/user account).
 2. **`scripts/feedback_webapp.gs`** is deployed as a Web App with **`SHEET_ID`** set, **Execute as: Me**, **Who has access: Anyone** (required so anonymous visitors can POST).
 3. The deployed **`…/exec`** URL is available to the browser:
    - **GitHub Pages:** add repository secret **`FEEDBACK_APPS_SCRIPT_URL`** with that full URL. The Pages workflow runs `scripts/inject_feedback_endpoint.py` before upload so the built page contains your **`/exec`** URL and **Senden** reaches your script.
-   - **Local / artifacts:** replace `FEEDBACK_ENDPOINT` in `artifacts/matchday_style_clash.html` or `site/match-preview/index.html` with the same **`/exec`** URL (or run `inject_feedback_endpoint.py` on a copy before serving).
+   - **Local `_site/` mirror:** run `python scripts/inject_feedback_endpoint.py site/match-preview/index.html "<your_exec_url>"` on a local copy before `scripts/build_match_preview_site.sh` / `scripts/build_match_preview_site.ps1`, then serve `_site/`.
 
 The **Feedback** button is always shown. If the URL is still the placeholder, **Senden** shows a short hint instead of calling Google.
 
@@ -36,7 +36,7 @@ Optional: set **`FEEDBACK_TOKEN`** in both the Apps Script and the HTML constant
 
 ## 1) Configure frontend placeholders
 
-For **local** HTML only, edit constants in `artifacts/matchday_style_clash.html` (or `site/match-preview/index.html` if you do not use CI injection):
+For **local** `_site/` previews only, edit constants in `site/match-preview/index.html` (or run `scripts/inject_feedback_endpoint.py` before building `_site/`):
 
 - `FEEDBACK_ENDPOINT`: your deployed Web App **`…/exec`** URL
 - `FEEDBACK_TOKEN`: optional; must match the script if you enabled the check there
