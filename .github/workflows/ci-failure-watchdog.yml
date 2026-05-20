@@ -1,0 +1,103 @@
+name: ci-failure-watchdog
+
+on:
+  workflow_run:
+    workflows:
+      - ci-validate
+      - ci-data-build
+      - ci-ui
+      - python-ci
+      - security-secrets
+      - board-request-sync
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+jobs:
+  detect-and-triage:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect CI failure and auto-triage
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const run = context.payload.workflow_run;
+            if (!run) {
+              core.info("Manual run; no workflow_run payload available.");
+              return;
+            }
+            if (run.name === "ci-failure-watchdog") {
+              core.info("Ignoring self workflow.");
+              return;
+            }
+            if (run.conclusion !== "failure") {
+              core.info(`Ignoring conclusion=${run.conclusion}.`);
+              return;
+            }
+
+            const runUrl = run.html_url;
+            const attempt = Number(run.run_attempt || 1);
+            const branch = run.head_branch || "unknown-branch";
+            const workflowName = run.name || "unknown-workflow";
+            const actor = run.triggering_actor?.login || run.actor?.login || "unknown";
+
+            let rerunTriggered = false;
+            if (attempt === 1) {
+              try {
+                await github.request(
+                  "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
+                  { owner, repo, run_id: run.id }
+                );
+                rerunTriggered = true;
+              } catch (error) {
+                const msg = String(error.message || "");
+                core.warning(`Failed to rerun failed jobs automatically: ${msg}`);
+              }
+            }
+
+            const issueTitle = `[CI Failure] ${workflowName} on ${branch}`;
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = openIssues.find(
+              (item) => !item.pull_request && item.title === issueTitle
+            );
+
+            const body =
+              "<!-- ci-failure-watchdog -->\n" +
+              `Workflow failure detected in \`${workflowName}\`.\n\n` +
+              `- Branch: \`${branch}\`\n` +
+              `- Triggered by: \`${actor}\`\n` +
+              `- Run attempt: \`${attempt}\`\n` +
+              `- Failed run: ${runUrl}\n` +
+              `- Auto-rerun failed jobs: \`${rerunTriggered ? "triggered" : "not-triggered"}\`\n\n` +
+              "Next action:\n" +
+              "- If the rerun passes, close this issue.\n" +
+              "- If it fails again, fix root cause in code/workflow and link the PR here.\n";
+
+            if (!existing) {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: issueTitle,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body,
+              });
+            }

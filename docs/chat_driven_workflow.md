@@ -16,15 +16,38 @@ This repository is operating in chat-driven mode until proven:
 ## Hard rules in this mode
 
 - No ticket dispatch machinery.
-- No board-status automation.
 - No heartbeat automation.
 - No idea-intake form routing.
-- No automation that reacts to issue labels or board state.
+- No automation that reacts to issue labels.
+
+## Board execution memory (active)
+
+To keep requests visible across chats, board sync is active via:
+
+- `.github/workflows/board-request-sync.yml`
+
+Behavior:
+- Auto-add open PRs and open issues to `Matchday IQ - Project Board`
+- Auto-update `Status` from item state (for example `In Progress`, `Done`, `Live`)
+- No label requirements
+
+## CI failure detection (active)
+
+To avoid founder-only monitoring, CI watchdog is active:
+
+- `.github/workflows/ci-failure-watchdog.yml`
+
+Behavior:
+- Detects failed CI runs for core workflows
+- Automatically reruns failed jobs once on first failure (transient recovery)
+- Creates/updates a `[CI Failure] ...` issue with run link and next actions
 
 ## What remains active
 
 - `.github/workflows/pr-autopilot.yml`
 - `.github/workflows/pages-match-preview.yml`
+- `.github/workflows/board-request-sync.yml`
+- `.github/workflows/ci-failure-watchdog.yml`
 - `AGENTS.md` and role docs as assistant context
 
 ## What is paused
