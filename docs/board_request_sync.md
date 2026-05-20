@@ -44,3 +44,4 @@ Token must have scopes needed to update user/org projects.
 
 - This replaces label-driven board state updates for daily execution memory.
 - Dispatch queue and label-routing workflows remain paused.
+- CI watchdog issues created by `ci-failure-watchdog` are also auto-added and status-synced.

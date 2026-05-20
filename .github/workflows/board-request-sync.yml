@@ -32,7 +32,7 @@ jobs:
             const synced = [];
             const skipped = [];
 
-            const findProjectMeta = async () => {
+            const loadUserProjects = async () => {
               const result = await github.graphql(
                 `query($owner: String!) {
                   user(login: $owner) {
@@ -52,30 +52,51 @@ jobs:
                       }
                     }
                   }
-                  organization(login: $owner) {
-                    projectsV2(first: 50) {
-                      nodes {
-                        id
-                        title
-                        fields(first: 100) {
-                          nodes {
-                            ... on ProjectV2SingleSelectField {
-                              id
-                              name
-                              options { id name }
+                }`,
+                { owner }
+              );
+              return result.user?.projectsV2?.nodes || [];
+            };
+
+            const loadOrgProjects = async () => {
+              try {
+                const result = await github.graphql(
+                  `query($owner: String!) {
+                    organization(login: $owner) {
+                      projectsV2(first: 50) {
+                        nodes {
+                          id
+                          title
+                          fields(first: 100) {
+                            nodes {
+                              ... on ProjectV2SingleSelectField {
+                                id
+                                name
+                                options { id name }
+                              }
                             }
                           }
                         }
                       }
                     }
-                  }
-                }`,
-                { owner }
-              );
+                  }`,
+                  { owner }
+                );
+                return result.organization?.projectsV2?.nodes || [];
+              } catch (error) {
+                // User-owned repositories return NOT_FOUND for organization(login: owner).
+                const msg = String(error.message || "");
+                if (msg.includes("Could not resolve to an Organization")) {
+                  return [];
+                }
+                throw error;
+              }
+            };
 
+            const findProjectMeta = async () => {
               const allProjects = [
-                ...(result.user?.projectsV2?.nodes || []),
-                ...(result.organization?.projectsV2?.nodes || []),
+                ...(await loadUserProjects()),
+                ...(await loadOrgProjects()),
               ];
               const project = allProjects.find((p) => p?.title === boardTitle);
               if (!project) {
