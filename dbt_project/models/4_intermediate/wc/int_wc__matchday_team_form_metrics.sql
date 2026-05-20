@@ -1,18 +1,14 @@
 {{ config(materialized='table') }}
 
 {#
-  Per (upcoming fixture_sk, team_sk) form aggregates for domestic competitions.
-  Grain: (fixture_sk, team_sk).
+  Per (upcoming WC fixture_sk, team_sk) form aggregates. Grain: (fixture_sk, team_sk).
 
-  If the team has no finished match in the current league season before this fixture,
-  use the full previous season; otherwise use up to five most recent finished games
-  in the current season (kickoff order, not matchday rank).
+  Phase rules:
+    - Group Stage round 1: form from all finished supporting qualifier legs for that team.
+    - From Group Stage round 2 onward (including knockout rounds): form from all finished
+      WC tournament legs before the reference fixture kickoff (cumulative, no five-game cap).
 
-  Sums do not coalesce missing stats to 0; rates are null when undefined. Product expectation:
-  optional gaps stay rare (ingestion completeness); see docs/pipeline_architecture_plan.md.
-  Form legs are deduped on (upcoming_fixture_sk, team_sk, fixture_sk) before aggregation so join
-  fan-out cannot double-count points or goals. finishing_efficiency_recent is null when aggregate
-  goals exceed aggregate shots on goal (inconsistent or sparse stats).
+  Optional stats remain nullable; rates are null when undefined.
 #}
 
 with import_int_matchday__finished_fixture_team_leg as (
@@ -21,81 +17,57 @@ with import_int_matchday__finished_fixture_team_leg as (
 
 import_int_matchday__upcoming_round_fixtures as (
     select * from {{ ref('int_matchday__upcoming_round_fixtures') }}
-    where league_code != 'WC'
+    where
+        league_code = 'WC'
+        and status_short = 'NS'
+        and home_team_sk is not null
+        and away_team_sk is not null
+),
+
+supporting_leagues as (
+    select
+        parent_league_code,
+        supporting_league_code,
+        qualifier_season_api_year
+    from {{ ref('wc_supporting_league_codes') }}
+    where parent_league_code = 'WC'
 ),
 
 team_fixture_context as (
     select
         um.fixture_sk as upcoming_fixture_sk,
-        um.league_code,
         um.season_api_year,
-        um.kickoff_datetime as upcoming_kickoff_datetime,
+        um.round_name as upcoming_round_name,
         um.upcoming_round_order,
+        um.kickoff_datetime as upcoming_kickoff_datetime,
         um.home_team_sk as team_sk
     from import_int_matchday__upcoming_round_fixtures as um
     union all
     select
         um.fixture_sk as upcoming_fixture_sk,
-        um.league_code,
         um.season_api_year,
-        um.kickoff_datetime as upcoming_kickoff_datetime,
+        um.round_name as upcoming_round_name,
         um.upcoming_round_order,
+        um.kickoff_datetime as upcoming_kickoff_datetime,
         um.away_team_sk as team_sk
     from import_int_matchday__upcoming_round_fixtures as um
 ),
 
--- ── Non-WC competitions (league_only style: one league_code per form window) ──────
-non_wc_context as (
-    select * from team_fixture_context
-    where league_code != 'WC'
+form_phase as (
+    select
+        upcoming_fixture_sk,
+        season_api_year,
+        upcoming_kickoff_datetime,
+        team_sk,
+        coalesce(upcoming_round_order, -1) != 1
+        or not regexp_contains(lower(coalesce(upcoming_round_name, '')), r'group') as is_tournament_form
+    from team_fixture_context
 ),
 
-non_wc_current_counts as (
+qualifier_window as (
     select
-        tfc.upcoming_fixture_sk,
-        tfc.team_sk,
-        count(*) as n_current_legs_before
-    from non_wc_context as tfc
-    inner join import_int_matchday__finished_fixture_team_leg as fwo
-        on
-            tfc.team_sk = fwo.team_sk
-            and tfc.league_code = fwo.league_code
-            and tfc.season_api_year = fwo.season_api_year
-            and (
-                tfc.upcoming_kickoff_datetime > fwo.kickoff_datetime
-                or (
-                    tfc.upcoming_kickoff_datetime = fwo.kickoff_datetime
-                    and tfc.upcoming_fixture_sk > fwo.fixture_sk
-                )
-            )
-    group by tfc.upcoming_fixture_sk, tfc.team_sk
-),
-
-non_wc_season as (
-    select
-        tfc.upcoming_fixture_sk,
-        tfc.team_sk,
-        tfc.league_code,
-        tfc.season_api_year,
-        tfc.upcoming_kickoff_datetime,
-        tfc.upcoming_round_order,
-        coalesce(cnt.n_current_legs_before, 0) > 0 as use_five_game_cap,
-        case
-            when coalesce(cnt.n_current_legs_before, 0) > 0 then tfc.season_api_year
-            else tfc.season_api_year - 1
-        end as form_season_api_year
-    from non_wc_context as tfc
-    left join non_wc_current_counts as cnt
-        on
-            tfc.upcoming_fixture_sk = cnt.upcoming_fixture_sk
-            and tfc.team_sk = cnt.team_sk
-),
-
-non_wc_ranked as (
-    select
-        tsc.upcoming_fixture_sk,
-        tsc.team_sk,
-        tsc.league_code,
+        fp.upcoming_fixture_sk,
+        fp.team_sk,
         fwo.fixture_sk,
         fwo.kickoff_datetime,
         fwo.round_name,
@@ -112,59 +84,70 @@ non_wc_ranked as (
         fwo.goalkeeper_saves,
         fwo.opponent_total_shots,
         fwo.opponent_corner_kicks,
-        tsc.form_season_api_year,
-        tsc.use_five_game_cap as form_window_five_capped,
-        row_number() over (
-            partition by tsc.upcoming_fixture_sk, tsc.team_sk
-            order by fwo.kickoff_datetime desc, fwo.fixture_sk desc
-        ) as game_rn
-    from non_wc_season as tsc
+        fwo.season_api_year as form_season_api_year,
+        false as is_tournament_form
+    from form_phase as fp
     inner join import_int_matchday__finished_fixture_team_leg as fwo
         on
-            tsc.team_sk = fwo.team_sk
-            and tsc.league_code = fwo.league_code
-            and tsc.form_season_api_year = fwo.season_api_year
+            fp.team_sk = fwo.team_sk
             and (
-                tsc.upcoming_kickoff_datetime > fwo.kickoff_datetime
+                fp.upcoming_kickoff_datetime > fwo.kickoff_datetime
                 or (
-                    tsc.upcoming_kickoff_datetime = fwo.kickoff_datetime
-                    and tsc.upcoming_fixture_sk > fwo.fixture_sk
+                    fp.upcoming_kickoff_datetime = fwo.kickoff_datetime
+                    and fp.upcoming_fixture_sk > fwo.fixture_sk
                 )
             )
+    inner join supporting_leagues as sl
+        on
+            fwo.league_code = sl.supporting_league_code
+            and fwo.season_api_year = sl.qualifier_season_api_year
+    where not fp.is_tournament_form
 ),
 
-non_wc_window as (
+tournament_window as (
     select
-        upcoming_fixture_sk,
-        team_sk,
-        league_code,
-        fixture_sk,
-        kickoff_datetime,
-        round_name,
-        round_order,
-        goals_for,
-        goals_against,
-        result,
-        shots_on_goal,
-        shots_total,
-        shots_inside_box,
-        corner_kicks,
-        passes_total,
-        passes_accurate,
-        goalkeeper_saves,
-        opponent_total_shots,
-        opponent_corner_kicks,
-        form_season_api_year,
-        form_window_five_capped
-    from non_wc_ranked
-    where not form_window_five_capped or game_rn <= 5
+        fp.upcoming_fixture_sk,
+        fp.team_sk,
+        fwo.fixture_sk,
+        fwo.kickoff_datetime,
+        fwo.round_name,
+        fwo.round_order,
+        fwo.goals_for,
+        fwo.goals_against,
+        fwo.result,
+        fwo.shots_on_goal,
+        fwo.shots_total,
+        fwo.shots_inside_box,
+        fwo.corner_kicks,
+        fwo.passes_total,
+        fwo.passes_accurate,
+        fwo.goalkeeper_saves,
+        fwo.opponent_total_shots,
+        fwo.opponent_corner_kicks,
+        fwo.season_api_year as form_season_api_year,
+        true as is_tournament_form
+    from form_phase as fp
+    inner join import_int_matchday__finished_fixture_team_leg as fwo
+        on
+            fp.team_sk = fwo.team_sk
+            and fwo.league_code = 'WC'
+            and fp.season_api_year = fwo.season_api_year
+            and (
+                fp.upcoming_kickoff_datetime > fwo.kickoff_datetime
+                or (
+                    fp.upcoming_kickoff_datetime = fwo.kickoff_datetime
+                    and fp.upcoming_fixture_sk > fwo.fixture_sk
+                )
+            )
+    where fp.is_tournament_form
 ),
 
 form_window_matches as (
-    select * from non_wc_window
+    select * from qualifier_window
+    union all
+    select * from tournament_window
 ),
 
--- One row per (upcoming fixture, team, historical fixture); guards join duplication.
 form_window_matches_dedup as (
     select * except (leg_dedup_rn)
     from (
@@ -183,8 +166,8 @@ aggregated_form as (
     select
         upcoming_fixture_sk as fixture_sk,
         team_sk,
-        any_value(form_season_api_year) as form_season_api_year,
-        max(form_window_five_capped) as form_window_five_capped,
+        max(form_season_api_year) as form_season_api_year,
+        max(is_tournament_form) as is_tournament_form,
         count(distinct fixture_sk) as form_games_played,
         count(distinct round_name) as form_matchdays_used,
         count(distinct case when shots_on_goal is not null then fixture_sk end) as stat_coverage_form_games,
@@ -210,22 +193,20 @@ aggregated_form as (
     group by upcoming_fixture_sk, team_sk
 ),
 
--- Every upcoming (fixture, team) gets a row; zero legs → form_games_played = 0 (not absent).
 form_context as (
     select
         upcoming_fixture_sk as fixture_sk,
         team_sk,
-        form_season_api_year,
-        use_five_game_cap as form_window_five_capped
-    from non_wc_season
+        season_api_year as form_season_api_year,
+        is_tournament_form
+    from form_phase
 ),
 
 form_metrics as (
     select
         fc.fixture_sk,
         fc.team_sk,
-        fc.form_season_api_year,
-        fc.form_window_five_capped,
+        fc.is_tournament_form,
         af.points_won_sum_form,
         af.goals_for_sum_form,
         af.goals_against_sum_form,
@@ -238,6 +219,7 @@ form_metrics as (
         af.passes_accurate_sum_form,
         af.passes_total_sum_form,
         af.goalkeeper_saves_sum_form,
+        coalesce(af.form_season_api_year, fc.form_season_api_year) as form_season_api_year,
         coalesce(af.form_games_played, 0) as form_games_played,
         coalesce(af.form_matchdays_used, 0) as form_matchdays_used,
         coalesce(af.stat_coverage_form_games, 0) as stat_coverage_form_games
@@ -252,7 +234,7 @@ select
     fixture_sk,
     team_sk,
     form_season_api_year,
-    form_window_five_capped,
+    is_tournament_form,
     form_games_played,
     form_matchdays_used,
     stat_coverage_form_games,
