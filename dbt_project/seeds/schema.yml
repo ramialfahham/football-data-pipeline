@@ -18,7 +18,7 @@ seeds:
       - name: away_column
         description: "Mart column for the away team value (match-preview paired metrics)."
       - name: single_column
-        description: "Mart column when the metric is not split home/away (e.g. WC pre-tournament)."
+        description: "Mart column when the metric is not split home/away."
       - name: lower_is_better
         description: "True when a lower numeric value is better for comparison highlighting."
       - name: format
@@ -30,8 +30,8 @@ seeds:
 
   - name: wc_supporting_league_codes
     description: >
-      Maps parent tournament league_code (WC) to supporting qualifier league_codes for pre-tournament
-      form. qualifier_season_api_year is the active qualifying campaign season on API-Football
+      Maps parent tournament league_code (WC) to supporting qualifier league_codes for WC qualifier-phase
+      form on Group Stage Matchday 1. qualifier_season_api_year is the active qualifying campaign season on API-Football
       (competition_registry current_season per WCQ*). Keep in sync with docs/competition_registry.yml.
     columns:
       - name: parent_league_code

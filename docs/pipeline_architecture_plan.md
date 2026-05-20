@@ -56,7 +56,7 @@ BL1 and WC are fully complete; qualifier statistics will converge to 100% over a
 - Known gaps vs **Step 3 + CPO decisions** — implementation PR will close:
   - Matchday-based window vs **games** + **full previous season before current season starts**
   - `coalesce(stat, 0)` vs **null** numerics + **“Not provided”** copy for optional API gaps (glossary/UI)
-  - WC qualifier-all → five WC legs dispatch not yet in `int_matchday__team_form_metrics`
+  - WC form dispatch (Group Stage MD1 qualifiers → cumulative WC tournament form) not yet isolated in a WC-specific intermediate model
 - Intermediate: `int_pipeline__raw_ingestion_spread` (ingestion monitoring); `int_matchday__*` (fixture denorm, finished legs + stats, upcoming round, team form metrics). **Rule:** `4_intermediate` models must not `ref()` any `mart_*` model.
 - Raw table naming convention: `RAW_APIF_{LEAGUE_CODE}_{ENDPOINT}` (provider first, then league code)
 - Each qualifier confederation is its own competition (status `in_progress` in the registry) with its own per-confederation raw tables — there is no aggregate qualifier raw table any more
@@ -187,8 +187,8 @@ Total work for Step 2:
    - **After the first finished match of the current season:** use **only** the **current** competition. Rolling window = the **last five finished matches** in that `league_code` + current `season_api_year`, ordered by kickoff (deterministic tie-break). **Until five such matches exist**, include **every** finished match played so far (matchday 1 → one game, matchday 3 → up to three games, etc.). **Never** use `dense_rank()` on `round_order` to fake five slots when postponements leave gaps — the window is **games**, not **matchdays**.
 
 2. **WC (`form_source: supporting_leagues`)**  
-   - **Before WC “day 1”** (before the team has any finished **`league_code = 'WC'`** tournament match, relative to the reference fixture’s kickoff): form uses **all** finished qualifier legs for that team across every internal `league_code` listed under the WC’s `supporting_leagues` in **`docs/competition_registry.yml`** (no cap at five).  
-   - **After** the team’s first finished WC tournament match (FT / AET / PEN): use **only** `league_code = 'WC'` finished legs — same **up-to-five finished games** rolling rule as domestic (kickoff order, cap at five once enough games exist).
+   - **Through Group Stage Matchday 1:** form uses **all** finished qualifier legs for that team across every internal `league_code` listed under WC’s `supporting_leagues` in **`docs/competition_registry.yml`** (no cap).  
+   - **From Group Stage Matchday 2 onward (including knockout):** use **only** finished `league_code = 'WC'` tournament legs before kickoff — cumulative tournament-to-date (no five-game cap).
 
 3. **Season boundaries**  
    Do not mix legs across the wrong season year for the path above. `season_type` from `dim_competition_season` / registry drives which `season_api_year` counts as “previous” for split-year leagues.

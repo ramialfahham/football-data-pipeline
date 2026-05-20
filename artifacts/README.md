@@ -5,7 +5,6 @@ This folder stores JSON exports used to assemble the GitHub Pages app:
 - `data/{league}/matchday_insights.json` and `data/{league}/team_season_insights.json`
 - `pages_export_manifest.json` (landing + route wiring contract)
 - legacy BL1 compat copies (`matchday_insights.json`, `team_season_insights.json`)
-- `wc_pre_tournament_insights.json`
 
 Metric labels/descriptions come from [`site/i18n/de.json`](../site/i18n/de.json) and [`site/i18n/en.json`](../site/i18n/en.json) under `metrics.<metric_id>`. Column bindings come from [`dbt_project/seeds/metric_definitions.csv`](../dbt_project/seeds/metric_definitions.csv) and are exported into `site/match-preview/metric_definitions.json` by `scripts/export_metric_definitions_json.py`.
 

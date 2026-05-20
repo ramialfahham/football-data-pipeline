@@ -5,7 +5,6 @@
 #   /match-preview/            → fixture-detail page + legacy BL1 matchday JSON (compat)
 #   /team-season/              → per-team season retrospective + legacy BL1 JSON (compat)
 #   /pages_export_manifest.json → export contract for multi-league UI
-#   /wc-pre-tournament/        → WC qualifier-window team JSON (UI: site/wc-pre-tournament/)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
 $SiteRoot = Join-Path $Root "_site"
@@ -61,12 +60,4 @@ if (Test-Path $Manifest) {
     Copy-Item $Manifest $SiteRoot -Force
 }
 
-$WcOut = Join-Path $SiteRoot "wc-pre-tournament"
-New-Item -ItemType Directory -Force -Path $WcOut | Out-Null
-$WcHtml = Join-Path $Root "site\wc-pre-tournament\index.html"
-if (Test-Path $WcHtml) {
-    Copy-Item $WcHtml $WcOut -Force
-}
-Copy-Item (Join-Path $Root "artifacts\wc_pre_tournament_insights.json") $WcOut -Force
-
-Write-Host "Published tree at $SiteRoot (serve _site and open /, /fixture-list/, /match-preview/, /team-season/, or /wc-pre-tournament/)."
+Write-Host "Published tree at $SiteRoot (serve _site and open /, /fixture-list/, /match-preview/, or /team-season/)."

@@ -18,7 +18,7 @@ The flow stores only anonymous product feedback (no name/email/user account).
 6. **Publish:** Run the workflow **Deploy match preview (GitHub Pages)** on `main` (or push a change that triggers it). The build injects the URL into the page; the **Feedback** button appears and POSTs to your script.
 7. **Verify:** Submit feedback from the live site → confirm a new row appears on the **`feedback`** tab.
 
-**Local mirror of the live app:** skip steps 5–6; keep `site/match-preview/index.html` as-is, run `scripts/export_matchday_insights.ps1` (Windows) or `python scripts/export_pages_data.py` + `python scripts/export_wc_pre_tournament_json.py artifacts/wc_pre_tournament_insights.json` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve `_site/` and open `/`.
+**Local mirror of the live app:** skip steps 5–6; keep `site/match-preview/index.html` as-is, run `scripts/export_matchday_insights.ps1` (Windows) or `python scripts/export_pages_data.py` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve `_site/` and open `/`.
 
 ## Does it work end-to-end?
 
