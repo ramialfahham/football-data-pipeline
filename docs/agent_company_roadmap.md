@@ -63,6 +63,12 @@ Do not skip role order for product-facing changes:
 - Every idea includes: user value, target competitions, target languages, and expected cost impact (`low`/`medium`/`high`).
 - No direct implementation from chat ideas; every idea must pass funnel stages first.
 
+### Issue creation responsibilities
+
+- `CPO (you)` creates strategic idea issues and true decision issues.
+- Agents may create execution follow-up issues when a large idea must be split into shippable slices.
+- Routing issue `[Dispatch Queue] Cursor batch kickoff` is system-managed by workflow; do not edit manually.
+
 ### Weekly funnel rhythm
 
 1. **Collect** (continuous): ideas land in `idea` queue.
