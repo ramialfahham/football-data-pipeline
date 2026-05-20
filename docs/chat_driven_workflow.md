@@ -25,13 +25,13 @@ This repository is operating in chat-driven mode until proven:
 
 - `.github/workflows/pr-autopilot.yml`
 - `.github/workflows/pages-match-preview.yml`
-- `.github/workflows/slack-executor-bridge.yml` (Slack intake bridge)
 - `AGENTS.md` and role docs as assistant context
 
 ## What is paused
 
 - `.github/workflows/_paused/cursor-dispatch.yml`
 - `.github/workflows/_paused/project-status-sync.yml`
+- `.github/workflows/_paused/slack-executor-bridge.yml`
 - `.github/ISSUE_TEMPLATE/_paused/idea_intake.yml`
 
 These assets are retained for recovery, but excluded from active automation.
