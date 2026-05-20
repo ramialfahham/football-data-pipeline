@@ -1,13 +1,17 @@
-# Regenerate artifacts for the Bundesliga match preview:
-# - matchday_insights.json from mart_matchday_insights (dbt show row cap = 9 fixtures per round; league_code D1).
-# - Refreshes site/match-preview/metric_definitions.json from the dbt seed (column bindings).
-# - _site/match-preview/ for the same tree GitHub Pages deploys (local mirror).
+# Back-compat wrapper: regenerate the full GitHub Pages preview tree locally.
+# Produces the same artifact contract as pages-match-preview.yml:
+# - artifacts/data/{league}/matchday_insights.json
+# - artifacts/data/{league}/team_season_insights.json
+# - artifacts/pages_export_manifest.json
+# - artifacts/wc_pre_tournament_insights.json
+# - site/match-preview/metric_definitions.json
+# - _site/ (serve and open `/` for the same entry flow as production)
+#
+# Prerequisite: ADC auth for BigQuery queries (same as scripts/export_pages_data.py).
 $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
-Set-Location (Join-Path $Root "dbt_project")
-$raw = Join-Path $Root "artifacts\_show.json"
-$out = Join-Path $Root "artifacts\matchday_insights.json"
-dbt show --select mart_matchday_insights --limit 9 --output json 2>&1 | Out-File -FilePath $raw -Encoding utf8
-python (Join-Path $Root "scripts\extract_show_json.py") $raw $out
+Set-Location $Root
+python (Join-Path $Root "scripts\export_pages_data.py")
+python (Join-Path $Root "scripts\export_wc_pre_tournament_json.py") (Join-Path $Root "artifacts\wc_pre_tournament_insights.json")
 python (Join-Path $Root "scripts\export_metric_definitions_json.py")
 & (Join-Path $Root "scripts\build_match_preview_site.ps1")
