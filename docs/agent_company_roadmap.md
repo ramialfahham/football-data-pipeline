@@ -4,7 +4,26 @@
 
 Run Matchday IQ like an agent company: high automation, clear ownership, and minimal founder interrupts.
 
-This roadmap is intentionally scope-controlled. New ideas enter only through the intake and decision gates below.
+This roadmap is intentionally scope-controlled.
+
+## Active operating mode (effective 2026-05-20)
+
+Current mode is chat-driven delivery:
+
+1. Founder posts a product brief in chat.
+2. Assistant implements the change in-repo.
+3. Assistant opens a PR.
+4. PR autopilot handles merge enablement.
+5. Deploy workflow ships on `main`.
+6. Assistant confirms live status in chat.
+
+Paused until further notice:
+- issue dispatch/heartbeat flows
+- board status sync
+- idea intake form
+- any automation triggered by issue labels or project board state
+
+Role definitions in this roadmap are documentation context only. They are not autonomous workers.
 
 ---
 
@@ -32,6 +51,7 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 - Open PRs: `https://github.com/ramialfahham/football-data-pipeline/pulls`
 - Open issues: `https://github.com/ramialfahham/football-data-pipeline/issues`
 - Decision-needed issues (create label): `https://github.com/ramialfahham/football-data-pipeline/issues?q=is%3Aissue%20is%3Aopen%20label%3Adecision-needed`
+- Chat-driven workflow: `docs/chat_driven_workflow.md`
 - Single-URL board setup guide: `docs/github_project_hq_setup.md`
 - PR merge autopilot guide: `docs/pr_autopilot.md`
 - Project status sync guide: `docs/project_status_sync.md`

@@ -1,5 +1,8 @@
 # Project Status Sync Setup
 
+> PAUSED 2026-05-20 — board-status automation is disabled in favor of chat-driven delivery.
+> Archived workflow location: `.github/workflows/_paused/project-status-sync.yml`.
+
 ## Purpose
 
 Automatically move Project board status columns from issue state and labels:

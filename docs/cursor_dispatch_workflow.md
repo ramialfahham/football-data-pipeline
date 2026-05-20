@@ -1,5 +1,8 @@
 # Cursor Dispatch Workflow (Low-Touch Mode)
 
+> PAUSED 2026-05-20 — control-plane dispatch is disabled in favor of chat-driven delivery.
+> Archived workflow location: `.github/workflows/_paused/cursor-dispatch.yml`.
+
 ## Goal
 
 Reduce founder operator time to one short daily check while keeping strict decision control.
