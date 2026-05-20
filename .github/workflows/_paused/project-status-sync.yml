@@ -1,10 +1,7 @@
-name: project-status-sync
+# PAUSED 2026-05-20 — see chat workflow decision
+name: project-status-sync (paused)
 
 on:
-  issues:
-    types: [opened, reopened, edited, labeled, unlabeled, closed]
-  schedule:
-    - cron: "20 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -1,5 +1,7 @@
 # GitHub Project HQ Setup (Single-URL Operating Mode)
 
+> PAUSED 2026-05-20 — this board-centric control plane is not active while chat-driven delivery is being proven.
+
 ## Goal
 
 Operate the agent company from one primary URL: your GitHub Project board.

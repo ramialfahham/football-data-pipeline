@@ -1,8 +1,7 @@
-name: cursor-dispatch
+# PAUSED 2026-05-20 — see chat workflow decision
+name: cursor-dispatch (paused)
 
 on:
-  schedule:
-    - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
       max_issues:
