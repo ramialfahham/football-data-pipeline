@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import yaml
 
@@ -55,6 +55,48 @@ def domestic_league_codes() -> list[str]:
 
 def _bigquery_rows_to_dicts(rows) -> list[dict]:
     return [dict(row.items()) for row in rows]
+
+
+def _coerce_utc_datetime(value) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, date):
+        dt = datetime(value.year, value.month, value.day)
+    elif isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(raw)
+        except ValueError:
+            return None
+    else:
+        return None
+
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def next_fixture_kickoff_utc(rows: list[dict]) -> str | None:
+    """Return earliest kickoff datetime in UTC ISO format from matchday rows."""
+    kickoff_values: list[datetime] = []
+    for row in rows:
+        kickoff = _coerce_utc_datetime(row.get("kickoff_datetime"))
+        if kickoff is not None:
+            kickoff_values.append(kickoff)
+            continue
+        fixture_date = _coerce_utc_datetime(row.get("fixture_date"))
+        if fixture_date is not None:
+            kickoff_values.append(fixture_date)
+
+    if not kickoff_values:
+        return None
+    return min(kickoff_values).isoformat()
 
 
 def _query_matchday(client, league_code: str) -> list[dict]:
@@ -164,6 +206,7 @@ def export_all(artifacts_root: pathlib.Path | None = None) -> dict:
                 "matchday_row_count": len(matchday_rows),
                 "team_season_row_count": len(team_rows),
                 "matchday_source_mart": source_mart,
+                "next_fixture_kickoff_utc": next_fixture_kickoff_utc(matchday_rows),
             }
         )
 
@@ -180,6 +223,7 @@ def export_all(artifacts_root: pathlib.Path | None = None) -> dict:
             "matchday_path": "data/wc/matchday_insights.json",
             "matchday_row_count": len(wc_rows),
             "matchday_source_mart": wc_source_mart,
+            "next_fixture_kickoff_utc": next_fixture_kickoff_utc(wc_rows),
         },
         "legacy_compat": {
             "matchday_insights": "match-preview/matchday_insights.json",
