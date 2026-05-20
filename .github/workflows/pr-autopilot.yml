@@ -1,0 +1,265 @@
+name: pr-autopilot
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, labeled, unlabeled]
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  autopilot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run PR autopilot controller
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const now = new Date().toISOString();
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            const labelsToEnsure = [
+              {
+                name: "cpo-approved",
+                color: "0e8a16",
+                description: "Founder/CPO approved for auto-merge when checks pass.",
+              },
+              {
+                name: "merge-conflict",
+                color: "b60205",
+                description: "PR currently has merge conflicts and needs resolution.",
+              },
+              {
+                name: "auto-merge-enabled",
+                color: "5319e7",
+                description: "Auto-merge is enabled by automation.",
+              },
+            ];
+
+            for (const label of labelsToEnsure) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label.name });
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: label.name,
+                    color: label.color,
+                    description: label.description,
+                  });
+                } else {
+                  throw error;
+                }
+              }
+            }
+
+            const hasLabel = (item, name) =>
+              (item.labels || []).some((l) => (typeof l === "string" ? l : l.name) === name);
+
+            const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+            const getFreshPr = async (pullNumber) => {
+              let pr;
+              for (let attempt = 0; attempt < 4; attempt++) {
+                pr = (
+                  await github.rest.pulls.get({
+                    owner,
+                    repo,
+                    pull_number: pullNumber,
+                  })
+                ).data;
+                if (pr.mergeable_state !== "unknown") break;
+                await sleep(1200);
+              }
+              return pr;
+            };
+
+            let prs = [];
+            if (context.eventName === "pull_request_target" && context.payload.pull_request) {
+              prs = [context.payload.pull_request.number];
+            } else {
+              const openPrs = await github.paginate(github.rest.pulls.list, {
+                owner,
+                repo,
+                state: "open",
+                per_page: 100,
+              });
+              prs = openPrs.map((pr) => pr.number);
+            }
+
+            let enabledCount = 0;
+            let conflictCount = 0;
+            let updatedBranchCount = 0;
+            const processed = [];
+
+            for (const pullNumber of prs) {
+              const pr = await getFreshPr(pullNumber);
+              const labelNames = (pr.labels || []).map((l) => l.name);
+
+              const isConflicting =
+                pr.mergeable === false || pr.mergeable_state === "dirty";
+              const isBehind = pr.mergeable_state === "behind";
+              const hasCpoApproved = labelNames.includes("cpo-approved");
+              const hasDecisionNeeded = labelNames.includes("decision-needed");
+
+              if (isBehind && !isConflicting) {
+                try {
+                  await github.request(
+                    "PUT /repos/{owner}/{repo}/pulls/{pull_number}/update-branch",
+                    {
+                      owner,
+                      repo,
+                      pull_number: pullNumber,
+                      expected_head_sha: pr.head.sha,
+                    }
+                  );
+                  updatedBranchCount += 1;
+                } catch (error) {
+                  // Ignore non-actionable API responses (already updated / not allowed).
+                  if (![422, 403].includes(error.status)) throw error;
+                }
+              }
+
+              if (isConflicting) {
+                conflictCount += 1;
+                if (!labelNames.includes("merge-conflict")) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: pullNumber,
+                    labels: ["merge-conflict"],
+                  });
+                }
+
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  owner,
+                  repo,
+                  issue_number: pullNumber,
+                  per_page: 100,
+                });
+                const hasConflictMarker = comments.some(
+                  (c) =>
+                    c.user?.type === "Bot" &&
+                    c.body?.includes("<!-- pr-autopilot:merge-conflict -->")
+                );
+                if (!hasConflictMarker) {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: pullNumber,
+                    body:
+                      "<!-- pr-autopilot:merge-conflict -->\n" +
+                      "PR autopilot detected merge conflicts.\n\n" +
+                      "- Resolve conflicts on the PR branch.\n" +
+                      "- Push the resolution.\n" +
+                      "- Autopilot will continue once the PR is mergeable.\n",
+                  });
+                }
+              } else if (labelNames.includes("merge-conflict")) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: pullNumber,
+                    name: "merge-conflict",
+                  });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              }
+
+              const shouldEnableAutoMerge =
+                !isConflicting &&
+                !pr.draft &&
+                hasCpoApproved &&
+                !hasDecisionNeeded;
+
+              if (shouldEnableAutoMerge) {
+                try {
+                  await github.graphql(
+                    `mutation($pullRequestId: ID!) {
+                      enablePullRequestAutoMerge(
+                        input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }
+                      ) {
+                        pullRequest { number }
+                      }
+                    }`,
+                    { pullRequestId: pr.node_id }
+                  );
+                } catch (error) {
+                  // Ignore when already enabled or repository-level setting blocks it.
+                  const msg = String(error.message || "");
+                  if (
+                    !msg.includes("already enabled") &&
+                    !msg.includes("Auto merge is disabled") &&
+                    !msg.includes("Pull request is in clean status")
+                  ) {
+                    throw error;
+                  }
+                }
+
+                if (!labelNames.includes("auto-merge-enabled")) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: pullNumber,
+                    labels: ["auto-merge-enabled"],
+                  });
+                }
+                enabledCount += 1;
+              } else {
+                if (pr.auto_merge) {
+                  try {
+                    await github.graphql(
+                      `mutation($pullRequestId: ID!) {
+                        disablePullRequestAutoMerge(
+                          input: { pullRequestId: $pullRequestId }
+                        ) {
+                          pullRequest { number }
+                        }
+                      }`,
+                      { pullRequestId: pr.node_id }
+                    );
+                  } catch (error) {
+                    const msg = String(error.message || "");
+                    if (!msg.includes("Auto merge is disabled")) throw error;
+                  }
+                }
+                if (labelNames.includes("auto-merge-enabled")) {
+                  try {
+                    await github.rest.issues.removeLabel({
+                      owner,
+                      repo,
+                      issue_number: pullNumber,
+                      name: "auto-merge-enabled",
+                    });
+                  } catch (error) {
+                    if (error.status !== 404) throw error;
+                  }
+                }
+              }
+
+              processed.push(
+                `#${pullNumber} state=${pr.mergeable_state} ` +
+                `cpo-approved=${hasCpoApproved} decision-needed=${hasDecisionNeeded}`
+              );
+            }
+
+            core.summary
+              .addHeading("PR autopilot result")
+              .addRaw(`Run: ${now}\n\n`)
+              .addRaw(`Workflow run: ${runUrl}\n\n`)
+              .addRaw(`PRs processed: ${prs.length}\n`)
+              .addRaw(`Auto-merge enabled/kept: ${enabledCount}\n`)
+              .addRaw(`Conflicts detected: ${conflictCount}\n`)
+              .addRaw(`Branches updated from main: ${updatedBranchCount}\n\n`)
+              .addRaw(processed.length ? processed.join("\n") : "No PRs processed.")
+              .write();

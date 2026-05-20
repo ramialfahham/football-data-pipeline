@@ -33,6 +33,7 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 - Open issues: `https://github.com/ramialfahham/football-data-pipeline/issues`
 - Decision-needed issues (create label): `https://github.com/ramialfahham/football-data-pipeline/issues?q=is%3Aissue%20is%3Aopen%20label%3Adecision-needed`
 - Single-URL board setup guide: `docs/github_project_hq_setup.md`
+- PR merge autopilot guide: `docs/pr_autopilot.md`
 
 ---
 

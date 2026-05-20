@@ -126,6 +126,7 @@ Purpose: high-level sequencing and communication.
 This keeps one source of truth while still allowing deep work threads.
 
 For low-touch execution routing, use `docs/cursor_dispatch_workflow.md`.
+For PR automation and merge governance, use `docs/pr_autopilot.md`.
 ---
 
 ## Operating policy
@@ -138,6 +139,7 @@ For low-touch execution routing, use `docs/cursor_dispatch_workflow.md`.
 - Use label `ready-for-agent` only when the ticket description is implementation-ready.
 - Let `cursor-dispatch` manage `agent-running` and the `[Dispatch Queue] Cursor batch kickoff` issue.
 - Use `[Dispatch Status] Cursor automation heartbeat` as your single progress indicator.
+- Use `cpo-approved` on PRs you approve for auto-merge (autopilot handles the rest).
 
 ---
 
