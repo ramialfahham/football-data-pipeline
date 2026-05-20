@@ -445,19 +445,22 @@
       const dataReady = fetch(url).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
-      });
+      })
+        .then((payload) => ({ payload, error: null }))
+        .catch((error) => ({ payload: null, error }));
 
       Promise.all([i18nReady, dataReady])
-        .then(([_, payload]) => {
-          const teams = (payload && Array.isArray(payload.teams)) ? payload.teams : [];
+        .then(([_, result]) => {
+          if (result.error) {
+            renderEmpty(t("teamSeason.empty.errorPrefix", "Daten konnten nicht geladen werden:") + " " + String(result.error));
+            return;
+          }
+          const teams = (result.payload && Array.isArray(result.payload.teams)) ? result.payload.teams : [];
           if (!teams.length) {
             renderEmpty(t("teamSeason.empty.subPending", "Die Daten werden zum Saisonende veröffentlicht."));
             return;
           }
           render(teams);
-        })
-        .catch((err) => {
-          renderEmpty(t("teamSeason.empty.errorPrefix", "Daten konnten nicht geladen werden:") + " " + String(err));
         });
     }
 
