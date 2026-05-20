@@ -5,7 +5,6 @@
 #   /data/{league}/              → per-league matchday + team-season JSON (manifest-driven)
 #   /match-preview/            → fixture-detail page + legacy BL1 matchday JSON (compat)
 #   /team-season/              → per-team season retrospective + legacy BL1 JSON (compat)
-#   /wc-pre-tournament/          → WC qualifier-window team JSON (UI: site/wc-pre-tournament/)
 #   /pages_export_manifest.json → export contract for multi-league UI wiring
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -54,13 +53,5 @@ fi
 if [ -f "${ROOT}/artifacts/pages_export_manifest.json" ]; then
   cp -f "${ROOT}/artifacts/pages_export_manifest.json" "${SITE_OUT}/"
 fi
-
-# /wc-pre-tournament/ (JSON only until Claude adds index.html)
-WC_OUT="${SITE_OUT}/wc-pre-tournament"
-mkdir -p "${WC_OUT}"
-if [ -f "${ROOT}/site/wc-pre-tournament/index.html" ]; then
-  cp -f "${ROOT}/site/wc-pre-tournament/index.html" "${WC_OUT}/"
-fi
-cp -f "${ROOT}/artifacts/wc_pre_tournament_insights.json" "${WC_OUT}/"
 
 echo "Published tree at ${SITE_OUT} (upload _site as Pages root)."

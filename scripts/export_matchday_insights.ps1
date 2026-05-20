@@ -3,7 +3,6 @@
 # - artifacts/data/{league}/matchday_insights.json
 # - artifacts/data/{league}/team_season_insights.json
 # - artifacts/pages_export_manifest.json
-# - artifacts/wc_pre_tournament_insights.json
 # - site/match-preview/metric_definitions.json
 # - _site/ (serve and open `/` for the same entry flow as production)
 #
@@ -12,6 +11,5 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
 Set-Location $Root
 python (Join-Path $Root "scripts\export_pages_data.py")
-python (Join-Path $Root "scripts\export_wc_pre_tournament_json.py") (Join-Path $Root "artifacts\wc_pre_tournament_insights.json")
 python (Join-Path $Root "scripts\export_metric_definitions_json.py")
 & (Join-Path $Root "scripts\build_match_preview_site.ps1")

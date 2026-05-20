@@ -239,7 +239,7 @@ GitHub Actions workflows are split by change type so UI-only PRs do not run live
 3. After a successful run, open **`https://<owner>.github.io/<repository>/`** (landing page). The match preview detail page remains available at `…/<repository>/match-preview/` and is reached via landing → fixture list → preview. The workflow uses the same WIF secrets as other dbt workflows (`GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`).
 4. **Optional — in-app feedback on Pages:** add Actions secret **`FEEDBACK_APPS_SCRIPT_URL`** with your Google Apps Script Web App **`…/exec`** URL (see [`docs/feedback_collection.md`](feedback_collection.md)). If unset, the Feedback button still renders, but submission shows a local "not configured" hint and does not POST.
 
-Local preview of the same HTML and JSON layout: run `scripts/export_matchday_insights.ps1` (Windows; includes `_site` assembly) or `python scripts/export_pages_data.py` + `python scripts/export_wc_pre_tournament_json.py artifacts/wc_pre_tournament_insights.json` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve the `_site` folder with a static file server (open `/`).
+Local preview of the same HTML and JSON layout: run `scripts/export_matchday_insights.ps1` (Windows; includes `_site` assembly) or `python scripts/export_pages_data.py` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve the `_site` folder with a static file server (open `/`).
 
 ### Play-off / promotion windows (BL1, BL2, L1)
 

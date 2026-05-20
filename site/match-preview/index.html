@@ -446,7 +446,7 @@
     // strings live in /i18n/<lang>.json under the "matchPreview" namespace.
     // Helpers below read from window.t() which prefers the JSON value and
     // falls back to these constants when the key is missing.
-    const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: alle Qualifikationsspiele der Mannschaft bis zum ersten WM-Spiel, danach nur WM-Spiele. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: bis einschließlich Gruppenspieltag 1 alle Qualifikationsspiele der Mannschaft, ab Gruppenspieltag 2 alle bisher abgeschlossenen WM-Spiele (kumuliert, kein Fünfer-Cap). „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
     const FALLBACK_FEEDBACK_THANKS = "Danke! Feedback wurde gesendet.";
     const FALLBACK_FEEDBACK_ERROR = "Feedback konnte nicht gesendet werden.";
     const FALLBACK_FEEDBACK_ERROR_PREFIX = "Feedback nicht gespeichert:";
@@ -536,6 +536,17 @@
       const substage = String(row && row.substage_display_label ? row.substage_display_label : "").trim();
       const kickoff = kickoffDisplayLabel(row);
       return [compSeason, stage, substage, kickoff].filter(Boolean).join(" · ");
+    }
+
+    function formContextLabel(row, leagueCode) {
+      if (leagueCode !== "wc") {
+        return t("matchPreview.formContextDomestic", t("matchPreview.formContext", "Form: last 5 matches"));
+      }
+      const fromQualifiers = !!(row && row.home_form_from_qualifiers && row.away_form_from_qualifiers);
+      if (fromQualifiers) {
+        return t("matchPreview.formContextWcQualifiers", "Form: all qualifying matches");
+      }
+      return t("matchPreview.formContextWcTournament", "Form: all World Cup matches so far");
     }
 
     function setCompetitionContext(rows) {
@@ -740,7 +751,7 @@
       }
     }
 
-    function render(rows, defs, manifest, requestedFixtureId) {
+    function render(rows, defs, manifest, requestedFixtureId, leagueCode) {
       document.getElementById("foot-note").textContent = t("matchPreview.foot", FALLBACK_FOOT);
 
       const sorted = [...rows].sort((a, b) => {
@@ -776,6 +787,7 @@
         const awayTeam = teamNameLabel(row.away_team_name, "DATA_ERROR_AWAY_TEAM");
         const homeLogoUrl = String(row && row.home_team_logo_url ? row.home_team_logo_url : "").trim();
         const awayLogoUrl = String(row && row.away_team_logo_url ? row.away_team_logo_url : "").trim();
+        const formContext = formContextLabel(row, leagueCode);
         article.innerHTML = `
           <div class="preview-tag">${escHtml(t("matchPreview.tag", "Spielvorschau"))}</div>
           <div class="fixture">
@@ -790,7 +802,7 @@
             </div>
           </div>
           <div class="kickoff">${escHtml(matchContextLine(row))}</div>
-          <div class="form-context">${escHtml(t("matchPreview.formContext", "Form: letzte 5 Spiele"))}</div>
+          <div class="form-context">${escHtml(formContext)}</div>
           ${renderMetrics(metricTableRows(row, defs, manifest))}
         `;
         carousel.appendChild(article);
@@ -874,7 +886,7 @@
         fetch("./metric_definitions.json").then((r) => r.json()),
       ])
         .then(([_, payload, manifest, defs]) => {
-          render(payload.show || [], defs, manifest, requestedFixtureId);
+          render(payload.show || [], defs, manifest, requestedFixtureId, validLeague);
         })
         .catch((err) => {
           document.getElementById("carousel").innerHTML =

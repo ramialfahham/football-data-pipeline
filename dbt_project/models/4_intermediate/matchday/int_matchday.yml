@@ -27,10 +27,9 @@ models:
       Per (upcoming fixture_sk, team_sk) form aggregates for Step 3 rules (see model SQL header).
       Non-WC: full previous season when the team has no finished leg in the current league season before the
       reference fixture; otherwise last up to five finished games in the current season (kickoff order).
-      WC: qualifier supporting leagues (seed wc_supporting_league_codes) until the first WC leg, then last up
-      to five WC legs. Sums omit coalesce-to-zero on optional stats; rates are null when undefined.
+      Sums omit coalesce-to-zero on optional stats; rates are null when undefined.
       form_window_five_capped is true when the window used the five-game cap (not the full prior-season /
-      qualifier uncapped window). Grain (fixture_sk, team_sk) for upcoming fixtures only.
+      uncapped previous-season window). Grain (fixture_sk, team_sk) for upcoming fixtures only.
     config:
       tags: ["intermediate", "football", "matchday"]
     columns:

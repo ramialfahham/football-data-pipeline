@@ -153,8 +153,6 @@
     "cta": {
       "matchday": "Preview matchday",
       "recap": "View season recap",
-      "wc": "Pre-tournament outlook",
-      "wcPretournament": "Qualifier outlook",
       "unavailable": "Coming soon"
     },
     "wcCountdown": "Kickoff in {{days}} days",
@@ -193,8 +191,11 @@
     "back": "Matchday",
     "tag": "Match Preview",
     "formContext": "Form: last 5 matches",
+    "formContextDomestic": "Form: last 5 matches",
+    "formContextWcQualifiers": "Form: all qualifying matches",
+    "formContextWcTournament": "Form: all World Cup matches so far",
     "errorPrefix": "Data could not be loaded:",
-    "foot": "Form window: up to five most recent completed matches of the current season. Before season start, the previous season in full. During the World Cup: all qualifying matches of the team up to its first World Cup match, then only World Cup matches. “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",
+    "foot": "Form window: up to five most recent completed matches of the current season. Before season start, the previous season in full. During the World Cup: through Group Stage Matchday 1, all qualifying matches of the team; from Group Stage Matchday 2 onward, all completed World Cup matches so far (cumulative, no five-game cap). “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",
     "feedback": {
       "modalTitle": "Quick feedback",
       "q1": "How easy was it to use? (1–5)",
@@ -215,26 +216,5 @@
     "prev": "Previous team",
     "next": "Next team",
     "carousel": "Teams in standings order"
-  },
-  "wcPreTournament": {
-    "back": "Competitions",
-    "tag": "Qualifier form",
-    "subtitle": "World Cup 2026 · Qualifying",
-    "countdownDays": "Kickoff in {{days}} days",
-    "countdownToday": "Kickoff today",
-    "countdownPast": "Tournament in progress",
-    "qualifierGamesSuffix": "{{count}} qualifying matches",
-    "empty": {
-      "headline": "World Cup data not yet available.",
-      "subPending": "Data is published before the first match.",
-      "errorPrefix": "Data could not be loaded:"
-    },
-    "missingTeamName": "Unknown team",
-    "foot": "Values are based on every completed qualifying match for each team. “Ø” marks per-match averages; “%” marks cumulative ratios across all qualifying matches. Confederations with patchy API statistics may show “not available” for some metrics — no fabricated zeros.",
-    "aria": {
-      "prev": "Previous team",
-      "next": "Next team",
-      "carousel": "World Cup teams alphabetical"
-    }
   }
 }
