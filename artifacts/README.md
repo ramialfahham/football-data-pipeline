@@ -1,21 +1,24 @@
-# Shareable Matchday Output
+# Pages export artifacts
 
-This folder contains a lightweight shareable artifact for the upcoming **Bundesliga** matchday (internal `league_code` D1 in the warehouse):
+This folder stores JSON exports used to assemble the GitHub Pages app:
 
-- `matchday_insights.json`: exported `dbt show` from `mart_matchday_insights` with `--limit 9` (one row per fixture; nine is the maximum fixtures per Bundesliga round). Rows include `league_name` **Bundesliga** for display.
-- Metric labels/descriptions: [`site/i18n/de.json`](../site/i18n/de.json) and [`site/i18n/en.json`](../site/i18n/en.json) under `metrics.<metric_id>`. Column bindings: [`dbt_project/seeds/metric_definitions.csv`](../dbt_project/seeds/metric_definitions.csv) → `site/match-preview/metric_definitions.json` via `scripts/export_metric_definitions_json.py`.
-- `matchday_style_clash.html`: bold-social card view with metric explanations
+- `data/{league}/matchday_insights.json` and `data/{league}/team_season_insights.json`
+- `pages_export_manifest.json` (landing + route wiring contract)
+- legacy BL1 compat copies (`matchday_insights.json`, `team_season_insights.json`)
+- `wc_pre_tournament_insights.json`
+
+Metric labels/descriptions come from [`site/i18n/de.json`](../site/i18n/de.json) and [`site/i18n/en.json`](../site/i18n/en.json) under `metrics.<metric_id>`. Column bindings come from [`dbt_project/seeds/metric_definitions.csv`](../dbt_project/seeds/metric_definitions.csv) and are exported into `site/match-preview/metric_definitions.json` by `scripts/export_metric_definitions_json.py`.
 
 Feedback collection (anonymous, in-app modal):
 
-- Frontend modal lives in `matchday_style_clash.html`
+- Frontend lives in `site/match-preview/index.html`
 - Backend template lives in `scripts/feedback_webapp.gs`
 - Setup guide: `docs/feedback_collection.md`
 
-## Open locally
+## Open locally (same state as GitHub Pages)
 
-**Bundled carousel under `artifacts/`** — run a static server from the repo root, then open:
+1. Build/export data using `scripts/export_matchday_insights.ps1` (Windows) or the equivalent Linux/macOS commands from `docs/feedback_collection.md`.
+2. Assemble the static app with `scripts/build_match_preview_site.ps1` (Windows) or `scripts/build_match_preview_site.sh` (Linux/macOS).
+3. Serve `_site/` and open `http://localhost:8000/`.
 
-`http://localhost:8000/artifacts/matchday_style_clash.html`
-
-**Same experience as GitHub Pages** — after `.\scripts\export_matchday_insights.ps1` and `.\scripts\build_match_preview_site.ps1`, serve the `_site` folder and open `/match-preview/`. Automated deploy: see the [Shareable Bundesliga match preview](../docs/operations_guide.md#shareable-bundesliga-match-preview-github-pages) section in the operations guide.
+`artifacts/matchday_style_clash.html` is a legacy prototype and is not used by the deployed app.

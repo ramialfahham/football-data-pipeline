@@ -10,7 +10,8 @@
  * 1) Create a Google Sheet and set SHEET_ID below.
  * 2) Set FEEDBACK_TOKEN to a long random string.
  * 3) Deploy as Web App: "Anyone" (required for anonymous app users).
- * 4) Paste deployment URL into artifacts/matchday_style_clash.html.
+ * 4) Set FEEDBACK_APPS_SCRIPT_URL in GitHub Actions (or inject into
+ *    site/match-preview/index.html before building local _site preview).
  *
  * Client must POST JSON with Content-Type: text/plain (not application/json)
  * so browsers skip CORS preflight; Apps Script doPost still reads postData.contents.
