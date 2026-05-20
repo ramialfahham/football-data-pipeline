@@ -112,7 +112,9 @@ def fetch_team_season_rows(client, league_code: str) -> list[dict]:
         select *
         from `{TEAM_SEASON_MART}`
         where league_code = @league_code
-        order by latest_rank asc
+          and latest_rank is not null
+          and latest_rank > 0
+        order by latest_rank asc, team_name asc
     """
     job_config = bigquery.QueryJobConfig(
         query_parameters=[

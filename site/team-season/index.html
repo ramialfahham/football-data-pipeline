@@ -263,9 +263,9 @@
     function t(key, fallback) { return (window.t ? window.t(key, fallback) : fallback); }
     function tFmt(key, vars, fallback) { return (window.tFmt ? window.tFmt(key, vars, fallback) : fallback); }
 
-    function nz(x) {
+    function rankSortKey(x) {
       const n = Number(x);
-      return Number.isFinite(n) ? n : 0;
+      return Number.isFinite(n) && n > 0 ? n : Number.POSITIVE_INFINITY;
     }
 
     // Number formatters delegate to window.fmtNum/fmtPct (locale-aware,
@@ -303,7 +303,7 @@
 
     function rankDisplay(row) {
       const r = Number(row.latest_rank);
-      return Number.isFinite(r) ? String(r) : "-";
+      return Number.isFinite(r) && r > 0 ? String(r) : "-";
     }
 
     function competitionDisplayLabel(row) {
@@ -393,7 +393,9 @@
       const carousel = document.getElementById("carousel");
       // Defensive sort by rank ascending — exporter already orders this way,
       // but resilient to mart changes / manual edits.
-      const sorted = [...rows].sort((a, b) => nz(a.latest_rank) - nz(b.latest_rank));
+      const sorted = [...rows].sort(
+        (a, b) => rankSortKey(a.latest_rank) - rankSortKey(b.latest_rank)
+      );
 
       // Update back-label competition name from first row
       const first = sorted[0] || {};
