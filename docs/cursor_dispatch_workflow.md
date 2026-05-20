@@ -66,6 +66,8 @@ Use `[Dispatch Status] Cursor automation heartbeat`:
 - `Ready backlog` shows how many ready tickets are still waiting.
 - `Decision-needed` and `Blocked` show why some tickets are not moving.
 
+Board columns are synchronized by `project-status-sync` (see `docs/project_status_sync.md`).
+
 ---
 
 ## Important limitation

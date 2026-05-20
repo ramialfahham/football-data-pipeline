@@ -1,0 +1,176 @@
+name: project-status-sync
+
+on:
+  issues:
+    types: [opened, reopened, edited, labeled, unlabeled, closed]
+  schedule:
+    - cron: "20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  sync-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync GitHub Project status from issue state
+        uses: actions/github-script@v7
+        env:
+          PROJECT_BOARD_TITLE: Matchday IQ - Project Board
+        with:
+          github-token: ${{ secrets.PROJECT_AUTOMATION_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const boardTitle = process.env.PROJECT_BOARD_TITLE;
+            const now = new Date().toISOString();
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            const statusCache = new Map();
+            const synced = [];
+            const skipped = [];
+
+            const getDesiredStatus = (issue) => {
+              if (issue.state === "CLOSED") return "Done";
+              const labels = new Set((issue.labels.nodes || []).map((l) => l.name));
+              if (labels.has("decision-needed") || labels.has("blocked")) return "Blocked";
+              if (labels.has("agent-running")) return "In Progress";
+              return "Todo";
+            };
+
+            const getProjectStatusMeta = async (projectId) => {
+              if (statusCache.has(projectId)) return statusCache.get(projectId);
+              const projectResult = await github.graphql(
+                `query($projectId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
+                      id
+                      title
+                      fields(first: 100) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options { id name }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { projectId }
+              );
+
+              const project = projectResult.node;
+              const statusField = (project.fields.nodes || []).find((f) => f?.name === "Status");
+              const meta = {
+                projectId: project.id,
+                projectTitle: project.title,
+                fieldId: statusField?.id || null,
+                optionByName: new Map((statusField?.options || []).map((opt) => [opt.name, opt.id])),
+              };
+              statusCache.set(projectId, meta);
+              return meta;
+            };
+
+            const syncIssueNumber = async (issueNumber) => {
+              const issueResult = await github.graphql(
+                `query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      number
+                      title
+                      state
+                      labels(first: 50) { nodes { name } }
+                      projectItems(first: 20) {
+                        nodes {
+                          id
+                          project { id title }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { owner, repo, number: issueNumber }
+              );
+
+              const issue = issueResult.repository.issue;
+              if (!issue) return;
+
+              const desiredStatus = getDesiredStatus(issue);
+              const projectItems = (issue.projectItems.nodes || []).filter(
+                (item) => item?.project?.title === boardTitle
+              );
+              if (!projectItems.length) {
+                skipped.push(`#${issue.number} (not in target project)`);
+                return;
+              }
+
+              for (const item of projectItems) {
+                const meta = await getProjectStatusMeta(item.project.id);
+                if (!meta.fieldId) {
+                  skipped.push(`#${issue.number} (Status field missing in project)`);
+                  continue;
+                }
+                const optionId = meta.optionByName.get(desiredStatus);
+                if (!optionId) {
+                  skipped.push(`#${issue.number} (Status option "${desiredStatus}" missing)`);
+                  continue;
+                }
+
+                await github.graphql(
+                  `mutation(
+                    $projectId: ID!,
+                    $itemId: ID!,
+                    $fieldId: ID!,
+                    $optionId: String!
+                  ) {
+                    updateProjectV2ItemFieldValue(
+                      input: {
+                        projectId: $projectId
+                        itemId: $itemId
+                        fieldId: $fieldId
+                        value: { singleSelectOptionId: $optionId }
+                      }
+                    ) {
+                      projectV2Item { id }
+                    }
+                  }`,
+                  {
+                    projectId: meta.projectId,
+                    itemId: item.id,
+                    fieldId: meta.fieldId,
+                    optionId,
+                  }
+                );
+                synced.push(`#${issue.number} -> ${desiredStatus}`);
+              }
+            };
+
+            if (context.eventName === "issues") {
+              await syncIssueNumber(context.payload.issue.number);
+            } else {
+              const allIssues = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: "all",
+                per_page: 100,
+              });
+              for (const issue of allIssues) {
+                if (issue.pull_request) continue;
+                await syncIssueNumber(issue.number);
+              }
+            }
+
+            core.summary
+              .addHeading("Project status sync result")
+              .addRaw(`Run: ${now}\n\n`)
+              .addRaw(`Workflow run: ${runUrl}\n\n`)
+              .addRaw(`Synced items: ${synced.length}\n`)
+              .addRaw(`Skipped items: ${skipped.length}\n\n`)
+              .addRaw(synced.length ? synced.join("\n") : "No items synced.")
+              .addRaw("\n\n")
+              .addRaw(skipped.length ? skipped.join("\n") : "No skipped items.")
+              .write();

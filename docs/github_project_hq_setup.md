@@ -36,6 +36,7 @@ After creating your Project, that project URL is your one main UI.
    - Item added to project -> set `Status=Todo`
 8. Save views and pin `HQ Today` as the default view.
 9. Enable the repository workflow `cursor-dispatch` (already committed) for low-touch batching.
+10. Add `PROJECT_AUTOMATION_TOKEN` secret and enable `project-status-sync` for automatic status-column movement.
 
 ---
 
@@ -127,6 +128,7 @@ This keeps one source of truth while still allowing deep work threads.
 
 For low-touch execution routing, use `docs/cursor_dispatch_workflow.md`.
 For PR automation and merge governance, use `docs/pr_autopilot.md`.
+For board column sync automation, use `docs/project_status_sync.md`.
 ---
 
 ## Operating policy
@@ -140,6 +142,7 @@ For PR automation and merge governance, use `docs/pr_autopilot.md`.
 - Let `cursor-dispatch` manage `agent-running` and the `[Dispatch Queue] Cursor batch kickoff` issue.
 - Use `[Dispatch Status] Cursor automation heartbeat` as your single progress indicator.
 - Use `cpo-approved` on PRs you approve for auto-merge (autopilot handles the rest).
+- Let `project-status-sync` move board status columns automatically.
 
 ---
 
