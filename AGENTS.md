@@ -19,6 +19,26 @@ Always activate the venv before any command:
 source /workspace/.venv/bin/activate
 ```
 
+### GCP credential setup
+
+The `GOOGLE_APPLICATION_CREDENTIALS` secret must contain the **full JSON content** of a GCP service account key (not a key ID or API key). On session start, write it to a file and configure dbt:
+
+```bash
+python3 -c "
+import os, json
+creds = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')
+if creds.strip().startswith('{'):
+    os.makedirs('/home/ubuntu/.config/gcloud', exist_ok=True)
+    path = '/home/ubuntu/.config/gcloud/service-account.json'
+    with open(path, 'w') as f:
+        f.write(creds)
+    print(f'Wrote SA key to {path}')
+"
+export GOOGLE_APPLICATION_CREDENTIALS=/home/ubuntu/.config/gcloud/service-account.json
+```
+
+The dbt profile at `~/.dbt/profiles.yml` must use `method: service-account` with `keyfile` pointing to this file (not `method: oauth`). The update script copies `profiles.example.yml` (which uses oauth) — you need to override it for Cloud Agent use.
+
 ### Running tests and checks (no GCP required)
 
 ```bash
@@ -34,7 +54,7 @@ pre-commit run --all-files
 
 ### Commands that require GCP credentials
 
-These fail without Application Default Credentials or a service account:
+These fail without a valid service account JSON written to disk:
 
 - `dbt build --project-dir dbt_project` (and any `dbt run/test/snapshot`)
 - `sqlfluff lint models/<path>` from `dbt_project/` (the dbt templater calls `dbt compile` which connects to BQ)
@@ -42,10 +62,11 @@ These fail without Application Default Credentials or a service account:
 
 ### Gotchas
 
-- **`GOOGLE_APPLICATION_CREDENTIALS` must be a file path to a service account JSON**, not the JSON content itself or an API key. The `google.auth.default()` library reads this env var as a file path. If you have JSON content, write it to a file first and set the env var to that file path. Example: `echo "$GCP_SA_KEY_JSON" > /tmp/sa.json && export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json`.
-- **SQLFluff requires BigQuery auth.** The `.sqlfluff` config uses `templater = dbt`, which invokes `dbt compile` internally. Without GCP credentials, linting fails. There is no local-only fallback configured.
-- **dbt profiles.yml is not committed.** The update script copies `profiles.example.yml` to `~/.dbt/profiles.yml` only if one doesn't already exist. The profile uses `method: oauth` (GCP ADC).
+- **`GOOGLE_APPLICATION_CREDENTIALS` injected as JSON content, not a file path.** The GCP SDK expects a file path, but the Cursor secret is injected as raw JSON. You must write it to disk and re-export the env var as the file path (see "GCP credential setup" above).
+- **dbt profiles.yml must use `method: service-account`** in Cloud Agent VMs (no browser for OAuth). The update script copies the example profile which uses `method: oauth` — override `~/.dbt/profiles.yml` on first use.
+- **SQLFluff requires BigQuery auth.** The `.sqlfluff` config uses `templater = dbt`, which invokes `dbt compile` internally. Without GCP credentials, linting fails.
 - **Run SQLFluff from `dbt_project/`**, not the repo root, so the dbt templater picks up `.sqlfluff`.
 - **`dbt_project.yml` warning about unused snapshot config** is benign — it fires because no snapshot models are currently defined under that path.
 - **Python 3.12** works with the current dependency set despite the README mentioning 3.11.
 - **`core.hooksPath`** may be set in the git config, blocking `pre-commit install`. Run `git config --unset-all core.hooksPath` first if you see "Cowardly refusing to install hooks."
+- **`dbt build` takes ~7 minutes** for the full project (153 views, 29 tables, 677 tests, 3 seeds).
