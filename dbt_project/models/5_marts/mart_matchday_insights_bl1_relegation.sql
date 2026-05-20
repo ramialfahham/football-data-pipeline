@@ -18,6 +18,10 @@ mart_team_season as (
     select * from {{ ref('mart_team_season') }}
 ),
 
+dim_team as (
+    select * from {{ ref('dim_team') }}
+),
+
 team_form_metrics as (
     select * from import_int_matchday__team_form_metrics_relegation
 ),
@@ -113,6 +117,8 @@ final as (
         um.away_team_sk,
         um.away_team_name,
         um.upcoming_matchday_fixture_count,
+        home_dt.team_logo_url as home_team_logo_url,
+        away_dt.team_logo_url as away_team_logo_url,
         hf.home_form_league_code,
         af.away_form_league_code,
         home_ts.latest_rank as home_league_rank,
@@ -197,6 +203,10 @@ final as (
             um.away_team_sk = away_ts.team_sk
             and af.away_form_league_code = away_ts.league_code
             and af.away_form_season_api_year = away_ts.season_api_year
+    left join dim_team as home_dt
+        on um.home_team_sk = home_dt.team_sk
+    left join dim_team as away_dt
+        on um.away_team_sk = away_dt.team_sk
 )
 
 select *

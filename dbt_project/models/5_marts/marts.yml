@@ -443,6 +443,11 @@ models:
       criticality: "high"
     config:
       tags: ["marts", "football", "consumer", "pre_match"]
+    columns:
+      - name: home_team_logo_url
+        description: "Home team crest URL from dim_team (API-Football); nullable."
+      - name: away_team_logo_url
+        description: "Away team crest URL from dim_team (API-Football); nullable."
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
@@ -739,6 +744,10 @@ models:
           expression: "round_name in ('Final', 'Relegation Round')"
           name: mart_matchday_insights_bl1_relegation_round_name
     columns:
+      - name: home_team_logo_url
+        description: "Home team crest URL from dim_team (API-Football); nullable."
+      - name: away_team_logo_url
+        description: "Away team crest URL from dim_team (API-Football); nullable."
       - name: home_form_league_code
         description: "Domestic league used for home team form (BL1 or BL2)."
         tests: [not_null]
