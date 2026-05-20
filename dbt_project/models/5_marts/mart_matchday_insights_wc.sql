@@ -401,8 +401,10 @@ final as (
             when coalesce(awb.n_wc_tournament_before, 0) = 0 then away_pt.save_ratio_pretournament
             else afm.save_ratio_recent
         end as away_save_ratio_recent,
-        coalesce(hwb.n_wc_tournament_before, 0) = 0 as home_form_from_qualifiers,
-        coalesce(awb.n_wc_tournament_before, 0) = 0 as away_form_from_qualifiers
+        coalesce(hwb.n_wc_tournament_before, 0) = 0
+        and coalesce(home_pt.qualifier_games_played, 0) > 0 as home_form_from_qualifiers,
+        coalesce(awb.n_wc_tournament_before, 0) = 0
+        and coalesce(away_pt.qualifier_games_played, 0) > 0 as away_form_from_qualifiers
     from import_int_matchday__upcoming_round_fixtures as um
     left join mart_team_season as home_ts
         on
