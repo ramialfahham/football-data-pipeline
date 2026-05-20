@@ -41,8 +41,16 @@ def load_teams_merge_and_extend_ids(
                 teams_merged_envelope["errors"] = []
                 teams_merged_envelope["response"] = []
             teams_merged_envelope["errors"].extend(list(teams_part.get("errors") or []))
-            # One row per (season, club); staging reads ``league.season`` on each row.
-            teams_merged_envelope["response"].extend(teams_part.get("response") or [])
+            # API-Football /teams response items contain only {team, venue} — no league
+            # block. Inject (league.id, league.season) per item so downstream consumers
+            # carry the season identity: staging views read $.league.season per row, and
+            # merge_teams_envelope dedups on (team_id, season) via _team_row_key.
+            # Without this, every team row is silently dropped by the merge and results=0.
+            enriched_items = [
+                {**item, "league": {"id": league_id, "season": season}}
+                for item in (teams_part.get("response") or [])
+            ]
+            teams_merged_envelope["response"].extend(enriched_items)
         if teams_merged_envelope is not None:
             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
