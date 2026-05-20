@@ -446,7 +446,8 @@
     // strings live in /i18n/<lang>.json under the "matchPreview" namespace.
     // Helpers below read from window.t() which prefers the JSON value and
     // falls back to these constants when the key is missing.
-    const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: bis einschließlich Gruppenspieltag 1 alle Qualifikationsspiele der Mannschaft, ab Gruppenspieltag 2 alle bisher abgeschlossenen WM-Spiele (kumuliert, kein Fünfer-Cap). „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    const FALLBACK_FOOT_WC = "WM-Form-Fenster: bis einschließlich Gruppenspieltag 1 alle Qualifikationsspiele der Mannschaft, ab Gruppenspieltag 2 alle bisher abgeschlossenen WM-Spiele (kumuliert). „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
     const FALLBACK_FOOT_DATA_GAP = "Wenn für eine Mannschaft in den konfigurierten WM-Qualifikationswettbewerben keine abgeschlossenen Spiele vorliegen, bleiben Formwerte für diese Mannschaft bei „-” (Datenlücke, kein Fallback).";
     const FALLBACK_FEEDBACK_THANKS = "Danke! Feedback wurde gesendet.";
     const FALLBACK_FEEDBACK_ERROR = "Feedback konnte nicht gesendet werden.";
@@ -556,6 +557,13 @@
         const awayGap = !!row.away_form_from_qualifiers && Number(row.away_form_games_played || 0) === 0;
         return homeGap || awayGap;
       });
+    }
+
+    function footLabel(leagueCode) {
+      if (leagueCode === "wc") {
+        return t("matchPreview.footWc", FALLBACK_FOOT_WC);
+      }
+      return t("matchPreview.foot", FALLBACK_FOOT);
     }
 
     function setCompetitionContext(rows) {
@@ -761,9 +769,9 @@
     }
 
     function render(rows, defs, manifest, requestedFixtureId, leagueCode) {
-      const baseFoot = t("matchPreview.foot", FALLBACK_FOOT);
+      const baseFoot = footLabel(leagueCode);
       const gapFoot = t("matchPreview.footDataGap", FALLBACK_FOOT_DATA_GAP);
-      const footText = hasQualifierDataGap(rows) ? `${baseFoot} ${gapFoot}` : baseFoot;
+      const footText = leagueCode === "wc" && hasQualifierDataGap(rows) ? `${baseFoot} ${gapFoot}` : baseFoot;
       document.getElementById("foot-note").textContent = footText;
 
       const sorted = [...rows].sort((a, b) => {
