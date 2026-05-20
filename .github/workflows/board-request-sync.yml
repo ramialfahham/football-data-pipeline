@@ -1,0 +1,265 @@
+name: board-request-sync
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed]
+  issues:
+    types: [opened, reopened, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync request items to project board
+        uses: actions/github-script@v7
+        env:
+          PROJECT_BOARD_TITLE: Matchday IQ - Project Board
+        with:
+          github-token: ${{ secrets.PROJECT_AUTOMATION_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const boardTitle = process.env.PROJECT_BOARD_TITLE;
+            const now = new Date().toISOString();
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            const synced = [];
+            const skipped = [];
+
+            const findProjectMeta = async () => {
+              const result = await github.graphql(
+                `query($owner: String!) {
+                  user(login: $owner) {
+                    projectsV2(first: 50) {
+                      nodes {
+                        id
+                        title
+                        fields(first: 100) {
+                          nodes {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                              options { id name }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  organization(login: $owner) {
+                    projectsV2(first: 50) {
+                      nodes {
+                        id
+                        title
+                        fields(first: 100) {
+                          nodes {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                              options { id name }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { owner }
+              );
+
+              const allProjects = [
+                ...(result.user?.projectsV2?.nodes || []),
+                ...(result.organization?.projectsV2?.nodes || []),
+              ];
+              const project = allProjects.find((p) => p?.title === boardTitle);
+              if (!project) {
+                throw new Error(
+                  `Project titled "${boardTitle}" not found for owner "${owner}".`
+                );
+              }
+              const statusField = (project.fields?.nodes || []).find((f) => f?.name === "Status");
+              if (!statusField) {
+                throw new Error(`Status field not found on project "${boardTitle}".`);
+              }
+              return {
+                projectId: project.id,
+                statusFieldId: statusField.id,
+                statusOptionByName: new Map(
+                  (statusField.options || []).map((opt) => [opt.name, opt.id])
+                ),
+              };
+            };
+
+            const pickStatusOption = (meta, preferredNames) => {
+              for (const name of preferredNames) {
+                const optionId = meta.statusOptionByName.get(name);
+                if (optionId) return { name, optionId };
+              }
+              return null;
+            };
+
+            const ensureProjectItem = async (meta, contentNodeId, existingItems) => {
+              const existing = (existingItems || []).find(
+                (item) => item?.project?.id === meta.projectId
+              );
+              if (existing) return existing.id;
+              const added = await github.graphql(
+                `mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item { id }
+                  }
+                }`,
+                { projectId: meta.projectId, contentId: contentNodeId }
+              );
+              return added.addProjectV2ItemById.item.id;
+            };
+
+            const updateItemStatus = async (meta, itemId, preferredNames, descriptor) => {
+              const selected = pickStatusOption(meta, preferredNames);
+              if (!selected) {
+                skipped.push(`${descriptor} (no matching Status option: ${preferredNames.join(", ")})`);
+                return;
+              }
+              await github.graphql(
+                `mutation(
+                  $projectId: ID!,
+                  $itemId: ID!,
+                  $fieldId: ID!,
+                  $optionId: String!
+                ) {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: { singleSelectOptionId: $optionId }
+                    }
+                  ) {
+                    projectV2Item { id }
+                  }
+                }`,
+                {
+                  projectId: meta.projectId,
+                  itemId,
+                  fieldId: meta.statusFieldId,
+                  optionId: selected.optionId,
+                }
+              );
+              synced.push(`${descriptor} -> ${selected.name}`);
+            };
+
+            const syncPullWithMeta = async (meta, pullNumber) => {
+              const result = await github.graphql(
+                `query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      id
+                      number
+                      state
+                      isDraft
+                      merged
+                      projectItems(first: 30) {
+                        nodes {
+                          id
+                          project { id title }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { owner, repo, number: pullNumber }
+              );
+
+              const pr = result.repository?.pullRequest;
+              if (!pr) {
+                skipped.push(`#${pullNumber} (pull request not found)`);
+                return;
+              }
+              const itemId = await ensureProjectItem(meta, pr.id, pr.projectItems?.nodes);
+
+              let desired;
+              if (pr.state === "CLOSED") {
+                desired = pr.merged ? ["Live", "Done"] : ["Blocked", "Done"];
+              } else if (pr.isDraft) {
+                desired = ["In Progress", "Todo"];
+              } else {
+                desired = ["In Progress", "Review", "Todo"];
+              }
+              await updateItemStatus(meta, itemId, desired, `pr #${pr.number}`);
+            };
+
+            const syncIssueWithMeta = async (meta, issueNumber) => {
+              const result = await github.graphql(
+                `query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      id
+                      number
+                      state
+                      projectItems(first: 30) {
+                        nodes {
+                          id
+                          project { id title }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { owner, repo, number: issueNumber }
+              );
+
+              const issue = result.repository?.issue;
+              if (!issue) {
+                skipped.push(`#${issueNumber} (issue not found)`);
+                return;
+              }
+              const itemId = await ensureProjectItem(meta, issue.id, issue.projectItems?.nodes);
+              const desired = issue.state === "CLOSED" ? ["Done", "Live"] : ["Todo", "In Progress"];
+              await updateItemStatus(meta, itemId, desired, `issue #${issue.number}`);
+            };
+
+            if (context.eventName === "pull_request" && context.payload.pull_request) {
+              const meta = await findProjectMeta();
+              await syncPullWithMeta(meta, context.payload.pull_request.number);
+            } else if (context.eventName === "issues" && context.payload.issue) {
+              const meta = await findProjectMeta();
+              await syncIssueWithMeta(meta, context.payload.issue.number);
+            } else {
+              const meta = await findProjectMeta();
+              const pulls = await github.paginate(github.rest.pulls.list, {
+                owner,
+                repo,
+                state: "open",
+                per_page: 100,
+              });
+              for (const pr of pulls) {
+                await syncPullWithMeta(meta, pr.number);
+              }
+              const issues = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: "open",
+                per_page: 100,
+              });
+              for (const issue of issues) {
+                if (issue.pull_request) continue;
+                await syncIssueWithMeta(meta, issue.number);
+              }
+            }
+
+            core.summary
+              .addHeading("Board request sync result")
+              .addRaw(`Run: ${now}\n\n`)
+              .addRaw(`Workflow run: ${runUrl}\n\n`)
+              .addRaw(`Synced items: ${synced.length}\n`)
+              .addRaw(`Skipped items: ${skipped.length}\n\n`)
+              .addRaw(synced.length ? synced.join("\n") : "No items synced.")
+              .addRaw("\n\n")
+              .addRaw(skipped.length ? skipped.join("\n") : "No skipped items.")
+              .write();
