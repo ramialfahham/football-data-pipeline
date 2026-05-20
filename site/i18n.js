@@ -29,7 +29,23 @@
 
   // Resolve the i18n/ directory relative to this script's own URL so
   // each page (regardless of depth) loads the right JSON.
-  const SCRIPT_URL = (document.currentScript && document.currentScript.src) || "";
+  function resolveScriptUrl() {
+    if (document.currentScript && document.currentScript.src) {
+      return document.currentScript.src;
+    }
+    const scripts = Array.from(document.getElementsByTagName("script"));
+    for (let i = scripts.length - 1; i >= 0; i -= 1) {
+      const rawSrc = scripts[i].getAttribute("src") || "";
+      if (!/(^|\/)i18n\.js(\?|#|$)/.test(rawSrc)) continue;
+      try {
+        return new URL(rawSrc, document.baseURI || window.location.href).href;
+      } catch (_) {
+        // keep searching; we'll fall back to relative resolution below
+      }
+    }
+    return "";
+  }
+  const SCRIPT_URL = resolveScriptUrl();
   const I18N_BASE = SCRIPT_URL ? new URL("./i18n/", SCRIPT_URL).href : "./i18n/";
 
   function detectLang() {
@@ -290,7 +306,13 @@
     })
     .catch((err) => {
       console.warn("[i18n] failed to load", window.MATCHDAYIQ_LANG, err);
-      // Inline German fallback stays — no harm done.
+      // Keep language switcher and static copy wiring functional even when
+      // JSON loading fails (fallback text remains visible).
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", applyStaticStrings, { once: true });
+      } else {
+        applyStaticStrings();
+      }
       return {};
     });
 })();
