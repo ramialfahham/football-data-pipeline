@@ -52,10 +52,11 @@ Core only (lightweight):
 
 Optional (add later only if needed):
 
-- `Role Owner` (single select)
 - `Track` (single select)
 - `Cost Impact` (single select)
 - `Iteration` (iteration field)
+
+Use `Assignees` for ownership so it matches your existing defined roles.
 
 ---
 
