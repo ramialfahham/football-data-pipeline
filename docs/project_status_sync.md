@@ -2,6 +2,7 @@
 
 > PAUSED 2026-05-20 — board-status automation is disabled in favor of chat-driven delivery.
 > Archived workflow location: `.github/workflows/_paused/project-status-sync.yml`.
+> Active replacement for execution memory: `docs/board_request_sync.md`.
 
 ## Purpose
 
