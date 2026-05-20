@@ -328,7 +328,7 @@
   </div>
 
   <footer>
-    <a href="#" data-i18n="common.feedback">Feedback</a>
+    <a href="../match-preview/?feedback=1" id="feedback-link" data-i18n="common.feedback">Feedback</a>
   </footer>
 
 </div>
@@ -557,6 +557,11 @@
     function start() {
       const code = leagueParam();
       const i18nReady = window.MATCHDAYIQ_I18N_READY || Promise.resolve({});
+      const feedbackLink = document.getElementById("feedback-link");
+      if (feedbackLink) {
+        const qp = code ? `?league=${encodeURIComponent(code)}&feedback=1` : "?feedback=1";
+        feedbackLink.setAttribute("href", `../match-preview/${qp}`);
+      }
 
       if (!code) {
         // No league specified — keep the static BL1 off-season state.

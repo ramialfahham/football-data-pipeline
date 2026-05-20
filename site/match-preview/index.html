@@ -880,6 +880,8 @@
       const params = new URLSearchParams(window.location.search);
       const leagueParam = (params.get("league") || "").trim().toLowerCase();
       const validLeague = /^[a-z0-9]+$/.test(leagueParam) ? leagueParam : "";
+      const feedbackParam = (params.get("feedback") || "").trim().toLowerCase();
+      const shouldOpenFeedbackModal = feedbackParam === "1" || feedbackParam === "true" || feedbackParam === "open";
       const matchdayUrl = validLeague
         ? `../data/${validLeague}/matchday_insights.json`
         : "./matchday_insights.json";
@@ -894,6 +896,9 @@
       const backLink = document.querySelector(".backbar .back");
       if (backLink && validLeague) {
         backLink.setAttribute("href", `../fixture-list/?league=${validLeague}`);
+      }
+      if (shouldOpenFeedbackModal) {
+        requestAnimationFrame(openFeedbackModal);
       }
 
       // Wait for both i18n (translations) and the data fetch so the rendered
