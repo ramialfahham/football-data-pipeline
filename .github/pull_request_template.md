@@ -26,6 +26,23 @@
 - [ ] No breaking change
 - [ ] Breaking change (describe below)
 
+## Hard release gates (required for product-facing changes)
+
+- [ ] Data Gate passed
+  - [ ] Metric definitions and windows are explicit
+  - [ ] Missing-data behavior is explicit
+  - [ ] Display values match model outputs and ordering
+- [ ] UX Gate passed
+  - [ ] Mobile-first flow preserved
+  - [ ] No horizontal scroll in data regions
+  - [ ] User-facing copy avoids internal jargon
+
+## Decision-needed gate check
+
+- [ ] No founder decision required
+- [ ] Founder decision required (`decision-needed` issue linked below)
+- Linked issue:
+
 ### Breaking change notes (if any)
 
 - 

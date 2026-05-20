@@ -1,0 +1,97 @@
+name: Idea intake
+description: Submit a new product or platform idea into the funnel.
+title: "[Idea] "
+labels:
+  - idea
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user or business problem does this solve?
+      placeholder: Describe the problem in plain language.
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_value
+    attributes:
+      label: User value
+      description: Why this matters for fans and product stickiness.
+      placeholder: Expected user impact.
+    validations:
+      required: true
+
+  - type: input
+    id: competitions
+    attributes:
+      label: Competitions impacted (`league_code` list)
+      description: Comma-separated list.
+      placeholder: BL1, WC, PL
+    validations:
+      required: true
+
+  - type: input
+    id: languages
+    attributes:
+      label: Languages impacted
+      description: Comma-separated locale list.
+      placeholder: en, de, fi
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workstream
+    attributes:
+      label: Workstream
+      options:
+        - Reliability / Data trust
+        - Product analytics content
+        - UX / UI
+        - Prediction / ML
+        - Competition expansion
+        - Localization
+        - Infrastructure / platform
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cost_impact
+    attributes:
+      label: Cost impact
+      description: Combined Cursor/API/infrastructure impact.
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Data and system dependencies
+      description: Data sources, dbt models, workflows, external services.
+      placeholder: List dependencies.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Delivery risk
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: What we will not do (scope boundary)
+      description: Explicitly state excluded scope to prevent creep.
+      placeholder: Not in scope...
+    validations:
+      required: true
