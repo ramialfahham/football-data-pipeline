@@ -126,7 +126,6 @@ Purpose: high-level sequencing and communication.
 This keeps one source of truth while still allowing deep work threads.
 
 For low-touch execution routing, use `docs/cursor_dispatch_workflow.md`.
-
 ---
 
 ## Operating policy
