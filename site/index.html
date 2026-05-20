@@ -9,8 +9,7 @@
     - matchday_row_count > 0           → "matchday"     → /fixture-list/?league=<code>
     - team_season_row_count > 0        → "season_recap" → /team-season/?league=<code>
     - both zero                        → "no_data"      → disabled
-  Plus a separate WC card linked to /wc-pre-tournament/ when the
-  manifest exposes wc_pre_tournament_path.
+  WC follows the same fixture-list route when confirmed fixtures exist.
 
   Competition display names come from i18n (top-level competitions.*).
   Logos come from API-Football's CDN.
@@ -360,7 +359,6 @@
       VL: 244,
       WC: 1,
     };
-    const WC_KICKOFF_ISO = "2026-06-11T20:00:00+02:00";
 
     function logoUrl(code) {
       const id = LEAGUE_LOGO_IDS[code];
@@ -394,20 +392,6 @@
         return mu.competitionDisplayName(code, sourceMart, tt, "landing");
       }
       return tt("competitions." + code, code);
-    }
-
-    function daysUntilWc() {
-      const target = new Date(WC_KICKOFF_ISO).getTime();
-      const now = Date.now();
-      const ms = target - now;
-      return Math.floor(ms / (1000 * 60 * 60 * 24));
-    }
-
-    function wcSubtitle() {
-      const d = daysUntilWc();
-      if (d < 0) return tt("landing.wcKickoffPast", "Tournament in progress");
-      if (d === 0) return tt("landing.wcKickoffToday", "Kickoff today");
-      return tt("landing.wcCountdown", `Kickoff in ${d} days`, { days: d });
     }
 
     function renderDomesticCard(entry) {
@@ -452,14 +436,25 @@
         </${tag}>`;
     }
 
-    function renderWcCard() {
-      // WC pre-tournament page may not exist yet (see slice 3). Link
-      // anyway — if it 404s, we'll add the page next.
+    function renderWcCard(manifest) {
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      const wc = mu && typeof mu.manifestWcEntry === "function"
+        ? mu.manifestWcEntry(manifest)
+        : null;
+      if (!wc) return "";
       const name = competitionLabel("WC");
-      const subtitle = wcSubtitle();
-      const cta = tt("landing.cta.wcPretournament", "Qualifier outlook");
+      const hasFixtures = (Number(wc.matchday_row_count) || 0) > 0;
+      const subtitle = hasFixtures
+        ? tt("landing.state.matchdayUpcoming", "Next matchday")
+        : tt("landing.state.comingSoon", "Coming soon");
+      const cta = hasFixtures
+        ? tt("landing.cta.matchday", "Preview matchday")
+        : tt("landing.cta.unavailable", "Coming soon");
+      const tag = hasFixtures ? "a" : "div";
+      const hrefAttr = hasFixtures ? ` href="./fixture-list/?league=wc"` : "";
+      const cardCls = hasFixtures ? "card is-wc" : "card is-wc is-disabled";
       return `
-        <a class="card is-wc" href="./wc-pre-tournament/">
+        <${tag} class="${cardCls}"${hrefAttr}>
           <div class="badge"><img src="${escHtml(logoUrl("WC"))}" alt="WC"></div>
           <div class="body">
             <div class="comp-name">${escHtml(name)}</div>
@@ -469,7 +464,7 @@
             </div>
           </div>
           <div class="chevron">›</div>
-        </a>`;
+        </${tag}>`;
     }
 
     function sortedDomestic(entries) {
@@ -488,9 +483,10 @@
       const domestic = Array.isArray(manifest && manifest.domestic_leagues)
         ? sortedDomestic(manifest.domestic_leagues)
         : [];
-      const includeWc = !!(manifest && manifest.wc_pre_tournament_path);
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      const includeWc = !!(mu && typeof mu.manifestWcEntry === "function" && mu.manifestWcEntry(manifest));
       const parts = [];
-      if (includeWc) parts.push(renderWcCard());
+      if (includeWc) parts.push(renderWcCard(manifest));
       parts.push(...domestic.map(renderDomesticCard));
       if (!parts.length) {
         root.classList.remove("is-loading");
@@ -515,7 +511,7 @@
             domestic_leagues: [
               { league_code: "BL1", matchday_row_count: 0, team_season_row_count: 1 },
             ],
-            wc_pre_tournament_path: "wc-pre-tournament/wc_pre_tournament_insights.json",
+            wc: { league_code: "WC", matchday_row_count: 0 },
           });
           return;
         }

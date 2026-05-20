@@ -34,7 +34,7 @@ Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga
 
 - **Layer contract**: staging = raw cleanup only; base = UNION ALL + dedup + first logic; core = facts/dims; marts = consumption.
 - **league_code** is the partition key on every model — never hardcode a competition identifier in business logic.
-- **Form window**: last 5 matches, current season only. Before matchday 1 → fallback to qualifiers (for tournaments) or previous season (for leagues). Never mix seasons.
+- **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
 - **UI flow**: Landing (competition cards) → Fixture list (next round only) → Fixture detail (carousel/deep dive).
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.

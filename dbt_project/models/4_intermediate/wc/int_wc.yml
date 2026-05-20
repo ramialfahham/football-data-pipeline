@@ -1,40 +1,24 @@
 version: 2
 
 models:
-  - name: int_wc__participant_teams
+  - name: int_wc__matchday_team_form_metrics
     description: >
-      National teams appearing on fct_fixture for the current WC tournament season (max season_api_year
-      per league_code WC). Grain: team_sk.
+      Per (upcoming fixture_sk, team_sk) WC form aggregates. Group Stage round 1 uses supporting
+      qualifier leagues; from Group Stage round 2 onward (including knockout) form uses cumulative
+      finished WC tournament legs before the fixture kickoff (no rolling five-game cap).
     config:
       tags: ["intermediate", "football", "wc"]
     columns:
+      - name: fixture_sk
+        tests: [not_null]
       - name: team_sk
-        tests: [not_null, unique]
-      - name: league_code
         tests: [not_null]
-      - name: season_api_year
+      - name: form_games_played
         tests: [not_null]
-
-  - name: int_wc__pre_tournament_qualifier_legs
-    description: >
-      Finished supporting-confederation legs before each team's first WC tournament leg in the target
-      season. Grain: (team_sk, fixture_sk).
-    config:
-      tags: ["intermediate", "football", "wc"]
+      - name: is_tournament_form
+        tests: [not_null]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
-            - team_sk
             - fixture_sk
-
-  - name: int_wc__pre_tournament_team_metrics
-    description: >
-      Qualifier-window aggregates and is_*_complete flags per WC participant. UI shows rates only when
-      the matching completeness flag is true.
-    config:
-      tags: ["intermediate", "football", "wc"]
-    columns:
-      - name: team_sk
-        tests: [not_null, unique]
-      - name: qualifier_games_played
-        tests: [not_null]
+            - team_sk

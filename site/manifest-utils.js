@@ -43,15 +43,30 @@
    */
   function manifestEntryForLeague(manifest, code) {
     const want = String(code || "").toUpperCase();
+    if (want === "WC") return manifestWcEntry(manifest);
     const list = manifest && Array.isArray(manifest.domestic_leagues)
       ? manifest.domestic_leagues
       : [];
     return list.find((e) => String(e.league_code || "").toUpperCase() === want) || null;
   }
 
+  /**
+   * Get WC manifest block when present.
+   * @param {object|null} manifest
+   */
+  function manifestWcEntry(manifest) {
+    const wc = manifest && manifest.wc && typeof manifest.wc === "object"
+      ? manifest.wc
+      : null;
+    if (!wc) return null;
+    if (String(wc.league_code || "").toUpperCase() !== "WC") return null;
+    return wc;
+  }
+
   global.MATCHDAYIQ_MANIFEST = {
     matchdaySourceKind,
     competitionDisplayName,
     manifestEntryForLeague,
+    manifestWcEntry,
   };
 })(typeof window !== "undefined" ? window : globalThis);
