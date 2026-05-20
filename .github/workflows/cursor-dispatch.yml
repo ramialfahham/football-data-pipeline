@@ -131,7 +131,6 @@ jobs:
             );
             const decisionCount = issues.filter((issue) => hasLabel(issue, "decision-needed")).length;
             const blockedCount = issues.filter((issue) => hasLabel(issue, "blocked")).length;
-
             const queueBody =
               `# Cursor dispatch queue\n\n` +
               `- Run timestamp: \`${now}\`\n` +
@@ -224,7 +223,6 @@ jobs:
                 labels: ["dispatch-status"],
               });
             }
-
             core.summary
               .addHeading("Cursor dispatch result")
               .addRaw(`Picked issues: ${picked.length}\n\n`)
