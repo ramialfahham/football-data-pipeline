@@ -42,17 +42,20 @@ After creating your Project, that project URL is your one main UI.
 
 Create these custom fields in the Project:
 
+Core only (lightweight):
+
 - `Status` (single select): `Todo`, `In Progress`, `Review`, `Done`, `Blocked`
 - `Type` (single select): `Idea`, `Decision`, `Task`, `Bug`, `PR`
 - `Priority` (single select): `P0`, `P1`, `P2`, `P3`
-- `Track` (single select): `Reliability`, `Product`, `Exploration`
 - `Decision Needed` (single select): `No`, `Yes`
-- `Role Owner` (single select): `Product Ops`, `Analytics Eng`, `Data Eng`, `UI`, `ML`, `QA`, `CFO`, `Legal`
-- `Competitions` (text)
-- `Languages` (text)
-- `Cost Impact` (single select): `low`, `medium`, `high`
-- `Iteration` (iteration field)
 - `Target Date` (date)
+
+Optional (add later only if needed):
+
+- `Role Owner` (single select)
+- `Track` (single select)
+- `Cost Impact` (single select)
+- `Iteration` (iteration field)
 
 ---
 
@@ -78,7 +81,7 @@ Purpose: only items requiring your direct call.
   - `label:decision-needed` OR `Decision Needed:Yes`
   - `is:open`
 - Visible fields:
-  - `Priority`, `Role Owner`, `Cost Impact`, `Target Date`, `Status`
+  - `Priority`, `Target Date`, `Status`
 
 ## 3) Idea Funnel (Table)
 
@@ -88,8 +91,8 @@ Purpose: intake, triage, scoring, selection.
 - Filter:
   - `label:idea`
   - `is:open`
-- Group by: `Track`
-- Sort: `Priority`, `Cost Impact`
+- Group by: `Priority`
+- Sort: `Target Date`
 
 ## 4) Delivery (Board)
 
@@ -107,7 +110,7 @@ Purpose: high-level sequencing and communication.
 
 - Layout: Roadmap
 - Date field: `Target Date`
-- Group by: `Track`
+- Group by: `Type`
 
 ---
 
@@ -128,6 +131,7 @@ This keeps one source of truth while still allowing deep work threads.
 - All founder decisions must use `Decision needed` issue form.
 - If `Decision Needed=No`, agents continue autonomously.
 - Keep one active `Now` objective and enforce WIP limits from `docs/agent_company_roadmap.md`.
+- Prioritize quality descriptions over metadata: every ticket must clearly state why it matters, exact scope, and done criteria.
 
 ---
 

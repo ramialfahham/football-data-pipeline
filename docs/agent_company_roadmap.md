@@ -81,14 +81,15 @@ If reliability degrades, exploration drops to `0%` until recovery.
 
 ### Intake template (required fields)
 
-- Problem statement
-- User value
-- Competitions impacted (`league_code` list)
+- Why this is important
+- What exactly has to be done
+- Definition of done (acceptance checks)
+- Scope boundary ("what we will not do")
+
+Optional context only when relevant:
+- Competitions impacted (`league_code`)
 - Languages impacted
-- Data dependencies
-- Delivery risk
-- Cost impact (Cursor/API/infra)
-- "What we will not do" (scope boundary)
+- Budget note (Cursor/API/infra)
 
 ---
 
