@@ -447,6 +447,7 @@
     // Helpers below read from window.t() which prefers the JSON value and
     // falls back to these constants when the key is missing.
     const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. Bei der WM: bis einschließlich Gruppenspieltag 1 alle Qualifikationsspiele der Mannschaft, ab Gruppenspieltag 2 alle bisher abgeschlossenen WM-Spiele (kumuliert, kein Fünfer-Cap). „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
+    const FALLBACK_FOOT_DATA_GAP = "Wenn für eine Mannschaft in den konfigurierten WM-Qualifikationswettbewerben keine abgeschlossenen Spiele vorliegen, bleiben Formwerte für diese Mannschaft bei „-” (Datenlücke, kein Fallback).";
     const FALLBACK_FEEDBACK_THANKS = "Danke! Feedback wurde gesendet.";
     const FALLBACK_FEEDBACK_ERROR = "Feedback konnte nicht gesendet werden.";
     const FALLBACK_FEEDBACK_ERROR_PREFIX = "Feedback nicht gespeichert:";
@@ -547,6 +548,14 @@
         return t("matchPreview.formContextWcQualifiers", "Form: all qualifying matches");
       }
       return t("matchPreview.formContextWcTournament", "Form: all World Cup matches so far");
+    }
+
+    function hasQualifierDataGap(rows) {
+      return rows.some((row) => {
+        const homeGap = !!row.home_form_from_qualifiers && Number(row.home_form_games_played || 0) === 0;
+        const awayGap = !!row.away_form_from_qualifiers && Number(row.away_form_games_played || 0) === 0;
+        return homeGap || awayGap;
+      });
     }
 
     function setCompetitionContext(rows) {
@@ -752,7 +761,10 @@
     }
 
     function render(rows, defs, manifest, requestedFixtureId, leagueCode) {
-      document.getElementById("foot-note").textContent = t("matchPreview.foot", FALLBACK_FOOT);
+      const baseFoot = t("matchPreview.foot", FALLBACK_FOOT);
+      const gapFoot = t("matchPreview.footDataGap", FALLBACK_FOOT_DATA_GAP);
+      const footText = hasQualifierDataGap(rows) ? `${baseFoot} ${gapFoot}` : baseFoot;
+      document.getElementById("foot-note").textContent = footText;
 
       const sorted = [...rows].sort((a, b) => {
         const ta = new Date(a.kickoff_datetime).getTime();
