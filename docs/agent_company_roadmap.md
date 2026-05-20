@@ -69,7 +69,7 @@ Do not skip role order for product-facing changes:
 
 - `CPO (you)` creates strategic idea issues and true decision issues.
 - Agents may create execution follow-up issues when a large idea must be split into shippable slices.
-- Routing issue `[Dispatch Queue] Cursor batch kickoff` is system-managed by workflow; do not edit manually.
+- Dispatch workflow adds status comments directly on active issues; use those for run-level context.
 
 ### Weekly funnel rhythm
 

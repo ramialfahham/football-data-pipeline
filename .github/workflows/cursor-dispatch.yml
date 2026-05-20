@@ -34,8 +34,6 @@ jobs:
             const ensureLabels = [
               { name: "ready-for-agent", color: "0e8a16", description: "Ready for automated Cursor dispatch." },
               { name: "agent-running", color: "1d76db", description: "Queued or being handled by an agent run." },
-              { name: "dispatch-queue", color: "5319e7", description: "System issue used as Cursor dispatch queue." },
-              { name: "dispatch-status", color: "0052cc", description: "System issue used as live progress heartbeat." },
               { name: "decision-needed", color: "b60205", description: "Founder decision required before implementation." },
               { name: "blocked", color: "d93f0b", description: "Work blocked by dependency or unresolved decision." },
             ];
@@ -111,16 +109,6 @@ jobs:
               });
             }
 
-            const promptLines = picked.map(
-              (issue) =>
-                `- Implement issue #${issue.number}: ${issue.title}\n` +
-                `  - Branch: \`cursor/issue-${issue.number}-2ba4\`\n` +
-                `  - Scope: follow issue description exactly\n` +
-                `  - Testing: run relevant checks and report evidence\n` +
-                `  - Delivery: open/update PR and link it back to issue #${issue.number}\n` +
-                `  - Gate: if blocked by true decision gate, open/update \`decision-needed\` and stop`
-            );
-
             const runningIssues = issues.filter((issue) => hasLabel(issue, "agent-running") || pickedSet.has(issue.number));
             const readyBacklog = issues.filter(
               (issue) =>
@@ -131,104 +119,46 @@ jobs:
             );
             const decisionCount = issues.filter((issue) => hasLabel(issue, "decision-needed")).length;
             const blockedCount = issues.filter((issue) => hasLabel(issue, "blocked")).length;
-            const queueBody =
-              `# Cursor dispatch queue\n\n` +
-              `- Run timestamp: \`${now}\`\n` +
-              `- Workflow run: ${runUrl}\n` +
-              `- Max issues configured: \`${maxIssues}\`\n` +
-              `- Picked this run: \`${picked.length}\`\n\n` +
-              `## Live progress snapshot\n\n` +
-              `- Running now: \`${runningIssues.length}\`\n` +
-              `- Ready backlog: \`${readyBacklog.length}\`\n` +
-              `- Decision-needed: \`${decisionCount}\`\n` +
-              `- Blocked: \`${blockedCount}\`\n\n` +
-              `## Dispatch instructions\n\n` +
-              `Use one batch Cursor session for the following issues:\n\n` +
-              (promptLines.length ? promptLines.join("\n\n") : "- No ready issues matched dispatch criteria in this run.") +
-              `\n\n## Ready criteria used\n\n` +
-              `- Must have label \`ready-for-agent\`\n` +
-              `- Must not have \`decision-needed\`\n` +
-              `- Must not have \`agent-running\`\n` +
-              `- Must not have \`blocked\`\n`;
-
-            const queueTitle = "[Dispatch Queue] Cursor batch kickoff";
-            const statusTitle = "[Dispatch Status] Cursor automation heartbeat";
-            const queueIssue = allOpen.find((item) => !item.pull_request && item.title === queueTitle);
-
-            if (queueIssue) {
+            const legacySystemTitles = [
+              "[Dispatch Queue] Cursor batch kickoff",
+              "[Dispatch Status] Cursor automation heartbeat",
+            ];
+            const legacySystemIssues = issues.filter((issue) =>
+              legacySystemTitles.includes(issue.title)
+            );
+            for (const issue of legacySystemIssues) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body:
+                  "Closing this legacy system issue. Dispatch status is now reported in " +
+                  "workflow run summaries and on each dispatched ticket directly.",
+              });
               await github.rest.issues.update({
                 owner,
                 repo,
-                issue_number: queueIssue.number,
-                title: queueTitle,
-                body: queueBody,
-              });
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: queueIssue.number,
-                labels: ["dispatch-queue"],
-              });
-            } else {
-              await github.rest.issues.create({
-                owner,
-                repo,
-                title: queueTitle,
-                body: queueBody,
-                labels: ["dispatch-queue"],
+                issue_number: issue.number,
+                state: "closed",
+                state_reason: "not_planned",
               });
             }
 
             const runningLines = runningIssues
               .sort((a, b) => priorityScore(a) - priorityScore(b))
               .map((issue) => `- #${issue.number} ${issue.title} (${issue.html_url})`);
-
-            const progressBody =
-              `# Cursor automation heartbeat\n\n` +
-              `- Updated: \`${now}\`\n` +
-              `- Workflow run: ${runUrl}\n\n` +
-              `## Counts\n\n` +
-              `- Running now: \`${runningIssues.length}\`\n` +
-              `- Ready backlog: \`${readyBacklog.length}\`\n` +
-              `- Decision-needed: \`${decisionCount}\`\n` +
-              `- Blocked: \`${blockedCount}\`\n` +
-              `- Picked this run: \`${picked.length}\`\n\n` +
-              `## Running tickets\n\n` +
-              (runningLines.length ? runningLines.join("\n") : "- No tickets currently marked as running.") +
-              `\n\n## What this means\n\n` +
-              `- Tickets marked \`agent-running\` were picked by dispatch and are in the active queue.\n` +
-              `- Tickets stay out of dispatch when marked \`decision-needed\` or \`blocked\`.\n`;
-
-            const statusIssue = allOpen.find((item) => !item.pull_request && item.title === statusTitle);
-            if (statusIssue) {
-              await github.rest.issues.update({
-                owner,
-                repo,
-                issue_number: statusIssue.number,
-                title: statusTitle,
-                body: progressBody,
-              });
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: statusIssue.number,
-                labels: ["dispatch-status"],
-              });
-            } else {
-              await github.rest.issues.create({
-                owner,
-                repo,
-                title: statusTitle,
-                body: progressBody,
-                labels: ["dispatch-status"],
-              });
-            }
             core.summary
               .addHeading("Cursor dispatch result")
               .addRaw(`Picked issues: ${picked.length}\n\n`)
+              .addRaw(`Running now: ${runningIssues.length}\n`)
+              .addRaw(`Ready backlog: ${readyBacklog.length}\n`)
+              .addRaw(`Decision-needed: ${decisionCount}\n`)
+              .addRaw(`Blocked: ${blockedCount}\n\n`)
               .addRaw(
                 picked.length
                   ? picked.map((i) => `- #${i.number} ${i.title}`).join("\n")
                   : "- No issues met ready criteria."
               )
+              .addRaw("\n\nRunning tickets:\n")
+              .addRaw(runningLines.length ? runningLines.join("\n") : "- None")
               .write();
