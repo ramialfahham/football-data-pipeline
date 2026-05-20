@@ -18,6 +18,7 @@ The workflow `.github/workflows/cursor-dispatch.yml` runs hourly (and on manual 
    - not labeled `blocked`
 3. Marks selected issues with `agent-running`.
 4. Updates one open issue titled `[Dispatch Queue] Cursor batch kickoff` with the current batch.
+5. Updates one open issue titled `[Dispatch Status] Cursor automation heartbeat` with live counts.
 
 ---
 
@@ -35,10 +36,11 @@ Rule: keep strategic intent in parent issues, allow agents to create execution c
 
 ## Minimal daily routine
 
-1. Open the Project board (`HQ Today`) and `[Dispatch Queue] Cursor batch kickoff`.
+1. Open the Project board (`HQ Today`) and `[Dispatch Status] Cursor automation heartbeat`.
 2. Confirm `Decision Needed` items are handled first.
-3. Launch one batch Cursor run against the queue issue.
-4. Review PRs from that batch only.
+3. Check `[Dispatch Queue] Cursor batch kickoff` for the exact active batch list.
+4. Launch one batch Cursor run against the queue issue.
+5. Review PRs from that batch only.
 
 This keeps execution continuous while your focus stays on roadmap and decisions.
 
@@ -51,6 +53,18 @@ This keeps execution continuous while your focus stays on roadmap and decisions.
 - `decision-needed`: founder decision required before implementation.
 - `blocked`: cannot proceed due dependency or unresolved question.
 - `dispatch-queue`: system-managed queue issue label.
+- `dispatch-status`: system-managed progress heartbeat issue label.
+
+---
+
+## How to know if progress is happening
+
+Use `[Dispatch Status] Cursor automation heartbeat`:
+
+- `Running now` > 0 means issues are actively in queue (`agent-running`).
+- `Picked this run` > 0 means the latest dispatch moved new tickets forward.
+- `Ready backlog` shows how many ready tickets are still waiting.
+- `Decision-needed` and `Blocked` show why some tickets are not moving.
 
 ---
 
