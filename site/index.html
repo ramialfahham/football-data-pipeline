@@ -340,8 +340,9 @@
    * derived from row counts on the manifest — no separate phase field needed.
    *
    * Order:
-   *   1. WC (always first when present — strategic content for the next ~24 days)
-   *   2. Domestic leagues in "live first → recap → no-data" order, then alpha
+   *   1. Competitions with upcoming fixtures, nearest kickoff first
+   *   2. Competitions without fixture dates but not ended yet (coming soon)
+   *   3. Competitions with ended seasons (recaps) last
    *
    * Each card is i18n-aware: competition names come from competitions.<CODE>,
    * state strings come from landing.state.*, CTAs from landing.cta.*.
@@ -384,6 +385,13 @@
       if (m > 0) return "matchday";
       if (t > 0) return "season_recap";
       return "no_data";
+    }
+
+    function nextKickoffEpoch(entry) {
+      const raw = String(entry.next_fixture_kickoff_utc || "");
+      if (!raw) return null;
+      const epoch = Date.parse(raw);
+      return Number.isNaN(epoch) ? null : epoch;
     }
 
     function competitionLabel(code, sourceMart) {
@@ -467,27 +475,47 @@
         </${tag}>`;
     }
 
-    function sortedDomestic(entries) {
-      // Live first (matchday), then recap, then no-data; alpha within each.
-      const rank = { matchday: 0, season_recap: 1, no_data: 2 };
-      return [...entries].sort((a, b) => {
-        const ra = rank[phaseFor(a)] ?? 9;
-        const rb = rank[phaseFor(b)] ?? 9;
-        if (ra !== rb) return ra - rb;
-        return String(a.league_code).localeCompare(String(b.league_code));
+    function sortedCompetitions(manifest) {
+      const mu = globalThis.MATCHDAYIQ_MANIFEST;
+      const domestic = Array.isArray(manifest && manifest.domestic_leagues)
+        ? manifest.domestic_leagues.map((entry) => ({ kind: "domestic", entry }))
+        : [];
+      const wcEntry = mu && typeof mu.manifestWcEntry === "function"
+        ? mu.manifestWcEntry(manifest)
+        : null;
+      const wc = wcEntry ? [{ kind: "wc", entry: wcEntry }] : [];
+      const all = domestic.concat(wc);
+
+      function sortBucket(item) {
+        const phase = phaseFor(item.entry);
+        if (phase === "season_recap") return 2;
+        const kickoff = nextKickoffEpoch(item.entry);
+        return kickoff == null ? 1 : 0;
+      }
+
+      return all.sort((a, b) => {
+        const ba = sortBucket(a);
+        const bb = sortBucket(b);
+        if (ba !== bb) return ba - bb;
+
+        if (ba === 0) {
+          const ka = nextKickoffEpoch(a.entry) ?? Number.MAX_SAFE_INTEGER;
+          const kb = nextKickoffEpoch(b.entry) ?? Number.MAX_SAFE_INTEGER;
+          if (ka !== kb) return ka - kb;
+        }
+
+        const ca = String(a.entry.league_code || "");
+        const cb = String(b.entry.league_code || "");
+        return ca.localeCompare(cb);
       });
     }
 
     function render(manifest) {
       const root = document.getElementById("cards");
-      const domestic = Array.isArray(manifest && manifest.domestic_leagues)
-        ? sortedDomestic(manifest.domestic_leagues)
-        : [];
-      const mu = globalThis.MATCHDAYIQ_MANIFEST;
-      const includeWc = !!(mu && typeof mu.manifestWcEntry === "function" && mu.manifestWcEntry(manifest));
-      const parts = [];
-      if (includeWc) parts.push(renderWcCard(manifest));
-      parts.push(...domestic.map(renderDomesticCard));
+      const sorted = sortedCompetitions(manifest);
+      const parts = sorted.map((item) =>
+        item.kind === "wc" ? renderWcCard(manifest) : renderDomesticCard(item.entry)
+      );
       if (!parts.length) {
         root.classList.remove("is-loading");
         root.innerHTML = `<div class="empty-state">${escHtml(tt("landing.state.comingSoon", "Coming soon"))}</div>`;
@@ -509,9 +537,18 @@
           // Fall back to a static BL1 recap card so the page is never empty.
           render({
             domestic_leagues: [
-              { league_code: "BL1", matchday_row_count: 0, team_season_row_count: 1 },
+              {
+                league_code: "BL1",
+                matchday_row_count: 0,
+                team_season_row_count: 1,
+                next_fixture_kickoff_utc: null,
+              },
             ],
-            wc: { league_code: "WC", matchday_row_count: 0 },
+            wc: {
+              league_code: "WC",
+              matchday_row_count: 0,
+              next_fixture_kickoff_utc: null,
+            },
           });
           return;
         }
