@@ -25,6 +25,7 @@ This repository is operating in chat-driven mode until proven:
 
 - `.github/workflows/pr-autopilot.yml`
 - `.github/workflows/pages-match-preview.yml`
+- `.github/workflows/slack-executor-bridge.yml` (Slack intake bridge)
 - `AGENTS.md` and role docs as assistant context
 
 ## What is paused
