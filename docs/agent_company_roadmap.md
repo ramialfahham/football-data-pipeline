@@ -15,7 +15,6 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 ### Product and data outputs
 
 - Live app landing: `https://ramialfahham.github.io/football-data-pipeline/`
-- Direct match preview subpage (not the landing page): `https://ramialfahham.github.io/football-data-pipeline/match-preview/`
 
 ### Control plane
 
