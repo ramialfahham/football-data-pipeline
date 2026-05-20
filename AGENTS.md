@@ -42,6 +42,7 @@ These fail without Application Default Credentials or a service account:
 
 ### Gotchas
 
+- **`GOOGLE_APPLICATION_CREDENTIALS` must be a file path to a service account JSON**, not the JSON content itself or an API key. The `google.auth.default()` library reads this env var as a file path. If you have JSON content, write it to a file first and set the env var to that file path. Example: `echo "$GCP_SA_KEY_JSON" > /tmp/sa.json && export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json`.
 - **SQLFluff requires BigQuery auth.** The `.sqlfluff` config uses `templater = dbt`, which invokes `dbt compile` internally. Without GCP credentials, linting fails. There is no local-only fallback configured.
 - **dbt profiles.yml is not committed.** The update script copies `profiles.example.yml` to `~/.dbt/profiles.yml` only if one doesn't already exist. The profile uses `method: oauth` (GCP ADC).
 - **Run SQLFluff from `dbt_project/`**, not the repo root, so the dbt templater picks up `.sqlfluff`.
