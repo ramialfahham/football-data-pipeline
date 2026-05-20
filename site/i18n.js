@@ -21,11 +21,11 @@
  * code to SUPPORTED below.
  */
 (function () {
-  const SUPPORTED = ["de", "en"];
+  const SUPPORTED = ["de", "en", "fi"];
   const FALLBACK = "de";
   // Maps internal lang code → BCP-47 locale for Intl.NumberFormat / DateTimeFormat.
   // Add an entry here when adding a new language to SUPPORTED.
-  const LOCALES = { de: "de-DE", en: "en-GB" };
+  const LOCALES = { de: "de-DE", en: "en-GB", fi: "fi-FI" };
 
   // Resolve the i18n/ directory relative to this script's own URL so
   // each page (regardless of depth) loads the right JSON.

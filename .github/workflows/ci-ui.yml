@@ -41,6 +41,7 @@ jobs:
         run: |
           python -m json.tool site/i18n/en.json > /dev/null
           python -m json.tool site/i18n/de.json > /dev/null
+          python -m json.tool site/i18n/fi.json > /dev/null
           python -m json.tool site/match-preview/metric_manifest.json > /dev/null
           python -m json.tool site/match-preview/metric_definitions.json > /dev/null
 

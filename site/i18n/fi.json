@@ -1,0 +1,222 @@
+{
+  "common": {
+    "brand": "Matchday IQ",
+    "feedback": "Anna palautetta",
+    "unavailable": "ei saatavilla"
+  },
+  "metric": {
+    "tabellenplatz": "Sarjasijoitus",
+    "punkteausbeute": "Pisteosuus",
+    "tore": "Ø Maalit",
+    "gegentore": "Ø Päästetyt maalit",
+    "schuesse": "Ø Laukaukset",
+    "schuesseAufsTor": "Laukaukset maalia kohti (%)",
+    "schuesseAusStrafraum": "Laukaukset boksista (%)",
+    "trefferquote": "Maalit / laukaus maalia kohti",
+    "paesse": "Ø Syötöt",
+    "angekommenePaesse": "Syöttötarkkuus (%)",
+    "ecken": "Ø Kulmapotkut",
+    "eckenGegen": "Ø Päästetyt kulmapotkut",
+    "gehalteneTorschuesse": "Torjuntaprosentti (%)"
+  },
+  "metrics": {
+    "league_rank": {
+      "label": "Sarjasijoitus",
+      "description": "Sijoitus sarjataulukossa ennen tätä ottelukierrosta (kun saatavilla)."
+    },
+    "points_won_form": {
+      "label": "Pisteosuus (kuntojakso)",
+      "description": "Saavutettujen sarjapisteiden osuus mahdollisista maksimipisteistä kuntojakson aikana (3 × ottelut)."
+    },
+    "goals_per_match_recent": {
+      "label": "Maalit / ottelu",
+      "description": "Tehdyt maalit keskimäärin per ottelu kuntojakson aikana."
+    },
+    "goals_against_per_match_recent": {
+      "label": "Päästetyt maalit / ottelu",
+      "description": "Päästetyt maalit keskimäärin per ottelu kuntojakson aikana."
+    },
+    "shots_per_match_recent": {
+      "label": "Laukauksia yhteensä / ottelu",
+      "description": "Kaikki laukaukset keskimäärin per ottelu kuntojakson aikana."
+    },
+    "shot_accuracy_recent": {
+      "label": "Laukaukset maalia kohti (%)",
+      "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
+    },
+    "danger_zone_ratio_recent": {
+      "label": "Laukaukset boksista (%)",
+      "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
+    },
+    "finishing_efficiency_recent": {
+      "label": "Maalit / laukaus maalia kohti",
+      "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin kuntojakson aikana."
+    },
+    "passes_per_match_recent": {
+      "label": "Syötöt / ottelu",
+      "description": "Syöttöyritykset keskimäärin per ottelu kuntojakson aikana."
+    },
+    "pass_accuracy_recent": {
+      "label": "Syöttötarkkuus (%)",
+      "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä kuntojakson aikana."
+    },
+    "corner_kicks_per_match_recent": {
+      "label": "Kulmapotkut / ottelu",
+      "description": "Voitetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
+    },
+    "corners_conceded_per_match_recent": {
+      "label": "Päästetyt kulmapotkut / ottelu",
+      "description": "Vastustajalle annetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
+    },
+    "save_ratio_recent": {
+      "label": "Torjuntaprosentti (%)",
+      "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
+    },
+    "qualifier_games_played": {
+      "label": "Pelatut karsintaottelut",
+      "description": "Pelattujen karsintaottelujen määrä ennen MM-turnausta."
+    },
+    "points_capture_pretournament": {
+      "label": "Pisteosuus (karsinnoissa)",
+      "description": "Saavutettujen pisteiden osuus maksimipisteistä MM-karsinnoissa."
+    },
+    "goals_per_match_pretournament": {
+      "label": "Maalit / ottelu (karsinnoissa)",
+      "description": "Tehdyt maalit keskimäärin per karsintaottelu."
+    },
+    "goals_against_per_match_pretournament": {
+      "label": "Päästetyt maalit / ottelu (karsinnoissa)",
+      "description": "Päästetyt maalit keskimäärin per karsintaottelu."
+    },
+    "shots_per_match_pretournament": {
+      "label": "Laukaukset / ottelu (karsinnoissa)",
+      "description": "Kaikki laukaukset keskimäärin per karsintaottelu."
+    },
+    "shot_share_pretournament": {
+      "label": "Laukausosuus (karsinnoissa)",
+      "description": "Joukkueen laukauksien osuus molempien joukkueiden kaikista laukauksista karsinnoissa."
+    },
+    "danger_zone_ratio_pretournament": {
+      "label": "Laukaukset boksista (%) (karsinnoissa)",
+      "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista karsinnoissa."
+    },
+    "shot_accuracy_pretournament": {
+      "label": "Laukaukset maalia kohti (%) (karsinnoissa)",
+      "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista karsinnoissa."
+    },
+    "finishing_efficiency_pretournament": {
+      "label": "Maalit / laukaus maalia kohti (karsinnoissa)",
+      "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin karsinnoissa."
+    },
+    "pass_accuracy_pretournament": {
+      "label": "Syöttötarkkuus (%) (karsinnoissa)",
+      "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä karsinnoissa."
+    },
+    "passes_per_match_pretournament": {
+      "label": "Syötöt / ottelu (karsinnoissa)",
+      "description": "Syöttöyritykset keskimäärin per karsintaottelu."
+    },
+    "corner_kicks_per_match_pretournament": {
+      "label": "Kulmapotkut / ottelu (karsinnoissa)",
+      "description": "Voitetut kulmapotkut keskimäärin per karsintaottelu."
+    },
+    "corners_conceded_per_match_pretournament": {
+      "label": "Päästetyt kulmapotkut / ottelu (karsinnoissa)",
+      "description": "Vastustajalle annetut kulmapotkut keskimäärin per karsintaottelu."
+    },
+    "save_ratio_pretournament": {
+      "label": "Torjuntaprosentti (%) (karsinnoissa)",
+      "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin karsinnoissa."
+    }
+  },
+  "competitions": {
+    "BL1": "Bundesliiga",
+    "BL2": "2. Bundesliiga",
+    "PL": "Valioliiga",
+    "PD": "LaLiga",
+    "SA": "Serie A",
+    "L1": "Ligue 1",
+    "VL": "Veikkausliiga",
+    "WC": "MM 2026"
+  },
+  "landing": {
+    "tagline": "Jalkapalloanalytiikkaa faneille",
+    "sectionLabel": "Kilpailut",
+    "state": {
+      "matchdayUpcoming": "Seuraava ottelukierros",
+      "seasonEnded": "Kausi päättynyt",
+      "comingSoon": "Tulossa pian"
+    },
+    "context": {
+      "relegationSuffix": "Karsinta"
+    },
+    "cta": {
+      "matchday": "Avaa ottelukierroksen ennakko",
+      "recap": "Avaa kausikooste",
+      "unavailable": "Tulossa pian"
+    },
+    "wcCountdown": "Avausottelu {{days}} päivän päästä",
+    "wcKickoffToday": "Avausottelu tänään",
+    "wcKickoffPast": "Turnaus käynnissä"
+  },
+  "fixtureList": {
+    "back": "Kilpailut",
+    "context": {
+      "relegationSuffix": "Karsinta",
+      "roundOffSeason": "Kausitauko",
+      "roundDateRange": "{{startDate}} – {{endDate}}",
+      "roundSingleDate": "{{date}}",
+      "fixtureCountSingular": "{{count}} ottelu",
+      "fixtureCountPlural": "{{count}} ottelua"
+    },
+    "empty": {
+      "headline": "Ei tulevia otteluita",
+      "subOffSeason": "Kausi on päättynyt. Uudet ennakot ilmestyvät seuraavan kauden alkaessa.",
+      "cta": "Avaa kausikooste"
+    }
+  },
+  "teamSeason": {
+    "back": "Bundesliiga",
+    "tag": "Kausikooste",
+    "subtitle": "{{competition}} · kausi {{seasonStart}}/{{seasonEnd}} · valmis",
+    "empty": {
+      "headline": "Kausikoostetta ei ole vielä saatavilla.",
+      "subPending": "Data julkaistaan kauden päätyttyä.",
+      "errorPrefix": "Datan lataaminen epäonnistui:"
+    },
+    "missingTeamName": "Tuntematon joukkue",
+    "foot": "“Ø” tarkoittaa ottelukohtaista keskiarvoa koko kauden ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia."
+  },
+  "matchPreview": {
+    "back": "Ottelukierros",
+    "tag": "Otteluennakko",
+    "formContext": "Kunto: viimeiset 5 ottelua",
+    "formContextDomestic": "Kunto: viimeiset 5 ottelua",
+    "formContextWcQualifiers": "Kunto: kaikki karsintaottelut",
+    "formContextWcTournament": "Kunto: kaikki tähän mennessä pelatut MM-ottelut",
+    "errorPrefix": "Datan lataaminen epäonnistui:",
+    "foot": "Kuntojakso: enintään viisi tämän kauden viimeisintä pelattua ottelua. Ennen kauden alkua koko edellinen kausi. MM-kisoissa: lohkovaiheen 1. kierrokseen asti kaikki joukkueen karsintaottelut, lohkovaiheen 2. kierroksesta eteenpäin kaikki siihen mennessä pelatut MM-ottelut (kumulatiivisesti, ilman viiden ottelun rajaa). “Ø” tarkoittaa ottelukohtaista keskiarvoa jakson ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa kaikkien otteluiden yli jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia.",
+    "footWc": "MM-kisojen kuntojakso: lohkovaiheen 1. kierrokseen asti kaikki joukkueen karsintaottelut, lohkovaiheen 2. kierroksesta eteenpäin kaikki siihen mennessä pelatut MM-ottelut (kumulatiivisesti). “Ø” tarkoittaa ottelukohtaista keskiarvoa jakson ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa kaikkien otteluiden yli jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia.",
+    "footDataGap": "Jos joukkueella ei ole pelattuja otteluita määritellyissä MM-karsintakilpailuissa, joukkueen kuntoluvut jäävät arvoon “-” (datakatkos, ei fallbackia).",
+    "feedback": {
+      "modalTitle": "Nopea palaute",
+      "q1": "Kuinka helppokäyttöinen näkymä oli? (1–5)",
+      "q2": "Kuinka selkeitä metriikat olivat? (1–5)",
+      "q3": "Mitä meidän pitäisi parantaa ensin?",
+      "cancel": "Peruuta",
+      "submit": "Lähetä",
+      "thanks": "Kiitos! Palaute vastaanotettu.",
+      "error": "Palautteen lähetys epäonnistui.",
+      "errorDetailPrefix": "Palautetta ei tallennettu:",
+      "notConfigured": "Palautepäätepistettä ei ole määritetty tälle sivulle. Aseta web app -URL (…/exec) tiedostoon site/match-preview/index.html TAI aseta GitHub Actions -salaisuus FEEDBACK_APPS_SCRIPT_URL ja aja “Deploy match preview” uudelleen."
+    },
+    "ariaPrev": "Edellinen ottelu",
+    "ariaNext": "Seuraava ottelu",
+    "ariaCarousel": "Ottelut"
+  },
+  "teamSeasonAria": {
+    "prev": "Edellinen joukkue",
+    "next": "Seuraava joukkue",
+    "carousel": "Joukkueet sarjasijoituksen järjestyksessä"
+  }
+}
