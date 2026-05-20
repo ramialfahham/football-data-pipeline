@@ -137,6 +137,7 @@ For low-touch execution routing, use `docs/cursor_dispatch_workflow.md`.
 - Prioritize quality descriptions over metadata: every ticket must clearly state why it matters, exact scope, and done criteria.
 - Use label `ready-for-agent` only when the ticket description is implementation-ready.
 - Let `cursor-dispatch` manage `agent-running` and the `[Dispatch Queue] Cursor batch kickoff` issue.
+- Use `[Dispatch Status] Cursor automation heartbeat` as your single progress indicator.
 
 ---
 
