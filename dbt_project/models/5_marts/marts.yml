@@ -786,7 +786,11 @@ models:
         tests: [not_null]
 
   - name: mart_matchday_insights_wc
-    description: "FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column contract as mart_matchday_insights; league_code is WC only. Form uses qualifier supporting leagues until each team's first finished WC leg in the season (see int_matchday__team_form_metrics)."
+    description: >
+      FIFA World Cup (WC) upcoming matchday surface for pre-match comparison. Same grain and column
+      contract as mart_matchday_insights; league_code is WC only. Pre-tournament form comes from
+      mart_wc_pre_tournament_insights; after the team's first finished WC leg, form uses
+      int_matchday__team_form_metrics (last five WC legs). Exports to data/wc/matchday_insights.json.
     meta:
       owner: "data-platform"
       domain: "football"
