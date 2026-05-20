@@ -32,6 +32,7 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 - Open PRs: `https://github.com/ramialfahham/football-data-pipeline/pulls`
 - Open issues: `https://github.com/ramialfahham/football-data-pipeline/issues`
 - Decision-needed issues (create label): `https://github.com/ramialfahham/football-data-pipeline/issues?q=is%3Aissue%20is%3Aopen%20label%3Adecision-needed`
+- Single-URL board setup guide: `docs/github_project_hq_setup.md`
 
 ---
 
@@ -80,14 +81,15 @@ If reliability degrades, exploration drops to `0%` until recovery.
 
 ### Intake template (required fields)
 
-- Problem statement
-- User value
-- Competitions impacted (`league_code` list)
+- Why this is important
+- What exactly has to be done
+- Definition of done (acceptance checks)
+- Scope boundary ("what we will not do")
+
+Optional context only when relevant:
+- Competitions impacted (`league_code`)
 - Languages impacted
-- Data dependencies
-- Delivery risk
-- Cost impact (Cursor/API/infra)
-- "What we will not do" (scope boundary)
+- Budget note (Cursor/API/infra)
 
 ---
 

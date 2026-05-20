@@ -1,0 +1,73 @@
+name: Decision needed
+description: Raise a founder decision gate item.
+title: "[Decision Needed] "
+labels:
+  - decision-needed
+body:
+  - type: dropdown
+    id: gate_type
+    attributes:
+      label: Decision gate type
+      options:
+        - Scope/cost change
+        - Data gate failure
+        - UX gate failure
+        - Legal/commercial risk
+        - Stage transition
+        - Prediction/ML decision
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What happened and why a decision is needed now.
+      placeholder: Explain the situation and impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options (with trade-offs)
+      description: Present clear alternatives and consequences.
+      placeholder: Option A / Option B / Option C
+    validations:
+      required: true
+
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation
+      description: What should be chosen and why.
+      placeholder: Recommended option...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      options:
+        - blocking now
+        - this week
+        - this iteration
+    validations:
+      required: true
+
+  - type: input
+    id: deadline
+    attributes:
+      label: Decision deadline (optional)
+      description: Date/time if there is a hard external dependency.
+      placeholder: YYYY-MM-DD HH:MM TZ
+
+  - type: textarea
+    id: impacts
+    attributes:
+      label: Cost and timeline impact
+      description: Include Cursor/API/infra impact and implementation implications.
+      placeholder: Cost and technical impact summary.
+    validations:
+      required: true

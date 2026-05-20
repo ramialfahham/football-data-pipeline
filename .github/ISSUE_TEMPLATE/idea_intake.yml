@@ -1,0 +1,62 @@
+name: Idea intake
+description: Submit a new product or platform idea into the funnel.
+title: "[Idea] "
+labels:
+  - idea
+body:
+  - type: textarea
+    id: why_important
+    attributes:
+      label: Why is this important?
+      description: Explain the fan/business impact and why this should exist.
+      placeholder: Why this matters now.
+    validations:
+      required: true
+
+  - type: textarea
+    id: exact_work
+    attributes:
+      label: What exactly should be done?
+      description: Be specific about scope, behavior, and expected output.
+      placeholder: Concrete implementation request.
+    validations:
+      required: true
+
+  - type: textarea
+    id: done_criteria
+    attributes:
+      label: Definition of done
+      description: How do we know this is complete and correct?
+      placeholder: Acceptance checks and expected evidence.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Scope boundary (what we will not do)
+      description: Keep this explicit to avoid scope creep.
+      placeholder: Out of scope items.
+    validations:
+      required: true
+
+  - type: input
+    id: competitions
+    attributes:
+      label: Competitions impacted (optional)
+      description: Comma-separated `league_code` list.
+      placeholder: BL1, WC, PL
+
+  - type: input
+    id: languages
+    attributes:
+      label: Languages impacted (optional)
+      description: Comma-separated locale list.
+      placeholder: en, de, fi
+
+  - type: input
+    id: budget_note
+    attributes:
+      label: Budget note (optional)
+      description: Any known Cursor/API/infra impact.
+      placeholder: Expected budget impact.
