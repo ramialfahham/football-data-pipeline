@@ -1,0 +1,163 @@
+name: cursor-dispatch
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: "Maximum issues to dispatch in one run (1-10)"
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build dispatch queue for Cursor
+        uses: actions/github-script@v7
+        env:
+          MAX_ISSUES: ${{ github.event.inputs.max_issues || '3' }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const maxIssues = Math.max(1, Math.min(10, Number(process.env.MAX_ISSUES || 3)));
+            const now = new Date().toISOString();
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${owner}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            const ensureLabels = [
+              { name: "ready-for-agent", color: "0e8a16", description: "Ready for automated Cursor dispatch." },
+              { name: "agent-running", color: "1d76db", description: "Queued or being handled by an agent run." },
+              { name: "dispatch-queue", color: "5319e7", description: "System issue used as Cursor dispatch queue." },
+              { name: "decision-needed", color: "b60205", description: "Founder decision required before implementation." },
+              { name: "blocked", color: "d93f0b", description: "Work blocked by dependency or unresolved decision." },
+            ];
+
+            for (const label of ensureLabels) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label.name });
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: label.name,
+                    color: label.color,
+                    description: label.description,
+                  });
+                } else {
+                  throw error;
+                }
+              }
+            }
+
+            const allOpen = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+
+            const issues = allOpen.filter((item) => !item.pull_request);
+
+            const hasLabel = (issue, label) =>
+              (issue.labels || []).some((l) => (typeof l === "string" ? l : l.name) === label);
+
+            const priorityScore = (issue) => {
+              if (hasLabel(issue, "p0")) return 0;
+              if (hasLabel(issue, "p1")) return 1;
+              if (hasLabel(issue, "p2")) return 2;
+              if (hasLabel(issue, "p3")) return 3;
+              return 9;
+            };
+
+            const readyIssues = issues
+              .filter((issue) => hasLabel(issue, "ready-for-agent"))
+              .filter((issue) => !hasLabel(issue, "decision-needed"))
+              .filter((issue) => !hasLabel(issue, "agent-running"))
+              .filter((issue) => !hasLabel(issue, "blocked"))
+              .sort((a, b) => {
+                const pa = priorityScore(a);
+                const pb = priorityScore(b);
+                if (pa !== pb) return pa - pb;
+                return new Date(a.created_at) - new Date(b.created_at);
+              });
+
+            const picked = readyIssues.slice(0, maxIssues);
+
+            for (const issue of picked) {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issue.number,
+                labels: ["agent-running"],
+              });
+            }
+
+            const promptLines = picked.map(
+              (issue) =>
+                `- Implement issue #${issue.number}: ${issue.title}\n` +
+                `  - Branch: \`cursor/issue-${issue.number}-2ba4\`\n` +
+                `  - Scope: follow issue description exactly\n` +
+                `  - Testing: run relevant checks and report evidence\n` +
+                `  - Delivery: open/update PR and link it back to issue #${issue.number}\n` +
+                `  - Gate: if blocked by true decision gate, open/update \`decision-needed\` and stop`
+            );
+
+            const queueBody =
+              `# Cursor dispatch queue\n\n` +
+              `- Run timestamp: \`${now}\`\n` +
+              `- Workflow run: ${runUrl}\n` +
+              `- Max issues configured: \`${maxIssues}\`\n` +
+              `- Picked this run: \`${picked.length}\`\n\n` +
+              `## Dispatch instructions\n\n` +
+              `Use one batch Cursor session for the following issues:\n\n` +
+              (promptLines.length ? promptLines.join("\n\n") : "- No ready issues matched dispatch criteria in this run.") +
+              `\n\n## Ready criteria used\n\n` +
+              `- Must have label \`ready-for-agent\`\n` +
+              `- Must not have \`decision-needed\`\n` +
+              `- Must not have \`agent-running\`\n` +
+              `- Must not have \`blocked\`\n`;
+
+            const queueIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              labels: "dispatch-queue",
+              per_page: 100,
+            });
+            const queueIssue = queueIssues.find((item) => !item.pull_request);
+
+            if (queueIssue) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: queueIssue.number,
+                title: "[Dispatch Queue] Cursor batch kickoff",
+                body: queueBody,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: "[Dispatch Queue] Cursor batch kickoff",
+                body: queueBody,
+                labels: ["dispatch-queue"],
+              });
+            }
+
+            core.summary
+              .addHeading("Cursor dispatch result")
+              .addRaw(`Picked issues: ${picked.length}\n\n`)
+              .addRaw(
+                picked.length
+                  ? picked.map((i) => `- #${i.number} ${i.title}`).join("\n")
+                  : "- No issues met ready criteria."
+              )
+              .write();

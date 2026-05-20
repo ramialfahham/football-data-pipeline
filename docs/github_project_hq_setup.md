@@ -35,6 +35,7 @@ After creating your Project, that project URL is your one main UI.
    - Auto-add to project (issues + PRs from this repository)
    - Item added to project -> set `Status=Todo`
 8. Save views and pin `HQ Today` as the default view.
+9. Enable the repository workflow `cursor-dispatch` (already committed) for low-touch batching.
 
 ---
 
@@ -124,6 +125,7 @@ Purpose: high-level sequencing and communication.
 
 This keeps one source of truth while still allowing deep work threads.
 
+For low-touch execution routing, use `docs/cursor_dispatch_workflow.md`.
 ---
 
 ## Operating policy
@@ -133,6 +135,8 @@ This keeps one source of truth while still allowing deep work threads.
 - If `Decision Needed=No`, agents continue autonomously.
 - Keep one active `Now` objective and enforce WIP limits from `docs/agent_company_roadmap.md`.
 - Prioritize quality descriptions over metadata: every ticket must clearly state why it matters, exact scope, and done criteria.
+- Use label `ready-for-agent` only when the ticket description is implementation-ready.
+- Let `cursor-dispatch` manage `agent-running` and the `[Dispatch Queue] Cursor batch kickoff` issue.
 
 ---
 
