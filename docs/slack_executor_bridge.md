@@ -1,5 +1,8 @@
 # Slack-to-Executor Bridge
 
+> PAUSED 2026-05-20 — Slack intake is disabled; chat-driven briefs are the active path.
+> Archived workflow location: `.github/workflows/_paused/slack-executor-bridge.yml`.
+
 ## Purpose
 
 Accept a brief from Slack and route it into the same execution path used for chat briefs:
@@ -10,7 +13,7 @@ This bridge does not create tickets, labels, or board updates.
 
 ## Active workflow
 
-- `.github/workflows/slack-executor-bridge.yml`
+- None (workflow paused)
 
 Triggers:
 - `repository_dispatch` with `event_type=slack_executor_brief`
@@ -92,7 +95,7 @@ Do only this on Slack side when you are ready:
        }
      }
 5. Store the GitHub dispatch token in Slack secret storage (do not hardcode it in plain text).
-6. Post a test brief; confirm workflow `slack-executor-bridge` appears in GitHub Actions.
+6. When unpaused, post a test brief and confirm workflow `slack-executor-bridge` appears in GitHub Actions.
 
 ## Repo-side secrets for forwarding to executor
 
