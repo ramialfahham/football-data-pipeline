@@ -139,8 +139,8 @@ For board column sync automation, use `docs/project_status_sync.md`.
 - Keep one active `Now` objective and enforce WIP limits from `docs/agent_company_roadmap.md`.
 - Prioritize quality descriptions over metadata: every ticket must clearly state why it matters, exact scope, and done criteria.
 - Use label `ready-for-agent` only when the ticket description is implementation-ready.
-- Let `cursor-dispatch` manage `agent-running` and the `[Dispatch Queue] Cursor batch kickoff` issue.
-- Use `[Dispatch Status] Cursor automation heartbeat` as your single progress indicator.
+- Let `cursor-dispatch` manage `agent-running` and dispatch comments on active tickets.
+- Use latest `cursor-dispatch` run summary + board columns as progress indicators.
 - Use `cpo-approved` on PRs you approve for auto-merge (autopilot handles the rest).
 - Let `project-status-sync` move board status columns automatically.
 
