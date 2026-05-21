@@ -509,6 +509,78 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_fixtures_next
+        identifier: RAW_APIF_LMX_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_leagues
+        identifier: RAW_APIF_LMX_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_standings
+        identifier: RAW_APIF_LMX_STANDINGS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_rounds
+        identifier: RAW_APIF_LMX_ROUNDS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_teams
+        identifier: RAW_APIF_LMX_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_transfers
+        identifier: RAW_APIF_LMX_TRANSFERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_lineups
+        identifier: RAW_APIF_LMX_LINEUPS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_fixture_events
+        identifier: RAW_APIF_LMX_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_fixture_statistics
+        identifier: RAW_APIF_LMX_FIXTURE_STATISTICS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_fixture_players
+        identifier: RAW_APIF_LMX_FIXTURE_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_predictions
+        identifier: RAW_APIF_LMX_PREDICTIONS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_players
+        identifier: RAW_APIF_LMX_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
       - name: raw_apif_wc_fixtures_next
         identifier: RAW_APIF_WC_FIXTURES_NEXT
         loaded_at_field: ingested_at
