@@ -46,6 +46,23 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+### Pre-commit hooks (local quality gate)
+
+`.pre-commit-config.yaml` runs sqlfluff (SQL lint), ruff (Python lint + format), basic file hygiene checks, and the existing secret scan. Catches the class of bug that auto-merged-without-CI used to ship to main.
+
+```powershell
+pip install pre-commit
+pre-commit install
+```
+
+After install, hooks run automatically on every `git commit`. A failing hook blocks the commit. To run all hooks on the full repo (e.g. after the first install):
+
+```powershell
+pre-commit run --all-files
+```
+
+CI runs the same sqlfluff via `ci-validate` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through GitHub.
+
 Run dbt from the repo root with **`.venv`** activated:
 
 ```powershell
