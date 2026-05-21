@@ -34,7 +34,11 @@ select
     safe_cast(json_value(team_row, '$.points') as int64) as points,
     safe_cast(json_value(team_row, '$.goalsDiff') as int64) as goals_diff,
     json_value(team_row, '$.form') as form,
-    json_value(team_row, '$.group') as group_description,  -- '$.group' is the group letter (e.g. 'Group A') for tournaments; '$.description' is qualification status. Domestic leagues keep $.description for relegation labeling.
+    -- For tournaments with groups (WC, WCQ*) the group letter lives at
+    -- $.group (e.g. 'Group A'). $.description is the qualification status
+    -- ('8th Finals' etc.), unrelated to the group. Domestic leagues still
+    -- read $.description elsewhere for relegation/promotion zone labels.
+    json_value(team_row, '$.group') as group_description,
     safe_cast(json_value(team_row, '$.all.played') as int64) as played_all,
     safe_cast(json_value(team_row, '$.all.win') as int64) as wins_all,
     safe_cast(json_value(team_row, '$.all.draw') as int64) as draws_all,
