@@ -125,3 +125,26 @@ jobs:
 
       - name: Run fixture stats trust diagnostics (hard gate)
         run: python ../scripts/data_trust_fixture_stats.py
+
+  # Terminal gate: always runs, reports a single deterministic pass/fail that
+  # branch protection can require regardless of whether `data-build` was
+  # path-filter-skipped. This is the unblocker for stricter required-checks
+  # without breaking docs-only or UI-only PRs.
+  gate:
+    needs: [changes, data-build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        run: |
+          # 'changes' must succeed. data-build is allowed to skip (means no
+          # relevant files changed); only fail on actual failure or cancellation.
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "changes job did not succeed (result=${{ needs.changes.result }})"
+            exit 1
+          fi
+          if [ "${{ needs.data-build.result }}" = "failure" ] || [ "${{ needs.data-build.result }}" = "cancelled" ]; then
+            echo "data-build did not pass (result=${{ needs.data-build.result }})"
+            exit 1
+          fi
+          echo "gate passed (changes=${{ needs.changes.result }}, data-build=${{ needs.data-build.result }})"
