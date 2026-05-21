@@ -231,6 +231,27 @@
   }
   .fixture:hover .chevron { color: var(--accent-bright); }
 
+  /* Group letter chip for tournament fixtures (currently WC). Compact pill
+     shown between the teams block and the chevron. Letter only; the i18n
+     aria-label spells out "Group X" for screen readers. */
+  .group-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(110, 168, 254, 0.18);
+    color: var(--accent-bright, #6ea8fe);
+    border: 1px solid rgba(110, 168, 254, 0.35);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .fixture.has-group { grid-template-columns: 1fr auto auto; }
+
   /* Off-season empty state: no upcoming fixtures.
      Shown until the next season's calendar is published and ingested. */
   .empty {
@@ -441,6 +462,20 @@
       return url;
     }
 
+    // Extract the group letter for tournament fixtures (e.g. WC group stage).
+    // Returns "A".."L" when both sides agree on a "Group X" label, else "".
+    // The mart standings_group_description carries API "$.group" for WC/WCQ
+    // (e.g. "Group A"); for domestic leagues it carries "$.description"
+    // (relegation/promotion zones) which is unrelated and ignored here.
+    function groupLetterFromRow(row) {
+      if (!row || String(row.league_code || "").toUpperCase() !== "WC") return "";
+      const home = String(row.home_standings_group_description || "").trim();
+      const away = String(row.away_standings_group_description || "").trim();
+      if (!home || home !== away) return "";
+      const match = home.match(/^Group\s+([A-Z])$/i);
+      return match ? match[1].toUpperCase() : "";
+    }
+
     function renderFixtureRow(row, code) {
       const fixtureId = row.fixture_api_id || row.fixture_sk || "";
       const href = `../match-preview/?league=${escHtml(code)}` + (fixtureId ? `&fixture=${encodeURIComponent(fixtureId)}` : "");
@@ -454,8 +489,18 @@
       const awayLogoTag = awayLogo
         ? `<img src="${escHtml(awayLogo)}" alt="${escHtml(awayName)}">`
         : `<div style="width:78%;height:78%;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--bg);">${escHtml(awayName.slice(0, 3).toUpperCase())}</div>`;
+      const groupLetter = groupLetterFromRow(row);
+      const groupAria = groupLetter
+        ? (typeof window.tFmt === "function"
+            ? window.tFmt("fixtureList.wc.groupPrefix", "Group {{letter}}", { letter: groupLetter })
+            : `Group ${groupLetter}`)
+        : "";
+      const groupChip = groupLetter
+        ? `<div class="group-chip" aria-label="${escHtml(groupAria)}" title="${escHtml(groupAria)}">${escHtml(groupLetter)}</div>`
+        : "";
+      const fixtureClass = groupLetter ? "fixture has-group" : "fixture";
       return `
-        <a href="${href}" class="fixture">
+        <a href="${href}" class="${fixtureClass}">
           <div class="teams">
             <div class="team-row">
               <div class="team-logo">${homeLogoTag}</div>
@@ -466,6 +511,7 @@
               <div class="team-name">${escHtml(awayName)}</div>
             </div>
           </div>
+          ${groupChip}
           <div class="chevron">›</div>
         </a>`;
     }

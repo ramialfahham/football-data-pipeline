@@ -530,6 +530,18 @@
       return round;
     }
 
+    // Extract the group letter for WC group-stage fixtures from the standings
+    // group description on the row. Returns "A".."L" when both sides agree,
+    // else "".
+    function wcGroupLetter(row) {
+      if (!row || String(row.league_code || "").toUpperCase() !== "WC") return "";
+      const home = String(row.home_standings_group_description || "").trim();
+      const away = String(row.away_standings_group_description || "").trim();
+      if (!home || home !== away) return "";
+      const m = home.match(/^Group\s+([A-Z])$/i);
+      return m ? m[1].toUpperCase() : "";
+    }
+
     function matchContextLine(row) {
       const competition = competitionDisplayLabel(row);
       const season = seasonDisplayLabel(row);
@@ -537,7 +549,13 @@
       const stage = normalizedStageLabel(row);
       const substage = String(row && row.substage_display_label ? row.substage_display_label : "").trim();
       const kickoff = kickoffDisplayLabel(row);
-      return [compSeason, stage, substage, kickoff].filter(Boolean).join(" · ");
+      const groupLetter = wcGroupLetter(row);
+      const groupLabel = groupLetter
+        ? (typeof window.tFmt === "function"
+            ? window.tFmt("matchPreview.wc.groupPrefix", "Group {{letter}}", { letter: groupLetter })
+            : `Group ${groupLetter}`)
+        : "";
+      return [compSeason, stage, groupLabel, substage, kickoff].filter(Boolean).join(" · ");
     }
 
     function formContextLabel(row, leagueCode) {
