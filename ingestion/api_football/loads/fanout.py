@@ -28,10 +28,7 @@ import os
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq, read_latest_payload_json
-from ..completeness import (
-    FANOUT_ENTITY_TO_PAYLOAD_KEY,
-    _fixture_ids_from_fanout_payload,
-)
+from ..completeness import _fixture_ids_from_fanout_payload
 from ..settings import raw_league_table
 from ..fixture_scheduling import (
     # Re-exported for backward compatibility (tests import from this module).
@@ -85,11 +82,7 @@ def _already_covered_per_entity(
         except Exception as e:
             ctx.errors.append(f"fanout_covered {league_code} {entity}: {e}")
             prior = None
-        # Validate payload shape per entity. Without this, a mis-shaped row
-        # (e.g. stats payload sitting in the players table from a prior bug)
-        # counts as "covered" purely on fixture_id presence, the loader skips
-        # the re-fetch, and the bad row persists forever.
-        required_key = FANOUT_ENTITY_TO_PAYLOAD_KEY.get(entity)
+        required_key = "statistics" if key == "fx_stats" else None
         covered[key] = _fixture_ids_from_fanout_payload(
             prior,
             required_payload_key=required_key,

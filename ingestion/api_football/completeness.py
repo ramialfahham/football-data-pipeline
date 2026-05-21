@@ -38,19 +38,6 @@ FANOUT_ENTITIES = (
     "PREDICTIONS",
 )
 
-# Per-entity expected payload key on each fanout row.
-# A row in RAW_APIF_*_FIXTURE_PLAYERS has shape {"fixture_id": X, "players": [...]};
-# without validating this key the covered/completeness checks can misread mis-shaped
-# rows (e.g. stats-shape data sitting in the players table) as "covered" and never
-# re-fetch them.
-FANOUT_ENTITY_TO_PAYLOAD_KEY: dict[str, str] = {
-    "LINEUPS": "lineups",
-    "FIXTURE_EVENTS": "events",
-    "FIXTURE_STATISTICS": "statistics",
-    "FIXTURE_PLAYERS": "players",
-    "PREDICTIONS": "predictions",
-}
-
 # API-Football ``fixture.status.short`` codes where the match has concluded and
 # per-fixture fanout data is expected to exist. Everything else (upcoming, in-play,
 # cancelled, abandoned, postponed) is excluded from the completeness expected set:
@@ -172,7 +159,9 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         for entity in FANOUT_ENTITIES:
             tbl = raw_league_table(league_code, entity)
             batched = read_latest_payload_json(client, tbl)
-            required_key = FANOUT_ENTITY_TO_PAYLOAD_KEY.get(entity)
+            required_key = (
+                "statistics" if entity == "FIXTURE_STATISTICS" else None
+            )
             covered = _fixture_ids_from_fanout_payload(
                 batched,
                 required_payload_key=required_key,
