@@ -169,6 +169,9 @@
       "fixtureCountSingular": "{{count}} match",
       "fixtureCountPlural": "{{count}} matches"
     },
+    "wc": {
+      "groupPrefix": "Group {{letter}}"
+    },
     "empty": {
       "headline": "No upcoming matches",
       "subOffSeason": "Season is over. No previews here until the new season starts.",
@@ -194,6 +197,9 @@
     "formContextDomestic": "Form: last 5 matches",
     "formContextWcQualifiers": "Form: all qualifying matches",
     "formContextWcTournament": "Form: all World Cup matches so far",
+    "wc": {
+      "groupPrefix": "Group {{letter}}"
+    },
     "errorPrefix": "Data could not be loaded:",
     "foot": "Form window: up to five most recent completed matches of the current season. Before season start, the previous season in full. During the World Cup: through Group Stage Matchday 1, all qualifying matches of the team; from Group Stage Matchday 2 onward, all completed World Cup matches so far (cumulative, no five-game cap). “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",
     "footWc": "World Cup form window: through Group Stage Matchday 1, all qualifying matches of the team; from Group Stage Matchday 2 onward, all completed World Cup matches so far (cumulative). “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",

@@ -169,6 +169,9 @@
       "fixtureCountSingular": "{{count}} ottelu",
       "fixtureCountPlural": "{{count}} ottelua"
     },
+    "wc": {
+      "groupPrefix": "Lohko {{letter}}"
+    },
     "empty": {
       "headline": "Ei tulevia otteluita",
       "subOffSeason": "Kausi on päättynyt. Uudet ennakot ilmestyvät seuraavan kauden alkaessa.",
@@ -194,6 +197,9 @@
     "formContextDomestic": "Kunto: viimeiset 5 ottelua",
     "formContextWcQualifiers": "Kunto: kaikki karsintaottelut",
     "formContextWcTournament": "Kunto: kaikki tähän mennessä pelatut MM-ottelut",
+    "wc": {
+      "groupPrefix": "Lohko {{letter}}"
+    },
     "errorPrefix": "Datan lataaminen epäonnistui:",
     "foot": "Kuntojakso: enintään viisi tämän kauden viimeisintä pelattua ottelua. Ennen kauden alkua koko edellinen kausi. MM-kisoissa: lohkovaiheen 1. kierrokseen asti kaikki joukkueen karsintaottelut, lohkovaiheen 2. kierroksesta eteenpäin kaikki siihen mennessä pelatut MM-ottelut (kumulatiivisesti, ilman viiden ottelun rajaa). “Ø” tarkoittaa ottelukohtaista keskiarvoa jakson ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa kaikkien otteluiden yli jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia.",
     "footWc": "MM-kisojen kuntojakso: lohkovaiheen 1. kierrokseen asti kaikki joukkueen karsintaottelut, lohkovaiheen 2. kierroksesta eteenpäin kaikki siihen mennessä pelatut MM-ottelut (kumulatiivisesti). “Ø” tarkoittaa ottelukohtaista keskiarvoa jakson ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa kaikkien otteluiden yli jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia.",
