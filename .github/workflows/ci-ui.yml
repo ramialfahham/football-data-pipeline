@@ -47,3 +47,22 @@ jobs:
 
       - name: Check metric_manifest vs i18n metrics namespace
         run: python scripts/check_ui_i18n_metrics.py
+
+  # Terminal gate: see ci-data-build for rationale. Branch protection requires
+  # this job by name so docs-only PRs (where `ui-checks` skips) don't block.
+  gate:
+    needs: [changes, ui-checks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        run: |
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "changes job did not succeed (result=${{ needs.changes.result }})"
+            exit 1
+          fi
+          if [ "${{ needs.ui-checks.result }}" = "failure" ] || [ "${{ needs.ui-checks.result }}" = "cancelled" ]; then
+            echo "ui-checks did not pass (result=${{ needs.ui-checks.result }})"
+            exit 1
+          fi
+          echo "gate passed (changes=${{ needs.changes.result }}, ui-checks=${{ needs.ui-checks.result }})"

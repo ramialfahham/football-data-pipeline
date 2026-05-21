@@ -22,3 +22,18 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests/ -v
+
+  # Terminal gate: uniform name across all quality-gate workflows so branch
+  # protection has one consistent check to require per workflow.
+  gate:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "test did not pass (result=${{ needs.test.result }})"
+            exit 1
+          fi
+          echo "gate passed"

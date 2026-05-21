@@ -54,3 +54,18 @@ jobs:
       - name: Parse project
         working-directory: dbt_project
         run: dbt parse
+
+  # Terminal gate: uniform name across all quality-gate workflows so branch
+  # protection has one consistent check to require per workflow.
+  gate:
+    needs: validate
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        run: |
+          if [ "${{ needs.validate.result }}" != "success" ]; then
+            echo "validate did not pass (result=${{ needs.validate.result }})"
+            exit 1
+          fi
+          echo "gate passed"
