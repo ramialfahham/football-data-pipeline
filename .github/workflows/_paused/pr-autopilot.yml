@@ -1,3 +1,15 @@
+# PAUSED 2026-05-21 — auto-merge violated quality standards by firing before
+# all CI checks completed (see #150 production regression, #161 lint regression).
+# This workflow lives in _paused/ so GitHub Actions does NOT execute it.
+#
+# Restoration plan: rebuild autopilot to verify check conclusions explicitly
+# (not just GitHub mergeable_state) and only after branch protection requires
+# all gating checks. See plan documented in PRs / issues referencing #152 and
+# #165.
+#
+# Until then: humans merge PRs manually when CI is green. This is the FAANG /
+# Stripe / Anthropic standard for production-impacting code on a small team.
+
 name: pr-autopilot
 
 on:
