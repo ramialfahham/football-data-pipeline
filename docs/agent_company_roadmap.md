@@ -55,7 +55,6 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 - Board request sync: `docs/board_request_sync.md`
 - CI failure watchdog: `docs/ci_failure_watchdog.md`
 - Slack executor bridge: `docs/slack_executor_bridge.md`
-- Single-URL board setup guide: `docs/github_project_hq_setup.md`
 - PR merge autopilot guide: `docs/pr_autopilot.md`
 - Project status sync guide: `docs/project_status_sync.md`
 
