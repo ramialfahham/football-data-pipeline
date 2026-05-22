@@ -604,7 +604,6 @@ stg_fixtures as (
         raw_ingested_at
     from {{ ref('stg_apif__spl_fixtures_next') }}
 
-
 ),
 
 team_keys as (
