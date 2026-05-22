@@ -367,6 +367,22 @@ competitions:
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 Portugal squad player coverage. Split-year league (2025/2026 season)."
 
+  - league_code: "MLS"
+    name: "Major League Soccer"
+    country: "United States"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 253
+    season_type: "calendar_year"
+    current_season: "2026"
+    history_seasons: 1
+    status: "active"
+    ingest_completeness_gate: soft
+    form_source: "league_only"
+    raw_table_prefix: "RAW_APIF_MLS"
+    api_coverage_verified: "2026-05-22"
+    notes: "WC 2026 host-nation (USA + Canada) player coverage. Calendar-year league."
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)
   # -------------------------------------------------------------------------
