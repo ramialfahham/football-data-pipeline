@@ -23,6 +23,7 @@
     'import_stg_lp_standings',
     'import_stg_mls_standings',
     'import_stg_spl_standings',
+    'import_stg_ed_standings',
 ] %}
 
 with import_stg_bl1_standings as (
@@ -476,6 +477,30 @@ import_stg_spl_standings as (
         losses_all,
         raw_ingested_at
     from {{ ref('stg_apif__spl_standings') }}
+    where
+        team_id is not null
+        and season is not null
+),
+
+import_stg_ed_standings as (
+    select
+        league_code,
+        league_api_id,
+        league_name,
+        season,
+        team_id,
+        team_name,
+        standing_rank,
+        points,
+        goals_diff,
+        form,
+        group_description,
+        played_all,
+        wins_all,
+        draws_all,
+        losses_all,
+        raw_ingested_at
+    from {{ ref('stg_apif__ed_standings') }}
     where
         team_id is not null
         and season is not null

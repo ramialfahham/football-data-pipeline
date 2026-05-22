@@ -402,6 +402,24 @@ competitions:
     raw_table_prefix: "RAW_APIF_SPL"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 host-nation (Saudi Arabia) player coverage. Split-year league (2025/2026 season)."
+
+  - league_code: "ED"
+    name: "Eredivisie"
+    country: "Netherlands"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 88
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "active"
+    ingest_active: true
+    ingest_completeness_gate: soft
+    form_source: "league_only"
+    raw_table_prefix: "RAW_APIF_ED"
+    api_coverage_verified: "2026-05-22"
+    notes: "WC 2026 Netherlands squad player coverage. Split-year league (2025/2026 season)."
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)
   # -------------------------------------------------------------------------
