@@ -43,27 +43,55 @@ def _dbt_var_codes() -> list[str]:
     vars_block = data.get("vars") or {}
     raw = vars_block.get("active_competition_league_codes")
     if raw is None:
-        raise KeyError(
-            "dbt_project.yml missing vars.active_competition_league_codes"
-        )
+        raise KeyError("dbt_project.yml missing vars.active_competition_league_codes")
     if not isinstance(raw, list):
         raise TypeError("active_competition_league_codes must be a YAML list")
     return [str(x) for x in raw]
+
+
+def _registry_missing_ingest_active() -> list[str]:
+    """Return league_codes of active/in_progress entries missing the ingest_active field."""
+    data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
+    comps = data.get("competitions") or []
+    missing: list[str] = []
+    for row in comps:
+        if not isinstance(row, dict):
+            continue
+        if row.get("status") not in ("active", "in_progress"):
+            continue
+        if "ingest_active" not in row:
+            missing.append(str(row.get("league_code", "<unknown>")))
+    return missing
 
 
 def main() -> int:
     try:
         reg = _registry_active_codes()
         var = _dbt_var_codes()
+        missing_flag = _registry_missing_ingest_active()
     except Exception as e:
         print(f"check_registry_var_sync: {e}", file=sys.stderr)
         return 1
 
     if not reg:
-        print("check_registry_var_sync: registry has no active/in_progress codes", file=sys.stderr)
+        print(
+            "check_registry_var_sync: registry has no active/in_progress codes",
+            file=sys.stderr,
+        )
         return 1
     if not var:
-        print("check_registry_var_sync: active_competition_league_codes is empty", file=sys.stderr)
+        print(
+            "check_registry_var_sync: active_competition_league_codes is empty",
+            file=sys.stderr,
+        )
+        return 1
+
+    if missing_flag:
+        print(
+            f"check_registry_var_sync: missing `ingest_active` on: {missing_flag}. "
+            "Every active/in_progress competition must explicitly set ingest_active: true or false.",
+            file=sys.stderr,
+        )
         return 1
 
     s_reg = sorted(set(reg))
@@ -71,7 +99,10 @@ def main() -> int:
     if s_reg != s_var:
         only_reg = sorted(set(reg) - set(var))
         only_var = sorted(set(var) - set(reg))
-        print("check_registry_var_sync: registry and dbt var lists differ.", file=sys.stderr)
+        print(
+            "check_registry_var_sync: registry and dbt var lists differ.",
+            file=sys.stderr,
+        )
         if only_reg:
             print(f"  in registry only: {only_reg}", file=sys.stderr)
         if only_var:

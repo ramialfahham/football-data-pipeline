@@ -38,6 +38,8 @@ Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
 - **UI flow**: Landing (competition cards) → Fixture list (next round only) → Fixture detail (carousel/deep dive).
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
+- **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
+- **Base models are views** — `2_base` models materialise as views by design. Never change this to table without a documented reason; it would cause every base UNION ALL to be stored and rebuilt as a full table scan daily.
 
 ## Memory files
 

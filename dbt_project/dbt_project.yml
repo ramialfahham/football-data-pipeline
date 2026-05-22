@@ -64,6 +64,10 @@ models:
       +materialized: view
       +schema: staging
 
+    # 2. Base: UNION ALL + dedup (Views — chains into core tables without storing intermediate results)
+    2_base:
+      +materialized: view
+
     # 3. Core: Star Schema / Dimensional Entities (Tables)
     3_core:
       +materialized: table

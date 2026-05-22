@@ -59,7 +59,24 @@ against `https://v3.football.api-sports.io/leagues?id={id}`.
 Run these steps in order. After each step, briefly confirm what landed
 before moving on. Do not batch multiple steps silently.
 
-### Step 0 — Validate inputs
+### Step 0a — Cost gate (answer before any file is written)
+
+Ask the user these three questions and record the answers. Do not proceed
+to Step 0b until all three are answered.
+
+1. **`ingest_active`** — should ingestion start immediately when this PR merges,
+   or should it be paused until you're ready? (`true` / `false`)
+2. **`history_seasons` rationale** — the required value is already in the inputs,
+   but state explicitly why: is this current-season-only, or does it include a
+   prior season for form fallback? One sentence.
+3. **Endpoint scope** — does this competition need the full fanout (lineups, events,
+   statistics, fixture players, predictions) at launch, or only the cheap phases
+   (fixtures, standings, teams, rounds)? Note: full fanout dominates API quota.
+
+Record the answers in the PR description. The registry entry (`Step 5`) must
+reflect the agreed `ingest_active` value.
+
+### Step 0b — Validate technical inputs
 
 - Confirm `provider_league_id` against the live API: `GET /leagues?id={id}`
   should return that league. The response's `coverage.fixtures.statistics_players`
@@ -153,6 +170,7 @@ and BEFORE the `# PLANNED` section:
     current_season: "{CURRENT_SEASON}"
     history_seasons: {HISTORY_SEASONS}
     status: "active"
+    ingest_active: {INGEST_ACTIVE}
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_{LEAGUE_CODE}"
