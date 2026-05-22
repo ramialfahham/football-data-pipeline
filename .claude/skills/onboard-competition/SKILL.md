@@ -178,6 +178,30 @@ Place it before the `"WC": ...` line (which is by convention the last entry).
 Translate the name appropriately for each locale (most domestic-league names
 are the same in all three languages).
 
+### Step 7b — Add the league code to the CI bootstrap-ingest list
+
+**Critical, easy to miss.** CI's `ci-data-build` workflow runs a bootstrap
+ingest step that fetches raw API tables for new leagues so the dbt staging
+materialization has source data to read. The list of leagues the bootstrap
+fetches is hardcoded as an env var on the step.
+
+In `.github/workflows/ci-data-build.yml`, find:
+
+```yaml
+API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2,SA,L1,VL"
+```
+
+(or whatever the current list is) and append the new `{LEAGUE_CODE}`:
+
+```yaml
+API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2,SA,L1,VL,{LEAGUE_CODE}"
+```
+
+Without this step, the dbt `Build staging` step fails with
+`Table RAW_APIF_{LEAGUE_CODE}_FIXTURE_EVENTS was not found in location EU`
+for every new staging model. Discovered the hard way during LMX
+onboarding (#178).
+
 ### Step 8 — Local validation
 
 Run, from the repo root or worktree:
