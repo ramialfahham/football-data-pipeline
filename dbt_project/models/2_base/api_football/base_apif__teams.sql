@@ -320,6 +320,28 @@ with stg_teams as (
         raw_ingested_at
     from {{ ref('stg_apif__lmx_teams') }}
     where team_id is not null
+
+    union all
+
+    select
+        league_code,
+        team_id,
+        team_api_id,
+        team_name,
+        team_code,
+        team_country,
+        team_founded,
+        team_is_national,
+        team_logo_url,
+        venue_id,
+        venue_name,
+        venue_address,
+        venue_city,
+        venue_capacity,
+        season,
+        raw_ingested_at
+    from {{ ref('stg_apif__lp_teams') }}
+    where team_id is not null
 ),
 
 stg_fixtures as (
@@ -507,6 +529,18 @@ stg_fixtures as (
         away_team_name,
         raw_ingested_at
     from {{ ref('stg_apif__lmx_fixtures_next') }}
+
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__lp_fixtures_next') }}
 
 ),
 
