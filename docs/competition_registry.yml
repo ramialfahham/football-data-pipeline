@@ -316,6 +316,23 @@ competitions:
     api_coverage_verified: "2026-05-18"
     notes: "2026 campaign (current) + 2025 (form fallback); calendar-year league."
 
+  - league_code: "LMX"
+    name: "Liga MX"
+    country: "Mexico"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 262
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "active"
+    ingest_completeness_gate: soft
+    form_source: "league_only"
+    raw_table_prefix: "RAW_APIF_LMX"
+    api_coverage_verified: "2026-05-21"
+    notes: "Onboarded for WC 2026 pre-tournament host-nation (Mexico) player coverage. Apertura + Clausura in one API season; treat as split_year. See #151."
+
   # -------------------------------------------------------------------------
   # PLANNED (remaining Big 5)
   # -------------------------------------------------------------------------
