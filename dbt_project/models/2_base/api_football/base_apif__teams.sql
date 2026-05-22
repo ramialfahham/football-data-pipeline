@@ -325,15 +325,13 @@ with stg_teams as (
 
     select
         league_code,
-        team_id,
-        team_api_id,
+        team_id as team_api_id,
         team_name,
         team_code,
         team_country,
-        team_founded,
-        team_is_national,
+        founded_year as team_founded_year,
         team_logo_url,
-        venue_id,
+        venue_id as venue_api_id,
         venue_name,
         venue_address,
         venue_city,
