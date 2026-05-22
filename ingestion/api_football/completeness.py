@@ -159,9 +159,7 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         for entity in FANOUT_ENTITIES:
             tbl = raw_league_table(league_code, entity)
             batched = read_latest_payload_json(client, tbl)
-            required_key = (
-                "statistics" if entity == "FIXTURE_STATISTICS" else None
-            )
+            required_key = "statistics" if entity == "FIXTURE_STATISTICS" else None
             covered = _fixture_ids_from_fanout_payload(
                 batched,
                 required_payload_key=required_key,
@@ -246,11 +244,13 @@ def detect_stagnant_statistics_backfill(
         prev = prior_missing.get(league_code, 0)
         now = current.get(league_code, 0)
         if now > 0 and now >= prev:
-            stagnant.append({
-                "league_code": league_code,
-                "missing_count": now,
-                "prior_missing_count": prev,
-            })
+            stagnant.append(
+                {
+                    "league_code": league_code,
+                    "missing_count": now,
+                    "prior_missing_count": prev,
+                }
+            )
     return stagnant
 
 
@@ -290,11 +290,13 @@ def evaluate_completeness_outcome(
         total_missing = 0
         for entity, info in (block.get("fanout") or {}).items():
             if not info.get("complete", True):
-                missing_endpoints.append({
-                    "endpoint": entity,
-                    "missing_count": info.get("missing_count", 0),
-                    "expected_count": info.get("expected_count", 0),
-                })
+                missing_endpoints.append(
+                    {
+                        "endpoint": entity,
+                        "missing_count": info.get("missing_count", 0),
+                        "expected_count": info.get("expected_count", 0),
+                    }
+                )
                 total_missing += info.get("missing_count", 0)
         record = {
             "league_code": league_code,
@@ -362,7 +364,9 @@ def completeness_markdown_summary(
     when = (now or datetime.now(timezone.utc)).strftime("%Y-%m-%d %H:%M UTC")
     lines: list[str] = [f"## Ingestion completeness — {when}", ""]
     if report.get("skipped"):
-        lines.append("Completeness check was skipped (`API_FOOTBALL_SKIP_COMPLETENESS_CHECK`).")
+        lines.append(
+            "Completeness check was skipped (`API_FOOTBALL_SKIP_COMPLETENESS_CHECK`)."
+        )
         return "\n".join(lines) + "\n"
 
     leagues = report.get("leagues") or {}
@@ -370,7 +374,9 @@ def completeness_markdown_summary(
         lines.append("No competitions reported.")
         return "\n".join(lines) + "\n"
 
-    lines.append("| Competition | Status | Finished / Total | Coverage | Backfill remaining |")
+    lines.append(
+        "| Competition | Status | Finished / Total | Coverage | Backfill remaining |"
+    )
     lines.append("|---|---|---|---|---|")
     for league_code in sorted(leagues.keys()):
         block = leagues[league_code]
@@ -394,6 +400,23 @@ def completeness_markdown_summary(
         for n in notes:
             lines.append(f"- {n}")
     return "\n".join(lines) + "\n"
+
+
+def write_github_output(key: str, value: str) -> bool:
+    """Write a key=value pair to ``$GITHUB_OUTPUT`` when running in GitHub Actions.
+
+    Returns ``True`` when written, ``False`` when the env var is unset (local runs).
+    No-op outside GitHub Actions; safe to always call.
+    """
+    path = os.getenv("GITHUB_OUTPUT", "").strip()
+    if not path:
+        return False
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{key}={value}\n")
+        return True
+    except OSError:
+        return False
 
 
 def write_step_summary_if_configured(markdown: str) -> bool:
