@@ -23,6 +23,7 @@ from .completeness import (
     load_prior_fixture_statistics_missing,
     persist_fixture_statistics_missing,
     run_ingest_completeness_checks,
+    write_github_output,
     write_step_summary_if_configured,
 )
 from .ingestion_lock import (
@@ -92,7 +93,9 @@ def _load_api_football(request):
         _seasons_csv = os.getenv("API_FOOTBALL_SEASONS", "").strip() or "(unset)"
         _all_s = _env_truthy("API_FOOTBALL_ALL_SEASONS")
         _fx_mode = os.getenv("API_FOOTBALL_FIXTURES_MODE", "season").strip() or "season"
-        _fan_pri = os.getenv("API_FOOTBALL_FANOUT_PRIORITY", "upcoming").strip() or "upcoming"
+        _fan_pri = (
+            os.getenv("API_FOOTBALL_FANOUT_PRIORITY", "upcoming").strip() or "upcoming"
+        )
         print(
             f"[api-football] profile={_ingest_profile_name()!r} "
             f"inferred_single_season={season_year()} API_FOOTBALL_SEASON={_raw!r} "
@@ -196,11 +199,10 @@ def _load_api_football(request):
                     f"{m['endpoint']} ({m['missing_count']}/{m['expected_count']})"
                     for m in f["missing_endpoints"]
                 )
-                notes.append(
-                    f"hard gate incomplete: {f['league_code']} — {eps}"
-                )
+                notes.append(f"hard gate incomplete: {f['league_code']} — {eps}")
         markdown = completeness_markdown_summary(report, notes=notes)
         write_step_summary_if_configured(markdown)
+        write_github_output("new_data", "true" if ctx.tables_loaded > 0 else "false")
 
         if outcome["hard_fail"]:
             parts: list[str] = []

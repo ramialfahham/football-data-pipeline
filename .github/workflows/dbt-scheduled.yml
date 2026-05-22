@@ -57,6 +57,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Run ingestion
+        id: ingest
         working-directory: .
         env:
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
@@ -64,18 +65,23 @@ jobs:
         run: python -m ingestion.api_football.main
 
       - name: dbt deps
+        if: steps.ingest.outputs.new_data == 'true'
         run: dbt deps
 
       - name: dbt seed
+        if: steps.ingest.outputs.new_data == 'true'
         run: dbt seed
 
       - name: Enforce layer contract
+        if: steps.ingest.outputs.new_data == 'true'
         run: python ../scripts/check_layer_contract.py
 
       - name: Check registry/var sync
+        if: steps.ingest.outputs.new_data == 'true'
         run: python ../scripts/check_registry_var_sync.py
 
       - name: Full data-quality build
+        if: steps.ingest.outputs.new_data == 'true'
         # The dq selector is fqn=* (all nodes); --exclude is honoured directly
         # without the named selector (named --selector silently drops --exclude).
         # tag:freshness_check is intentionally NOT excluded here: scheduled runs
@@ -83,4 +89,5 @@ jobs:
         run: dbt build
 
       - name: Run fixture stats trust diagnostics (hard gate)
+        if: steps.ingest.outputs.new_data == 'true'
         run: python ../scripts/data_trust_fixture_stats.py
