@@ -27,11 +27,19 @@ class Competition:
     name: str
     form_source: str = "league_only"
     supporting_leagues: tuple = ()
-    season_type: str = "split_year"  # split_year | calendar_year — drives season hi/lo in ingestion
-    current_season: int | None = None  # from registry; used to bound season discovery for non-split-year competitions
-    history_seasons: int | None = None  # CPO-approved backfill window (number of season start years)
+    season_type: str = (
+        "split_year"  # split_year | calendar_year — drives season hi/lo in ingestion
+    )
+    current_season: int | None = (
+        None  # from registry; used to bound season discovery for non-split-year competitions
+    )
+    history_seasons: int | None = (
+        None  # CPO-approved backfill window (number of season start years)
+    )
     # hard: incomplete fanout fails the run; soft: report only
     ingest_completeness_gate: str = "soft"
+    # CPO-controlled: False = skip ingestion entirely without changing status
+    ingest_active: bool = True
 
 
 _ALLOWED_STATUSES = {"active", "in_progress", "planned", "backlog", "completed"}
@@ -67,7 +75,9 @@ def _load_registry_yaml() -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         parsed = yaml.safe_load(f) or {}
     if not isinstance(parsed, dict):
-        raise ValueError(f"Competition registry at {path} must parse to a top-level object.")
+        raise ValueError(
+            f"Competition registry at {path} must parse to a top-level object."
+        )
     return parsed
 
 
@@ -95,7 +105,9 @@ def _parse_competitions() -> list[Competition]:
         if not league_code:
             raise ValueError(f"Competition entry #{idx + 1}: missing `league_code`.")
         if league_code in seen_codes:
-            raise ValueError(f"Competition registry has duplicate league_code `{league_code}`.")
+            raise ValueError(
+                f"Competition registry has duplicate league_code `{league_code}`."
+            )
         seen_codes.add(league_code)
 
         if provider != "api_football":
@@ -155,7 +167,9 @@ def _parse_competitions() -> list[Competition]:
                 sl_list.append({"id": league_id_val, "season": season_val})
             parsed_supporting_leagues = tuple(sl_list)
 
-        season_type = str(entry.get("season_type", "split_year")).strip().lower() or "split_year"
+        season_type = (
+            str(entry.get("season_type", "split_year")).strip().lower() or "split_year"
+        )
         if season_type not in ("split_year", "calendar_year"):
             raise ValueError(
                 f"Competition `{league_code}` has invalid season_type={season_type!r}. "
@@ -179,6 +193,12 @@ def _parse_competitions() -> list[Competition]:
                     history_seasons = hs
             except (TypeError, ValueError):
                 pass
+
+        ingest_active_raw = entry.get("ingest_active")
+        if ingest_active_raw is None:
+            ingest_active = True  # default for backward compat; CI enforces presence
+        else:
+            ingest_active = bool(ingest_active_raw)
 
         gate_raw = str(entry.get("ingest_completeness_gate", "")).strip().lower()
         if gate_raw:
@@ -206,6 +226,7 @@ def _parse_competitions() -> list[Competition]:
                 current_season=current_season,
                 history_seasons=history_seasons,
                 ingest_completeness_gate=ingest_completeness_gate,
+                ingest_active=ingest_active,
             )
         )
     if not out:
@@ -226,7 +247,9 @@ def _league_codes_filter() -> frozenset[str] | None:
         return None
     codes = frozenset(part.strip().upper() for part in raw.split(",") if part.strip())
     if not codes:
-        raise ValueError("API_FOOTBALL_LEAGUE_CODES is set but contains no league codes.")
+        raise ValueError(
+            "API_FOOTBALL_LEAGUE_CODES is set but contains no league codes."
+        )
     return codes
 
 
@@ -248,6 +271,14 @@ def selected_competitions() -> tuple[list[Competition], list[tuple[Competition, 
             )
         else:
             skipped.append((comp, f"status={comp.status} is excluded by policy"))
+    active_selected: list[Competition] = []
+    for comp in selected:
+        if not comp.ingest_active:
+            skipped.append((comp, "ingest_active=false"))
+        else:
+            active_selected.append(comp)
+    selected = active_selected
+
     codes_filter = _league_codes_filter()
     if codes_filter is not None:
         kept: list[Competition] = []

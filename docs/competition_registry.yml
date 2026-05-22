@@ -46,6 +46,7 @@ competitions:
     current_season: "2024"
     history_seasons: 10             # backfill window: last N season start years
     status: "active"
+    ingest_active: true
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL1"
     notes: >
@@ -66,6 +67,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "supporting_leagues"
     raw_table_prefix: "RAW_APIF_WC"
@@ -111,6 +113,7 @@ competitions:
     current_season: "2024"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQEU"
@@ -128,6 +131,7 @@ competitions:
     current_season: "2023"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQAF"
@@ -145,6 +149,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQCA"
@@ -162,6 +167,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQSA"
@@ -179,6 +185,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQAS"
@@ -196,6 +203,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQIP"
@@ -213,6 +221,7 @@ competitions:
     current_season: "2026"
     history_seasons: 1
     status: "in_progress"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_WCQOC"
@@ -230,6 +239,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PL"
@@ -246,6 +256,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_PD"
@@ -262,6 +273,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_BL2"
@@ -278,6 +290,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_SA"
@@ -294,6 +307,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_L1"
@@ -310,6 +324,7 @@ competitions:
     current_season: "2026"
     history_seasons: 2
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_VL"
@@ -327,6 +342,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_LMX"
@@ -344,6 +360,7 @@ competitions:
     current_season: "2025"
     history_seasons: 1
     status: "active"
+    ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
     raw_table_prefix: "RAW_APIF_LP"
@@ -376,6 +393,11 @@ competitions:
 # -------------------------------------------------------------------------
 # ONBOARDING RULES
 # -------------------------------------------------------------------------
+# 0. COST GATE (answer before writing any code):
+#    a. ingest_active: true to start ingesting immediately; false to pause.
+#       CI fails if this field is absent on any active/in_progress entry.
+#    b. history_seasons: CPO decision — state the rationale. Default is 1.
+#       Never increase without explicit approval in the same conversation.
 # 1. league_code: unique, uppercase, max 6 chars, provider-agnostic.
 # 2. provider_league_id: verify with a live API call before writing any code.
 #    Document the date in api_coverage_verified.
