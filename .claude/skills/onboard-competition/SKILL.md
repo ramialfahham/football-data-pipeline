@@ -121,9 +121,54 @@ Insert a parallel block immediately AFTER the VL block, with:
 Each base file has a slightly different shape. Match the pattern.
 
 **`dbt_project/models/2_base/api_football/base_apif__teams.sql`** — two
-CTEs reference VL. Add a parallel block for the new league in each:
-- `stg_teams` CTE: `from {{ ref('stg_apif__{lc_lower}_teams') }}` with `where team_id is not null`
-- `stg_fixtures` CTE: `from {{ ref('stg_apif__{lc_lower}_fixtures_next') }}` (no `where`)
+CTEs reference VL. Add a parallel block for the new league in each.
+
+`stg_teams` CTE — use this exact column list (aliases are mandatory; staging
+outputs `team_id`, `founded_year`, `venue_id` and the base layer renames them):
+
+```sql
+    union all
+
+    select
+        league_code,
+        team_id as team_api_id,
+        team_name,
+        team_code,
+        team_country,
+        founded_year as team_founded_year,
+        team_logo_url,
+        venue_id as venue_api_id,
+        venue_name,
+        venue_address,
+        venue_city,
+        venue_capacity,
+        season,
+        raw_ingested_at
+    from {{ ref('stg_apif__{lc_lower}_teams') }}
+    where team_id is not null
+```
+
+`stg_fixtures` CTE — use this exact column list:
+
+```sql
+    union all
+
+    select
+        league_code,
+        fixture_id,
+        home_team_id,
+        home_team_name,
+        away_team_id,
+        away_team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__{lc_lower}_fixtures_next') }}
+```
+
+**Do not copy-alias staging output names as bare columns.** The aliases
+`team_id as team_api_id`, `founded_year as team_founded_year`,
+`venue_id as venue_api_id` must be explicit. Omitting them or duplicating
+them as bare columns (`team_api_id`) breaks the base model contract.
+(This was the root cause of PR #191.)
 
 **`dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql`** — single
 `union all` chain. Add a parallel block after VL:
