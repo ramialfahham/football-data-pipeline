@@ -725,6 +725,78 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_fixtures_next
+        identifier: RAW_APIF_SPL_FIXTURES_NEXT
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_leagues
+        identifier: RAW_APIF_SPL_LEAGUES
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_standings
+        identifier: RAW_APIF_SPL_STANDINGS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_rounds
+        identifier: RAW_APIF_SPL_ROUNDS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_teams
+        identifier: RAW_APIF_SPL_TEAMS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_transfers
+        identifier: RAW_APIF_SPL_TRANSFERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_lineups
+        identifier: RAW_APIF_SPL_LINEUPS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_fixture_events
+        identifier: RAW_APIF_SPL_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_fixture_statistics
+        identifier: RAW_APIF_SPL_FIXTURE_STATISTICS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_fixture_players
+        identifier: RAW_APIF_SPL_FIXTURE_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_predictions
+        identifier: RAW_APIF_SPL_PREDICTIONS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_players
+        identifier: RAW_APIF_SPL_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
       - name: raw_apif_wc_fixtures_next
         identifier: RAW_APIF_WC_FIXTURES_NEXT
         loaded_at_field: ingested_at
