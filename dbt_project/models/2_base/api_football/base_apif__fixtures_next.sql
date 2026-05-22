@@ -99,6 +99,12 @@ with src as (
     select *
     from {{ ref('stg_apif__lp_fixtures_next') }}
     where fixture_id is not null
+
+    union all
+
+    select *
+    from {{ ref('stg_apif__mls_fixtures_next') }}
+    where fixture_id is not null
 )
 
 select
