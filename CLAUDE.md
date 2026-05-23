@@ -14,8 +14,8 @@ Read this at the start of every session before doing anything else.
 
 A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → GitHub Pages match preview UI.
 
-Current live competition: **German Bundesliga (BL1, API league id 78)**. `BL1` is the internal `league_code`; `D1` is the raw table prefix only (`RAW_D1_APIF_*`).
-Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga, Serie A.
+Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL2, PL, PD, SA, L1, VL, WC (2026), WCQ*, LMX, LP, MLS, SPL, ED.
+Next: player insights chain (#153 → #156).
 
 ## Authoritative docs — read before making decisions
 
@@ -40,6 +40,40 @@ Roadmap: **WC 2026** (+ qualifiers as form fallback) → Premier League, La Liga
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
 - **Base models are views** — `2_base` models materialise as views by design. Never change this to table without a documented reason; it would cause every base UNION ALL to be stored and rebuilt as a full table scan daily.
+
+## Scalability rules — enforced by CI
+
+These rules are machine-checked. If you are about to violate one, CI will catch it.
+Do not work around the CI check — fix the approach instead.
+
+| Rule | What it means | CI check |
+|------|---------------|----------|
+| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires zero existing SQL file edits | `check_base_model_no_hardcoded_leagues.py` — fails if any cross-league base model contains a hardcoded `ref('stg_apif__XX_...')` |
+| **Single-source rule** | The registry is the only place leagues are listed. `dbt_project.yml` is derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry |
+| **CI ingest rule** | CI only ingests leagues whose raw BQ tables don't exist yet | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
+
+### How to add a new league (the only correct procedure)
+
+1. Add entry to `docs/competition_registry.yml`
+2. Run `python scripts/sync_dbt_vars.py` (updates `dbt_project.yml`)
+3. Scaffold 12 staging models + `sources.yml` entry (use the `onboard-competition` skill)
+4. Push — CI ingests only the new league; base models auto-discover it via the Jinja loop
+
+**Do not edit any file in `dbt_project/models/2_base/` when adding a league.** If you find yourself doing that, stop — the approach is wrong.
+
+### The base model loop pattern (standard for all cross-league base models)
+
+```sql
+{% set league_codes = var('active_competition_league_codes') %}
+with src as (
+    {% for lc in league_codes %}
+    {% if not loop.first %}union all{% endif %}
+    select * from {{ ref('stg_apif__' ~ lc | lower ~ '_entity') }}
+    {% endfor %}
+)
+```
+
+Any base model that unions data across leagues must use this pattern. `check_base_model_no_hardcoded_leagues.py` enforces it permanently.
 
 ## Memory files
 
