@@ -23,10 +23,10 @@ vars:
   'dbt_utils:dispatch_list': ['bigquery']
   # BigQuery dataset id for 1:1 ingestion (must match Python `API_FOOTBALL_BIGQUERY_DATASET` default).
   raw_schema: raw
-  # Mirror of docs/competition_registry.yml — league_code for status active or in_progress.
-  # When onboarding a competition: update the registry, ingest, add staging/sources, add refs
-  # to unified bases, then add the code here. scripts/check_registry_var_sync.py enforces
-  # this list matches the registry (sorted set equality).
+  # Derived from docs/competition_registry.yml (status active or in_progress).
+  # DO NOT edit by hand — run scripts/sync_dbt_vars.py after updating the registry.
+  # scripts/check_registry_var_sync.py (CI) enforces sorted-set equality with the registry.
+  # Base models loop over this var; adding a league here is the only change needed in dbt.
   active_competition_league_codes:
     - BL1
     - BL2

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       run_ingest:
-        description: Force bootstrap ingest (PL, PD, BL2, SA, L1, VL)
+        description: Force re-ingest all active leagues (bypasses skip-if-exists)
         type: boolean
         default: false
 
@@ -100,15 +100,38 @@ jobs:
       - name: dbt seed
         run: dbt seed
 
-      - name: Bootstrap ingest domestic league raw tables
-        if: |
-          (github.event_name == 'workflow_dispatch' && inputs.run_ingest == true) ||
-          needs.changes.outputs.ingest == 'true'
+      - name: Compute leagues needing bootstrap ingest
+        id: new_leagues
+        if: needs.changes.outputs.ingest == 'true'
+        working-directory: .
+        run: |
+          export PYTHONPATH=.
+          NEW_CODES=$(python scripts/get_new_league_codes.py)
+          echo "codes=$NEW_CODES" >> $GITHUB_OUTPUT
+          if [ -z "$NEW_CODES" ]; then
+            echo "All leagues already have raw tables — skipping bootstrap ingest."
+          else
+            echo "Leagues needing bootstrap: $NEW_CODES"
+          fi
+
+      - name: Bootstrap ingest (new leagues only, registry-driven)
+        if: needs.changes.outputs.ingest == 'true' && steps.new_leagues.outputs.codes != ''
         working-directory: .
         env:
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
           API_FOOTBALL_INCLUDE_IN_PROGRESS: "1"
-          API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2,SA,L1,VL,LMX,LP,MLS,SPL,ED"
+          API_FOOTBALL_LEAGUE_CODES: ${{ steps.new_leagues.outputs.codes }}
+          API_FOOTBALL_SKIP_INGEST_LOCK: "1"
+        run: |
+          export PYTHONPATH=.
+          python -m ingestion.api_football.main
+
+      - name: Force bootstrap ingest (all active leagues, registry-driven)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_ingest == true
+        working-directory: .
+        env:
+          API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
+          API_FOOTBALL_INCLUDE_IN_PROGRESS: "1"
           API_FOOTBALL_SKIP_INGEST_LOCK: "1"
         run: |
           export PYTHONPATH=.
