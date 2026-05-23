@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
-with import_base_apif__bl1_fixture_players as (
-    select * from {{ ref('base_apif__bl1_fixture_players') }}
+with src as (
+    select * from {{ ref('base_apif__fixture_players') }}
 )
 
 select
@@ -49,4 +49,4 @@ select
     penalty_missed,
     penalty_saved,
     raw_ingested_at
-from import_base_apif__bl1_fixture_players
+from src

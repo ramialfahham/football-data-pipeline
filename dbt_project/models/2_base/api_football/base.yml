@@ -141,6 +141,45 @@ models:
       - name: team_id
         tests: [not_null]
 
+  - name: base_apif__fixture_players
+    description: >
+      Unified per-player match statistic rows across all onboarded competitions.
+      League list driven by var('active_competition_league_codes').
+      Deduplicated per (league_code, fixture_id, team_id, player_id).
+      Feeds fct_fixture_player_stats. Output grain: (league_code, fixture_id, team_id, player_id).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id, player_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: base_apif__players
+    description: >
+      Unified player entity rows across all onboarded competitions.
+      League list driven by var('active_competition_league_codes').
+      Deduplicated per (league_code, player_api_id), preferring the most
+      recent season snapshot. Feeds base_apif__players_global.
+      Output grain: (league_code, player_api_id).
+    config:
+      tags: ["base", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, player_api_id]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_api_id
+        tests: [not_null]
+
   - name: base_apif__bl1_fixture_events
     description: >
       Deduplicated fixture event rows from stg_apif__bl1_fixture_events. Keeps
@@ -210,7 +249,7 @@ models:
   - name: base_apif__players_global
     description: >
       One row per player_api_id: latest ingest across (league_code, player_api_id)
-      rows from base_apif__bl1_players. Entity resolution for dim_player.
+      rows from base_apif__players (all active competitions). Entity resolution for dim_player.
       Grain: player_api_id.
     config:
       tags: ["base", "api_football", "player_context"]
