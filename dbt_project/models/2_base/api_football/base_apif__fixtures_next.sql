@@ -1,122 +1,25 @@
--- Unified fixtures across all onboarded competitions (explicit ref() list).
--- Deduplicated to latest ingest per fixture_id.
--- Output grain: fixture_id.
+-- Unified fixtures across all onboarded competitions.
+-- League list driven by var('active_competition_league_codes') — no league codes
+-- appear in this file. To add a competition: update docs/competition_registry.yml
+-- and run scripts/sync_dbt_vars.py. This is the standard pattern for any base model
+-- that unions across leagues.
+-- Output grain: fixture_id (deduplicated to latest ingest).
+{% set league_codes = var('active_competition_league_codes') %}
 
 with src as (
-    select *
-    from {{ ref('stg_apif__bl1_fixtures_next') }}
-    where fixture_id is not null
+
+{% for lc in league_codes %}
+    {% if not loop.first %}
 
     union all
 
+    {% endif %}
     select *
-    from {{ ref('stg_apif__wc_fixtures_next') }}
+    from {{ ref('stg_apif__' ~ lc | lower ~ '_fixtures_next') }}
     where fixture_id is not null
 
-    union all
+{% endfor %}
 
-    select *
-    from {{ ref('stg_apif__wcqeu_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__wcqaf_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__wcqca_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__wcqsa_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__wcqas_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__wcqip_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__wcqoc_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__pl_fixtures_next') }}
-    where fixture_id is not null
-    union all
-
-    select *
-    from {{ ref('stg_apif__pd_fixtures_next') }}
-    where fixture_id is not null
-    union all
-
-    select *
-    from {{ ref('stg_apif__bl2_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__sa_fixtures_next') }}
-    where fixture_id is not null
-    union all
-
-    select *
-    from {{ ref('stg_apif__l1_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__vl_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__lmx_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__lp_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__mls_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__spl_fixtures_next') }}
-    where fixture_id is not null
-
-    union all
-
-    select *
-    from {{ ref('stg_apif__ed_fixtures_next') }}
-    where fixture_id is not null
 )
 
 select
