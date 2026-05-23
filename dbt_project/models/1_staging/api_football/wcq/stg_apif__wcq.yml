@@ -490,3 +490,157 @@ models:
         tests: [not_null]
       - name: team_id
         tests: [not_null]
+
+  - name: stg_apif__wcqeu_fixture_players
+    description: WC qualifier confederation WCQEU — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqaf_fixture_players
+    description: WC qualifier confederation WCQAF — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqca_fixture_players
+    description: WC qualifier confederation WCQCA — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqsa_fixture_players
+    description: WC qualifier confederation WCQSA — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqas_fixture_players
+    description: WC qualifier confederation WCQAS — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqip_fixture_players
+    description: WC qualifier confederation WCQIP — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqoc_fixture_players
+    description: WC qualifier confederation WCQOC — GET /fixtures/players; same shape as stg_apif__wc_fixture_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqeu_players
+    description: WC qualifier confederation WCQEU — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqaf_players
+    description: WC qualifier confederation WCQAF — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqca_players
+    description: WC qualifier confederation WCQCA — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqsa_players
+    description: WC qualifier confederation WCQSA — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqas_players
+    description: WC qualifier confederation WCQAS — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqip_players
+    description: WC qualifier confederation WCQIP — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+
+  - name: stg_apif__wcqoc_players
+    description: WC qualifier confederation WCQOC — GET /players; same shape as stg_apif__wc_players.
+    config:
+      tags: ["staging", "api_football", "wcq"]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
