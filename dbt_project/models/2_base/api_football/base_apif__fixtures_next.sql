@@ -8,7 +8,7 @@
 
 with src as (
 
-{% for lc in league_codes %}
+    {% for lc in league_codes %}
     {% if not loop.first %}
 
     union all
@@ -18,7 +18,7 @@ with src as (
     from {{ ref('stg_apif__' ~ lc | lower ~ '_fixtures_next') }}
     where fixture_id is not null
 
-{% endfor %}
+    {% endfor %}
 
 )
 

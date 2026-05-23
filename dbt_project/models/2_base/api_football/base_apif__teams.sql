@@ -8,7 +8,7 @@
 
 with stg_teams as (
 
-{% for lc in league_codes %}
+    {% for lc in league_codes %}
     {% if not loop.first %}
 
     union all
@@ -32,13 +32,13 @@ with stg_teams as (
     from {{ ref('stg_apif__' ~ lc | lower ~ '_teams') }}
     where team_id is not null
 
-{% endfor %}
+    {% endfor %}
 
 ),
 
 stg_fixtures as (
 
-{% for lc in league_codes %}
+    {% for lc in league_codes %}
     {% if not loop.first %}
 
     union all
@@ -54,7 +54,7 @@ stg_fixtures as (
         raw_ingested_at
     from {{ ref('stg_apif__' ~ lc | lower ~ '_fixtures_next') }}
 
-{% endfor %}
+    {% endfor %}
 
 ),
 

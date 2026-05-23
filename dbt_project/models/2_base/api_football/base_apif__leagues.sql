@@ -8,7 +8,7 @@
 
 with src as (
 
-{% for lc in league_codes %}
+    {% for lc in league_codes %}
     {% if not loop.first %}
 
     union all
@@ -42,7 +42,7 @@ with src as (
     from {{ ref('stg_apif__' ~ lc | lower ~ '_leagues') }}
     where league_api_id is not null and season_api_year is not null
 
-{% endfor %}
+    {% endfor %}
 
 ),
 

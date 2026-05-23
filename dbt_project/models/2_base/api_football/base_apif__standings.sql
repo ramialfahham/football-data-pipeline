@@ -8,7 +8,7 @@
 
 with src as (
 
-{% for lc in league_codes %}
+    {% for lc in league_codes %}
     {% if not loop.first %}
 
     union all
@@ -36,7 +36,7 @@ with src as (
         team_id is not null
         and season is not null
 
-{% endfor %}
+    {% endfor %}
 
 ),
 
