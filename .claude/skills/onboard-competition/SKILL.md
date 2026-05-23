@@ -3,8 +3,9 @@ name: onboard-competition
 description: |
   Onboard a new football competition (domestic league or tournament) into the
   football-data-pipeline. Scaffolds 12 dbt staging models, registers sources,
-  adds UNION ALL blocks to 5 base models, updates the competition registry +
+  updates the competition registry, runs sync_dbt_vars.py to derive the
   active-competition-codes var, and adds the i18n competition label in en/de/fi.
+  Base models auto-discover the new league via Jinja loops — no SQL edits needed.
 
   Use this when a new league_code needs to be onboarded with the same
   pattern as VL / PL / PD / SA / L1 / BL2 / LMX. Do NOT use for WC qualifier
@@ -116,89 +117,7 @@ Insert a parallel block immediately AFTER the VL block, with:
 - Same freshness thresholds (`warn_after 30h`, `error_after 54h`)
 - Same `loaded_at_field: ingested_at`
 
-### Step 4 — Add UNION ALL blocks to 5 base models
-
-Each base file has a slightly different shape. Match the pattern.
-
-**`dbt_project/models/2_base/api_football/base_apif__teams.sql`** — two
-CTEs reference VL. Add a parallel block for the new league in each.
-
-`stg_teams` CTE — use this exact column list (aliases are mandatory; staging
-outputs `team_id`, `founded_year`, `venue_id` and the base layer renames them):
-
-```sql
-    union all
-
-    select
-        league_code,
-        team_id as team_api_id,
-        team_name,
-        team_code,
-        team_country,
-        founded_year as team_founded_year,
-        team_logo_url,
-        venue_id as venue_api_id,
-        venue_name,
-        venue_address,
-        venue_city,
-        venue_capacity,
-        season,
-        raw_ingested_at
-    from {{ ref('stg_apif__{lc_lower}_teams') }}
-    where team_id is not null
-```
-
-`stg_fixtures` CTE — use this exact column list:
-
-```sql
-    union all
-
-    select
-        league_code,
-        fixture_id,
-        home_team_id,
-        home_team_name,
-        away_team_id,
-        away_team_name,
-        raw_ingested_at
-    from {{ ref('stg_apif__{lc_lower}_fixtures_next') }}
-```
-
-**Do not copy-alias staging output names as bare columns.** The aliases
-`team_id as team_api_id`, `founded_year as team_founded_year`,
-`venue_id as venue_api_id` must be explicit. Omitting them or duplicating
-them as bare columns (`team_api_id`) breaks the base model contract.
-(This was the root cause of PR #191.)
-
-**`dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql`** — single
-`union all` chain. Add a parallel block after VL:
-```sql
-union all
-select *
-from {{ ref('stg_apif__{lc_lower}_fixtures_next') }}
-where fixture_id is not null
-```
-
-**`dbt_project/models/2_base/api_football/base_apif__leagues.sql`** — single
-`union all` chain inside a CTE. Add a parallel block after VL with the full
-column list (copy from VL's block, swap the `ref()`).
-
-**`dbt_project/models/2_base/api_football/base_apif__standings.sql`** —
-macro-driven. Two changes:
-1. In the `{% set standings_union_ctes = [...] %}` list near the top, add
-   `'import_stg_{lc_lower}_standings',` after the existing entries.
-2. Add an `import_stg_{lc_lower}_standings as (...)` CTE block AFTER the VL
-   CTE, BEFORE the `unioned_standings as (...)` CTE. Use the VL block as
-   template, swap the `ref()`.
-
-**`dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql`** —
-same macro-driven pattern as standings. Two parallel changes:
-1. Add `'import_stg_{lc_lower}_fixture_statistics',` to the
-   `fixture_statistics_union_ctes` list.
-2. Add `import_stg_{lc_lower}_fixture_statistics as (...)` CTE after the
-   VL CTE, before `unioned_fixture_statistics`.
-
-### Step 5 — Registry entry
+### Step 4 — Registry entry
 
 In `docs/competition_registry.yml`, append a new entry AFTER the VL entry
 and BEFORE the `# PLANNED` section:
@@ -223,12 +142,20 @@ and BEFORE the `# PLANNED` section:
     notes: "{NOTES}"
 ```
 
-### Step 6 — Update active competition vars
+### Step 5 — Sync active competition vars
 
-In `dbt_project/dbt_project.yml`, add `{LEAGUE_CODE}` to
-`vars.active_competition_league_codes` in alphabetical order.
+Run from the repo root:
 
-### Step 7 — i18n competition labels
+```bash
+python scripts/sync_dbt_vars.py
+```
+
+This reads `docs/competition_registry.yml` and rewrites the
+`active_competition_league_codes` list in `dbt_project/dbt_project.yml`
+automatically. Do NOT edit `dbt_project.yml` by hand — `check_registry_var_sync.py`
+in CI enforces that the two files match exactly.
+
+### Step 6 — i18n competition labels
 
 In each of `site/i18n/en.json`, `site/i18n/de.json`, `site/i18n/fi.json`,
 add a new key to the `competitions` block:
@@ -241,44 +168,24 @@ Place it before the `"WC": ...` line (which is by convention the last entry).
 Translate the name appropriately for each locale (most domestic-league names
 are the same in all three languages).
 
-### Step 7b — Add the league code to the CI bootstrap-ingest list
-
-**Critical, easy to miss.** CI's `ci-data-build` workflow runs a bootstrap
-ingest step that fetches raw API tables for new leagues so the dbt staging
-materialization has source data to read. The list of leagues the bootstrap
-fetches is hardcoded as an env var on the step.
-
-In `.github/workflows/ci-data-build.yml`, find:
-
-```yaml
-API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2,SA,L1,VL"
-```
-
-(or whatever the current list is) and append the new `{LEAGUE_CODE}`:
-
-```yaml
-API_FOOTBALL_LEAGUE_CODES: "PL,PD,BL2,SA,L1,VL,{LEAGUE_CODE}"
-```
-
-Without this step, the dbt `Build staging` step fails with
-`Table RAW_APIF_{LEAGUE_CODE}_FIXTURE_EVENTS was not found in location EU`
-for every new staging model. Discovered the hard way during LMX
-onboarding (#178).
-
-### Step 8 — Local validation
+### Step 7 — Local validation
 
 Run, from the repo root or worktree:
 
 ```bash
 export PYTHONPATH=.
 python scripts/check_registry_var_sync.py
+python scripts/check_base_model_no_hardcoded_leagues.py
 python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ['site/i18n/en.json','site/i18n/de.json','site/i18n/fi.json']]; print('i18n ok')"
 ```
 
-The first should report `OK (N competitions)` with N having incremented by 1.
-The second silently passes if all three JSONs parse cleanly.
+`check_registry_var_sync.py` should report `OK (N competitions)` with N
+having incremented by 1. `check_base_model_no_hardcoded_leagues.py` should
+report OK — it will if the new staging models were created correctly and no
+hardcoded refs were introduced. The i18n check silently passes if all three
+JSONs parse cleanly.
 
-### Step 9 — Commit and PR
+### Step 8 — Commit and PR
 
 ```bash
 git add dbt_project/ docs/competition_registry.yml site/i18n/
@@ -304,9 +211,11 @@ The PR should pass all 5 gate jobs. Specifically:
   - A copy-paste typo in one of the staging files (sed-replace skipped a token)
   - A new league_code already present elsewhere
   - sqlfluff lint error from a long line
-- `ci-validate / gate`: verifies the registry sync (catches if `league_code`
-  was added to the registry but not to `active_competition_league_codes`,
-  or vice versa)
+- `ci-validate / gate`: runs three checks:
+  - `check_registry_var_sync.py` — fails if registry and `active_competition_league_codes` diverge
+  - `check_base_model_no_hardcoded_leagues.py` — fails if any cross-league base model
+    contains a hardcoded `ref('stg_apif__XX_...')` instead of using the Jinja loop
+  - `dbt parse` — catches model compilation errors
 
 ## Operational follow-up the user should do
 
@@ -322,8 +231,8 @@ After merge:
 ## Known edge cases
 
 - **VL itself**: do not use this skill to "re-onboard" VL. It's the source
-  template; modifying it requires manual edits across all dependent base
-  models.
+  template for staging files. The base models are Jinja-loop-driven and
+  need no edits when adding any league including VL variants.
 - **WCQ leagues**: shape is different (group-based tournaments); do not use.
 - **Long-running campaigns** (e.g. WC qualifiers that span 3 calendar years):
   set `history_seasons` based on the rolling form window the form-source
