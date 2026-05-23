@@ -65,7 +65,7 @@ aggregated as (
         season_api_year,
         player_sk,
         -- last known club team in this league/season for domestic-league resolution
-        any_value(team_sk order by kickoff_datetime desc) as team_sk,
+        array_agg(team_sk ignore nulls order by kickoff_datetime desc limit 1)[safe_offset(0)] as team_sk,
         count(distinct fixture_sk) as matches_played,
         sum(coalesce(minutes_played, 0)) as minutes_played_total,
         -- Leaderboard 1: scorer points
