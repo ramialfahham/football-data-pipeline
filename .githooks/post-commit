@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Enforces working_agreement.md section 3: every commit must be pushed and have an open PR.
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Skip main/master — direct commits there are blocked by agreement, not this hook
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+  exit 0
+fi
+
+echo ""
+echo "==> [post-commit] Pushing $BRANCH to origin..."
+git push origin "$BRANCH"
+
+PUSH_EXIT=$?
+if [ $PUSH_EXIT -ne 0 ]; then
+  echo "==> [post-commit] Push failed (exit $PUSH_EXIT). Fix the push manually, then run: gh pr create"
+  exit 0
+fi
+
+echo ""
+echo "==> [post-commit] Checking for existing PR..."
+EXISTING_PR=$(gh pr view "$BRANCH" --json number --jq '.number' 2>/dev/null)
+
+if [ -n "$EXISTING_PR" ]; then
+  PR_URL=$(gh pr view "$BRANCH" --json url --jq '.url')
+  echo "==> [post-commit] PR already open: $PR_URL"
+else
+  echo "==> [post-commit] Opening PR..."
+  gh pr create --base main --fill
+fi
