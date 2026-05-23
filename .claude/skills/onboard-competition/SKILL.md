@@ -230,9 +230,6 @@ After merge:
 
 ## Known edge cases
 
-- **VL itself**: do not use this skill to "re-onboard" VL. It's the source
-  template for staging files. The base models are Jinja-loop-driven and
-  need no edits when adding any league including VL variants.
 - **WCQ leagues**: shape is different (group-based tournaments); do not use.
 - **Long-running campaigns** (e.g. WC qualifiers that span 3 calendar years):
   set `history_seasons` based on the rolling form window the form-source
