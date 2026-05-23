@@ -59,6 +59,44 @@ models:
             - fixture_sk
             - team_sk
 
+  - name: int_matchday__fixture_player_insights
+    description: >
+      Per (upcoming fixture_sk, team_sk, player_sk) form atom aggregates for the player insights surface.
+      Grain: (fixture_sk, team_sk, player_sk).
+      Implements three form-window dispatches:
+        domestic_last_5 — last 5 finished legs in current season;
+        domestic_prev_season_fallback — full previous season when current season has no finished legs;
+        wc_pre_via_domestic_full_season — player's full current/most-recent domestic season (GS-MD1 only);
+        wc_tournament_cumulative — all finished WC tournament legs before this fixture (GS-MD2+ and knockout).
+      form_source_unavailable_reason is set when atoms cannot be computed (league_not_covered or
+      no_appearances_in_window); atoms are null when reason is set.
+    config:
+      tags: ["intermediate", "football", "matchday", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - team_sk
+            - player_sk
+    columns:
+      - name: fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: player_sk
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+      - name: form_window_kind
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - domestic_last_5
+                - domestic_prev_season_fallback
+                - wc_pre_via_domestic_full_season
+                - wc_tournament_cumulative
+
   - name: int_matchday__team_form_metrics_relegation
     description: >
       Rolling last-five completed legs for relegation fixtures. Domestic legs use per-team
