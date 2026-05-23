@@ -34,6 +34,7 @@ repos:
         # Match the CI invocation: lint from dbt_project root with its .sqlfluff config.
         files: ^dbt_project/models/.*\.sql$
         args: [--config, dbt_project/.sqlfluff]
+        additional_dependencies: ['sqlfluff-templater-dbt==3.2.5']
 
   - repo: local
     hooks:

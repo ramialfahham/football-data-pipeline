@@ -198,17 +198,19 @@
   "matchPreview": {
     "back": "Matchday",
     "tag": "Match Preview",
-    "formContext": "Form: last 5 matches",
-    "formContextDomestic": "Form: last 5 matches",
+    "formContext": "Form: last 5 matches this season",
+    "formContextDomestic": "Form: last 5 matches this season",
+    "formContextDomesticPreseason": "Form: full previous season",
     "formContextWcQualifiers": "Form: all qualifying matches",
     "formContextWcTournament": "Form: all World Cup matches so far",
     "wc": {
       "groupPrefix": "Group {{letter}}"
     },
     "errorPrefix": "Data could not be loaded:",
-    "foot": "Form window: up to five most recent completed matches of the current season. Before season start, the previous season in full. During the World Cup: through Group Stage Matchday 1, all qualifying matches of the team; from Group Stage Matchday 2 onward, all completed World Cup matches so far (cumulative, no five-game cap). “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",
-    "footWc": "World Cup form window: through Group Stage Matchday 1, all qualifying matches of the team; from Group Stage Matchday 2 onward, all completed World Cup matches so far (cumulative). “Ø” marks per-match averages over the window. “%” marks cumulative ratios — sum of hits across all matches divided by sum of attempts, not the mean of per-match ratios. When a metric is missing in the data, we show “not available” — no fabricated zeros.",
-    "footDataGap": "If a team has no completed fixtures in the configured World Cup qualifying competitions, that team's form values stay at “-” (data gap, no fallback).",
+    "footAvgDesc": "Per-match average in the form window",
+    "footPctDesc": "Ratio across all form matches combined — total hits ÷ total attempts, not an average of per-match rates",
+    "footMissingDesc": "Not provided by the data source",
+    "footMissingWcDesc": "No qualifying data available for this team. Host nations do not play qualifiers and show – for all form metrics before the tournament begins.",
     "feedback": {
       "modalTitle": "Quick feedback",
       "q1": "How easy was it to use? (1–5)",

@@ -198,17 +198,19 @@
   "matchPreview": {
     "back": "Ottelukierros",
     "tag": "Otteluennakko",
-    "formContext": "Kunto: viimeiset 5 ottelua",
-    "formContextDomestic": "Kunto: viimeiset 5 ottelua",
-    "formContextWcQualifiers": "Kunto: kaikki karsintaottelut",
-    "formContextWcTournament": "Kunto: kaikki tähän mennessä pelatut MM-ottelut",
+    "formContext": "Muoto: viimeiset 5 ottelua tällä kaudella",
+    "formContextDomestic": "Muoto: viimeiset 5 ottelua tällä kaudella",
+    "formContextDomesticPreseason": "Muoto: koko edellinen kausi",
+    "formContextWcQualifiers": "Muoto: kaikki karsintaottelut",
+    "formContextWcTournament": "Muoto: kaikki tähänastiset MM-ottelut",
     "wc": {
       "groupPrefix": "Lohko {{letter}}"
     },
     "errorPrefix": "Datan lataaminen epäonnistui:",
-    "foot": "Kuntojakso: enintään viisi tämän kauden viimeisintä pelattua ottelua. Ennen kauden alkua koko edellinen kausi. MM-kisoissa: lohkovaiheen 1. kierrokseen asti kaikki joukkueen karsintaottelut, lohkovaiheen 2. kierroksesta eteenpäin kaikki siihen mennessä pelatut MM-ottelut (kumulatiivisesti, ilman viiden ottelun rajaa). “Ø” tarkoittaa ottelukohtaista keskiarvoa jakson ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa kaikkien otteluiden yli jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia.",
-    "footWc": "MM-kisojen kuntojakso: lohkovaiheen 1. kierrokseen asti kaikki joukkueen karsintaottelut, lohkovaiheen 2. kierroksesta eteenpäin kaikki siihen mennessä pelatut MM-ottelut (kumulatiivisesti). “Ø” tarkoittaa ottelukohtaista keskiarvoa jakson ajalta. “%” tarkoittaa kumulatiivista suhdetta — onnistumisten summa kaikkien otteluiden yli jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvoa. Jos metriikka puuttuu datasta, näytämme “ei saatavilla” — emme käytä keinotekoisia nollia.",
-    "footDataGap": "Jos joukkueella ei ole pelattuja otteluita määritellyissä MM-karsintakilpailuissa, joukkueen kuntoluvut jäävät arvoon “-” (datakatkos, ei fallbackia).",
+    "footAvgDesc": "Ottelukohtainen keskiarvo muotojaksolla",
+    "footPctDesc": "Suhde kaikilla muoto-otteluilla yhteensä — onnistumisten summa ÷ yritysten summa, ei ottelukohtaisten prosenttien keskiarvo",
+    "footMissingDesc": "Tietolähde ei toimittanut tätä arvoa",
+    "footMissingWcDesc": "Joukkueella ei ole karsintadataa saatavilla. Isäntämaat eivät pelaa karsinnoissa ja näyttävät – kaikissa muotoluvuissa ennen turnauksen alkua.",
     "feedback": {
       "modalTitle": "Nopea palaute",
       "q1": "Kuinka helppokäyttöinen näkymä oli? (1–5)",
