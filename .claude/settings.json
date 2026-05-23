@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "shell": "bash",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"WORKFLOW GATE: git commit detected. Per working_agreement.md section 3 you MUST now complete steps 3 and 4 before responding to the user: (3) git push origin <branch> with explicit refspec, (4) gh pr create. Do not report done until the PR URL is returned.\"}}'",
+            "statusMessage": "Enforcing branch workflow..."
+          }
+        ]
+      }
+    ]
+  }
+}
