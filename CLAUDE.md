@@ -6,7 +6,7 @@ Read this at the start of every session before doing anything else.
 
 1. Run `git branch --show-current` via **PowerShell** to confirm the active branch.
 2. If the branch doesn't match the task, switch now **before writing any files**: `git checkout <target-branch>` or `git checkout -b <new-branch>`.
-3. **Never use the Bash tool for git commands on this repo** — use PowerShell only. Bash and PowerShell run in separate processes and see different working-directory state, causing branch confusion.
+3. **Never use the Bash tool for git commands on this repo** — use PowerShell only. Bash and PowerShell run in separate processes and see different working-directory state, causing branch confusion. For everything else (bq, gh, python, etc.) use Bash — it is synchronous and faster.
 4. If unsure which branch to use, ask the user before touching any file.
 
 ## Working agreement
