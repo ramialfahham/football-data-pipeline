@@ -1,18 +1,27 @@
-"""Merge prior BigQuery payloads with this-run API data (cross-run completeness).
+"""In-memory merge helpers for raw API payloads.
 
-Every raw table holds a single JSON payload row (the "merge-on-write" pattern).
-Before writing, we read the existing payload from BQ, merge it with the new API
-data, and write the result back. This makes each run additive: a fixture fetched
-on Monday survives Tuesday's run even if the API doesn't return it again.
+With the move to append-only raw storage, most merge logic has been removed.
+Reference tables (fixtures, standings, teams, transfers, players) now write a
+fresh complete snapshot on every run — no cross-run merging needed.
 
-Each merge function defines its own deduplication key (fixture_id, team+season,
-player_id, etc.) so incoming data overwrites stale entries on the same key while
-preserving everything else.
+The two functions that remain:
+
+1. merge_rounds_season_blocks — still used WITHIN a single run to assemble
+   round names from multiple seasons into one payload before writing. This is
+   not cross-run merging; it is building the run's snapshot from multiple API
+   calls made in the same session.
+
+2. merge_fanout_batched — used by the per-fixture fanout tables (lineups,
+   events, stats, fixture players, predictions). These tables are still
+   merge-on-write because each run only fetches a subset of fixtures (the
+   missing ones) and the merged blob is how the pipeline tracks what has
+   already been fetched. This will be replaced by the fixture coverage
+   tracking table in issue #221.
 """
 
 from __future__ import annotations
 
-# Keys on per-fixture fanout rows (one key per RAW batched table payload).
+# Keys on per-fixture fanout rows — one key per RAW batched table payload.
 _FANOUT_PAYLOAD_KEYS: tuple[str, ...] = (
     "lineups",
     "events",
@@ -23,6 +32,7 @@ _FANOUT_PAYLOAD_KEYS: tuple[str, ...] = (
 
 
 def _fanout_row_payload_key(row: dict) -> str | None:
+    """Return which fanout payload key (lineups, events, etc.) is present in this row."""
     for key in _FANOUT_PAYLOAD_KEYS:
         if key in row:
             return key
@@ -30,7 +40,7 @@ def _fanout_row_payload_key(row: dict) -> str | None:
 
 
 def _fanout_payload_nonempty(row: dict, payload_key: str) -> bool:
-    """True when the endpoint payload is present (non-empty list or truthy value)."""
+    """Return True when the fanout endpoint payload exists and is not empty."""
     value = row.get(payload_key)
     if value is None:
         return False
@@ -40,12 +50,19 @@ def _fanout_payload_nonempty(row: dict, payload_key: str) -> bool:
 
 
 def _keep_existing_fanout_row(existing_row: dict, incoming_row: dict) -> bool:
-    """Do not replace a non-empty fanout block with an empty one (quota skip or API [])."""
+    """Return True when the existing fanout data should be kept instead of replaced.
+
+    We never replace a non-empty fanout block with an empty one. An empty
+    incoming block means the API returned nothing this run (quota skip or
+    empty response) — not that the data is gone. Keeping the existing non-empty
+    block preserves historical coverage.
+    """
     payload_key = _fanout_row_payload_key(incoming_row) or _fanout_row_payload_key(existing_row)
     if payload_key is None:
         return False
-    return _fanout_payload_nonempty(existing_row, payload_key) and not _fanout_payload_nonempty(
-        incoming_row, payload_key
+    return (
+        _fanout_payload_nonempty(existing_row, payload_key)
+        and not _fanout_payload_nonempty(incoming_row, payload_key)
     )
 
 
@@ -58,15 +75,21 @@ def merge_fanout_batched(
 ) -> dict:
     """Merge per-fixture fanout blocks (lineups, events, stats, players, predictions).
 
-    Keyed by fixture_id; incoming overwrites existing for the same id. Entries
-    whose fixture_id is not in valid_fixture_ids are pruned — this prevents stale
-    rows from cancelled or removed fixtures accumulating indefinitely.
+    The merge key is fixture_id: incoming data overwrites existing data for the
+    same fixture. Fixtures whose id is not in valid_fixture_ids are pruned —
+    this prevents rows from cancelled or removed fixtures building up indefinitely.
+
+    This function will be removed once the fixture coverage tracking table
+    (issue #221) replaces the blob-based completeness check. At that point
+    the fanout tables will switch to append-only like the reference tables.
     """
     by_id: dict[int, dict] = {}
+
     for row in (existing or {}).get("response") or []:
         fid = row.get("fixture_id")
         if fid is not None:
             by_id[int(fid)] = row
+
     for row in incoming.get("response") or []:
         fid = row.get("fixture_id")
         if fid is None:
@@ -75,157 +98,22 @@ def merge_fanout_batched(
         if fid_int in by_id and _keep_existing_fanout_row(by_id[fid_int], row):
             continue
         by_id[fid_int] = row
+
     if valid_fixture_ids is not None:
         by_id = {k: v for k, v in by_id.items() if k in valid_fixture_ids}
-    return {"league_code": league_code, "response": [by_id[k] for k in sorted(by_id.keys())]}
 
-
-def merge_players_squad(
-    existing: dict | None,
-    incoming: dict,
-    *,
-    league_code: str,
-    valid_team_season: set[tuple[int, int]],
-) -> dict:
-    """Squad batch: blocks keyed by ``(team_id, season)``."""
-    by_k: dict[tuple[int, int], dict] = {}
-    for row in (existing or {}).get("response") or []:
-        try:
-            tid = int(row["team_id"])
-            season = int(row["season"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        by_k[(tid, season)] = row
-    for row in incoming.get("response") or []:
-        try:
-            tid = int(row["team_id"])
-            season = int(row["season"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        by_k[(tid, season)] = row
-    by_k = {k: v for k, v in by_k.items() if k in valid_team_season}
-    return {"league_code": league_code, "response": [by_k[k] for k in sorted(by_k.keys())]}
-
-
-def _fixture_id_from_match(item: dict) -> int | None:
-    try:
-        return int((item.get("fixture") or {}).get("id"))
-    except (TypeError, ValueError):
-        return None
-
-
-def merge_fixtures_envelope(existing: dict | None, incoming: dict) -> dict:
-    """Merge /fixtures responses across seasons and runs, keyed by fixture_id.
-
-    Multi-season ingestion calls /fixtures once per season; this merges all
-    seasons into a single payload so downstream code sees one unified fixture list.
-    Incoming overwrites existing for the same fixture_id (status updates, reschedules).
-    """
-    by_id: dict[int, dict] = {}
-    for it in (existing or {}).get("response") or []:
-        fid = _fixture_id_from_match(it)
-        if fid is not None:
-            by_id[fid] = it
-    for it in incoming.get("response") or []:
-        fid = _fixture_id_from_match(it)
-        if fid is not None:
-            by_id[fid] = it
-    resp = [by_id[k] for k in sorted(by_id.keys())]
-    out = {k: v for k, v in incoming.items() if k not in ("response", "errors", "results", "paging")}
-    out["response"] = resp
-    out["errors"] = list(incoming.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
-
-
-def _standing_season(item: dict) -> int | None:
-    try:
-        return int((item.get("league") or {}).get("season"))
-    except (TypeError, ValueError):
-        return None
-
-
-def merge_standings_envelope(existing: dict | None, incoming: dict) -> dict:
-    by_s: dict[int, dict] = {}
-    for it in (existing or {}).get("response") or []:
-        s = _standing_season(it)
-        if s is not None:
-            by_s[s] = it
-    for it in incoming.get("response") or []:
-        s = _standing_season(it)
-        if s is not None:
-            by_s[s] = it
-    resp = [by_s[k] for k in sorted(by_s.keys())]
-    out = {k: v for k, v in incoming.items() if k not in ("response", "errors", "results", "paging")}
-    out["response"] = resp
-    out["errors"] = list(incoming.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
-
-
-def _team_row_key(item: dict) -> tuple[int, int] | None:
-    try:
-        tid = int((item.get("team") or {}).get("id"))
-        season = int((item.get("league") or {}).get("season"))
-        return (tid, season)
-    except (TypeError, ValueError):
-        return None
-
-
-def merge_teams_envelope(existing: dict | None, incoming: dict) -> dict:
-    by_k: dict[tuple[int, int], dict] = {}
-    for it in (existing or {}).get("response") or []:
-        k = _team_row_key(it)
-        if k is not None:
-            by_k[k] = it
-    for it in incoming.get("response") or []:
-        k = _team_row_key(it)
-        if k is not None:
-            by_k[k] = it
-    resp = [by_k[k] for k in sorted(by_k.keys())]
-    out = {k: v for k, v in incoming.items() if k not in ("response", "errors", "results", "paging")}
-    out["response"] = resp
-    out["errors"] = list(incoming.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
-
-
-def _transfer_player_key(row: dict) -> int | None:
-    try:
-        return int((row.get("player") or {}).get("id"))
-    except (TypeError, ValueError):
-        return None
-
-
-def merge_transfers_envelope(existing: dict | None, incoming: dict) -> dict:
-    by_p: dict[int, dict] = {}
-    for r in (existing or {}).get("response") or []:
-        k = _transfer_player_key(r)
-        if k is not None:
-            by_p[k] = r
-    for r in incoming.get("response") or []:
-        k = _transfer_player_key(r)
-        if k is not None:
-            by_p[k] = r
-    resp = [by_p[k] for k in sorted(by_p.keys())]
-    meta = {k: v for k, v in incoming.items() if k not in ("response", "errors", "results", "paging")}
-    out = dict(meta)
-    out["response"] = resp
-    out["errors"] = list(incoming.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
+    return {
+        "league_code": league_code,
+        "response": [by_id[k] for k in sorted(by_id.keys())],
+    }
 
 
 def _rounds_legacy_flat(payload: dict | None) -> bool:
+    """Return True if the payload uses the old flat-list format (pre-season-block migration)."""
     r = (payload or {}).get("response") or []
     if not r:
         return False
-    el0 = r[0]
-    return isinstance(el0, str)
+    return isinstance(r[0], str)
 
 
 def merge_rounds_season_blocks(
@@ -233,23 +121,24 @@ def merge_rounds_season_blocks(
     season: int,
     rounds_pl: dict,
 ) -> dict:
-    """Merge rounds per season into a list of {season, rounds} blocks.
+    """Assemble round names from multiple seasons into a single payload.
 
-    The API returns a flat list of round name strings per season call. We wrap
-    each in a season-tagged block so multi-season payloads stay mergeable across
-    runs. Legacy flat-list payloads (written before this format) are detected and
-    discarded on first tagged write rather than corrupting the merge.
+    The API returns a flat list of round name strings for one season at a time.
+    This function wraps each season's list in a {season, rounds} block and
+    merges them together so the final payload covers all seasons fetched in
+    this run.
+
+    Note: 'existing' here refers to the payload accumulated so far WITHIN this
+    run (starting as None on the first season). It is NOT the prior BigQuery row —
+    we no longer read prior rows for reference tables. Each run builds a fresh
+    complete snapshot from the API responses fetched that day.
+
+    Legacy flat-list payloads (written before this format was introduced) are
+    detected and discarded on first write rather than corrupting the merge.
     """
     raw_names = rounds_pl.get("response") or []
-    names: list = []
-    for x in raw_names:
-        if isinstance(x, str):
-            names.append(x)
-        elif isinstance(x, dict):
-            names.append(x)
-        else:
-            names.append(x)
-    block = {"season": int(season), "rounds": names}
+    block = {"season": int(season), "rounds": list(raw_names)}
+
     by_s: dict[int, dict] = {}
     ex = existing or {}
     if not _rounds_legacy_flat(ex):
@@ -259,9 +148,14 @@ def merge_rounds_season_blocks(
                     by_s[int(blk["season"])] = blk
                 except (TypeError, ValueError):
                     continue
+
     by_s[int(season)] = block
     resp = [by_s[s] for s in sorted(by_s.keys())]
-    out = {k: v for k, v in rounds_pl.items() if k not in ("response", "errors", "results", "paging")}
+    out = {
+        k: v
+        for k, v in rounds_pl.items()
+        if k not in ("response", "errors", "results", "paging")
+    }
     out["response"] = resp
     out["errors"] = list(rounds_pl.get("errors") or [])
     out["results"] = len(resp)
