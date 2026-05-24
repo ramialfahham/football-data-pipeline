@@ -1023,3 +1023,179 @@ models:
         description: "Published-style total squad estimate in whole EUR; null when unknown."
       - name: source_code
         description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
+
+  - name: mart_matchday_player_insights
+    description: >
+      Player insights for upcoming fixtures, per leaderboard. Grain: (fixture_sk, team_sk,
+      player_sk, leaderboard_id). One row per player per leaderboard (9 leaderboards).
+      rank_for_leaderboard is 1–5 for eligible top-5 players; null for players ranked 6+ or
+      ineligible (form_source_unavailable_reason set). Eligible players have
+      form_source_unavailable_reason IS NULL and matches_in_window > 0.
+      Export writes data/{league}/matchday_player_insights.json filtered to rank IS NOT NULL.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "consumer", "player_insights"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - team_sk
+            - player_sk
+            - leaderboard_id
+
+      # ── leaderboard_id enum ─────────────────────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: >
+            leaderboard_id in (
+              'scorer_points', 'shots_on_target', 'dribbles', 'key_passes',
+              'pass_accuracy', 'duels', 'defensive_actions', 'save_pct', 'cards'
+            )
+          name: leaderboard_id_valid_enum
+
+      # ── rank bounds ──────────────────────────────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "rank_for_leaderboard is null or (rank_for_leaderboard between 1 and 5)"
+          name: rank_for_leaderboard_in_range
+
+      # ── sort consistency: rank 1 has the highest sort_score per group ────
+      - dbt_utils.expression_is_true:
+          expression: >
+            rank_for_leaderboard is null
+            or rank_for_leaderboard = 1
+            or sort_score <= (
+              select max(s.sort_score)
+              from {{ ref('mart_matchday_player_insights') }} s
+              where s.fixture_sk = mart_matchday_player_insights.fixture_sk
+                and s.team_sk = mart_matchday_player_insights.team_sk
+                and s.leaderboard_id = mart_matchday_player_insights.leaderboard_id
+                and s.rank_for_leaderboard = mart_matchday_player_insights.rank_for_leaderboard - 1
+            )
+          name: rank_sort_score_descending
+          config:
+            severity: warn
+
+      # ── ratio bounds [0, 1] when non-null ────────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: dribbles_success_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+          name: pass_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "save_pct is null or (save_pct between 0 and 1)"
+          name: save_pct_in_range
+
+      # ── formula consistency ──────────────────────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "passes_accurate is null or passes_total is null or passes_accurate <= passes_total"
+          name: passes_accurate_le_total
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success is null or dribbles_attempts is null or dribbles_success <= dribbles_attempts"
+          name: dribbles_success_le_attempts
+      - dbt_utils.expression_is_true:
+          expression: "duels_won is null or duels_total is null or duels_won <= duels_total"
+          name: duels_won_le_total
+      - dbt_utils.expression_is_true:
+          expression: "save_pct is null or (goals_saves is not null and goals_conceded is not null and goals_saves + goals_conceded > 0)"
+          name: save_pct_has_valid_denominator
+
+      # ── source transparency consistency ─────────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "form_source_unavailable_reason is null or goals is null"
+          name: atoms_null_when_source_unavailable
+      - dbt_utils.expression_is_true:
+          expression: "form_window_kind is not null"
+          name: form_window_kind_not_null
+
+    columns:
+      - name: fixture_sk
+        description: "FK to fct_fixture."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: fixture_api_id
+        description: "API fixture ID for UI linking."
+        tests: [not_null]
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: team_api_id
+        description: "API team ID for UI logo lookup."
+        tests: [not_null]
+      - name: player_sk
+        description: "FK to dim_player."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: player_api_id
+        description: "API player ID for UI."
+        tests: [not_null]
+      - name: player_name
+        description: "Denormalized player name."
+        tests: [not_null]
+      - name: player_position_code
+        description: "Most recently seen position code; informational only."
+      - name: league_code
+        description: "The fixture's competition code."
+        tests: [not_null]
+      - name: leaderboard_id
+        description: "One of 9 leaderboard identifiers."
+        tests: [not_null]
+      - name: rank_for_leaderboard
+        description: "1–5 for top-5 eligible players; null if ranked 6+ or ineligible."
+      - name: sort_score
+        description: "Value the rank is derived from; null for ineligible players."
+      - name: form_source_league_code
+        description: "Competition the form window was drawn from."
+        tests: [not_null]
+      - name: form_window_kind
+        description: "Enum: domestic_last_5, domestic_prev_season_fallback, wc_pre_via_domestic_full_season, wc_tournament_cumulative."
+        tests: [not_null]
+      - name: form_source_unavailable_reason
+        description: "Null when data is available; league_not_covered, no_appearances_in_window, or data_unavailable otherwise."
+      - name: matches_in_window
+        description: "Number of matches in the form window."
+        tests: [not_null]
+      - name: minutes_played_window
+        description: "Total minutes played in the form window. Tie-break for ranking."
+        tests: [not_null]
+      - name: goals
+      - name: assists
+      - name: shots_on
+      - name: dribbles_success
+      - name: dribbles_attempts
+      - name: dribbles_success_pct
+        description: "Null when dribbles_attempts = 0."
+      - name: passes_key
+      - name: passes_total
+      - name: passes_accurate
+        description: "Derived: sum(floor(passes_total * passes_accuracy_percent / 100)) per fixture."
+      - name: pass_accuracy_pct
+        description: "Null when passes_total = 0."
+      - name: duels_total
+      - name: duels_won
+      - name: duels_won_pct
+        description: "Null when duels_total = 0."
+      - name: tackles
+      - name: interceptions
+      - name: blocks
+      - name: goals_saves
+      - name: goals_conceded
+      - name: save_pct
+        description: "Null when goals_saves + goals_conceded = 0."
+      - name: cards_yellow
+      - name: cards_red
