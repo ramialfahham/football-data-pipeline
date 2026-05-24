@@ -47,7 +47,7 @@ home_form as (
     select
         fixture_sk,
         team_sk as home_team_sk,
-        form_season_api_year as home_form_season_api_year,
+        form_season_api_year,
         form_games_played as home_form_games_played,
         form_matchdays_used as home_form_matchdays_used,
         stat_coverage_form_games as home_stat_coverage_form_games,
@@ -83,7 +83,6 @@ away_form as (
     select
         fixture_sk,
         team_sk as away_team_sk,
-        form_season_api_year as away_form_season_api_year,
         form_games_played as away_form_games_played,
         form_matchdays_used as away_form_matchdays_used,
         stat_coverage_form_games as away_stat_coverage_form_games,
@@ -138,7 +137,7 @@ final as (
         away_ts.latest_rank as away_league_rank,
         home_ts.standings_group_description as home_standings_group_description,
         away_ts.standings_group_description as away_standings_group_description,
-        hf.home_form_season_api_year,
+        hf.form_season_api_year,
         hf.home_form_games_played,
         hf.home_form_matchdays_used,
         hf.home_stat_coverage_form_games,
@@ -167,7 +166,6 @@ final as (
         hf.home_corner_kicks_per_match_recent,
         hf.home_corners_conceded_per_match_recent,
         hf.home_save_ratio_recent,
-        af.away_form_season_api_year,
         af.away_form_games_played,
         af.away_form_matchdays_used,
         af.away_stat_coverage_form_games,
