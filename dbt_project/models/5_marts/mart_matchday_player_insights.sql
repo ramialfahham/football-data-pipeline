@@ -32,17 +32,24 @@ with import_insights as (
 ),
 
 import_dim_player as (
-    select player_sk, player_api_id, player_name
+    select
+        player_sk,
+        player_api_id,
+        player_name
     from {{ ref('dim_player') }}
 ),
 
 import_dim_team as (
-    select team_sk, team_api_id
+    select
+        team_sk,
+        team_api_id
     from {{ ref('dim_team') }}
 ),
 
 import_fct_fixture as (
-    select fixture_sk, fixture_api_id
+    select
+        fixture_sk,
+        fixture_api_id
     from {{ ref('fct_fixture') }}
 ),
 
@@ -200,6 +207,7 @@ ranked as (
 )
 
 select
+    -- Simple column refs first (ST06)
     r.fixture_sk,
     f.fixture_api_id,
     r.team_sk,
@@ -207,10 +215,8 @@ select
     r.player_sk,
     dp.player_api_id,
     dp.player_name,
-    coalesce(pp.position_code, 'UNK') as player_position_code,
     r.league_code,
     r.leaderboard_id,
-    case when r.rn <= 5 and r.sort_score is not null then cast(r.rn as int64) end as rank_for_leaderboard,
     r.sort_score,
     r.form_source_league_code,
     r.form_window_kind,
@@ -238,7 +244,10 @@ select
     r.goals_conceded,
     r.save_pct,
     r.cards_yellow,
-    r.cards_red
+    r.cards_red,
+    -- Calculations last (ST06: after simple refs)
+    coalesce(pp.position_code, 'UNK') as player_position_code,
+    case when r.rn <= 5 and r.sort_score is not null then cast(r.rn as int64) end as rank_for_leaderboard
 from ranked as r
 inner join import_dim_player as dp on r.player_sk = dp.player_sk
 inner join import_dim_team as dt on r.team_sk = dt.team_sk
