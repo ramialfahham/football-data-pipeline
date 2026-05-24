@@ -200,7 +200,7 @@ final as (
         on
             um.away_team_sk = away_ts.team_sk
             and af.away_form_league_code = away_ts.league_code
-            and um.season_api_year = away_ts.season_api_year
+            and hf.form_season_api_year = away_ts.season_api_year
     left join dim_team as home_dt
         on um.home_team_sk = home_dt.team_sk
     left join dim_team as away_dt
