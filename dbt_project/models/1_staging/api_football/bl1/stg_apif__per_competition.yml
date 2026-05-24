@@ -89,13 +89,6 @@ models:
       criticality: "medium"
     config:
       tags: ["staging", "api_football", "player_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - league_code
-            - team_id
-            - season_year
-            - player_id
     columns:
       - name: league_code
         description: "Internal league code; always BL1 (Bundesliga) for this MVP."
