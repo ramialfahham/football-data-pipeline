@@ -13,19 +13,31 @@ API references:
 
 Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores that envelope unchanged. Every raw table holds a single JSON column `payload` and a UTC `ingested_at` timestamp. Nothing is discarded at ingest, so new fields become available to modelling without refetching.
 
-dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+All raw tables are partitioned by `DATE(ingested_at)` — one partition per calendar day. This means BigQuery only reads the relevant day's data when a query filters on `ingested_at`, which keeps scan costs low as the table grows across seasons and competitions.
+
+dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`. Staging views filter to the latest partition (`WHERE ingested_at = (SELECT MAX(ingested_at) FROM ...)`), so they always reflect the most recent API snapshot.
 
 ---
 
-## Merge-on-write
+## Append-only writes (reference tables)
 
-On every run, each raw table is written in three steps:
+Reference tables — fixtures, standings, teams, transfers, rounds, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
 
-1. Read the latest `payload` from BigQuery.
-2. Merge that prior `payload` in memory with the envelope the API returned this run, keyed by the table's logical identity (fixture id, team-season block, and so on).
-3. Write the combined envelope back with `WRITE_TRUNCATE`.
+1. The pipeline calls the API for all configured seasons (the full history window).
+2. The complete response is written as a new row with the current UTC timestamp.
+3. Prior rows are preserved. BigQuery retains the full ingest history.
 
-Row count per table stays at one by design. Growth happens inside `payload.response` as more keys accumulate across runs. This keeps merge logic in Python, staging SQL simple, and re-ingests idempotent. Under a daily request limit the next run continues from what is already in BigQuery instead of starting over.
+The latest row always contains the complete picture because each run fetches all seasons from the API. Staging reads only the latest row (latest partition), so downstream models always see a consistent current-state snapshot.
+
+This pattern scales cleanly: adding more seasons or competitions adds rows to existing tables, not columns to a single growing JSON blob.
+
+---
+
+## Fanout tables (merge-on-write, temporary)
+
+The five per-fixture tables — lineups, events, fixture statistics, fixture players, predictions — still use the legacy merge-on-write pattern. Each run fetches only the fixtures that are missing data (not the full history), so a simple append would lose previously fetched fixtures.
+
+These tables will be migrated to append-only in issue #221, which introduces a dedicated fixture coverage tracking table (`RAW_APIF_FIXTURE_COVERAGE`) to replace the blob-based completeness check.
 
 ---
 
@@ -67,7 +79,7 @@ Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`
 
 ## Endpoints and raw tables
 
-Each row is one HTTP area and the BigQuery raw table where its merged payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Writes use `WRITE_TRUNCATE` on the table; the `payload` inside is the merged cumulative snapshot described above.
+Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; fanout tables still use `WRITE_TRUNCATE` until issue #221.
 
 | Area | Endpoint(s) | BigQuery raw table |
 |------|----------------|-------------------|

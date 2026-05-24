@@ -1,15 +1,20 @@
-"""Merged /fixtures across seasons → RAW_*_FIXTURES_NEXT + id sets for downstream."""
+"""Fetch /fixtures for all configured seasons → RAW_*_FIXTURES_NEXT + id sets for downstream.
+
+Each run fetches all seasons configured for the competition and writes a fresh
+complete snapshot as a new appended row. There is no cross-run merge: the API
+returns the full fixture list for every season on every call, so the latest
+row always contains the complete picture.
+"""
 
 from __future__ import annotations
 
 import os
 
 from .. import quota as errors_quota
-from ..bigquery import load_json_to_bq, read_latest_payload_json
+from ..bigquery import load_json_to_bq
 from ..settings import _env_int, raw_league_table
 from ..quota import append_api_errors
 from ..http_client import fetch_merged_paged
-from ..merge import merge_fixtures_envelope
 from ..seasons import _merge_merged_paged, fixtures_query_params
 from .context import PipelineContext
 
@@ -84,14 +89,16 @@ def fetch_merge_and_persist_fixtures(
             f"parameters={params!r} — check API errors above, API_FOOTBALL_FIXTURES_MODE "
             f"(from_to needs sensible dates), or quota; then re-run ingest."
         )
+    # Write this run's complete fixture snapshot as a new appended row.
+    # No cross-run merge: every run fetches all seasons from the API, so
+    # the snapshot is always complete. Staging reads the latest partition.
     fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
-    prior_fx = read_latest_payload_json(ctx.client, fx_tbl)
-    fixtures_merged = merge_fixtures_envelope(prior_fx, fixtures_merged)
     load_json_to_bq(
         ctx.client,
         fx_tbl,
         fixtures_merged,
         as_json_payload=True,
+        append=True,
     )
     ctx.add_loaded(1)
 

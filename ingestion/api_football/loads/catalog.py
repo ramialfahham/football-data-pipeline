@@ -38,6 +38,7 @@ def fetch_catalog_persist_and_plan(
             raw_league_table(league_code, "LEAGUES"),
             league_catalog,
             as_json_payload=True,
+            append=True,
         )
         ctx.add_loaded(1)
     else:

@@ -1,13 +1,16 @@
-"""GET /standings (multi-season merge) → RAW_*_STANDINGS."""
+"""Fetch /standings for all configured seasons → RAW_*_STANDINGS.
+
+Each run fetches all seasons and appends a fresh complete snapshot row.
+No cross-run merge: the API returns the full standings history on every call.
+"""
 
 from __future__ import annotations
 
 from .. import quota as errors_quota
-from ..bigquery import load_json_to_bq, read_latest_payload_json
+from ..bigquery import load_json_to_bq
 from ..settings import raw_league_table
 from ..quota import append_api_errors
 from ..http_client import fetch_merged_paged
-from ..merge import merge_standings_envelope
 from ..seasons import _merge_merged_paged
 from .context import PipelineContext
 
@@ -43,13 +46,12 @@ def load_standings_if_enabled(
         return
     try:
         st_tbl = raw_league_table(league_code, "STANDINGS")
-        prior = read_latest_payload_json(ctx.client, st_tbl)
-        standings_merged = merge_standings_envelope(prior, standings_merged)
         load_json_to_bq(
             ctx.client,
             st_tbl,
             standings_merged,
             as_json_payload=True,
+            append=True,
         )
         ctx.add_loaded(1)
     except Exception as e:
