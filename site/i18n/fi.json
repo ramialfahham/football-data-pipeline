@@ -10,14 +10,14 @@
     "tore": "Ø Maalit",
     "gegentore": "Ø Päästetyt maalit",
     "schuesse": "Ø Laukaukset",
-    "schuesseAufsTor": "% Laukaukset maalia kohti",
+    "schuesseAufsTor": "% Maalilaukaukset",
     "schuesseAusStrafraum": "% Laukaukset boksista",
-    "trefferquote": "% Maalit / laukaus maalia kohti",
+    "trefferquote": "% Viimeistelytehokkuus",
     "paesse": "Ø Syötöt",
     "angekommenePaesse": "% Syöttötarkkuus",
     "ecken": "Ø Kulmapotkut",
     "eckenGegen": "Ø Päästetyt kulmapotkut",
-    "gehalteneTorschuesse": "% Torjuntaprosentti"
+    "gehalteneTorschuesse": "% Torjuntaosuus"
   },
   "metrics": {
     "league_rank": {
@@ -41,7 +41,7 @@
       "description": "Kaikki laukaukset keskimäärin per ottelu kuntojakson aikana."
     },
     "shot_accuracy_recent": {
-      "label": "% Laukaukset maalia kohti",
+      "label": "% Maalilaukaukset",
       "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
     },
     "danger_zone_ratio_recent": {
@@ -49,7 +49,7 @@
       "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
     },
     "finishing_efficiency_recent": {
-      "label": "% Maalit / laukaus maalia kohti",
+      "label": "% Viimeistelytehokkuus",
       "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin kuntojakson aikana."
     },
     "passes_per_match_recent": {
@@ -69,7 +69,7 @@
       "description": "Vastustajalle annetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
     },
     "save_ratio_recent": {
-      "label": "% Torjuntaprosentti",
+      "label": "% Torjuntaosuus",
       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
     },
     "qualifier_games_played": {
@@ -101,11 +101,11 @@
       "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista karsinnoissa."
     },
     "shot_accuracy_pretournament": {
-      "label": "% Laukaukset maalia kohti (karsinnoissa)",
+      "label": "% Maalilaukaukset (karsinnoissa)",
       "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista karsinnoissa."
     },
     "finishing_efficiency_pretournament": {
-      "label": "% Maalit / laukaus maalia kohti (karsinnoissa)",
+      "label": "% Viimeistelytehokkuus (karsinnoissa)",
       "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin karsinnoissa."
     },
     "pass_accuracy_pretournament": {
@@ -125,7 +125,7 @@
       "description": "Vastustajalle annetut kulmapotkut keskimäärin per karsintaottelu."
     },
     "save_ratio_pretournament": {
-      "label": "% Torjuntaprosentti (karsinnoissa)",
+      "label": "% Torjuntaosuus (karsinnoissa)",
       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin karsinnoissa."
     }
   },
