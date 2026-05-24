@@ -86,8 +86,18 @@ def migrate_table(client: bigquery.Client, table_id: str) -> str:
     """Recreate one table with date partitioning, preserving existing data.
 
     Returns a status string: 'skipped', 'already_partitioned', or 'migrated'.
+
+    BigQuery does not allow changing a table's partition spec in-place
+    (CREATE OR REPLACE TABLE with a new partition spec is rejected). Instead
+    we use a three-step approach:
+      1. Copy data into a temporary table that has date partitioning.
+      2. Drop the original non-partitioned table.
+      3. Copy data from the temp table into a new table with the original name.
+      4. Drop the temp table.
     """
     table_name = table_id.split(".")[-1]
+    project_dataset = table_id.rsplit(".", 1)[0]
+    temp_table_id = f"{project_dataset}.{table_name}_migration_tmp"
 
     if table_name in SKIP_TABLES:
         return "skipped"
@@ -104,22 +114,39 @@ def migrate_table(client: bigquery.Client, table_id: str) -> str:
     if _table_is_partitioned(table):
         return "already_partitioned"
 
-    # Recreate the table with partitioning using a CTAS.
-    #
-    # CREATE OR REPLACE TABLE reads from the current table, creates a new
-    # partitioned version, and replaces the original — all in one BigQuery
-    # operation. The existing row(s) are preserved, landing in the partition
-    # that matches their ingested_at date.
-    ddl = f"""
-        CREATE OR REPLACE TABLE `{table_id}`
-        PARTITION BY DATE(ingested_at)
-        OPTIONS (require_partition_filter = false)
-        AS
-        SELECT payload, ingested_at
-        FROM `{table_id}`
-    """
-    job = client.query(ddl)
-    job.result()  # wait for completion
+    try:
+        # Step 1: copy into a partitioned temp table.
+        client.query(f"""
+            CREATE OR REPLACE TABLE `{temp_table_id}`
+            PARTITION BY DATE(ingested_at)
+            OPTIONS (require_partition_filter = false)
+            AS
+            SELECT payload, ingested_at FROM `{table_id}`
+        """).result()
+
+        # Step 2: drop the original non-partitioned table.
+        client.query(f"DROP TABLE `{table_id}`").result()
+
+        # Step 3: recreate the original table with partitioning from the temp.
+        client.query(f"""
+            CREATE TABLE `{table_id}`
+            PARTITION BY DATE(ingested_at)
+            OPTIONS (require_partition_filter = false)
+            AS
+            SELECT payload, ingested_at FROM `{temp_table_id}`
+        """).result()
+
+        # Step 4: drop the temp table.
+        client.query(f"DROP TABLE `{temp_table_id}`").result()
+
+    except Exception as e:
+        # If anything fails, try to clean up the temp table so a re-run is safe.
+        try:
+            client.query(f"DROP TABLE IF EXISTS `{temp_table_id}`").result()
+        except Exception:
+            pass
+        raise e
+
     return "migrated"
 
 
@@ -138,7 +165,7 @@ def main() -> None:
         status = migrate_table(client, table_id)
         counts[status] += 1
 
-        symbol = {"migrated": "✓", "already_partitioned": "–", "skipped": " "}.get(status, "?")
+        symbol = {"migrated": "+", "already_partitioned": "-", "skipped": " "}.get(status, "?")
         print(f"  [{symbol}] {table_item.table_id}  ({status})")
 
     print(
