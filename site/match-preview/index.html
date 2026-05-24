@@ -321,6 +321,7 @@
     .foot-item { display: flex; gap: 10px; margin-top: 5px; line-height: 1.45; align-items: baseline; }
     .foot-item:first-child { margin-top: 0; }
     .foot-sym { flex-shrink: 0; font-weight: 600; color: var(--text); min-width: 1.2em; }
+    .foot-def { flex: 1; }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -391,7 +392,7 @@
     <div class="carousel-wrap">
       <div class="carousel" id="carousel" role="region" aria-label="Spiele" data-i18n-attr="aria-label:matchPreview.ariaCarousel"></div>
     </div>
-    <dl class="foot" id="foot-note"></dl>
+    <div class="foot" id="foot-note"></div>
     <p class="foot-actions">
       <a href="#" id="feedback-link" class="foot-link" data-i18n="common.feedback">Feedback geben</a>
     </p>
@@ -449,10 +450,10 @@
     // strings live in /i18n/<lang>.json under the "matchPreview" namespace.
     // Helpers below read from window.t() which prefers the JSON value and
     // falls back to these constants when the key is missing.
-    const FALLBACK_FOOT_AVG_DESC = “Durchschnittswert pro Spiel im Formfenster”;
-    const FALLBACK_FOOT_PCT_DESC = “Quote über alle Formspiele kombiniert - Summe der Treffer / Summe der Versuche, kein Mittelwert der Einzelquoten”;
-    const FALLBACK_FOOT_MISSING_DESC = “Vom Datenanbieter nicht geliefert”;
-    const FALLBACK_FOOT_MISSING_WC_DESC = “Keine Qualifikationsdaten verfügbar. Gastgeberländer spielen keine Qualifikation und zeigen - bei allen Formkennzahlen vor Turnierbeginn.”;
+    const FALLBACK_FOOT_AVG_DESC = "Durchschnittswert pro Spiel im Formfenster";
+    const FALLBACK_FOOT_PCT_DESC = "Quote über alle Formspiele kombiniert - Summe der Treffer / Summe der Versuche, kein Mittelwert der Einzelquoten";
+    const FALLBACK_FOOT_MISSING_DESC = "Vom Datenanbieter nicht geliefert";
+    const FALLBACK_FOOT_MISSING_WC_DESC = "Keine Qualifikationsdaten verfügbar. Gastgeberländer spielen keine Qualifikation und zeigen - bei allen Formkennzahlen vor Turnierbeginn.";
     const FALLBACK_FEEDBACK_THANKS = "Danke! Feedback wurde gesendet.";
     const FALLBACK_FEEDBACK_ERROR = "Feedback konnte nicht gesendet werden.";
     const FALLBACK_FEEDBACK_ERROR_PREFIX = "Feedback nicht gespeichert:";

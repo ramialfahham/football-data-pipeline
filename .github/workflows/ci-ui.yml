@@ -45,6 +45,23 @@ jobs:
           python -m json.tool site/match-preview/metric_manifest.json > /dev/null
           python -m json.tool site/match-preview/metric_definitions.json > /dev/null
 
+      - name: Check JS syntax in match-preview HTML
+        run: |
+          python3 -c "
+          import re, sys
+          html = open('site/match-preview/index.html', encoding='utf-8').read()
+          scripts = re.findall(r'<script>(.*?)</script>', html, re.DOTALL)
+          if not scripts:
+              print('ERROR: no <script> block found in index.html', file=sys.stderr)
+              sys.exit(1)
+          for i, js in enumerate(scripts):
+              open(f'/tmp/ci_check_{i}.js', 'w', encoding='utf-8').write(js)
+          print(f'Extracted {len(scripts)} script block(s)')
+          "
+          for f in /tmp/ci_check_*.js; do
+            node --check "$f" && echo "SYNTAX OK: $f" || { echo "SYNTAX ERROR in $f"; exit 1; }
+          done
+
       - name: Check metric_manifest vs i18n metrics namespace
         run: python scripts/check_ui_i18n_metrics.py
 
