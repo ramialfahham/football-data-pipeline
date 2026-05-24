@@ -127,7 +127,7 @@ final as (
         home_dt.team_logo_url as home_team_logo_url,
         away_dt.team_logo_url as away_team_logo_url,
 
-        hfm.form_season_api_year as home_form_season_api_year,
+        hfm.form_season_api_year,
         hfm.form_games_played as home_form_games_played,
         hfm.form_matchdays_used as home_form_matchdays_used,
         hfm.stat_coverage_form_games as home_stat_coverage_form_games,
@@ -157,7 +157,6 @@ final as (
         hfm.corners_conceded_per_match_recent as home_corners_conceded_per_match_recent,
         hfm.save_ratio_recent as home_save_ratio_recent,
 
-        afm.form_season_api_year as away_form_season_api_year,
         afm.form_games_played as away_form_games_played,
         afm.form_matchdays_used as away_form_matchdays_used,
         afm.stat_coverage_form_games as away_stat_coverage_form_games,

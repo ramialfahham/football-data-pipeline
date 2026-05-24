@@ -242,7 +242,7 @@
     /* Form context line, sits below the match header to set the window once */
     .form-context {
       color: var(--text-tertiary);
-      font-size: 0.82rem;
+      font-size: 0.9rem;
       text-align: center;
       margin: -4px 0 16px;
       letter-spacing: 0.01em;
@@ -317,7 +317,10 @@
       line-height: 1.2;
       text-align: center !important;
     }
-    .foot { color: var(--muted); font-size: 0.75rem; margin-top: 14px; line-height: 1.4; }
+    .foot { color: var(--muted); font-size: 0.75rem; margin-top: 14px; }
+    .foot-item { display: flex; gap: 10px; margin-top: 5px; line-height: 1.45; align-items: baseline; }
+    .foot-item:first-child { margin-top: 0; }
+    .foot-sym { flex-shrink: 0; font-weight: 600; color: var(--text); min-width: 1.2em; }
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -388,7 +391,7 @@
     <div class="carousel-wrap">
       <div class="carousel" id="carousel" role="region" aria-label="Spiele" data-i18n-attr="aria-label:matchPreview.ariaCarousel"></div>
     </div>
-    <p class="foot" id="foot-note"></p>
+    <dl class="foot" id="foot-note"></dl>
     <p class="foot-actions">
       <a href="#" id="feedback-link" class="foot-link" data-i18n="common.feedback">Feedback geben</a>
     </p>
@@ -446,9 +449,10 @@
     // strings live in /i18n/<lang>.json under the "matchPreview" namespace.
     // Helpers below read from window.t() which prefers the JSON value and
     // falls back to these constants when the key is missing.
-    const FALLBACK_FOOT = "Form-Fenster: bis zu fünf zuletzt abgeschlossene Spiele dieser Saison. Vor Saisonstart die komplette Vorsaison. „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
-    const FALLBACK_FOOT_WC = "WM-Form-Fenster: bis einschließlich Gruppenspieltag 1 alle Qualifikationsspiele der Mannschaft, ab Gruppenspieltag 2 alle bisher abgeschlossenen WM-Spiele (kumuliert). „Ø“ markiert Durchschnittswerte pro Spiel im Fenster. „%“ markiert kumulierte Quoten — Summe der Treffer über alle Spiele geteilt durch die Summe der Versuche, nicht der Mittelwert der pro-Spiel-Quoten. Fehlt eine Kennzahl in den Daten, zeigen wir „nicht verfügbar“ — keine erfundenen Nullen.";
-    const FALLBACK_FOOT_DATA_GAP = "Wenn für eine Mannschaft in den konfigurierten WM-Qualifikationswettbewerben keine abgeschlossenen Spiele vorliegen, bleiben Formwerte für diese Mannschaft bei „-” (Datenlücke, kein Fallback).";
+    const FALLBACK_FOOT_AVG_DESC = “Durchschnittswert pro Spiel im Formfenster”;
+    const FALLBACK_FOOT_PCT_DESC = “Quote über alle Formspiele kombiniert - Summe der Treffer / Summe der Versuche, kein Mittelwert der Einzelquoten”;
+    const FALLBACK_FOOT_MISSING_DESC = “Vom Datenanbieter nicht geliefert”;
+    const FALLBACK_FOOT_MISSING_WC_DESC = “Keine Qualifikationsdaten verfügbar. Gastgeberländer spielen keine Qualifikation und zeigen - bei allen Formkennzahlen vor Turnierbeginn.”;
     const FALLBACK_FEEDBACK_THANKS = "Danke! Feedback wurde gesendet.";
     const FALLBACK_FEEDBACK_ERROR = "Feedback konnte nicht gesendet werden.";
     const FALLBACK_FEEDBACK_ERROR_PREFIX = "Feedback nicht gespeichert:";
@@ -559,29 +563,33 @@
     }
 
     function formContextLabel(row, leagueCode) {
-      if (leagueCode !== "wc") {
-        return t("matchPreview.formContextDomestic", t("matchPreview.formContext", "Form: last 5 matches"));
-      }
-      const fromQualifiers = !!(row && row.home_form_from_qualifiers && row.away_form_from_qualifiers);
-      if (fromQualifiers) {
-        return t("matchPreview.formContextWcQualifiers", "Form: all qualifying matches");
-      }
-      return t("matchPreview.formContextWcTournament", "Form: all World Cup matches so far");
-    }
-
-    function hasQualifierDataGap(rows) {
-      return rows.some((row) => {
-        const homeGap = !!row.home_form_from_qualifiers && Number(row.home_form_games_played || 0) === 0;
-        const awayGap = !!row.away_form_from_qualifiers && Number(row.away_form_games_played || 0) === 0;
-        return homeGap || awayGap;
-      });
-    }
-
-    function footLabel(leagueCode) {
       if (leagueCode === "wc") {
-        return t("matchPreview.footWc", FALLBACK_FOOT_WC);
+        const fromQualifiers = !!(row && row.home_form_from_qualifiers && row.away_form_from_qualifiers);
+        if (fromQualifiers) {
+          return t("matchPreview.formContextWcQualifiers", "Form: all qualifying matches");
+        }
+        return t("matchPreview.formContextWcTournament", "Form: all World Cup matches so far");
       }
-      return t("matchPreview.foot", FALLBACK_FOOT);
+      if (row && Number(row.form_season_api_year) !== Number(row.season_api_year)) {
+        return t("matchPreview.formContextDomesticPreseason", "Form: full previous season");
+      }
+      return t("matchPreview.formContextDomestic", t("matchPreview.formContext", "Form: last 5 matches this season"));
+    }
+
+    function isWcQualifierPhase(rows) {
+      return Array.isArray(rows) && rows.some(r => r.home_form_from_qualifiers || r.away_form_from_qualifiers);
+    }
+
+    function buildFootHtml(leagueCode, rows) {
+      function item(sym, desc) {
+        return '<div class="foot-item"><span class="foot-sym">' + sym + '</span><span class="foot-def">' + escHtml(desc) + '</span></div>';
+      }
+      const avgDesc = t("matchPreview.footAvgDesc", FALLBACK_FOOT_AVG_DESC);
+      const pctDesc = t("matchPreview.footPctDesc", FALLBACK_FOOT_PCT_DESC);
+      const missingDesc = (leagueCode === "wc" && isWcQualifierPhase(rows))
+        ? t("matchPreview.footMissingWcDesc", FALLBACK_FOOT_MISSING_WC_DESC)
+        : t("matchPreview.footMissingDesc", FALLBACK_FOOT_MISSING_DESC);
+      return item("Ø", avgDesc) + item("%", pctDesc) + item("–", missingDesc);
     }
 
     function setCompetitionContext(rows) {
@@ -787,10 +795,7 @@
     }
 
     function render(rows, defs, manifest, requestedFixtureId, leagueCode) {
-      const baseFoot = footLabel(leagueCode);
-      const gapFoot = t("matchPreview.footDataGap", FALLBACK_FOOT_DATA_GAP);
-      const footText = leagueCode === "wc" && hasQualifierDataGap(rows) ? `${baseFoot} ${gapFoot}` : baseFoot;
-      document.getElementById("foot-note").textContent = footText;
+      document.getElementById("foot-note").innerHTML = buildFootHtml(leagueCode, rows);
 
       const sorted = [...rows].sort((a, b) => {
         const ta = new Date(a.kickoff_datetime).getTime();
