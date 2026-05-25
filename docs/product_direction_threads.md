@@ -5,40 +5,39 @@ Tackle one by one. Do not close a thread without explicit sign-off from Rami.
 
 ---
 
-## Thread 1 — Cost at scale (ACTIVE)
+## Thread 1 — Cost at scale (CLOSED 2026-05-25)
 
-**Context:**
-BL1 has 10 seasons of historical data. If we apply the same history depth to every league in the growing competition registry, BigQuery processing costs could scale significantly. Storage is cheap; scans are not.
-
-**Questions to answer:**
-- Which dbt models are full-refresh vs incremental? Are raw tables date-partitioned?
-- What is the per-run scan cost today vs projected cost with 20 competitions × 10 seasons?
-- Do we need a cost audit before onboarding more historical data?
-
-**Proposed next step:** Audit incremental/full-refresh split across dbt models before adding historical data to new leagues.
+**Resolution:**
+- Raw tables partitioned by `DATE(ingested_at)` — PR #224 (249 tables migrated).
+- Reference table staging reads latest partition only — `apif_latest_source_partition` macro, PR #222.
+- Fanout facts (`fct_fixture_event`, `fct_fixture_team_stats`, `fct_fixture_player_stats`) converted to incremental — PR #232.
+- Intermediate matchday models are correctly full-refresh: they read from stored fact tables (not raw), whose scan cost is proportional to fixture count, not raw table size. Making them incremental would not help — form metrics require full history by design.
+- Daily costs acceptable at any realistic competition count. Architecture signed off.
 
 ---
 
-## Thread 2 — Competition taxonomy
+## Thread 2 — Competition taxonomy (ACTIVE)
 
 **Context:**
-"One mart fits all" won't scale as the competition registry grows. Different competition types have fundamentally different data shapes.
+"One mart fits all" won't scale as the competition registry grows. Different competition types have fundamentally different data shapes. We need an explicit taxonomy in the registry to drive mart routing — otherwise every new competition type requires ad hoc logic scattered across models.
 
 **Proposed taxonomy:**
-- **Domestic leagues** — standings, form, promotion/relegation zones
-- **Domestic cups** — bracket/knockout, no standings
-- **International club** (CL, EL) — group stage + knockout, multi-nation squads
-- **International national** (WC, Euros, qualifiers) — confederation groups, qualification paths
+- **domestic_league** — standings, form, promotion/relegation zones (BL1, BL2, PL, PD, SA, L1, VL, LMX, LP, MLS, SPL, ED)
+- **domestic_cup** — bracket/knockout, no standings
+- **international_club** — group stage + knockout, multi-nation squads (UCL, UEL)
+- **international_tournament** — confederation groups, qualification paths (WC, Euros, qualifiers)
 
 **Questions to answer:**
-- Add `competition_type` field to `competition_registry.yml` to drive mart routing?
-- Which existing marts need to be split or parameterised per type?
+1. Agree the enum values above (or revise).
+2. Add `competition_type` field to `docs/competition_registry.yml` for every active/in_progress competition.
+3. Which existing marts and intermediates are affected — do any need to branch on `competition_type`?
+4. Does `competition_type` drive mart file naming (`mart_matchday_insights_{type}.sql`) or is it metadata only?
 
-**Proposed next step:** Define `competition_type` enum, update registry, audit which marts are affected.
+**Status:** Open — needs discussion before any implementation.
 
 ---
 
-## Thread 3 — Visual identity and UX principles
+## Thread 3 — Visual identity and UX (ACTIVE)
 
 **Context:**
 The site is evolving from a mobile MVP into a professional multi-device website. The card/color scheme is no longer the right direction. The product should be fun, visual, and low-click.
@@ -52,7 +51,7 @@ The site is evolving from a mobile MVP into a professional multi-device website.
 - Visual style: data-dense (heatmaps, radar charts) vs narrative (big numbers, sparklines, callout stats)?
 - Tech stack: stay with static GitHub Pages + vanilla JS, or move to a framework that supports proper routing and SEO?
 
-**Proposed next step:** Decide visual direction and tech stack before any new page is built.
+**Status:** Open — needs discussion before any new page is built.
 
 ---
 
@@ -60,4 +59,4 @@ The site is evolving from a mobile MVP into a professional multi-device website.
 
 - ML/data science role brief — needs drafting before prediction mart design starts
 - Prediction mart — deferred until role is defined and training data discussion happens
-- `mart_league_standings`, `mart_team_season_stats`, `mart_team_squad`, `mart_player_season_stats` — scoped but not ticketed yet; wait until threads 1–3 are resolved
+- `mart_league_standings`, `mart_team_season_stats`, `mart_team_squad`, `mart_player_season_stats` — scoped but not ticketed yet; wait until threads 2–3 are resolved
