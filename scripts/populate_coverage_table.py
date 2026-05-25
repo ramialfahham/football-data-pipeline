@@ -93,39 +93,20 @@ def _coverage_table_id() -> str:
 def _read_latest_fanout_blob(client: bigquery.Client, table_id: str) -> dict | None:
     """Read the most recent row's payload from a fanout raw table.
 
-    Returns the parsed JSON payload dict, or None if the table does not exist
-    or has no rows.
+    Delegates to the package's read_latest_payload_json which correctly
+    handles both string and pre-parsed dict payloads from the BQ client.
+    Returns None if the table does not exist or has no rows.
     """
-    import json
+    # Import here so the script can be run from the repo root via sys.path.
+    from ingestion.api_football.bigquery import read_latest_payload_json
 
+    # Strip the project.dataset prefix — read_latest_payload_json expects
+    # just the table name (e.g. RAW_APIF_BL1_LINEUPS).
+    table_name = table_id.split(".")[-1]
     try:
-        client.get_table(table_id)
-    except Exception:
-        return None
-
-    q = f"""
-        SELECT payload
-        FROM `{table_id}`
-        ORDER BY ingested_at DESC
-        LIMIT 1
-    """
-    try:
-        rows = list(client.query(q).result())
+        return read_latest_payload_json(client, table_name)
     except Exception as e:
-        print(f"  WARNING: query failed for {table_id}: {e}", file=sys.stderr)
-        return None
-
-    if not rows:
-        return None
-
-    raw = rows[0].payload
-    if not raw:
-        return None
-
-    try:
-        return json.loads(raw)
-    except (TypeError, ValueError) as e:
-        print(f"  WARNING: JSON parse failed for {table_id}: {e}", file=sys.stderr)
+        print(f"  WARNING: read failed for {table_id}: {e}", file=sys.stderr)
         return None
 
 
