@@ -1,7 +1,21 @@
-{{ config(materialized='table') }}
+{{
+    config(
+        materialized='incremental',
+        unique_key='fixture_team_stat_sk',
+        on_schema_change='sync_all_columns'
+    )
+}}
 
-with import_base_apif__fixture_statistics as (
+with base as (
     select * from {{ ref('base_apif__fixture_statistics') }}
+),
+
+src as (
+    select *
+    from base
+    {% if is_incremental() %}
+    where base.raw_ingested_at > (select max(tgt.raw_ingested_at) from {{ this }} as tgt)
+    {% endif %}
 )
 
 select
@@ -28,5 +42,5 @@ select
     passes_total,
     passes_accurate,
     passes_accuracy_percent,
-    raw_ingested_at
-from import_base_apif__fixture_statistics
+    src.raw_ingested_at
+from src

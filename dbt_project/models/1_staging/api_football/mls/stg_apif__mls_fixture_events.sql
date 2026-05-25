@@ -17,15 +17,17 @@ events as (
         league_code,
         raw_ingested_at,
         event_el,
+        event_index,
         safe_cast(json_value(block_json, '$.fixture_id') as int64) as fixture_id
     from blocks,
-        unnest(json_query_array(block_json, '$.events')) as event_el
+        unnest(json_query_array(block_json, '$.events')) as event_el with offset as event_index
 )
 
 select
     league_code,
     raw_ingested_at,
     fixture_id,
+    event_index,
     safe_cast(json_value(event_el, '$.time.elapsed') as int64) as minute_elapsed,
     safe_cast(json_value(event_el, '$.time.extra') as int64) as minute_extra,
     safe_cast(json_value(event_el, '$.team.id') as int64) as team_id,
