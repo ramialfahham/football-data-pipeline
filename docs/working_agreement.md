@@ -33,6 +33,16 @@ Every change goes on a **new branch**. Never commit directly to `main`. Never pu
 3. `git push origin feature/name` — explicit remote branch name, never rely on implicit tracking
 4. Open a PR; wait for CI and user approval
 
+### 3a. Blocker rule — check before branching
+
+Before creating a new branch, run `gh pr list --state open` and ask: **is this work a blocker for an existing open PR?**
+
+A fix or addition is a blocker if the open PR cannot pass CI or be correct without it. In that case:
+- **Commit to the existing branch**, not a new one.
+- Do **not** open a second PR. One ticket's work belongs on one branch.
+
+"New ticket = new branch" is only correct when the work is genuinely independent. When it is a dependency, opening a new PR creates merge-ordering complexity and risks the fix landing after the PR it was needed for.
+
 ---
 
 ## 4. Quality is non-negotiable
