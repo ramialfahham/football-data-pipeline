@@ -1,6 +1,6 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_apif_wcqaf_standings') }}
+    from {{ apif_latest_source_partition('api_football', 'raw_apif_wcqaf_standings') }}
 ),
 
 expanded_standings as (
