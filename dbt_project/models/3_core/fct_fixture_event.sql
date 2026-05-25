@@ -7,18 +7,18 @@
 }}
 
 {#
-    One row per match event (goals, cards, substitutions, VAR decisions).
-    Grain: (fixture_id, event_index) — event_index is the zero-based array position
-    from the API-Football /fixtures/events response. API-Football does not emit event
-    IDs; array position is the only stable unique identifier within a fixture's events.
-    Once a fixture is FINISHED its event list does not change, so an incremental load
-    on raw_ingested_at safely captures only new fixtures each run.
-    Assist player arrives as a name only (no id in source), so it stays as a
-    degenerate attribute.
+    One row per match event (goals, cards, substitutions, VAR decisions) across all
+    onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
+    is the zero-based array position from the API-Football /fixtures/events response.
+    API-Football does not emit event IDs; array position is the only stable unique
+    identifier within a fixture's event list. Once a fixture is FINISHED its event list
+    does not change, so an incremental load on raw_ingested_at safely captures only new
+    fixtures each run. Assist player arrives as a name only (no id in source), so it
+    stays as a degenerate attribute.
 #}
 
 with base as (
-    select * from {{ ref('base_apif__bl1_fixture_events') }}
+    select * from {{ ref('base_apif__fixture_events') }}
 ),
 
 src as (
