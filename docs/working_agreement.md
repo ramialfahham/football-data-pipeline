@@ -33,6 +33,8 @@ Every change goes on a **new branch**. Never commit directly to `main`. Never pu
 3. `git push origin feature/name` — explicit remote branch name, never rely on implicit tracking
 4. Open a PR; wait for CI and user approval
 
+**Never run `gh pr merge`** — merging is the user's action, not the agent's. The agent's job ends when the PR is open and CI is green. Running `gh pr merge` for any reason, including `--auto`, is not permitted unless the user explicitly types "merge it" or equivalent in the same message.
+
 ### 3a. Branch consolidation — check before branching
 
 Before creating a new branch, ask: **is this work logically part of something already in flight?**
