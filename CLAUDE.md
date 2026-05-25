@@ -8,7 +8,7 @@ Read this at the start of every session before doing anything else.
 2. If the branch doesn't match the task, switch now **before writing any files**: `git checkout <target-branch>` or `git checkout -b <new-branch>`.
 3. **Use Bash for all commands** — git, bq, gh, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion.
 4. If unsure which branch to use, ask the user before touching any file.
-5. **Before creating a new branch**, run `gh pr list --state open`. If the work is a blocker for an open PR (it is required for that PR to pass CI or be correct), commit to **that branch** — do not open a new one. See `docs/working_agreement.md` section 3a.
+5. **Before creating a new branch**, run `gh pr list --state open` and ask two questions: (a) is this work a hard dependency for an open PR? (b) does separating it into its own PR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a.
 
 ## Working agreement
 
