@@ -16,6 +16,7 @@ import os
 from google.cloud import bigquery
 
 from .bigquery import ensure_api_football_dataset
+from .coverage import ensure_coverage_table
 from .completeness import (
     completeness_markdown_summary,
     completeness_summary_line,
@@ -69,6 +70,7 @@ def _load_api_football(request):
     client = bigquery.Client(project=GCP_PROJECT_ID)
     ensure_api_football_dataset(client)
     ensure_ingest_lock_table(client)
+    ensure_coverage_table(client)
     run_id = new_run_id()
     lock_acquired = False
     headers = get_headers()

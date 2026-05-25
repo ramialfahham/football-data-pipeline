@@ -23,6 +23,7 @@ from typing import Any
 from google.cloud import bigquery
 
 from .bigquery import load_json_to_bq, read_latest_payload_json
+from .coverage import read_coverage
 from .registry import selected_competitions
 from .settings import raw_league_table
 
@@ -73,26 +74,6 @@ def _fixture_ids_from_fixtures_payload(
     return out
 
 
-def _fixture_ids_from_fanout_payload(
-    payload: dict | None,
-    *,
-    required_payload_key: str | None = None,
-) -> set[int]:
-    out: set[int] = set()
-    for row in (payload or {}).get("response") or []:
-        fid = row.get("fixture_id")
-        if required_payload_key is not None:
-            endpoint_payload = row.get(required_payload_key)
-            if not endpoint_payload:
-                continue
-        if fid is not None:
-            try:
-                out.add(int(fid))
-            except (TypeError, ValueError):
-                continue
-    return out
-
-
 def skip_completeness_check() -> bool:
     return os.getenv("API_FOOTBALL_SKIP_COMPLETENESS_CHECK", "").strip().lower() in (
         "1",
@@ -132,6 +113,12 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         out["skipped"] = True
         return out
 
+    # Read the coverage table ONCE for all competitions. This replaces the old
+    # pattern of reading one merged blob per endpoint per competition (5 reads ×
+    # N competitions). The coverage table is the authoritative source of which
+    # (league_code, fixture_id, endpoint) combinations have been successfully fetched.
+    all_covered = read_coverage(client)
+
     selected, _skipped = selected_competitions()
     for comp in selected:
         league_code = comp.league_code
@@ -157,13 +144,12 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
             out["leagues"][league_code] = league_block
             continue
         for entity in FANOUT_ENTITIES:
-            tbl = raw_league_table(league_code, entity)
-            batched = read_latest_payload_json(client, tbl)
-            required_key = "statistics" if entity == "FIXTURE_STATISTICS" else None
-            covered = _fixture_ids_from_fanout_payload(
-                batched,
-                required_payload_key=required_key,
-            )
+            # Look up which fixture IDs are covered for this league + endpoint.
+            # The coverage table already applies the "non-empty statistics" rule —
+            # FIXTURE_STATISTICS rows are only written when the statistics list is
+            # non-empty (see fanout._persist_fanout_and_coverage). No special
+            # handling is needed here.
+            covered = all_covered.get(league_code, {}).get(entity, set())
             missing = sorted(expected - covered)
             ok = not missing
             if not ok:
