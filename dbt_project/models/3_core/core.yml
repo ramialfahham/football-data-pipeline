@@ -524,7 +524,7 @@ models:
       - name: raw_ingested_at
 
   - name: fct_fixture_event
-    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: event_sk hashed over (fixture, minute_elapsed, minute_extra, team, player, event_type, event_detail)."
+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -533,8 +533,11 @@ models:
       tags: ["core", "fact"]
     columns:
       - name: event_sk
-        description: "Surrogate key hashing the full staging grain."
+        description: "Surrogate key hashing (fixture_id, event_index)."
         tests: [not_null, unique]
+      - name: event_index
+        description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
+        tests: [not_null]
       - name: fixture_sk
         description: "FK to fct_fixture."
         tests:

@@ -1,7 +1,21 @@
-{{ config(materialized='table') }}
+{{
+    config(
+        materialized='incremental',
+        unique_key='fixture_player_stat_sk',
+        on_schema_change='sync_all_columns'
+    )
+}}
 
-with src as (
+with base as (
     select * from {{ ref('base_apif__fixture_players') }}
+),
+
+src as (
+    select *
+    from base
+    {% if is_incremental() %}
+    where base.raw_ingested_at > (select max(tgt.raw_ingested_at) from {{ this }} as tgt)
+    {% endif %}
 )
 
 select
@@ -48,5 +62,5 @@ select
     penalty_scored,
     penalty_missed,
     penalty_saved,
-    raw_ingested_at
+    src.raw_ingested_at
 from src

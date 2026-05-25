@@ -6,6 +6,7 @@ with src as (
 select
     league_code,
     fixture_id,
+    event_index,
     minute_elapsed,
     minute_extra,
     team_id,
@@ -19,13 +20,6 @@ select
     raw_ingested_at
 from src
 qualify row_number() over (
-    partition by
-        fixture_id,
-        minute_elapsed,
-        minute_extra,
-        team_id,
-        player_id,
-        event_type,
-        event_detail
+    partition by fixture_id, event_index
     order by raw_ingested_at desc
 ) = 1
