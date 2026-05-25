@@ -1193,6 +1193,48 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqeu_fixture_events
+        identifier: RAW_APIF_WCQEU_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqaf_fixture_events
+        identifier: RAW_APIF_WCQAF_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqca_fixture_events
+        identifier: RAW_APIF_WCQCA_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqsa_fixture_events
+        identifier: RAW_APIF_WCQSA_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqas_fixture_events
+        identifier: RAW_APIF_WCQAS_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqip_fixture_events
+        identifier: RAW_APIF_WCQIP_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqoc_fixture_events
+        identifier: RAW_APIF_WCQOC_FIXTURE_EVENTS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
       - name: raw_apif_wcqeu_players
         identifier: RAW_APIF_WCQEU_PLAYERS
         loaded_at_field: ingested_at
