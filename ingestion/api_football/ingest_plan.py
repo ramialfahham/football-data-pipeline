@@ -13,11 +13,10 @@ from google.cloud import bigquery
 from .bigquery import read_latest_payload_json
 from .completeness import (
     FINISHED_STATUS_SHORT,
-    _fixture_ids_from_fanout_payload,
     _fixture_ids_from_fixtures_payload,
 )
+from .coverage import covered_for_league, read_coverage
 from .fixture_scheduling import (
-    _FANOUT_ENTITY_KEYS,
     _coverage_for_season,
     _fixture_needs_any_endpoint,
 )
@@ -76,18 +75,15 @@ def _reference_season(comp: Competition, fixtures_payload: dict | None) -> int:
 
 
 def _fanout_covered_from_bq(client: bigquery.Client, league_code: str) -> dict[str, set[int]]:
-    covered: dict[str, set[int]] = {}
-    for key, entity, _cov_key in _FANOUT_ENTITY_KEYS:
-        try:
-            prior = read_latest_payload_json(client, raw_league_table(league_code, entity))
-        except Exception:
-            prior = None
-        required_key = "statistics" if key == "fx_stats" else None
-        covered[key] = _fixture_ids_from_fanout_payload(
-            prior,
-            required_payload_key=required_key,
-        )
-    return covered
+    """Return covered fixture IDs per shell key for one league.
+
+    Reads the RAW_APIF_FIXTURE_COVERAGE table (one query covers all leagues and
+    endpoints) and translates the result to the shell-key format used by
+    _fixture_needs_any_endpoint. This replaces the old pattern of reading five
+    separate fanout blob payloads (one per endpoint) per league.
+    """
+    all_covered = read_coverage(client)
+    return covered_for_league(all_covered, league_code)
 
 
 def _finished_fanout_has_gaps(

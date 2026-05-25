@@ -1,11 +1,13 @@
 """Per-fixture HTTP fanout: fetches and persists lineups, events, stats, players, predictions.
 
 For every finished fixture (status FT/AET/PEN) we call five API endpoints and store
-the results in batched RAW_* tables (one JSON payload per table, merged on write).
+the results as appended rows in each RAW_* fanout table (one new row per run per
+competition). Coverage — knowing which fixtures already have which endpoint data — is
+tracked in RAW_APIF_FIXTURE_COVERAGE (see ingestion/api_football/coverage.py).
 
-Selection is completeness-driven: before spending any quota we read the current merged
-payloads and skip fixture_ids that are already covered per endpoint. A run therefore
-only pays for work that actually advances completeness. This makes daily runs converge
+Selection is completeness-driven: before spending any quota we read the coverage table
+and skip fixture_ids that are already covered per endpoint. A run therefore only pays
+for work that actually advances completeness. This makes daily runs converge
 monotonically without any operator intervention — re-run after a quota limit and it
 picks up exactly where it left off.
 
@@ -27,8 +29,13 @@ from __future__ import annotations
 import os
 
 from .. import quota as errors_quota
-from ..bigquery import load_json_to_bq, read_latest_payload_json
-from ..completeness import _fixture_ids_from_fanout_payload
+from ..bigquery import load_json_to_bq
+from ..coverage import (
+    SHELL_KEY_TO_ENDPOINT,
+    covered_for_league,
+    read_coverage,
+    write_coverage,
+)
 from ..settings import raw_league_table
 from ..fixture_scheduling import (
     # Re-exported for backward compatibility (tests import from this module).
@@ -51,6 +58,13 @@ from .context import CompetitionRunResult, PipelineContext
 
 
 def _batched_shell(league_code: str) -> dict[str, dict]:
+    """Create an empty response accumulator for each of the five fanout endpoints.
+
+    Each shell is a dict with the same structure as an API envelope: a league_code
+    field and an empty response list. As fixtures are fetched, their data is
+    appended to the relevant shell's response list. The shell is then written to
+    BigQuery at the end of the run.
+    """
     base = {"league_code": league_code, "response": []}
     return {key: dict(base) for key, _entity, _cov_key in _FANOUT_ENTITY_KEYS}
 
@@ -61,7 +75,12 @@ def _fanout_fetch_json(
     params: dict,
     error_label: str,
 ) -> dict | None:
-    """Return API payload, or None when daily quota is exhausted (no shell append)."""
+    """Call one API endpoint and return the JSON response.
+
+    Returns None (without appending to the shell) when the daily quota is
+    already exhausted — this short-circuits the fetch loop so we don't make
+    API calls that will be rejected.
+    """
     if errors_quota._http_quota_exhausted:
         return None
     data = fetch_json(path, headers=ctx.headers, params=params)
@@ -69,28 +88,8 @@ def _fanout_fetch_json(
     return data
 
 
-def _already_covered_per_entity(
-    ctx: PipelineContext,
-    league_code: str,
-) -> dict[str, set[int]]:
-    """Read merged fanout payloads once and return ``{shell_key: set(fixture_ids)}``."""
-    covered: dict[str, set[int]] = {}
-    for key, entity, _cov_key in _FANOUT_ENTITY_KEYS:
-        tbl = raw_league_table(league_code, entity)
-        try:
-            prior = read_latest_payload_json(ctx.client, tbl)
-        except Exception as e:
-            ctx.errors.append(f"fanout_covered {league_code} {entity}: {e}")
-            prior = None
-        required_key = "statistics" if key == "fx_stats" else None
-        covered[key] = _fixture_ids_from_fanout_payload(
-            prior,
-            required_payload_key=required_key,
-        )
-    return covered
-
-
 def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
+    """Extract fixture IDs whose status is FT, AET, or PEN (the match has ended)."""
     finished: set[int] = set()
     for row in fixtures_response or []:
         fixture = row.get("fixture") or {}
@@ -107,31 +106,82 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
     return finished
 
 
-def _persist_fanout_tables(
+def _persist_fanout_and_coverage(
     ctx: PipelineContext,
     league_code: str,
     shells: dict[str, dict],
-    valid_fixture_ids: set[int],
 ) -> None:
+    """Write this run's fanout data to raw tables and record coverage.
+
+    For each of the five endpoints:
+      1. If new rows were fetched this run, append them to the raw fanout table.
+         (Each run appends one row per competition per endpoint that had new data.)
+      2. Write a coverage record to RAW_APIF_FIXTURE_COVERAGE for each
+         (league_code, fixture_id, endpoint) combination that was successfully
+         fetched. This tells future runs not to re-fetch those combinations.
+
+    Coverage is only written when the fetch produced data. For FIXTURE_STATISTICS
+    specifically, coverage is only written when the statistics list is non-empty —
+    this matches the old blob-parsing behaviour where an empty statistics payload
+    was not considered "covered" (we keep retrying until we get actual stats).
+    """
+    coverage_rows: list[dict] = []
+
     for key, entity, _cov_key in _FANOUT_ENTITY_KEYS:
+        shell = shells[key]
+        new_rows = shell.get("response") or []
+
+        if not new_rows:
+            # Nothing fetched for this endpoint this run — skip write.
+            continue
+
         try:
             tbl = raw_league_table(league_code, entity)
-            prior = read_latest_payload_json(ctx.client, tbl)
-            merged = merge_fanout_batched(
-                prior,
-                shells[key],
-                league_code=league_code,
-                valid_fixture_ids=valid_fixture_ids,
-            )
             load_json_to_bq(
                 ctx.client,
                 tbl,
-                merged,
+                shell,
                 as_json_payload=True,
+                append=True,
             )
             ctx.add_loaded(1)
         except Exception as e:
             ctx.errors.append(f"{entity.lower()} BQ {league_code}: {e}")
+            continue
+
+        # Build coverage rows for all fixtures fetched for this endpoint.
+        endpoint_name = SHELL_KEY_TO_ENDPOINT[key]
+        payload_key = {
+            "lineups":    "lineups",
+            "events":     "events",
+            "fx_stats":   "statistics",
+            "fx_players": "players",
+            "preds":      "predictions",
+        }[key]
+
+        for row in new_rows:
+            fid = row.get("fixture_id")
+            if fid is None:
+                continue
+
+            # For FIXTURE_STATISTICS, only mark covered when stats are present.
+            # An empty statistics response means the API returned nothing useful;
+            # we want to retry on the next run rather than permanently skipping.
+            if endpoint_name == "FIXTURE_STATISTICS" and not row.get(payload_key):
+                continue
+
+            coverage_rows.append({
+                "league_code": league_code,
+                "fixture_id":  int(fid),
+                "endpoint":    endpoint_name,
+            })
+
+    # Write all coverage rows for this competition in one batch.
+    if coverage_rows:
+        try:
+            write_coverage(ctx.client, coverage_rows)
+        except Exception as e:
+            ctx.errors.append(f"coverage write {league_code}: {e}")
 
 
 def _fetch_fixture_endpoints(
@@ -143,7 +193,12 @@ def _fetch_fixture_endpoints(
     finished_fixture_ids: set[int],
     sh: dict[str, dict],
 ) -> None:
-    """Make HTTP calls for one fixture's missing endpoints and accumulate into shells."""
+    """Make HTTP calls for one fixture's missing endpoints and accumulate into shells.
+
+    `covered` is a dict keyed by shell key (lineups, events, fx_stats, fx_players,
+    preds), each mapping to the set of fixture IDs already fetched for that endpoint.
+    An endpoint is skipped when the fixture ID is already in the covered set.
+    """
     if cov.get("fixture_lineups", True) and fixture_id not in covered["lineups"]:
         try:
             lineups = _fanout_fetch_json(
@@ -158,6 +213,7 @@ def _fetch_fixture_endpoints(
                 )
         except Exception as e:
             ctx.errors.append(f"lineups {league_code} fixture {fixture_id}: {e}")
+
     if cov.get("fixture_events", True) and fixture_id not in covered["events"]:
         try:
             ev = _fanout_fetch_json(
@@ -172,6 +228,7 @@ def _fetch_fixture_endpoints(
                 )
         except Exception as e:
             ctx.errors.append(f"fixtures/events {league_code} fixture {fixture_id}: {e}")
+
     if (cov.get("fixture_statistics", True) or fixture_id in finished_fixture_ids) and fixture_id not in covered["fx_stats"]:
         try:
             fxs = _fanout_fetch_json(
@@ -188,6 +245,7 @@ def _fetch_fixture_endpoints(
             ctx.errors.append(
                 f"fixtures/statistics {league_code} fixture {fixture_id}: {e}"
             )
+
     if cov.get("fixture_players", True) and fixture_id not in covered["fx_players"]:
         try:
             fxp = _fanout_fetch_json(
@@ -204,6 +262,7 @@ def _fetch_fixture_endpoints(
             ctx.errors.append(
                 f"fixtures/players {league_code} fixture {fixture_id}: {e}"
             )
+
     if cov.get("predictions", True) and fixture_id not in covered["preds"]:
         try:
             pr = _fanout_fetch_json(
@@ -227,12 +286,13 @@ def run_global_fanout_and_persist(
     """Global completeness-driven fanout across all competitions.
 
     Algorithm:
-    1. Read current coverage from BQ for each competition (one read per endpoint per comp).
+    1. Read the coverage table ONCE to learn which fixture-endpoint combinations
+       have already been fetched across all competitions.
     2. Build a global priority queue: finished fixtures missing data (oldest first) →
        upcoming fixtures missing data (nearest first).
     3. Apply global budget via _budgeted_global_fanout_ids.
     4. Fetch missing endpoints competition-by-competition within the budget.
-    5. Persist per competition.
+    5. Persist raw rows and write new coverage records per competition.
 
     This guarantees:
     - Historical gaps are filled monotonically, oldest fixtures first.
@@ -241,14 +301,19 @@ def run_global_fanout_and_persist(
       to the queue and consumes no quota.
     - Adding a new competition requires only a registry entry.
     """
-    # Step 1: build per-competition fanout inputs
+    # Step 1: read coverage table once for all competitions.
+    # This replaces the old pattern of reading one merged blob per endpoint per
+    # competition (5 blobs × N competitions = many BQ reads). Now it is one query.
+    all_covered = read_coverage(ctx.client)
+
     inputs: list[CompetitionFanoutInput] = []
     covered_by_lc: dict[str, dict[str, set[int]]] = {}
     finished_by_lc: dict[str, set[int]] = {}
     cov_by_lc: dict[str, dict[str, bool]] = {}
 
     for result in results:
-        covered = _already_covered_per_entity(ctx, result.league_code)
+        # Translate coverage table format (endpoint names) to fanout shell keys.
+        covered = covered_for_league(all_covered, result.league_code)
         covered_by_lc[result.league_code] = covered
         kickoff_by_id = _fixture_kickoff_by_id(result.fixtures_merged.get("response", []))
         finished_ids = _finished_fixture_ids(result.fixtures_merged.get("response", []))
@@ -267,7 +332,6 @@ def run_global_fanout_and_persist(
     queue = build_global_fanout_queue(inputs)
     total_missing = len(queue)
 
-    # Compute completeness summary per competition for logging
     missing_by_lc: dict[str, int] = {}
     for inp in inputs:
         missing_by_lc[inp.league_code] = sum(
@@ -304,10 +368,10 @@ def run_global_fanout_and_persist(
             shells_by_lc[league_code],
         )
 
-    # Step 5: persist per competition
+    # Step 5: persist raw rows and write coverage for each competition
     for result in results:
-        _persist_fanout_tables(
-            ctx, result.league_code, shells_by_lc[result.league_code], result.fixture_ids
+        _persist_fanout_and_coverage(
+            ctx, result.league_code, shells_by_lc[result.league_code]
         )
 
 
@@ -328,7 +392,10 @@ def run_fixture_fanout_and_persist(
         ctx.errors,
     )
 
-    covered = _already_covered_per_entity(ctx, league_code)
+    # Read coverage for this competition from the coverage table.
+    all_covered = read_coverage(ctx.client)
+    covered = covered_for_league(all_covered, league_code)
+
     finished_fixture_ids = _finished_fixture_ids(fixtures_merged.get("response", []))
     ordered_missing = [
         fid for fid in ordered_fanout
@@ -374,4 +441,4 @@ def run_fixture_fanout_and_persist(
         except Exception as e:
             ctx.errors.append(f"ingest_cursor {league_code}: {e}")
 
-    _persist_fanout_tables(ctx, league_code, sh, fixture_ids)
+    _persist_fanout_and_coverage(ctx, league_code, sh)
