@@ -33,15 +33,22 @@ Every change goes on a **new branch**. Never commit directly to `main`. Never pu
 3. `git push origin feature/name` — explicit remote branch name, never rely on implicit tracking
 4. Open a PR; wait for CI and user approval
 
-### 3a. Blocker rule — check before branching
+### 3a. Branch consolidation — check before branching
 
-Before creating a new branch, run `gh pr list --state open` and ask: **is this work a blocker for an existing open PR?**
+Before creating a new branch, ask: **is this work logically part of something already in flight?**
 
-A fix or addition is a blocker if the open PR cannot pass CI or be correct without it. In that case:
-- **Commit to the existing branch**, not a new one.
-- Do **not** open a second PR. One ticket's work belongs on one branch.
+Run `gh pr list --state open` and consider two questions:
 
-"New ticket = new branch" is only correct when the work is genuinely independent. When it is a dependency, opening a new PR creates merge-ordering complexity and risks the fix landing after the PR it was needed for.
+1. **Is the work a hard dependency?** — the open PR cannot pass CI or be correct without it.
+2. **Does separating it buy anything?** — independent reviewability, an earlier merge path, or a meaningfully smaller PR.
+
+| Both questions | Correct action |
+|---|---|
+| Hard dependency AND separation buys nothing | Commit to the existing branch. Do not open a second PR. |
+| Hard dependency BUT can stand alone and merge first | New branch, merge it first, rebase the dependent PR on main. |
+| Not a dependency — genuinely independent work | New branch. |
+
+"New ticket = new branch" is only correct when the work is genuinely independent or can stand alone with clear review benefit. Reflexively branching for every adjacent fix creates merge-ordering complexity and splits coherent work for no gain.
 
 ---
 

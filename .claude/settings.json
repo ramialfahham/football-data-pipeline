@@ -8,7 +8,7 @@
             "type": "command",
             "if": "Bash(git checkout -b*)",
             "shell": "bash",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"BRANCH DISCIPLINE GATE: Before creating this branch, run `gh pr list --state open` and confirm: is this work a BLOCKER for an existing open PR (required for it to pass CI or be logically correct)? If yes, checkout that branch and commit there instead. Only proceed with a new branch if the work is genuinely independent. See docs/working_agreement.md section 3a.\"}}'",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"BRANCH DISCIPLINE GATE: Before creating this branch, run `gh pr list --state open` and ask two questions: (1) Is this work a hard dependency for an open PR — i.e. that PR cannot pass CI or be correct without it? (2) Does separating it into its own PR buy anything — independent reviewability, an earlier merge path, a meaningfully smaller PR? If it is a hard dependency AND separation buys nothing: checkout the existing branch and commit there. If it can stand alone and merge first: new branch is fine. If it is genuinely independent: new branch. See docs/working_agreement.md section 3a.\"}}'",
             "statusMessage": "Checking branch discipline..."
           }
         ]
