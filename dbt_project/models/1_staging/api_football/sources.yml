@@ -65,12 +65,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_bl1_predictions
-        identifier: RAW_APIF_BL1_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_bl1_players
         identifier: RAW_APIF_BL1_PLAYERS
         loaded_at_field: ingested_at
@@ -133,12 +127,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_pl_fixture_players
         identifier: RAW_APIF_PL_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pl_predictions
-        identifier: RAW_APIF_PL_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -209,12 +197,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_pd_predictions
-        identifier: RAW_APIF_PD_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_pd_players
         identifier: RAW_APIF_PD_PLAYERS
         loaded_at_field: ingested_at
@@ -277,12 +259,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_bl2_fixture_players
         identifier: RAW_APIF_BL2_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl2_predictions
-        identifier: RAW_APIF_BL2_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -353,12 +329,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_sa_predictions
-        identifier: RAW_APIF_SA_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_sa_players
         identifier: RAW_APIF_SA_PLAYERS
         loaded_at_field: ingested_at
@@ -421,12 +391,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_l1_fixture_players
         identifier: RAW_APIF_L1_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_l1_predictions
-        identifier: RAW_APIF_L1_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -497,12 +461,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_vl_predictions
-        identifier: RAW_APIF_VL_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_vl_players
         identifier: RAW_APIF_VL_PLAYERS
         loaded_at_field: ingested_at
@@ -565,12 +523,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_lmx_fixture_players
         identifier: RAW_APIF_LMX_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lmx_predictions
-        identifier: RAW_APIF_LMX_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -641,12 +593,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_lp_predictions
-        identifier: RAW_APIF_LP_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_lp_players
         identifier: RAW_APIF_LP_PLAYERS
         loaded_at_field: ingested_at
@@ -709,12 +655,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_mls_fixture_players
         identifier: RAW_APIF_MLS_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_mls_predictions
-        identifier: RAW_APIF_MLS_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -785,12 +725,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_spl_predictions
-        identifier: RAW_APIF_SPL_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_spl_players
         identifier: RAW_APIF_SPL_PLAYERS
         loaded_at_field: ingested_at
@@ -857,12 +791,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_ed_predictions
-        identifier: RAW_APIF_ED_PREDICTIONS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_ed_players
         identifier: RAW_APIF_ED_PLAYERS
         loaded_at_field: ingested_at
@@ -925,12 +853,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_wc_fixture_players
         identifier: RAW_APIF_WC_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_predictions
-        identifier: RAW_APIF_WC_PREDICTIONS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}

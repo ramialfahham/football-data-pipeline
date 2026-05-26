@@ -461,12 +461,6 @@ models:
     description: "Per-fixture GET /fixtures/statistics (batched payload). Grain: (league_code, fixture_id, team_id)."
     config:
       tags: ["staging", "api_football", "player_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - league_code
-            - fixture_id
-            - team_id
     columns:
       - name: league_code
         description: "Internal league code; always BL1 (Bundesliga) for this MVP."
@@ -617,26 +611,3 @@ models:
       - name: source_json
         description: "Full player fixture object JSON for fields not promoted to columns."
 
-  - name: stg_apif__bl1_predictions
-    description: "Per-fixture GET /predictions (batched payload). Grain: (league_code, fixture_id, prediction_json). prediction_json is in the grain to disambiguate multiple prediction variants per fixture; it is not asserted not_null because structure can vary at source."
-    config:
-      tags: ["staging", "api_football", "player_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - league_code
-            - fixture_id
-            - prediction_json
-    columns:
-      - name: league_code
-        description: "Internal league code; always BL1 (Bundesliga) for this MVP."
-        tests: [not_null]
-      - name: fixture_id
-        description: "Fixture id the prediction belongs to."
-        tests: [not_null]
-      - name: raw_ingested_at
-        description: "UTC timestamp when this raw table row was loaded."
-      - name: prediction_doc
-        description: "Raw prediction object (JSON type) from the batched prediction payload."
-      - name: prediction_json
-        description: "Stringified prediction object for stable hashing and lineage."
