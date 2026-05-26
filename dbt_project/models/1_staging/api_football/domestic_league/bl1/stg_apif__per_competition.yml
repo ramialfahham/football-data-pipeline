@@ -516,6 +516,12 @@ models:
             - fixture_id
             - team_id
             - player_id
+          config:
+            severity: warn
+            # Known API data quality issue: early BL1 fixtures (IDs ~2776-2801) have two
+            # physical players sharing player_id 26242 (Keven and Nico Schlotterbeck).
+            # The raw source cannot be corrected in staging (1:1 mapping principle).
+            # Downstream base/core models deduplicate as needed.
     columns:
       - name: league_code
         description: "Internal league code; always BL1 (Bundesliga) for this MVP."
