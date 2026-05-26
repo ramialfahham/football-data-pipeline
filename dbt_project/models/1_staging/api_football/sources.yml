@@ -41,30 +41,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_bl1_lineups
-        identifier: RAW_APIF_BL1_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl1_fixture_events
-        identifier: RAW_APIF_BL1_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl1_fixture_statistics
-        identifier: RAW_APIF_BL1_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl1_fixture_players
-        identifier: RAW_APIF_BL1_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_bl1_players
         identifier: RAW_APIF_BL1_PLAYERS
         loaded_at_field: ingested_at
@@ -103,30 +79,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_pl_transfers
         identifier: RAW_APIF_PL_TRANSFERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pl_lineups
-        identifier: RAW_APIF_PL_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pl_fixture_events
-        identifier: RAW_APIF_PL_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pl_fixture_statistics
-        identifier: RAW_APIF_PL_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pl_fixture_players
-        identifier: RAW_APIF_PL_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -173,30 +125,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_pd_lineups
-        identifier: RAW_APIF_PD_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pd_fixture_events
-        identifier: RAW_APIF_PD_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pd_fixture_statistics
-        identifier: RAW_APIF_PD_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_pd_fixture_players
-        identifier: RAW_APIF_PD_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_pd_players
         identifier: RAW_APIF_PD_PLAYERS
         loaded_at_field: ingested_at
@@ -235,30 +163,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_bl2_transfers
         identifier: RAW_APIF_BL2_TRANSFERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl2_lineups
-        identifier: RAW_APIF_BL2_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl2_fixture_events
-        identifier: RAW_APIF_BL2_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl2_fixture_statistics
-        identifier: RAW_APIF_BL2_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_bl2_fixture_players
-        identifier: RAW_APIF_BL2_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -305,30 +209,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_sa_lineups
-        identifier: RAW_APIF_SA_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_sa_fixture_events
-        identifier: RAW_APIF_SA_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_sa_fixture_statistics
-        identifier: RAW_APIF_SA_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_sa_fixture_players
-        identifier: RAW_APIF_SA_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_sa_players
         identifier: RAW_APIF_SA_PLAYERS
         loaded_at_field: ingested_at
@@ -367,30 +247,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_l1_transfers
         identifier: RAW_APIF_L1_TRANSFERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_l1_lineups
-        identifier: RAW_APIF_L1_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_l1_fixture_events
-        identifier: RAW_APIF_L1_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_l1_fixture_statistics
-        identifier: RAW_APIF_L1_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_l1_fixture_players
-        identifier: RAW_APIF_L1_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -437,30 +293,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_vl_lineups
-        identifier: RAW_APIF_VL_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_vl_fixture_events
-        identifier: RAW_APIF_VL_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_vl_fixture_statistics
-        identifier: RAW_APIF_VL_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_vl_fixture_players
-        identifier: RAW_APIF_VL_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_vl_players
         identifier: RAW_APIF_VL_PLAYERS
         loaded_at_field: ingested_at
@@ -499,30 +331,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_lmx_transfers
         identifier: RAW_APIF_LMX_TRANSFERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lmx_lineups
-        identifier: RAW_APIF_LMX_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lmx_fixture_events
-        identifier: RAW_APIF_LMX_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lmx_fixture_statistics
-        identifier: RAW_APIF_LMX_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lmx_fixture_players
-        identifier: RAW_APIF_LMX_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -569,30 +377,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_lp_lineups
-        identifier: RAW_APIF_LP_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lp_fixture_events
-        identifier: RAW_APIF_LP_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lp_fixture_statistics
-        identifier: RAW_APIF_LP_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_lp_fixture_players
-        identifier: RAW_APIF_LP_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_lp_players
         identifier: RAW_APIF_LP_PLAYERS
         loaded_at_field: ingested_at
@@ -631,30 +415,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_mls_transfers
         identifier: RAW_APIF_MLS_TRANSFERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_mls_lineups
-        identifier: RAW_APIF_MLS_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_mls_fixture_events
-        identifier: RAW_APIF_MLS_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_mls_fixture_statistics
-        identifier: RAW_APIF_MLS_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_mls_fixture_players
-        identifier: RAW_APIF_MLS_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -701,30 +461,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_spl_lineups
-        identifier: RAW_APIF_SPL_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_spl_fixture_events
-        identifier: RAW_APIF_SPL_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_spl_fixture_statistics
-        identifier: RAW_APIF_SPL_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_spl_fixture_players
-        identifier: RAW_APIF_SPL_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_spl_players
         identifier: RAW_APIF_SPL_PLAYERS
         loaded_at_field: ingested_at
@@ -767,30 +503,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_ed_lineups
-        identifier: RAW_APIF_ED_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_ed_fixture_events
-        identifier: RAW_APIF_ED_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_ed_fixture_statistics
-        identifier: RAW_APIF_ED_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_ed_fixture_players
-        identifier: RAW_APIF_ED_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_ed_players
         identifier: RAW_APIF_ED_PLAYERS
         loaded_at_field: ingested_at
@@ -829,30 +541,6 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_wc_transfers
         identifier: RAW_APIF_WC_TRANSFERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_lineups
-        identifier: RAW_APIF_WC_LINEUPS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_fixture_events
-        identifier: RAW_APIF_WC_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_fixture_statistics
-        identifier: RAW_APIF_WC_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wc_fixture_players
-        identifier: RAW_APIF_WC_FIXTURE_PLAYERS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -1031,132 +719,6 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqeu_fixture_statistics
-        identifier: RAW_APIF_WCQEU_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqaf_fixture_statistics
-        identifier: RAW_APIF_WCQAF_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqca_fixture_statistics
-        identifier: RAW_APIF_WCQCA_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqsa_fixture_statistics
-        identifier: RAW_APIF_WCQSA_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqas_fixture_statistics
-        identifier: RAW_APIF_WCQAS_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqip_fixture_statistics
-        identifier: RAW_APIF_WCQIP_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqoc_fixture_statistics
-        identifier: RAW_APIF_WCQOC_FIXTURE_STATISTICS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqeu_fixture_players
-        identifier: RAW_APIF_WCQEU_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqaf_fixture_players
-        identifier: RAW_APIF_WCQAF_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqca_fixture_players
-        identifier: RAW_APIF_WCQCA_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqsa_fixture_players
-        identifier: RAW_APIF_WCQSA_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqas_fixture_players
-        identifier: RAW_APIF_WCQAS_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqip_fixture_players
-        identifier: RAW_APIF_WCQIP_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqoc_fixture_players
-        identifier: RAW_APIF_WCQOC_FIXTURE_PLAYERS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqeu_fixture_events
-        identifier: RAW_APIF_WCQEU_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqaf_fixture_events
-        identifier: RAW_APIF_WCQAF_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqca_fixture_events
-        identifier: RAW_APIF_WCQCA_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqsa_fixture_events
-        identifier: RAW_APIF_WCQSA_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqas_fixture_events
-        identifier: RAW_APIF_WCQAS_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqip_fixture_events
-        identifier: RAW_APIF_WCQIP_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
-      - name: raw_apif_wcqoc_fixture_events
-        identifier: RAW_APIF_WCQOC_FIXTURE_EVENTS
-        loaded_at_field: ingested_at
-        freshness:
-          warn_after: {count: 30, period: hour}
-          error_after: {count: 54, period: hour}
       - name: raw_apif_wcqeu_players
         identifier: RAW_APIF_WCQEU_PLAYERS
         loaded_at_field: ingested_at
@@ -1195,6 +757,127 @@ sources:
           error_after: {count: 54, period: hour}
       - name: raw_apif_wcqoc_players
         identifier: RAW_APIF_WCQOC_PLAYERS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+
+      - name: raw_apif_bl1_fixture_details
+        identifier: RAW_APIF_BL1_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_bl2_fixture_details
+        identifier: RAW_APIF_BL2_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_ed_fixture_details
+        identifier: RAW_APIF_ED_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_l1_fixture_details
+        identifier: RAW_APIF_L1_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lmx_fixture_details
+        identifier: RAW_APIF_LMX_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_lp_fixture_details
+        identifier: RAW_APIF_LP_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_mls_fixture_details
+        identifier: RAW_APIF_MLS_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_pd_fixture_details
+        identifier: RAW_APIF_PD_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_pl_fixture_details
+        identifier: RAW_APIF_PL_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_sa_fixture_details
+        identifier: RAW_APIF_SA_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_spl_fixture_details
+        identifier: RAW_APIF_SPL_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_vl_fixture_details
+        identifier: RAW_APIF_VL_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wc_fixture_details
+        identifier: RAW_APIF_WC_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqaf_fixture_details
+        identifier: RAW_APIF_WCQAF_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqas_fixture_details
+        identifier: RAW_APIF_WCQAS_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqca_fixture_details
+        identifier: RAW_APIF_WCQCA_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqeu_fixture_details
+        identifier: RAW_APIF_WCQEU_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqip_fixture_details
+        identifier: RAW_APIF_WCQIP_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqoc_fixture_details
+        identifier: RAW_APIF_WCQOC_FIXTURE_DETAILS
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 54, period: hour}
+      - name: raw_apif_wcqsa_fixture_details
+        identifier: RAW_APIF_WCQSA_FIXTURE_DETAILS
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}

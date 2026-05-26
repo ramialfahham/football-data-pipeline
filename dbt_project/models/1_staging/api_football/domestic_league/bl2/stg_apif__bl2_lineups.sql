@@ -1,15 +1,15 @@
 with src as (
     select *
-    from {{ source('api_football', 'raw_apif_bl2_lineups') }}
+    from {{ source('api_football', 'raw_apif_bl2_fixture_details') }}
 ),
 
-blocks as (
+fixtures as (
     select
         src.ingested_at as raw_ingested_at,
-        block_json,
-        coalesce(json_value(src.payload, '$.league_code'), 'BL2') as league_code
+        fixture_json,
+        'BL2' as league_code
     from src,
-        unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as block_json
+        unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as fixture_json
 ),
 
 line_rows as (
@@ -17,9 +17,9 @@ line_rows as (
         league_code,
         raw_ingested_at,
         lineup_el,
-        safe_cast(json_value(block_json, '$.fixture_id') as int64) as fixture_id
-    from blocks,
-        unnest(json_query_array(block_json, '$.lineups')) as lineup_el
+        safe_cast(json_value(fixture_json, '$.fixture.id') as int64) as fixture_id
+    from fixtures,
+        unnest(json_query_array(fixture_json, '$.lineups')) as lineup_el
 )
 
 select
