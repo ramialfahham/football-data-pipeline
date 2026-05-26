@@ -63,7 +63,7 @@ from .loads.competition_runner import (
     run_poll_phases,
     run_squads_for_competition,
 )
-from .loads.fanout import run_global_fanout_and_persist
+from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
 
 
 def _load_api_football(request):
@@ -150,9 +150,12 @@ def _load_api_football(request):
             if result is not None:
                 results.append(result)
 
-        # Phase 2: global completeness-driven fanout across all competitions
+        # Phase 2: batch fixture sub-data fetch across all competitions.
+        # Calls GET /fixtures?ids=ID1-...-ID20 (up to 20 per call) to retrieve
+        # events, lineups, statistics, and players for finished fixtures.
+        # Results land in RAW_APIF_{LC}_FIXTURE_DETAILS per competition.
         if results:
-            run_global_fanout_and_persist(ctx, results)
+            run_batch_fixture_fanout_and_persist(ctx, results)
 
         # Phase 3: squad /players batch per competition
         for result in results:
