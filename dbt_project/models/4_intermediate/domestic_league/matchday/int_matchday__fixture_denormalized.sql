@@ -1,8 +1,8 @@
 {{ config(materialized='table') }}
 
 {#
-  One row per fixture: denormalised teams, league, season, kickoff
-  (same shape as mart_fixture_results). Feeds matchday ints and mart_fixture_results.
+  One row per fixture: denormalised teams, league, season, kickoff.
+  Feeds matchday intermediates and marts directly.
 #}
 
 with import_fct_fixture as (

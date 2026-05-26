@@ -3,8 +3,8 @@ version: 2
 models:
   - name: int_matchday__fixture_denormalized
     description: >
-      One row per fixture with teams, league, season, and kickoff denormalised (same column set as mart_fixture_results).
-      Materialised as a table; mart_fixture_results is a thin view for the stable consumer name.
+      One row per fixture with teams, league, season, and kickoff denormalised.
+      Direct consumer shape for dashboards and ad-hoc SQL; feeds matchday intermediates and marts.
     config:
       tags: ["intermediate", "football", "matchday"]
 

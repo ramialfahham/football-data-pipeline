@@ -171,12 +171,8 @@ We **do not** ship fabricated win probability.
 
 ### Rank data source
 
-| Option | What it means |
-|--------|----------------|
-| **`mart_team_season.latest_rank`** | From standings snapshot join (can be null if snapshot missing). |
-| **`mart_team_rankings_current.current_rank`** | Derived rank from points/goal diff for **latest season per league** — good “table” proxy when standings API lags. |
-
-**Recommendation:** Prefer **`mart_team_rankings_current`** for display rank when you want a filled table; document the semantic difference vs official standings.
+Use **`mart_team_season.latest_rank`** (from standings snapshot join; can be null if snapshot missing).
+Derived calculated rank (points/goal diff) will be part of the domestic_league standings mart when built.
 
 ---
 
