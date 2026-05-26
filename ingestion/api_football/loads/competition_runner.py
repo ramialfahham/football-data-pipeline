@@ -16,9 +16,11 @@ the others.
 from __future__ import annotations
 
 from .context import CompetitionRunResult, PipelineContext
+from .coaches import load_coaches
 from .fanout import run_fixture_fanout_and_persist
 from .fixtures import fetch_merge_and_persist_fixtures
 from .catalog import fetch_catalog_persist_and_plan
+from .injuries import load_injuries
 from .rounds import load_rounds_merged
 from .squads import load_squad_players_batch
 from .standings import load_standings_if_enabled
@@ -94,6 +96,10 @@ def run_cheap_phases(
         )
         _ingestion_phase(league_code, "transfers")
         load_transfers_if_enabled(ctx, league_code, team_ids)
+        _ingestion_phase(league_code, "injuries")
+        load_injuries(ctx, league_code, league_id, seasons_list)
+        _ingestion_phase(league_code, "coaches")
+        load_coaches(ctx, league_code, team_ids)
         return CompetitionRunResult(
             league_code=league_code,
             seasons_list=seasons_list,
