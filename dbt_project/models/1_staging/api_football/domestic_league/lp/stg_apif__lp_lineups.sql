@@ -6,10 +6,9 @@ with src as (
 fixtures as (
     select
         src.ingested_at as raw_ingested_at,
-        fixture_json,
+        src.payload as fixture_json,
         'LP' as league_code
-    from src,
-        unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as fixture_json
+    from src
 ),
 
 line_rows as (

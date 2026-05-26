@@ -4,30 +4,36 @@ Step 2 of the documented two-step ingestion pattern (Step 1 is loads/fixtures.py
 One API call per 20 finished fixtures returns events, lineups, statistics, and players
 embedded in the response — replacing the old 5-endpoint-per-fixture fanout.
 
-Coverage is derived by querying RAW_APIF_{LC}_FIXTURE_DETAILS: any fixture_id already
-present in that table with non-empty statistics is considered done. Fixtures with empty
-statistics are retried for up to STATS_RETRY_DAYS days after kickoff (API-Football
-documents up to a 48-hour delay for non-livescore leagues); after that they are accepted
-as permanently empty and not retried.
+Storage model: one row per fixture in RAW_APIF_{LC}_FIXTURE_DETAILS.
+  payload     JSON      — the single fixture object from $.response[n]
+  ingested_at TIMESTAMP — when this row was written (UTC)
 
-Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping API_FOOTBALL_BATCH_SLEEP_MS
-(default 250 ms) between calls gives ~4 calls/sec, safely under the limit. This sleep is
-separate from the general API_FOOTBALL_REQUEST_PAUSE_MS throttle used by other API calls.
-Synchronous HTTP only — the API ToS permanently bans IPs that use async/threading.
+On the first fetch of a fixture the row is inserted. On retry (empty stats
+within STATS_RETRY_DAYS of kickoff) the old row is deleted first so only one
+row per fixture ever exists. Staging models read payload directly — no
+$.response unnesting needed.
+
+Coverage is derived by querying RAW_APIF_{LC}_FIXTURE_DETAILS directly:
+any fixture_id already present with non-empty statistics is done.
+
+Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
+API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
 
 See docs/api_football_ingestion_blueprint.md for the full API specification.
 """
 
 from __future__ import annotations
 
+import io
+import json
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from .. import quota as errors_quota
-from ..bigquery import load_json_to_bq
+from ..bigquery import ensure_raw_table_partitioned
 from ..http_client import fetch_json
 from ..quota import append_api_errors
 from ..settings import GCP_PROJECT_ID, DATASET_ID, _env_int, raw_league_table
@@ -51,9 +57,9 @@ def _read_fetched_coverage(
 ) -> dict[int, bool]:
     """Return {fixture_id: has_statistics} for all fixtures in RAW_APIF_{LC}_FIXTURE_DETAILS.
 
-    has_statistics is True if at least one stored row for this fixture contained a
-    non-empty statistics array. Returns an empty dict when the table does not exist
-    (first run for this competition — all finished fixtures will be fetched).
+    Each row in FIXTURE_DETAILS stores exactly one fixture's payload.
+    has_statistics is True when the fixture's statistics array is non-empty.
+    Returns an empty dict when the table does not exist (first run).
     """
     table_id = _fixture_details_table_id(league_code)
     try:
@@ -63,13 +69,10 @@ def _read_fetched_coverage(
 
     q = f"""
         SELECT
-          CAST(JSON_VALUE(item, '$.fixture.id') AS INT64) AS fixture_id,
-          LOGICAL_OR(ARRAY_LENGTH(JSON_QUERY_ARRAY(item, '$.statistics')) > 0)
-            AS has_statistics
-        FROM `{table_id}`,
-        UNNEST(JSON_QUERY_ARRAY(payload, '$.response')) AS item
-        WHERE JSON_VALUE(item, '$.fixture.id') IS NOT NULL
-        GROUP BY 1
+          CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
+          ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0 AS has_statistics
+        FROM `{table_id}`
+        WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
     """
     try:
         rows = list(client.query(q).result())
@@ -92,11 +95,11 @@ def _needs_fetch(
     """Return True if this finished fixture needs a (re-)fetch.
 
     Decision table:
-      Never fetched                           → fetch
-      Fetched, statistics non-empty           → skip (done permanently)
+      Never fetched                            → fetch
+      Fetched, statistics non-empty            → skip (done permanently)
       Fetched, statistics empty, within window → retry (delivery delay expected)
-      Fetched, statistics empty, past window  → skip (accept empty permanently)
-      Fetched, statistics empty, no kickoff   → skip (can't determine window)
+      Fetched, statistics empty, past window   → skip (accept empty permanently)
+      Fetched, statistics empty, no kickoff    → skip (can't determine window)
     """
     if fixture_id not in fetched:
         return True
@@ -127,23 +130,91 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
     return out
 
 
+def _delete_fixtures(
+    client: bigquery.Client,
+    table_id: str,
+    fixture_ids: list[int],
+) -> None:
+    """Delete existing rows for the given fixture IDs before re-inserting.
+
+    Used when retrying fixtures that previously had empty statistics, so that
+    the table always holds exactly one row per fixture.
+    """
+    ids_sql = ", ".join(str(fid) for fid in fixture_ids)
+    q = f"""
+        DELETE FROM `{table_id}`
+        WHERE CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) IN ({ids_sql})
+    """
+    client.query(q).result()
+
+
+def _insert_fixture_rows(
+    client: bigquery.Client,
+    table_name: str,
+    fixture_jsons: list[dict],
+    ingested_at: datetime,
+) -> None:
+    """Append one row per fixture to RAW_APIF_{LC}_FIXTURE_DETAILS.
+
+    Each row: payload = the single fixture object, ingested_at = now.
+    """
+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+    ts = ingested_at.isoformat()
+    ndjson = "\n".join(
+        json.dumps({"payload": fx, "ingested_at": ts}, ensure_ascii=True)
+        for fx in fixture_jsons
+    ) + "\n"
+    job_config = bigquery.LoadJobConfig(
+        schema=[
+            bigquery.SchemaField("payload", "JSON"),
+            bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+        ],
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        write_disposition="WRITE_APPEND",
+    )
+    job = client.load_table_from_file(
+        io.BytesIO(ndjson.encode("utf-8")), table_id, job_config=job_config
+    )
+    job.result()
+
+
 def _fetch_and_persist_batch(
     ctx: PipelineContext,
     league_code: str,
     fixture_ids: list[int],
+    retry_ids: set[int],
 ) -> None:
-    """Call GET /fixtures?ids=... for one batch and append the response.
+    """Call GET /fixtures?ids=... and persist one row per fixture.
 
-    The full API response (events, lineups, statistics, players for each fixture)
-    is appended as one new row to RAW_APIF_{LC}_FIXTURE_DETAILS.
+    For retries (empty stats previously stored), delete the old row first so
+    FIXTURE_DETAILS always holds exactly one row per fixture_id.
     """
     ids_param = "-".join(str(fid) for fid in fixture_ids)
     data = fetch_json("/fixtures", headers=ctx.headers, params={"ids": ids_param})
     append_api_errors(data, f"fixture_details {league_code}", ctx.errors)
 
+    response = data.get("response") or []
+    if not response:
+        return
+
     table_name = raw_league_table(league_code, "FIXTURE_DETAILS")
-    load_json_to_bq(ctx.client, table_name, data, as_json_payload=True, append=True)
-    ctx.add_loaded(1)
+    table_id = _fixture_details_table_id(league_code)
+    ensure_raw_table_partitioned(ctx.client, table_name)
+
+    # Delete stale rows for any retried fixtures before re-inserting.
+    retries_in_batch = [
+        fid for fid in fixture_ids if fid in retry_ids
+    ]
+    if retries_in_batch:
+        _delete_fixtures(ctx.client, table_id, retries_in_batch)
+
+    _insert_fixture_rows(
+        ctx.client,
+        table_name,
+        response,
+        datetime.now(timezone.utc),
+    )
+    ctx.add_loaded(len(response))
 
 
 def run_batch_fixture_fanout_and_persist(
@@ -157,10 +228,10 @@ def run_batch_fixture_fanout_and_persist(
          already have good statistics. Fixtures missing entirely or with empty stats
          within the 3-day retry window are queued for fetching.
       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
-         Each response is appended to RAW_APIF_{LC}_FIXTURE_DETAILS.
+         Each fixture in the response is stored as one row in FIXTURE_DETAILS.
+         Retried fixtures (previously empty stats) have their old row deleted first.
 
-    All competitions are planned before any HTTP calls are made, so the printed
-    summary reflects the full picture before quota is spent.
+    All competitions are planned before any HTTP calls are made.
     """
     from ..fixture_scheduling import _fixture_kickoff_by_id
 
@@ -172,7 +243,7 @@ def run_batch_fixture_fanout_and_persist(
     # Planning pass — determine what needs fetching for each competition.
     # No HTTP calls yet.
     # -----------------------------------------------------------------------
-    plan: list[tuple[str, list[int]]] = []
+    plan: list[tuple[str, list[int], set[int]]] = []  # (league_code, to_fetch, retry_ids)
     for result in results:
         response = result.fixtures_merged.get("response", [])
         finished = _finished_fixture_ids(response)
@@ -183,19 +254,24 @@ def run_batch_fixture_fanout_and_persist(
             fid for fid in finished
             if _needs_fetch(fid, fetched, kickoff_by_id, retry_cutoff)
         )
+        retry_ids = {
+            fid for fid in to_fetch
+            if fid in fetched and not fetched[fid]
+        }
 
         n_done = len(finished) - len(to_fetch)
         print(
             f"[api-football] batch_fanout league={result.league_code} "
-            f"finished={len(finished)} done={n_done} to_fetch={len(to_fetch)}",
+            f"finished={len(finished)} done={n_done} to_fetch={len(to_fetch)} "
+            f"retries={len(retry_ids)}",
             flush=True,
         )
         if to_fetch:
-            plan.append((result.league_code, to_fetch))
+            plan.append((result.league_code, to_fetch, retry_ids))
 
-    total_fixtures = sum(len(ids) for _, ids in plan)
+    total_fixtures = sum(len(ids) for _, ids, _ in plan)
     total_calls = sum(
-        (len(ids) + _BATCH_SIZE - 1) // _BATCH_SIZE for _, ids in plan
+        (len(ids) + _BATCH_SIZE - 1) // _BATCH_SIZE for _, ids, _ in plan
     )
     print(
         f"[api-football] batch_fanout total_fixtures_to_fetch={total_fixtures} "
@@ -207,7 +283,7 @@ def run_batch_fixture_fanout_and_persist(
     # Fetch pass — one batch at a time, sleeping between calls.
     # -----------------------------------------------------------------------
     first_call = True
-    for league_code, fixture_ids in plan:
+    for league_code, fixture_ids, retry_ids in plan:
         for i in range(0, len(fixture_ids), _BATCH_SIZE):
             if errors_quota._http_quota_exhausted:
                 return
@@ -216,6 +292,6 @@ def run_batch_fixture_fanout_and_persist(
                 time.sleep(sleep_s)
             first_call = False
             try:
-                _fetch_and_persist_batch(ctx, league_code, batch)
+                _fetch_and_persist_batch(ctx, league_code, batch, retry_ids)
             except Exception as e:
                 ctx.errors.append(f"batch_fixtures {league_code}: {e}")
