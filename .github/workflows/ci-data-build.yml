@@ -133,6 +133,7 @@ jobs:
           API_FOOTBALL_API_KEY: ${{ secrets.API_FOOTBALL_API_KEY }}
           API_FOOTBALL_INCLUDE_IN_PROGRESS: "1"
           API_FOOTBALL_SKIP_INGEST_LOCK: "1"
+          API_FOOTBALL_INGEST_FORCE_FULL: "1"
         run: |
           export PYTHONPATH=.
           python -m ingestion.api_football.main
