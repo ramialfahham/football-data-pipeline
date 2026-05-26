@@ -145,10 +145,15 @@ def _collect_covered_fixture_ids(
         raw = bq_row.payload
         if not raw:
             continue
-        try:
-            payload = json.loads(raw)
-        except (TypeError, ValueError):
-            continue
+        # BQ JSON columns are deserialized to dict automatically.
+        # Legacy STRING columns need json.loads().
+        if isinstance(raw, dict):
+            payload = raw
+        else:
+            try:
+                payload = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
         for item in (payload or {}).get("response") or []:
             fid = item.get("fixture_id")
             if fid is None:
