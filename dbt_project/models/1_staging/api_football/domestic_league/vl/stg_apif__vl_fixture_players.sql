@@ -12,24 +12,13 @@ fixtures as (
         unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as fixture_json
 ),
 
-deduped_fixtures as (
-    select *
-    from fixtures
-    qualify
-        row_number() over (
-            partition by safe_cast(json_value(fixture_json, '$.fixture.id') as int64)
-            order by raw_ingested_at desc
-        ) = 1
-),
-
-
 team_rows as (
     select
         league_code,
         raw_ingested_at,
         team_block,
         safe_cast(json_value(fixture_json, '$.fixture.id') as int64) as fixture_id
-    from deduped_fixtures,
+    from fixtures,
         unnest(json_query_array(fixture_json, '$.players')) as team_block
 ),
 
