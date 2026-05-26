@@ -1,0 +1,388 @@
+version: 2
+
+# Marts are denormalised, consumer-shaped products. Every mart carries ``league_code`` so
+# multi-league slicing is a filter, not a schema change.
+#
+# Mart test policy:
+#   - surrogate key: unique + not_null
+#   - grain: dbt_utils.unique_combination_of_columns on the business keys
+#   - relationships back to the core dims / facts the mart rolls up from
+#   - accepted_values where a closed enum is surfaced
+#   - one semantic assertion per rollup (e.g. wins + draws + losses = played)
+
+models:
+  - name: mart_team_season_insights
+    description: >
+      Latest-season team insights per league (full finished-leg window, same metric depth as matchday
+      form). Grain: one row per team in max(season_api_year) for each league_code. Use for off-season
+      consumption and before matchday 1 when mart_matchday_insights has no upcoming fixtures.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - team_sk
+    columns:
+      - name: team_season_sk
+        tests: [not_null, unique]
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: season_games_played
+        tests: [not_null]
+      - name: played
+        description: "Finished matches from mart_team_season; null when standings rollup absent."
+
+  - name: mart_matchday_insights
+    description: >
+      Domestic league matchday surface for pre-match comparison. Grain: one row per upcoming
+      fixture per league_code (active domestic competitions from vars.active_competition_league_codes).
+      BL1 excludes relegation play-off rounds (var bl1_relegation_round_names); use
+      mart_matchday_insights_bl1_relegation during play-offs. BL2 promotion and L1 relegation
+      play-offs are excluded via bl2_playoff_round_names and l1_relegation_round_names. WC uses
+      mart_matchday_insights_wc. Export and UI slice with WHERE league_code; do not add per-league
+      mart copies.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "consumer", "pre_match"]
+    columns:
+      - name: home_team_logo_url
+        description: "Home team crest URL from dim_team (API-Football); nullable."
+      - name: away_team_logo_url
+        description: "Away team crest URL from dim_team (API-Football); nullable."
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+      - dbt_utils.expression_is_true:
+          expression: "length(trim(home_team_name)) > 0"
+      - dbt_utils.expression_is_true:
+          expression: "length(trim(away_team_name)) > 0"
+
+      # ── Metric consistency: reported rate = sum / count ──────────────────────
+      # These catch silent NULL-in-SUM bugs where COUNT includes a game but SUM skips it.
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_goals_per_match_recent is null or abs(home_goals_per_match_recent - safe_divide(home_goals_for_sum_form, home_form_games_played)) < 0.001"
+          name: home_goals_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_goals_per_match_recent is null or abs(away_goals_per_match_recent - safe_divide(away_goals_for_sum_form, away_form_games_played)) < 0.001"
+          name: away_goals_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_goals_against_per_match_recent is null or abs(home_goals_against_per_match_recent - safe_divide(home_goals_against_sum_form, home_form_games_played)) < 0.001"
+          name: home_goals_against_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_goals_against_per_match_recent is null or abs(away_goals_against_per_match_recent - safe_divide(away_goals_against_sum_form, away_form_games_played)) < 0.001"
+          name: away_goals_against_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_points_capture_recent is null or abs(home_points_capture_recent - safe_divide(home_points_won_sum_form, 3.0 * home_form_games_played)) < 0.001"
+          name: home_points_capture_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_points_capture_recent is null or abs(away_points_capture_recent - safe_divide(away_points_won_sum_form, 3.0 * away_form_games_played)) < 0.001"
+          name: away_points_capture_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_total_shots_sum_form is null or home_total_shots_sum_form = 0 or home_shot_accuracy_recent is null or abs(home_shot_accuracy_recent - safe_divide(home_shots_on_goal_sum_form, home_total_shots_sum_form)) < 0.001"
+          name: home_shot_accuracy_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_total_shots_sum_form is null or away_total_shots_sum_form = 0 or away_shot_accuracy_recent is null or abs(away_shot_accuracy_recent - safe_divide(away_shots_on_goal_sum_form, away_total_shots_sum_form)) < 0.001"
+          name: away_shot_accuracy_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_passes_total_sum_form is null or home_passes_total_sum_form = 0 or home_pass_accuracy_recent is null or abs(home_pass_accuracy_recent - safe_divide(home_passes_accurate_sum_form, home_passes_total_sum_form)) < 0.001"
+          name: home_pass_accuracy_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_passes_total_sum_form is null or away_passes_total_sum_form = 0 or away_pass_accuracy_recent is null or abs(away_pass_accuracy_recent - safe_divide(away_passes_accurate_sum_form, away_passes_total_sum_form)) < 0.001"
+          name: away_pass_accuracy_consistent_with_sum
+
+      # ── Ratio bounds: in [0, 1] when present (null allowed when inputs missing) ───
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_points_capture_recent is null or (home_points_capture_recent between 0 and 1)"
+          name: home_points_capture_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_points_capture_recent is null or (away_points_capture_recent between 0 and 1)"
+          name: away_points_capture_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_shot_accuracy_recent is null or (home_shot_accuracy_recent between 0 and 1)"
+          name: home_shot_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_shot_accuracy_recent is null or (away_shot_accuracy_recent between 0 and 1)"
+          name: away_shot_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_shot_share_recent is null or (home_shot_share_recent between 0 and 1)"
+          name: home_shot_share_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_shot_share_recent is null or (away_shot_share_recent between 0 and 1)"
+          name: away_shot_share_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_danger_zone_ratio_recent is null or (home_danger_zone_ratio_recent between 0 and 1)"
+          name: home_danger_zone_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_danger_zone_ratio_recent is null or (away_danger_zone_ratio_recent between 0 and 1)"
+          name: away_danger_zone_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_finishing_efficiency_recent is null or (home_finishing_efficiency_recent between 0 and 1)"
+          name: home_finishing_efficiency_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_finishing_efficiency_recent is null or (away_finishing_efficiency_recent between 0 and 1)"
+          name: away_finishing_efficiency_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_pass_accuracy_recent is null or (home_pass_accuracy_recent between 0 and 1)"
+          name: home_pass_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_pass_accuracy_recent is null or (away_pass_accuracy_recent between 0 and 1)"
+          name: away_pass_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "home_save_ratio_recent is null or (home_save_ratio_recent between 0 and 1)"
+          name: home_save_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "away_save_ratio_recent is null or (away_save_ratio_recent between 0 and 1)"
+          name: away_save_ratio_in_range
+
+      # ── Rate metrics: sum / games_played ─────────────────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_shots_per_match_recent is null or abs(home_shots_per_match_recent - safe_divide(home_total_shots_sum_form, home_form_games_played)) < 0.001"
+          name: home_shots_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_shots_per_match_recent is null or abs(away_shots_per_match_recent - safe_divide(away_total_shots_sum_form, away_form_games_played)) < 0.001"
+          name: away_shots_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_passes_per_match_recent is null or abs(home_passes_per_match_recent - safe_divide(home_passes_total_sum_form, home_form_games_played)) < 0.001"
+          name: home_passes_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_passes_per_match_recent is null or abs(away_passes_per_match_recent - safe_divide(away_passes_total_sum_form, away_form_games_played)) < 0.001"
+          name: away_passes_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_corner_kicks_per_match_recent is null or abs(home_corner_kicks_per_match_recent - safe_divide(home_corner_kicks_sum_form, home_form_games_played)) < 0.001"
+          name: home_corner_kicks_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_corner_kicks_per_match_recent is null or abs(away_corner_kicks_per_match_recent - safe_divide(away_corner_kicks_sum_form, away_form_games_played)) < 0.001"
+          name: away_corner_kicks_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_form_games_played = 0 or home_corners_conceded_per_match_recent is null or abs(home_corners_conceded_per_match_recent - safe_divide(home_opponent_corner_kicks_sum_form, home_form_games_played)) < 0.001"
+          name: home_corners_conceded_per_match_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_form_games_played = 0 or away_corners_conceded_per_match_recent is null or abs(away_corners_conceded_per_match_recent - safe_divide(away_opponent_corner_kicks_sum_form, away_form_games_played)) < 0.001"
+          name: away_corners_conceded_per_match_consistent_with_sum
+
+      # ── Ratio-of-sums metrics: formula consistency ──────────────────────────────
+      - dbt_utils.expression_is_true:
+          expression: "(home_total_shots_sum_form is null and home_opponent_total_shots_sum_form is null) or (home_total_shots_sum_form + home_opponent_total_shots_sum_form) = 0 or home_shot_share_recent is null or abs(home_shot_share_recent - safe_divide(home_total_shots_sum_form, home_total_shots_sum_form + home_opponent_total_shots_sum_form)) < 0.001"
+          name: home_shot_share_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "(away_total_shots_sum_form is null and away_opponent_total_shots_sum_form is null) or (away_total_shots_sum_form + away_opponent_total_shots_sum_form) = 0 or away_shot_share_recent is null or abs(away_shot_share_recent - safe_divide(away_total_shots_sum_form, away_total_shots_sum_form + away_opponent_total_shots_sum_form)) < 0.001"
+          name: away_shot_share_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_total_shots_sum_form is null or home_total_shots_sum_form = 0 or home_danger_zone_ratio_recent is null or abs(home_danger_zone_ratio_recent - safe_divide(home_shots_inside_box_sum_form, home_total_shots_sum_form)) < 0.001"
+          name: home_danger_zone_ratio_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_total_shots_sum_form is null or away_total_shots_sum_form = 0 or away_danger_zone_ratio_recent is null or abs(away_danger_zone_ratio_recent - safe_divide(away_shots_inside_box_sum_form, away_total_shots_sum_form)) < 0.001"
+          name: away_danger_zone_ratio_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "home_shots_on_goal_sum_form is null or home_shots_on_goal_sum_form = 0 or home_finishing_efficiency_recent is null or abs(home_finishing_efficiency_recent - safe_divide(home_goals_for_sum_form, home_shots_on_goal_sum_form)) < 0.001"
+          name: home_finishing_efficiency_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "away_shots_on_goal_sum_form is null or away_shots_on_goal_sum_form = 0 or away_finishing_efficiency_recent is null or abs(away_finishing_efficiency_recent - safe_divide(away_goals_for_sum_form, away_shots_on_goal_sum_form)) < 0.001"
+          name: away_finishing_efficiency_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "(home_goalkeeper_saves_sum_form is null and home_goals_against_sum_form is null) or (home_goalkeeper_saves_sum_form + home_goals_against_sum_form) = 0 or home_save_ratio_recent is null or abs(home_save_ratio_recent - safe_divide(home_goalkeeper_saves_sum_form, home_goalkeeper_saves_sum_form + home_goals_against_sum_form)) < 0.001"
+          name: home_save_ratio_consistent_with_sum
+      - dbt_utils.expression_is_true:
+          expression: "(away_goalkeeper_saves_sum_form is null and away_goals_against_sum_form is null) or (away_goalkeeper_saves_sum_form + away_goals_against_sum_form) = 0 or away_save_ratio_recent is null or abs(away_save_ratio_recent - safe_divide(away_goalkeeper_saves_sum_form, away_goalkeeper_saves_sum_form + away_goals_against_sum_form)) < 0.001"
+          name: away_save_ratio_consistent_with_sum
+
+    columns:
+      - name: fixture_sk
+        description: "Fixture key. One row per upcoming fixture in the selected matchday."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: home_team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: away_team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "Internal pipeline league key (BL1, PL, PD, …). Filter for export/UI; use league_name for display."
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: fixture_date
+        tests: [not_null]
+      - name: kickoff_datetime
+        tests: [not_null]
+      - name: round_name
+        description: "API round name for the upcoming matchday batch (e.g. Regular Season - 31)."
+      - name: upcoming_round_order
+        description: "Trailing integer parsed from round_name for ordering past rounds (null if not parseable)."
+      - name: league_name
+        description: "Human-readable league name from upstream fixture context."
+      - name: home_team_name
+        tests:
+          - not_null
+      - name: away_team_name
+        tests:
+          - not_null
+      - name: upcoming_matchday_fixture_count
+        description: "Number of fixtures in this upcoming matchday (same round_name, league, season)."
+        tests: [not_null]
+      - name: home_league_rank
+        description: "Current table rank for the home team from mart_team_season.latest_rank; null before standings exist for the season (e.g. pre–matchday 1)."
+      - name: away_league_rank
+        description: "Current table rank for the away team from mart_team_season.latest_rank; null before standings exist for the season (e.g. pre–matchday 1)."
+      - name: home_standings_group_description
+        description: "API standings group/stage label for the home team (mart_team_season.standings_group_description); null if standings absent. Same source row as home_league_rank."
+      - name: away_standings_group_description
+        description: "API standings group/stage label for the away team; null if standings absent. Same source row as away_league_rank."
+      - name: home_form_games_played
+        description: "Home: count of finished matches included in the form window (all games in the last five completed matchdays). 0 when no prior matches exist; never null."
+        tests: [not_null]
+      - name: away_form_games_played
+        description: "Away: count of finished matches included in the form window. 0 when no prior matches exist; never null."
+        tests: [not_null]
+      - name: home_form_matchdays_used
+        description: "Home: distinct completed matchdays (round_name) in the window (at most five)."
+      - name: away_form_matchdays_used
+        description: "Away: distinct completed matchdays in the window (at most five)."
+      - name: home_stat_coverage_form_games
+        description: "Home: games in the form window with non-null shots_on_goal in fct_fixture_team_stats."
+      - name: away_stat_coverage_form_games
+        description: "Away: games in the form window with non-null shots_on_goal in fct_fixture_team_stats."
+      - name: home_points_won_sum_form
+        description: "Home: sum of league points (3/1/0) over form-window matches."
+      - name: away_points_won_sum_form
+        description: "Away: sum of league points over form-window matches."
+      - name: home_points_capture_recent
+        description: "Home: points_won_sum_form / (3 * form_games_played); 0 if no games."
+      - name: away_points_capture_recent
+        description: "Away: points_won_sum_form / (3 * form_games_played); 0 if no games."
+      - name: home_goals_per_match_recent
+        description: "Home: goals scored per form-window game (sum / games)."
+      - name: away_goals_per_match_recent
+        description: "Away: goals scored per form-window game."
+      - name: home_goals_against_per_match_recent
+        description: "Home: goals conceded per form-window game."
+      - name: away_goals_against_per_match_recent
+        description: "Away: goals conceded per form-window game."
+      - name: home_shots_per_match_recent
+        description: "Home: total shots per form-window game."
+      - name: away_shots_per_match_recent
+        description: "Away: total shots per form-window game."
+      - name: home_shot_share_recent
+        description: "Home: ratio-of-sums shot share over the form window."
+      - name: away_shot_share_recent
+        description: "Away: ratio-of-sums shot share over the form window."
+      - name: home_danger_zone_ratio_recent
+        description: "Home: shots_inside_box / total_shots over the form window."
+      - name: away_danger_zone_ratio_recent
+        description: "Away: shots_inside_box / total_shots over the form window."
+      - name: home_shot_accuracy_recent
+        description: "Home: shots_on_goal / total_shots over the form window."
+      - name: away_shot_accuracy_recent
+        description: "Away: shots_on_goal / total_shots over the form window."
+      - name: home_finishing_efficiency_recent
+        description: "Home: goals_for / shots_on_goal over the form window."
+      - name: away_finishing_efficiency_recent
+        description: "Away: goals_for / shots_on_goal over the form window."
+      - name: home_pass_accuracy_recent
+        description: "Home: passes_accurate / passes_total over the form window."
+      - name: away_pass_accuracy_recent
+        description: "Away: passes_accurate / passes_total over the form window."
+      - name: home_passes_per_match_recent
+        description: "Home: total passes per form-window game."
+      - name: away_passes_per_match_recent
+        description: "Away: total passes per form-window game."
+      - name: home_corner_kicks_per_match_recent
+        description: "Home: corner kicks won per form-window game."
+      - name: away_corner_kicks_per_match_recent
+        description: "Away: corner kicks won per form-window game."
+      - name: home_corners_conceded_per_match_recent
+        description: "Home: corner kicks conceded per form-window game."
+      - name: away_corners_conceded_per_match_recent
+        description: "Away: corner kicks conceded per form-window game."
+      - name: home_save_ratio_recent
+        description: "Home: sum(saves) / (sum(saves) + sum(goals_against)) over the form window."
+      - name: away_save_ratio_recent
+        description: "Away: save ratio over the form window."
+
+  - name: mart_matchday_insights_bl1_relegation
+    description: >
+      BL1 relegation play-off matchday surface. Same metrics as mart_matchday_insights plus
+      home_form_league_code and away_form_league_code (BL1 vs BL2). Form uses each team's domestic
+      league; standings join on form league + season.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "consumer", "pre_match", "relegation"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+      - dbt_utils.expression_is_true:
+          expression: "league_code = 'BL1'"
+          name: mart_matchday_insights_bl1_relegation_league_code_is_bl1
+      - dbt_utils.expression_is_true:
+          expression: "round_name in ('Final', 'Relegation Round')"
+          name: mart_matchday_insights_bl1_relegation_round_name
+    columns:
+      - name: home_team_logo_url
+        description: "Home team crest URL from dim_team (API-Football); nullable."
+      - name: away_team_logo_url
+        description: "Away team crest URL from dim_team (API-Football); nullable."
+      - name: home_form_league_code
+        description: "Domestic league used for home team form (BL1 or BL2)."
+        tests: [not_null]
+      - name: away_form_league_code
+        description: "Domestic league used for away team form (BL1 or BL2)."
+        tests: [not_null]
+
