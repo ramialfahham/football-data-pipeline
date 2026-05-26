@@ -164,16 +164,22 @@ def _persist_fanout_and_coverage(
             if fid is None:
                 continue
 
-            # For FIXTURE_STATISTICS, only mark covered when stats are present.
-            # An empty statistics response means the API returned nothing useful;
-            # we want to retry on the next run rather than permanently skipping.
-            if endpoint_name == "FIXTURE_STATISTICS" and not row.get(payload_key):
-                continue
+            if endpoint_name == "FIXTURE_STATISTICS":
+                # Always write a coverage row — has_data records whether this fetch
+                # delivered actual statistics. An empty response (has_data=False) will
+                # be retried within STATS_GRACE_DAYS of the fixture's kickoff date;
+                # after that grace period the entry is treated as permanent and the
+                # fixture stops consuming daily quota.
+                has_data = bool(row.get(payload_key))
+            else:
+                # Other endpoints: any successful fetch counts as covered.
+                has_data = True
 
             coverage_rows.append({
                 "league_code": league_code,
                 "fixture_id":  int(fid),
                 "endpoint":    endpoint_name,
+                "has_data":    has_data,
             })
 
     # Write all coverage rows for this competition in one batch.
@@ -312,10 +318,12 @@ def run_global_fanout_and_persist(
     cov_by_lc: dict[str, dict[str, bool]] = {}
 
     for result in results:
-        # Translate coverage table format (endpoint names) to fanout shell keys.
-        covered = covered_for_league(all_covered, result.league_code)
-        covered_by_lc[result.league_code] = covered
         kickoff_by_id = _fixture_kickoff_by_id(result.fixtures_merged.get("response", []))
+        # Translate coverage table format (endpoint names) to fanout shell keys.
+        # Pass kickoff_by_id so the grace-period logic can determine whether
+        # FIXTURE_STATISTICS fixtures with has_data=False should be retried.
+        covered = covered_for_league(all_covered, result.league_code, kickoff_by_id=kickoff_by_id)
+        covered_by_lc[result.league_code] = covered
         finished_ids = _finished_fixture_ids(result.fixtures_merged.get("response", []))
         finished_by_lc[result.league_code] = finished_ids
         cov_by_lc[result.league_code] = result.cov
@@ -394,7 +402,8 @@ def run_fixture_fanout_and_persist(
 
     # Read coverage for this competition from the coverage table.
     all_covered = read_coverage(ctx.client)
-    covered = covered_for_league(all_covered, league_code)
+    kickoff_by_id = _fixture_kickoff_by_id(fixtures_merged.get("response", []))
+    covered = covered_for_league(all_covered, league_code, kickoff_by_id=kickoff_by_id)
 
     finished_fixture_ids = _finished_fixture_ids(fixtures_merged.get("response", []))
     ordered_missing = [
