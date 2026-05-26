@@ -145,11 +145,15 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
             continue
         for entity in FANOUT_ENTITIES:
             # Look up which fixture IDs are covered for this league + endpoint.
-            # The coverage table already applies the "non-empty statistics" rule —
-            # FIXTURE_STATISTICS rows are only written when the statistics list is
-            # non-empty (see fanout._persist_fanout_and_coverage). No special
-            # handling is needed here.
-            covered = all_covered.get(league_code, {}).get(entity, set())
+            # read_coverage() returns dict[int, bool] per entity (fixture_id → has_data).
+            # Extract just the fixture IDs where data was confirmed present.
+            covered_raw = all_covered.get(league_code, {}).get(entity)
+            if covered_raw is None:
+                covered: set[int] = set()
+            elif isinstance(covered_raw, dict):
+                covered = {fid for fid, has_data in covered_raw.items() if has_data}
+            else:
+                covered = covered_raw  # already a set (forward-compat)
             missing = sorted(expected - covered)
             ok = not missing
             if not ok:
