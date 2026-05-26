@@ -7,9 +7,8 @@ fixtures as (
     select
         'WC' as league_code,
         src.ingested_at as raw_ingested_at,
-        fixture_json
-    from src,
-        unnest(coalesce(json_query_array(src.payload, '$.response'), [])) as fixture_json
+        src.payload as fixture_json
+    from src
 ),
 
 events as (
