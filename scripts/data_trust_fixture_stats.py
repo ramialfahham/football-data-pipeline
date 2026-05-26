@@ -44,12 +44,12 @@ def run() -> TrustResult:
     project = _project()
     client = bigquery.Client(project=project)
 
-    raw_rows = _single_int(client, f"select count(*) as c from `{project}.raw.RAW_APIF_BL1_FIXTURE_STATISTICS`", "c")
+    raw_rows = _single_int(client, f"select count(*) as c from `{project}.raw.RAW_APIF_BL1_FIXTURE_DETAILS`", "c")
     raw_rows_last_24h = _single_int(
         client,
         f"""
         select count(*) as c
-        from `{project}.raw.RAW_APIF_BL1_FIXTURE_STATISTICS`
+        from `{project}.raw.RAW_APIF_BL1_FIXTURE_DETAILS`
         where ingested_at >= timestamp_sub(current_timestamp(), interval 24 hour)
         """,
         "c",
@@ -59,17 +59,13 @@ def run() -> TrustResult:
         f"""
         with src as (
             select payload
-            from `{project}.raw.RAW_APIF_BL1_FIXTURE_STATISTICS`
-        ),
-        blocks as (
-            select block_json
-            from src,
-            unnest(coalesce(json_query_array(payload, '$.response'), [])) as block_json
+            from `{project}.raw.RAW_APIF_BL1_FIXTURE_DETAILS`
+            where array_length(json_query_array(payload, '$.statistics')) > 0
         ),
         stats_rows as (
             select stat_el
-            from blocks,
-            unnest(json_query_array(block_json, '$.statistics')) as stat_el
+            from src,
+            unnest(json_query_array(payload, '$.statistics')) as stat_el
         ),
         stat_lines as (
             select json_value(line_el, '$.type') as stat_type
