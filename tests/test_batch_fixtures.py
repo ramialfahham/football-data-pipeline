@@ -213,7 +213,7 @@ class TestRunBatchFixtureFanoutAndPersist:
         result = self._make_result("BL1", [self._make_fixture_row(100, "FT")])
 
         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 run_batch_fixture_fanout_and_persist(ctx, [result])
 
         mock_fetch.assert_not_called()
@@ -227,7 +227,7 @@ class TestRunBatchFixtureFanoutAndPersist:
         result = self._make_result("BL1", [self._make_fixture_row(1, "NS")])
 
         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 run_batch_fixture_fanout_and_persist(ctx, [result])
 
         mock_fetch.assert_not_called()
@@ -246,7 +246,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             return_value=fetch_resp,
         ) as mock_fetch:
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
                     run_batch_fixture_fanout_and_persist(ctx, [result])
 
@@ -271,7 +271,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             return_value=fetch_resp,
         ) as mock_fetch:
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
                     run_batch_fixture_fanout_and_persist(ctx, [result])
 
@@ -298,7 +298,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             return_value=fetch_resp,
         ):
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch(
                     "ingestion.api_football.loads.batch_fixtures.time.sleep"
                 ) as mock_sleep:
@@ -324,7 +324,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             return_value=fetch_resp,
         ):
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch(
                     "ingestion.api_football.loads.batch_fixtures.time.sleep"
                 ) as mock_sleep:
@@ -361,7 +361,7 @@ class TestRunBatchFixtureFanoutAndPersist:
                 "ingestion.api_football.loads.batch_fixtures.fetch_json",
                 side_effect=exhausting_fetch,
             ):
-                with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+                with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                     with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
                         run_batch_fixture_fanout_and_persist(ctx, [result])
         finally:
@@ -386,7 +386,7 @@ class TestRunBatchFixtureFanoutAndPersist:
         result = self._make_result("BL1", [self._make_fixture_row(100, "FT", kickoff_str)])
 
         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 run_batch_fixture_fanout_and_persist(ctx, [result])
 
         mock_fetch.assert_not_called()
@@ -411,7 +411,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             return_value=fetch_resp,
         ) as mock_fetch:
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
                     run_batch_fixture_fanout_and_persist(ctx, [result])
 
@@ -429,7 +429,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             side_effect=RuntimeError("network failure"),
         ):
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
                     run_batch_fixture_fanout_and_persist(ctx, [result])
 
@@ -455,7 +455,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             "ingestion.api_football.loads.batch_fixtures.fetch_json",
             side_effect=recording_fetch,
         ):
-            with patch("ingestion.api_football.loads.batch_fixtures.load_json_to_bq"):
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
                     run_batch_fixture_fanout_and_persist(ctx, [result_bl1, result_pl])
 
