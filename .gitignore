@@ -219,3 +219,13 @@ artifacts/feedback.local.js
 artifacts/_show.json
 *.local.env
 *.secrets.env
+
+# Ad-hoc local SQL scratch files
+artifacts/*.sql
+artifacts/*.csv
+artifacts/*.js
+
+# Claude Code local state (machine-specific, not project config)
+.claude/settings.local.json
+.claude/launch.json
+.claude/worktrees/
