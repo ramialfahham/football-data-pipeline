@@ -82,9 +82,7 @@ flattened as (
         safe_cast(json_value(stats_el, '$.penalty.saved') as int64) as penalty_saved,
         to_json_string(player_el) as source_json
     from players
-    left join unnest(
-        coalesce(json_query_array(player_el, '$.statistics'), [])
-    ) as stats_el on true
+    left join unnest([json_query(player_el, '$.statistics[0]')]) as stats_el on true
 )
 
 select

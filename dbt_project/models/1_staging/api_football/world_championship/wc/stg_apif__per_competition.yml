@@ -417,7 +417,7 @@ models:
         description: "Incoming club name snapshot from `transfers[].teams.in.name`."
 
   - name: stg_apif__wc_fixture_events
-    description: "Per-fixture GET /fixtures/events (batched payload). Grain: (league_code, fixture_id, minute_elapsed, minute_extra, team_id, player_id, event_type, event_detail). Minute and player fields may legitimately be NULL at source."
+    description: "Per-fixture GET /fixtures?ids=... (batched payload). Grain: (league_code, fixture_id, event_index). event_index is the 0-based position in the $.events array and is the stable identity for each event row."
     config:
       tags: ["staging", "api_football", "wc"]
     tests:
@@ -425,12 +425,7 @@ models:
           combination_of_columns:
             - league_code
             - fixture_id
-            - minute_elapsed
-            - minute_extra
-            - team_id
-            - player_id
-            - event_type
-            - event_detail
+            - event_index
     columns:
       - name: league_code
         description: "Internal league code; always WC for this model."
