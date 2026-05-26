@@ -60,15 +60,26 @@ Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, an
 
 ## 3) Testing Policy
 
+**Hard rule: every model must have at least one schema test. A PR that adds or modifies a model without tests will not be merged.**
+
+Per-layer minimums:
+
 - `staging`: document the **grain** (one row per what) in the model `description`. Then:
-  - `not_null` on columns required for that row to be valid (ids, dates, join keys).
-  - `unique` or `dbt_utils.unique_combination_of_columns` on the column(s) that define the grain, so dupes and bad merges fail early.
+  - `not_null` on every column required for that row to be valid (ids, dates, join keys).
+  - `unique` or `dbt_utils.unique_combination_of_columns` on the column(s) that define the grain, so dupes and bad merges fail early. Use `severity: warn` (not error) only when the violation is a known, documented source data quality issue that cannot be corrected at this layer.
   - Constrained `accepted_values` (and other light tests) where they add signal.
   - Do **not** repeat the **same** uniqueness assertion downstream unless the **grain changes** (avoid redundant tests on the same keys in `base` / later layers).
 - `base`: structural integrity when unions or reshaping apply—stronger `not_null`, key quality, `relationships`, and `unique` / composite tests where the grain is new or combined across sources (not a copy of staging’s uniqueness if nothing changed).
 - `core`/`intermediate`: relationship and business-rule tests.
 - `marts`: consumer-contract tests (required columns, accepted value ranges, metric consistency).
-- Every new model requires at least one meaningful test.
+
+**Severity guideline:**
+
+| Situation | Severity |
+|---|---|
+| Pipeline logic error (duplicate rows from ingest, bad join) | `error` — must fix before merge |
+| Grain violation from source data quality issue (documented API bug, known ID collision) | `warn` — document the root cause in a YAML comment |
+| "Nice to have" coverage on non-critical fields | `warn` |
 
 ## 4) Model Contracts and Metadata
 
