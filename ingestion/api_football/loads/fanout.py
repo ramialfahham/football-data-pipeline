@@ -117,13 +117,13 @@ def _persist_fanout_and_coverage(
       1. If new rows were fetched this run, append them to the raw fanout table.
          (Each run appends one row per competition per endpoint that had new data.)
       2. Write a coverage record to RAW_APIF_FIXTURE_COVERAGE for each
-         (league_code, fixture_id, endpoint) combination that was successfully
-         fetched. This tells future runs not to re-fetch those combinations.
+         (league_code, fixture_id, endpoint) combination that was attempted.
 
-    Coverage is only written when the fetch produced data. For FIXTURE_STATISTICS
-    specifically, coverage is only written when the statistics list is non-empty —
-    this matches the old blob-parsing behaviour where an empty statistics payload
-    was not considered "covered" (we keep retrying until we get actual stats).
+    For FIXTURE_STATISTICS, coverage is written on every fetch attempt (empty or
+    not) with has_data=True/False. An empty response (has_data=False) will be
+    retried on subsequent runs within STATS_GRACE_DAYS of the fixture's kickoff
+    date; after that the entry is treated as permanent and no further quota is
+    spent. For all other endpoints, has_data is always True (any response counts).
     """
     coverage_rows: list[dict] = []
 

@@ -22,22 +22,28 @@ TABLE SCHEMA
     fixture_id      INT64       — API-Football fixture id
     endpoint        STRING      — one of: LINEUPS, FIXTURE_EVENTS, FIXTURE_STATISTICS,
                                   FIXTURE_PLAYERS, PREDICTIONS
-    first_fetched_at TIMESTAMP  — UTC timestamp of the run that first fetched this row
+    first_fetched_at TIMESTAMP  — UTC timestamp of the run that wrote this row
+    has_data        BOOL        — True if the fetch returned non-empty data; False if
+                                  the response was empty (NULLABLE for legacy rows
+                                  written before this column was added — treated as True)
 
-The table is partitioned by DATE(first_fetched_at) so historical coverage records
-do not slow down queries that only care about recent fetches. The combination
-(league_code, fixture_id, endpoint) is logically unique — once written, a row
-is never updated or deleted.
+The table is partitioned by DATE(first_fetched_at). A (league_code, fixture_id,
+endpoint) triple may have more than one row: FIXTURE_STATISTICS fixtures with
+has_data=False are retried within STATS_GRACE_DAYS of their kickoff date, writing
+a new row on each attempt. read_coverage() aggregates with LOGICAL_OR so callers
+always see at most one effective entry per triple.
 
 USAGE
 -----
     # Read what is already covered (called before fanout to build the gap list):
     covered = read_coverage(client)
-    # covered["BL1"]["LINEUPS"] == {12345, 12346, ...}
+    # covered["BL1"]["LINEUPS"][12345] == True   (data received)
+    # covered["BL1"]["FIXTURE_STATISTICS"][12346] == False  (empty, may retry)
 
     # Write coverage for newly fetched fixture-endpoint combinations:
     write_coverage(client, new_rows)
-    # new_rows = [{"league_code": "BL1", "fixture_id": 12347, "endpoint": "LINEUPS"}, ...]
+    # new_rows = [{"league_code": "BL1", "fixture_id": 12347, "endpoint": "LINEUPS",
+    #              "has_data": True}, ...]
 """
 
 from __future__ import annotations
@@ -240,12 +246,15 @@ def write_coverage(
         league_code  str   — e.g. "BL1"
         fixture_id   int   — API fixture id
         endpoint     str   — one of FANOUT_ENDPOINTS
+        has_data     bool  — optional; defaults to True when absent
 
     Rows are written with WRITE_APPEND. The first_fetched_at timestamp is set
-    to the current UTC time for all rows in this batch. Duplicate rows (same
-    league_code + fixture_id + endpoint from a previous run) will not be written
-    because the caller only passes rows that were not already in the coverage
-    table — see the gap detection in fanout.py.
+    to the current UTC time for all rows in this batch.
+
+    For FIXTURE_STATISTICS, a fixture within its grace period may appear more than
+    once across runs (has_data=False each time until data arrives or the grace period
+    elapses). read_coverage() handles this with LOGICAL_OR aggregation so the
+    downstream skip-or-retry decision always sees one effective value per triple.
     """
     if not new_rows:
         return
