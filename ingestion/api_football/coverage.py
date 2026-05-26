@@ -44,13 +44,18 @@ from __future__ import annotations
 
 import json
 import io
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from collections import defaultdict
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from .settings import GCP_PROJECT_ID, DATASET_ID
+
+# Finished fixtures whose FIXTURE_STATISTICS response was empty are retried for
+# this many days after their kickoff date. After the grace period, an empty
+# response is treated as permanent (stats are not coming from the API).
+STATS_GRACE_DAYS = 7
 
 # The BigQuery table name for fixture coverage tracking.
 COVERAGE_TABLE = "RAW_APIF_FIXTURE_COVERAGE"
@@ -88,6 +93,11 @@ def ensure_coverage_table(client: bigquery.Client) -> None:
 
     Safe to call on every pipeline run — create_table with exists_ok=True is a
     no-op if the table already exists.
+
+    Also migrates existing tables that predate the has_data column: if the column
+    is absent, it is added as NULLABLE. Existing rows (all written for non-empty
+    responses) are left as NULL, which read_coverage treats as True via
+    COALESCE(has_data, TRUE) in the aggregation query.
     """
     table_id = _coverage_table_id()
     schema = [
@@ -95,6 +105,7 @@ def ensure_coverage_table(client: bigquery.Client) -> None:
         bigquery.SchemaField("fixture_id",        "INT64",     mode="REQUIRED"),
         bigquery.SchemaField("endpoint",          "STRING",    mode="REQUIRED"),
         bigquery.SchemaField("first_fetched_at",  "TIMESTAMP", mode="REQUIRED"),
+        bigquery.SchemaField("has_data",          "BOOL",      mode="NULLABLE"),
     ]
     table = bigquery.Table(table_id, schema=schema)
     table.time_partitioning = bigquery.TimePartitioning(
@@ -103,23 +114,34 @@ def ensure_coverage_table(client: bigquery.Client) -> None:
     )
     client.create_table(table, exists_ok=True)
 
+    # Add has_data to tables that were created before this column was introduced.
+    existing = client.get_table(table_id)
+    if not any(f.name == "has_data" for f in existing.schema):
+        new_schema = list(existing.schema) + [
+            bigquery.SchemaField("has_data", "BOOL", mode="NULLABLE")
+        ]
+        existing.schema = new_schema
+        client.update_table(existing, ["schema"])
+
 
 def read_coverage(
     client: bigquery.Client,
-) -> dict[str, dict[str, set[int]]]:
-    """Return all fixture IDs that have already been fetched, grouped by league and endpoint.
+) -> dict[str, dict[str, dict[int, bool]]]:
+    """Return all fetched fixture IDs grouped by league and endpoint, with their has_data flag.
 
     Returns a nested dict:
-        covered[league_code][endpoint] = {fixture_id, fixture_id, ...}
+        covered[league_code][endpoint][fixture_id] = has_data
 
-    For example:
-        covered["BL1"]["LINEUPS"] == {12345, 12346, 12347}
-        covered["BL1"]["FIXTURE_STATISTICS"] == {12345}
+    where has_data is True if the fetch returned non-empty data, False if it was
+    empty (and the fixture may be retried within the STATS_GRACE_DAYS window).
+
+    Rows are aggregated by (league_code, fixture_id, endpoint) so that a fixture
+    which was retried after an empty response has at most one entry per key. If any
+    row for a given key has has_data=True (or NULL, which means a legacy row written
+    before this column was added), the aggregate is True — data was received and no
+    further retry is needed.
 
     Returns an empty dict if the coverage table does not exist yet (first ever run).
-
-    This replaces the old pattern of reading and parsing the merged JSON blobs
-    from each of the five fanout raw tables.
     """
     table_id = _coverage_table_id()
 
@@ -129,39 +151,83 @@ def read_coverage(
     except NotFound:
         return {}
 
+    # Aggregate rows so retried fixtures appear once. COALESCE(has_data, TRUE) treats
+    # legacy NULL rows (written before the has_data column existed) as True — those rows
+    # were only ever written for non-empty responses, so True is the correct semantic.
+    # LOGICAL_OR means: if any row for this key has has_data=True, the aggregate is True.
     q = f"""
-        SELECT league_code, fixture_id, endpoint
+        SELECT
+            league_code,
+            fixture_id,
+            endpoint,
+            LOGICAL_OR(COALESCE(has_data, TRUE)) AS has_data
         FROM `{table_id}`
+        GROUP BY league_code, fixture_id, endpoint
     """
     rows = list(client.query(q).result())
 
-    # Build the nested dict: covered[league_code][endpoint] = set of fixture_ids
-    covered: dict[str, dict[str, set[int]]] = defaultdict(lambda: defaultdict(set))
+    # Build the nested dict: covered[league_code][endpoint][fixture_id] = has_data
+    covered: dict[str, dict[str, dict[int, bool]]] = defaultdict(lambda: defaultdict(dict))
     for row in rows:
-        covered[row.league_code][row.endpoint].add(int(row.fixture_id))
+        covered[row.league_code][row.endpoint][int(row.fixture_id)] = bool(row.has_data)
 
     # Convert defaultdicts to plain dicts for cleaner downstream usage.
     return {lc: dict(endpoints) for lc, endpoints in covered.items()}
 
 
 def covered_for_league(
-    all_covered: dict[str, dict[str, set[int]]],
+    all_covered: dict[str, dict[str, dict[int, bool]]],
     league_code: str,
+    *,
+    kickoff_by_id: dict[int, date] | None = None,
 ) -> dict[str, set[int]]:
-    """Return the covered fixture IDs for one league, keyed by shell key.
+    """Return the fixture IDs that should be skipped this run, keyed by shell key.
 
     Translates endpoint names (LINEUPS, FIXTURE_EVENTS, ...) to the shell keys
     (lineups, events, ...) used throughout fanout.py, so the rest of the fanout
     code does not need to know about the coverage table's naming convention.
 
-    Returns a dict with all five shell keys, each mapping to an empty set if
-    nothing has been fetched yet for that endpoint.
+    Returns a dict with all five shell keys, each mapping to the set of fixture
+    IDs that should NOT be re-fetched. A fixture is excluded from the skip set
+    (i.e. will be re-fetched) only when all of the following hold:
+      - The endpoint is FIXTURE_STATISTICS
+      - has_data is False (previous fetch returned an empty statistics payload)
+      - The fixture's kickoff date is known and within STATS_GRACE_DAYS of today
+
+    For all other cases — has_data=True, non-statistics endpoints, or missing
+    kickoff date — the fixture is conservatively added to the skip set.
+
+    kickoff_by_id maps fixture_id → kickoff date (UTC calendar day). When omitted,
+    the grace-period logic is skipped and all coverage entries are treated as final.
     """
     league_coverage = all_covered.get(league_code, {})
-    return {
-        shell_key: league_coverage.get(endpoint, set())
-        for shell_key, endpoint in SHELL_KEY_TO_ENDPOINT.items()
-    }
+    today = datetime.now(timezone.utc).date()
+    result: dict[str, set[int]] = {}
+
+    for shell_key, endpoint in SHELL_KEY_TO_ENDPOINT.items():
+        endpoint_data: dict[int, bool] = league_coverage.get(endpoint, {})
+        skip_set: set[int] = set()
+
+        for fid, has_data in endpoint_data.items():
+            if has_data:
+                # Data received — never re-fetch.
+                skip_set.add(fid)
+            elif endpoint == "FIXTURE_STATISTICS" and kickoff_by_id is not None:
+                kickoff = kickoff_by_id.get(fid)
+                if kickoff is not None and (today - kickoff).days < STATS_GRACE_DAYS:
+                    # Empty response but still within the delivery-delay grace period.
+                    # Omit from skip_set so the fixture is retried this run.
+                    pass
+                else:
+                    # Grace period elapsed (or kickoff unknown) — stop retrying.
+                    skip_set.add(fid)
+            else:
+                # Non-statistics endpoint, or no kickoff info — skip conservatively.
+                skip_set.add(fid)
+
+        result[shell_key] = skip_set
+
+    return result
 
 
 def write_coverage(
@@ -188,6 +254,8 @@ def write_coverage(
     fetched_at = datetime.now(timezone.utc).isoformat()
 
     # Build NDJSON: one line per row.
+    # has_data defaults to True when not supplied — callers that do not set it
+    # are writing coverage for endpoints where any response counts as success.
     lines = []
     for row in new_rows:
         lines.append(json.dumps({
@@ -195,6 +263,7 @@ def write_coverage(
             "fixture_id":      int(row["fixture_id"]),
             "endpoint":        row["endpoint"],
             "first_fetched_at": fetched_at,
+            "has_data":        bool(row.get("has_data", True)),
         }, ensure_ascii=True))
     ndjson = "\n".join(lines) + "\n"
 
@@ -204,6 +273,7 @@ def write_coverage(
             bigquery.SchemaField("fixture_id",        "INT64",     mode="REQUIRED"),
             bigquery.SchemaField("endpoint",          "STRING",    mode="REQUIRED"),
             bigquery.SchemaField("first_fetched_at",  "TIMESTAMP", mode="REQUIRED"),
+            bigquery.SchemaField("has_data",          "BOOL",      mode="NULLABLE"),
         ],
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
         write_disposition="WRITE_APPEND",
