@@ -183,23 +183,20 @@ models:
   - name: base_apif__bl1_fixture_events
     description: >
       Deduplicated fixture event rows from stg_apif__bl1_fixture_events. Keeps
-      the most recently ingested version per event grain
-      (fixture_id, minute_elapsed, minute_extra, team_id, player_id,
-      event_type, event_detail).
-      Output grain: (fixture_id, minute_elapsed, minute_extra, team_id,
-      player_id, event_type, event_detail).
+      the most recently ingested version per event position.
+      Output grain: (league_code, fixture_id, event_index).
+      event_index is the 0-based position in the $.events array and is the
+      stable identity for each event. The API occasionally returns duplicate
+      event content at different positions; base deduplicates on position,
+      not content.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
+            - league_code
             - fixture_id
-            - minute_elapsed
-            - minute_extra
-            - team_id
-            - player_id
-            - event_type
-            - event_detail
+            - event_index
     columns:
       - name: fixture_id
         tests: [not_null]
