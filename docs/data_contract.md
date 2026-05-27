@@ -73,7 +73,7 @@ This scales cleanly: adding more seasons or competitions adds rows to existing t
 
 The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
 
-Legacy per-competition tables (`RAW_APIF_{league_code}_FIXTURE_DETAILS`, `RAW_APIF_{league_code}_LINEUPS`, etc.) stopped receiving new data after migration to the unified table. They are preserved in BigQuery until explicitly dropped by `scripts/drop_legacy_raw_tables.py`.
+Legacy per-competition tables (`RAW_APIF_{league_code}_*`) were dropped after migration to the unified table. The only remaining per-competition operational tables are `RAW_APIF_{league_code}_INGEST_CURSOR` (pipeline state, not data — intentionally not unified).
 
 ---
 
