@@ -175,14 +175,11 @@ Run, from the repo root or worktree:
 ```bash
 export PYTHONPATH=.
 python scripts/check_registry_var_sync.py
-python scripts/check_base_model_no_hardcoded_leagues.py
 python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ['site/i18n/en.json','site/i18n/de.json','site/i18n/fi.json']]; print('i18n ok')"
 ```
 
 `check_registry_var_sync.py` should report `OK (N competitions)` with N
-having incremented by 1. `check_base_model_no_hardcoded_leagues.py` should
-report OK — it will if the new staging models were created correctly and no
-hardcoded refs were introduced. The i18n check silently passes if all three
+having incremented by 1. The i18n check silently passes if all three
 JSONs parse cleanly.
 
 ### Step 8 — Commit and PR
@@ -211,10 +208,8 @@ The PR should pass all 5 gate jobs. Specifically:
   - A copy-paste typo in one of the staging files (sed-replace skipped a token)
   - A new league_code already present elsewhere
   - sqlfluff lint error from a long line
-- `ci-validate / gate`: runs three checks:
+- `ci-validate / gate`: runs two checks:
   - `check_registry_var_sync.py` — fails if registry and `active_competition_league_codes` diverge
-  - `check_base_model_no_hardcoded_leagues.py` — fails if any cross-league base model
-    contains a hardcoded `ref('stg_apif__XX_...')` instead of using the Jinja loop
   - `dbt parse` — catches model compilation errors
 
 ## Operational follow-up the user should do
