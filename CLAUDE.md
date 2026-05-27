@@ -57,7 +57,7 @@ Do not work around the CI check — fix the approach instead.
 
 | Rule | What it means | CI check |
 |------|---------------|----------|
-| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires **zero file edits of any kind** — no SQL, no YAML, no Python. The registry entry is the only change. | `check_base_model_no_hardcoded_leagues.py` — fails if any base model `ref()` contains a league code in the argument name (e.g. `ref('stg_apif__bl1_standings')` fails; `ref('stg_apif__standings')` passes) |
+| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires **zero file edits of any kind** — no SQL, no YAML, no Python. The registry entry is the only change. | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
 | **Single-source rule** | The registry is the only place leagues are listed. `dbt_project.yml` is derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry |
 | **CI ingest rule** | CI detects new leagues by querying `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` and ingests only those not yet present | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
 
@@ -77,7 +77,7 @@ with src as (
 )
 ```
 
-Base models read directly from the generic staging model. The `league_code` column flows through from the raw table — no UNION ALL loop, no per-competition `ref()` calls. `check_base_model_no_hardcoded_leagues.py` enforces that no base model `ref()` argument contains a competition-specific name.
+Base models read directly from the generic staging model. The `league_code` column flows through from the raw table — no UNION ALL loop, no per-competition `ref()` calls.
 
 ## Memory files
 
