@@ -16,7 +16,7 @@ Tackle one by one. Do not close a thread without explicit sign-off from Rami.
 
 ---
 
-## Thread 2 — Competition taxonomy (ACTIVE — taxonomy agreed, implementation pending)
+## Thread 2 — Competition taxonomy (COMPLETE)
 
 **Context:**
 "One mart fits all" won't scale as the competition registry grows. Different competition types have fundamentally different data shapes. We need an explicit taxonomy in the registry to drive mart routing — otherwise every new competition type requires ad hoc logic scattered across models.
@@ -74,15 +74,18 @@ All `domestic_league` entries (BL1, PL, PD, BL2, SA, L1, VL, LMX, LP, MLS, SPL, 
 
 1. ✅ **Enum values agreed** — 12 types, final. See taxonomy table above.
 2. ✅ **`competition_registry.yml` patched** — WC → `world_championship`; all 7 WCQ entries → `qualifying`. All other active entries already correct (2026-05-26).
-3. ✅ **dbt folder organization by `competition_type`** — agreed 2026-05-26:
-   - `1_staging`: yes — one subfolder per type (models are already per-league; grouping by type gives instant orientation)
-   - `2_base`: no — base models collapse the league dimension; type folders would fragment that
-   - `3_core`: no — core facts are type-agnostic; `league_code` column carries type through
-   - `4_intermediate`: partial — type subfolder for type-specific models; `shared/` subfolder for cross-type models used by multiple mart types
-   - `5_marts`: yes — types have genuinely different shapes (standings vs bracket vs cumulative WC form)
-4. ⬜ **Does `competition_type` drive mart file naming or is it metadata only?** Options: (a) one mart file per type (`mart_matchday_insights__domestic_league.sql`, etc.) — clean separation, explicit routing; (b) single mart file with conditional blocks — fewer files, harder to maintain. Needs decision before any mart is written.
+3. ✅ **dbt folder organization by `competition_type`** — revised 2026-05-27 (Path B impact):
+   - `1_staging`: **flat** — Path B replaces per-competition staging files with ~10 generic models (one per endpoint). Generic models are cross-type; type subfolders are obsolete here. Staging type subfolders from PR #237 are removed in issue #253.
+   - `2_base`: flat — base models collapse the league dimension; type folders would fragment that (unchanged).
+   - `3_core`: flat — core facts are type-agnostic; `league_code` column carries type through (unchanged).
+   - `4_intermediate`: **type subfolders** — multiple intermediate models per type are expected (form windows, standings logic, bracket tracking, relegation zones all differ by type). Folder = what kind of football this model is about.
+   - `5_marts`: **type subfolders** — multiple mart files per type are expected; types have genuinely different consumer shapes (standings + relegation for domestic leagues, cumulative form for tournaments, bracket progression for knockouts).
 
-**Status:** Questions 1–3 resolved. Question 4 open — decide before any mart `.sql` file is created.
+   **Architectural boundary:** staging and base are the generic infrastructure layer (flat). Intermediate and marts are the type-aware business logic layer (type subfolders). A new engineer can internalize this in one sentence: *below intermediate, type is a data column; at intermediate and above, type drives file organisation.*
+
+4. ✅ **`competition_type` drives mart file organisation via type subfolders** — agreed 2026-05-27. Multiple mart files per type are expected as the competition catalog grows. `competition_type` is not metadata-only — it drives folder structure and file ownership at the intermediate and mart layers. Individual mart files are named by consumer purpose within their type folder (e.g. `5_marts/domestic_league/mart_matchday_insights.sql`, `5_marts/continental_club/mart_group_stage_standings.sql`). No per-type suffix in the file name itself — the folder provides the type context.
+
+**Status:** All 4 questions resolved. Thread 2 COMPLETE.
 
 ---
 
