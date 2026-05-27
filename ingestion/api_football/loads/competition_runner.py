@@ -6,8 +6,6 @@ Two entry points:
   running the global fanout pass.
 - run_squads_for_competition(): squad /players batch, run after global fanout.
 
-The legacy ingest_league() wraps both phases in one call (kept for backward compatibility).
-
 Every competition — domestic league, international tournament, qualifier — goes through
 the same steps. All errors are caught per-competition so a failure in one does not abort
 the others.
@@ -17,7 +15,6 @@ from __future__ import annotations
 
 from .context import CompetitionRunResult, PipelineContext
 from .coaches import load_coaches
-from .fanout import run_fixture_fanout_and_persist
 from .fixtures import fetch_merge_and_persist_fixtures
 from .catalog import fetch_catalog_persist_and_plan
 from .injuries import load_injuries
@@ -125,36 +122,3 @@ def run_squads_for_competition(
         ctx.errors.append(f"league {result.league_code} squads: {e}")
 
 
-def ingest_league(
-    ctx: PipelineContext,
-    league_code: str,
-    league_id: int,
-    form_source: str = "league_only",
-    supporting_leagues: tuple = (),
-    current_season: int | None = None,
-    history_seasons: int | None = None,
-    season_type: str = "split_year",
-) -> None:
-    """Legacy single-competition ingestion (cheap phases + per-competition fanout + squads).
-
-    Kept for backward compatibility. The orchestrator now uses run_cheap_phases →
-    run_global_fanout_and_persist → run_squads_for_competition for the two-phase design.
-    """
-    result = run_cheap_phases(
-        ctx,
-        league_code,
-        league_id,
-        current_season=current_season,
-        history_seasons=history_seasons,
-        season_type=season_type,
-    )
-    if result is None:
-        return
-    try:
-        _ingestion_phase(league_code, "fixture_fanout (lineups/events/stats/predictions/...)")
-        run_fixture_fanout_and_persist(
-            ctx, league_code, result.fixtures_merged, result.fixture_ids, result.team_ids, result.cov
-        )
-    except Exception as e:
-        ctx.errors.append(f"league {league_code} fanout: {e}")
-    run_squads_for_competition(ctx, result)

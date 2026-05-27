@@ -25,7 +25,7 @@ from google.cloud import bigquery
 from .bigquery import load_json_to_bq, read_latest_payload_json
 from .coverage import read_coverage
 from .registry import selected_competitions
-from .settings import raw_league_table
+from .settings import raw_table
 
 COMPLETENESS_SNAPSHOT_TABLE = "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT"
 _STATS_ENTITY = "FIXTURE_STATISTICS"
@@ -122,8 +122,9 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
     selected, _skipped = selected_competitions()
     for comp in selected:
         league_code = comp.league_code
-        fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
-        fx_payload = read_latest_payload_json(client, fx_tbl)
+        fx_payload = read_latest_payload_json(
+            client, raw_table("FIXTURES_NEXT"), league_code=league_code
+        )
         all_fixture_ids = _fixture_ids_from_fixtures_payload(fx_payload)
         expected = _fixture_ids_from_fixtures_payload(
             fx_payload, statuses=FINISHED_STATUS_SHORT

@@ -47,10 +47,6 @@ def raw_table(entity: str) -> str:
     return f"RAW_APIF_{entity}"
 
 
-def raw_league_table(league_code: str, entity: str) -> str:
-    """Deprecated alias kept for legacy fanout.py compatibility. Use raw_table(entity)."""
-    return f"RAW_APIF_{league_code}_{entity}"
-
 
 def _provider() -> str:
     return os.getenv("API_FOOTBALL_PROVIDER", "apisports").strip().lower()
