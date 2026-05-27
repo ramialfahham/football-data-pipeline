@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
-from ..settings import raw_league_table
+from ..settings import raw_table
 from ..quota import append_api_errors
 from ..http_client import fetch_merged_paged
 from ..seasons import _merge_merged_paged
@@ -45,13 +45,13 @@ def load_standings_if_enabled(
         ctx.errors.append(f"standings {league_code}: no payload fetched for configured seasons")
         return
     try:
-        st_tbl = raw_league_table(league_code, "STANDINGS")
         load_json_to_bq(
             ctx.client,
-            st_tbl,
+            raw_table("STANDINGS"),
             standings_merged,
             as_json_payload=True,
             append=True,
+            league_code=league_code,
         )
         ctx.add_loaded(1)
     except Exception as e:

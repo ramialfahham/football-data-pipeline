@@ -38,12 +38,17 @@ RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
 V1_SEASON_WINDOW_YEARS = 10
 
 
-def raw_league_table(league_code: str, entity: str) -> str:
-    """BigQuery table name (not project-qualified): ``RAW_APIF_BL1_FIXTURES_NEXT``.
+def raw_table(entity: str) -> str:
+    """BigQuery table name (not project-qualified): ``RAW_APIF_FIXTURES_NEXT``.
 
-    Convention: RAW_APIF_{league_code}_{entity}
-    Provider first, then internal league_code, then endpoint.
+    Convention: RAW_APIF_{entity} — all competitions share the same tables,
+    discriminated by a league_code STRING column in every row.
     """
+    return f"RAW_APIF_{entity}"
+
+
+def raw_league_table(league_code: str, entity: str) -> str:
+    """Deprecated alias kept for legacy fanout.py compatibility. Use raw_table(entity)."""
     return f"RAW_APIF_{league_code}_{entity}"
 
 

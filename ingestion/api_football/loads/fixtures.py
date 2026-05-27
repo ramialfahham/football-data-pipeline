@@ -12,7 +12,7 @@ import os
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
-from ..settings import _env_int, raw_league_table
+from ..settings import _env_int, raw_table
 from ..quota import append_api_errors
 from ..http_client import fetch_merged_paged
 from ..seasons import _merge_merged_paged, fixtures_query_params
@@ -92,13 +92,14 @@ def fetch_merge_and_persist_fixtures(
     # Write this run's complete fixture snapshot as a new appended row.
     # No cross-run merge: every run fetches all seasons from the API, so
     # the snapshot is always complete. Staging reads the latest partition.
-    fx_tbl = raw_league_table(league_code, "FIXTURES_NEXT")
+    fx_tbl = raw_table("FIXTURES_NEXT")
     load_json_to_bq(
         ctx.client,
         fx_tbl,
         fixtures_merged,
         as_json_payload=True,
         append=True,
+        league_code=league_code,
     )
     ctx.add_loaded(1)
 

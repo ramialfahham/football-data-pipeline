@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
-from ..settings import raw_league_table
+from ..settings import raw_table
 from ..quota import append_api_errors
 from ..fixture_scheduling import team_ids_for_league
 from ..http_client import fetch_merged_paged
@@ -57,13 +57,13 @@ def load_teams_merge_and_extend_ids(
         if teams_merged_envelope is not None:
             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
-            tm_tbl = raw_league_table(league_code, "TEAMS")
             load_json_to_bq(
                 ctx.client,
-                tm_tbl,
+                raw_table("TEAMS"),
                 teams_merged_envelope,
                 as_json_payload=True,
                 append=True,
+                league_code=league_code,
             )
             ctx.add_loaded(1)
             for item in teams_merged_envelope["response"]:
