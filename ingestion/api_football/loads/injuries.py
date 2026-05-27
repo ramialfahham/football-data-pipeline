@@ -19,7 +19,7 @@ from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
 from ..http_client import fetch_merged_paged
 from ..quota import append_api_errors
-from ..settings import raw_league_table
+from ..settings import raw_table
 from .context import PipelineContext
 
 
@@ -71,8 +71,7 @@ def load_injuries(
     merged["paging"] = {"current": 1, "total": 1}
 
     try:
-        tbl = raw_league_table(league_code, "INJURIES")
-        load_json_to_bq(ctx.client, tbl, merged, as_json_payload=True, append=True)
+        load_json_to_bq(ctx.client, raw_table("INJURIES"), merged, as_json_payload=True, append=True, league_code=league_code)
         ctx.add_loaded(1)
     except Exception as e:
         ctx.errors.append(f"injuries BQ {league_code}: {e}")

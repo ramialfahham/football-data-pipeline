@@ -60,6 +60,40 @@ def ensure_api_football_dataset(client: bigquery.Client) -> None:
     client.create_dataset(ds, exists_ok=True)
 
 
+def ensure_unified_raw_table(
+    client: bigquery.Client,
+    table_name: str,
+    *,
+    include_fixture_id: bool = False,
+) -> None:
+    """Create a unified raw table (all competitions share it) if it does not exist.
+
+    Schema: league_code STRING, payload JSON, ingested_at TIMESTAMP.
+    FIXTURE_DETAILS also has fixture_id INT64 (set include_fixture_id=True).
+    Partitioned by DATE(ingested_at), clustered by league_code.
+    """
+    if table_name in _partitioned_tables_ensured:
+        return
+
+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+    schema = [
+        bigquery.SchemaField("league_code", "STRING"),
+        bigquery.SchemaField("payload", "JSON"),
+        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+    ]
+    if include_fixture_id:
+        schema.append(bigquery.SchemaField("fixture_id", "INT64"))
+
+    table = bigquery.Table(table_id, schema=schema)
+    table.time_partitioning = bigquery.TimePartitioning(
+        type_=bigquery.TimePartitioningType.DAY,
+        field="ingested_at",
+    )
+    table.clustering_fields = ["league_code"]
+    client.create_table(table, exists_ok=True)
+    _partitioned_tables_ensured.add(table_name)
+
+
 def ensure_raw_table_partitioned(client: bigquery.Client, table_name: str) -> None:
     """Create a raw payload table with date partitioning if it does not exist yet.
 
@@ -101,6 +135,7 @@ def load_json_to_bq(
     *,
     as_json_payload: bool = False,
     append: bool = False,
+    league_code: str | None = None,
 ) -> None:
     """Write one JSON row to a BigQuery raw table.
 
@@ -127,18 +162,28 @@ def load_json_to_bq(
 
     if as_json_payload:
         if append:
-            # Ensure the table exists with date partitioning before the first append.
-            # create_table with exists_ok=True is a no-op if the table is already there.
-            ensure_raw_table_partitioned(client, table_name)
+            if league_code is not None:
+                ensure_unified_raw_table(client, table_name)
+            else:
+                ensure_raw_table_partitioned(client, table_name)
 
         ingested_at = datetime.now(timezone.utc).isoformat()
-        row = {"payload": payload, "ingested_at": ingested_at}
-        line = json.dumps(row, ensure_ascii=True) + "\n"
-        job_config = bigquery.LoadJobConfig(
-            schema=[
+        if league_code is not None:
+            row = {"league_code": league_code, "payload": payload, "ingested_at": ingested_at}
+            schema = [
+                bigquery.SchemaField("league_code", "STRING"),
                 bigquery.SchemaField("payload", "JSON"),
                 bigquery.SchemaField("ingested_at", "TIMESTAMP"),
-            ],
+            ]
+        else:
+            row = {"payload": payload, "ingested_at": ingested_at}
+            schema = [
+                bigquery.SchemaField("payload", "JSON"),
+                bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+            ]
+        line = json.dumps(row, ensure_ascii=True) + "\n"
+        job_config = bigquery.LoadJobConfig(
+            schema=schema,
             source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
             write_disposition="WRITE_APPEND" if append else "WRITE_TRUNCATE",
         )

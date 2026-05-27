@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
-from ..settings import raw_league_table
+from ..settings import raw_table
 from ..quota import append_api_errors
 from ..http_client import fetch_json
 from ..merge import merge_rounds_season_blocks
@@ -22,7 +22,7 @@ def load_rounds_merged(
     league_id: int,
     seasons_list: list[int],
 ) -> None:
-    rnd_tbl = raw_league_table(league_code, "ROUNDS")
+    rnd_tbl = raw_table("ROUNDS")
     # Start with None — build the payload fresh from this run's API calls.
     # merge_rounds_season_blocks accumulates seasons within this run only.
     rounds_merged = None
@@ -50,6 +50,7 @@ def load_rounds_merged(
             rounds_merged,
             as_json_payload=True,
             append=True,
+            league_code=league_code,
         )
         ctx.add_loaded(1)
     except Exception as e:

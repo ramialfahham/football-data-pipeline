@@ -10,7 +10,7 @@ import os
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
-from ..settings import raw_league_table
+from ..settings import raw_table
 from ..fixture_scheduling import players_response_for_team
 from .context import PipelineContext
 
@@ -55,13 +55,13 @@ def load_squad_players_batch(
                     f"players {league_code} team {team_id} season={season}: {e}"
                 )
     try:
-        tbl = raw_league_table(league_code, "PLAYERS")
         load_json_to_bq(
             ctx.client,
-            tbl,
+            raw_table("PLAYERS"),
             players_payload,
             as_json_payload=True,
             append=True,
+            league_code=league_code,
         )
         ctx.add_loaded(1)
     except Exception as e:

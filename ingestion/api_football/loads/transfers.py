@@ -10,7 +10,7 @@ import os
 
 from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
-from ..settings import _env_int, raw_league_table
+from ..settings import _env_int, raw_table
 from ..quota import append_api_errors, _flatten_api_errors
 from ..http_client import fetch_merged_paged
 from .context import PipelineContext
@@ -61,13 +61,13 @@ def load_transfers_if_enabled(
         tr["results"] = len(merged_tr)
         tr["paging"] = {"current": 1, "total": 1}
         append_api_errors(tr, f"transfers {league_code}", ctx.errors)
-        tr_tbl = raw_league_table(league_code, "TRANSFERS")
         load_json_to_bq(
             ctx.client,
-            tr_tbl,
+            raw_table("TRANSFERS"),
             tr,
             as_json_payload=True,
             append=True,
+            league_code=league_code,
         )
         ctx.add_loaded(1)
     except Exception as e:

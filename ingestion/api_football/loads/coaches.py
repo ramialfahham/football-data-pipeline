@@ -21,7 +21,7 @@ from .. import quota as errors_quota
 from ..bigquery import load_json_to_bq
 from ..http_client import fetch_merged_paged
 from ..quota import append_api_errors
-from ..settings import raw_league_table
+from ..settings import raw_table
 from .context import PipelineContext
 
 
@@ -61,8 +61,7 @@ def load_coaches(
             ctx.errors.append(f"coaches {league_code} team_id={team_id}: {e}")
 
     try:
-        tbl = raw_league_table(league_code, "COACHES")
-        load_json_to_bq(ctx.client, tbl, payload, as_json_payload=True, append=True)
+        load_json_to_bq(ctx.client, raw_table("COACHES"), payload, as_json_payload=True, append=True, league_code=league_code)
         ctx.add_loaded(1)
     except Exception as e:
         ctx.errors.append(f"coaches BQ {league_code}: {e}")

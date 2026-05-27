@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ..settings import raw_league_table
+from ..settings import raw_table
 from ..quota import append_api_errors
 from ..fixture_scheduling import _coverage_for_season
 from ..http_client import fetch_json
@@ -35,10 +35,11 @@ def fetch_catalog_persist_and_plan(
     if league_catalog.get("response"):
         load_json_to_bq(
             ctx.client,
-            raw_league_table(league_code, "LEAGUES"),
+            raw_table("LEAGUES"),
             league_catalog,
             as_json_payload=True,
             append=True,
+            league_code=league_code,
         )
         ctx.add_loaded(1)
     else:
