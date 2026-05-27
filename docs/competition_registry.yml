@@ -486,7 +486,7 @@ competitions:
     notes: "Annual August fixture between UCL and UEL winners. 5-season window approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
-  # PLANNED — National team tournaments (issue #259)
+  # IN PROGRESS — National team tournaments (issue #259)
   # -------------------------------------------------------------------------
 
   - league_code: "COAM"
@@ -498,12 +498,13 @@ competitions:
     provider_league_id: 9
     season_type: "calendar_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: null
-    notes: "Biennial CONMEBOL tournament. Last edition: 2024 (USA). Onboard in issue #259. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Biennial CONMEBOL tournament. Last edition: 2024 (USA). 2 editions approved by CPO 2026-05-27."
 
   - league_code: "AFCON"
     name: "Africa Cup of Nations"
@@ -514,12 +515,13 @@ competitions:
     provider_league_id: 6
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: null
-    notes: "Biennial CAF tournament. Last edition: 2025 (Morocco). Onboard in issue #259. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Biennial CAF tournament. Last edition: 2025 (Morocco). 2 editions approved by CPO 2026-05-27."
 
   - league_code: "ACN"
     name: "AFC Asian Cup"
@@ -530,12 +532,13 @@ competitions:
     provider_league_id: 7
     season_type: "calendar_year"
     current_season: "2023"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: null
-    notes: "Quadrennial AFC tournament. Last edition: 2023 (Qatar, played Jan 2024). Onboard in issue #259. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Quadrennial AFC tournament. Last edition: 2023 (Qatar, played Jan 2024). 2 editions approved by CPO 2026-05-27."
 
   - league_code: "GCUP"
     name: "CONCACAF Gold Cup"
@@ -546,12 +549,13 @@ competitions:
     provider_league_id: 8
     season_type: "calendar_year"
     current_season: "2023"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: null
-    notes: "Biennial CONCACAF tournament. Last edition: 2023. Onboard in issue #259. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Biennial CONCACAF tournament. Last edition: 2023. 2 editions approved by CPO 2026-05-27."
 
   - league_code: "UNL"
     name: "UEFA Nations League"
@@ -562,12 +566,47 @@ competitions:
     provider_league_id: 5
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: null
-    notes: "Biennial UEFA league-format tournament. 2024/25 edition ongoing. Onboard in issue #259. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Biennial UEFA league-format tournament. 2024/25 edition ongoing. 2 editions approved by CPO 2026-05-27."
+
+  - league_code: "EURO"
+    name: "UEFA European Championship"
+    country: "Europe"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 4
+    season_type: "calendar_year"
+    current_season: "2024"
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
+    form_source: "supporting_leagues"
+    api_coverage_verified: "2026-05-27"
+    notes: "Quadrennial UEFA tournament. Last edition: 2024 (Germany). 2 editions approved by CPO 2026-05-27."
+
+  - league_code: "CNL"
+    name: "CONCACAF Nations League"
+    country: "International"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 43
+    season_type: "calendar_year"
+    current_season: "2024"
+    history_seasons: 2
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
+    form_source: "supporting_leagues"
+    api_coverage_verified: "2026-05-27"
+    notes: "Annual CONCACAF league-format tournament. 2 editions approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
   # PLANNED — Additional domestic leagues (issue #260)
