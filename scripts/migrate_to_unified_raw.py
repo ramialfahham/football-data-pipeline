@@ -98,7 +98,9 @@ def _list_source_tables(
         if name.startswith(prefix) and name.endswith(suffix):
             middle = name[len(prefix) : -len(suffix)]
             # Skip the unified table itself (no league_code in the middle part).
-            if not middle:
+            # Skip compound names like BL1_FIXTURE (from RAW_APIF_BL1_FIXTURE_PLAYERS):
+            # all valid league codes are alphanumeric with no underscores.
+            if not middle or "_" in middle:
                 continue
             results.append((middle, name))
     return sorted(results)
