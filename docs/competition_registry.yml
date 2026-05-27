@@ -407,7 +407,7 @@ competitions:
   # -------------------------------------------------------------------------
 
   # -------------------------------------------------------------------------
-  # PLANNED — Continental club (issue #258)
+  # IN PROGRESS — Continental club (issue #258)
   # -------------------------------------------------------------------------
 
   - league_code: "UCL"
@@ -420,8 +420,9 @@ competitions:
     season_type: "split_year"
     current_season: "2024"
     history_seasons: 5
-    status: "planned"
-    ingest_active: false
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     api_coverage:
@@ -431,7 +432,7 @@ competitions:
       statistics_players: true
       events: true
       lineups: true
-    notes: "Big 5+ expansion — first UEFA club competition. history_seasons to be confirmed by CPO at onboarding."
+    notes: "UEFA Champions League. 5-season rolling window approved by CPO 2026-05-27."
 
   - league_code: "UEL"
     name: "UEFA Europa League"
@@ -442,12 +443,13 @@ competitions:
     provider_league_id: 3
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Onboard alongside UCL in issue #258. Live API verification required before enabling."
+    api_coverage_verified: "2026-05-27"
+    notes: "UEFA Europa League. 5-season rolling window approved by CPO 2026-05-27."
 
   - league_code: "UECL"
     name: "UEFA Europa Conference League"
@@ -458,12 +460,13 @@ competitions:
     provider_league_id: 848
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Onboard alongside UCL/UEL in issue #258. Live API verification required before enabling."
+    api_coverage_verified: "2026-05-27"
+    notes: "UEFA Europa Conference League. 5-season rolling window approved by CPO 2026-05-27."
 
   - league_code: "UESC"
     name: "UEFA Super Cup"
@@ -473,13 +476,14 @@ competitions:
     provider_league_code: null
     provider_league_id: 531
     season_type: "calendar_year"
-    current_season: null
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    current_season: "2024"
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Annual August fixture between UCL and UEL winners. Onboard in issue #258. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Annual August fixture between UCL and UEL winners. 5-season window approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
   # PLANNED — National team tournaments (issue #259)
