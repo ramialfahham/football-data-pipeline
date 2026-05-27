@@ -1,15 +1,15 @@
 """Print comma-separated league codes that need CI bootstrap ingestion.
 
-A league needs bootstrap if its primary raw BQ table (RAW_APIF_{CODE}_FIXTURES_NEXT)
-does not yet exist. Reads active + ingest_active competitions from the registry,
-checks BigQuery, and outputs only the missing ones.
+A league needs bootstrap if its league_code does not yet appear in the unified
+RAW_APIF_FIXTURES_NEXT table. Reads active + ingest_active competitions from the
+registry, queries BigQuery for existing league_codes, and outputs only the missing ones.
 
 Usage (from repo root, with GCP credentials active):
     python scripts/get_new_league_codes.py
 
 Output examples:
-    PL,ED,SPL        <- leagues with no BQ tables yet
-    (empty string)   <- all leagues already exist; skip ingest
+    PL,ED,SPL        <- leagues not yet in RAW_APIF_FIXTURES_NEXT
+    (empty string)   <- all leagues already present; skip ingest
 
 Used by ci-data-build.yml to set API_FOOTBALL_LEAGUE_CODES for the bootstrap step.
 Exit code 0 always (empty output = nothing to do, not an error).
@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = REPO_ROOT / "docs" / "competition_registry.yml"
 GCP_PROJECT_ID = "football-data-pipeline-gcp"
 DATASET_ID = "raw"
+UNIFIED_TABLE = f"{GCP_PROJECT_ID}.{DATASET_ID}.RAW_APIF_FIXTURES_NEXT"
 
 
 def _active_ingest_codes() -> list[str]:
@@ -45,15 +46,10 @@ def _active_ingest_codes() -> list[str]:
     return out
 
 
-def _table_exists(client, league_code: str) -> bool:
-    from google.cloud.exceptions import NotFound
-
-    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.RAW_APIF_{league_code}_FIXTURES_NEXT"
-    try:
-        client.get_table(table_id)
-        return True
-    except NotFound:
-        return False
+def _existing_codes(client) -> set[str]:
+    query = f"SELECT DISTINCT league_code FROM `{UNIFIED_TABLE}`"
+    result = client.query(query).result()
+    return {row.league_code for row in result}
 
 
 def main() -> int:
@@ -72,7 +68,8 @@ def main() -> int:
         return 1
 
     client = bigquery.Client(project=GCP_PROJECT_ID)
-    new_codes = [c for c in codes if not _table_exists(client, c)]
+    existing = _existing_codes(client)
+    new_codes = [c for c in codes if c not in existing]
 
     if new_codes:
         print(",".join(new_codes))

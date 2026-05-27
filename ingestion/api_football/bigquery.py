@@ -204,15 +204,13 @@ def load_json_to_bq(
 def read_latest_payload_json(
     client: bigquery.Client,
     table_name: str,
+    league_code: str | None = None,
 ) -> dict | None:
     """Return the payload from the most recent row in a raw table.
 
-    Used by the fanout loaders (lineups, events, stats, fixture players,
-    predictions) to determine which fixtures are already covered before
-    deciding what to fetch. After issue #221 introduces the dedicated
-    coverage tracking table, this function will no longer be needed for
-    completeness checks — but it remains useful for any code that needs
-    to inspect the latest API snapshot.
+    When ``league_code`` is provided the query is filtered to that league,
+    which is required for the unified raw tables (RAW_APIF_FIXTURES_NEXT etc.)
+    that store all competitions in one table discriminated by league_code.
 
     Returns None if the table does not exist or is empty.
 
@@ -230,12 +228,15 @@ def read_latest_payload_json(
     if "payload" not in colnames:
         return None
 
+    league_filter = (
+        f" WHERE league_code = '{league_code}'" if league_code else ""
+    )
     if "ingested_at" in colnames:
-        q = f"SELECT payload FROM `{table_id}` ORDER BY ingested_at DESC LIMIT 1"
+        q = f"SELECT payload FROM `{table_id}`{league_filter} ORDER BY ingested_at DESC LIMIT 1"
     elif "ingested_datetime" in colnames:
-        q = f"SELECT payload FROM `{table_id}` ORDER BY ingested_datetime DESC LIMIT 1"
+        q = f"SELECT payload FROM `{table_id}`{league_filter} ORDER BY ingested_datetime DESC LIMIT 1"
     else:
-        q = f"SELECT payload FROM `{table_id}` LIMIT 1"
+        q = f"SELECT payload FROM `{table_id}`{league_filter} LIMIT 1"
 
     job = client.query(q)
     arrow_table = job.result().to_arrow(create_bqstorage_client=True)

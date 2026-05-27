@@ -21,7 +21,7 @@ from .fixture_scheduling import (
     _fixture_needs_any_endpoint,
 )
 from .registry import Competition
-from .settings import raw_league_table
+from .settings import raw_table
 
 IngestMode = Literal["full", "poll"]
 
@@ -112,7 +112,7 @@ def resolve_ingest_mode(
     """Read latest raw payloads and return (mode, reason) for this competition."""
     try:
         fx_payload = read_latest_payload_json(
-            client, raw_league_table(comp.league_code, "FIXTURES_NEXT")
+            client, raw_table("FIXTURES_NEXT"), league_code=comp.league_code
         )
     except Exception:
         fx_payload = None
@@ -124,7 +124,7 @@ def resolve_ingest_mode(
 
     try:
         leagues_payload = read_latest_payload_json(
-            client, raw_league_table(comp.league_code, "LEAGUES")
+            client, raw_table("LEAGUES"), league_code=comp.league_code
         )
     except Exception:
         leagues_payload = None

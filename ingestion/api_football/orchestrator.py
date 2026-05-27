@@ -2,8 +2,8 @@
 
 Entry point for the Cloud Function (and local runs via main.py). Acquires a BigQuery
 ingest lock to prevent concurrent runs, then iterates over selected competitions from
-the registry, calling ingest_league() for each. Results land in RAW_APIF_{LEAGUE_CODE}_*
-tables in the raw BigQuery dataset.
+the registry. Results land in unified RAW_APIF_{entity} tables (shared by all competitions,
+discriminated by the league_code STRING column) in the raw BigQuery dataset.
 
 To add a new competition: add it to docs/competition_registry.yml with status=active
 (or in_progress with API_FOOTBALL_INCLUDE_IN_PROGRESS=1). No code changes required.
