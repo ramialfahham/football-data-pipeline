@@ -51,14 +51,17 @@ def check_intermediate_no_mart_refs(errors: list[str]) -> None:
 
 
 def check_staging_inventory(errors: list[str]) -> None:
-    # Staging models must live in a per-competition subdirectory, never at the root level.
-    root_sql = sorted(STAGING_API_DIR.glob("*.sql"))
-    for path in root_sql:
-        rel = path.relative_to(REPO_ROOT).as_posix()
-        errors.append(
-            f"{rel}: staging SQL must live in a per-competition subdirectory "
-            "(e.g. bl1/ or wc/), not directly under api_football/."
-        )
+    # Generic staging models live directly under api_football/ (unified raw table architecture).
+    # Per-competition subdirectories are no longer permitted — the zero-file rule means adding
+    # a league requires zero SQL file changes; only the registry entry changes.
+    for subdir in sorted(STAGING_API_DIR.iterdir()):
+        if subdir.is_dir():
+            rel = subdir.relative_to(REPO_ROOT).as_posix()
+            errors.append(
+                f"{rel}/: per-competition staging subdirectory must not exist. "
+                "Generic staging models read all leagues from unified raw tables via league_code. "
+                "To add a competition, update docs/competition_registry.yml only."
+            )
 
 
 def main() -> int:
