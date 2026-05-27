@@ -86,7 +86,7 @@ class TestLoadInjuries:
                 load_injuries(ctx, "PL", 39, [2024])
 
         table_name = mock_bq.call_args[0][1]
-        assert table_name == "RAW_APIF_PL_INJURIES"
+        assert table_name == "RAW_APIF_INJURIES"
 
     def test_uses_append_mode(self):
         ctx = _make_ctx()
@@ -224,7 +224,7 @@ class TestLoadCoaches:
                 load_coaches(ctx, "WC", {1})
 
         table_name = mock_bq.call_args[0][1]
-        assert table_name == "RAW_APIF_WC_COACHES"
+        assert table_name == "RAW_APIF_COACHES"
 
     def test_uses_append_mode(self):
         ctx = _make_ctx()

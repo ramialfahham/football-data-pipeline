@@ -156,13 +156,14 @@ class TestReadFetchedCoverage:
         assert result == {}
 
     def test_query_contains_correct_table_id(self):
-        """The BQ query must target the league-specific FIXTURE_DETAILS table."""
+        """The BQ query must target the unified FIXTURE_DETAILS table, filtered by league_code."""
         client = MagicMock()
         client.get_table.return_value = MagicMock()
         client.query.return_value.result.return_value = []
         _read_fetched_coverage(client, "WC")
         query_sql = client.query.call_args[0][0]
-        assert "RAW_APIF_WC_FIXTURE_DETAILS" in query_sql
+        assert "RAW_APIF_FIXTURE_DETAILS" in query_sql
+        assert "league_code = 'WC'" in query_sql
 
 
 # ---------------------------------------------------------------------------
