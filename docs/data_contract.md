@@ -1,6 +1,6 @@
 # Data contract: API-Football → BigQuery
 
-Active competitions: **BL1** (German Bundesliga, API-Football league id `78`), **WC** (FIFA World Cup 2026, id `1`), and the six confederation qualifier leagues (`WCQEU`, `WCQAF`, `WCQCA`, `WCQSA`, `WCQAS`, `WCQIP`, `WCQOC`). Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{league_code}_{entity}` (e.g. `RAW_APIF_BL1_FIXTURES_NEXT`). The registry of active competitions lives in `docs/competition_registry.yml`.
+Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same six raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
 
 API references:
 
@@ -11,39 +11,75 @@ API references:
 
 ## Landing zone
 
-Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores that envelope unchanged. Every raw table holds a single JSON column `payload` and a UTC `ingested_at` timestamp. Nothing is discarded at ingest, so new fields become available to modelling without refetching.
+Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores that envelope unchanged. Every raw table holds:
 
-All raw tables are partitioned by `DATE(ingested_at)` — one partition per calendar day. This means BigQuery only reads the relevant day's data when a query filters on `ingested_at`, which keeps scan costs low as the table grows across seasons and competitions.
+| Column | Type | Notes |
+|--------|------|-------|
+| `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
+| `payload` | `JSON` | Verbatim API-Football response envelope |
+| `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
+| `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
 
-dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`. Staging views filter to the latest partition (`WHERE ingested_at = (SELECT MAX(ingested_at) FROM ...)`), so they always reflect the most recent API snapshot.
+Nothing is discarded at ingest, so new fields become available to modelling without refetching.
+
+All raw tables are partitioned by `DATE(ingested_at)` and clustered by `league_code`. Queries that filter on both `league_code` and `ingested_at` read only the relevant league's data within the relevant partition, keeping scan costs low as the table grows across seasons and competitions.
+
+dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+
+---
+
+## Unified raw tables
+
+Six tables serve the entire fleet of competitions. No per-competition raw tables exist.
+
+| Table | Write mode | Partition | Cluster | Merge key |
+|-------|------------|-----------|---------|-----------|
+| `RAW_APIF_FIXTURE_DETAILS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, fixture_id)` |
+| `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
+
+Additional smaller tables: `RAW_APIF_LEAGUES`, `RAW_APIF_ROUNDS` (same append schema, no `fixture_id`).
 
 ---
 
 ## Append-only writes (reference tables)
 
-Reference tables — fixtures, standings, teams, transfers, rounds, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
+Reference tables — fixtures-next, standings, teams, transfers, rounds, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
 
 1. The pipeline calls the API for all configured seasons (the full history window).
 2. The complete response is written as a new row with the current UTC timestamp.
 3. Prior rows are preserved. BigQuery retains the full ingest history.
 
-The latest row always contains the complete picture because each run fetches all seasons from the API. Staging reads only the latest row (latest partition), so downstream models always see a consistent current-state snapshot.
+The latest row always contains the complete picture because each run fetches all seasons from the API. Staging reads only the latest snapshot per league using partition pruning and a `QUALIFY` window:
 
-This pattern scales cleanly: adding more seasons or competitions adds rows to existing tables, not columns to a single growing JSON blob.
+```sql
+-- Pre-filter engages partition pruning; QUALIFY picks latest snapshot per league
+where DATE(ingested_at) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+qualify row_number() over (
+    partition by league_code order by ingested_at desc
+) = 1
+```
+
+This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
 
 ---
 
-## Fanout tables (merge-on-write, temporary)
+## Fixture details (merge-on-write)
 
-The five per-fixture tables — lineups, events, fixture statistics, fixture players, predictions — still use the legacy merge-on-write pattern. Each run fetches only the fixtures that are missing data (not the full history), so a simple append would lose previously fetched fixtures.
+`RAW_APIF_FIXTURE_DETAILS` uses merge-on-write. Each run fetches only the fixtures that are missing data (not the full history), then upserts into the unified table keyed on `(league_code, fixture_id)`. The table always holds the latest payload per fixture, without accumulating duplicate rows.
 
-These tables will be migrated to append-only in issue #221, which introduces a dedicated fixture coverage tracking table (`RAW_APIF_FIXTURE_COVERAGE`) to replace the blob-based completeness check.
+The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
+
+Legacy per-competition tables (`RAW_APIF_{league_code}_FIXTURE_DETAILS`, `RAW_APIF_{league_code}_LINEUPS`, etc.) stopped receiving new data after migration to the unified table. They are preserved in BigQuery until explicitly dropped by `scripts/drop_legacy_raw_tables.py`.
 
 ---
 
 ## Fanout selection (completeness-driven)
 
-The five per-match raw tables (`RAW_D1_APIF_LINEUPS`, `RAW_D1_APIF_FIXTURE_EVENTS`, `RAW_D1_APIF_FIXTURE_STATISTICS`, `RAW_D1_APIF_FIXTURE_PLAYERS`, `RAW_D1_APIF_PREDICTIONS`) dominate the daily request budget. Before the per-fixture pass, the loader reads the current merged payloads for those five tables and extracts the set of fixture ids already covered, per endpoint. Only fixtures where at least one endpoint is still missing enter the ordering and budget math. Inside the loop, each individual endpoint call is skipped when that fixture id is already covered for that endpoint.
+`RAW_APIF_FIXTURE_DETAILS` is written fixture by fixture. Before each per-fixture pass, the loader reads the current merged payloads and extracts the set of fixture ids already covered, per endpoint, per `league_code`. Only fixtures where at least one endpoint is still missing enter the ordering and budget math. Inside the loop, each individual endpoint call is skipped when that fixture id is already covered for that endpoint.
 
 A start-of-phase log line reports what the run will attempt:
 
@@ -51,7 +87,7 @@ A start-of-phase log line reports what the run will attempt:
 [api-football] fanout_selection league=BL1 target=3074 already_complete=1501 missing_any_endpoint=1573
 ```
 
-Coverage advances monotonically across runs under any ordering (`upcoming`, `cursor`, `chrono`). Once every in-scope fixture is covered across all five endpoints, the fanout pass is a no-op.
+Coverage advances monotonically across runs under any ordering (`upcoming`, `cursor`, `chrono`). Once every in-scope fixture is covered across all endpoints, the fanout pass is a no-op.
 
 ---
 
@@ -59,7 +95,7 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
 
 Data is complete when four conditions hold:
 
-1. **Coverage** — every in-scope raw table for D1 has been refreshed, and staging has been rebuilt on top of that refresh.
+1. **Coverage** — every in-scope raw table has been refreshed, and staging has been rebuilt on top of that refresh.
 2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
 3. **Freshness** — when new source data appears (matchdays, transfers), the next run merges it into the corresponding raw tables.
 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
@@ -71,7 +107,7 @@ Heavy per-match coverage typically takes several runs under daily API limits; th
 | Did each raw table load recently? | dbt source freshness on `ingested_at` in `dbt_project/models/1_staging/api_football/sources.yml`. |
 | Are raw tables' latest loads aligned with each other? | dbt model `int_pipeline__raw_ingestion_spread` (max `ingested_at` per table, `spread_minutes`). |
 | Does staging reflect the latest raw? | Run `dbt build` for staging after a successful ingest. |
-| Do per-match tables cover every finished fixture in the merged list? | Post-ingest check in `ingestion/api_football/completeness.py`, logged as `ingest_completeness_json`. Expected is restricted to fixtures with `status.short` in `FT`, `AET`, `PEN` (configured as `FINISHED_STATUS_SHORT`); unplayed fixtures are reported as `fixture_unplayed_count` but do not fail the check. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the boolean result. |
+| Do per-match tables cover every finished fixture in the merged list? | Post-ingest check in `ingestion/api_football/completeness.py`, logged as `ingest_completeness_json`. Expected is restricted to fixtures with `status.short` in `FT`, `AET`, `PEN` (configured as `FINISHED_STATUS_SHORT`); unplayed fixtures are reported as `fixture_unplayed_count` but do not fail the check. The field `match_level_tables_cover_all_fixtures` is the boolean result. |
 
 Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`](operations_guide.md).
 
@@ -79,18 +115,18 @@ Operational detail (locks, exit codes, env vars) lives in [`operations_guide.md`
 
 ## Endpoints and raw tables
 
-Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; fanout tables still use `WRITE_TRUNCATE` until issue #221.
+Each row is one HTTP area and the BigQuery raw table where its payload lives. Dataset id defaults to `raw`, configurable via `API_FOOTBALL_BIGQUERY_DATASET`. Reference tables use `WRITE_APPEND`; `RAW_APIF_FIXTURE_DETAILS` uses merge-on-write.
 
 | Area | Endpoint(s) | BigQuery raw table |
-|------|----------------|-------------------|
-| Fixtures | `/fixtures` | `RAW_APIF_{league_code}_FIXTURES_NEXT` |
-| League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_APIF_{league_code}_LEAGUES` |
-| Standings | `/standings` | `RAW_APIF_{league_code}_STANDINGS` |
-| Rounds | `/fixtures/rounds` | `RAW_APIF_{league_code}_ROUNDS` |
-| Teams | `/teams` | `RAW_APIF_{league_code}_TEAMS` |
-| Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_{league_code}_TRANSFERS` |
-| Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_{league_code}_PLAYERS` |
-| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players`, `/predictions` | `RAW_APIF_{league_code}_LINEUPS`, `RAW_APIF_{league_code}_FIXTURE_EVENTS`, `RAW_APIF_{league_code}_FIXTURE_STATISTICS`, `RAW_APIF_{league_code}_FIXTURE_PLAYERS`, `RAW_APIF_{league_code}_PREDICTIONS` |
+|------|-------------|-------------------|
+| Fixtures | `/fixtures` | `RAW_APIF_FIXTURES_NEXT` |
+| League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_APIF_LEAGUES` |
+| Standings | `/standings` | `RAW_APIF_STANDINGS` |
+| Rounds | `/fixtures/rounds` | `RAW_APIF_ROUNDS` |
+| Teams | `/teams` | `RAW_APIF_TEAMS` |
+| Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_TRANSFERS` |
+| Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
+| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
 
 ### /fixtures query style
 
@@ -112,16 +148,16 @@ Mapping from a typical API-Football subscription list to what this repository in
 
 | Your plan often includes | In this repo today |
 |--------------------------|-------------------|
-| Leagues, seasons (via league payload) | Yes — `GET /leagues`, seasons in `RAW_D1_APIF_LEAGUES` |
+| Leagues, seasons (via league payload) | Yes — `GET /leagues`, seasons in `RAW_APIF_LEAGUES` |
 | Standings, teams, fixtures | Yes |
-| Events | Yes — `GET /fixtures/events` (batched raw → staging) |
-| Line-ups | Yes — `GET /fixtures/lineups` |
+| Events | Yes — `GET /fixtures/events` (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+| Line-ups | Yes — `GET /fixtures/lineups` (stored in `RAW_APIF_FIXTURE_DETAILS`) |
 | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
 | Players & coaches | Partly — squad `/players` per club; coach may appear on lineup payloads where the API returns it; no separate "coaches only" ingest |
 | Player transfers | Yes — `GET /transfers` by team |
 | Pre-match / in-play odds | Not in this repo (no odds ingest) |
-| Statistics | Yes — `GET /fixtures/statistics` and fixture player stats |
-| Predictions | Yes — `GET /predictions` |
+| Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+| Predictions | Removed in PR #237 — not ingested |
 | Countries | Not ingested (would be `GET /countries` if added later) |
 | Head to head | Not ingested (`GET /fixtures/headtohead` if added later) |
 | Live score as a separate stream | Not a separate scheduled ingest; fixture refresh covers scheduled data |
@@ -151,16 +187,16 @@ Support safe scheduling, not match statistics.
 
 ## Downstream
 
-Staging models live under `dbt_project/models/1_staging/api_football/{league_code}/` and are named `stg_apif__{league_code}_{entity}` (e.g. `stg_apif__bl1_fixtures_next`, `stg_apif__wc_fixtures_next`). Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
+Staging models live under `dbt_project/models/1_staging/api_football/` and are named `stg_apif__{entity}` (e.g. `stg_apif__fixtures_next`, `stg_apif__fixture_details`). Each generic model reads from the corresponding unified raw table and exposes `league_code` as a pass-through column. No per-competition staging files exist. Layer conventions are documented in `dbt_project/docs/layering.md`. For commands, env vars, locks, and playbooks, see [`operations_guide.md`](operations_guide.md).
 
 ---
 
 ## Adding a new competition
 
-Every layer is competition-aware: ingestion loops over the competition registry, dbt facts and dims carry `league_code` as a key, and marts carry `league_code` as a column. Adding a competition is a registry-driven recipe requiring no changes to the Python ingestion package:
+Every layer is competition-aware: ingestion loops over the competition registry, and the `league_code` column flows through every raw table and dbt layer. Adding a competition requires **zero file edits of any kind** — only a registry entry:
 
-1. **Register the competition.** Add an entry to `docs/competition_registry.yml` with the `league_code`, API-Football `league_id`, display name, season window, and any flags (e.g. `is_qualifier`). This is the only change needed in the ingestion layer — the loader reads the registry at startup.
-2. **Declare the new raw source.** Add a source block to `dbt_project/models/1_staging/api_football/sources.yml` for the new `RAW_APIF_{league_code}_*` tables.
-3. **Add staging models.** Create `dbt_project/models/1_staging/api_football/{league_code}/stg_apif__{league_code}_*.sql` — one model per ingested raw table, following the same pattern as the `bl1` or `wc` folders. Core and marts do not need to change; they already union all staging sources by `league_code`.
+1. **Register the competition.** Add an entry to `docs/competition_registry.yml` with the `league_code`, `provider_league_id`, display name, `competition_type`, season window, and cost flags (`ingest_active`, `history_seasons`). This is the entire change — the ingestion loader reads the registry at startup, writes to the shared unified raw tables with `league_code` populated, and generic staging models surface the new `league_code` automatically.
+2. **Run `python scripts/sync_dbt_vars.py`** to update `active_competition_league_codes` in `dbt_project.yml` — required only for CI checks that verify registry/var sync.
+3. **Push** — CI ingests the new league into the unified tables; all downstream models (base, core, marts) pick it up via the `league_code` column.
 
-After that, run ingestion + `dbt build` and the new competition flows through the entire stack.
+No new staging files, no new `sources.yml` blocks, no base model edits.

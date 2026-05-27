@@ -40,14 +40,15 @@ Next: player insights chain (#153 → #156).
 
 ## Architecture decisions (non-negotiable)
 
-- **Layer contract**: staging = raw cleanup only; base = UNION ALL + dedup + first logic; core = facts/dims; marts = consumption.
+- **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
 - **league_code** is the partition key on every model — never hardcode a competition identifier in business logic.
+- **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share six unified raw tables, discriminated by a `league_code STRING` column. There are no per-competition raw tables. Staging models are generic — one file per entity, not per competition.
 - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
 - **UI flow**: Landing (competition cards) → Fixture list (next round only) → Fixture detail (carousel/deep dive).
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
-- **Base models are views** — `2_base` models materialise as views by design. Never change this to table without a documented reason; it would cause every base UNION ALL to be stored and rebuilt as a full table scan daily.
+- **Base models are views** — `2_base` models materialise as views by design. Never change this to table without a documented reason.
 
 ## Scalability rules — enforced by CI
 
@@ -56,32 +57,27 @@ Do not work around the CI check — fix the approach instead.
 
 | Rule | What it means | CI check |
 |------|---------------|----------|
-| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires zero existing SQL file edits | `check_base_model_no_hardcoded_leagues.py` — fails if any cross-league base model contains a hardcoded `ref('stg_apif__XX_...')` |
+| **Zero-file rule** | Adding a league to `docs/competition_registry.yml` requires **zero file edits of any kind** — no SQL, no YAML, no Python. The registry entry is the only change. | `check_base_model_no_hardcoded_leagues.py` — fails if any base model `ref()` contains a league code in the argument name (e.g. `ref('stg_apif__bl1_standings')` fails; `ref('stg_apif__standings')` passes) |
 | **Single-source rule** | The registry is the only place leagues are listed. `dbt_project.yml` is derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry |
-| **CI ingest rule** | CI only ingests leagues whose raw BQ tables don't exist yet | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
+| **CI ingest rule** | CI detects new leagues by querying `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` and ingests only those not yet present | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
 
 ### How to add a new league (the only correct procedure)
 
 1. Add entry to `docs/competition_registry.yml`
 2. Run `python scripts/sync_dbt_vars.py` (updates `dbt_project.yml`)
-3. Scaffold 12 staging models + `sources.yml` entry (use the `onboard-competition` skill)
-4. Push — CI ingests only the new league; base models auto-discover it via the Jinja loop
+3. Push — CI ingests only the new league into the unified raw tables; all downstream models pick it up via the `league_code` column
 
-**Do not edit any file in `dbt_project/models/2_base/` when adding a league.** If you find yourself doing that, stop — the approach is wrong.
+**Do not create any new files in `dbt_project/models/` when adding a league.** If you find yourself doing that, stop — the approach is wrong. Generic staging models read `league_code` from the unified raw tables; no per-competition files are needed.
 
-### The base model loop pattern (standard for all cross-league base models)
+### The base model pattern (standard for all cross-league base models)
 
 ```sql
-{% set league_codes = var('active_competition_league_codes') %}
 with src as (
-    {% for lc in league_codes %}
-    {% if not loop.first %}union all{% endif %}
-    select * from {{ ref('stg_apif__' ~ lc | lower ~ '_entity') }}
-    {% endfor %}
+    select * from {{ ref('stg_apif__entity') }}
 )
 ```
 
-Any base model that unions data across leagues must use this pattern. `check_base_model_no_hardcoded_leagues.py` enforces it permanently.
+Base models read directly from the generic staging model. The `league_code` column flows through from the raw table — no UNION ALL loop, no per-competition `ref()` calls. `check_base_model_no_hardcoded_leagues.py` enforces that no base model `ref()` argument contains a competition-specific name.
 
 ## Memory files
 

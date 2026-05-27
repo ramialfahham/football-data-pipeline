@@ -21,12 +21,14 @@
 #   league_only          — form from fixtures within this competition only
 #   supporting_leagues   — form from qualifier/related competitions (international tournaments)
 #
-# raw_table_prefix convention: RAW_APIF_{LEAGUE_CODE}
-# Each competition has its own raw tables (WCQ confederations included).
+# raw_table_prefix: OBSOLETE under Path B. All competitions share six unified raw tables
+# (RAW_APIF_FIXTURES_NEXT, RAW_APIF_FIXTURE_DETAILS, etc.) with league_code as an
+# explicit column. Existing entries retain this field for reference; new entries omit it.
+# Field removal across all entries: issue #256.
 # Update vars.active_competition_league_codes in dbt_project/dbt_project.yml for active competitions; CI checks sync.
 
-version: "1.3"
-last_updated: "2026-05-04"
+version: "1.4"
+last_updated: "2026-05-27"
 owner: "CPO"
 
 competitions:
@@ -428,6 +430,10 @@ competitions:
   # BACKLOG
   # -------------------------------------------------------------------------
 
+  # -------------------------------------------------------------------------
+  # PLANNED — Continental club (issue #258)
+  # -------------------------------------------------------------------------
+
   - league_code: "UCL"
     name: "UEFA Champions League"
     country: "Europe"
@@ -438,10 +444,397 @@ competitions:
     season_type: "split_year"
     current_season: "2024"
     history_seasons: 5
-    status: "backlog"
+    status: "planned"
+    ingest_active: false
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_UCL"
-    notes: "Evaluate after Big 5 onboarding."
+    api_coverage_verified: "2026-05-27"
+    api_coverage:
+      fixtures: true
+      standings: true
+      statistics_fixtures: true
+      statistics_players: true
+      events: true
+      lineups: true
+    notes: "Big 5+ expansion — first UEFA club competition. history_seasons to be confirmed by CPO at onboarding."
+
+  - league_code: "UEL"
+    name: "UEFA Europa League"
+    country: "Europe"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 3
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Onboard alongside UCL in issue #258. Live API verification required before enabling."
+
+  - league_code: "UECL"
+    name: "UEFA Europa Conference League"
+    country: "Europe"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 848
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Onboard alongside UCL/UEL in issue #258. Live API verification required before enabling."
+
+  - league_code: "UESC"
+    name: "UEFA Super Cup"
+    country: "Europe"
+    competition_type: "continental_super_cup"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 531
+    season_type: "calendar_year"
+    current_season: null
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Annual August fixture between UCL and UEL winners. Onboard in issue #258. Live API verification required."
+
+  # -------------------------------------------------------------------------
+  # PLANNED — National team tournaments (issue #259)
+  # -------------------------------------------------------------------------
+
+  - league_code: "COAM"
+    name: "Copa América"
+    country: "International"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 9
+    season_type: "calendar_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "supporting_leagues"
+    api_coverage_verified: null
+    notes: "Biennial CONMEBOL tournament. Last edition: 2024 (USA). Onboard in issue #259. Live API verification required."
+
+  - league_code: "AFCON"
+    name: "Africa Cup of Nations"
+    country: "International"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 6
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "supporting_leagues"
+    api_coverage_verified: null
+    notes: "Biennial CAF tournament. Last edition: 2025 (Morocco). Onboard in issue #259. Live API verification required."
+
+  - league_code: "ACN"
+    name: "AFC Asian Cup"
+    country: "International"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 7
+    season_type: "calendar_year"
+    current_season: "2023"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "supporting_leagues"
+    api_coverage_verified: null
+    notes: "Quadrennial AFC tournament. Last edition: 2023 (Qatar, played Jan 2024). Onboard in issue #259. Live API verification required."
+
+  - league_code: "GCUP"
+    name: "CONCACAF Gold Cup"
+    country: "International"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 8
+    season_type: "calendar_year"
+    current_season: "2023"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "supporting_leagues"
+    api_coverage_verified: null
+    notes: "Biennial CONCACAF tournament. Last edition: 2023. Onboard in issue #259. Live API verification required."
+
+  - league_code: "UNL"
+    name: "UEFA Nations League"
+    country: "Europe"
+    competition_type: "continental_championship"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 5
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "supporting_leagues"
+    api_coverage_verified: null
+    notes: "Biennial UEFA league-format tournament. 2024/25 edition ongoing. Onboard in issue #259. Live API verification required."
+
+  # -------------------------------------------------------------------------
+  # PLANNED — Additional domestic leagues (issue #260)
+  # -------------------------------------------------------------------------
+
+  - league_code: "BSA"
+    name: "Brasileirão Série A"
+    country: "Brazil"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 71
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Top Brazilian division. Calendar-year (March–December). Onboard in issue #260. Live API verification required."
+
+  - league_code: "APD"
+    name: "Liga Profesional de Fútbol (Argentina)"
+    country: "Argentina"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 128
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Top Argentine division. Calendar-year full season format since 2020. Onboard in issue #260. Live API verification required."
+
+  - league_code: "J1"
+    name: "J1 League"
+    country: "Japan"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 98
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Top Japanese division. Calendar-year (Feb–Nov). Onboard in issue #260. Live API verification required."
+
+  - league_code: "KL1"
+    name: "K League 1"
+    country: "South Korea"
+    competition_type: "domestic_league"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 292
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "Top South Korean division. Calendar-year (Feb–Nov). Onboard in issue #260. Live API verification required."
+
+  # -------------------------------------------------------------------------
+  # PLANNED — Domestic cups (issue #261)
+  # -------------------------------------------------------------------------
+
+  - league_code: "DFBP"
+    name: "DFB-Pokal"
+    country: "Germany"
+    competition_type: "domestic_cup"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 529
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    parent_competition: "BL1"
+    api_coverage_verified: null
+    notes: "German domestic cup. Onboard in issue #261. Live API verification required."
+
+  - league_code: "FAC"
+    name: "FA Cup"
+    country: "England"
+    competition_type: "domestic_cup"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 45
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    parent_competition: "PL"
+    api_coverage_verified: null
+    notes: "English domestic cup. Onboard in issue #261. Live API verification required."
+
+  - league_code: "CDR"
+    name: "Copa del Rey"
+    country: "Spain"
+    competition_type: "domestic_cup"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 556
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    parent_competition: "PD"
+    api_coverage_verified: null
+    notes: "Spanish domestic cup. Onboard in issue #261. Live API verification required."
+
+  - league_code: "CDF"
+    name: "Coupe de France"
+    country: "France"
+    competition_type: "domestic_cup"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 66
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    parent_competition: "L1"
+    api_coverage_verified: null
+    notes: "French domestic cup. Onboard in issue #261. Live API verification required."
+
+  - league_code: "CIT"
+    name: "Coppa Italia"
+    country: "Italy"
+    competition_type: "domestic_cup"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 137
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    parent_competition: "SA"
+    api_coverage_verified: null
+    notes: "Italian domestic cup. Onboard in issue #261. Live API verification required."
+
+  # -------------------------------------------------------------------------
+  # PLANNED — Continental club showpieces (issue #262)
+  # -------------------------------------------------------------------------
+
+  - league_code: "LIBER"
+    name: "Copa Libertadores"
+    country: "South America"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 13
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "CONMEBOL flagship club competition. Calendar-year (Feb–Nov). Onboard in issue #262. Live API verification required."
+
+  - league_code: "CAFCL"
+    name: "CAF Champions League"
+    country: "Africa"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 12
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "CAF flagship club competition. Onboard in issue #262. Live API verification required."
+
+  - league_code: "AFCCL"
+    name: "AFC Champions League Elite"
+    country: "Asia"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 17
+    season_type: "split_year"
+    current_season: "2024"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: >
+      AFC flagship club competition (rebranded 'Elite' in 2024/25 with new format).
+      provider_league_id 17 is the legacy ID — verify via live API call before enabling.
+      Onboard in issue #262.
+
+  - league_code: "CCCU"
+    name: "CONCACAF Champions Cup"
+    country: "North/Central America"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 16
+    season_type: "split_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: "CONCACAF flagship club competition (formerly Champions League). Onboard in issue #262. Live API verification required."
+
+  - league_code: "CWC"
+    name: "FIFA Club World Cup"
+    country: "International"
+    competition_type: "continental_club"
+    provider: "api_football"
+    provider_league_code: null
+    provider_league_id: 15
+    season_type: "calendar_year"
+    current_season: "2025"
+    history_seasons: 1
+    status: "planned"
+    ingest_active: false
+    form_source: "league_only"
+    api_coverage_verified: null
+    notes: >
+      New expanded 32-team format, June–July 2025 (USA). Includes clubs from all
+      confederations. Live API verification required before enabling.
+      Onboard in issue #262.
 
 # -------------------------------------------------------------------------
 # ONBOARDING RULES
@@ -460,7 +853,6 @@ competitions:
 #     many season years to load (2 = current + prior for form fallback).
 # 3. Set status to "planned" before writing any code.
 #    Only CPO can approve moving from "backlog" to "planned".
-# 4. raw_table_prefix: RAW_APIF_{LEAGUE_CODE} (provider first, then league_code).
-#    Qualifier leagues set raw_table_prefix: null — data derives from parent raw table.
-#    Above staging, only league_code is used — never provider codes or IDs.
+# 4. raw_table_prefix: OMIT on new entries. All competitions use unified raw tables
+#    (RAW_APIF_{entity}). Above staging, only league_code is used — never provider codes or IDs.
 # 5. When a competition ends: set status "completed", move scope doc to docs/archive/.
