@@ -9,12 +9,7 @@ from ingestion.api_football.fixture_scheduling import (
     CompetitionFanoutInput,
     build_global_fanout_queue,
 )
-from ingestion.api_football.loads.fanout import (
-    # Re-exported from fixture_scheduling — verify backward-compat imports still work.
-    _fixture_needs_any_endpoint,  # noqa: F811
-    _finished_fixture_ids,
-    _FANOUT_ENTITY_KEYS,  # noqa: F811
-)
+from ingestion.api_football.loads.batch_fixtures import _finished_fixture_ids
 
 
 # ---------------------------------------------------------------------------
