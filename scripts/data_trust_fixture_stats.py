@@ -44,13 +44,14 @@ def run() -> TrustResult:
     project = _project()
     client = bigquery.Client(project=project)
 
-    raw_rows = _single_int(client, f"select count(*) as c from `{project}.raw.RAW_APIF_BL1_FIXTURE_DETAILS`", "c")
+    raw_rows = _single_int(client, f"select count(*) as c from `{project}.raw.RAW_APIF_FIXTURE_DETAILS` where league_code = 'BL1'", "c")
     raw_rows_last_24h = _single_int(
         client,
         f"""
         select count(*) as c
-        from `{project}.raw.RAW_APIF_BL1_FIXTURE_DETAILS`
-        where ingested_at >= timestamp_sub(current_timestamp(), interval 24 hour)
+        from `{project}.raw.RAW_APIF_FIXTURE_DETAILS`
+        where league_code = 'BL1'
+          and ingested_at >= timestamp_sub(current_timestamp(), interval 24 hour)
         """,
         "c",
     )
@@ -59,8 +60,9 @@ def run() -> TrustResult:
         f"""
         with src as (
             select payload
-            from `{project}.raw.RAW_APIF_BL1_FIXTURE_DETAILS`
-            where array_length(json_query_array(payload, '$.statistics')) > 0
+            from `{project}.raw.RAW_APIF_FIXTURE_DETAILS`
+            where league_code = 'BL1'
+              and array_length(json_query_array(payload, '$.statistics')) > 0
         ),
         stats_rows as (
             select stat_el
@@ -77,13 +79,14 @@ def run() -> TrustResult:
         "c",
     )
 
-    staging_rows = _single_int(client, f"select count(*) as c from `{project}.staging.stg_apif__bl1_fixture_statistics`", "c")
+    staging_rows = _single_int(client, f"select count(*) as c from `{project}.staging.stg_apif__fixture_statistics` where league_code = 'BL1'", "c")
     staging_shots_on_goal_non_null_rows = _single_int(
         client,
         f"""
         select count(*) as c
-        from `{project}.staging.stg_apif__bl1_fixture_statistics`
-        where shots_on_goal is not null
+        from `{project}.staging.stg_apif__fixture_statistics`
+        where league_code = 'BL1'
+          and shots_on_goal is not null
         """,
         "c",
     )
