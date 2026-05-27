@@ -681,7 +681,7 @@ competitions:
     notes: "Top South Korean division. Calendar-year (Feb–Nov). 5-season window approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
-  # PLANNED — Domestic cups (issue #261)
+  # IN PROGRESS — Domestic cups (issue #261)
   # -------------------------------------------------------------------------
 
   - league_code: "DFBP"
@@ -693,13 +693,14 @@ competitions:
     provider_league_id: 529
     season_type: "split_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "BL1"
-    api_coverage_verified: null
-    notes: "German domestic cup. Onboard in issue #261. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "German domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
 
   - league_code: "FAC"
     name: "FA Cup"
@@ -710,13 +711,14 @@ competitions:
     provider_league_id: 45
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "PL"
-    api_coverage_verified: null
-    notes: "English domestic cup. Onboard in issue #261. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "English domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
 
   - league_code: "CDR"
     name: "Copa del Rey"
@@ -727,13 +729,14 @@ competitions:
     provider_league_id: 556
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "PD"
-    api_coverage_verified: null
-    notes: "Spanish domestic cup. Onboard in issue #261. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Spanish domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
 
   - league_code: "CDF"
     name: "Coupe de France"
@@ -744,13 +747,14 @@ competitions:
     provider_league_id: 66
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "L1"
-    api_coverage_verified: null
-    notes: "French domestic cup. Onboard in issue #261. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "French domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
 
   - league_code: "CIT"
     name: "Coppa Italia"
@@ -761,13 +765,14 @@ competitions:
     provider_league_id: 137
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "SA"
-    api_coverage_verified: null
-    notes: "Italian domestic cup. Onboard in issue #261. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Italian domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
   # PLANNED — Continental club showpieces (issue #262)
