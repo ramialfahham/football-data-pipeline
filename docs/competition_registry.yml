@@ -609,7 +609,7 @@ competitions:
     notes: "Annual CONCACAF league-format tournament. 2 editions approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
-  # PLANNED — Additional domestic leagues (issue #260)
+  # IN PROGRESS — Additional domestic leagues (issue #260)
   # -------------------------------------------------------------------------
 
   - league_code: "BSA"
@@ -621,12 +621,13 @@ competitions:
     provider_league_id: 71
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Top Brazilian division. Calendar-year (March–December). Onboard in issue #260. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Top Brazilian division. Calendar-year (March–December). 5-season window approved by CPO 2026-05-27."
 
   - league_code: "APD"
     name: "Liga Profesional de Fútbol (Argentina)"
@@ -637,12 +638,13 @@ competitions:
     provider_league_id: 128
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Top Argentine division. Calendar-year full season format since 2020. Onboard in issue #260. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Top Argentine division. Calendar-year full season format since 2020. 5-season window approved by CPO 2026-05-27."
 
   - league_code: "J1"
     name: "J1 League"
@@ -653,12 +655,13 @@ competitions:
     provider_league_id: 98
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Top Japanese division. Calendar-year (Feb–Nov). Onboard in issue #260. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Top Japanese division. Calendar-year (Feb–Nov). 5-season window approved by CPO 2026-05-27."
 
   - league_code: "KL1"
     name: "K League 1"
@@ -669,12 +672,13 @@ competitions:
     provider_league_id: 292
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "Top South Korean division. Calendar-year (Feb–Nov). Onboard in issue #260. Live API verification required."
+    api_coverage_verified: "2026-05-27"
+    notes: "Top South Korean division. Calendar-year (Feb–Nov). 5-season window approved by CPO 2026-05-27."
 
   # -------------------------------------------------------------------------
   # PLANNED — Domestic cups (issue #261)
