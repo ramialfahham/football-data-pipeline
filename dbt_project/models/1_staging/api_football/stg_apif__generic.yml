@@ -1,0 +1,172 @@
+version: 2
+
+# Generic staging tests — all models read from unified raw tables, discriminated by league_code.
+# Test policy: not_null on grain columns; unique where the model deduplicates to that grain.
+# No unique tests on fixture_detail models (events, players, stats, lineups) — dedup is in base.
+
+models:
+  - name: stg_apif__fixtures_next
+    description: >
+      One row per upcoming fixture per league from GET /fixtures. Grain: (league_code, fixture_id).
+      Deduped to latest ingestion per league_code before unnest, so each fixture_id appears once.
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null, unique]
+      - name: fixture_date
+        tests: [not_null]
+      - name: home_team_id
+        tests: [not_null]
+      - name: away_team_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__standings
+    description: >
+      One row per team per stage group per season per league from GET /standings.
+      Deduped to latest ingestion per league_code before unnest.
+      Grain: (league_code, season, team_id) — unique within a single league/season snapshot.
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__rounds
+    description: >
+      One row per round per season per league from GET /fixtures/rounds.
+      Deduped to latest ingestion per league_code. Grain: (league_code, api_season_year, round_name).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: round_name
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__teams
+    description: >
+      One row per team per season per league from GET /teams. Deduped to latest ingestion per
+      league_code. Grain: (league_code, season, team_id).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__leagues
+    description: >
+      One row per season per league from GET /leagues. Deduped to latest ingestion per
+      league_code. Grain: (league_code, league_api_id, season_api_year).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: league_api_id
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__players
+    description: >
+      One row per player per team per season per league from GET /players.
+      Deduped to latest ingestion per league_code. Grain: (league_code, team_id, season_year, player_id).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__transfers
+    description: >
+      One row per transfer per player per league from GET /transfers. Deduped at two levels:
+      latest ingestion per league_code, then unique transfer per (league_code, player_id, date,
+      from_team, to_team, type). Grain: (league_code, player_id, transfer_date, from_team_api_id,
+      to_team_api_id, transfer_type).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: transfer_date
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__fixture_events
+    description: >
+      One row per event per fixture from the $.events array in raw_apif_fixture_details.
+      No dedup at staging — multiple ingestions may produce duplicate (fixture_id, event_index)
+      rows; dedup is in base_apif__fixture_events. Grain at staging: (fixture_id, event_index,
+      raw_ingested_at).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: event_index
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__fixture_players
+    description: >
+      One row per player per team per fixture from $.players in raw_apif_fixture_details.
+      No dedup at staging — dedup happens in base_apif__fixture_players.
+      Grain at staging: (fixture_id, team_id, player_id, raw_ingested_at).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__fixture_statistics
+    description: >
+      One row per team per fixture from $.statistics in raw_apif_fixture_details, pivoted to
+      wide format. No dedup at staging — dedup happens in base_apif__fixture_statistics.
+      Grain at staging: (fixture_id, team_id, raw_ingested_at).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__lineups
+    description: >
+      One row per team per fixture from $.lineups in raw_apif_fixture_details.
+      No dedup at staging — dedup happens downstream.
+      Grain at staging: (fixture_id, team_id, raw_ingested_at).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: fixture_id
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]

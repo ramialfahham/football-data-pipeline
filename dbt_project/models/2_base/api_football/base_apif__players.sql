@@ -1,23 +1,9 @@
--- Unified player entity rows across all onboarded competitions.
--- League list driven by var('active_competition_league_codes') — no league codes
--- appear in this file. To add a competition: update docs/competition_registry.yml
--- and run scripts/sync_dbt_vars.py. This is the standard pattern for any base model
--- that unions across leagues.
--- Two sources per competition where available:
+-- Two sources:
 --   priority 1 — /players endpoint (biographical attributes, most complete)
 --   priority 2 — transfers fallback (covers players known only from transfer history)
 -- Output grain: (league_code, player_api_id) — one row per player per league.
 -- base_apif__players_global deduplicates further to one row per player_api_id.
-{% set league_codes = var('active_competition_league_codes') %}
-
 with players_src as (
-
-    {% for lc in league_codes %}
-    {% if not loop.first %}
-
-    union all
-
-    {% endif %}
     select
         league_code,
         safe_cast(player_id as int64) as player_api_id,
@@ -31,11 +17,8 @@ with players_src as (
         safe_cast(season_year as int64) as last_known_season_year,
         raw_ingested_at,
         1 as source_priority
-    from {{ ref('stg_apif__' ~ lc | lower ~ '_players') }}
+    from {{ ref('stg_apif__players') }}
     where player_id is not null
-
-    {% endfor %}
-
 ),
 
 -- Transfers fallback: provides player identity for players who appear in transfer

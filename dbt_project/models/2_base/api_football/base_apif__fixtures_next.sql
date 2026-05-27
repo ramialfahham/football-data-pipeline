@@ -1,25 +1,7 @@
--- Unified fixtures across all onboarded competitions.
--- League list driven by var('active_competition_league_codes') — no league codes
--- appear in this file. To add a competition: update docs/competition_registry.yml
--- and run scripts/sync_dbt_vars.py. This is the standard pattern for any base model
--- that unions across leagues.
--- Output grain: fixture_id (deduplicated to latest ingest).
-{% set league_codes = var('active_competition_league_codes') %}
-
 with src as (
-
-    {% for lc in league_codes %}
-    {% if not loop.first %}
-
-    union all
-
-    {% endif %}
     select *
-    from {{ ref('stg_apif__' ~ lc | lower ~ '_fixtures_next') }}
+    from {{ ref('stg_apif__fixtures_next') }}
     where fixture_id is not null
-
-    {% endfor %}
-
 )
 
 select
