@@ -47,6 +47,16 @@ def raw_table(entity: str) -> str:
     return f"RAW_APIF_{entity}"
 
 
+def raw_league_table(league_code: str, entity: str) -> str:
+    """Per-competition BigQuery table name: ``RAW_APIF_{LC}_{entity}``.
+
+    Retained for per-competition operational tracking tables (INGEST_CURSOR)
+    that are intentionally not unified — they hold pipeline state, not API data.
+    Do NOT use this for API data tables; use raw_table(entity) instead.
+    """
+    return f"RAW_APIF_{league_code}_{entity}"
+
+
 
 def _provider() -> str:
     return os.getenv("API_FOOTBALL_PROVIDER", "apisports").strip().lower()
