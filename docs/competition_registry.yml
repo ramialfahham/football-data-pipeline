@@ -21,10 +21,6 @@
 #   league_only          — form from fixtures within this competition only
 #   supporting_leagues   — form from qualifier/related competitions (international tournaments)
 #
-# raw_table_prefix: OBSOLETE under Path B. All competitions share six unified raw tables
-# (RAW_APIF_FIXTURES_NEXT, RAW_APIF_FIXTURE_DETAILS, etc.) with league_code as an
-# explicit column. Existing entries retain this field for reference; new entries omit it.
-# Field removal across all entries: issue #256.
 # Update vars.active_competition_league_codes in dbt_project/dbt_project.yml for active competitions; CI checks sync.
 
 version: "1.4"
@@ -50,7 +46,6 @@ competitions:
     status: "active"
     ingest_active: true
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_BL1"
     notes: >
       First competition onboarded. Reference implementation for all future leagues.
 
@@ -72,7 +67,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    raw_table_prefix: "RAW_APIF_WC"
     team_count: 48
     match_count: 104
     start_date: "2026-06-11"
@@ -118,7 +112,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQEU"
     parent_competition: "WC"
     notes: "UEFA zone. Season 2024 (group + playoff stages)."
 
@@ -136,7 +129,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQAF"
     parent_competition: "WC"
     notes: "CAF zone. Season 2023."
 
@@ -154,7 +146,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQCA"
     parent_competition: "WC"
     notes: "CONCACAF zone. Season 2026."
 
@@ -172,7 +163,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQSA"
     parent_competition: "WC"
     notes: "CONMEBOL zone. Season 2026."
 
@@ -190,7 +180,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQAS"
     parent_competition: "WC"
     notes: "AFC zone. Season 2026."
 
@@ -208,7 +197,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQIP"
     parent_competition: "WC"
     notes: "Inter-confederation playoffs. Season 2026."
 
@@ -226,7 +214,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_WCQOC"
     parent_competition: "WC"
     notes: "OFC zone. Season 2026. API catalog has no fixture statistics; soft gate only."
 
@@ -244,7 +231,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_PL"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "PD"
@@ -261,7 +247,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_PD"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "BL2"
@@ -278,7 +263,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_BL2"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "SA"
@@ -295,7 +279,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_SA"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "L1"
@@ -312,7 +295,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_L1"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "VL"
@@ -329,7 +311,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_VL"
     api_coverage_verified: "2026-05-18"
     notes: "2026 campaign (current) + 2025 (form fallback); calendar-year league."
 
@@ -347,7 +328,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_LMX"
     api_coverage_verified: "2026-05-21"
     notes: "Onboarded for WC 2026 pre-tournament host-nation (Mexico) player coverage. Apertura + Clausura in one API season; treat as split_year. See #151."
 
@@ -365,7 +345,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_LP"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 Portugal squad player coverage. Split-year league (2025/2026 season)."
 
@@ -383,7 +362,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_MLS"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 host-nation (USA + Canada) player coverage. Calendar-year league."
 
@@ -401,7 +379,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_SPL"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 host-nation (Saudi Arabia) player coverage. Split-year league (2025/2026 season)."
 
@@ -419,7 +396,6 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "league_only"
-    raw_table_prefix: "RAW_APIF_ED"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 Netherlands squad player coverage. Split-year league (2025/2026 season)."
   # -------------------------------------------------------------------------
@@ -853,6 +829,6 @@ competitions:
 #     many season years to load (2 = current + prior for form fallback).
 # 3. Set status to "planned" before writing any code.
 #    Only CPO can approve moving from "backlog" to "planned".
-# 4. raw_table_prefix: OMIT on new entries. All competitions use unified raw tables
+# 4. Do NOT add a raw_table_prefix field. All competitions use unified raw tables
 #    (RAW_APIF_{entity}). Above staging, only league_code is used — never provider codes or IDs.
 # 5. When a competition ends: set status "completed", move scope doc to docs/archive/.
