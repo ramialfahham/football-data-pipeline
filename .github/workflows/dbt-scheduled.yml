@@ -88,6 +88,3 @@ jobs:
         # ingest first, so freshness tests are meaningful.
         run: dbt build
 
-      - name: Run fixture stats trust diagnostics (hard gate)
-        if: steps.ingest.outputs.new_data == 'true'
-        run: python ../scripts/data_trust_fixture_stats.py

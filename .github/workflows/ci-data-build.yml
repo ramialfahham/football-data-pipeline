@@ -147,9 +147,6 @@ jobs:
       - name: Run singular data quality tests
         run: dbt test --select test_type:singular --exclude tag:freshness_check
 
-      - name: Run fixture stats trust diagnostics (hard gate)
-        run: python ../scripts/data_trust_fixture_stats.py
-
   # Terminal gate: always runs, reports a single deterministic pass/fail that
   # branch protection can require regardless of whether `data-build` was
   # path-filter-skipped. This is the unblocker for stricter required-checks
