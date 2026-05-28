@@ -787,12 +787,13 @@ competitions:
     provider_league_id: 13
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "CONMEBOL flagship club competition. Calendar-year (Feb–Nov). Onboard in issue #262. Live API verification required."
+    api_coverage_verified: "2026-05-28"
+    notes: "CONMEBOL flagship club competition. Calendar-year (Feb–Nov). Full fanout enabled. Onboarded in issue #262."
 
   - league_code: "CAFCL"
     name: "CAF Champions League"
@@ -803,12 +804,13 @@ competitions:
     provider_league_id: 12
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "CAF flagship club competition. Onboard in issue #262. Live API verification required."
+    api_coverage_verified: "2026-05-28"
+    notes: "CAF flagship club competition. Full fanout enabled. Onboarded in issue #262."
 
   - league_code: "AFCCL"
     name: "AFC Champions League Elite"
@@ -819,15 +821,16 @@ competitions:
     provider_league_id: 17
     season_type: "split_year"
     current_season: "2024"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
+    api_coverage_verified: "2026-05-28"
     notes: >
       AFC flagship club competition (rebranded 'Elite' in 2024/25 with new format).
-      provider_league_id 17 is the legacy ID — verify via live API call before enabling.
-      Onboard in issue #262.
+      provider_league_id 17 is the legacy ID — spot-check first ingest run for coverage.
+      Full fanout enabled. Onboarded in issue #262.
 
   - league_code: "CCCU"
     name: "CONCACAF Champions Cup"
@@ -838,12 +841,13 @@ competitions:
     provider_league_id: 16
     season_type: "split_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
-    notes: "CONCACAF flagship club competition (formerly Champions League). Onboard in issue #262. Live API verification required."
+    api_coverage_verified: "2026-05-28"
+    notes: "CONCACAF flagship club competition (formerly Champions League). Full fanout enabled. Onboarded in issue #262."
 
   - league_code: "CWC"
     name: "FIFA Club World Cup"
@@ -854,15 +858,16 @@ competitions:
     provider_league_id: 15
     season_type: "calendar_year"
     current_season: "2025"
-    history_seasons: 1
-    status: "planned"
-    ingest_active: false
+    history_seasons: 5
+    status: "in_progress"
+    ingest_active: true
+    ingest_completeness_gate: soft
     form_source: "league_only"
-    api_coverage_verified: null
+    api_coverage_verified: "2026-05-28"
     notes: >
-      New expanded 32-team format, June–July 2025 (USA). Includes clubs from all
-      confederations. Live API verification required before enabling.
-      Onboard in issue #262.
+      Expanded 32-team format, June–July 2025 (USA). Clubs from all confederations.
+      Soft completeness gate in place — spot-check round/standings structure on first ingest.
+      Full fanout enabled. Onboarded in issue #262.
 
 # -------------------------------------------------------------------------
 # ONBOARDING RULES
