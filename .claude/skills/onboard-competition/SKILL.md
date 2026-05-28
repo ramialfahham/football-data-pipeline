@@ -22,16 +22,14 @@ changes. The registry entry is the entire change.
 
 The user has provided:
 
-- An API-Football league id (e.g. `253` for MLS, `307` for Saudi Pro)
+- The competition name and country
 - A short league code to assign (e.g. `MLS`, `SPL`, `ED`, `LP`)
-- The full league name (e.g. `Major League Soccer`)
-- Country (e.g. `United States`)
 - Season type (`split_year` for European-style Aug→May, `calendar_year` for
   spring-autumn or one-year competitions)
 - Current season year (e.g. `2025`, `2026`)
 
-If anything is missing, ask the user. Do not guess league ids — confirm
-against `https://v3.football.api-sports.io/leagues?id={id}`.
+**Do NOT accept a `provider_league_id` from the user or from memory.**
+The ID must be discovered via a live name-based API search (Step 0b).
 
 ## When NOT to use
 
@@ -48,11 +46,12 @@ against `https://v3.football.api-sports.io/leagues?id={id}`.
 | `league_code` | `MLS` | 2–6 uppercase letters/digits, unique vs `docs/competition_registry.yml` |
 | `name` | `Major League Soccer` | for registry + UI labels |
 | `country` | `United States` | for registry only |
-| `provider_league_id` | `253` | integer; verify against API live |
 | `season_type` | `split_year` or `calendar_year` | exact lowercase string |
-| `current_season` | `2026` | API season identifier |
+| `current_season` | `2026` | API season identifier — confirm from Step 0b |
 | `history_seasons` | `1` | default 1; bump to 2 if the league's prior season feeds form fallback |
 | `notes` | free text | rationale, e.g. "WC 2026 host coverage for USA + Canada" |
+
+`provider_league_id` is **not** a user input — it is discovered in Step 0b.
 
 ## Procedure
 
@@ -76,12 +75,56 @@ to Step 0b until all three are answered.
 Record the answers in the PR description. The registry entry (`Step 2`) must
 reflect the agreed `ingest_active` value.
 
-### Step 0b — Validate technical inputs
+### Step 0b — Discover and verify the provider_league_id
 
-- Confirm `provider_league_id` against the live API: `GET /leagues?id={id}`
-  should return that league. The response's `coverage.fixtures.statistics_players`
-  must be `true` for the player insights work to ever apply.
-- Confirm `league_code` does NOT already appear in `docs/competition_registry.yml`.
+**This step is mandatory. Never write a `provider_league_id` sourced from
+memory or training data — always discover it from the live API in this session.**
+
+Use `scripts/diagnostics/discover_competition.py` with the correct lookup
+parameters for the competition type:
+
+| Competition type | Command |
+|---|---|
+| Domestic league | `--search "<name>" --country "<nation>" --type league` |
+| Domestic cup / super cup | `--search "<name>" --country "<nation>" --type cup` |
+| Continental club (UCL, LIBER, etc.) | `--search "<name>" --country World --type cup` |
+| International national team (AFCON, Gold Cup, etc.) | `--search "<name>" --country World --type cup` |
+| WC qualifiers | `--search "<sub-zone name>" --country World` |
+
+```bash
+PYTHONUTF8=1 python scripts/diagnostics/discover_competition.py \
+  --search "<competition name>" --country "<country>" --type <league|cup>
+```
+
+From the results:
+1. **Select the correct row** — verify the name, country, and competition type match
+   the intended competition. Be alert to:
+   - Youth/women's variants with similar names (e.g. U20 vs senior)
+   - Lower-division leagues with similar names (e.g. "National League" England tier 5)
+   - Pre/post-rebrand names (verify via `current: true` season year)
+2. **Record the ID** from that row as `provider_league_id`
+3. **Confirm coverage flags**: `stats_players=True` is required for the player
+   insights chain to ever apply to this competition
+4. **Confirm active season**: the `season=` value in the output is the current
+   active season — use this as `current_season` in the registry entry
+5. **Check for collisions**: the script prints `[registry: CODE]` if that ID is
+   already assigned. If a collision exists, stop — do not write the entry until
+   the collision is resolved.
+6. **Verify participant alignment**: for unfamiliar competitions, run a fast spot-check:
+   ```bash
+   python -c "
+   import sys; sys.path.insert(0,'.')
+   from ingestion.api_football.settings import get_headers, base_url
+   import requests
+   r = requests.get(f'{base_url()}/teams', headers=get_headers(),
+                    params={'league': <ID>, 'season': <YEAR>}, timeout=30)
+   for t in r.json().get('response', [])[:8]:
+       print(t['team']['name'])
+   "
+   ```
+   Confirm the returned teams are the expected elite clubs/nations for this competition.
+
+Also confirm `league_code` does NOT already appear in `docs/competition_registry.yml`.
 
 ### Step 1 — Branch from origin/main
 
@@ -146,11 +189,15 @@ are the same in all three languages).
 ```bash
 python scripts/check_registry_var_sync.py
 python -c "import json; [json.load(open(f, encoding='utf-8')) for f in ['site/i18n/en.json','site/i18n/de.json','site/i18n/fi.json']]; print('i18n ok')"
+PYTHONUTF8=1 python scripts/diagnostics/discover_competition.py --audit {LEAGUE_CODE}
 ```
 
-`check_registry_var_sync.py` should report `OK (N competitions)` with N
-having incremented by 1. The i18n check silently passes if all three
-JSONs parse cleanly.
+- `check_registry_var_sync.py` should report `OK (N competitions)` with N
+  having incremented by 1.
+- The i18n check silently passes if all three JSONs parse cleanly.
+- `discover_competition.py --audit {LEAGUE_CODE}` should print `OK` with no
+  `!!!` collision flags. A `---` NAME REVIEW line is acceptable if it is a
+  known abbreviation difference; any `!!!` line is a hard stop.
 
 ### Step 6 — Commit and PR
 
@@ -161,7 +208,8 @@ git push origin feat/onboard-{lc_lower} -u
 gh pr create --base main --head feat/onboard-{lc_lower} --title "feat: onboard {LEAGUE_CODE} ({NAME})" --body "..."
 ```
 
-The PR body should record the cost gate answers from Step 0a and note that
+The PR body should record the cost gate answers from Step 0a, the verified
+`provider_league_id` (with the search command used to find it), and note that
 no SQL files were added (zero-file rule).
 
 ## Acceptance check after CI
@@ -191,8 +239,12 @@ no SQL files were added (zero-file rule).
   notion of "current season".
 - **Split-season leagues** like Liga MX (Apertura + Clausura in one API
   "season"): set `season_type: split_year` and `history_seasons: 1`.
+- **Qualifying phases** (UCL/UEL/UECL qualifying, Libertadores preliminary):
+  these are NOT separate competitions in the API — they are rounds within the
+  main competition's `league_id`. No separate registry entry is needed.
 
 ## Related issues
 
-- #277 — Path B skill rewrite (this update)
-- #258–#262 — Wave 2 onboarding (first competitions using this procedure)
+- #277 — Path B skill rewrite
+- #292 — Competition ID audit (root cause of the procedure tightening)
+- #258–#262 — Onboarding waves

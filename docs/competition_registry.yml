@@ -546,7 +546,7 @@ competitions:
     competition_type: "continental_championship"
     provider: "api_football"
     provider_league_code: null
-    provider_league_id: 8
+    provider_league_id: 22
     season_type: "calendar_year"
     current_season: "2023"
     history_seasons: 2
@@ -554,8 +554,8 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: "2026-05-27"
-    notes: "Biennial CONCACAF tournament. Last edition: 2023. 2 editions approved by CPO 2026-05-27."
+    api_coverage_verified: "2026-05-28"
+    notes: "Biennial CONCACAF tournament. Last edition: 2023. 2 editions approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 8=Women's World Cup, now 22=CONCACAF Gold Cup). Fixes #293."
 
   - league_code: "UNL"
     name: "UEFA Nations League"
@@ -597,7 +597,7 @@ competitions:
     competition_type: "continental_championship"
     provider: "api_football"
     provider_league_code: null
-    provider_league_id: 43
+    provider_league_id: 536
     season_type: "calendar_year"
     current_season: "2024"
     history_seasons: 2
@@ -605,8 +605,8 @@ competitions:
     ingest_active: true
     ingest_completeness_gate: soft
     form_source: "supporting_leagues"
-    api_coverage_verified: "2026-05-27"
-    notes: "Annual CONCACAF league-format tournament. 2 editions approved by CPO 2026-05-27."
+    api_coverage_verified: "2026-05-28"
+    notes: "Annual CONCACAF league-format tournament. 2 editions approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 43=English National League tier 5, now 536=CONCACAF Nations League). Fixes #294."
 
   # -------------------------------------------------------------------------
   # IN PROGRESS — Additional domestic leagues (issue #260)
@@ -690,7 +690,7 @@ competitions:
     competition_type: "domestic_cup"
     provider: "api_football"
     provider_league_code: null
-    provider_league_id: 529
+    provider_league_id: 81
     season_type: "split_year"
     current_season: "2025"
     history_seasons: 5
@@ -699,8 +699,8 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "BL1"
-    api_coverage_verified: "2026-05-27"
-    notes: "German domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
+    api_coverage_verified: "2026-05-28"
+    notes: "German domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 529=DFL-Supercup, now 81=DFB-Pokal). Fixes #295."
 
   - league_code: "FAC"
     name: "FA Cup"
@@ -726,7 +726,7 @@ competitions:
     competition_type: "domestic_cup"
     provider: "api_football"
     provider_league_code: null
-    provider_league_id: 556
+    provider_league_id: 143
     season_type: "split_year"
     current_season: "2024"
     history_seasons: 5
@@ -735,8 +735,8 @@ competitions:
     ingest_completeness_gate: soft
     form_source: "league_only"
     parent_competition: "PD"
-    api_coverage_verified: "2026-05-27"
-    notes: "Spanish domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
+    api_coverage_verified: "2026-05-28"
+    notes: "Spanish domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 556=Supercopa de España, now 143=Copa del Rey). Fixes #291."
 
   - league_code: "CDF"
     name: "Coupe de France"
