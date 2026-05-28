@@ -29,16 +29,20 @@ vars:
   # Base models loop over this var; adding a league here is the only change needed in dbt.
   active_competition_league_codes:
     - ACN
+    - AFCCL
     - AFCON
     - APD
     - BL1
     - BL2
     - BSA
+    - CAFCL
+    - CCCU
     - CDF
     - CDR
     - CIT
     - CNL
     - COAM
+    - CWC
     - DFBP
     - ED
     - EURO
@@ -47,6 +51,7 @@ vars:
     - J1
     - KL1
     - L1
+    - LIBER
     - LMX
     - LP
     - MLS
