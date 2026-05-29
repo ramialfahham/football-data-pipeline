@@ -1,25 +1,36 @@
-# API-Football D1 staging (`1_staging/api_football`)
+# API-Football staging (`1_staging/api_football`)
 
-There are **13** staging SQL models here: **one `stg_apif__d1_*.sql` per `RAW_D1_APIF_*` raw table** declared in [`sources.yml`](sources.yml). If your editor shows fewer files, refresh the folder, confirm you are on the latest `main`, and run `git status` in this path.
+Staging models here are **generic and competition-agnostic**. Every model reads
+from a **unified `RAW_APIF_*` raw table** that holds all onboarded competitions in
+one place, discriminated by a `league_code STRING` column. There are **no
+per-competition staging files** — adding a league is a registry-only change (see
+the zero-file rule in [`CLAUDE.md`](../../../../CLAUDE.md) and
+[`docs/competition_registry.yml`](../../../../docs/competition_registry.yml)).
 
-This is a hard contract: do not add staging helper/bridge/derived models. If a transformation is not direct source normalization for one raw table, it belongs in downstream layers.
+**Staging contract** (see [`../../docs/layering.md`](../../docs/layering.md) §1_staging):
+select the latest ingestion snapshot per `league_code` (the append-log raw tables
+hold one complete snapshot row per run), then faithfully flatten the payload 1:1
+(rename, cast, unnest). No entity-grain deduplication, no aggregation/pivot, and no
+cross-source joins — all of that is business logic that belongs in `2_base`.
 
-Tests and column docs for these models live mainly in [`stg_apif__per_competition.yml`](stg_apif__per_competition.yml) (one YAML file, many models). Each model carries **`raw_ingested_at`** (UTC load time from raw column **`ingested_at`**).
+Tests and column docs live in [`stg_apif__generic.yml`](stg_apif__generic.yml)
+(one YAML file, many models). Each model carries **`raw_ingested_at`** (UTC load
+time from the raw column **`ingested_at`**).
 
-| # | BigQuery table (`identifier`) | dbt source name | Staging model |
-|---|-------------------------------|-----------------|---------------|
-| 1 | `RAW_D1_APIF_FIXTURES_NEXT` | `raw_d1_apif_fixtures_next` | [`stg_apif__d1_fixtures_next.sql`](stg_apif__d1_fixtures_next.sql) |
-| 2 | `RAW_D1_APIF_LEAGUES` | `raw_d1_apif_leagues` | [`stg_apif__d1_leagues.sql`](stg_apif__d1_leagues.sql) |
-| 3 | `RAW_D1_APIF_STANDINGS` | `raw_d1_apif_standings` | [`stg_apif__d1_standings.sql`](stg_apif__d1_standings.sql) |
-| 4 | `RAW_D1_APIF_ROUNDS` | `raw_d1_apif_rounds` | [`stg_apif__d1_rounds.sql`](stg_apif__d1_rounds.sql) |
-| 5 | `RAW_D1_APIF_TEAMS` | `raw_d1_apif_teams` | [`stg_apif__d1_teams.sql`](stg_apif__d1_teams.sql) |
-| 6 | `RAW_D1_APIF_INJURIES` | `raw_d1_apif_injuries` | [`stg_apif__d1_injuries.sql`](stg_apif__d1_injuries.sql) |
-| 7 | `RAW_D1_APIF_TRANSFERS` | `raw_d1_apif_transfers` | [`stg_apif__d1_transfers.sql`](stg_apif__d1_transfers.sql) |
-| 8 | `RAW_D1_APIF_LINEUPS` | `raw_d1_apif_lineups` | [`stg_apif__d1_lineups.sql`](stg_apif__d1_lineups.sql) |
-| 9 | `RAW_D1_APIF_FIXTURE_EVENTS` | `raw_d1_apif_fixture_events` | [`stg_apif__d1_fixture_events.sql`](stg_apif__d1_fixture_events.sql) |
-| 10 | `RAW_D1_APIF_FIXTURE_STATISTICS` | `raw_d1_apif_fixture_statistics` | [`stg_apif__d1_fixture_statistics.sql`](stg_apif__d1_fixture_statistics.sql) |
-| 11 | `RAW_D1_APIF_FIXTURE_PLAYERS` | `raw_d1_apif_fixture_players` | [`stg_apif__d1_fixture_players.sql`](stg_apif__d1_fixture_players.sql) |
-| 12 | `RAW_D1_APIF_PREDICTIONS` | `raw_d1_apif_predictions` | [`stg_apif__d1_predictions.sql`](stg_apif__d1_predictions.sql) |
-| 13 | `RAW_D1_APIF_PLAYERS` | `raw_d1_apif_players` | [`stg_apif__d1_players.sql`](stg_apif__d1_players.sql) |
+| dbt source (`identifier`) | Staging model(s) |
+|---------------------------|------------------|
+| `raw_apif_fixtures_next` (`RAW_APIF_FIXTURES_NEXT`) | [`stg_apif__fixtures_next.sql`](stg_apif__fixtures_next.sql) |
+| `raw_apif_leagues` (`RAW_APIF_LEAGUES`) | [`stg_apif__leagues.sql`](stg_apif__leagues.sql) |
+| `raw_apif_standings` (`RAW_APIF_STANDINGS`) | [`stg_apif__standings.sql`](stg_apif__standings.sql) |
+| `raw_apif_rounds` (`RAW_APIF_ROUNDS`) | [`stg_apif__rounds.sql`](stg_apif__rounds.sql) |
+| `raw_apif_teams` (`RAW_APIF_TEAMS`) | [`stg_apif__teams.sql`](stg_apif__teams.sql) |
+| `raw_apif_players` (`RAW_APIF_PLAYERS`) | [`stg_apif__players.sql`](stg_apif__players.sql) |
+| `raw_apif_transfers` (`RAW_APIF_TRANSFERS`) | [`stg_apif__transfers.sql`](stg_apif__transfers.sql) |
+| `raw_apif_fixture_details` (`RAW_APIF_FIXTURE_DETAILS`) | [`stg_apif__fixture_events.sql`](stg_apif__fixture_events.sql), [`stg_apif__fixture_players.sql`](stg_apif__fixture_players.sql), [`stg_apif__fixture_statistics.sql`](stg_apif__fixture_statistics.sql), [`stg_apif__lineups.sql`](stg_apif__lineups.sql) |
 
-Operational raw tables (lock, fanout cursor) are **not** in `sources.yml` and have **no** staging models here—see [`docs/data_contract.md`](../../../../docs/data_contract.md).
+The four fixture-detail models all flatten different arrays out of the single
+`RAW_APIF_FIXTURE_DETAILS` payload (`$.events`, `$.players`, `$.statistics`,
+`$.lineups`).
+
+Operational raw tables (lock, fanout cursor) are **not** in `sources.yml` and have
+**no** staging models here — see [`docs/data_contract.md`](../../../../docs/data_contract.md).

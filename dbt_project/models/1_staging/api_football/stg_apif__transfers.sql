@@ -68,5 +68,5 @@ select
 from transfer_rows
 -- Drop transfers with no usable date (date is part of the transfer grain).
 -- Entity-grain deduplication is NOT done here: it is business logic that
--- belongs in base_apif__bl1_transfers, which dedups at the identical grain.
+-- belongs in base_apif__transfers, which dedups at the identical grain.
 where safe_cast(json_value(transfer_el, '$.date') as date) is not null

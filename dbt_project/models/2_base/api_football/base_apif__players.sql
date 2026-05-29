@@ -38,7 +38,7 @@ transfers_src as (
         cast(null as int64) as last_known_season_year,
         raw_ingested_at,
         2 as source_priority
-    from {{ ref('base_apif__bl1_transfers') }}
+    from {{ ref('base_apif__transfers') }}
     where player_id is not null
 ),
 
