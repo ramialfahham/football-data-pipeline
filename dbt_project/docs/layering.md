@@ -48,20 +48,49 @@ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must 
 
 Purpose: source-near cleanup with minimal transformation.
 
+A staging model does exactly two things, in this order:
+
+1. **Latest-snapshot selection.** The unified raw tables are append-only logs: each
+   ingestion run appends one complete snapshot row per `league_code` (all configured
+   seasons merged into that row). Selecting the newest snapshot per `league_code` —
+   `qualify row_number() over (partition by league_code order by ingested_at desc) = 1` —
+   is allowed. It is *snapshot selection across an append log*, not entity deduplication:
+   it picks one raw row before flattening and collapses nothing within it.
+2. **Faithful 1:1 flatten.** Unnest that snapshot's JSON payload into one typed row per
+   entity, rename to snake_case, and cast. Every entity present in the selected snapshot
+   must appear exactly once in the output — nothing merged, aggregated, or dropped
+   (beyond discarding rows missing a grain key, e.g. a null id or date).
+
+The line that matters: **snapshot selection partitions on `league_code` alone and acts on
+the raw row; entity deduplication partitions on entity keys (player_id, fixture_id,
+team_id, …) after flattening — and that belongs in base, never staging.**
+
 Allowed:
-- Source-to-model mapping (strictly 1:1 by raw source table for this project).
+- Latest-snapshot selection per `league_code` (partition on `league_code` only).
+- Source-to-model mapping (one staging model per raw source table).
 - Column renaming to consistent naming conventions (snake_case).
 - Safe type casting and lightweight normalization.
-- JSON extraction, unnesting, and flattening needed to expose one regular typed table per raw source.
+- JSON extraction, unnesting, and flattening (including `cross join`/`left join unnest(...)`
+  to explode arrays) needed to expose one regular typed table per raw source.
+- Dropping rows that are missing a grain key (null id/date) — this is cleanup, not dedup.
 - Model-level tests per [`engineering_standards.md`](engineering_standards.md) §3: document the **grain** in the model `description`; `not_null` on required fields; `unique` or `dbt_utils.unique_combination_of_columns` on grain keys; constrained `accepted_values` where useful. (Full testing policy lives in that doc—do not under-test staging relative to §3.)
 
 Not allowed:
+- **Entity-grain deduplication** — any `qualify`/`row_number()`/`distinct` that collapses rows
+  on entity keys. Dedup is a base concern (`2_base`), if it happens at all.
+- **Aggregation or pivoting** — `group by`, `sum`/`max`/`any_value` to reshape many rows into
+  one (e.g. a statistics pivot). Reshaping is business logic; do it in base.
 - Unions across leagues/competitions/sources.
+- Cross-domain joins (joining two different entities). Lateral `unnest(...)` of the model's
+  own payload is flattening, not a cross-domain join, and is allowed.
 - Helper/bridge/derived staging models that are not direct source mappings.
 - Business rules and feature engineering.
-- Cross-domain joins.
 
-**Hard contract:** `models/1_staging/api_football/` must contain exactly **13** `stg_apif__bl1_*.sql` files—one per `RAW_D1_APIF_*` source in [`sources.yml`](../models/1_staging/api_football/sources.yml). Adding a 14th helper model in staging is a contract violation and must fail CI.
+**Hard contract (Path B):** staging is **generic** — one `stg_apif__<entity>.sql` per unified
+raw table (`RAW_APIF_<entity>`), discriminated by the `league_code` column. There are **no**
+per-competition staging models. `models/1_staging/api_football/` must contain **no**
+per-competition subdirectory and no `stg_apif__<league>_*` files; `scripts/check_layer_contract.py`
+fails CI if one appears. Adding a league requires **zero** staging files (see `CLAUDE.md`).
 
 ## 2_base
 
