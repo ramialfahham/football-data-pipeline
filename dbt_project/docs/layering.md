@@ -104,6 +104,8 @@ Allowed:
 Not allowed:
 - Declaring the authoritative business **fact** or **dimension** system of record (that belongs in **core**).
 - Presentation or delivery logic aimed at a specific app or report.
+- `ref()`-ing a core / intermediate / mart model. Base sits below them in the DAG and may only read `stg_*` or other `base_*` models. *(CI-enforced by `scripts/check_layer_contract.py`.)*
+- Overriding materialization: base models materialise as **views** by design (`dbt_project.yml` `2_base: +materialized: view`). Do not add a per-model `config(materialized=...)` that changes this. *(CI-enforced.)*
 
 ## 3_core
 
