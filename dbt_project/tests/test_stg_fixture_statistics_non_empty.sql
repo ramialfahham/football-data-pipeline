@@ -6,6 +6,6 @@ from (
     select
         count(*)
         as row_count
-    from {{ ref('stg_apif__bl1_fixture_statistics') }}
+    from {{ ref('stg_apif__fixture_statistics') }}
 ) as check_rows
 where check_rows.row_count = 0

@@ -10,8 +10,8 @@
     always come through so the fact stays self-sufficient.
 #}
 
-with import_base_apif__bl1_transfers as (
-    select * from {{ ref('base_apif__bl1_transfers') }}
+with import_base_apif__transfers as (
+    select * from {{ ref('base_apif__transfers') }}
 )
 
 select
@@ -40,4 +40,4 @@ select
     to_team_api_id,
     to_team_name_snapshot,
     raw_ingested_at
-from import_base_apif__bl1_transfers
+from import_base_apif__transfers

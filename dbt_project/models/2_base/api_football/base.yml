@@ -180,9 +180,9 @@ models:
       - name: player_api_id
         tests: [not_null]
 
-  - name: base_apif__bl1_fixture_events
+  - name: base_apif__fixture_events
     description: >
-      Deduplicated fixture event rows from stg_apif__bl1_fixture_events. Keeps
+      Deduplicated fixture event rows from stg_apif__fixture_events. Keeps
       the most recently ingested version per event position.
       Output grain: (league_code, fixture_id, event_index).
       event_index is the 0-based position in the $.events array and is the
@@ -203,46 +203,6 @@ models:
       - name: league_code
         tests: [not_null]
 
-  - name: base_apif__bl1_fixture_players
-    description: >
-      Deduplicated per-player match statistic rows from
-      stg_apif__bl1_fixture_players. Keeps the most recently ingested version
-      per (fixture_id, team_id, player_id).
-      Output grain: (fixture_id, team_id, player_id).
-    config:
-      tags: ["base", "api_football", "fixture_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fixture_id, team_id, player_id]
-    columns:
-      - name: fixture_id
-        tests: [not_null]
-      - name: team_id
-        tests: [not_null]
-      - name: player_id
-        tests: [not_null]
-      - name: league_code
-        tests: [not_null]
-
-  - name: base_apif__bl1_players
-    description: >
-      Canonical player entity resolved from two sources: stg_apif__bl1_players
-      (primary — has biographical attributes) and base_apif__bl1_transfers
-      (fallback — covers players known only from transfer history). Deduplicates
-      to one row per (league_code, player_api_id), preferring the players
-      endpoint and the most recent season snapshot. Feeds base_apif__players_global.
-      Output grain: (league_code, player_api_id).
-    config:
-      tags: ["base", "api_football", "player_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [league_code, player_api_id]
-    columns:
-      - name: league_code
-        tests: [not_null]
-      - name: player_api_id
-        tests: [not_null]
-
   - name: base_apif__players_global
     description: >
       One row per player_api_id: latest ingest across (league_code, player_api_id)
@@ -259,9 +219,9 @@ models:
       - name: league_code
         tests: [not_null]
 
-  - name: base_apif__bl1_transfers
+  - name: base_apif__transfers
     description: >
-      Deduplicated transfer events from stg_apif__bl1_transfers.
+      Deduplicated transfer events from stg_apif__transfers.
       Resolves duplicate entries that the API occasionally returns within a
       single player's transfers array by keeping the most recently ingested row
       per transfer grain. Grain: (league_code, player_id, transfer_date,

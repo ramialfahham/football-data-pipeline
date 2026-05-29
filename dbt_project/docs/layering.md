@@ -8,7 +8,7 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 
 | Dataset | What lives there |
 |---------|------------------|
-| **`raw`** | 1:1 ingestion from Python (`RAW_<league>_APIF_*` tables, e.g. `RAW_D1_APIF_*`). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
+| **`raw`** | 1:1 ingestion from Python (unified `RAW_APIF_*` tables, e.g. `RAW_APIF_FIXTURES_NEXT`, shared across all competitions and discriminated by a `league_code STRING` column — there are no per-competition raw tables). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
 | **`staging`** | `1_staging` dbt models (views by default): light cleanup on top of `raw`. |
 | **`base`** | `2_base` models (views): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
 | **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
@@ -163,11 +163,11 @@ Canonical fact inventory for this project:
 | Fact | Grain | Source staging model(s) | Notes |
 |------|-------|-------------------------|-------|
 | `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
-| `fct_standings` | `(season_sk, team_sk, group_description)` | `base_apif__standings` (from per-competition `stg_apif__*_standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
+| `fct_standings` | `(season_sk, team_sk, group_description)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
-| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `stg_apif__bl1_fixture_players` | `player_statistics_json[0]` flattened into measures. |
-| `fct_fixture_event` | `event_sk` hashed over full staging grain | `stg_apif__bl1_fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
-| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `stg_apif__bl1_transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
+| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
+| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
+| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `base_apif__transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
 
 All facts propagate `league_code` so they are safe to union across future leagues.
 

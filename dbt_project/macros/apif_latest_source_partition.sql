@@ -20,7 +20,7 @@
 
       with src as (
           select *
-          from {{ apif_latest_source_partition('api_football', 'raw_apif_bl1_fixtures_next') }}
+          from {{ apif_latest_source_partition('api_football', 'raw_apif_fixtures_next') }}
       ),
 
   DO NOT use for fanout tables (lineups, fixture_events, fixture_statistics,
