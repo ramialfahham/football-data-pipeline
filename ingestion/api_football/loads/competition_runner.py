@@ -1,7 +1,7 @@
 """Ingestion pipeline for a single competition.
 
 Two entry points:
-- run_cheap_phases(): catalog → fixtures → standings → rounds → teams → transfers.
+- run_cheap_phases(): catalog → fixtures → standings → teams → transfers.
   Returns CompetitionRunResult so the orchestrator can collect all competitions' state before
   running the global fanout pass.
 - run_squads_for_competition(): squad /players batch, run after global fanout.
@@ -18,7 +18,6 @@ from .coaches import load_coaches
 from .fixtures import fetch_merge_and_persist_fixtures
 from .catalog import fetch_catalog_persist_and_plan
 from .injuries import load_injuries
-from .rounds import load_rounds_merged
 from .squads import load_squad_players_batch
 from .standings import load_standings_if_enabled
 from .teams import load_teams_merge_and_extend_ids
@@ -85,8 +84,6 @@ def run_cheap_phases(
         )
         _ingestion_phase(league_code, "standings")
         load_standings_if_enabled(ctx, league_code, league_id, seasons_list, cov)
-        _ingestion_phase(league_code, "rounds")
-        load_rounds_merged(ctx, league_code, league_id, seasons_list)
         _ingestion_phase(league_code, "teams")
         load_teams_merge_and_extend_ids(
             ctx, league_code, league_id, seasons_list, reference_season, team_ids

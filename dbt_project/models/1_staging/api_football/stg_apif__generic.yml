@@ -43,18 +43,6 @@ models:
       - name: raw_ingested_at
         tests: [not_null]
 
-  - name: stg_apif__rounds
-    description: >
-      One row per round per season per league from GET /fixtures/rounds.
-      Latest ingestion snapshot selected per league_code. Grain: (league_code, api_season_year, round_name).
-    columns:
-      - name: league_code
-        tests: [not_null]
-      - name: round_name
-        tests: [not_null]
-      - name: raw_ingested_at
-        tests: [not_null]
-
   - name: stg_apif__teams
     description: >
       One row per team per season per league from GET /teams. Deduped to latest ingestion per
