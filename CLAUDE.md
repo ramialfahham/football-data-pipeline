@@ -36,6 +36,7 @@ Next: player insights chain (#153 → #156).
 | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
 | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
 | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
+| Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
 | GitHub Pages match preview plan | `C:\Users\Rami\.cursor\plans\gh_pages_match_preview_bce3ad94.plan.md` |
 
 ## Architecture decisions (non-negotiable)
