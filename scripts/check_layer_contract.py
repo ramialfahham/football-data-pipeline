@@ -5,6 +5,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DBT_MODELS = REPO_ROOT / "dbt_project" / "models"
+BASE_DIR = DBT_MODELS / "2_base"
 CORE_DIR = DBT_MODELS / "3_core"
 INTERMEDIATE_DIR = DBT_MODELS / "4_intermediate"
 STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
@@ -12,6 +13,23 @@ STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
 # Intermediate must not depend on marts (DAG flows int → mart only).
 INTERMEDIATE_FORBIDDEN_MART_REF = re.compile(
     r"""ref\s*\(\s*['"]mart_""",
+    re.IGNORECASE,
+)
+
+# Base sits below core/intermediate/marts in the DAG: it may only ref staging
+# (stg_) or other base (base_) models. A ref() to any upward layer reverses the
+# dependency direction. See dbt_project/docs/layering.md §2_base.
+BASE_FORBIDDEN_UPWARD_REF = re.compile(
+    r"""ref\s*\(\s*['"](?:dim_|fct_|int_|mart_)""",
+    re.IGNORECASE,
+)
+
+# Base models materialise as views by design (dbt_project.yml `2_base:
+# +materialized: view`; CLAUDE.md treats this as non-negotiable). A per-model
+# config() that overrides materialization to anything other than `view` breaks
+# that contract.
+BASE_MATERIALIZED = re.compile(
+    r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
     re.IGNORECASE,
 )
 
@@ -34,6 +52,32 @@ def check_core_forbidden_patterns(errors: list[str]) -> None:
                 rel = sql_path.relative_to(REPO_ROOT).as_posix()
                 errors.append(
                     f"{rel}: contains forbidden pattern in core: {pattern.pattern}"
+                )
+
+
+def check_base_layer(errors: list[str]) -> None:
+    if not BASE_DIR.is_dir():
+        return
+    layering_ref = "See dbt_project/docs/layering.md §2_base."
+    for sql_path in sorted(BASE_DIR.rglob("*.sql")):
+        content = sql_path.read_text(encoding="utf-8")
+        rel = sql_path.relative_to(REPO_ROOT).as_posix()
+
+        # 1. No upward refs — base may only read staging or other base models.
+        if BASE_FORBIDDEN_UPWARD_REF.search(content):
+            errors.append(
+                f"{rel}: base layer must not ref() core/intermediate/mart models "
+                f"(matched {BASE_FORBIDDEN_UPWARD_REF.pattern}). Base may only ref stg_* "
+                f"or base_* models. {layering_ref}"
+            )
+
+        # 2. Must materialize as a view — no per-model override to table/incremental/etc.
+        for match in BASE_MATERIALIZED.finditer(content):
+            kind = match.group(1).lower()
+            if kind != "view":
+                errors.append(
+                    f"{rel}: base model overrides materialization to '{kind}'. Base models "
+                    f"materialise as views by design; do not override this. {layering_ref}"
                 )
 
 
@@ -131,6 +175,7 @@ def check_staging_purity(errors: list[str]) -> None:
 
 def main() -> int:
     errors: list[str] = []
+    check_base_layer(errors)
     check_core_forbidden_patterns(errors)
     check_intermediate_no_mart_refs(errors)
     check_staging_inventory(errors)
