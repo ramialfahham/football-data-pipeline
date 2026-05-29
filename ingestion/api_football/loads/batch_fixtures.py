@@ -162,17 +162,40 @@ def _insert_fixture_rows(
 ) -> None:
     """Append one row per fixture to RAW_APIF_FIXTURE_DETAILS.
 
-    Each row: league_code = competition key, payload = fixture object, ingested_at = now.
+    Each row:
+      league_code = competition key
+      fixture_id  = top-level merge key, extracted from payload $.fixture.id
+      payload     = full fixture object
+      ingested_at = UTC timestamp of this write
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     ts = ingested_at.isoformat()
+
+    def _extract_fixture_id(fx: dict) -> int | None:
+        fid = (fx.get("fixture") or {}).get("id")
+        if fid is None:
+            return None
+        try:
+            return int(fid)
+        except (TypeError, ValueError):
+            return None
+
     ndjson = "\n".join(
-        json.dumps({"league_code": league_code, "payload": fx, "ingested_at": ts}, ensure_ascii=True)
+        json.dumps(
+            {
+                "league_code": league_code,
+                "fixture_id": _extract_fixture_id(fx),
+                "payload": fx,
+                "ingested_at": ts,
+            },
+            ensure_ascii=True,
+        )
         for fx in fixture_jsons
     ) + "\n"
     job_config = bigquery.LoadJobConfig(
         schema=[
             bigquery.SchemaField("league_code", "STRING"),
+            bigquery.SchemaField("fixture_id", "INT64"),
             bigquery.SchemaField("payload", "JSON"),
             bigquery.SchemaField("ingested_at", "TIMESTAMP"),
         ],
