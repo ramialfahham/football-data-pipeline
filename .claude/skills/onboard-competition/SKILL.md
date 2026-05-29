@@ -227,8 +227,20 @@ no SQL files were added (zero-file rule).
    If `ingest_active: false`, flip it to `true` when ready and push a follow-up
    commit (no PR needed for that single-field change).
 2. Trigger a dbt build (CI or local) to populate base / core / mart layers.
-3. Trigger the pages export workflow to refresh the deployed JSON.
-4. Spot-check the deployed fixture list for the new league to confirm data
+3. **Verify ingest health** with the `verify-competition-ingest` skill once the
+   first ingest + build have completed:
+
+   ```bash
+   PYTHONUTF8=1 python scripts/diagnostics/verify_competition_ingest.py --league {LEAGUE_CODE} --strict
+   ```
+
+   This catches the three defect classes that have each reached production —
+   NULL `fixture_id` (#297), stale wrong-ID fixture-details rows (#296), and
+   teams missing from `dim_team` — before they surface downstream. A clean
+   `--strict` run (exit 0) is the gate for considering the competition healthy.
+   Triage any `!!` finding per the verify-competition-ingest skill before moving on.
+4. Trigger the pages export workflow to refresh the deployed JSON.
+5. Spot-check the deployed fixture list for the new league to confirm data
    flows end to end.
 
 ## Known edge cases
