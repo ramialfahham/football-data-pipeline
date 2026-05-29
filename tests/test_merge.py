@@ -5,21 +5,15 @@ players) were removed in issue #220 when those tables switched to append-only
 writes. Each pipeline run now writes a complete fresh snapshot, so cross-run
 merging is no longer needed for those tables.
 
-Two merge functions remain and are tested here:
+One merge function remains and is tested here:
 
 - merge_fanout_batched: still used by the per-fixture fanout tables (lineups,
   events, stats, fixture players, predictions), which remain merge-on-write
   until issue #221 introduces the fixture coverage tracking table.
-
-- merge_rounds_season_blocks: used within a single pipeline run to assemble
-  round names from multiple seasons before writing the combined snapshot.
 """
 
 import pytest
-from ingestion.api_football.merge import (
-    merge_fanout_batched,
-    merge_rounds_season_blocks,
-)
+from ingestion.api_football.merge import merge_fanout_batched
 
 
 # ---------------------------------------------------------------------------
@@ -103,46 +97,3 @@ class TestMergeFanoutBatched:
             existing, incoming, league_code="WCQAF", valid_fixture_ids={256075}
         )
         assert len(result["response"][0]["statistics"]) == 1
-
-
-# ---------------------------------------------------------------------------
-# merge_rounds_season_blocks
-# ---------------------------------------------------------------------------
-
-class TestMergeRoundsSeasonBlocks:
-    def _rounds(self, names):
-        return {"response": names, "errors": []}
-
-    def test_first_season(self):
-        result = merge_rounds_season_blocks(None, 2024, self._rounds(["Round 1", "Round 2"]))
-        assert len(result["response"]) == 1
-        assert result["response"][0]["season"] == 2024
-        assert result["response"][0]["rounds"] == ["Round 1", "Round 2"]
-
-    def test_second_season_appended(self):
-        first = merge_rounds_season_blocks(None, 2023, self._rounds(["Round 1"]))
-        second = merge_rounds_season_blocks(first, 2024, self._rounds(["Round 1", "Round 2"]))
-        seasons = [b["season"] for b in second["response"]]
-        assert seasons == [2023, 2024]
-
-    def test_same_season_overwrites(self):
-        first = merge_rounds_season_blocks(None, 2024, self._rounds(["Round 1"]))
-        updated = merge_rounds_season_blocks(first, 2024, self._rounds(["Round 1", "Round 2", "Round 3"]))
-        blocks = {b["season"]: b for b in updated["response"]}
-        assert len(blocks[2024]["rounds"]) == 3
-
-    def test_legacy_flat_payload_discarded(self):
-        # Old format: response is a flat list of strings, not season blocks
-        legacy = {"response": ["Regular Season - 1", "Regular Season - 2"], "errors": []}
-        result = merge_rounds_season_blocks(legacy, 2024, self._rounds(["Round 1"]))
-        # Legacy data should not corrupt the new tagged format
-        for block in result["response"]:
-            assert isinstance(block, dict)
-            assert "season" in block
-
-    def test_sorted_by_season(self):
-        r1 = merge_rounds_season_blocks(None, 2022, self._rounds(["R1"]))
-        r2 = merge_rounds_season_blocks(r1, 2024, self._rounds(["R1"]))
-        r3 = merge_rounds_season_blocks(r2, 2023, self._rounds(["R1"]))
-        seasons = [b["season"] for b in r3["response"]]
-        assert seasons == sorted(seasons)

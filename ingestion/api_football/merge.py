@@ -4,14 +4,9 @@ With the move to append-only raw storage, most merge logic has been removed.
 Reference tables (fixtures, standings, teams, transfers, players) now write a
 fresh complete snapshot on every run — no cross-run merging needed.
 
-The two functions that remain:
+The one function that remains:
 
-1. merge_rounds_season_blocks — still used WITHIN a single run to assemble
-   round names from multiple seasons into one payload before writing. This is
-   not cross-run merging; it is building the run's snapshot from multiple API
-   calls made in the same session.
-
-2. merge_fanout_batched — used by the per-fixture fanout tables (lineups,
+1. merge_fanout_batched — used by the per-fixture fanout tables (lineups,
    events, stats, fixture players, predictions). These tables are still
    merge-on-write because each run only fetches a subset of fixtures (the
    missing ones) and the merged blob is how the pipeline tracks what has
@@ -106,58 +101,3 @@ def merge_fanout_batched(
         "league_code": league_code,
         "response": [by_id[k] for k in sorted(by_id.keys())],
     }
-
-
-def _rounds_legacy_flat(payload: dict | None) -> bool:
-    """Return True if the payload uses the old flat-list format (pre-season-block migration)."""
-    r = (payload or {}).get("response") or []
-    if not r:
-        return False
-    return isinstance(r[0], str)
-
-
-def merge_rounds_season_blocks(
-    existing: dict | None,
-    season: int,
-    rounds_pl: dict,
-) -> dict:
-    """Assemble round names from multiple seasons into a single payload.
-
-    The API returns a flat list of round name strings for one season at a time.
-    This function wraps each season's list in a {season, rounds} block and
-    merges them together so the final payload covers all seasons fetched in
-    this run.
-
-    Note: 'existing' here refers to the payload accumulated so far WITHIN this
-    run (starting as None on the first season). It is NOT the prior BigQuery row —
-    we no longer read prior rows for reference tables. Each run builds a fresh
-    complete snapshot from the API responses fetched that day.
-
-    Legacy flat-list payloads (written before this format was introduced) are
-    detected and discarded on first write rather than corrupting the merge.
-    """
-    raw_names = rounds_pl.get("response") or []
-    block = {"season": int(season), "rounds": list(raw_names)}
-
-    by_s: dict[int, dict] = {}
-    ex = existing or {}
-    if not _rounds_legacy_flat(ex):
-        for blk in ex.get("response") or []:
-            if isinstance(blk, dict) and blk.get("season") is not None:
-                try:
-                    by_s[int(blk["season"])] = blk
-                except (TypeError, ValueError):
-                    continue
-
-    by_s[int(season)] = block
-    resp = [by_s[s] for s in sorted(by_s.keys())]
-    out = {
-        k: v
-        for k, v in rounds_pl.items()
-        if k not in ("response", "errors", "results", "paging")
-    }
-    out["response"] = resp
-    out["errors"] = list(rounds_pl.get("errors") or [])
-    out["results"] = len(resp)
-    out["paging"] = {"current": 1, "total": 1}
-    return out
