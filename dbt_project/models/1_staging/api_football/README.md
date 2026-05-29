@@ -22,7 +22,6 @@ time from the raw column **`ingested_at`**).
 | `raw_apif_fixtures_next` (`RAW_APIF_FIXTURES_NEXT`) | [`stg_apif__fixtures_next.sql`](stg_apif__fixtures_next.sql) |
 | `raw_apif_leagues` (`RAW_APIF_LEAGUES`) | [`stg_apif__leagues.sql`](stg_apif__leagues.sql) |
 | `raw_apif_standings` (`RAW_APIF_STANDINGS`) | [`stg_apif__standings.sql`](stg_apif__standings.sql) |
-| `raw_apif_rounds` (`RAW_APIF_ROUNDS`) | [`stg_apif__rounds.sql`](stg_apif__rounds.sql) |
 | `raw_apif_teams` (`RAW_APIF_TEAMS`) | [`stg_apif__teams.sql`](stg_apif__teams.sql) |
 | `raw_apif_players` (`RAW_APIF_PLAYERS`) | [`stg_apif__players.sql`](stg_apif__players.sql) |
 | `raw_apif_transfers` (`RAW_APIF_TRANSFERS`) | [`stg_apif__transfers.sql`](stg_apif__transfers.sql) |

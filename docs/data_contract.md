@@ -41,13 +41,13 @@ Six tables serve the entire fleet of competitions. No per-competition raw tables
 | `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
 
-Additional smaller tables: `RAW_APIF_LEAGUES`, `RAW_APIF_ROUNDS` (same append schema, no `fixture_id`).
+Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
 
 ---
 
 ## Append-only writes (reference tables)
 
-Reference tables — fixtures-next, standings, teams, transfers, rounds, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
+Reference tables — fixtures-next, standings, teams, transfers, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
 
 1. The pipeline calls the API for all configured seasons (the full history window).
 2. The complete response is written as a new row with the current UTC timestamp.
@@ -122,11 +122,12 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | Fixtures | `/fixtures` | `RAW_APIF_FIXTURES_NEXT` |
 | League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_APIF_LEAGUES` |
 | Standings | `/standings` | `RAW_APIF_STANDINGS` |
-| Rounds | `/fixtures/rounds` | `RAW_APIF_ROUNDS` |
 | Teams | `/teams` | `RAW_APIF_TEAMS` |
 | Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_TRANSFERS` |
 | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
 | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+
+**Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
 
 ### /fixtures query style
 
