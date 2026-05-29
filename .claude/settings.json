@@ -6,17 +6,20 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git checkout -b*)",
             "shell": "bash",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"BRANCH DISCIPLINE GATE: Before creating this branch, run `gh pr list --state open` and ask two questions: (1) Is this work a hard dependency for an open PR — i.e. that PR cannot pass CI or be correct without it? (2) Does separating it into its own PR buy anything — independent reviewability, an earlier merge path, a meaningfully smaller PR? If it is a hard dependency AND separation buys nothing: checkout the existing branch and commit there. If it can stand alone and merge first: new branch is fine. If it is genuinely independent: new branch. See docs/working_agreement.md section 3a.\"}}'",
-            "statusMessage": "Checking branch discipline..."
-          },
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git_discipline.py\"",
+            "statusMessage": "Checking git discipline..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
           {
             "type": "command",
-            "if": "Bash(gh pr merge*)",
             "shell": "bash",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"additionalContext\": \"MERGE BLOCKED: Running `gh pr merge` is not permitted. Merging is the user's action, not the agent's. Open the PR, ensure CI is green, and stop. The user will merge. See docs/working_agreement.md section 3.\"}}'  && exit 1",
-            "statusMessage": "Blocking unauthorized merge..."
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/dbt_layer_gate.py\"",
+            "statusMessage": "Checking dbt layer contract..."
           }
         ]
       }
@@ -27,9 +30,8 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git commit*)",
             "shell": "bash",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PostToolUse\", \"additionalContext\": \"WORKFLOW GATE: git commit detected. Per working_agreement.md section 3 you MUST now complete steps 3 and 4 before responding to the user: (3) git push origin <branch> with explicit refspec, (4) gh pr create. Do not report done until the PR URL is returned.\"}}'",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git_workflow.py\"",
             "statusMessage": "Enforcing branch workflow..."
           }
         ]
