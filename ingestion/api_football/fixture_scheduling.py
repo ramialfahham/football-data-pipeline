@@ -7,7 +7,7 @@ itself (except for the squad /players helper used by loads/squads.py).
 Five concerns live here:
 
 1. Coverage flags — reads GET /leagues response to determine which endpoints a
-   competition supports (lineups, events, stats, predictions). Flags come from the
+   competition supports (lineups, events, stats, players). Flags come from the
    reference (latest) season; loads/fanout.py overrides the stats flag for finished
    fixtures because an upcoming reference season may falsely report stats=false.
 
@@ -15,7 +15,7 @@ Five concerns live here:
    or cursor-based round-robin. The cursor is persisted in BQ so runs pick up where
    the previous left off (useful for large historical backlogs).
 
-3. Quota budgeting — estimates HTTP calls per fixture (5) and reserves a block for
+3. Quota budgeting — estimates HTTP calls per fixture (4) and reserves a block for
    /players squad pagination. The daily remaining call count comes from API response
    headers updated after each fetch_json call.
 
@@ -45,12 +45,12 @@ from .http_client import fetch_merged_paged
 
 # (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)
 # Defined here so fixture_scheduling.py can gate the fanout queue without importing loads/.
+# API predictions are not ingested (we build our own), so there is no preds endpoint.
 _FANOUT_ENTITY_KEYS: tuple[tuple[str, str, str], ...] = (
     ("lineups", "LINEUPS", "fixture_lineups"),
     ("events", "FIXTURE_EVENTS", "fixture_events"),
     ("fx_stats", "FIXTURE_STATISTICS", "fixture_statistics"),
     ("fx_players", "FIXTURE_PLAYERS", "fixture_players"),
-    ("preds", "PREDICTIONS", "predictions"),
 )
 
 
@@ -215,9 +215,9 @@ def team_ids_for_league(
 def _fixture_fanout_http_estimate() -> int:
     """
     HTTP calls per fixture for the detailed bundle: events, statistics, lineups,
-    ``/fixtures/players``, and ``/predictions``.
+    and ``/fixtures/players``. (API predictions are not ingested.)
     """
-    return 5
+    return 4
 
 
 def _bool_at(coverage: dict, *path: str, default: bool = True) -> bool:
@@ -262,7 +262,6 @@ def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]
 
     return {
         "standings": b("standings"),
-        "predictions": b("predictions"),
         "fixture_events": b("fixtures", "events"),
         "fixture_lineups": b("fixtures", "lineups"),
         "fixture_statistics": b("fixtures", "statistics_fixtures"),

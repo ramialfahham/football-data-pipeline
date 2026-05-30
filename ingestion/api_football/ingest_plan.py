@@ -77,10 +77,9 @@ def _reference_season(comp: Competition, fixtures_payload: dict | None) -> int:
 def _fanout_covered_from_bq(client: bigquery.Client, league_code: str) -> dict[str, set[int]]:
     """Return covered fixture IDs per shell key for one league.
 
-    Reads the RAW_APIF_FIXTURE_COVERAGE table (one query covers all leagues and
-    endpoints) and translates the result to the shell-key format used by
-    _fixture_needs_any_endpoint. This replaces the old pattern of reading five
-    separate fanout blob payloads (one per endpoint) per league.
+    Derives coverage from RAW_APIF_FIXTURE_DETAILS (via read_coverage — one query
+    covers all leagues) and translates it to the shell-key format used by
+    _fixture_needs_any_endpoint.
     """
     all_covered = read_coverage(client)
     return covered_for_league(all_covered, league_code)

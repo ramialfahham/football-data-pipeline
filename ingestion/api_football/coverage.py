@@ -1,183 +1,136 @@
-"""Fixture coverage tracking — RAW_APIF_FIXTURE_COVERAGE.
+"""Fixture fanout coverage — derived from RAW_APIF_FIXTURE_DETAILS.
 
-WHY THIS TABLE EXISTS
----------------------
-The fanout pipeline fetches five endpoints per finished fixture (lineups, events,
-stats, fixture players, predictions). Each run only fetches the fixtures that are
-still missing at least one endpoint — it never re-fetches what is already covered.
+WHY THIS MODULE EXISTS
+----------------------
+The fanout pipeline fetches a bundle of sub-data per finished fixture (lineups,
+events, statistics, players) via GET /fixtures?ids=... Each run only fetches the
+fixtures that are still missing data — it never re-fetches what is already covered.
 
-Previously, the pipeline determined coverage by reading the merged JSON blob from
-each fanout raw table and scanning it for fixture IDs. With the move to append-only
-raw storage (issue #220), blobs no longer exist — each run writes a new row
-containing only that run's fetches.
+"Coverage" — which (league_code, fixture_id, endpoint) combinations already have
+data — is derived directly from RAW_APIF_FIXTURE_DETAILS, the append-only table
+that stores one row per fetched fixture (its full payload). There is no separate
+tracking table: the fanout data IS the source of truth, so coverage can never
+drift out of sync with it. (This replaced an earlier RAW_APIF_FIXTURE_COVERAGE
+tracking table — see issue #221 — which was a denormalized mirror that the live
+pipeline never updated.)
 
-RAW_APIF_FIXTURE_COVERAGE is the replacement: a simple tracking table with one row
-per (league_code, fixture_id, endpoint) combination, written once the first time
-each combination is successfully fetched. The completeness check and the fanout
-gap-detection logic both read from this table instead of parsing raw blobs.
+COVERAGE SEMANTICS (per endpoint)
+---------------------------------
+    LINEUPS / FIXTURE_EVENTS / FIXTURE_PLAYERS
+        Covered once the fixture has been fetched at all (its row exists). The
+        API does not always return these arrays, and an empty array is not a
+        gap we can close by re-fetching, so presence of the fixture row counts.
+    FIXTURE_STATISTICS
+        Covered only when the statistics array is non-empty. Empty statistics on
+        a finished fixture is usually a delivery delay, so it is retried within
+        STATS_GRACE_DAYS of kickoff (see covered_for_league).
 
-TABLE SCHEMA
-------------
-    league_code     STRING      — internal competition code (e.g. BL1, WC)
-    fixture_id      INT64       — API-Football fixture id
-    endpoint        STRING      — one of: LINEUPS, FIXTURE_EVENTS, FIXTURE_STATISTICS,
-                                  FIXTURE_PLAYERS, PREDICTIONS
-    first_fetched_at TIMESTAMP  — UTC timestamp of the run that wrote this row
-    has_data        BOOL        — True if the fetch returned non-empty data; False if
-                                  the response was empty (NULLABLE for legacy rows
-                                  written before this column was added — treated as True)
-
-The table is partitioned by DATE(first_fetched_at). A (league_code, fixture_id,
-endpoint) triple may have more than one row: FIXTURE_STATISTICS fixtures with
-has_data=False are retried within STATS_GRACE_DAYS of their kickoff date, writing
-a new row on each attempt. read_coverage() aggregates with LOGICAL_OR so callers
-always see at most one effective entry per triple.
+API-Football predictions are deliberately NOT ingested (we build our own), so
+there is no PREDICTIONS endpoint here.
 
 USAGE
 -----
-    # Read what is already covered (called before fanout to build the gap list):
     covered = read_coverage(client)
-    # covered["BL1"]["LINEUPS"][12345] == True   (data received)
-    # covered["BL1"]["FIXTURE_STATISTICS"][12346] == False  (empty, may retry)
-
-    # Write coverage for newly fetched fixture-endpoint combinations:
-    write_coverage(client, new_rows)
-    # new_rows = [{"league_code": "BL1", "fixture_id": 12347, "endpoint": "LINEUPS",
-    #              "has_data": True}, ...]
+    # covered["BL1"]["FIXTURE_STATISTICS"][12345] == True   (stats present)
+    # covered["BL1"]["LINEUPS"][12345]            == True   (fixture fetched)
 """
 
 from __future__ import annotations
 
-import json
-import io
 from datetime import date, datetime, timezone
 from collections import defaultdict
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-from .settings import GCP_PROJECT_ID, DATASET_ID
+from .settings import GCP_PROJECT_ID, DATASET_ID, raw_table
 
 # Finished fixtures whose FIXTURE_STATISTICS response was empty are retried for
 # this many days after their kickoff date. After the grace period, an empty
 # response is treated as permanent (stats are not coming from the API).
 STATS_GRACE_DAYS = 7
 
-# The BigQuery table name for fixture coverage tracking.
-COVERAGE_TABLE = "RAW_APIF_FIXTURE_COVERAGE"
+# The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
+# The value is the payload array whose non-emptiness must be checked, or None
+# when the fixture being fetched at all is sufficient to count as covered.
+ENDPOINT_REQUIRES_NONEMPTY: dict[str, str | None] = {
+    "LINEUPS":            None,
+    "FIXTURE_EVENTS":     None,
+    "FIXTURE_STATISTICS": "statistics",
+    "FIXTURE_PLAYERS":    None,
+}
 
-# All five fanout endpoints, in the same order used throughout the pipeline.
-# The string values here are the canonical endpoint names stored in the table.
-FANOUT_ENDPOINTS = (
-    "LINEUPS",
-    "FIXTURE_EVENTS",
-    "FIXTURE_STATISTICS",
-    "FIXTURE_PLAYERS",
-    "PREDICTIONS",
-)
+# All fanout endpoints, in the canonical order used throughout the pipeline.
+FANOUT_ENDPOINTS = tuple(ENDPOINT_REQUIRES_NONEMPTY.keys())
 
-# Maps from the shell key used in fanout.py to the endpoint name in this table.
-# Shell keys are short internal identifiers; endpoint names are the canonical strings.
+# Maps the shell key used in fanout scheduling to the endpoint name here.
 SHELL_KEY_TO_ENDPOINT: dict[str, str] = {
     "lineups":    "LINEUPS",
     "events":     "FIXTURE_EVENTS",
     "fx_stats":   "FIXTURE_STATISTICS",
     "fx_players": "FIXTURE_PLAYERS",
-    "preds":      "PREDICTIONS",
 }
 
 # Reverse mapping: endpoint name → shell key.
 ENDPOINT_TO_SHELL_KEY: dict[str, str] = {v: k for k, v in SHELL_KEY_TO_ENDPOINT.items()}
 
 
-def _coverage_table_id() -> str:
-    return f"{GCP_PROJECT_ID}.{DATASET_ID}.{COVERAGE_TABLE}"
-
-
-def ensure_coverage_table(client: bigquery.Client) -> None:
-    """Create RAW_APIF_FIXTURE_COVERAGE with date partitioning if it does not exist.
-
-    Safe to call on every pipeline run — create_table with exists_ok=True is a
-    no-op if the table already exists.
-
-    Also migrates existing tables that predate the has_data column: if the column
-    is absent, it is added as NULLABLE. Existing rows (all written for non-empty
-    responses) are left as NULL, which read_coverage treats as True via
-    COALESCE(has_data, TRUE) in the aggregation query.
-    """
-    table_id = _coverage_table_id()
-    schema = [
-        bigquery.SchemaField("league_code",      "STRING",    mode="REQUIRED"),
-        bigquery.SchemaField("fixture_id",        "INT64",     mode="REQUIRED"),
-        bigquery.SchemaField("endpoint",          "STRING",    mode="REQUIRED"),
-        bigquery.SchemaField("first_fetched_at",  "TIMESTAMP", mode="REQUIRED"),
-        bigquery.SchemaField("has_data",          "BOOL",      mode="NULLABLE"),
-    ]
-    table = bigquery.Table(table_id, schema=schema)
-    table.time_partitioning = bigquery.TimePartitioning(
-        type_=bigquery.TimePartitioningType.DAY,
-        field="first_fetched_at",
-    )
-    client.create_table(table, exists_ok=True)
-
-    # Add has_data to tables that were created before this column was introduced.
-    existing = client.get_table(table_id)
-    if not any(f.name == "has_data" for f in existing.schema):
-        new_schema = list(existing.schema) + [
-            bigquery.SchemaField("has_data", "BOOL", mode="NULLABLE")
-        ]
-        existing.schema = new_schema
-        client.update_table(existing, ["schema"])
+def _fixture_details_table_id() -> str:
+    return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('FIXTURE_DETAILS')}"
 
 
 def read_coverage(
     client: bigquery.Client,
 ) -> dict[str, dict[str, dict[int, bool]]]:
-    """Return all fetched fixture IDs grouped by league and endpoint, with their has_data flag.
+    """Return fanout coverage grouped by league and endpoint, derived from FIXTURE_DETAILS.
 
-    Returns a nested dict:
+    Returns a nested dict (same shape the old coverage-table reader returned, so
+    downstream callers are unchanged):
         covered[league_code][endpoint][fixture_id] = has_data
 
-    where has_data is True if the fetch returned non-empty data, False if it was
-    empty (and the fixture may be retried within the STATS_GRACE_DAYS window).
+    has_data is True when the endpoint's data is present (see COVERAGE SEMANTICS
+    in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
+    statistics array; the other three endpoints are True for every fetched fixture.
 
-    Rows are aggregated by (league_code, fixture_id, endpoint) so that a fixture
-    which was retried after an empty response has at most one entry per key. If any
-    row for a given key has has_data=True (or NULL, which means a legacy row written
-    before this column was added), the aggregate is True — data was received and no
-    further retry is needed.
+    Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR so that a
+    fixture which briefly has more than one row (e.g. a retried fixture mid
+    delete-and-reinsert) yields one effective value.
 
-    Returns an empty dict if the coverage table does not exist yet (first ever run).
+    Returns an empty dict if RAW_APIF_FIXTURE_DETAILS does not exist yet (first
+    ever run, before any fanout has happened).
     """
-    table_id = _coverage_table_id()
+    table_id = _fixture_details_table_id()
 
-    # Check table exists before querying to avoid an error on the very first run.
+    # Check the table exists before querying to avoid an error on the very first run.
     try:
         client.get_table(table_id)
     except NotFound:
         return {}
 
-    # Aggregate rows so retried fixtures appear once. COALESCE(has_data, TRUE) treats
-    # legacy NULL rows (written before the has_data column existed) as True — those rows
-    # were only ever written for non-empty responses, so True is the correct semantic.
-    # LOGICAL_OR means: if any row for this key has has_data=True, the aggregate is True.
+    # One row per fixture: did this fixture's statistics array ever arrive non-empty?
+    # The other three endpoints count as covered whenever the fixture row exists.
     q = f"""
         SELECT
             league_code,
-            fixture_id,
-            endpoint,
-            LOGICAL_OR(COALESCE(has_data, TRUE)) AS has_data
+            CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
+            LOGICAL_OR(ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0)
+                AS has_statistics
         FROM `{table_id}`
-        GROUP BY league_code, fixture_id, endpoint
+        WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
+        GROUP BY league_code, fixture_id
     """
     rows = list(client.query(q).result())
 
-    # Build the nested dict: covered[league_code][endpoint][fixture_id] = has_data
     covered: dict[str, dict[str, dict[int, bool]]] = defaultdict(lambda: defaultdict(dict))
     for row in rows:
-        covered[row.league_code][row.endpoint][int(row.fixture_id)] = bool(row.has_data)
+        lc = row.league_code
+        fid = int(row.fixture_id)
+        has_stats = bool(row.has_statistics)
+        for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
+            covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
 
-    # Convert defaultdicts to plain dicts for cleaner downstream usage.
+    # Convert defaultdicts to plain dicts so downstream code cannot rely on
+    # auto-create behaviour (a missing key should raise KeyError).
     return {lc: dict(endpoints) for lc, endpoints in covered.items()}
 
 
@@ -190,10 +143,10 @@ def covered_for_league(
     """Return the fixture IDs that should be skipped this run, keyed by shell key.
 
     Translates endpoint names (LINEUPS, FIXTURE_EVENTS, ...) to the shell keys
-    (lineups, events, ...) used throughout fanout.py, so the rest of the fanout
-    code does not need to know about the coverage table's naming convention.
+    (lineups, events, ...) used throughout the fanout scheduler, so the rest of
+    the fanout code does not need to know about endpoint naming.
 
-    Returns a dict with all five shell keys, each mapping to the set of fixture
+    Returns a dict with all four shell keys, each mapping to the set of fixture
     IDs that should NOT be re-fetched. A fixture is excluded from the skip set
     (i.e. will be re-fetched) only when all of the following hold:
       - The endpoint is FIXTURE_STATISTICS
@@ -234,60 +187,3 @@ def covered_for_league(
         result[shell_key] = skip_set
 
     return result
-
-
-def write_coverage(
-    client: bigquery.Client,
-    new_rows: list[dict],
-) -> None:
-    """Append newly fetched (league_code, fixture_id, endpoint) combinations.
-
-    Each dict in new_rows must have:
-        league_code  str   — e.g. "BL1"
-        fixture_id   int   — API fixture id
-        endpoint     str   — one of FANOUT_ENDPOINTS
-        has_data     bool  — optional; defaults to True when absent
-
-    Rows are written with WRITE_APPEND. The first_fetched_at timestamp is set
-    to the current UTC time for all rows in this batch.
-
-    For FIXTURE_STATISTICS, a fixture within its grace period may appear more than
-    once across runs (has_data=False each time until data arrives or the grace period
-    elapses). read_coverage() handles this with LOGICAL_OR aggregation so the
-    downstream skip-or-retry decision always sees one effective value per triple.
-    """
-    if not new_rows:
-        return
-
-    table_id = _coverage_table_id()
-    fetched_at = datetime.now(timezone.utc).isoformat()
-
-    # Build NDJSON: one line per row.
-    # has_data defaults to True when not supplied — callers that do not set it
-    # are writing coverage for endpoints where any response counts as success.
-    lines = []
-    for row in new_rows:
-        lines.append(json.dumps({
-            "league_code":     row["league_code"],
-            "fixture_id":      int(row["fixture_id"]),
-            "endpoint":        row["endpoint"],
-            "first_fetched_at": fetched_at,
-            "has_data":        bool(row.get("has_data", True)),
-        }, ensure_ascii=True))
-    ndjson = "\n".join(lines) + "\n"
-
-    job_config = bigquery.LoadJobConfig(
-        schema=[
-            bigquery.SchemaField("league_code",      "STRING",    mode="REQUIRED"),
-            bigquery.SchemaField("fixture_id",        "INT64",     mode="REQUIRED"),
-            bigquery.SchemaField("endpoint",          "STRING",    mode="REQUIRED"),
-            bigquery.SchemaField("first_fetched_at",  "TIMESTAMP", mode="REQUIRED"),
-            bigquery.SchemaField("has_data",          "BOOL",      mode="NULLABLE"),
-        ],
-        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-        write_disposition="WRITE_APPEND",
-    )
-    job = client.load_table_from_file(
-        io.BytesIO(ndjson.encode("utf-8")), table_id, job_config=job_config
-    )
-    job.result()

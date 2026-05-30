@@ -5,11 +5,11 @@ containing the API response for that run. Tables are partitioned by the date
 of ingestion (ingested_at) so BigQuery only scans the relevant day's data
 when staging models filter to the latest partition.
 
-The only exception is the per-fixture fanout tables (lineups, events, stats,
-fixture players, predictions). These are still written with WRITE_TRUNCATE
-until the completeness tracking table migration lands (issue #221), because
-each run only fetches a subset of fixtures and we need the merged history
-to know what is already covered.
+The per-fixture fanout table (RAW_APIF_FIXTURE_DETAILS) is also append-only:
+loads/batch_fixtures.py writes one row per fetched fixture and derives coverage
+by reading those rows back (see coverage.py), so no merge step or separate
+tracking table is needed. WRITE_TRUNCATE remains only for single-current-state
+operational tables (e.g. the ingest lock and the completeness snapshot).
 """
 
 from __future__ import annotations

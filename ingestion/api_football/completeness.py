@@ -30,13 +30,13 @@ from .settings import raw_table
 COMPLETENESS_SNAPSHOT_TABLE = "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT"
 _STATS_ENTITY = "FIXTURE_STATISTICS"
 
-# Batched fanout raw entities (fixture_id blocks).
+# Batched fanout raw entities (fixture_id blocks). API predictions are not
+# ingested (we build our own), so there is no PREDICTIONS endpoint.
 FANOUT_ENTITIES = (
     "LINEUPS",
     "FIXTURE_EVENTS",
     "FIXTURE_STATISTICS",
     "FIXTURE_PLAYERS",
-    "PREDICTIONS",
 )
 
 # API-Football ``fixture.status.short`` codes where the match has concluded and
@@ -113,10 +113,10 @@ def run_ingest_completeness_checks(client: bigquery.Client) -> dict[str, Any]:
         out["skipped"] = True
         return out
 
-    # Read the coverage table ONCE for all competitions. This replaces the old
-    # pattern of reading one merged blob per endpoint per competition (5 reads ×
-    # N competitions). The coverage table is the authoritative source of which
-    # (league_code, fixture_id, endpoint) combinations have been successfully fetched.
+    # Derive coverage ONCE for all competitions, directly from RAW_APIF_FIXTURE_DETAILS
+    # (one query). FIXTURE_DETAILS — the actual fanout data, one row per fetched
+    # fixture — is the source of truth for which (league_code, fixture_id, endpoint)
+    # combinations have data, so coverage can never drift out of sync with it.
     all_covered = read_coverage(client)
 
     selected, _skipped = selected_competitions()

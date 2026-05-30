@@ -33,7 +33,7 @@ def _league_block(
         gate = "hard" if status == "active" else "soft"
     fanout = {}
     for entity in ("LINEUPS", "FIXTURE_EVENTS", "FIXTURE_STATISTICS",
-                   "FIXTURE_PLAYERS", "PREDICTIONS"):
+                   "FIXTURE_PLAYERS"):
         miss = missing_per_endpoint.get(entity, 0)
         fanout[entity] = {
             "covered_count": finished - miss,
@@ -188,7 +188,7 @@ class TestCompletenessMarkdownSummary:
         assert "## Ingestion completeness — 2026-05-08 06:04 UTC" in md
         assert "| Competition | Status | Finished / Total | Coverage | Backfill remaining |" in md
         assert "| BL1 | active (hard gate) | 3056 / 3074 |" in md
-        assert "all 5 endpoints 100%" in md
+        assert "all 4 endpoints 100%" in md
         assert "| — |" in md.splitlines()[-1]  # backfill cell empty for complete
 
     def test_partial_coverage_shows_per_endpoint_percentage(self):

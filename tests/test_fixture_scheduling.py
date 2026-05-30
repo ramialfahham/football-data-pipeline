@@ -55,7 +55,7 @@ class TestCoverageForSeason:
     def test_empty_envelope_defaults_all_true(self):
         cov = _coverage_for_season({}, 2024)
         for key in ("fixture_statistics", "fixture_lineups", "fixture_events",
-                    "fixture_players", "predictions"):
+                    "fixture_players"):
             assert cov[key] is True, f"{key} should default to True"
 
 
@@ -106,12 +106,12 @@ def _covered_all(fixture_id: int) -> dict[str, set[int]]:
 class TestFixtureNeedsAnyEndpoint:
     def test_uncovered_fixture_needs_fetch(self):
         cov = {"fixture_lineups": True, "fixture_events": True, "fixture_statistics": True,
-               "fixture_players": True, "predictions": True}
+               "fixture_players": True}
         assert _fixture_needs_any_endpoint(1, _covered_nothing(), cov, finished_fixture_ids=set())
 
     def test_fully_covered_fixture_skipped(self):
         cov = {"fixture_lineups": True, "fixture_events": True, "fixture_statistics": True,
-               "fixture_players": True, "predictions": True}
+               "fixture_players": True}
         assert not _fixture_needs_any_endpoint(1, _covered_all(1), cov, finished_fixture_ids=set())
 
     def test_finished_fixture_needs_stats_regardless_of_coverage_flag(self):
@@ -124,7 +124,6 @@ class TestFixtureNeedsAnyEndpoint:
             "fixture_events": True,
             "fixture_statistics": False,
             "fixture_players": True,
-            "predictions": True,
         }
         covered = _covered_all(100)
         covered["fx_stats"] = set()  # stats not yet fetched
@@ -142,7 +141,6 @@ class TestFixtureNeedsAnyEndpoint:
             "fixture_events": True,
             "fixture_statistics": False,
             "fixture_players": True,
-            "predictions": True,
         }
         covered = _covered_all(200)
         covered["fx_stats"] = set()  # stats not covered, but fixture is not finished
@@ -153,23 +151,23 @@ class TestFixtureNeedsAnyEndpoint:
         assert not _fixture_needs_any_endpoint(200, covered, cov, finished_fixture_ids=finished)
 
     def test_endpoint_disabled_by_coverage_does_not_block_completion(self):
-        # predictions=False: a fixture that has everything else covered is considered complete.
+        # events=False: a fixture that has everything else covered is considered complete,
+        # because an endpoint the competition does not support must not block the fanout.
         cov = {
             "fixture_lineups": True,
-            "fixture_events": True,
+            "fixture_events": False,   # competition doesn't support events
             "fixture_statistics": True,
             "fixture_players": True,
-            "predictions": False,   # competition doesn't support predictions
         }
         covered = {key: {300} for key, _, _ in _FANOUT_ENTITY_KEYS}
-        covered["preds"] = set()  # predictions not covered, but flag is False
+        covered["events"] = set()  # events not covered, but flag is False
 
         assert not _fixture_needs_any_endpoint(300, covered, cov, finished_fixture_ids=set())
 
     def test_partial_coverage_still_needs_fetch(self):
         # lineups covered, but events not → still needs a fetch
         cov = {"fixture_lineups": True, "fixture_events": True, "fixture_statistics": True,
-               "fixture_players": True, "predictions": True}
+               "fixture_players": True}
         covered = _covered_nothing()
         covered["lineups"] = {50}  # only lineups covered
 
@@ -183,7 +181,7 @@ class TestFixtureNeedsAnyEndpoint:
 def _all_cov() -> dict[str, bool]:
     return {
         "fixture_lineups": True, "fixture_events": True, "fixture_statistics": True,
-        "fixture_players": True, "predictions": True,
+        "fixture_players": True,
     }
 
 
