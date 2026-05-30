@@ -173,6 +173,22 @@ Canonical fact inventory for this project:
 
 All facts propagate `league_code` so they are safe to union across future leagues.
 
+### Materialization: incremental vs full-refresh
+
+Core materialization is **decided per fact by how its raw source delivers data**, not by a blanket rule. Dimensions are always full-refresh `table`.
+
+| Source delivery pattern | Materialization | Why |
+|-------------------------|-----------------|-----|
+| Raw snapshot carries the **full history** every run | `table` (full-refresh) | The latest snapshot already contains every record, so a full rebuild reproduces complete history. Incremental would add merge complexity for no gain. |
+| Raw delivers only a **delta/subset** per run (per-fixture fanout) | `incremental` (with documented `unique_key`) | Each run fetches only the missing fixtures, so history must accumulate in core — a full rebuild would see only today's subset. |
+
+Applied to the current inventory:
+
+- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_transfer`, `fct_team_market_value_snapshot`. The `/fixtures`, `/standings`, `/transfers` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
+- **`incremental`:** `fct_fixture_event` (`unique_key='event_sk'`), `fct_fixture_player_stats` (`fixture_player_stat_sk`), `fct_fixture_team_stats` (`fixture_team_stat_sk`). These per-fixture fanout tables fetch only the next round's fixtures each run, so prior fixtures' rows must persist in core.
+
+**Rule for the next agent:** do **not** "upgrade" a reference-derived fact (`fct_fixture` etc.) to `incremental` — full-refresh is intentional and depends on the raw snapshot carrying full history (a property PR #311 / issue #283 explicitly preserves by still writing skipped historical seasons into the snapshot). Only make a *new* fact incremental if its source delivers a partial payload per run, and document the `unique_key` and the reason inline, mirroring the fanout facts. This split is the historical resolution of issue #223 (which originally proposed making *all* core facts incremental — that premise only held for the fanout tables).
+
 ### Snapshots
 
 The project does not currently use dbt snapshots. The product surfaces only the current state of every entity, so adding SCD2 history without a downstream consumer is over-engineering — and the `unique_key` design is easy to get wrong (a previous `snap_apif_d1_standings` snapshot included `group_description` in the key, which leaked stale zone rows into `fct_standings`). If a future feature genuinely needs SCD2 history, configure `unique_key` from the entity's stable identity only and put changing attributes in `check_cols`.
