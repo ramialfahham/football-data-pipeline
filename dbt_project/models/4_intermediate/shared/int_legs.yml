@@ -1,0 +1,81 @@
+version: 2
+
+models:
+  - name: int_legs__team_match
+    description: >
+      Building-block team-match leg: one row per (team, finished match) with the team's and
+      opponent's raw stats, competition type/entity classification, and windowing dimensions.
+      Cross-competition, cross-type. The shared foundation every team performance metric
+      aggregates over. Grain: (fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, team_sk]
+    columns:
+      - name: fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+      - name: competition_type
+        description: "Resolved from the competition_registry seed via league_code."
+        tests: [not_null]
+      - name: entity_type
+        description: "club or national, resolved from the competition_types seed."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: result
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["W", "D", "L"]
+      - name: home_away
+        tests:
+          - accepted_values:
+              values: ["home", "away"]
+
+  - name: int_legs__player_match
+    description: >
+      Building-block player-match leg: one row per (player, finished match) with raw player
+      counts, competition classification, and windowing dimensions. Naturally sparse where a
+      competition lacks statistics_players. Grain: (fixture_sk, player_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, player_sk]
+    columns:
+      - name: fixture_sk
+        tests: [not_null]
+      - name: player_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: home_away
+        tests:
+          - accepted_values:
+              values: ["home", "away"]
+
+  - name: int_legs__team_from_players
+    description: >
+      Player-match legs summed to (team, finished match) — unlocks team metrics not in
+      fct_fixture_team_stats (tackles, interceptions, blocks, duels, dribbles, key passes).
+      players_with_stats carries the sample size. Grain: (fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, team_sk]
+    columns:
+      - name: fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: players_with_stats
+        description: "Count of players with a stat row for this team-match (completeness signal)."
+        tests: [not_null]
