@@ -1,6 +1,29 @@
 version: 2
 
 seeds:
+  - name: competition_types
+    description: >
+      Canonical competition-type taxonomy. One row per competition_type declaring whether
+      it is a club or national-team competition (entity_type). This is the single source
+      of truth for the club/national split: downstream models look it up by competition_type
+      rather than hardcoding the mapping. Every competition_type used in
+      docs/competition_registry.yml must have a row here (enforced by
+      scripts/check_competition_type_seed.py). Rule: no competition_type is both club and
+      national. `qualifying` = national-team qualifying (WC/EC); club qualifying rounds, if
+      onboarded, take their own clearly-club type.
+    columns:
+      - name: competition_type
+        description: "Competition-type enum value, matching docs/competition_registry.yml competition_type."
+        tests:
+          - not_null
+          - unique
+      - name: entity_type
+        description: "Whether the competition is played by clubs or national teams."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+
   - name: metric_definitions
     description: >
       Canonical metric ids and mart column bindings (no locale-specific copy).
