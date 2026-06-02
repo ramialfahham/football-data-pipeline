@@ -24,6 +24,26 @@ seeds:
           - accepted_values:
               values: ["club", "national"]
 
+  - name: competition_registry
+    description: >
+      league_code → competition_type mapping, generated from docs/competition_registry.yml
+      by scripts/sync_dbt_vars.py (do not hand-edit). dbt models join on this to resolve a
+      competition's type, then look up entity_type via the competition_types seed. Kept in
+      lockstep with the registry by scripts/check_registry_var_sync.py.
+    columns:
+      - name: league_code
+        description: "Internal competition code (matches docs/competition_registry.yml)."
+        tests:
+          - not_null
+          - unique
+      - name: competition_type
+        description: "Competition type; must exist in the competition_types taxonomy."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('competition_types')
+              field: competition_type
+
   - name: metric_definitions
     description: >
       Canonical metric ids and mart column bindings (no locale-specific copy).
