@@ -20,11 +20,11 @@ fixtures as (
 ),
 
 registry as (
-    select league_code, competition_type from {{ ref('competition_registry') }}
+    select * from {{ ref('competition_registry') }}
 ),
 
 types as (
-    select competition_type, entity_type from {{ ref('competition_types') }}
+    select * from {{ ref('competition_types') }}
 ),
 
 finished as (
@@ -50,10 +50,6 @@ select
     f.season_api_year,
     f.kickoff_datetime,
     f.round_name,
-    safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
-    case when ps.team_sk = f.home_team_sk then f.away_team_sk else f.home_team_sk end
-        as opponent_team_sk,
-    case when ps.team_sk = f.home_team_sk then 'home' else 'away' end as home_away,
     reg.competition_type,
     typ.entity_type,
     ps.minutes_played,
@@ -78,7 +74,11 @@ select
     ps.fouls_drawn,
     ps.fouls_committed,
     ps.cards_yellow,
-    ps.cards_red
+    ps.cards_red,
+    safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
+    case when ps.team_sk = f.home_team_sk then f.away_team_sk else f.home_team_sk end
+        as opponent_team_sk,
+    case when ps.team_sk = f.home_team_sk then 'home' else 'away' end as home_away
 from player_stats as ps
 inner join finished as f
     on ps.fixture_sk = f.fixture_sk

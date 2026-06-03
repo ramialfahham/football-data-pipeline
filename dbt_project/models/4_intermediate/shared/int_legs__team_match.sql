@@ -21,11 +21,11 @@ team_stats as (
 ),
 
 registry as (
-    select league_code, competition_type from {{ ref('competition_registry') }}
+    select * from {{ ref('competition_registry') }}
 ),
 
 types as (
-    select competition_type, entity_type from {{ ref('competition_types') }}
+    select * from {{ ref('competition_types') }}
 ),
 
 -- Each finished match as two team legs: the home side's perspective and the away side's.
