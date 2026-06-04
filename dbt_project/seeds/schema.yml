@@ -44,6 +44,47 @@ seeds:
               to: ref('competition_types')
               field: competition_type
 
+  - name: metric_catalogue
+    description: >
+      Single source of truth for every metric the platform computes. One row per metric.
+      Captures the formula (numerator / denominator), entity type (team/player), i18n key,
+      and display format. Formulas reference raw totals from int_legs__* building-block legs;
+      the mart applies the window context and computes the final values. Window-agnostic:
+      metric IDs carry no window suffix. Part of epic #317.
+    config:
+      +full_refresh: true
+    columns:
+      - name: metric_id
+        description: "Stable semantic id. Window-agnostic — no _recent or _pretournament suffix."
+        tests:
+          - not_null
+          - unique
+      - name: entity
+        description: "Whether this metric describes a team or a player."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["team", "player"]
+      - name: label_i18n_key
+        description: "i18n key for the human-readable label."
+        tests: [not_null]
+      - name: description
+        description: "Plain-English definition: what the metric measures, nullability, and source columns."
+        tests: [not_null]
+      - name: numerator
+        description: "Source column(s) from int_legs__* to sum, or a formula expression for derived values. Blank for lookups."
+      - name: denominator
+        description: "'games' for per-match rates; a column name to SUM for ratios; blank for raw sums and lookups."
+      - name: lower_is_better
+        description: "True when a lower value indicates better performance."
+        tests: [not_null]
+      - name: format
+        description: "Display format: integer, decimal_0, decimal_1, percent, or points_fraction."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction"]
+
   - name: metric_definitions
     description: >
       Canonical metric ids and mart column bindings (no locale-specific copy).
