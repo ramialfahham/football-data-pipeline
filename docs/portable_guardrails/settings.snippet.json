@@ -1,6 +1,18 @@
 {
-  "_comment": "Portable agent guardrails. Merge the `hooks` block below into your ~/.claude/settings.json (global, applies to every project) or a project's .claude/settings.json. Copy hooks/plan_implement_gate.py and hooks/pre_push_gate.py into the matching hooks dir ($HOME/.claude/hooks for global). These two hooks are project-agnostic. See ../agent_guardrails.md.",
+  "_comment": "Portable agent guardrails. Merge the `hooks` block below into your ~/.claude/settings.json (global, applies to every project) or a project's .claude/settings.json. Copy hooks/*.py into the matching hooks dir ($HOME/.claude/hooks for global). All hooks are project-agnostic and fail open. The handover hooks read/remind about a per-project .claude/active_work.md. See ../agent_guardrails.md.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$HOME/.claude/hooks/handover_in.py\"",
+            "statusMessage": "Loading active-work handover..."
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -10,6 +22,23 @@
             "shell": "bash",
             "command": "python \"$HOME/.claude/hooks/pre_push_gate.py\"",
             "statusMessage": "Pre-push checklist..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$HOME/.claude/hooks/handover_out.py\"",
+            "statusMessage": "Handover write-out reminder..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$HOME/.claude/hooks/handover_plan_gate.py\"",
+            "statusMessage": "Plan-back gate..."
           }
         ]
       }

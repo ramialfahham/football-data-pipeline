@@ -68,8 +68,28 @@ elsewhere.
 |---|---|---|
 | `plan_implement_gate.py` | PostToolUse ExitPlanMode | Right after a plan is approved: re-read the standards governing the files about to change; name the layer/module each change belongs in; hold to scope; plan to validate before pushing. |
 | `pre_push_gate.py` | PreToolUse Bash | Before a real `git push`: run local validation first (avoid the CI round trip); confirm the push targets a feature branch, not main/master. |
+| `handover_in.py` | SessionStart | Injects the project's `.claude/active_work.md` into every new chat so a fresh agent continues from the exact documented state instead of re-deriving (or silently re-scoping) it. The hard read-in half of the enforced handover. |
+| `handover_plan_gate.py` | PreToolUse Edit/Write/MultiEdit | On the first code edit of a session where a handover exists, requires restating the locked spec and getting user approval before writing code. Fires once per session; skips edits to the handover file. The safety net that puts the user back in the loop before divergence becomes work. |
+| `handover_out.py` | PreToolUse Bash | On a real `git push`, reminds to update `.claude/active_work.md` to reflect the new status. Keeps the handover current for the next session. (Reminder, not a hard block — a crying-wolf push block would get ignored.) |
 
 No overlap between global and project hooks → no double-firing.
+
+### The enforced handover — `.claude/active_work.md`
+
+Continuity across chats is enforced, not hoped for. Each project keeps a single
+**`.claude/active_work.md`** — a short, authoritative handover: current task, the
+locked spec (or link), status (done / in-progress / next concrete action), and an
+explicit **do-NOT** list. It is the *only* thing a fresh chat is guaranteed to read
+(injected by `handover_in.py`). The loop:
+
+- **Read-in (hard):** `handover_in.py` injects it at SessionStart — unavoidable.
+- **Plan-back (safety net):** `handover_plan_gate.py` forces restate-and-approve before
+  code, so a stale or misread handover is caught by the user before any work.
+- **Write-out (kept current):** `handover_out.py` reminds on push to update it.
+
+This exists because a fresh chat once re-scoped a fully-specified task (it read the
+issue title + memory and built the wrong thing). Auto-loaded memory was not enough —
+the handover must be a single focused file, pushed in, with the user as the gate.
 
 ---
 
