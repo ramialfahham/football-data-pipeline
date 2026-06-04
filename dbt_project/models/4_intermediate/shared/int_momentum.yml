@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: int_momentum__team
+    description: >
+      W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
+      totals from the team's last 5 finished matches (cross-competition, same entity_type,
+      season_api_year-capped for clubs, recency-only for national teams). No ratios —
+      those are computed in mart_momentum__team. Player-derived columns (key_passes,
+      tackles, …) are NULL when player stats are unavailable for the window.
+      Grain: (upcoming_fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk]
+    columns:
+      - name: upcoming_fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["last_5"]
+      - name: games_in_window
+        description: "Number of finished matches in the window (1–5)."
+        tests: [not_null]
+      - name: contributing_competitions
+        description: "Array of distinct league_codes from which the 5 legs were drawn."
+        tests: [not_null]
+      - name: games_with_player_stats
+        description: "Count of the 5 legs that have a matching row in int_legs__team_from_players."
+
+  - name: int_momentum__player
+    description: >
+      W1 last-5 momentum builder — player. For each upcoming fixture side, identifies the
+      team's last 5 finished matches (same logic as int_momentum__team) and aggregates raw
+      player stat totals for every player who appeared in those matches. No ratios.
+      A player absent from some matches contributes stats only for matches they appeared in.
+      Grain: (upcoming_fixture_sk, team_sk, player_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+    columns:
+      - name: upcoming_fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: player_sk
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["last_5"]
+      - name: games_in_window
+        description: "Team window size (max 5). Not the player's individual appearance count."
+        tests: [not_null]
+      - name: position_code
+        description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."

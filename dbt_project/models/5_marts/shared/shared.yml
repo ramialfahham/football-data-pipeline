@@ -11,6 +11,79 @@ version: 2
 #   - one semantic assertion per rollup (e.g. wins + draws + losses = played)
 
 models:
+  - name: mart_momentum__team
+    description: >
+      W1 last-5 momentum mart — team. One row per upcoming fixture side. Computes all
+      final team performance metrics from int_momentum__team raw sums. All ratios and
+      per-match rates live here; none in the builder. league_rank is excluded — it comes
+      from the standings surface (#322). Player-derived metrics (key_passes_per_match
+      through dribbles_success_pct) are NULL when no player stats exist for the window.
+      Grain: (upcoming_fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk]
+    columns:
+      - name: upcoming_fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key — app slices by this to retrieve fixtures for a competition."
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["last_5"]
+      - name: games_in_window
+        tests: [not_null]
+      - name: is_home
+        description: "True when team_sk is the home side of the upcoming fixture."
+        tests: [not_null]
+
+  - name: mart_momentum__player
+    description: >
+      W1 last-5 momentum mart — player. One row per player per upcoming fixture side.
+      Raw counts (goals, assists, cards, …) are passed through directly from the builder.
+      Ratios (save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct) are
+      computed here via safe_divide. save_pct is only meaningful for goalkeepers
+      (position_code = 'G'). Grain: (upcoming_fixture_sk, team_sk, player_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+    columns:
+      - name: upcoming_fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: player_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key — app slices by this to retrieve fixtures for a competition."
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["last_5"]
+      - name: games_in_window
+        tests: [not_null]
+      - name: position_code
+        description: "Player position code (e.g. G, D, M, F). Used to scope save_pct to goalkeepers."
+      - name: is_home
+        description: "True when team_sk is the home side of the upcoming fixture."
+        tests: [not_null]
+
   - name: mart_team_season
     description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
     meta:

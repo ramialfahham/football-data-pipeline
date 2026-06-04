@@ -37,3 +37,7 @@ tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the
 save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent
 cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,cards_yellow,,false,integer
 cards_red,player,playerMetrics.cards.red,Red cards in the form window.,cards_red,,false,integer
+offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.,offsides,,true,integer
+dribbles_past,player,playerMetrics.dribbles.past,Times dribbled past by an opponent in the form window.,dribbles_past,,true,integer
+penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.,penalty_won,,false,integer
+penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,penalty_committed,,true,integer
