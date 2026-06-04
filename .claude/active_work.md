@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-03_
+_Last updated: 2026-06-03 (end of session — next action: #327)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -17,11 +17,12 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
 - ✅ **#319** merged — `competition_registry.csv` seed (league_code→competition_type) +
   three shared building-block legs in `dbt_project/models/4_intermediate/shared/`:
   `int_legs__team_match`, `int_legs__player_match`, `int_legs__team_from_players`.
-- 🚧 **In review now:** enforced-handover hooks (branch `chore/enforced-handover-hooks`) —
-  `handover_in` / `handover_plan_gate` / `handover_out` in `docs/portable_guardrails/`,
-  plus this file. Not yet registered in `~/.claude/settings.json` (awaiting review).
-- ⚠️ A fresh chat previously **diverged on #327** (it added descriptions to the OLD marts
-  instead of building the catalogue seed). Discard/redirect that work.
+- ✅ **#331** merged — enforced cross-chat handover: global hooks (`handover_in` /
+  `handover_plan_gate` / `handover_out`) + this file. Hooks are **registered and active**
+  in `~/.claude/settings.json`. This file is what you (a fresh chat) were just handed.
+- ⚠️ A fresh chat previously **diverged on #327** (added descriptions to the OLD marts
+  instead of building the catalogue seed). That work was **discarded** — do not repeat it.
+- **No work in flight.** Clean `main`, no open PRs. Start the next item below.
 
 ## Next concrete action (build order)
 1. **#327 — metric catalogue seed.** Build `dbt_project/seeds/metric_catalogue.csv` as the
