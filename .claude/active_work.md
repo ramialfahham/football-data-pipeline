@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-04 (end of session — #327 PR #336 open; next: CI green → merge → start #320)_
+_Last updated: 2026-06-04 (end of session — #320 PR #337 open; next: CI green → merge → start #321)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -20,48 +20,29 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
 - ✅ **#331** merged — enforced cross-chat handover: global hooks + this file.
 - ❌ **PR #333 closed (wrong)** — wrong metric IDs (window suffixes), missed team_from_players metrics.
 - ✅ **Issues #327 + #320 re-specced** — read their issue bodies before starting any build.
-- 🔁 **PR #336 open** — `feat/327-metric-catalogue`. Adds `metric_catalogue.csv` (38 rows:
-  19 team + 19 player), window-agnostic IDs, schema.yml entry. **Merge before starting #320.**
+- ✅ **#327 merged** (PR #336) — `metric_catalogue.csv` (42 rows: 19 team + 23 player),
+  window-agnostic IDs, schema.yml entry.
+- 🔁 **PR #337 open** — `feat/320-momentum-builder`. W1 last-5 momentum builders +
+  marts. **Wait for CI green then merge.**
+
+## Key design decisions locked in #320 (do NOT re-debate)
+- **W1 scope:** all competition types, club and national. Shown alongside W2 for every fixture.
+- **Club season boundary:** `season_api_year` cap — real calendar boundary.
+- **National season boundary:** no cap — qualifying campaigns span multiple API seasons;
+  recency alone is the correct boundary.
+- **W1 vs W2 split:** W1 = last 5 (this PR). W2 = cumulative season-to-date (#326, deferred).
+  W2 for national: qualifying during = cumulative campaign; WC/EURO = tournament cumulative.
+- **No club/national split at intermediate layer** for W1 — difference is one conditional
+  in the JOIN. Split makes sense at W2 where logic truly diverges.
+- **docs/metrics_context_model.md §4:** `qualifying during` corrected to
+  "All matches so far in this qualifying campaign" (was incorrectly "Last 5").
 
 ## Next concrete action (build order)
 
-### 1. Merge [PR #336](https://github.com/ramialfahham/football-data-pipeline/pull/336) (#327)
-Wait for CI green then merge. The catalogue is done.
+### 1. Merge [PR #337](https://github.com/ramialfahham/football-data-pipeline/pull/337) (#320)
+Wait for CI green then merge.
 
-Key rules (do NOT deviate):
-- **Window-agnostic metric IDs** — no `_recent`, `_pretournament`, or any window suffix.
-  The ID is the metric name only. Window is context applied at query time (#320).
-- **Three source pools** — all must be covered:
-  - `int_legs__team_match` → 13 team metrics:
-    `league_rank`, `points_won`, `goals_per_match`, `goals_against_per_match`,
-    `shots_per_match`, `shot_accuracy`, `danger_zone_ratio`, `finishing_efficiency`,
-    `passes_per_match`, `pass_accuracy`, `corner_kicks_per_match`,
-    `corners_conceded_per_match`, `save_ratio`
-  - `int_legs__team_from_players` → 6 new team metrics (player stats aggregated to team level):
-    `key_passes_per_match`, `tackles_per_match`, `interceptions_per_match`,
-    `blocks_per_match`, `duels_won_pct`, `dribbles_success_pct`
-  - `int_legs__player_match` → 19 player metrics:
-    `goals`, `assists`, `shots_on_target`, `dribbles_success`, `dribbles_attempts`,
-    `dribbles_success_pct`, `passes_key`, `passes_accurate`, `passes_total`,
-    `pass_accuracy_pct`, `duels_won`, `duels_total`, `duels_won_pct`,
-    `tackles_total`, `tackles_interceptions`, `tackles_blocks`,
-    `save_pct`, `cards_yellow`, `cards_red`
-- **Totals in int_, calculations in marts** — `int_legs__team_from_players` carries
-  raw sums (duels_won, duels_total, etc.); the catalogue documents the mart-level
-  formulas (ratios, per-match rates) that use those totals.
-- **No CI check** in this issue (deferred to #321 when manifest gets window-agnostic names).
-- **No schema-YAML backfill** on existing marts (retired in #321).
-
-### 2. #320 — momentum builder + marts
-Read updated issue #320 body. Key design decisions locked:
-- **Season boundary = `season_api_year` from fixture data** (data-backed, no manual
-  maintenance, no date inference). Cross-competition last-5: filter legs to
-  `season_api_year = upcoming_fixture.season_api_year` across same entity_type.
-  Previous season fallback: `season_api_year - 1`.
-- **Full window matrix** per competition_type × phase in the issue body.
-- **Player windows** mirror team windows using `int_legs__player_match`.
-
-### 3. #321 — de-hardcoding cut-over
+### 2. #321 — de-hardcoding cut-over
 Retire `int_matchday__*`/`int_wc__*`, the `mart_matchday_insights`/`_wc`/`_bl1_relegation`
 variants, BL1/BL2/L1 round vars. Parallel-run + validate. CI check (manifest → catalogue)
 lands here when manifest is updated to window-agnostic names.
