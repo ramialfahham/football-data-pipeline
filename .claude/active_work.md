@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-04 (end of session — issues #327 + #320 re-specced after design alignment; next: build #327)_
+_Last updated: 2026-06-04 (end of session — #327 PR #336 open; next: CI green → merge → start #320)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -18,16 +18,15 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
   three shared building-block legs in `dbt_project/models/4_intermediate/shared/`:
   `int_legs__team_match`, `int_legs__player_match`, `int_legs__team_from_players`.
 - ✅ **#331** merged — enforced cross-chat handover: global hooks + this file.
-- ❌ **PR #333 closed (wrong)** — metric catalogue CSV had window suffixes in metric IDs
-  (`_recent`, `_pretournament`) and missed team metrics from `int_legs__team_from_players`.
-  Work discarded.
+- ❌ **PR #333 closed (wrong)** — wrong metric IDs (window suffixes), missed team_from_players metrics.
 - ✅ **Issues #327 + #320 re-specced** — read their issue bodies before starting any build.
-- **No work in flight.** Clean `main`, no open PRs.
+- 🔁 **PR #336 open** — `feat/327-metric-catalogue`. Adds `metric_catalogue.csv` (38 rows:
+  19 team + 19 player), window-agnostic IDs, schema.yml entry. **Merge before starting #320.**
 
 ## Next concrete action (build order)
 
-### 1. #327 — metric catalogue seed
-Build `dbt_project/seeds/metric_catalogue.csv`. **Read updated issue #327 body — it is the full spec.**
+### 1. Merge [PR #336](https://github.com/ramialfahham/football-data-pipeline/pull/336) (#327)
+Wait for CI green then merge. The catalogue is done.
 
 Key rules (do NOT deviate):
 - **Window-agnostic metric IDs** — no `_recent`, `_pretournament`, or any window suffix.
