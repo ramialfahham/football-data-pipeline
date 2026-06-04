@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-03 (end of session — next action: #327)_
+_Last updated: 2026-06-04 (end of session — #327 PR open; next action: merge #333, then #320)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -20,17 +20,15 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
 - ✅ **#331** merged — enforced cross-chat handover: global hooks (`handover_in` /
   `handover_plan_gate` / `handover_out`) + this file. Hooks are **registered and active**
   in `~/.claude/settings.json`. This file is what you (a fresh chat) were just handed.
-- ⚠️ A fresh chat previously **diverged on #327** (added descriptions to the OLD marts
-  instead of building the catalogue seed). That work was **discarded** — do not repeat it.
-- **No work in flight.** Clean `main`, no open PRs. Start the next item below.
+- 🔁 **#333 / #327 open PR** — `feat/327-metric-catalogue`. Adds
+  `dbt_project/seeds/metric_catalogue.csv` (46 rows: 13 team match_preview + 14 WC
+  pre-tournament + 19 player atomics), schema.yml entry, `scripts/check_metric_catalogue.py`
+  (wired into ci-validate). Frontend JSON untouched (already display-only). CI check
+  confirms all 13 manifest metrics have catalogue rows. **Merge this before starting #320.**
 
 ## Next concrete action (build order)
-1. **#327 — metric catalogue seed.** Build `dbt_project/seeds/metric_catalogue.csv` as the
-   single source of truth (id, entity team|player, label/i18n key, description, numerator,
-   denominator/total+games, format) for ALL team (13) + player metrics, defined over the new
-   `int_legs__*`. Slim `site/match-preview/metric_definitions.json` + manifest to display-only.
-   Consistency tests that compare a mart value to the seed formula land with #320.
-   **Read issue #327's body — it is the full spec.**
+1. **Merge [PR #333](https://github.com/ramialfahham/football-data-pipeline/pull/333)** (#327
+   metric catalogue seed) — CI must go green first.
 2. **#320 — windows + momentum marts** (last-5 momentum builder + season-to-date builder →
    two cross-type momentum marts, team + player; wire consistency tests to the catalogue).
 3. **#321 — de-hardcoding cut-over** (retire `int_matchday__*`/`int_wc__*`, the
