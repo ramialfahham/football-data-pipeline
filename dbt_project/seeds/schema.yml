@@ -71,6 +71,56 @@ seeds:
         description: "Where this binding applies: match_preview, wc_pretournament, etc."
         tests: [not_null]
 
+  - name: metric_catalogue
+    description: >
+      Canonical metric catalogue: single source of truth for every team and player metric
+      the platform computes. One row per atomic metric. Captures the formula (numerator,
+      denominator, kind of division), entity type (team/player), i18n key, and display
+      format. Formulas are defined over int_legs__team_match and int_legs__player_match
+      building-block legs. CI checks that every metric_manifest.json id has a row here
+      (scripts/check_metric_catalogue.py). Consistency DQ tests that verify mart values
+      against these formulas land in #320.
+    config:
+      +full_refresh: true
+    columns:
+      - name: metric_id
+        description: "Stable semantic id. Matches metric_manifest.json metric_id for displayed metrics."
+        tests:
+          - not_null
+          - unique
+      - name: entity
+        description: "Whether this metric describes a team or a player."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["team", "player"]
+      - name: label_i18n_key
+        description: "i18n key for the human-readable metric label (e.g. metrics.goals_per_match_recent.label)."
+        tests: [not_null]
+      - name: description
+        description: "Plain-English definition: what the metric measures, the formula, nullability, and source columns."
+        tests: [not_null]
+      - name: numerator
+        description: >
+          Column(s) from int_legs__* to sum as the numerator, or a formula expression for
+          derived quantities (e.g. CASE result WHEN W THEN 3...). Blank for lookup metrics
+          (league_rank) and raw counts (qualifier_games_played).
+      - name: denominator
+        description: >
+          Denominator specification. Values: a column name to SUM (ratio metrics),
+          'games' (per-match rates; divisor is games_in_window), a composite expression
+          such as 'shots_total+opponent_shots_total' or '3×games_in_window' (documented
+          in description), or blank (raw sums and lookups).
+      - name: lower_is_better
+        description: "True when a lower value indicates better performance (e.g. goals_against, corners_conceded)."
+        tests: [not_null]
+      - name: format
+        description: "Display format hint: integer, decimal_0, decimal_1, percent, or points_fraction."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction"]
+
   - name: wc_supporting_league_codes
     description: >
       Maps parent tournament league_code (WC) to supporting qualifier league_codes for WC qualifier-phase

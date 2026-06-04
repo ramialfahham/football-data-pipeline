@@ -32,6 +32,9 @@ jobs:
       - name: Check competition-type seed coverage
         run: python scripts/check_competition_type_seed.py
 
+      - name: Check metric catalogue coverage
+        run: python scripts/check_metric_catalogue.py
+
       - name: Create dbt profile for parse
         run: |
           mkdir -p /home/runner/.dbt

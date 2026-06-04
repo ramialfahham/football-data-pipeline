@@ -1,0 +1,47 @@
+metric_id,entity,label_i18n_key,description,numerator,denominator,lower_is_better,format
+league_rank,team,metrics.league_rank.label,"Current position in the league standings. Lookup from standings snapshot; not computed from int_legs__team_match. Lower rank (1 = first) is better.",,, true,integer
+points_won_form,team,metrics.points_won_form.label,"Total points earned over the form window (3 per win, 1 per draw, 0 per loss). SUM(CASE result WHEN W THEN 3 WHEN D THEN 1 ELSE 0 END).",CASE result WHEN W THEN 3 WHEN D THEN 1 ELSE 0 END,,false,points_fraction
+goals_per_match_recent,team,metrics.goals_per_match_recent.label,Average goals scored per match over the form window. SUM(goals_for) / games_in_window.,goals_for,games,false,decimal_1
+goals_against_per_match_recent,team,metrics.goals_against_per_match_recent.label,Average goals conceded per match over the form window. SUM(goals_against) / games_in_window.,goals_against,games,true,decimal_1
+shots_per_match_recent,team,metrics.shots_per_match_recent.label,Average total shots attempted per match over the form window. SUM(shots_total) / games_in_window.,shots_total,games,false,decimal_1
+shot_accuracy_recent,team,metrics.shot_accuracy_recent.label,"Share of shots that were on target. SUM(shots_on_goal) / SUM(shots_total). Null when shots_total = 0.",shots_on_goal,shots_total,false,percent
+danger_zone_ratio_recent,team,metrics.danger_zone_ratio_recent.label,"Share of shots taken from inside the penalty area. SUM(shots_inside_box) / SUM(shots_total). Null when shots_total = 0.",shots_inside_box,shots_total,false,percent
+finishing_efficiency_recent,team,metrics.finishing_efficiency_recent.label,"Goals per shot on target (conversion rate). SUM(goals_for) / SUM(shots_on_goal). Null when shots_on_goal = 0.",goals_for,shots_on_goal,false,percent
+passes_per_match_recent,team,metrics.passes_per_match_recent.label,Average total passes attempted per match over the form window. SUM(passes_total) / games_in_window.,passes_total,games,false,decimal_0
+pass_accuracy_recent,team,metrics.pass_accuracy_recent.label,"Share of passes successfully completed. SUM(passes_accurate) / SUM(passes_total). Null when passes_total = 0.",passes_accurate,passes_total,false,percent
+corner_kicks_per_match_recent,team,metrics.corner_kicks_per_match_recent.label,Average corner kicks won per match over the form window. SUM(corner_kicks) / games_in_window.,corner_kicks,games,false,decimal_1
+corners_conceded_per_match_recent,team,metrics.corners_conceded_per_match_recent.label,Average corner kicks conceded per match over the form window. SUM(opponent_corner_kicks) / games_in_window.,opponent_corner_kicks,games,true,decimal_1
+save_ratio_recent,team,metrics.save_ratio_recent.label,"Share of opponent shots on target that were saved. SUM(goalkeeper_saves) / SUM(opponent_shots_on_goal). Null when opponent_shots_on_goal = 0.",goalkeeper_saves,opponent_shots_on_goal,false,percent
+qualifier_games_played,team,metrics.qualifier_games_played.label,Total WC qualifier matches played in the campaign. Raw count of finished legs in the qualifier window.,,,false,integer
+points_capture_pretournament,team,metrics.points_capture_pretournament.label,"Points earned as a share of the maximum possible in the qualifier campaign. SUM(points) / (3 × games_in_window). Same point scale as points_won_form; denominator is 3 × match count.",CASE result WHEN W THEN 3 WHEN D THEN 1 ELSE 0 END,3×games_in_window,false,percent
+goals_per_match_pretournament,team,metrics.goals_per_match_pretournament.label,Average goals scored per qualifier match. Same formula as goals_per_match_recent applied to the qualifier window.,goals_for,games,false,decimal_1
+goals_against_per_match_pretournament,team,metrics.goals_against_per_match_pretournament.label,Average goals conceded per qualifier match.,goals_against,games,true,decimal_1
+shots_per_match_pretournament,team,metrics.shots_per_match_pretournament.label,Average total shots attempted per qualifier match.,shots_total,games,false,decimal_1
+shot_share_pretournament,team,metrics.shot_share_pretournament.label,"Team's share of total shots across both sides in qualifier matches. SUM(shots_total) / (SUM(shots_total) + SUM(opponent_shots_total)). Null when combined shots = 0.",shots_total,shots_total+opponent_shots_total,false,percent
+danger_zone_ratio_pretournament,team,metrics.danger_zone_ratio_pretournament.label,Share of qualifier shots taken from inside the penalty area.,shots_inside_box,shots_total,false,percent
+shot_accuracy_pretournament,team,metrics.shot_accuracy_pretournament.label,Share of qualifier shots that were on target.,shots_on_goal,shots_total,false,percent
+finishing_efficiency_pretournament,team,metrics.finishing_efficiency_pretournament.label,Goals per shot on target in qualifier matches.,goals_for,shots_on_goal,false,percent
+pass_accuracy_pretournament,team,metrics.pass_accuracy_pretournament.label,Pass completion rate in qualifier matches.,passes_accurate,passes_total,false,percent
+passes_per_match_pretournament,team,metrics.passes_per_match_pretournament.label,Average passes attempted per qualifier match.,passes_total,games,false,decimal_1
+corner_kicks_per_match_pretournament,team,metrics.corner_kicks_per_match_pretournament.label,Average corner kicks won per qualifier match.,corner_kicks,games,false,decimal_1
+corners_conceded_per_match_pretournament,team,metrics.corners_conceded_per_match_pretournament.label,Average corner kicks conceded per qualifier match.,opponent_corner_kicks,games,true,decimal_1
+save_ratio_pretournament,team,metrics.save_ratio_pretournament.label,Save ratio in qualifier matches. SUM(goalkeeper_saves) / SUM(opponent_shots_on_goal).,goalkeeper_saves,opponent_shots_on_goal,false,percent
+player_goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window. SUM(goals_total) from int_legs__player_match.,goals_total,,false,integer
+player_assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window. SUM(goals_assists) from int_legs__player_match.,goals_assists,,false,integer
+player_shots_on_target,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window. SUM(shots_on).,shots_on,,false,integer
+player_dribbles_success,player,playerMetrics.dribbles.success,Successful dribbles in the form window. SUM(dribbles_success).,dribbles_success,,false,integer
+player_dribbles_attempts,player,playerMetrics.dribbles.attempts,Dribble attempts in the form window. SUM(dribbles_attempts).,dribbles_attempts,,false,integer
+player_dribbles_success_pct,player,playerMetrics.dribbles.successPct,"Dribble success rate. SUM(dribbles_success) / SUM(dribbles_attempts). Null when dribbles_attempts = 0.",dribbles_success,dribbles_attempts,false,percent
+player_passes_key,player,playerMetrics.keyPasses.label,"Key passes in the form window. SUM(passes_key). API definition: a pass leading directly to a shot. Every assist is a key pass; not every key pass is an assist.",passes_key,,false,integer
+player_passes_accurate,player,playerMetrics.passAccuracy.accurate,"Accurate passes in the form window. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits a small per-fixture rounding error (~±1–2 passes) because passes_accuracy_percent is stored as integer.",passes_total×passes_accuracy_percent/100,,false,integer
+player_passes_total,player,playerMetrics.passAccuracy.total,Total passes attempted in the form window. SUM(passes_total).,passes_total,,false,integer
+player_pass_accuracy_pct,player,playerMetrics.passAccuracy.label,"Pass completion rate. SUM(passes_accurate) / SUM(passes_total), where passes_accurate is the derived sum above. Null when passes_total = 0.",passes_accurate (derived),passes_total,false,percent
+player_duels_won,player,playerMetrics.duels.won,"Duels won in the form window. SUM(duels_won). A duel is any 1v1 physical contest (ground and aerial pooled); tracked independently from tackles by the provider.",duels_won,,false,integer
+player_duels_total,player,playerMetrics.duels.total,Total duels contested in the form window. SUM(duels_total).,duels_total,,false,integer
+player_duels_won_pct,player,playerMetrics.duels.label,"Duel win rate. SUM(duels_won) / SUM(duels_total). Null when duels_total = 0.",duels_won,duels_total,false,percent
+player_tackles_total,player,playerMetrics.defensiveActions.tackles,Tackles made in the form window. SUM(tackles_total).,tackles_total,,false,integer
+player_tackles_interceptions,player,playerMetrics.defensiveActions.interceptions,Interceptions in the form window. SUM(tackles_interceptions).,tackles_interceptions,,false,integer
+player_tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the form window. SUM(tackles_blocks).,tackles_blocks,,false,integer
+player_save_pct,player,playerMetrics.savePct.label,"Goalkeeper save percentage. SUM(goals_saves) / (SUM(goals_saves) + SUM(goals_conceded)). Null when denominator = 0. Applicable only to goalkeepers; outfield players will have null goals_saves.",goals_saves,goals_saves+goals_conceded,false,percent
+player_cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window. SUM(cards_yellow).,cards_yellow,,false,integer
+player_cards_red,player,playerMetrics.cards.red,Red cards in the form window. SUM(cards_red).,cards_red,,false,integer
