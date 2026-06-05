@@ -22,6 +22,30 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk]
+      # Ratio bounds [0,1] — guards the same-window contract at the source.
+      # A value > 1 means numerator and denominator were computed over different
+      # game sets (a coverage-window bug), so these must stay strict.
+      - dbt_utils.expression_is_true:
+          expression: "shot_accuracy is null or (shot_accuracy between 0 and 1)"
+          name: momentum_team_shot_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "danger_zone_ratio is null or (danger_zone_ratio between 0 and 1)"
+          name: momentum_team_danger_zone_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
+          name: momentum_team_finishing_efficiency_in_range
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy is null or (pass_accuracy between 0 and 1)"
+          name: momentum_team_pass_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "save_ratio is null or (save_ratio between 0 and 1)"
+          name: momentum_team_save_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: momentum_team_duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: momentum_team_dribbles_success_pct_in_range
     columns:
       - name: upcoming_fixture_sk
         tests: [not_null]
@@ -41,6 +65,9 @@ models:
           - accepted_values:
               values: ["last_5"]
       - name: games_in_window
+        tests: [not_null]
+      - name: games_with_team_stats
+        description: "Window legs with team stats present; denominator for per-match team-stat rates."
         tests: [not_null]
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
