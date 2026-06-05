@@ -2,26 +2,13 @@
 
 {#
   Per (league_code, season_api_year, team_sk) advanced metrics over all finished legs in that season.
-  Same sum/rate definitions as int_matchday__team_form_metrics (full window, no five-game cap).
+  Full window, no five-game cap. Reads from int_legs__team_match (the shared building-block leg,
+  cross-competition by design — group by league_code naturally scopes to one competition).
   Grain: (league_code, season_api_year, team_sk). mart_team_season_insights keeps latest season per league.
 #}
 
-with import_int_matchday__finished_fixture_team_leg as (
-    select * from {{ ref('int_matchday__finished_fixture_team_leg') }}
-),
-
-season_legs_dedup as (
-    select * except (leg_dedup_rn)
-    from (
-        select
-            *,
-            row_number() over (
-                partition by league_code, season_api_year, team_sk, fixture_sk
-                order by kickoff_datetime desc, fixture_sk desc
-            ) as leg_dedup_rn
-        from import_int_matchday__finished_fixture_team_leg
-    )
-    where leg_dedup_rn = 1
+with legs as (
+    select * from {{ ref('int_legs__team_match') }}
 ),
 
 aggregated_season as (
@@ -33,7 +20,8 @@ aggregated_season as (
         any_value(season_sk) as season_sk,
         count(distinct fixture_sk) as season_games_played,
         count(distinct round_name) as season_matchdays_used,
-        count(distinct case when shots_on_goal is not null then fixture_sk end) as stat_coverage_season_games,
+        count(distinct case when shots_on_goal is not null then fixture_sk end)
+            as stat_coverage_season_games,
         sum(
             case upper(trim(result))
                 when 'W' then 3
@@ -44,7 +32,7 @@ aggregated_season as (
         sum(goals_for) as goals_for_sum_season,
         sum(goals_against) as goals_against_sum_season,
         sum(shots_total) as total_shots_sum_season,
-        sum(opponent_total_shots) as opponent_total_shots_sum_season,
+        sum(opponent_shots_total) as opponent_total_shots_sum_season,
         sum(shots_inside_box) as shots_inside_box_sum_season,
         sum(shots_on_goal) as shots_on_goal_sum_season,
         sum(corner_kicks) as corner_kicks_sum_season,
@@ -52,7 +40,7 @@ aggregated_season as (
         sum(passes_accurate) as passes_accurate_sum_season,
         sum(passes_total) as passes_total_sum_season,
         sum(goalkeeper_saves) as goalkeeper_saves_sum_season
-    from season_legs_dedup
+    from legs
     group by league_code, season_api_year, team_sk
 )
 

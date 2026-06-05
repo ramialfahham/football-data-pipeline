@@ -2,14 +2,13 @@
 
 {#
     Per-team, per-season rollup. Counts derive from finished matches only
-    (status_short in FT, AET, PEN) via int_matchday__finished_fixture_team_leg
-    so logic stays aligned with matchday form. Null goals are excluded there.
+    (FT/AET/PEN, null goals excluded) via int_legs__team_match.
     latest_rank, latest_form, and standings_group_description join from
     int_team_season__standings_primary; teams absent from standings get nulls.
 #}
 
-with import_int_matchday__finished_fixture_team_leg as (
-    select * from {{ ref('int_matchday__finished_fixture_team_leg') }}
+with team_legs as (
+    select * from {{ ref('int_legs__team_match') }}
 ),
 
 dim_team as (
@@ -31,7 +30,7 @@ legs as (
         goals_for,
         goals_against,
         result
-    from import_int_matchday__finished_fixture_team_leg
+    from team_legs
 ),
 
 agg as (

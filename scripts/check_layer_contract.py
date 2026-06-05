@@ -9,6 +9,7 @@ BASE_DIR = DBT_MODELS / "2_base"
 CORE_DIR = DBT_MODELS / "3_core"
 INTERMEDIATE_DIR = DBT_MODELS / "4_intermediate"
 STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
+STAGING_DIR = DBT_MODELS / "1_staging"
 
 # Intermediate must not depend on marts (DAG flows int → mart only).
 INTERMEDIATE_FORBIDDEN_MART_REF = re.compile(
@@ -44,15 +45,51 @@ CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bunion_all\s*\(", re.IGNORECASE),
 )
 
+# Core must not ref marts — mart → core is the correct direction.
+CORE_FORBIDDEN_MART_REF = re.compile(
+    r"""ref\s*\(\s*['"]mart_""",
+    re.IGNORECASE,
+)
+
+# Staging must not ref() any dbt model — it reads only from source().
+# Cross-layer rule: staging is strictly isolated to raw sources.
+STAGING_FORBIDDEN_REF = re.compile(
+    r"""\bref\s*\(""",
+    re.IGNORECASE,
+)
+
 def check_core_forbidden_patterns(errors: list[str]) -> None:
     for sql_path in sorted(CORE_DIR.glob("*.sql")):
         content = sql_path.read_text(encoding="utf-8")
+        rel = sql_path.relative_to(REPO_ROOT).as_posix()
         for pattern in CORE_FORBIDDEN_PATTERNS:
             if pattern.search(content):
-                rel = sql_path.relative_to(REPO_ROOT).as_posix()
                 errors.append(
                     f"{rel}: contains forbidden pattern in core: {pattern.pattern}"
                 )
+        if CORE_FORBIDDEN_MART_REF.search(content):
+            errors.append(
+                f"{rel}: core layer must not ref() mart_* models "
+                f"(matched {CORE_FORBIDDEN_MART_REF.pattern}). "
+                "Core is upstream of marts; ref direction must be mart → core, not core → mart. "
+                "See dbt_project/docs/layering.md §cross-layer-consumption-rule."
+            )
+
+
+def check_staging_no_refs(errors: list[str]) -> None:
+    """Staging reads only from source() — never ref() another dbt model."""
+    if not STAGING_DIR.is_dir():
+        return
+    layering_ref = "See dbt_project/docs/layering.md §cross-layer-consumption-rule."
+    for sql_path in sorted(STAGING_DIR.rglob("*.sql")):
+        content = sql_path.read_text(encoding="utf-8")
+        if STAGING_FORBIDDEN_REF.search(content):
+            rel = sql_path.relative_to(REPO_ROOT).as_posix()
+            errors.append(
+                f"{rel}: staging layer must not ref() any dbt model "
+                f"(matched {STAGING_FORBIDDEN_REF.pattern}). "
+                f"Staging reads only from source(). {layering_ref}"
+            )
 
 
 def check_base_layer(errors: list[str]) -> None:
@@ -180,6 +217,7 @@ def main() -> int:
     check_intermediate_no_mart_refs(errors)
     check_staging_inventory(errors)
     check_staging_purity(errors)
+    check_staging_no_refs(errors)
 
     if errors:
         print("Layer contract checks failed:")

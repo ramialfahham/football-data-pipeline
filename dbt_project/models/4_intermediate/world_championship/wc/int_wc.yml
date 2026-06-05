@@ -1,24 +1,6 @@
 version: 2
 
-models:
-  - name: int_wc__matchday_team_form_metrics
-    description: >
-      Per (upcoming fixture_sk, team_sk) WC form aggregates. Group Stage round 1 uses supporting
-      qualifier leagues; from Group Stage round 2 onward (including knockout) form uses cumulative
-      finished WC tournament legs before the fixture kickoff (no rolling five-game cap).
-    config:
-      tags: ["intermediate", "football", "wc"]
-    columns:
-      - name: fixture_sk
-        tests: [not_null]
-      - name: team_sk
-        tests: [not_null]
-      - name: form_games_played
-        tests: [not_null]
-      - name: is_tournament_form
-        tests: [not_null]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - fixture_sk
-            - team_sk
+# int_wc__matchday_team_form_metrics was retired in #321. WC fixture preview
+# is now served by the shared mart_matchday_insights via mart_momentum__team.
+
+models: []

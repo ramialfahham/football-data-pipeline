@@ -1,8 +1,9 @@
 """Export league JSON for GitHub Pages under artifacts/data/{league}/.
 
-Queries unified marts with WHERE league_code (no per-league mart relations). BL1 matchday
-uses mart_matchday_insights filtered to BL1; when empty, falls back to
-mart_matchday_insights_bl1_relegation. WC matchday uses mart_matchday_insights_wc.
+Queries unified mart_matchday_insights (all competitions, slice by league_code).
+No per-competition mart relations — WC and domestic leagues all use the same mart.
+Player insights export removed in #321 (mart_matchday_player_insights retired;
+replacement pending #325).
 
 Writes:
   artifacts/data/{league_lower}/matchday_insights.json   {"show": [...]}
@@ -32,9 +33,6 @@ GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
 MATCHDAY_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_insights"
 TEAM_SEASON_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_team_season_insights"
-RELEGATION_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_insights_bl1_relegation"
-WC_MATCHDAY_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_insights_wc"
-PLAYER_INSIGHTS_MART = f"{GCP_PROJECT}.{MARTS_DATASET}.mart_matchday_player_insights"
 
 
 def _dbt_active_league_codes() -> list[str]:
@@ -119,58 +117,16 @@ def _query_matchday(client, league_code: str) -> list[dict]:
     )
 
 
-def _query_relegation_matchday(client) -> list[dict]:
-    sql = f"select * from `{RELEGATION_MART}` order by fixture_date asc, kickoff_datetime asc, fixture_sk asc"
-    return _bigquery_rows_to_dicts(list(client.query(sql).result()))
-
-
-def _query_wc_matchday(client) -> list[dict]:
-    sql = f"select * from `{WC_MATCHDAY_MART}` order by fixture_date asc, kickoff_datetime asc, fixture_sk asc"
-    return _bigquery_rows_to_dicts(list(client.query(sql).result()))
-
-
 def fetch_matchday_rows(client, league_code: str) -> tuple[list[dict], str]:
     print(f"Querying {MATCHDAY_MART} for league_code={league_code} ...", flush=True)
     rows = _query_matchday(client, league_code)
-    if rows or league_code != "BL1":
-        return rows, "mart_matchday_insights"
-
-    print(f"BL1 regular empty; querying {RELEGATION_MART} ...", flush=True)
-    relegation_rows = _query_relegation_matchday(client)
-    if relegation_rows:
-        return relegation_rows, "mart_matchday_insights_bl1_relegation"
     return rows, "mart_matchday_insights"
 
 
 def fetch_wc_matchday_rows(client) -> tuple[list[dict], str]:
-    print(f"Querying {WC_MATCHDAY_MART} ...", flush=True)
-    rows = _query_wc_matchday(client)
-    return rows, "mart_matchday_insights_wc"
-
-
-def _query_player_insights(client, league_code: str) -> list[dict]:
-    from google.cloud import bigquery
-
-    sql = f"""
-        select *
-        from `{PLAYER_INSIGHTS_MART}`
-        where league_code = @league_code
-          and rank_for_leaderboard is not null
-        order by fixture_sk asc, team_sk asc, leaderboard_id asc, rank_for_leaderboard asc
-    """
-    job_config = bigquery.QueryJobConfig(
-        query_parameters=[
-            bigquery.ScalarQueryParameter("league_code", "STRING", league_code)
-        ]
-    )
-    return _bigquery_rows_to_dicts(
-        list(client.query(sql, job_config=job_config).result())
-    )
-
-
-def fetch_player_insights_rows(client, league_code: str) -> list[dict]:
-    print(f"Querying {PLAYER_INSIGHTS_MART} for league_code={league_code} ...", flush=True)
-    return _query_player_insights(client, league_code)
+    print(f"Querying {MATCHDAY_MART} for league_code=WC ...", flush=True)
+    rows = _query_matchday(client, "WC")
+    return rows, "mart_matchday_insights"
 
 
 def fetch_team_season_rows(client, league_code: str) -> list[dict]:
@@ -226,20 +182,13 @@ def export_all(artifacts_root: pathlib.Path | None = None) -> dict:
         write_json(team_path, {"teams": team_rows})
         print(f"Wrote {team_path} ({len(team_rows)} rows)", flush=True)
 
-        player_rows = fetch_player_insights_rows(client, league_code)
-        player_path = league_dir / "matchday_player_insights.json"
-        write_json(player_path, {"players": player_rows})
-        print(f"Wrote {player_path} ({len(player_rows)} rows)", flush=True)
-
         leagues_manifest.append(
             {
                 "league_code": league_code,
                 "matchday_path": f"data/{suffix}/matchday_insights.json",
                 "team_season_path": f"data/{suffix}/team_season_insights.json",
-                "player_insights_path": f"data/{suffix}/matchday_player_insights.json",
                 "matchday_row_count": len(matchday_rows),
                 "team_season_row_count": len(team_rows),
-                "player_insights_row_count": len(player_rows),
                 "matchday_source_mart": source_mart,
                 "next_fixture_kickoff_utc": next_fixture_kickoff_utc(matchday_rows),
             }
@@ -250,20 +199,13 @@ def export_all(artifacts_root: pathlib.Path | None = None) -> dict:
     write_json(wc_path, {"show": wc_rows})
     print(f"Wrote {wc_path} ({len(wc_rows)} rows)", flush=True)
 
-    wc_player_rows = fetch_player_insights_rows(client, "WC")
-    wc_player_path = data_root / "wc" / "matchday_player_insights.json"
-    write_json(wc_player_path, {"players": wc_player_rows})
-    print(f"Wrote {wc_player_path} ({len(wc_player_rows)} rows)", flush=True)
-
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "domestic_leagues": leagues_manifest,
         "wc": {
             "league_code": "WC",
             "matchday_path": "data/wc/matchday_insights.json",
-            "player_insights_path": "data/wc/matchday_player_insights.json",
             "matchday_row_count": len(wc_rows),
-            "player_insights_row_count": len(wc_player_rows),
             "matchday_source_mart": wc_source_mart,
             "next_fixture_kickoff_utc": next_fixture_kickoff_utc(wc_rows),
         },
