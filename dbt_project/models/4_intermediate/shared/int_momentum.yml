@@ -32,6 +32,16 @@ models:
       - name: games_in_window
         description: "Number of finished matches in the window (1–5)."
         tests: [not_null]
+      - name: games_with_team_stats
+        description: "Count of window legs with team stats present (shots/passes/corners/saves). Denominator for per-match team-stat rates and finishing_efficiency."
+        tests: [not_null]
+      - name: games_with_opp_stats
+        description: "Count of window legs with opponent team stats present. Denominator for corners_conceded_per_match."
+        tests: [not_null]
+      - name: goals_for_in_shot_games
+        description: "Goals scored summed only over legs with shots_on_goal present; keeps finishing_efficiency same-window."
+      - name: goals_against_in_save_games
+        description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
       - name: contributing_competitions
         description: "Array of distinct league_codes from which the 5 legs were drawn."
         tests: [not_null]

@@ -24,6 +24,13 @@
   Player-derived columns (key_passes, tackles, …) inherit player-stat coverage
   gaps: if none of the 5 legs have player data the column is NULL; if some do,
   the sum covers only those matches. games_with_player_stats tracks coverage.
+
+  Coverage rule (same-window): a ratio's numerator and denominator must cover the
+  same games. Team stats (shots, passes, corners, saves) are sparse in lower
+  leagues, so the builder carries per-input coverage counts and coverage-restricted
+  scoreline sums; the mart divides each metric over the matching window. Where no
+  covered game exists the mart yields NULL (we never divide a full-window numerator
+  by a partial-window denominator).
 #}
 
 with upcoming as (
@@ -142,12 +149,22 @@ team_agg as (
         season_api_year,
         entity_type,
         count(*) as games_in_window,
+        -- per-input coverage: stats are sparse in lower leagues, so each rate
+        -- must divide over the games where its inputs actually exist
+        countif(shots_total is not null) as games_with_team_stats,
+        countif(opponent_corner_kicks is not null) as games_with_opp_stats,
         array_agg(distinct leg_league_code order by leg_league_code)
             as contributing_competitions,
         sum(case result when 'W' then 3 when 'D' then 1 else 0 end)
             as points_won,
         sum(goals_for) as goals_for,
         sum(goals_against) as goals_against,
+        -- coverage-restricted scoreline sums keep finishing_efficiency and
+        -- save_ratio same-window with their stat denominators
+        sum(if(shots_on_goal is not null, goals_for, null))
+            as goals_for_in_shot_games,
+        sum(if(goalkeeper_saves is not null, goals_against, null))
+            as goals_against_in_save_games,
         sum(shots_total) as shots_total,
         sum(shots_on_goal) as shots_on_goal,
         sum(shots_inside_box) as shots_inside_box,
@@ -155,8 +172,7 @@ team_agg as (
         sum(passes_accurate) as passes_accurate,
         sum(corner_kicks) as corner_kicks,
         sum(opponent_corner_kicks) as opponent_corner_kicks,
-        sum(goalkeeper_saves) as goalkeeper_saves,
-        sum(opponent_shots_on_goal) as opponent_shots_on_goal
+        sum(goalkeeper_saves) as goalkeeper_saves
     from last_5
     group by
         upcoming_fixture_sk,
@@ -196,10 +212,14 @@ select
     ta.entity_type,
     'last_5' as window_type,
     ta.games_in_window,
+    ta.games_with_team_stats,
+    ta.games_with_opp_stats,
     ta.contributing_competitions,
     ta.points_won,
     ta.goals_for,
     ta.goals_against,
+    ta.goals_for_in_shot_games,
+    ta.goals_against_in_save_games,
     ta.shots_total,
     ta.shots_on_goal,
     ta.shots_inside_box,
@@ -208,7 +228,6 @@ select
     ta.corner_kicks,
     ta.opponent_corner_kicks,
     ta.goalkeeper_saves,
-    ta.opponent_shots_on_goal,
     pd.games_with_player_stats,
     pd.key_passes,
     pd.tackles,
