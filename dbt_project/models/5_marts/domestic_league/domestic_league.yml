@@ -61,13 +61,11 @@ models:
 
   - name: mart_matchday_insights
     description: >
-      Domestic league matchday surface for pre-match comparison. Grain: one row per upcoming
-      fixture per league_code (active domestic competitions from vars.active_competition_league_codes).
-      BL1 excludes relegation play-off rounds (var bl1_relegation_round_names); use
-      mart_matchday_insights_bl1_relegation during play-offs. BL2 promotion and L1 relegation
-      play-offs are excluded via bl2_playoff_round_names and l1_relegation_round_names. WC uses
-      mart_matchday_insights_wc. Export and UI slice with WHERE league_code; do not add per-league
-      mart copies.
+      Wide fixture-preview mart for pre-match comparison. Grain: one row per upcoming fixture
+      (next round per league_code). Form metrics sourced from mart_momentum__team (same-layer
+      ref — deliberate presentation pivot; see layering.md). Cross-competition and cross-type:
+      covers all active competitions without per-league hardcoding. Slice by league_code at
+      export or in the app.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -353,36 +351,4 @@ models:
       - name: away_save_ratio_recent
         description: "Away: save ratio over the form window."
 
-  - name: mart_matchday_insights_bl1_relegation
-    description: >
-      BL1 relegation play-off matchday surface. Same metrics as mart_matchday_insights plus
-      home_form_league_code and away_form_league_code (BL1 vs BL2). Form uses each team's domestic
-      league; standings join on form league + season.
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "high"
-    config:
-      tags: ["marts", "football", "consumer", "pre_match", "relegation"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - fixture_sk
-      - dbt_utils.expression_is_true:
-          expression: "league_code = 'BL1'"
-          name: mart_matchday_insights_bl1_relegation_league_code_is_bl1
-      - dbt_utils.expression_is_true:
-          expression: "round_name in ('Final', 'Relegation Round')"
-          name: mart_matchday_insights_bl1_relegation_round_name
-    columns:
-      - name: home_team_logo_url
-        description: "Home team crest URL from dim_team (API-Football); nullable."
-      - name: away_team_logo_url
-        description: "Away team crest URL from dim_team (API-Football); nullable."
-      - name: home_form_league_code
-        description: "Domestic league used for home team form (BL1 or BL2)."
-        tests: [not_null]
-      - name: away_form_league_code
-        description: "Domestic league used for away team form (BL1 or BL2)."
-        tests: [not_null]
 

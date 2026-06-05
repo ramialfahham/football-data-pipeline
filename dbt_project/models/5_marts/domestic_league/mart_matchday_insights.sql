@@ -1,223 +1,190 @@
 {{ config(materialized='view') }}
 
 {#
-  Domestic league matchday preview mart: upcoming round + form + standings for every
-  active domestic competition (vars.active_competition_league_codes minus WC/WCQ*).
-  Grain: one row per upcoming fixture; slice by league_code at export or in the app.
-  BL1 regular season excludes relegation play-off rounds; use mart_matchday_insights_bl1_relegation
-  for that window. BL2 promotion and L1 relegation play-offs are excluded from this mart
-  (vars bl2_playoff_round_names, l1_relegation_round_names). WC uses mart_matchday_insights_wc.
+  Wide fixture-preview mart — one row per upcoming fixture (next round per league).
+
+  Reads mart_momentum__team as the form source (same-layer ref — deliberate: this mart
+  is a wide presentation pivot of the normalized momentum mart for the Pages UI consumer;
+  see dbt_project/docs/layering.md §cross-layer-consumption-rule). Fixture metadata
+  and team/league attributes come from core dims. League rank from mart_team_season
+  (temporary until #322 — standings mart — ships).
+
+  Replaces: int_matchday__upcoming_round_fixtures + int_matchday__team_form_metrics
+            (old form-window intermediates, retired in this PR).
+
+  Grain: one row per upcoming fixture on the earliest not-started round per
+  (league_code, season_api_year). Slice by league_code at export or in the app.
 #}
 
-with import_int_matchday__upcoming_round_fixtures as (
-    select * from {{ ref('int_matchday__upcoming_round_fixtures') }}
-    where
-        league_code in {{ domestic_league_codes_in_clause() }}
-        and not (
-            league_code = 'BL1'
-            and round_name in {{ bl1_relegation_round_names_in_clause() }}
-        )
-        and not (
-            league_code = 'BL2'
-            and round_name in {{ bl2_playoff_round_names_in_clause() }}
-        )
-        and not (
-            league_code = 'L1'
-            and round_name in {{ l1_relegation_round_names_in_clause() }}
-        )
+with momentum_home as (
+    select * from {{ ref('mart_momentum__team') }}
+    where is_home = true
 ),
 
-import_int_matchday__team_form_metrics as (
-    select * from {{ ref('int_matchday__team_form_metrics') }}
+momentum_away as (
+    select * from {{ ref('mart_momentum__team') }}
+    where is_home = false
 ),
 
-mart_team_season as (
-    select * from {{ ref('mart_team_season') }}
+fixtures as (
+    select
+        fixture_sk,
+        fixture_api_id,
+        league_sk,
+        season_sk,
+        home_team_sk,
+        away_team_sk,
+        league_code,
+        season_api_year,
+        fixture_date,
+        kickoff_datetime,
+        round_name,
+        status_short
+    from {{ ref('fct_fixture') }}
 ),
 
 dim_team as (
-    select * from {{ ref('dim_team') }}
-),
-
-team_form_metrics as (
-    select * from import_int_matchday__team_form_metrics
-),
-
-home_form as (
     select
-        fixture_sk,
-        team_sk as home_team_sk,
-        form_season_api_year,
-        form_games_played as home_form_games_played,
-        form_matchdays_used as home_form_matchdays_used,
-        stat_coverage_form_games as home_stat_coverage_form_games,
-        points_won_sum_form as home_points_won_sum_form,
-        goals_for_sum_form as home_goals_for_sum_form,
-        goals_against_sum_form as home_goals_against_sum_form,
-        total_shots_sum_form as home_total_shots_sum_form,
-        opponent_total_shots_sum_form as home_opponent_total_shots_sum_form,
-        shots_inside_box_sum_form as home_shots_inside_box_sum_form,
-        shots_on_goal_sum_form as home_shots_on_goal_sum_form,
-        corner_kicks_sum_form as home_corner_kicks_sum_form,
-        opponent_corner_kicks_sum_form as home_opponent_corner_kicks_sum_form,
-        passes_accurate_sum_form as home_passes_accurate_sum_form,
-        passes_total_sum_form as home_passes_total_sum_form,
-        goalkeeper_saves_sum_form as home_goalkeeper_saves_sum_form,
-        points_capture_recent as home_points_capture_recent,
-        goals_per_match_recent as home_goals_per_match_recent,
-        goals_against_per_match_recent as home_goals_against_per_match_recent,
-        shots_per_match_recent as home_shots_per_match_recent,
-        shot_share_recent as home_shot_share_recent,
-        danger_zone_ratio_recent as home_danger_zone_ratio_recent,
-        shot_accuracy_recent as home_shot_accuracy_recent,
-        finishing_efficiency_recent as home_finishing_efficiency_recent,
-        pass_accuracy_recent as home_pass_accuracy_recent,
-        passes_per_match_recent as home_passes_per_match_recent,
-        corner_kicks_per_match_recent as home_corner_kicks_per_match_recent,
-        corners_conceded_per_match_recent as home_corners_conceded_per_match_recent,
-        save_ratio_recent as home_save_ratio_recent
-    from team_form_metrics
+        team_sk,
+        team_name,
+        team_logo_url
+    from {{ ref('dim_team') }}
 ),
 
-away_form as (
+dim_league as (
     select
-        fixture_sk,
-        team_sk as away_team_sk,
-        form_games_played as away_form_games_played,
-        form_matchdays_used as away_form_matchdays_used,
-        stat_coverage_form_games as away_stat_coverage_form_games,
-        points_won_sum_form as away_points_won_sum_form,
-        goals_for_sum_form as away_goals_for_sum_form,
-        goals_against_sum_form as away_goals_against_sum_form,
-        total_shots_sum_form as away_total_shots_sum_form,
-        opponent_total_shots_sum_form as away_opponent_total_shots_sum_form,
-        shots_inside_box_sum_form as away_shots_inside_box_sum_form,
-        shots_on_goal_sum_form as away_shots_on_goal_sum_form,
-        corner_kicks_sum_form as away_corner_kicks_sum_form,
-        opponent_corner_kicks_sum_form as away_opponent_corner_kicks_sum_form,
-        passes_accurate_sum_form as away_passes_accurate_sum_form,
-        passes_total_sum_form as away_passes_total_sum_form,
-        goalkeeper_saves_sum_form as away_goalkeeper_saves_sum_form,
-        points_capture_recent as away_points_capture_recent,
-        goals_per_match_recent as away_goals_per_match_recent,
-        goals_against_per_match_recent as away_goals_against_per_match_recent,
-        shots_per_match_recent as away_shots_per_match_recent,
-        shot_share_recent as away_shot_share_recent,
-        danger_zone_ratio_recent as away_danger_zone_ratio_recent,
-        shot_accuracy_recent as away_shot_accuracy_recent,
-        finishing_efficiency_recent as away_finishing_efficiency_recent,
-        pass_accuracy_recent as away_pass_accuracy_recent,
-        passes_per_match_recent as away_passes_per_match_recent,
-        corner_kicks_per_match_recent as away_corner_kicks_per_match_recent,
-        corners_conceded_per_match_recent as away_corners_conceded_per_match_recent,
-        save_ratio_recent as away_save_ratio_recent
-    from team_form_metrics
+        league_sk,
+        league_name
+    from {{ ref('dim_league') }}
 ),
 
-final as (
+mart_team_season as (
     select
-        um.fixture_sk,
-        um.fixture_api_id,
-        um.league_sk,
-        um.season_sk,
-        um.league_code,
-        um.season_api_year,
-        um.fixture_date,
-        um.kickoff_datetime,
-        um.round_name,
-        um.upcoming_round_order,
-        um.home_team_sk,
-        um.home_team_name,
-        um.away_team_sk,
-        um.away_team_name,
-        um.upcoming_matchday_fixture_count,
-        home_dt.team_logo_url as home_team_logo_url,
-        away_dt.team_logo_url as away_team_logo_url,
-        home_ts.latest_rank as home_league_rank,
-        away_ts.latest_rank as away_league_rank,
-        home_ts.standings_group_description as home_standings_group_description,
-        away_ts.standings_group_description as away_standings_group_description,
-        hf.form_season_api_year,
-        hf.home_form_games_played,
-        hf.home_form_matchdays_used,
-        hf.home_stat_coverage_form_games,
-        hf.home_points_won_sum_form,
-        hf.home_goals_for_sum_form,
-        hf.home_goals_against_sum_form,
-        hf.home_total_shots_sum_form,
-        hf.home_opponent_total_shots_sum_form,
-        hf.home_shots_inside_box_sum_form,
-        hf.home_shots_on_goal_sum_form,
-        hf.home_corner_kicks_sum_form,
-        hf.home_opponent_corner_kicks_sum_form,
-        hf.home_passes_accurate_sum_form,
-        hf.home_passes_total_sum_form,
-        hf.home_goalkeeper_saves_sum_form,
-        hf.home_points_capture_recent,
-        hf.home_goals_per_match_recent,
-        hf.home_goals_against_per_match_recent,
-        hf.home_shots_per_match_recent,
-        hf.home_shot_share_recent,
-        hf.home_danger_zone_ratio_recent,
-        hf.home_shot_accuracy_recent,
-        hf.home_finishing_efficiency_recent,
-        hf.home_pass_accuracy_recent,
-        hf.home_passes_per_match_recent,
-        hf.home_corner_kicks_per_match_recent,
-        hf.home_corners_conceded_per_match_recent,
-        hf.home_save_ratio_recent,
-        af.away_form_games_played,
-        af.away_form_matchdays_used,
-        af.away_stat_coverage_form_games,
-        af.away_points_won_sum_form,
-        af.away_goals_for_sum_form,
-        af.away_goals_against_sum_form,
-        af.away_total_shots_sum_form,
-        af.away_opponent_total_shots_sum_form,
-        af.away_shots_inside_box_sum_form,
-        af.away_shots_on_goal_sum_form,
-        af.away_corner_kicks_sum_form,
-        af.away_opponent_corner_kicks_sum_form,
-        af.away_passes_accurate_sum_form,
-        af.away_passes_total_sum_form,
-        af.away_goalkeeper_saves_sum_form,
-        af.away_points_capture_recent,
-        af.away_goals_per_match_recent,
-        af.away_goals_against_per_match_recent,
-        af.away_shots_per_match_recent,
-        af.away_shot_share_recent,
-        af.away_danger_zone_ratio_recent,
-        af.away_shot_accuracy_recent,
-        af.away_finishing_efficiency_recent,
-        af.away_pass_accuracy_recent,
-        af.away_passes_per_match_recent,
-        af.away_corner_kicks_per_match_recent,
-        af.away_corners_conceded_per_match_recent,
-        af.away_save_ratio_recent,
-        um.league_name
-    from import_int_matchday__upcoming_round_fixtures as um
-    left join mart_team_season as home_ts
+        team_sk,
+        season_sk,
+        latest_rank
+    from {{ ref('mart_team_season') }}
+),
+
+-- Earliest not-started round per (league_code, season_api_year)
+upcoming_candidates as (
+    select *
+    from fixtures
+    where
+        status_short in ('NS', 'TBD')
+        and fixture_date >= current_date()
+),
+
+next_round as (
+    select
+        league_code,
+        season_api_year,
+        round_name
+    from upcoming_candidates
+    qualify row_number() over (
+        partition by league_code, season_api_year
+        order by fixture_date asc, kickoff_datetime asc
+    ) = 1
+),
+
+next_round_fixtures as (
+    select
+        uc.*,
+        safe_cast(regexp_extract(uc.round_name, r'(\d+)$') as int64)
+            as upcoming_round_order
+    from upcoming_candidates as uc
+    inner join next_round as nr
         on
-            um.home_team_sk = home_ts.team_sk
-            and um.season_sk = home_ts.season_sk
-    left join mart_team_season as away_ts
-        on
-            um.away_team_sk = away_ts.team_sk
-            and um.season_sk = away_ts.season_sk
-    left join dim_team as home_dt
-        on um.home_team_sk = home_dt.team_sk
-    left join dim_team as away_dt
-        on um.away_team_sk = away_dt.team_sk
-    left join home_form as hf
-        on
-            um.fixture_sk = hf.fixture_sk
-            and um.home_team_sk = hf.home_team_sk
-    left join away_form as af
-        on
-            um.fixture_sk = af.fixture_sk
-            and um.away_team_sk = af.away_team_sk
+            uc.league_code = nr.league_code
+            and uc.season_api_year = nr.season_api_year
+            and uc.round_name = nr.round_name
+),
+
+matchday_fixture_count as (
+    select
+        league_code,
+        season_api_year,
+        round_name,
+        count(*) as upcoming_matchday_fixture_count
+    from next_round_fixtures
+    group by league_code, season_api_year, round_name
 )
 
-select *
-from final
-order by league_code asc, fixture_date asc, kickoff_datetime asc, fixture_sk asc
+select
+    f.fixture_sk,
+    f.fixture_api_id,
+    f.league_sk,
+    f.season_sk,
+    f.league_code,
+    f.season_api_year,
+    f.fixture_date,
+    f.kickoff_datetime,
+    f.round_name,
+    f.upcoming_round_order,
+    mfc.upcoming_matchday_fixture_count,
+    f.home_team_sk,
+    home_dt.team_name as home_team_name,
+    home_dt.team_logo_url as home_team_logo_url,
+    f.away_team_sk,
+    away_dt.team_name as away_team_name,
+    away_dt.team_logo_url as away_team_logo_url,
+    l.league_name,
+    home_ts.latest_rank as home_league_rank,
+    away_ts.latest_rank as away_league_rank,
+    -- home form window (from mart_momentum__team)
+    mh.games_in_window as home_form_games_played,
+    mh.points_won as home_points_won_sum_form,
+    mh.goals_per_match as home_goals_per_match_recent,
+    mh.goals_against_per_match as home_goals_against_per_match_recent,
+    mh.shots_per_match as home_shots_per_match_recent,
+    mh.shot_accuracy as home_shot_accuracy_recent,
+    mh.danger_zone_ratio as home_danger_zone_ratio_recent,
+    mh.finishing_efficiency as home_finishing_efficiency_recent,
+    mh.passes_per_match as home_passes_per_match_recent,
+    mh.pass_accuracy as home_pass_accuracy_recent,
+    mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
+    mh.corners_conceded_per_match as home_corners_conceded_per_match_recent,
+    mh.save_ratio as home_save_ratio_recent,
+    -- away form window (from mart_momentum__team)
+    ma.games_in_window as away_form_games_played,
+    ma.points_won as away_points_won_sum_form,
+    ma.goals_per_match as away_goals_per_match_recent,
+    ma.goals_against_per_match as away_goals_against_per_match_recent,
+    ma.shots_per_match as away_shots_per_match_recent,
+    ma.shot_accuracy as away_shot_accuracy_recent,
+    ma.danger_zone_ratio as away_danger_zone_ratio_recent,
+    ma.finishing_efficiency as away_finishing_efficiency_recent,
+    ma.passes_per_match as away_passes_per_match_recent,
+    ma.pass_accuracy as away_pass_accuracy_recent,
+    ma.corner_kicks_per_match as away_corner_kicks_per_match_recent,
+    ma.corners_conceded_per_match as away_corners_conceded_per_match_recent,
+    ma.save_ratio as away_save_ratio_recent
+from next_round_fixtures as f
+left join matchday_fixture_count as mfc
+    on
+        f.league_code = mfc.league_code
+        and f.season_api_year = mfc.season_api_year
+        and f.round_name = mfc.round_name
+left join dim_team as home_dt
+    on f.home_team_sk = home_dt.team_sk
+left join dim_team as away_dt
+    on f.away_team_sk = away_dt.team_sk
+left join dim_league as l
+    on f.league_sk = l.league_sk
+left join momentum_home as mh
+    on
+        f.fixture_sk = mh.upcoming_fixture_sk
+        and f.home_team_sk = mh.team_sk
+left join momentum_away as ma
+    on
+        f.fixture_sk = ma.upcoming_fixture_sk
+        and f.away_team_sk = ma.team_sk
+left join mart_team_season as home_ts
+    on
+        f.home_team_sk = home_ts.team_sk
+        and f.season_sk = home_ts.season_sk
+left join mart_team_season as away_ts
+    on
+        f.away_team_sk = away_ts.team_sk
+        and f.season_sk = away_ts.season_sk
+order by f.league_code asc, f.fixture_date asc, f.kickoff_datetime asc, f.fixture_sk asc

@@ -73,16 +73,6 @@ vars:
     - WCQIP
     - WCQOC
     - WCQSA
-  # API-Football round labels for BL1 relegation play-offs (fixture.league.round).
-  bl1_relegation_round_names:
-    - Final
-    - Relegation Round
-  # BL2 promotion play-off (API label on fixture.league.round); excluded from unified mart.
-  bl2_playoff_round_names:
-    - Final
-  # L1 relegation play-off; excluded from unified mart until optional L1 relegation mart exists.
-  l1_relegation_round_names:
-    - Final
 
 # Hierarchical Model Configuration
 models:

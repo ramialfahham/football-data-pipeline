@@ -38,6 +38,18 @@ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must 
 - `4_intermediate`: preparation for **marts**—complex logic, derived fields, and joins that should not live in consumption models.
 - `5_marts`: **consumption layer**—delivery-oriented tables for apps and analysis.
 
+## Cross-layer consumption rule
+
+From `2_base` upward, a model may `ref()` any model in the **same layer or any upstream layer**. The preferred path is always the nearest appropriate upstream layer — same-layer or skip-layer consumption should be deliberate, with the reason clear from the model's purpose.
+
+`1_staging` is the only layer that is strictly isolated: staging models may only read from raw `source()` calls, never `ref()` another dbt model.
+
+`scripts/check_layer_contract.py` (CI-enforced) checks:
+- `staging` — no `ref()` calls; purity rules (no `group by`, `distinct`, cross joins, wrong `partition by`)
+- `base` — cannot `ref()` `dim_*`, `fct_*`, `int_*`, or `mart_*`
+- `core` — cannot `ref()` `stg_*` (must go through base) or `mart_*`
+- `intermediate` — cannot `ref()` `mart_*`
+
 ## Goals
 
 - Keep model responsibilities clear.
