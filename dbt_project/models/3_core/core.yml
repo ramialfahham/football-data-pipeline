@@ -329,7 +329,7 @@ models:
         description: "UTC timestamp of the raw row this fact row was derived from."
 
   - name: fct_standings
-    description: "Current league standings. Grain: (season_sk, team_sk, group_description). Sources from base_apif__standings (one row per (league_code, team, season) reflecting the latest API state for that season)."
+    description: "Current standings. Grain: (season_sk, team_sk, group_name). Sources from base_apif__standings. group_name is the API standings section (league name for a single-table league, group name for a group stage, phase name for split-season leagues) — the true table identity. A team appears once per section, so split-season leagues yield more than one row per (team, season)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -341,10 +341,10 @@ models:
           combination_of_columns:
             - season_sk
             - team_sk
-            - group_description
+            - group_name
     columns:
       - name: standing_sk
-        description: "Surrogate key from (league_code, season, team_id, group_description)."
+        description: "Surrogate key from (league_code, season, team_id, group_name)."
         tests: [not_null, unique]
       - name: season_sk
         description: "FK to dim_competition_season from (league_api_id, season_api_year)."
@@ -364,8 +364,10 @@ models:
         tests: [not_null]
       - name: season_api_year
       - name: team_api_id
+      - name: group_name
+        description: "Standings section/table name from the API ($.group): the league name for a single-table league (e.g. 'Premier League'), the group for a group stage (e.g. 'Group A'), or the phase for a split-season league (e.g. '… Championship Round'). Part of the grain."
       - name: group_description
-        description: "Standings zone label assigned by the API (e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams where the API returns no zone significance. Part of the grain because the API may return one row per (team, zone)."
+        description: "Standings zone label assigned by the API ($.description, e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams. Annotation only — NOT a grain key (use group_name for table identity)."
       - name: standing_rank
         description: "Table position (1 = leader)."
       - name: points

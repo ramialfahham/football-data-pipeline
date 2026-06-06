@@ -103,15 +103,16 @@ models:
 
   - name: base_apif__standings
     description: >
-      Unified standings across all onboarded competitions (explicit ref() per
-      competition staging). Deduplicated per (league_code, season, team_id).
-      Feeds fct_standings. group_description is the API zone/stage label.
-      Output grain: (league_code, season, team_id).
+      Unified standings across all onboarded competitions (generic staging).
+      Deduplicated per (league_code, season, team_id, group_name). Feeds
+      fct_standings. group_name is the API standings section/table name (true
+      table identity); group_description is the API zone/stage annotation.
+      Output grain: (league_code, season, team_id, group_name).
     config:
       tags: ["base", "api_football", "standings_context"]
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [league_code, season, team_id]
+          combination_of_columns: [league_code, season, team_id, group_name]
     columns:
       - name: league_code
         tests: [not_null]

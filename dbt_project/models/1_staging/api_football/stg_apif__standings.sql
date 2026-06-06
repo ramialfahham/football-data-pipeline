@@ -35,6 +35,12 @@ select
     safe_cast(json_value(team_row, '$.points') as int64) as points,
     safe_cast(json_value(team_row, '$.goalsDiff') as int64) as goals_diff,
     json_value(team_row, '$.form') as form,
+    -- $.group is the standings section/table name: the league name for a single-table
+    -- league ("Premier League"), the group for a group stage ("Group A"), or a phase
+    -- for split-season leagues ("… Championship Round"). It is the true table identity.
+    json_value(team_row, '$.group') as group_name,
+    -- $.description is zone annotation text ("Promotion - Champions League",
+    -- "Relegation"), NOT a group identity. Kept as an attribute; never a grain key.
     json_value(team_row, '$.description') as group_description,
     safe_cast(json_value(team_row, '$.all.played') as int64) as played_all,
     safe_cast(json_value(team_row, '$.all.win') as int64) as wins_all,
