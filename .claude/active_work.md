@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-05 (audit + validation session — #337 merged; #321 scope refined; next: build mart_fixture_preview then delete old models)_
+_Last updated: 2026-06-06 (#321 PR #339 MERGED; all merged feature branches deleted; next: #322 standings mart)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -26,6 +26,24 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
   `mart_momentum__team`, `mart_momentum__player` in `shared/`. Validated: VL numbers
   match old mart exactly. WC comparison deferred to #326 (old mart was cumulative W2,
   not comparable to W1).
+- ✅ **#321 merged** (PR #339) — de-hardcoding cut-over + a real correctness fix:
+  - `mart_matchday_insights` refactored to read from `mart_momentum__team` (same-layer
+    ref, documented in `layering.md`). Retired the old `int_matchday__*`/`int_wc__*` chain,
+    the BL1-relegation + WC variant marts, `mart_matchday_player_insights`, BL1/BL2/L1
+    round vars, 4 stale tests, the metric-consistency macro. `mart_team_season` +
+    `int_team_season__full_season_metrics` rerouted to `int_legs__team_match`.
+  - `check_layer_contract.py` now enforces the full cross-layer rule (staging no `ref()`;
+    core no `ref('mart_*')`).
+  - **Coverage-window fix:** cross-competition expansion exposed that momentum ratios
+    mixed a full-window numerator with a partial-coverage denominator (sparse stats in
+    KL1/VL/MLS → finishing_efficiency 267%). Same-window rule applied: num & denom over
+    the same game set, null if none. Per-match stat rates ÷ `games_with_team_stats`,
+    player rates ÷ `games_with_player_stats`. Verified on BQ: 0 rows with ratio > 1.
+  - **save_ratio reverted** to `saves / (saves + goals_against)` (self-bounding, the
+    agreed definition); #320 had silently changed it to `saves / opponent_shots_on_goal`.
+    `metric_catalogue.csv` updated to match (consistent with player `save_pct`).
+- 🧹 **Branch cleanup (2026-06-06)** — all merged feature branches deleted, local + remote.
+  Only `main` remains.
 
 ## Key design decisions locked in #320 (do NOT re-debate)
 - **W1 scope:** all competition types, club and national. Shown alongside W2 for every fixture.
@@ -41,61 +59,38 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
 
 ## Next concrete action (build order)
 
-### #321 — de-hardcoding cut-over (refined scope — read before branching)
+### #322 — Standings mart (+ relegation/promotion zones) — NEXT
+Own design discussion required before building. **Read the #322 issue body first** — it
+has a settled scope (design discussion 2026-05-30):
+- Two jobs: (1) the competition's own table from `fct_standings` (league table for
+  domestic_league; group tables for group stages; none for knockout/super/friendly);
+  (2) club domestic-league standing as context on ANY club fixture.
+- **Plain table now — NO zones.** Rank, points, form, W/D/L only (all reliable). Zones
+  deferred (need per-season sourced reference; data-honesty bar).
+- Feeds `league_rank` into `mart_matchday_insights` (currently sourced from
+  `mart_team_season.latest_rank` as a temporary measure — see #321).
+- Implementation note: `fct_standings.group_description` is API *team description*
+  (unreliable zone text), NOT the group name — source the real group id for group tables.
 
-**Two-step execution:**
+### Then #326 — W2 season-to-date builder + marts
+Deferred from #320. Own design discussion. Validate WC cumulative numbers here (the
+old WC mart was W2-cumulative; that comparison belongs in #326, not #321).
 
-1. **Refactor `mart_matchday_insights` in place** — replace its internals to read from
-   `mart_momentum__team` (same-layer `ref()`, deliberate — documented in `layering.md`).
-   Self-join home + away rows on `fixture_sk`; pivot to wide `home_`/`away_` format.
-   Keep all existing output column names so Pages workflow and `index.html` need no changes.
-   Additional joins same as today: `mart_team_season` for `league_rank`,
-   `dim_team` for logos, `fct_fixture` for metadata not in the momentum mart.
-   Drop `shot_share_recent`, `points_capture_recent`, raw sum columns — not rendered in UI.
-
-2. **Extend `scripts/check_layer_contract.py`** — enforce the full cross-layer rule:
-   - `staging`: add check that no `ref(...)` call exists (staging reads only from `source()`)
-   - `core`: add check that no `ref('mart_*')` call exists
-   Update `layering.md` CI table to mark both as enforced.
-
-3. **Delete old intermediate + mart models** once step 1 is verified:
-   - `dbt_project/models/4_intermediate/domestic_league/matchday/` (all 8 files)
-   - `dbt_project/models/4_intermediate/world_championship/wc/int_wc__matchday_team_form_metrics.sql`
-   - `dbt_project/models/5_marts/domestic_league/mart_matchday_insights_bl1_relegation.sql`
-   - `dbt_project/models/5_marts/world_championship/mart_matchday_insights_wc.sql`
-   - `mart_matchday_player_insights` — retire (confirm no other consumer first)
-   - Remove vars from `dbt_project.yml`: `bl1_relegation_round_names`,
-     `bl2_playoff_round_names`, `l1_relegation_round_names`
-
-**Column contract for refactored `mart_matchday_insights` (must match `index.html`):**
-- `home_`/`away_` prefixed, drop `_recent` suffix from ratio columns
-- Fixture metadata: `fixture_sk`, `league_code`, `league_name`, `season_api_year`,
-  `kickoff_datetime`, `fixture_date`, `round_name`, `upcoming_round_order`,
-  `upcoming_matchday_fixture_count`
-- Teams + logos: `home_team_sk/name/logo_url`, `away_team_sk/name/logo_url`
-- Standings: `home_league_rank`, `away_league_rank` (from `mart_team_season`)
-- Form: `home_form_games_played`, `away_form_games_played` (= `games_in_window`)
-- Points: `home_points_won_sum_form`, `away_points_won_sum_form` (= `points_won`)
-- Ratios ×11 per side: `goals_per_match`, `goals_against_per_match`, `shots_per_match`,
-  `shot_accuracy`, `danger_zone_ratio`, `finishing_efficiency`, `passes_per_match`,
-  `pass_accuracy`, `corner_kicks_per_match`, `corners_conceded_per_match`, `save_ratio`
-
-**WC validation deferred to #326** — old WC mart was cumulative (W2), not comparable
-to new W1 mart. Validate W2 accuracy when building the season-to-date builders.
+### Remaining epic #317 surfaces (each its own design pass)
+#323 per-fixture stats mart, #324 team profile, #325 player profile.
 
 ## Do NOT
 - Do **not** put window suffixes in metric IDs (`_recent`, `_pretournament`, etc.).
-- Do **not** add descriptions/tests to `mart_matchday_insights`, `_wc`, or
-  `mart_matchday_player_insights` — they are retired in #321.
 - Do **not** use dbt MetricFlow / Semantic Layer — use the catalogue **seed**.
 - Do **not** infer season boundaries from dates or status flags — use `season_api_year`.
 - Do **not** start coding before restating the spec and getting approval.
-- Do **not** delete old intermediate models before `mart_matchday_insights` is
-  refactored and verified — deleting the chain first breaks the live UI.
-- Do **not** add `shot_share_recent` or raw sum columns to the refactored mart —
-  they are not rendered in the current UI.
-- **Read `project_metrics_context_model.md` memory AND the updated issue body before
-  any build.** Previous chats drifted by skipping one or both.
+- Do **not** mix a full-window numerator with a partial-coverage denominator in any
+  ratio — numerator and denominator must cover the **same** set of games; null when none.
+  (This is the #321 coverage bug; the rule is now in `metrics_context_model` thinking and
+  guarded by [0,1] range tests on `mart_momentum__team`.)
+- Do **not** change a metric definition without flagging it against the live/old
+  definition (the save_ratio drift in #320 went unreviewed — don't repeat).
+- **Read `project_metrics_context_model.md` memory AND the issue body before any build.**
 
 ## Conventions reminder
 - Bash for all commands; branch from main before writing any file.
