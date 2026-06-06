@@ -111,6 +111,80 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
+  - name: mart_standings
+    description: >
+      Generic standings table for every competition that has standings. Job 1: the
+      competition's own table (league table for domestic_league; group tables for group
+      stages — one section per group_name). Job 2: a club's domestic-league standing as
+      fixture context — filter to competition_type = 'domestic_league'. Rank, points,
+      form, W/D/L only (no zones). Grain: (league_code, season_api_year, group_name, team_sk).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["marts", "football", "standings"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - season_api_year
+            - group_name
+            - team_sk
+      - dbt_utils.expression_is_true:
+          expression: "standing_rank >= 1"
+          name: mart_standings_rank_positive
+      - dbt_utils.expression_is_true:
+          expression: "played is null or played = wins + draws + losses"
+          name: mart_standings_played_equals_results
+    columns:
+      - name: standing_sk
+        description: "FK to fct_standings; surrogate from (league_code, season, team, group_name)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_standings')
+              field: standing_sk
+      - name: league_code
+        description: "Partition key — app slices by this to retrieve a competition's table."
+        tests: [not_null]
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: season_api_year
+        tests: [not_null]
+      - name: group_name
+        description: "Standings section: league name (single-table), group ('Group A'), or phase. Distinguishes group tables and split-season sections."
+      - name: competition_type
+        description: "From competition_registry + competition_types seeds."
+      - name: entity_type
+        tests:
+          - accepted_values:
+              values: ["club", "national"]
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: team_name
+        description: "Denormalised from dim_team."
+      - name: team_logo_url
+        description: "Team crest URL from dim_team; nullable."
+      - name: standing_rank
+        description: "Table position within the section (1 = top)."
+        tests: [not_null]
+      - name: points
+        description: "Accumulated points in the section."
+      - name: form
+        description: "Recent results string from the API (e.g. WWDLW)."
+      - name: group_description
+        description: "API zone annotation ($.description); display context only, not a key."
+
   - name: mart_team_season
     description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
     meta:
