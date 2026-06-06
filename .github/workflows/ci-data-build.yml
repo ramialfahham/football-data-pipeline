@@ -154,7 +154,9 @@ jobs:
         run: dbt build --selector staging
 
       - name: Build base through marts
-        run: dbt build --selector downstream --exclude tag:freshness_check
+        # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
+        # dbt ignores a CLI --exclude when --selector is supplied.
+        run: dbt build --selector downstream
 
       - name: Run singular data quality tests
         run: dbt test --select test_type:singular --exclude tag:freshness_check
