@@ -18,7 +18,12 @@ selectors:
       value: models/4_intermediate
 
   - name: downstream
-    description: "Base through marts (excludes 1_staging); use once models exist under 2_base–5_marts."
+    description: >
+      Base through marts (excludes 1_staging); use once models exist under 2_base–5_marts.
+      Excludes freshness_check tests: they assert live-data freshness and only make sense
+      after ingestion (scheduled run via the dq selector), not in PR CI where no ingestion
+      runs. The exclusion must live in the selector because dbt ignores a CLI --exclude
+      when --selector is supplied.
     definition:
       union:
         - method: path
@@ -29,6 +34,9 @@ selectors:
           value: models/4_intermediate
         - method: path
           value: models/5_marts
+        - exclude:
+            - method: tag
+              value: freshness_check
 
   - name: dq
     description: "All models and all tests (full data-quality suite)."
