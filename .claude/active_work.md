@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-06 (#322 PR #342 MERGED + #345 CI-fix merged; branches cleaned; next: #343 league_rank cutover, then #326)_
+_Last updated: 2026-06-06 (PAUSED for the day. All work merged, tree clean, no open PRs. Resume at "Next concrete action" → #343 league_rank cutover.)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -79,18 +79,17 @@ used this session: `--profiles-dir` pointing at a temp dir with the bigquery oau
 
 ## Next concrete action (build order)
 
-### 1. Get #342 green and merge it (#322 standings mart)
-CI is re-running with the #345 fix included. Once data-build is green, merge.
-Then delete the merged branch and `git pull` main.
+### 1. #343 — repoint league_rank to mart_standings  ← START HERE
+Small, mechanical. Replace the `mart_team_season.latest_rank` stopgap in
+`mart_matchday_insights` with `mart_standings` (filter `competition_type='domestic_league'`,
+join on team + season). Mart-from-mart is OK here (same-layer ref, documented in
+layering.md) — or read `fct_standings`; decide during implementation. Validate ranks
+match before/after for sampled fixtures; confirm the Pages UI standings line is unchanged.
+Restate the #343 issue body for sign-off before coding.
 
-### 2. #343 — repoint league_rank to mart_standings
-Small follow-up. Replace the `mart_team_season.latest_rank` stopgap in
-`mart_matchday_insights` with `mart_standings` (filter `competition_type='domestic_league'`).
-Validate ranks match before/after; confirm Pages UI unchanged.
-
-### 3. #326 — W2 season-to-date builder + marts
-Deferred from #320. Own design discussion. Validate WC cumulative numbers here (the
-old WC mart was W2-cumulative; that comparison belongs in #326, not #321).
+### 2. #326 — W2 season-to-date builder + marts
+Deferred from #320. Own design discussion before building. Validate WC cumulative numbers
+here (the old WC mart was W2-cumulative; that comparison belongs in #326, not #321).
 
 ### Remaining epic #317 surfaces (each its own design pass)
 #323 per-fixture stats mart, #324 team profile, #325 player profile.
