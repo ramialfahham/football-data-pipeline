@@ -175,9 +175,9 @@ models:
       - name: league_name
         description: "Human-readable league name from dim_league."
       - name: home_league_rank
-        description: "Home team current table rank from mart_team_season.latest_rank; null before standings exist (temporary until #322)."
+        description: "Home team's rank in its own competition+season table (mart_standings). Null for knockout rounds and for overlapping-table leagues (team in >1 section that season), or before standings exist."
       - name: away_league_rank
-        description: "Away team current table rank; null before standings exist (temporary until #322)."
+        description: "Away team's rank in its own competition+season table (mart_standings). Null for knockout rounds and for overlapping-table leagues (team in >1 section that season), or before standings exist."
       - name: home_form_games_played
         description: "Home: finished matches in the W1 last-5 window (= games_in_window). 0 when none; never null."
         tests: [not_null]

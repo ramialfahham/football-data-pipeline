@@ -6,8 +6,11 @@
   Reads mart_momentum__team as the form source (same-layer ref — deliberate: this mart
   is a wide presentation pivot of the normalized momentum mart for the Pages UI consumer;
   see dbt_project/docs/layering.md §cross-layer-consumption-rule). Fixture metadata
-  and team/league attributes come from core dims. League rank from mart_team_season
-  (temporary until #322 — standings mart — ships).
+  and team/league attributes come from core dims. League rank = the team's position in
+  its own competition+season table from mart_standings (same-layer ref like the momentum
+  source above). Shown only where a single round-robin table applies: null for knockout
+  rounds (is_knockout_round) and for overlapping-table leagues where a team has more than
+  one section that season (e.g. Argentina).
 
   Replaces: int_matchday__upcoming_round_fixtures + int_matchday__team_form_metrics
             (old form-window intermediates, retired in this PR).
@@ -58,12 +61,19 @@ dim_league as (
     from {{ ref('dim_league') }}
 ),
 
-mart_team_season as (
+-- A team's standing in its own competition+season. season_sk already scopes to the
+-- fixture's competition, so no competition_type filter is needed. The qualify keeps
+-- only teams with exactly ONE section that season: single-table leagues and proper
+-- group phases (a team sits in one group) pass through; overlapping-table leagues
+-- (e.g. Argentina's Apertura group + Anual + Promedios) are dropped → null rank,
+-- since no single honest position exists.
+standings_unique as (
     select
         team_sk,
         season_sk,
-        latest_rank
-    from {{ ref('mart_team_season') }}
+        standing_rank
+    from {{ ref('mart_standings') }}
+    qualify count(*) over (partition by team_sk, season_sk) = 1
 ),
 
 -- Earliest not-started round per (league_code, season_api_year)
@@ -129,11 +139,19 @@ select
     away_dt.team_name as away_team_name,
     away_dt.team_logo_url as away_team_logo_url,
     l.league_name,
-    home_ts.latest_rank as home_league_rank,
-    away_ts.latest_rank as away_league_rank,
-    -- home form window (from mart_momentum__team)
-    mh.games_in_window as home_form_games_played,
-    mh.points_won as home_points_won_sum_form,
+    -- standings only meaningful for round-robin phases; suppress for knockout fixtures
+    case
+        when {{ is_knockout_round('f.round_name') }} then null
+        else home_st.standing_rank
+    end as home_league_rank,
+    case
+        when {{ is_knockout_round('f.round_name') }} then null
+        else away_st.standing_rank
+    end as away_league_rank,
+    -- home form window (from mart_momentum__team). No momentum row = team has no
+    -- finished matches in the window → 0 games / 0 points (not unknown); rates stay null.
+    coalesce(mh.games_in_window, 0) as home_form_games_played,
+    coalesce(mh.points_won, 0) as home_points_won_sum_form,
     mh.goals_per_match as home_goals_per_match_recent,
     mh.goals_against_per_match as home_goals_against_per_match_recent,
     mh.shots_per_match as home_shots_per_match_recent,
@@ -145,9 +163,9 @@ select
     mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
     mh.corners_conceded_per_match as home_corners_conceded_per_match_recent,
     mh.save_ratio as home_save_ratio_recent,
-    -- away form window (from mart_momentum__team)
-    ma.games_in_window as away_form_games_played,
-    ma.points_won as away_points_won_sum_form,
+    -- away form window (from mart_momentum__team). 0 games / 0 points when no row.
+    coalesce(ma.games_in_window, 0) as away_form_games_played,
+    coalesce(ma.points_won, 0) as away_points_won_sum_form,
     ma.goals_per_match as away_goals_per_match_recent,
     ma.goals_against_per_match as away_goals_against_per_match_recent,
     ma.shots_per_match as away_shots_per_match_recent,
@@ -179,12 +197,12 @@ left join momentum_away as ma
     on
         f.fixture_sk = ma.upcoming_fixture_sk
         and f.away_team_sk = ma.team_sk
-left join mart_team_season as home_ts
+left join standings_unique as home_st
     on
-        f.home_team_sk = home_ts.team_sk
-        and f.season_sk = home_ts.season_sk
-left join mart_team_season as away_ts
+        f.home_team_sk = home_st.team_sk
+        and f.season_sk = home_st.season_sk
+left join standings_unique as away_st
     on
-        f.away_team_sk = away_ts.team_sk
-        and f.season_sk = away_ts.season_sk
+        f.away_team_sk = away_st.team_sk
+        and f.season_sk = away_st.season_sk
 order by f.league_code asc, f.fixture_date asc, f.kickoff_datetime asc, f.fixture_sk asc
