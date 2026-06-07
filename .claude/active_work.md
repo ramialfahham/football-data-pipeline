@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-06 (PAUSED for the day. All work merged, tree clean, no open PRs. Resume at "Next concrete action" → #343 league_rank cutover.)_
+_Last updated: 2026-06-06 (#343 PR #348 MERGED; tree clean, no open PRs. Next: #326 W2 season-to-date, or remaining surfaces #323/#324/#325.)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -56,8 +56,22 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
   - `mart_standings` (5_marts/shared/, view): generic — league tables + group tables in
     one model; also serves club home-league context via `competition_type='domestic_league'`
     filter. Verified on BQ: PD clean 1..N; AFCCL East/West with rank restarting per group.
-- 📋 **#343 open (issue)** — deferred: repoint `mart_matchday_insights.league_rank` from
-  the #321 `mart_team_season` stopgap to `mart_standings`. **This is the next build.**
+- ✅ **#343 merged** (PR #348) — phase-relevant `league_rank` from `mart_standings`.
+  - `league_rank` = team's rank in the table of the **fixture's own competition+season**
+    (join `mart_standings` on `(team_sk, season_sk)` — season_sk scopes to the competition;
+    NO competition_type filter). Domestic league → league table; WC/CL group → group table.
+  - Shown only where a single round-robin table applies: `standings_unique` CTE
+    (`qualify count(*) over (team_sk, season_sk) = 1`) → overlapping-table leagues
+    (Argentina: Apertura group + Anual + Promedios) get NULL; knockout fixtures get NULL
+    via new generic macro `macros/is_knockout_round.sql`.
+  - Also coalesced `form_games_played` / `points_won_sum_form` to 0 (same mart) — #320's
+    momentum-emits-no-row design left them null on a LEFT JOIN and tripped not_null tests.
+  - Verified on BQ: grain unique; single-table league ranks match the old values; APD &
+    knockout → null; national/continental group ranks now populated. dbt build PASS=34.
+- 🧹 **Issue housekeeping (2026-06-06)** — closed 9 stale issues: #320/#321/#322 (merged,
+  never auto-closed) + 6 CI-failure auto-issues (#344/#340/#338/#334/#330/#315).
+- 📌 **Pending task chip** — remove orphaned macros left by #321 (`bl1/bl2/l1_*_round_names`,
+  likely `domestic_league_codes_in_clause`) + the docs that mention them. Separate scope.
 
 ## Local env note (not code)
 `~/.dbt/profiles.yml` was overwritten by another project (now a `dbt_analytics` duckdb
@@ -79,20 +93,20 @@ used this session: `--profiles-dir` pointing at a temp dir with the bigquery oau
 
 ## Next concrete action (build order)
 
-### 1. #343 — repoint league_rank to mart_standings  ← START HERE
-Small, mechanical. Replace the `mart_team_season.latest_rank` stopgap in
-`mart_matchday_insights` with `mart_standings` (filter `competition_type='domestic_league'`,
-join on team + season). Mart-from-mart is OK here (same-layer ref, documented in
-layering.md) — or read `fct_standings`; decide during implementation. Validate ranks
-match before/after for sampled fixtures; confirm the Pages UI standings line is unchanged.
-Restate the #343 issue body for sign-off before coding.
+### 1. #326 — W2 season-to-date builder + marts  ← NEXT
+Deferred from #320. **Own design discussion before building** — read the #326 issue body
++ `project_metrics_context_model.md` memory + `docs/metrics_context_model.md` §1/§5/§7.
+The W2 cumulative season-to-date window (the second number shown beside W1 momentum).
+Validate WC cumulative numbers here (the old WC mart was W2-cumulative; that comparison
+belongs in #326, not #321). Restate the spec for sign-off before coding.
 
-### 2. #326 — W2 season-to-date builder + marts
-Deferred from #320. Own design discussion before building. Validate WC cumulative numbers
-here (the old WC mart was W2-cumulative; that comparison belongs in #326, not #321).
-
-### Remaining epic #317 surfaces (each its own design pass)
+### 2. Remaining epic #317 surfaces (each its own design pass)
 #323 per-fixture stats mart, #324 team profile, #325 player profile.
+
+### Loose ends (small, optional)
+- The orphaned-macro cleanup from #321 (task chip pending — see status above).
+- #160 (WC group letters in UI) is now cheap: `mart_standings.group_name` carries the
+  real group identity.
 
 ## Do NOT
 - Do **not** put window suffixes in metric IDs (`_recent`, `_pretournament`, etc.).
@@ -105,6 +119,10 @@ here (the old WC mart was W2-cumulative; that comparison belongs in #326, not #3
   guarded by [0,1] range tests on `mart_momentum__team`.)
 - Do **not** change a metric definition without flagging it against the live/old
   definition (the save_ratio drift in #320 went unreviewed — don't repeat).
+- Do **not** show a standing/league_rank where it isn't a single round-robin table for
+  the fixture's own competition (locked in #343): null for knockout rounds
+  (`is_knockout_round`) and for overlapping-table leagues where a team has >1 section that
+  season (e.g. Argentina). Standings are only meaningful for league/group phases.
 - **Read `project_metrics_context_model.md` memory AND the issue body before any build.**
 
 ## Conventions reminder
