@@ -50,8 +50,6 @@ legs as (
         tl.corner_kicks,
         tl.opponent_corner_kicks,
         tl.goalkeeper_saves,
-        case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
-        pl.fixture_sk is not null as has_player_stats,
         pl.key_passes,
         pl.tackles,
         pl.interceptions,
@@ -59,7 +57,9 @@ legs as (
         pl.duels_total,
         pl.duels_won,
         pl.dribbles_attempts,
-        pl.dribbles_success
+        pl.dribbles_success,
+        case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
+        pl.fixture_sk is not null as has_player_stats
     from team_legs as tl
     left join player_legs as pl
         on
