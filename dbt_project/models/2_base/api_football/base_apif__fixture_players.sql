@@ -43,6 +43,9 @@ with src as (
         fixture_id is not null
         and team_id is not null
         and player_id is not null
+        -- player_id = 0 is the API placeholder for an unknown player (no real id);
+        -- it is not a real player and produces phantom cross-team duplicate legs.
+        and player_id != 0
 )
 
 select
