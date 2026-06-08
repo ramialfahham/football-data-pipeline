@@ -111,6 +111,122 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
+  - name: mart_season_to_date__team
+    description: >
+      W2 season-to-date mart — team. One row per upcoming fixture side: the team's
+      cumulative record in the fixture's own competition this season (shown beside W1
+      momentum). Falls back to the same competition's previous season before the team has
+      played (window_type='prev_season'). Same metric_ids/formulas as mart_momentum__team;
+      same-window coverage rule. Grain: (upcoming_fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "shot_accuracy is null or (shot_accuracy between 0 and 1)"
+          name: std_team_shot_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "danger_zone_ratio is null or (danger_zone_ratio between 0 and 1)"
+          name: std_team_danger_zone_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
+          name: std_team_finishing_efficiency_in_range
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy is null or (pass_accuracy between 0 and 1)"
+          name: std_team_pass_accuracy_in_range
+      - dbt_utils.expression_is_true:
+          expression: "save_ratio is null or (save_ratio between 0 and 1)"
+          name: std_team_save_ratio_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: std_team_duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: std_team_dribbles_success_pct_in_range
+    columns:
+      - name: upcoming_fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "Partition key — app slices by this."
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - accepted_values:
+              values: ["club", "national"]
+      - name: season_api_year
+        description: "The season the W2 value is drawn from (current, or previous when window_type='prev_season')."
+        tests: [not_null]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["season_to_date", "prev_season"]
+      - name: games_played
+        description: "Cumulative matches in the season-to-date window."
+        tests: [not_null]
+      - name: is_home
+        description: "True when team_sk is the home side of the upcoming fixture."
+        tests: [not_null]
+
+  - name: mart_season_to_date__player
+    description: >
+      W2 season-to-date mart — player. One row per player per upcoming fixture side: the
+      player's cumulative record in the fixture's own competition this season (complement to
+      mart_momentum__player). Previous-season fallback before the team has played. Raw counts
+      passed through; ratios via safe_divide. Grain: (upcoming_fixture_sk, team_sk, player_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+      - dbt_utils.expression_is_true:
+          expression: "save_pct is null or (save_pct between 0 and 1)"
+          name: std_player_save_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+          name: std_player_pass_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: std_player_duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: std_player_dribbles_success_pct_in_range
+    columns:
+      - name: upcoming_fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key — app slices by this."
+        tests: [not_null]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["season_to_date", "prev_season"]
+      - name: position_code
+        description: "Player position code; used to scope save_pct to goalkeepers."
+      - name: is_home
+        description: "True when team_sk is the home side of the upcoming fixture."
+        tests: [not_null]
+
   - name: mart_standings
     description: >
       Generic standings table for every competition that has standings. Job 1: the
