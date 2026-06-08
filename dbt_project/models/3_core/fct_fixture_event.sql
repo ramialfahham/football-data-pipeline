@@ -40,7 +40,9 @@ select
     {{ dbt_utils.generate_surrogate_key(['fixture_id', 'event_index']) }} as event_sk,
     cast(fixture_id as int64) as fixture_sk,
     cast(team_id as int64) as team_sk,
-    cast(player_id as int64) as player_sk,
+    -- 0 is the API placeholder for "no player"; keep the event but null the FK so it
+    -- does not point at a non-existent dim_player row (relationship tests ignore nulls).
+    nullif(cast(player_id as int64), 0) as player_sk,
     league_code,
     fixture_id as fixture_api_id,
     team_id as team_api_id,

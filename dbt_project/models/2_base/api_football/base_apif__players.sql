@@ -42,10 +42,57 @@ transfers_src as (
     where player_id is not null
 ),
 
+-- Match-appearance fallback: players seen in fixture player stats but absent from the
+-- above. Completes dim_player so player-stat / leg facts have valid FKs. Only id, name,
+-- photo and the team they appeared for are known from this source.
+fixture_players_src as (
+    select
+        league_code,
+        player_id as player_api_id,
+        player_name,
+        cast(null as string) as player_first_name,
+        cast(null as string) as player_last_name,
+        cast(null as date) as player_birth_date,
+        cast(null as string) as player_nationality,
+        player_photo_url,
+        team_id as last_known_team_api_id,
+        cast(null as int64) as last_known_season_year,
+        raw_ingested_at,
+        3 as source_priority
+    from {{ ref('stg_apif__fixture_players') }}
+    where player_id is not null and player_id != 0
+),
+
+-- Event fallback: players seen in match events (broader coverage than player stats)
+-- but absent from the above. The events payload carries no photo.
+fixture_events_src as (
+    select
+        league_code,
+        safe_cast(player_id as int64) as player_api_id,
+        player_name,
+        cast(null as string) as player_first_name,
+        cast(null as string) as player_last_name,
+        cast(null as date) as player_birth_date,
+        cast(null as string) as player_nationality,
+        cast(null as string) as player_photo_url,
+        cast(null as int64) as last_known_team_api_id,
+        cast(null as int64) as last_known_season_year,
+        raw_ingested_at,
+        4 as source_priority
+    from {{ ref('base_apif__fixture_events') }}
+    where
+        safe_cast(player_id as int64) is not null
+        and safe_cast(player_id as int64) != 0
+),
+
 src as (
     select * from players_src
     union all
     select * from transfers_src
+    union all
+    select * from fixture_players_src
+    union all
+    select * from fixture_events_src
 )
 
 select
