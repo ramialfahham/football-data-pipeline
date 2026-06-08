@@ -14,7 +14,14 @@ src as (
     select *
     from base
     {% if is_incremental() %}
-    where base.raw_ingested_at > (select max(tgt.raw_ingested_at) from {{ this }} as tgt)
+    -- NULL-safe high-water mark: an empty target makes max() NULL and `x > NULL` is
+    -- never true, which would trap the table empty forever (see fact-not-empty test).
+    -- Coalescing to the epoch lets an empty/zeroed table self-heal on the next run.
+    where
+        base.raw_ingested_at > (
+            select coalesce(max(tgt.raw_ingested_at), timestamp('1970-01-01'))
+            from {{ this }} as tgt
+        )
     {% endif %}
 )
 
