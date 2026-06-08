@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: int_season_to_date__team
+    description: >
+      W2 season-to-date builder — team. Cumulative running totals over int_legs__team_match
+      within one competition+season, one row per team-match (totals through that match).
+      Complement to int_momentum__team. Carries round_order + match_number for the deferred
+      year-over-year surface. Raw sums only; ratios live in mart_season_to_date__team.
+      Grain: (team_sk, league_code, season_api_year, fixture_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, league_code, season_api_year, fixture_sk]
+    columns:
+      - name: team_sk
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: fixture_sk
+        tests: [not_null]
+      - name: entity_type
+        tests:
+          - accepted_values:
+              values: ["club", "national"]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["season_to_date"]
+      - name: games_played
+        description: "Cumulative count of the team's finished matches through this one (1..N)."
+        tests: [not_null]
+      - name: games_with_team_stats
+        description: "Cumulative count of those matches with team stats present; denominator for per-match team-stat rates."
+        tests: [not_null]
+      - name: round_order
+        description: "Matchday number parsed from round_name (null if non-numeric). For deferred year-over-year alignment."
+      - name: match_number
+        description: "The team's Nth match that season by kickoff (always present)."
+        tests: [not_null]
+
+  - name: int_season_to_date__player
+    description: >
+      W2 season-to-date builder — player. Cumulative running totals over int_legs__player_match
+      within one competition+season, one row per player-match. Complement to
+      int_momentum__player. A leg exists only where player stats are present, so games_played
+      counts appearances-with-stats and player ratios are same-window by construction.
+      Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, player_sk, league_code, season_api_year, fixture_sk]
+    columns:
+      - name: team_sk
+        tests: [not_null]
+      - name: player_sk
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: fixture_sk
+        tests: [not_null]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["season_to_date"]
+      - name: games_played
+        description: "Cumulative count of the player's appearances-with-stats through this match."
+        tests: [not_null]
+      - name: position_code
+        description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."

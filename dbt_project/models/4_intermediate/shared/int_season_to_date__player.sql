@@ -1,0 +1,70 @@
+{{ config(materialized='table') }}
+
+{#
+  W2 season-to-date builder — player. Cumulative running totals over a player's finished
+  matches within one competition+season, one row per match the player appeared in (totals
+  THROUGH that match). The complement to int_momentum__player (W1 = last 5).
+
+  Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
+
+  A player-match leg exists only where the API provides player stats, so every row is a
+  covered appearance and games_played counts appearances-with-stats. Player ratios
+  (save_pct, pass_accuracy_pct, duels_won_pct, dribbles_success_pct) are stat-over-stat
+  from the same rows, so no coverage-restriction is needed (unlike the team builder's
+  scoreline-vs-stat mix). Raw sums only — ratios live in the mart.
+
+  Carries round_order + match_number for the deferred year-over-year surface.
+  Season-bounded (partition by league_code, season_api_year); national qualifier
+  campaigns are a separate follow-up.
+#}
+
+with player_legs as (
+    select * from {{ ref('int_legs__player_match') }}
+)
+
+select
+    team_sk,
+    player_sk,
+    league_code,
+    season_api_year,
+    fixture_sk,
+    entity_type,
+    kickoff_datetime,
+    round_order,
+    'season_to_date' as window_type,
+    any_value(position_code) over w as position_code,
+    row_number() over w_seq as match_number,
+    row_number() over w_seq as games_played,
+    sum(goals_total) over w as goals_total,
+    sum(goals_conceded) over w as goals_conceded,
+    sum(goals_assists) over w as goals_assists,
+    sum(goals_saves) over w as goals_saves,
+    sum(shots_total) over w as shots_total,
+    sum(shots_on) over w as shots_on,
+    sum(passes_total) over w as passes_total,
+    sum(passes_key) over w as passes_key,
+    sum(round(passes_total * passes_accuracy_percent / 100)) over w as passes_accurate,
+    sum(tackles_total) over w as tackles_total,
+    sum(tackles_blocks) over w as tackles_blocks,
+    sum(tackles_interceptions) over w as tackles_interceptions,
+    sum(duels_total) over w as duels_total,
+    sum(duels_won) over w as duels_won,
+    sum(dribbles_attempts) over w as dribbles_attempts,
+    sum(dribbles_success) over w as dribbles_success,
+    sum(dribbles_past) over w as dribbles_past,
+    sum(offsides) over w as offsides,
+    sum(penalty_won) over w as penalty_won,
+    sum(penalty_committed) over w as penalty_committed,
+    sum(cards_yellow) over w as cards_yellow,
+    sum(cards_red) over w as cards_red
+from player_legs
+window
+    w as (
+        partition by team_sk, player_sk, league_code, season_api_year
+        order by kickoff_datetime asc, fixture_sk asc
+        rows between unbounded preceding and current row
+    ),
+    w_seq as (
+        partition by team_sk, player_sk, league_code, season_api_year
+        order by kickoff_datetime asc, fixture_sk asc
+    )
