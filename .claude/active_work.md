@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-06 (#343 PR #348 MERGED; tree clean, no open PRs. Next: #326 W2 season-to-date, or remaining surfaces #323/#324/#325.)_
+_Last updated: 2026-06-09 (#326 PR #350 + #352 player-pipeline-rehab MERGED; main healthy, tree clean, no open PRs. Next: remaining surfaces #323/#324/#325.)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -70,6 +70,27 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
     knockout → null; national/continental group ranks now populated. dbt build PASS=34.
 - 🧹 **Issue housekeeping (2026-06-06)** — closed 9 stale issues: #320/#321/#322 (merged,
   never auto-closed) + 6 CI-failure auto-issues (#344/#340/#338/#334/#330/#315).
+- ✅ **#326 merged** (PR #350) — W2 season-to-date (season-bounded). Builders
+  `int_season_to_date__team/__player` (cumulative; carry round_order+match_number for the
+  deferred YoY); marts `mart_season_to_date__team/__player` (grain (upcoming_fixture, team
+  [/player]); prev-season fallback; same ratios/coverage rules as momentum). Deferred to
+  own follow-ups: national qualifier-campaign W2 + WC-before→qualifier fallback; the full
+  year-over-year comparison surface.
+- ✅ **#352 merged** — player-pipeline rehabilitation (the empty player fact was masking
+  layers of DQ debt; turning it on surfaced + fixed all of them):
+  - **Self-heal incremental trap**: all 3 fanout facts (`fct_fixture_player_stats`,
+    `_team_stats`, `_event`) used `raw_ingested_at > (select max … from {{this}})`, which on
+    an EMPTY table is `> NULL` = never true → stuck empty forever. Now
+    `> coalesce(max, '1970-01-01')` so an empty table self-heals. + `assert_fanout_facts_not_empty`.
+  - **Dropped `player_id = 0`** API placeholder (base filter + null event FK) — fixed 68
+    grain dupes + 617 orphans.
+  - **Completed `dim_player`**: `base_apif__players` now unions squad (/players) + match
+    (fixture_players) + event players — 7,440 match-only players had no dim row.
+  - **Clamped impossible source values** in `base_apif__fixture_players`:
+    passes_accuracy_percent→[0,100] (API gave up to 191%), dribbles_success≤attempts.
+  - One-time **full-refresh** of `core.fct_fixture_player_stats` (Rami-authorized) to purge
+    legacy bad rows the incremental couldn't delete. Player surfaces (W1+W2 player marts)
+    are now LIVE with valid referential integrity. Final CI run green.
 - 📌 **Pending task chip** — remove orphaned macros left by #321 (`bl1/bl2/l1_*_round_names`,
   likely `domestic_league_codes_in_clause`) + the docs that mention them. Separate scope.
 
@@ -93,18 +114,19 @@ used this session: `--profiles-dir` pointing at a temp dir with the bigquery oau
 
 ## Next concrete action (build order)
 
-### 1. #326 — W2 season-to-date builder + marts  ← NEXT
-Deferred from #320. **Own design discussion before building** — read the #326 issue body
-+ `project_metrics_context_model.md` memory + `docs/metrics_context_model.md` §1/§5/§7.
-The W2 cumulative season-to-date window (the second number shown beside W1 momentum).
-Validate WC cumulative numbers here (the old WC mart was W2-cumulative; that comparison
-belongs in #326, not #321). Restate the spec for sign-off before coding.
+### 1. Remaining epic #317 surfaces (each its own design pass) ← NEXT
+#323 per-fixture stats mart, #324 team profile, #325 player profile. Each needs its own
+design discussion + restate-spec-before-coding. Player surfaces (#325, and the player
+half of #323) are now unblocked — the player fact is live with valid integrity (#352).
 
-### 2. Remaining epic #317 surfaces (each its own design pass)
-#323 per-fixture stats mart, #324 team profile, #325 player profile.
+### 2. Deferred follow-ups (open issues when picked up)
+- **National qualifier-campaign W2** (multi-season, no season cap) + **WC-before→qualifier
+  fallback** (`wc_supporting_league_codes`). Split out of #326.
+- **Year-over-year comparison surface** (two seasons aligned by matchday). The
+  season-to-date builders already carry `round_order`/`match_number` for it.
 
 ### Loose ends (small, optional)
-- The orphaned-macro cleanup from #321 (task chip pending — see status above).
+- Orphaned-macro cleanup from #321 (task chip pending — see status above).
 - #160 (WC group letters in UI) is now cheap: `mart_standings.group_name` carries the
   real group identity.
 
@@ -123,6 +145,14 @@ belongs in #326, not #321). Restate the spec for sign-off before coding.
   the fixture's own competition (locked in #343): null for knockout rounds
   (`is_knockout_round`) and for overlapping-table leagues where a team has >1 section that
   season (e.g. Argentina). Standings are only meaningful for league/group phases.
+- Do **not** "fix" a failing DQ test by lowering it to `warn` — fix the data at source
+  (locked #352: completed dim_player, clamped impossible values, dropped placeholder ids).
+- Do **not** trust a green data-build on an EMPTY table — tests pass trivially on 0 rows.
+  An empty core fact is a red flag (`assert_fanout_facts_not_empty` now guards the fanout
+  facts). When turning a dormant table back on, expect dormant DQ debt to surface.
+- Remember incremental facts retain old rows: a source-side filter/clamp only affects NEW
+  inserts; existing bad rows need a **full-refresh** (CI runs incremental, so a one-time
+  full-refresh of the affected fact is required to deploy such a fix).
 - **Read `project_metrics_context_model.md` memory AND the issue body before any build.**
 
 ## Conventions reminder
