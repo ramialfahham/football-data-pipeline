@@ -19,14 +19,12 @@ with src as (
         goals_saves,
         passes_total,
         passes_key,
-        passes_accuracy_percent,
         tackles_total,
         tackles_blocks,
         tackles_interceptions,
         duels_total,
         duels_won,
         dribbles_attempts,
-        dribbles_success,
         dribbles_past,
         fouls_drawn,
         fouls_committed,
@@ -37,7 +35,12 @@ with src as (
         penalty_scored,
         penalty_missed,
         penalty_saved,
-        raw_ingested_at
+        raw_ingested_at,
+        -- Clamp impossible source values to their valid domain (the API has reported
+        -- pass accuracy up to 191% and dribble success > attempts). Keeps derived
+        -- ratios in [0,1]; least() preserves NULL.
+        least(passes_accuracy_percent, 100) as passes_accuracy_percent,
+        least(dribbles_success, dribbles_attempts) as dribbles_success
     from {{ ref('stg_apif__fixture_players') }}
     where
         fixture_id is not null
