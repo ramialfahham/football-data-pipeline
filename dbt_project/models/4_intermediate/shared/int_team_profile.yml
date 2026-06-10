@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: int_team_profile__yoy
+    description: >
+      Games-played-aligned year-over-year for the team profile (#324), domestic leagues
+      only. One row per team's CURRENT domestic season: cumulative points/goals through
+      the latest N games this season vs the same team's prior season through its first N
+      games. Aligned by games played (match_number), which equals matchday for fixed-
+      matchday leagues and is the only safe cross-format key (parsed round numbers collide
+      across phases in multi-phase formats). Deltas NULL when the prior season is absent.
+      Grain: (team_sk, league_code, season_api_year).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, league_code, season_api_year]
+    columns:
+      - name: team_sk
+        tests: [not_null]
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        description: "The team's current domestic season (the YoY anchor)."
+        tests: [not_null]
+      - name: yoy_games_played_cutoff
+        description: "N = games played this season; the prior season is compared through its first N games."
+        tests: [not_null]
+      - name: points_delta_yoy
+        description: "points_this_season - points_prev_season through N games. NULL when no prior season."
+
+  - name: int_team_profile__streaks
+    description: >
+      Trailing run lengths per (team, competition-season) for the team profile (#324):
+      unbeaten / win / winless / clean-sheet / scoring runs as of that season's most
+      recent match. A run is the count of most-recent consecutive matches satisfying the
+      condition before the first that breaks it. Grain: (team_sk, season_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_sk]
+      - dbt_utils.expression_is_true:
+          expression: "unbeaten_run >= 0 and win_run >= 0 and winless_run >= 0 and clean_sheet_run >= 0 and scoring_run >= 0"
+          name: team_profile_streaks_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "unbeaten_run <= matches_in_season and clean_sheet_run <= matches_in_season"
+          name: team_profile_streaks_within_season
+    columns:
+      - name: team_sk
+        tests: [not_null]
+      - name: season_sk
+        tests: [not_null]
+      - name: matches_in_season
+        tests: [not_null]

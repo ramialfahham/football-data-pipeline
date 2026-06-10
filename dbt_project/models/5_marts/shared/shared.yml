@@ -232,6 +232,47 @@ models:
       - name: is_home
         tests: [not_null]
 
+  - name: mart_team_profile
+    description: >
+      Team profile (#324). One row per (team, competition-season): identity + record +
+      rank/form (composed from dim_team and mart_team_season) + full-season metric rates
+      (int_team_season__full_season_metrics) + two signature differentiators and a streaks
+      layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
+      transparent performance_vs_results_gap (no composite score). Year-over-year columns
+      (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
+      domestic-league only — NULL elsewhere and where the prior season is not ingested.
+      Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_sk]
+      - dbt_utils.expression_is_true:
+          expression: "shot_share_season is null or (shot_share_season between 0 and 1)"
+          name: team_profile_shot_share_in_range
+      - dbt_utils.expression_is_true:
+          expression: "points_capture_season is null or (points_capture_season between 0 and 1)"
+          name: team_profile_points_capture_in_range
+      - dbt_utils.expression_is_true:
+          expression: "performance_vs_results_gap is null or (performance_vs_results_gap between -1 and 1)"
+          name: team_profile_perf_gap_in_range
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key — app slices by this."
+        tests: [not_null]
+      - name: competition_type
+        description: "From the registry; YoY columns are populated only for domestic_league."
+      - name: performance_vs_results_gap
+        description: "shot_share_season - points_capture_season. Positive = dominates play more than results reward; both inputs are real [0,1] shares (transparent, not a composite score)."
+      - name: points_delta_yoy
+        description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
+
   - name: mart_season_to_date__team
     description: >
       W2 season-to-date mart — team. One row per upcoming fixture side: the team's
