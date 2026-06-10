@@ -120,13 +120,30 @@ Per season (selector):
 - Fixtures: next + recent matches list.
 - Signature-moment candidates: deserved-vs-actual visual; YoY trend comparison.
 
-### 6.3 Landing
-- Today's/next matches across competitions (fixture cards: teams, crests, kickoff,
-  competition, round) — the hero.
-- Hybrid browse: competition groups + country hubs (crest/flag grid or list).
-- "Trending now" (all real, from team profiles): biggest YoY risers/fallers, longest
-  active streaks, biggest deserved-vs-actual gaps.
-- Leaderboard teasers (top scorers), mini standings, search, language switcher.
+### 6.3 Landing (home)
+Agreed **hybrid** model (CPO, 2026-06-10): fixtures-first, with stats/storylines below.
+The MVP's competition-card landing is **obsolete** for a website. Module order
+(top → bottom), each tagged with its real data status:
+
+1. **Fixtures hero — upcoming matches.** The product's core feature (the MVP's
+   fixture list), elevated to the home across competitions: date-navigable, grouped
+   by competition, each row carrying its form hook and linking to the fixture page.
+   *Status:* the per-competition list + fixture page exist; ⚠ the cross-competition
+   home aggregation is a feed to build.
+2. **Hybrid browse:** competition groups (Leagues / Cups / Continental / National)
+   + country hubs (crest/flag grid or list). *Status:* ✓ registry (#364).
+3. **Storylines — "Trending":** biggest YoY risers/fallers, longest active streaks,
+   biggest deserved-vs-actual gaps. *Status:* ✓ data in `mart_team_profile`; ⚠ needs
+   the data-to-text narrative generator (build).
+4. **Stats:** top-scorer leaderboard teasers + mini standings. *Status:*
+   ✓ `mart_top_scorers`, `mart_standings`.
+
+Persistent: search, language switcher.
+
+The fixture page reached from the hero shows the **side-by-side form comparison**
+(existing — the match preview) plus **past-meetings head-to-head**
+(`mart_head_to_head`, #375). Note: an earlier draft of this section listed a landing
+composition that had not been discussed; this is the reviewed, agreed version.
 
 ### 6.4 Player profile
 Identity: name, photo, nationality, birth date, position badge (GK/DF/MF/FW), team.
