@@ -45,6 +45,41 @@ stg_standings as (
     where team_id is not null
 ),
 
+-- Fixture-level sources (statistics, players, events) carry team ids for teams
+-- that appear in no other source: the teams endpoint, the fixtures_next window,
+-- and standings all miss lower-division clubs that play only a domestic-cup tie
+-- (e.g. DFB-Pokal). dim_team must cover every team referenced by a fanout fact,
+-- so these are first-class team sources too.
+stg_fixture_level as (
+    select
+        league_code,
+        team_id as team_api_id,
+        team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__fixture_statistics') }}
+    where team_id is not null
+
+    union all
+
+    select
+        league_code,
+        team_id as team_api_id,
+        team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__fixture_players') }}
+    where team_id is not null
+
+    union all
+
+    select
+        league_code,
+        team_id as team_api_id,
+        team_name,
+        raw_ingested_at
+    from {{ ref('stg_apif__fixture_events') }}
+    where team_id is not null
+),
+
 team_keys as (
     select
         league_code,
@@ -73,6 +108,13 @@ team_keys as (
         league_code,
         team_api_id
     from stg_standings
+
+    union all
+
+    select
+        league_code,
+        team_api_id
+    from stg_fixture_level
 ),
 
 distinct_team_keys as (
@@ -137,6 +179,20 @@ standings_team_names as (
         ) as rn
     from stg_standings
     where team_name is not null
+),
+
+fixture_level_team_names as (
+    select
+        league_code,
+        team_api_id,
+        team_name,
+        raw_ingested_at,
+        row_number() over (
+            partition by league_code, team_api_id
+            order by raw_ingested_at desc
+        ) as rn
+    from stg_fixture_level
+    where team_name is not null
 )
 
 select
@@ -151,9 +207,11 @@ select
     t.venue_address,
     t.venue_city,
     t.venue_capacity,
-    coalesce(t.team_name, fn.team_name, sn.team_name) as team_name,
     coalesce(
-        t.raw_ingested_at, fn.raw_ingested_at, sn.raw_ingested_at
+        t.team_name, fn.team_name, sn.team_name, fl.team_name
+    ) as team_name,
+    coalesce(
+        t.raw_ingested_at, fn.raw_ingested_at, sn.raw_ingested_at, fl.raw_ingested_at
     ) as raw_ingested_at
 from distinct_team_keys as k
 left join teams_latest as t
@@ -171,3 +229,8 @@ left join standings_team_names as sn
         k.league_code = sn.league_code
         and k.team_api_id = sn.team_api_id
         and sn.rn = 1
+left join fixture_level_team_names as fl
+    on
+        k.league_code = fl.league_code
+        and k.team_api_id = fl.team_api_id
+        and fl.rn = 1
