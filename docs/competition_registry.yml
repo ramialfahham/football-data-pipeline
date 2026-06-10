@@ -21,6 +21,14 @@
 #   league_only          — form from fixtures within this competition only
 #   supporting_leagues   — form from qualifier/related competitions (international tournaments)
 #
+# Site display metadata (consumed by the site export ONLY — not by dbt; issue #364):
+#   confederation : UEFA | CONMEBOL | CONCACAF | CAF | AFC | OFC | FIFA (global)
+#   tier          : league pyramid level (domestic_league only; 1 = top flight)
+#   slug          : stable, locale-independent URL slug — NEVER change once published
+#                   (a rename gets a redirect alias, not a new canonical)
+#   sort_order    : display order within the competition's group (groups derive from
+#                   competition_type — the type→group map lives in the site export)
+#
 # Update vars.active_competition_league_codes in dbt_project/dbt_project.yml for active competitions; CI checks sync.
 
 version: "1.4"
@@ -37,6 +45,10 @@ competitions:
     name: "1. Fußball-Bundesliga"
     country: "Germany"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "bundesliga"
+    sort_order: 30
     provider: "api_football"
     provider_league_code: "D1"      # as it appears in api-football payload
     provider_league_id: 78
@@ -57,6 +69,9 @@ competitions:
     name: "FIFA World Cup 2026"
     country: "International"
     competition_type: "world_championship"
+    confederation: "FIFA"
+    slug: "world-cup"
+    sort_order: 10
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 1
@@ -102,6 +117,9 @@ competitions:
     name: "WC Qualification Europe"
     country: "International"
     competition_type: "qualifying"
+    confederation: "UEFA"
+    slug: "world-cup-qualification-europe"
+    sort_order: 90
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 32
@@ -119,6 +137,9 @@ competitions:
     name: "WC Qualification Africa"
     country: "International"
     competition_type: "qualifying"
+    confederation: "CAF"
+    slug: "world-cup-qualification-africa"
+    sort_order: 110
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 29
@@ -136,6 +157,9 @@ competitions:
     name: "WC Qualification CONCACAF"
     country: "International"
     competition_type: "qualifying"
+    confederation: "CONCACAF"
+    slug: "world-cup-qualification-concacaf"
+    sort_order: 130
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 31
@@ -153,6 +177,9 @@ competitions:
     name: "WC Qualification South America"
     country: "International"
     competition_type: "qualifying"
+    confederation: "CONMEBOL"
+    slug: "world-cup-qualification-south-america"
+    sort_order: 100
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 34
@@ -170,6 +197,9 @@ competitions:
     name: "WC Qualification Asia"
     country: "International"
     competition_type: "qualifying"
+    confederation: "AFC"
+    slug: "world-cup-qualification-asia"
+    sort_order: 120
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 30
@@ -187,6 +217,9 @@ competitions:
     name: "WC Qualification Intercontinental Playoffs"
     country: "International"
     competition_type: "qualifying"
+    confederation: "FIFA"
+    slug: "world-cup-qualification-playoffs"
+    sort_order: 150
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 37
@@ -204,6 +237,9 @@ competitions:
     name: "WC Qualification Oceania"
     country: "International"
     competition_type: "qualifying"
+    confederation: "OFC"
+    slug: "world-cup-qualification-oceania"
+    sort_order: 140
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 33
@@ -221,6 +257,10 @@ competitions:
     name: "Premier League"
     country: "England"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "premier-league"
+    sort_order: 10
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 39
@@ -237,6 +277,10 @@ competitions:
     name: "La Liga"
     country: "Spain"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "la-liga"
+    sort_order: 20
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 140
@@ -253,6 +297,10 @@ competitions:
     name: "2. Fußball-Bundesliga"
     country: "Germany"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 2
+    slug: "2-bundesliga"
+    sort_order: 60
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 79
@@ -269,6 +317,10 @@ competitions:
     name: "Serie A"
     country: "Italy"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "serie-a"
+    sort_order: 40
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 135
@@ -285,6 +337,10 @@ competitions:
     name: "Ligue 1"
     country: "France"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "ligue-1"
+    sort_order: 50
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 61
@@ -301,6 +357,10 @@ competitions:
     name: "Veikkausliiga"
     country: "Finland"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "veikkausliiga"
+    sort_order: 160
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 244
@@ -318,6 +378,10 @@ competitions:
     name: "Liga MX"
     country: "Mexico"
     competition_type: "domestic_league"
+    confederation: "CONCACAF"
+    tier: 1
+    slug: "liga-mx"
+    sort_order: 110
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 262
@@ -335,6 +399,10 @@ competitions:
     name: "Liga Portugal"
     country: "Portugal"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "liga-portugal"
+    sort_order: 80
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 94
@@ -352,6 +420,10 @@ competitions:
     name: "Major League Soccer"
     country: "United States"
     competition_type: "domestic_league"
+    confederation: "CONCACAF"
+    tier: 1
+    slug: "mls"
+    sort_order: 120
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 253
@@ -369,6 +441,10 @@ competitions:
     name: "Saudi Pro League"
     country: "Saudi Arabia"
     competition_type: "domestic_league"
+    confederation: "AFC"
+    tier: 1
+    slug: "saudi-pro-league"
+    sort_order: 130
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 307
@@ -386,6 +462,10 @@ competitions:
     name: "Eredivisie"
     country: "Netherlands"
     competition_type: "domestic_league"
+    confederation: "UEFA"
+    tier: 1
+    slug: "eredivisie"
+    sort_order: 70
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 88
@@ -414,6 +494,9 @@ competitions:
     name: "UEFA Champions League"
     country: "Europe"
     competition_type: "continental_club"
+    confederation: "UEFA"
+    slug: "champions-league"
+    sort_order: 10
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 2
@@ -438,6 +521,9 @@ competitions:
     name: "UEFA Europa League"
     country: "Europe"
     competition_type: "continental_club"
+    confederation: "UEFA"
+    slug: "europa-league"
+    sort_order: 20
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 3
@@ -455,6 +541,9 @@ competitions:
     name: "UEFA Europa Conference League"
     country: "Europe"
     competition_type: "continental_club"
+    confederation: "UEFA"
+    slug: "conference-league"
+    sort_order: 30
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 848
@@ -472,6 +561,9 @@ competitions:
     name: "UEFA Super Cup"
     country: "Europe"
     competition_type: "continental_super_cup"
+    confederation: "UEFA"
+    slug: "uefa-super-cup"
+    sort_order: 40
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 531
@@ -493,6 +585,9 @@ competitions:
     name: "Copa América"
     country: "International"
     competition_type: "continental_championship"
+    confederation: "CONMEBOL"
+    slug: "copa-america"
+    sort_order: 30
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 9
@@ -510,6 +605,9 @@ competitions:
     name: "Africa Cup of Nations"
     country: "International"
     competition_type: "continental_championship"
+    confederation: "CAF"
+    slug: "africa-cup-of-nations"
+    sort_order: 40
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 6
@@ -527,6 +625,9 @@ competitions:
     name: "AFC Asian Cup"
     country: "International"
     competition_type: "continental_championship"
+    confederation: "AFC"
+    slug: "asian-cup"
+    sort_order: 50
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 7
@@ -544,6 +645,9 @@ competitions:
     name: "CONCACAF Gold Cup"
     country: "International"
     competition_type: "continental_championship"
+    confederation: "CONCACAF"
+    slug: "gold-cup"
+    sort_order: 60
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 22
@@ -561,6 +665,9 @@ competitions:
     name: "UEFA Nations League"
     country: "Europe"
     competition_type: "continental_championship"
+    confederation: "UEFA"
+    slug: "nations-league"
+    sort_order: 70
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 5
@@ -578,6 +685,9 @@ competitions:
     name: "UEFA European Championship"
     country: "Europe"
     competition_type: "continental_championship"
+    confederation: "UEFA"
+    slug: "euro"
+    sort_order: 20
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 4
@@ -595,6 +705,9 @@ competitions:
     name: "CONCACAF Nations League"
     country: "International"
     competition_type: "continental_championship"
+    confederation: "CONCACAF"
+    slug: "concacaf-nations-league"
+    sort_order: 80
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 536
@@ -616,6 +729,10 @@ competitions:
     name: "Brasileirão Série A"
     country: "Brazil"
     competition_type: "domestic_league"
+    confederation: "CONMEBOL"
+    tier: 1
+    slug: "brasileirao"
+    sort_order: 90
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 71
@@ -633,6 +750,10 @@ competitions:
     name: "Liga Profesional de Fútbol (Argentina)"
     country: "Argentina"
     competition_type: "domestic_league"
+    confederation: "CONMEBOL"
+    tier: 1
+    slug: "liga-profesional-argentina"
+    sort_order: 100
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 128
@@ -650,6 +771,10 @@ competitions:
     name: "J1 League"
     country: "Japan"
     competition_type: "domestic_league"
+    confederation: "AFC"
+    tier: 1
+    slug: "j1-league"
+    sort_order: 140
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 98
@@ -667,6 +792,10 @@ competitions:
     name: "K League 1"
     country: "South Korea"
     competition_type: "domestic_league"
+    confederation: "AFC"
+    tier: 1
+    slug: "k-league-1"
+    sort_order: 150
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 292
@@ -688,6 +817,9 @@ competitions:
     name: "DFB-Pokal"
     country: "Germany"
     competition_type: "domestic_cup"
+    confederation: "UEFA"
+    slug: "dfb-pokal"
+    sort_order: 30
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 81
@@ -706,6 +838,9 @@ competitions:
     name: "FA Cup"
     country: "England"
     competition_type: "domestic_cup"
+    confederation: "UEFA"
+    slug: "fa-cup"
+    sort_order: 10
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 45
@@ -724,6 +859,9 @@ competitions:
     name: "Copa del Rey"
     country: "Spain"
     competition_type: "domestic_cup"
+    confederation: "UEFA"
+    slug: "copa-del-rey"
+    sort_order: 20
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 143
@@ -742,6 +880,9 @@ competitions:
     name: "Coupe de France"
     country: "France"
     competition_type: "domestic_cup"
+    confederation: "UEFA"
+    slug: "coupe-de-france"
+    sort_order: 50
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 66
@@ -760,6 +901,9 @@ competitions:
     name: "Coppa Italia"
     country: "Italy"
     competition_type: "domestic_cup"
+    confederation: "UEFA"
+    slug: "coppa-italia"
+    sort_order: 40
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 137
@@ -782,6 +926,9 @@ competitions:
     name: "Copa Libertadores"
     country: "South America"
     competition_type: "continental_club"
+    confederation: "CONMEBOL"
+    slug: "copa-libertadores"
+    sort_order: 50
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 13
@@ -799,6 +946,9 @@ competitions:
     name: "CAF Champions League"
     country: "Africa"
     competition_type: "continental_club"
+    confederation: "CAF"
+    slug: "caf-champions-league"
+    sort_order: 80
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 12
@@ -816,6 +966,9 @@ competitions:
     name: "AFC Champions League Elite"
     country: "Asia"
     competition_type: "continental_club"
+    confederation: "AFC"
+    slug: "afc-champions-league"
+    sort_order: 70
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 17
@@ -836,6 +989,9 @@ competitions:
     name: "CONCACAF Champions Cup"
     country: "North/Central America"
     competition_type: "continental_club"
+    confederation: "CONCACAF"
+    slug: "concacaf-champions-cup"
+    sort_order: 90
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 16
@@ -853,6 +1009,9 @@ competitions:
     name: "FIFA Club World Cup"
     country: "International"
     competition_type: "continental_club"
+    confederation: "FIFA"
+    slug: "club-world-cup"
+    sort_order: 60
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 15
