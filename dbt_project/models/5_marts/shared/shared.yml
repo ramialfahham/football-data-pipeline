@@ -702,6 +702,47 @@ models:
       - name: is_home
         tests: [not_null]
 
+  - name: mart_head_to_head
+    description: >
+      Head-to-head (#375). All-time past meetings between two teams, directed: one row
+      per (team_sk, opponent_team_sk) = that team's record vs that opponent, across all
+      competitions. Feeds the fixture-page H2H context. Built from int_legs__team_match
+      (core -> intermediate -> mart, not mart-from-mart). Raw record facts only — no
+      derived ratios (the H2H record is fact, not a catalogue metric). recent_meetings is
+      the most-recent ≤10 meetings (date, competition, score, result). A pair that never
+      met has no row. Grain: (team_sk, opponent_team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, opponent_team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "wins + draws + losses = total_meetings"
+          name: head_to_head_record_sums_to_total
+      - dbt_utils.expression_is_true:
+          expression: "wins_last5 + draws_last5 + losses_last5 = meetings_last5"
+          name: head_to_head_last5_sums_to_meetings_last5
+      - dbt_utils.expression_is_true:
+          expression: "meetings_last5 = least(total_meetings, 5)"
+          name: head_to_head_last5_capped_at_5
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: opponent_team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: total_meetings
+        tests: [not_null]
+      - name: last_meeting_result
+        tests:
+          - accepted_values:
+              values: ["W", "D", "L"]
+
   - name: mart_top_scorers
     description: "Top scorers per (league_code, season_api_year) derived from mart_player_season. View (cheap to rebuild). Replaces the /players/topscorers endpoint. DENSE_RANK ties share a rank and no ranks are skipped; filter is scorer_rank <= 25 (inclusive of ties at rank 25)."
     meta:
