@@ -49,6 +49,10 @@ The ID must be discovered via a live name-based API search (Step 0b).
 | `season_type` | `split_year` or `calendar_year` | exact lowercase string |
 | `current_season` | `2026` | API season identifier — confirm from Step 0b |
 | `history_seasons` | `1` | default 1; bump to 2 if the league's prior season feeds form fallback |
+| `confederation` | `CONCACAF` | UEFA / CONMEBOL / CONCACAF / CAF / AFC / OFC / FIFA |
+| `tier` | `1` | domestic leagues only; pyramid level (1 = top flight) |
+| `slug` | `mls` | stable, locale-independent URL slug — never changes once published |
+| `sort_order` | `120` | display order within the competition's group (see registry header) |
 | `notes` | free text | rationale, e.g. "WC 2026 host coverage for USA + Canada" |
 
 `provider_league_id` is **not** a user input — it is discovered in Step 0b.
@@ -143,6 +147,10 @@ status section (`ACTIVE` or `IN PROGRESS`):
     name: "{NAME}"
     country: "{COUNTRY}"
     competition_type: "domestic_league"
+    confederation: "{CONFEDERATION}"
+    tier: {TIER}                      # domestic_league only — omit for other types
+    slug: "{SLUG}"
+    sort_order: {SORT_ORDER}
     provider: "api_football"
     provider_league_code: null
     provider_league_id: {PROVIDER_LEAGUE_ID}
