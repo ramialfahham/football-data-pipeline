@@ -1,0 +1,30 @@
+---
+// Per-locale landing placeholder. Real landing: #367 after the design pass (#366).
+export function getStaticPaths() {
+  return [
+    { params: { lang: "de" } },
+    { params: { lang: "en" } },
+    { params: { lang: "fi" } },
+  ];
+}
+const { lang } = Astro.params;
+const headline: Record<string, string> = {
+  de: "Matchday IQ v2 — im Aufbau",
+  en: "Matchday IQ v2 — under construction",
+  fi: "Matchday IQ v2 — rakenteilla",
+};
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Matchday IQ</title>
+  </head>
+  <body>
+    <h1>{headline[lang ?? "en"]}</h1>
+    <p>v2 scaffold (#362, epic #361). The live product is unaffected.</p>
+  </body>
+</html>
