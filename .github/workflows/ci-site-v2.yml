@@ -1,0 +1,41 @@
+# Build check for the v2 site (epic #361, scaffold #362).
+# Path-filtered: runs only when site_v2/ changes. NO deploy — the live
+# GitHub Pages URL keeps serving the current MVP via pages-match-preview.yml
+# until the parity cutover (#377). A v2 preview deploy is a separate,
+# deliberately-reviewed change because it touches the live Pages artifact.
+name: ci-site-v2
+
+on:
+  pull_request:
+    paths:
+      - "site_v2/**"
+      - ".github/workflows/ci-site-v2.yml"
+  push:
+    branches: [main]
+    paths:
+      - "site_v2/**"
+      - ".github/workflows/ci-site-v2.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site_v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site_v2/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Assert expected pages exist
+        run: |
+          test -f dist/index.html
+          test -f dist/de/index.html
+          test -f dist/en/index.html
+          test -f dist/fi/index.html
