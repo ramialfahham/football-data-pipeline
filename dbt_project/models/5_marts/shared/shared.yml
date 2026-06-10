@@ -111,6 +111,127 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
+  - name: mart_form_window__team
+    description: >
+      W1 form-window list mart — team (#323). The drill-down behind the momentum
+      metrics: the same last-5 matches mart_momentum__team aggregates, exposed
+      un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
+      is the click-through key into mart_fixture_stats__team / __player; has_team_stats
+      and has_player_stats are derived from those detail marts (same-layer refs, the
+      documented layering exception), so true literally means the drill-down returns
+      rows. Consistency with the momentum aggregate is guarded by
+      assert_form_window_matches_momentum. Grain: (upcoming_fixture_sk, team_sk,
+      played_fixture_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk, played_fixture_sk]
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk, recency_rank]
+    columns:
+      - name: upcoming_fixture_sk
+        tests: [not_null]
+      - name: team_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key of the UPCOMING fixture — app slices by this. The past match's own competition is played_league_code."
+        tests: [not_null]
+      - name: window_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["last_5"]
+      - name: recency_rank
+        description: "1 = most recent past match in the window."
+        tests: [not_null]
+      - name: played_fixture_sk
+        description: "Click-through key into the per-fixture stat marts."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: result
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["W", "D", "L"]
+      - name: opponent_team_sk
+        tests: [not_null]
+      - name: has_team_stats
+        description: "True when mart_fixture_stats__team has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+        tests: [not_null]
+      - name: has_player_stats
+        description: "True when mart_fixture_stats__player has rows for this played fixture + team. False is the common case — many competitions lack player stats."
+        tests: [not_null]
+      - name: is_home
+        description: "True when team_sk is the home side of the upcoming fixture."
+        tests: [not_null]
+
+  - name: mart_fixture_stats__team
+    description: >
+      Per-fixture team stat line (#323) — the match detail view behind the form-window
+      list. Pure projection of fct_fixture_team_stats (no derived metrics) plus fixture
+      metadata and team identity. Both sides of a fixture are two rows. Covers all
+      finished fixtures with team stats; API shell rows (statistics block present but
+      every value NULL) are excluded, so a fixture absent here has no usable stats —
+      the honest "not available" state. Grain: (fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, team_sk]
+    columns:
+      - name: fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "Partition key — the played fixture's competition."
+        tests: [not_null]
+      - name: is_home
+        tests: [not_null]
+
+  - name: mart_fixture_stats__player
+    description: >
+      Per-fixture player stat lines (#323) — the player half of the match detail view.
+      Pure projection of fct_fixture_player_stats (no derived metrics) plus player and
+      team identity. A fixture with no rows here has no player stats — the COMMON case
+      (many competitions lack statistics_players), rendered honestly by the app as
+      "player stats not available". Grain: (fixture_sk, team_sk, player_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, team_sk, player_sk]
+    columns:
+      - name: fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        description: "Partition key — the played fixture's competition."
+        tests: [not_null]
+      - name: is_home
+        tests: [not_null]
+
   - name: mart_season_to_date__team
     description: >
       W2 season-to-date mart — team. One row per upcoming fixture side: the team's
