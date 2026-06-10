@@ -609,6 +609,99 @@ models:
       - name: yellow_cards
       - name: red_cards
 
+  - name: mart_player_profile
+    description: >
+      Player profile (#325). One row per (player, competition-season): the player's
+      season profile, composed with dim_player identity and modal position. Metric
+      governance is catalogue-only (v1): every metric is a metric_catalogue row (#327)
+      computed by its catalogue formula — counts plus the four catalogued ratios
+      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, save_pct). No invented
+      metrics (no per-90, no goal_conversion, no player shot_accuracy) — those await a
+      CPO-approved catalogue extension. Beyond catalogue metrics, only raw descriptors
+      are carried (appearances/starts/minutes, identity, position). pass_accuracy_pct
+      uses the catalogue's derived passes_accurate (per-fixture round then sum). save_pct
+      is only meaningful for goalkeepers (position_code = 'G'). Grain: (player_sk,
+      season_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, season_sk]
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+          name: player_profile_pass_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: player_profile_duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: player_profile_dribbles_success_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "save_pct is null or (save_pct between 0 and 1)"
+          name: player_profile_save_pct_in_range
+    columns:
+      - name: player_season_sk
+        tests: [unique, not_null]
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: season_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key — app slices by this."
+        tests: [not_null]
+      - name: appearances
+        tests: [not_null]
+      - name: position_code
+        description: "Most-frequent position that season (role badge). NULL when no fixture carried a position."
+
+  - name: mart_player_match_log
+    description: >
+      Player match log (#325). One row per (player, finished fixture): the player's stat
+      line plus match context (opponent, score, result from the player's team's
+      perspective). Player-history-shaped (one player over time), distinct from the
+      fixture-detail-shaped mart_fixture_stats__player (#323). Grain: (player_sk,
+      fixture_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, fixture_sk]
+    columns:
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: opponent_team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "Partition key — the played fixture's competition."
+        tests: [not_null]
+      - name: result
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["W", "D", "L"]
+      - name: is_home
+        tests: [not_null]
+
   - name: mart_top_scorers
     description: "Top scorers per (league_code, season_api_year) derived from mart_player_season. View (cheap to rebuild). Replaces the /players/topscorers endpoint. DENSE_RANK ties share a rank and no ranks are skipped; filter is scorer_rank <= 25 (inclusive of ties at rank 25)."
     meta:
