@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-09 (#326 PR #350 + #352 player-pipeline-rehab MERGED; main healthy, tree clean, no open PRs. Next: remaining surfaces #323/#324/#325.)_
+_Last updated: 2026-06-10 (#323 built on feat/323-per-fixture-stats — PR open, awaiting CI/merge. Next after that: surfaces #324/#325.)_
 
 ## Current focus
 Building the **metrics context-model foundation** (epic **#317**) — the shared
@@ -91,14 +91,31 @@ Full design: `docs/metrics_context_model.md` (on main). Reasoning/history: memor
   - One-time **full-refresh** of `core.fct_fixture_player_stats` (Rami-authorized) to purge
     legacy bad rows the incremental couldn't delete. Player surfaces (W1+W2 player marts)
     are now LIVE with valid referential integrity. Final CI run green.
+- 🚧 **#323 built, PR open (2026-06-10)** — per-fixture stats surface, branch
+  `feat/323-per-fixture-stats`. Design approved by Rami (restated spec + lineage diagrams):
+  - **Refactor:** last-5 selection extracted from `int_momentum__team` into new
+    `int_form_window__team` (grain: upcoming side × window leg) so the aggregate and its
+    drill-down list consume the SAME selection. **Validated on BQ: full-row diff of the
+    re-aggregation vs the live momentum builder = 0 rows both directions** (pure refactor,
+    numbers identical).
+  - **`mart_form_window__team`** — the un-aggregated last-5 list per upcoming side;
+    `played_fixture_sk` = click-through key; `has_team_stats`/`has_player_stats` derived
+    from the detail marts themselves (same-layer refs, documented layering exception).
+  - **`mart_fixture_stats__team` / `__player`** — per-fixture stat-line projections of the
+    core facts (no derived metrics; marts-read-core is fine, intermediate is only for
+    business logic). Team mart EXCLUDES API shell rows (statistics block present, every
+    value NULL — found on WC qualifiers): projecting them would render an all-NULL detail
+    view instead of the honest empty state.
+  - Tests: grain uniqueness ×3, FK relationships (dim_team/dim_player/fct_fixture),
+    `assert_form_window_matches_momentum` (list count == games_in_window, full outer).
+    All built green on BQ; validate-local all gates PASS.
 - 📌 **Pending task chip** — remove orphaned macros left by #321 (`bl1/bl2/l1_*_round_names`,
   likely `domestic_league_codes_in_clause`) + the docs that mention them. Separate scope.
 
-## Local env note (not code)
-`~/.dbt/profiles.yml` was overwritten by another project (now a `dbt_analytics` duckdb
-profile, not `football_data_pipeline`). Local dbt commands fail until restored. Workaround
-used this session: `--profiles-dir` pointing at a temp dir with the bigquery oauth profile
-(project `football-data-pipeline-gcp`, dataset `dbt_analytics`, EU). CI is unaffected.
+## Local env note (RESOLVED 2026-06-10)
+`~/.dbt/profiles.yml` is fixed: the `football_data_pipeline` bigquery profile was appended
+alongside the other project's `dbt_analytics` entry. Local dbt + sqlfluff work with NO
+`--profiles-dir` workaround; the temp profile dirs were deleted. `dbt debug` verified OK.
 
 ## Key design decisions locked in #320 (do NOT re-debate)
 - **W1 scope:** all competition types, club and national. Shown alongside W2 for every fixture.
@@ -114,10 +131,11 @@ used this session: `--profiles-dir` pointing at a temp dir with the bigquery oau
 
 ## Next concrete action (build order)
 
-### 1. Remaining epic #317 surfaces (each its own design pass) ← NEXT
-#323 per-fixture stats mart, #324 team profile, #325 player profile. Each needs its own
-design discussion + restate-spec-before-coding. Player surfaces (#325, and the player
-half of #323) are now unblocked — the player fact is live with valid integrity (#352).
+### 1. Land #323 (PR open) ← NEXT
+Wait for CI green + Rami's merge of the #323 PR (branch `feat/323-per-fixture-stats`),
+then branch cleanup. After that: remaining epic #317 surfaces — #324 team profile,
+#325 player profile — each its own design discussion + restate-spec-before-coding.
+Player surfaces are unblocked since #352 (player fact live with valid integrity).
 
 ### 2. Deferred follow-ups (open issues when picked up)
 - **National qualifier-campaign W2** (multi-season, no season cap) + **WC-before→qualifier
