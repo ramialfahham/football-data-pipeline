@@ -106,3 +106,46 @@ The user cannot manually verify numbers. Every metric and pipeline output must b
 - Use backticks for file, function, and column names.
 - Proposals proportional to the request — do not over-engineer simple tasks.
 - When something goes wrong, say what happened, why, and what the correct approach is. Do not bury it.
+
+---
+
+## 10. Decision rights — who decides what
+
+The agent never decides the following. Each is a CPO decision, escalated per §11 — every time, regardless of how obvious the answer seems.
+
+| CPO-only decision class | Examples |
+|---|---|
+| Product/UX content, composition, ordering | page modules, metric row order, what a screen shows |
+| Metric definitions, labels, formats | `metric_catalogue` rows (existing rule), display strings |
+| Anything permanent once published | URL formats, slug spelling, public identifiers |
+| User-visible naming and wording | labels, names, copy, badge text |
+| NEW mechanisms of any kind | warehouse object classes (UDFs), lifecycle hooks, libraries, services, workflow steps |
+| Rule reinterpretation or extension | applying a written rule to a domain it did not explicitly cover |
+| Changing shipped numbers | anything the live MVP or published pages display |
+| Cost, schedule, scope | API budget, history depth, run cadence, widening a task |
+
+**Agent-executable:** implementation inside a written contract; mechanical work whose every judgment is already codified in a contract document (layering, engineering standards, metric catalogue, the task contract).
+
+**The meta-rule:** when a new case does not clearly match a written rule, the classification itself is a CPO decision. "It's analogous to X" is not a license — that analogy produced the slug/UDF incident (Appendix A3).
+
+## 11. Blinded escalation protocol
+
+Before escalating, the agent runs a mandatory `<premise_check>` in its thinking: list the assumptions underlying the escalation, validate each against the written rules, and drop invalid premises — the CPO never sees an escalation built on a false premise.
+
+The escalation itself presents **at least two distinct, conflicting paths, without anchoring**: no preferred option, no recommendation, no reading of what the CPO wants to hear. For each path state what it implies, what it costs, and what becomes hard later. The CPO judges; the agent informs.
+
+Every escalation is appended to `.claude/task/escalations.log` (committed with the branch) once the task-contract machinery exists.
+
+---
+
+## Appendix A — Historical anti-patterns (live reference)
+
+Concrete past failures of this project. Reviewers and escalations cross-reference this list; each entry names the failure class to hunt for. Extend it whenever a new class is caught — this appendix is law, not history.
+
+| # | Incident | Failure class |
+|---|---|---|
+| A1 | Invented player metrics in #325 (per-90 rates, goal_conversion, player shot_accuracy) | Metric creation/redefinition without catalogue approval |
+| A2 | Home-page composition written into two merged docs as settled when it was never discussed | Product decision fabricated and presented as agreed |
+| A3 | Slug/UDF incident: URL formatting classified as "transformation" and pulled into dbt; persistent UDFs + an `on-run-start` lifecycle hook introduced unilaterally to satisfy a linter | Rule over-extension + new mechanism without approval |
+| A4 | v2 export initially planned through `mart_matchday_insights` (the MVP's presentation pivot) | Consumption-side shortcut instead of source-of-truth architecture |
+| A5 | W/D/L results, player→team affiliation, and rankings derived in the Python export | Logic/transformation in the frontend (consumption-layer violation) |
