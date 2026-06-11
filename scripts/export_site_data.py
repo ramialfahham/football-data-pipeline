@@ -35,7 +35,8 @@ from datetime import datetime, timezone
 GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
 DEFAULT_OUT = "artifacts/site_data"
-ENTITY_TYPES = ("teams", "players", "fixtures")
+ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav")
+REGISTRY_PATH = "docs/competition_registry.yml"
 
 # Join/identity keys dropped from each per-side block in the fixture payload
 # (they live at the fixture top level or are join plumbing, not display data).
@@ -43,6 +44,25 @@ _W1_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
 _H2H_DROP = {"team_sk", "opponent_team_sk"}
+_FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
+_TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
+                   "season_api_year", "window_type", "league_code"}
+
+# competition_type -> nav group (the hybrid IA's group axis; site_architecture.md section 4).
+_GROUP_OF_TYPE = {
+    "domestic_league": "leagues",
+    "domestic_cup": "cups",
+    "domestic_super_cup": "cups",
+    "continental_club": "continental-club",
+    "continental_super_cup": "continental-club",
+    "club_qualifying": "continental-club",
+    "world_championship": "national-teams",
+    "continental_championship": "national-teams",
+    "qualifying": "national-teams",
+}
+_GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
+# Only these types get a country hub (real nations); international comps live in groups only.
+_DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
 
 
 # --------------------------------------------------------------------------- #
@@ -140,10 +160,12 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
 
 
 def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
-                  w2: dict | None, ctx: dict | None) -> dict:
+                  w2: dict | None, ctx: dict | None,
+                  form_window: list | None = None, top_players: list | None = None) -> dict:
     """One team's block on the fixture page: identity + W1 form + W2 season-to-date
-    + standings context. Each sub-block is None when that mart has no row for the
-    side (honest absence — the UI renders the empty state)."""
+    + standings context + the form-window drill-down list + top players. Each
+    sub-block is None/[] when that mart has no row for the side (honest absence —
+    the UI renders the empty state)."""
     return {
         "team_id": team_id,
         "name": (identity or {}).get("team_name"),
@@ -152,6 +174,80 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
         "w1": _drop(w1, _W1_DROP) if w1 else None,
         "w2": _drop(w2, _W2_DROP) if w2 else None,
         "standing": _drop(ctx, _CTX_DROP) if ctx else None,
+        "form_window": form_window or [],
+        "top_players": top_players or [],
+    }
+
+
+def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
+    """Top N players for a fixture side, ranked by goals then assists then key passes
+    (transparent sort, not a composite score). Names/photos joined from dim_player."""
+    ranked = sorted(
+        rows,
+        key=lambda r: (
+            r.get("goals_total") or 0,
+            r.get("goals_assists") or 0,
+            r.get("passes_key") or 0,
+        ),
+        reverse=True,
+    )[:limit]
+    out = []
+    for r in ranked:
+        p = _drop(r, _TOPPLAYER_DROP)
+        ident = names.get(int(r["player_sk"])) or {}
+        p["player_name"] = ident.get("player_name")
+        p["player_photo_url"] = ident.get("player_photo_url")
+        out.append(p)
+    return out
+
+
+def build_nav(competitions: list[dict]) -> dict:
+    """Hybrid navigation from registry rows: a `groups` axis (leagues / cups /
+    continental-club / national-teams) and a `countries` axis (domestic comps only).
+    Pure — unit-tested without the registry file."""
+    groups: dict[str, list] = {g: [] for g in _GROUP_ORDER}
+    countries: dict[str, list] = {}
+    for c in competitions:
+        ctype = c.get("competition_type")
+        group = _GROUP_OF_TYPE.get(ctype)
+        if group:
+            groups[group].append(c)
+        if ctype in _DOMESTIC_TYPES and c.get("country"):
+            countries.setdefault(c["country"], []).append(c)
+
+    def _by_order(rows):
+        return sorted(rows, key=lambda r: (r.get("sort_order") or 0, r.get("name") or ""))
+
+    def _by_tier(rows):
+        return sorted(rows, key=lambda r: (r.get("tier") or 99, r.get("sort_order") or 0))
+
+    return {
+        "groups": [
+            {"key": g, "competitions": _by_order(groups[g])}
+            for g in _GROUP_ORDER if groups[g]
+        ],
+        "countries": [
+            {"country": ctry, "competitions": _by_tier(countries[ctry])}
+            for ctry in sorted(countries)
+        ],
+    }
+
+
+def shape_competition_payload(league_code: str, season: int, meta: dict,
+                              standings: list[dict], top_scorers: list[dict],
+                              fixtures: list[dict]) -> dict:
+    """A competition-season hub: standings + top scorers + fixtures list."""
+    return {
+        "type": "competition",
+        "league_code": league_code,
+        "season": season,
+        "slug": (meta or {}).get("slug"),
+        "name": (meta or {}).get("name"),
+        "standings": sorted(
+            standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
+        ),
+        "top_scorers": sorted(top_scorers, key=lambda r: r.get("scorer_rank") or 999),
+        "fixtures": sorted(fixtures, key=lambda r: r.get("kickoff_datetime") or datetime.min),
     }
 
 
@@ -318,6 +414,32 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
                                 f") in ({pk_in})"):
             h2h[(int(r["team_sk"]), int(r["opponent_team_sk"]))] = r
 
+    # Drill-down: the last-5 form-window list and top players per side.
+    form_window: dict = {}
+    for r in _query(client, f"select * from `{marts}.mart_form_window__team` "
+                            f"where upcoming_fixture_sk in ({fid_in})"):
+        form_window.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(
+            _drop(r, _FW_DROP)
+        )
+    mom_players: dict = {}
+    for r in _query(client, f"select * from `{marts}.mart_momentum__player` "
+                            f"where upcoming_fixture_sk in ({fid_in})"):
+        mom_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
+    player_names = {
+        int(r["player_sk"]): r
+        for r in _query(client, f"select player_sk, player_name, player_photo_url "
+                                f"from `{GCP_PROJECT}.core.dim_player`")
+    }
+
+    def _side(fid, team_id):
+        return _fixture_side(
+            team_id, teams.get(team_id), w1.get((fid, team_id)), w2.get((fid, team_id)),
+            ctx.get((fid, team_id)),
+            form_window=sorted(form_window.get((fid, team_id), []),
+                               key=lambda r: r.get("recency_rank") or 99),
+            top_players=shape_top_players(mom_players.get((fid, team_id), []), player_names),
+        )
+
     payloads = []
     for f in fixtures:
         fid = int(f["fixture_sk"])
@@ -325,18 +447,119 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
         f["league_name"] = leagues.get(int(f["league_sk"])) if f.get("league_sk") is not None else None
         f["home_team_name"] = (teams.get(h) or {}).get("team_name")
         f["away_team_name"] = (teams.get(a) or {}).get("team_name")
-        home_side = _fixture_side(h, teams.get(h), w1.get((fid, h)), w2.get((fid, h)), ctx.get((fid, h)))
-        away_side = _fixture_side(a, teams.get(a), w1.get((fid, a)), w2.get((fid, a)), ctx.get((fid, a)))
         h2h_row = h2h.get((h, a))
         payloads.append(
-            shape_fixture_payload(f, home_side, away_side, _drop(h2h_row, _H2H_DROP) if h2h_row else None)
+            shape_fixture_payload(f, _side(fid, h), _side(fid, a),
+                                  _drop(h2h_row, _H2H_DROP) if h2h_row else None)
         )
+    return payloads
+
+
+def _registry_competitions(registry_path: str = REGISTRY_PATH) -> list[dict]:
+    import yaml
+
+    data = yaml.safe_load(open(registry_path, encoding="utf-8"))
+    fields = ("league_code", "name", "slug", "country", "confederation",
+              "tier", "sort_order", "competition_type")
+    return [
+        {k: o.get(k) for k in fields}
+        for o in (data.get("competitions") or [])
+        if isinstance(o, dict) and "competition_type" in o
+    ]
+
+
+def fetch_nav(registry_path: str = REGISTRY_PATH) -> dict:
+    """nav.json — registry-driven hybrid navigation (no BigQuery)."""
+    return build_nav(_registry_competitions(registry_path))
+
+
+def _group2(rows: list[dict], k1: str, k2: str) -> dict:
+    g: dict = {}
+    for r in rows:
+        g.setdefault((r[k1], int(r[k2])), []).append(r)
+    return g
+
+
+_STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
+                  "entity_type", "team_api_id", "season_api_year", "league_code",
+                  "group_description"}
+
+
+def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
+    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+    meta = {
+        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+        for c in _registry_competitions(registry_path)
+    }
+    combos = sorted({
+        (r["league_code"], int(r["season_api_year"]))
+        for r in _query(client, f"select distinct league_code, season_api_year "
+                                f"from `{GCP_PROJECT}.core.fct_fixture`")
+    })
+    if sample:
+        combos = combos[:sample]
+    if not combos:
+        return []
+    combo_in = ", ".join(f"'{lc}-{s}'" for lc, s in combos)
+
+    standings = _group2(
+        _query(client, f"select * from `{marts}.mart_standings`"),
+        "league_code", "season_api_year",
+    )
+    scorers = _group2(
+        _query(client, f"select * from `{marts}.mart_top_scorers`"),
+        "league_code", "season_api_year",
+    )
+    teams = {
+        int(r["team_sk"]): r
+        for r in _query(client, f"select team_sk, team_name, team_logo_url "
+                                f"from `{GCP_PROJECT}.core.dim_team`")
+    }
+    fixtures = _group2(
+        _query(client, f"""
+            select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+                   status_short, home_team_sk, away_team_sk, goals_home, goals_away
+            from `{GCP_PROJECT}.core.fct_fixture`
+            where concat(league_code, '-', cast(season_api_year as string)) in ({combo_in})
+        """),
+        "league_code", "season_api_year",
+    )
+
+    def _fx(r: dict) -> dict:
+        h = teams.get(int(r["home_team_sk"])) if r.get("home_team_sk") is not None else None
+        a = teams.get(int(r["away_team_sk"])) if r.get("away_team_sk") is not None else None
+        return {
+            "fixture_id": int(r["fixture_sk"]),
+            "kickoff_datetime": r.get("kickoff_datetime"),
+            "round": r.get("round_name"),
+            "status": r.get("status_short"),
+            "home": {"team_id": r.get("home_team_sk"), "name": (h or {}).get("team_name"),
+                     "crest": (h or {}).get("team_logo_url"), "goals": r.get("goals_home")},
+            "away": {"team_id": r.get("away_team_sk"), "name": (a or {}).get("team_name"),
+                     "crest": (a or {}).get("team_logo_url"), "goals": r.get("goals_away")},
+        }
+
+    payloads = []
+    for (lc, season) in combos:
+        st = [_drop(r, _STANDING_DROP) for r in standings.get((lc, season), [])]
+        payloads.append(shape_competition_payload(
+            lc, season, meta.get(lc), st,
+            scorers.get((lc, season), []), [_fx(r) for r in fixtures.get((lc, season), [])],
+        ))
     return payloads
 
 
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
+def write_file(out_root: pathlib.Path, relpath: str, payload: dict) -> str:
+    path = out_root / relpath
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = _payload_bytes(payload)
+    path.write_bytes(data)
+    return _sha256(data)
+
+
 def write_entity(out_root: pathlib.Path, subdir: str, entity_id: int, payload: dict) -> dict:
     path = out_root / subdir / f"{entity_id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -371,6 +594,21 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             e = write_entity(out_root, "fixtures", p["fixture_id"], p)
             entries.append(e)
             slug_map[p["slug"]] = {"type": "fixture", "id": p["fixture_id"]}
+    if "competitions" in entities:
+        for p in fetch_competition_payloads(client, sample):
+            relpath = f"competitions/{p['league_code']}/{p['season']}.json"
+            sha = write_file(out_root, relpath, p)
+            entries.append({"type": "competition",
+                            "id": f"{p['league_code']}-{p['season']}",
+                            "slug": p.get("slug"), "path": relpath, "sha256": sha})
+            if p.get("slug"):
+                slug_map[f"{p['slug']}-{p['season']}"] = {
+                    "type": "competition", "league_code": p["league_code"], "season": p["season"]}
+    if "nav" in entities:
+        nav = fetch_nav()
+        sha = write_file(out_root, "nav.json", nav)
+        entries.append({"type": "nav", "id": "nav", "slug": None,
+                        "path": "nav.json", "sha256": sha})
 
     (out_root / "slug_map.json").write_text(
         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"

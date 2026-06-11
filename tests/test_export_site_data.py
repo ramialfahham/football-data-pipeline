@@ -7,12 +7,62 @@ fabricated rows so python-ci validates the logic offline.
 from scripts.export_site_data import (
     _fixture_side,
     build_manifest,
+    build_nav,
     fixture_slug,
+    shape_competition_payload,
     shape_fixture_payload,
     shape_player_payload,
     shape_team_payload,
+    shape_top_players,
     slugify,
 )
+
+
+def test_build_nav_groups_and_country_hubs():
+    comps = [
+        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga",
+         "country": "Germany", "competition_type": "domestic_league", "tier": 1, "sort_order": 30},
+        {"league_code": "BL2", "name": "2. Bundesliga", "slug": "2-bundesliga",
+         "country": "Germany", "competition_type": "domestic_league", "tier": 2, "sort_order": 60},
+        {"league_code": "DFBP", "name": "DFB-Pokal", "slug": "dfb-pokal",
+         "country": "Germany", "competition_type": "domestic_cup", "sort_order": 30},
+        {"league_code": "UCL", "name": "Champions League", "slug": "champions-league",
+         "country": "Europe", "competition_type": "continental_club", "sort_order": 10},
+    ]
+    nav = build_nav(comps)
+    groups = {g["key"]: [c["league_code"] for c in g["competitions"]] for g in nav["groups"]}
+    assert groups["leagues"] == ["BL1", "BL2"]          # by sort_order
+    assert groups["cups"] == ["DFBP"]
+    assert groups["continental-club"] == ["UCL"]
+    # country hub = domestic comps only, tier-ordered; UCL (Europe/continental) excluded
+    germany = next(c for c in nav["countries"] if c["country"] == "Germany")
+    assert [c["league_code"] for c in germany["competitions"]] == ["BL1", "BL2", "DFBP"]
+    assert all(c["country"] != "Europe" for c in nav["countries"])
+
+
+def test_shape_top_players_ranks_and_joins_names():
+    rows = [
+        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "goals_total": 0, "goals_assists": 2},
+        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "goals_total": 3, "goals_assists": 0},
+    ]
+    names = {1: {"player_name": "A", "player_photo_url": "a"},
+             2: {"player_name": "B", "player_photo_url": "b"}}
+    top = shape_top_players(rows, names, limit=5)
+    assert [p["player_name"] for p in top] == ["B", "A"]   # goals desc
+    assert "upcoming_fixture_sk" not in top[0]              # join keys dropped
+
+
+def test_shape_competition_payload_sorts_sections():
+    p = shape_competition_payload(
+        "BL1", 2025, {"name": "Bundesliga", "slug": "bundesliga"},
+        standings=[{"group_name": "", "standing_rank": 2}, {"group_name": "", "standing_rank": 1}],
+        top_scorers=[{"scorer_rank": 2}, {"scorer_rank": 1}],
+        fixtures=[{"kickoff_datetime": "2025-09-02"}, {"kickoff_datetime": "2025-09-01"}],
+    )
+    assert p["type"] == "competition" and p["slug"] == "bundesliga"
+    assert [s["standing_rank"] for s in p["standings"]] == [1, 2]
+    assert [s["scorer_rank"] for s in p["top_scorers"]] == [1, 2]
+    assert [f["kickoff_datetime"] for f in p["fixtures"]] == ["2025-09-01", "2025-09-02"]
 
 
 def test_fixture_slug_date_home_vs_away():
