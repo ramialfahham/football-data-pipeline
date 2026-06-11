@@ -134,34 +134,22 @@ from `form_window`, §3b) — it belongs to the competition-hub table (04).
 Window header (3a): W1 `w1.games_in_window` + `w1.points_won`; W2 `w2.games_played`
 + `w2.points_won` — points as `points_fraction` ("13/15", denominator = games × 3).
 
-Form strings (3b): derived from `form_window[].result` in `recency_rank` order
-(W/D/L chips, most recent first). Not a separate field.
+Form display (3b) — **window-correct, ruled 2026-06-11**:
+- W1: the last-5 W/D/L pills, from `form_window[].result` in `recency_rank` order.
+- W2: aggregate counts `10W · 3D · 1L` — pills would misrepresent a full-season
+  window. Needs `wins`/`draws`/`losses` in `mart_season_to_date__team` (GAP-10);
+  until that ships W2 shows the window header only.
 
-Metric rows (3c) — identical set in W1 and W2; key = catalogue `metric_id`:
-
-| Label (catalogue) | JSON key | Format | Lower better |
-|---|---|---|---|
-| Goals / match | `goals_per_match` | decimal_1 | |
-| Goals against / match | `goals_against_per_match` | decimal_1 | ✓ |
-| Shots / match | `shots_per_match` | decimal_1 | |
-| Shot accuracy | `shot_accuracy` | percent | |
-| Danger-zone ratio | `danger_zone_ratio` | percent | |
-| Finishing efficiency | `finishing_efficiency` | percent | |
-| Passes / match | `passes_per_match` | decimal_0 | |
-| Pass accuracy | `pass_accuracy` | percent | |
-| Corners / match | `corner_kicks_per_match` | decimal_1 | |
-| Corners conceded / match | `corners_conceded_per_match` | decimal_1 | ✓ |
-| Save ratio | `save_ratio` | percent | |
-| Key passes / match | `key_passes_per_match` | decimal_1 | |
-| Tackles / match | `tackles_per_match` | decimal_1 | |
-| Interceptions / match | `interceptions_per_match` | decimal_1 | |
-| Blocks / match | `blocks_per_match` | decimal_1 | |
-| Duels won | `duels_won_pct` | percent | |
-| Dribbles success | `dribbles_success_pct` | percent | |
-
-Row order above is a **proposed default** (headline attacking/defending first,
-volume/duel stats later) — CPO may reorder at review. Paired bars are normalized to
-the larger of the two values (a relative share, never a probability).
+Metric rows (3c) — **the LOCKED team table in
+[`metrics_display.md`](metrics_display.md) is the binding contract**: 16 rows in
+fixed order under group subheads (Goals → Shooting → Duels → Defending → Passing →
+Set pieces → Goalkeeping), identical set in W1 and W2. Tier semantics per that
+document (tier never reorders; tier 1 feeds compact surfaces). Four rows are
+GAP-11-pending (`clean_sheets`, `shots_on_target_per_match`, `duels_per_match`,
+`defensive_actions_per_match`) and render only once exported; `shot_accuracy` is
+defined but not displayed. Formats and `lower_is_better` per catalogue row. Paired
+bars are normalized to the larger of the two values (a relative share, never a
+probability).
 
 Window caption (3d):
 - W1: `w1.contributing_competitions` → "incl. {list}" when it names more than the
@@ -271,3 +259,6 @@ internal-links footer ➕. (➕ = new vs brief §7 — see 00 census.)
 - [GAP-06](99_gaps_register.md) — `/h2h/{pair}/` page has no export target (link in section 6).
 - [GAP-07](99_gaps_register.md) — no report-state payload for finished fixtures (§6).
 - [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; no localization strategy yet.
+- [GAP-09](99_gaps_register.md) — `metric_group` / `importance_tier` / `group_display_order` catalogue columns (§5.3c grouping).
+- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_season_to_date__team` (§5.3b).
+- [GAP-11](99_gaps_register.md) — four new team metrics + finishing relabel + description tightenings (§5.3c).
