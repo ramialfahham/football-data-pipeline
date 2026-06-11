@@ -5,11 +5,48 @@ fabricated rows so python-ci validates the logic offline.
 """
 
 from scripts.export_site_data import (
+    _fixture_side,
     build_manifest,
+    fixture_slug,
+    shape_fixture_payload,
     shape_player_payload,
     shape_team_payload,
     slugify,
 )
+
+
+def test_fixture_slug_date_home_vs_away():
+    assert fixture_slug("2026-06-11T19:00:00", "Mexico", "South Africa", 7) \
+        == "2026-06-11-mexico-vs-south-africa"
+
+
+def test_fixture_slug_falls_back_to_id():
+    assert fixture_slug(None, "Mexico", "South Africa", 7) == "fixture-7"
+
+
+def test_fixture_side_drops_join_keys_and_handles_missing():
+    w1 = {"upcoming_fixture_sk": 9, "team_sk": 1, "is_home": True, "goals_per_match": 1.4}
+    side = _fixture_side(1, {"team_name": "A", "team_logo_url": "u", "team_country": "X"},
+                         w1, None, None)
+    assert side["team_id"] == 1 and side["name"] == "A" and side["crest"] == "u"
+    assert side["w1"] == {"goals_per_match": 1.4}      # join keys dropped
+    assert side["w2"] is None and side["standing"] is None  # honest absence
+
+
+def test_shape_fixture_payload_composes_header_and_sides():
+    fix = {"fixture_sk": 7, "kickoff_datetime": "2026-06-11T19:00:00",
+           "status_short": "NS", "league_code": "WC", "league_name": "World Cup",
+           "season_api_year": 2026, "round_name": "Group Stage - 1",
+           "venue_name_snapshot": "Estadio", "home_team_name": "Mexico",
+           "away_team_name": "South Africa"}
+    home = _fixture_side(1, {"team_name": "Mexico"}, None, None, None)
+    away = _fixture_side(2, {"team_name": "South Africa"}, None, None, None)
+    p = shape_fixture_payload(fix, home, away, {"total_meetings": 3, "wins": 2})
+    assert p["type"] == "fixture" and p["fixture_id"] == 7
+    assert p["slug"] == "2026-06-11-mexico-vs-south-africa"
+    assert p["league_name"] == "World Cup" and p["round"] == "Group Stage - 1"
+    assert p["home"]["team_id"] == 1 and p["away"]["team_id"] == 2
+    assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
 
 
 def test_slugify_folds_accents_and_appends_id():

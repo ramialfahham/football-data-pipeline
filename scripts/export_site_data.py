@@ -35,24 +35,49 @@ from datetime import datetime, timezone
 GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
 DEFAULT_OUT = "artifacts/site_data"
-ENTITY_TYPES = ("teams", "players")
+ENTITY_TYPES = ("teams", "players", "fixtures")
+
+# Join/identity keys dropped from each per-side block in the fixture payload
+# (they live at the fixture top level or are join plumbing, not display data).
+_W1_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
+_W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
+_CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
+_H2H_DROP = {"team_sk", "opponent_team_sk"}
 
 
 # --------------------------------------------------------------------------- #
 # Pure helpers (unit-tested without BigQuery)
 # --------------------------------------------------------------------------- #
+def _kebab(name: str | None) -> str:
+    """Lowercase ASCII kebab of a name (accents folded; non-alphanumerics -> '-')."""
+    base = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-zA-Z0-9]+", "-", base).strip("-").lower()
+
+
 def slugify(name: str | None, entity_id: int) -> str:
     """Stable, locale-independent URL slug: ``{kebab-name}-{id}``.
 
     The id suffix guarantees uniqueness and stability across renames (a rename
-    keeps the same slug). Accents are folded to ASCII (Bayern Munchen, not
-    Bayern Munich) and non-alphanumerics collapse to single hyphens. Matches
-    docs/site_architecture.md section 3.
+    keeps the same slug). Matches docs/site_architecture.md section 3.
     """
-    base = name or ""
-    base = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode("ascii")
-    base = re.sub(r"[^a-zA-Z0-9]+", "-", base).strip("-").lower()
+    base = _kebab(name)
     return f"{base}-{entity_id}" if base else str(entity_id)
+
+
+def fixture_slug(kickoff, home_name: str | None, away_name: str | None, fixture_id: int) -> str:
+    """Fixture URL slug: ``{yyyy-mm-dd}-{home}-vs-{away}`` (arch doc section 3).
+
+    Falls back to the fixture id when names/date are missing so it is always unique.
+    """
+    date = str(kickoff)[:10] if kickoff else ""
+    home, away = _kebab(home_name), _kebab(away_name)
+    if date and home and away:
+        return f"{date}-{home}-vs-{away}"
+    return f"fixture-{fixture_id}"
+
+
+def _drop(row: dict, keys: set[str]) -> dict:
+    return {k: v for k, v in row.items() if k not in keys}
 
 
 def _bigquery_rows_to_dicts(rows) -> list[dict]:
@@ -111,6 +136,49 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
         "position": latest.get("position_code"),
         "seasons": [_strip_identity(r) for r in seasons],
         "match_log": matches,
+    }
+
+
+def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
+                  w2: dict | None, ctx: dict | None) -> dict:
+    """One team's block on the fixture page: identity + W1 form + W2 season-to-date
+    + standings context. Each sub-block is None when that mart has no row for the
+    side (honest absence — the UI renders the empty state)."""
+    return {
+        "team_id": team_id,
+        "name": (identity or {}).get("team_name"),
+        "crest": (identity or {}).get("team_logo_url"),
+        "country": (identity or {}).get("team_country"),
+        "w1": _drop(w1, _W1_DROP) if w1 else None,
+        "w2": _drop(w2, _W2_DROP) if w2 else None,
+        "standing": _drop(ctx, _CTX_DROP) if ctx else None,
+    }
+
+
+def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
+                          h2h: dict | None) -> dict:
+    """The fixture page payload: header + both teams' form/standing blocks + the
+    home-vs-away head-to-head record. Composed from the source marts (momentum,
+    season-to-date, standing context, head-to-head) — NOT mart_matchday_insights,
+    which is the MVP's presentation pivot."""
+    fid = int(fix["fixture_sk"])
+    return {
+        "type": "fixture",
+        "fixture_id": fid,
+        "slug": fixture_slug(
+            fix.get("kickoff_datetime"), fix.get("home_team_name"),
+            fix.get("away_team_name"), fid,
+        ),
+        "kickoff": fix.get("kickoff_datetime"),
+        "status": fix.get("status_short"),
+        "league_code": fix.get("league_code"),
+        "league_name": fix.get("league_name"),
+        "season": fix.get("season_api_year"),
+        "round": fix.get("round_name"),
+        "venue": fix.get("venue_name_snapshot"),
+        "home": home_side,
+        "away": away_side,
+        "head_to_head": h2h,
     }
 
 
@@ -197,6 +265,75 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
     ]
 
 
+def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
+    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+    fixtures = _query(client, f"""
+        select fixture_sk, league_sk, league_code, season_api_year, kickoff_datetime,
+               round_name, status_short, venue_name_snapshot, home_team_sk, away_team_sk
+        from `{GCP_PROJECT}.core.fct_fixture`
+        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+    """)
+    fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+    if sample:
+        fixtures = fixtures[:sample]
+    if not fixtures:
+        return []
+    fid_in = ", ".join(str(int(f["fixture_sk"])) for f in fixtures)
+
+    teams = {
+        int(r["team_sk"]): r
+        for r in _query(client, f"select team_sk, team_name, team_logo_url, team_country "
+                                f"from `{GCP_PROJECT}.core.dim_team`")
+    }
+    leagues = {
+        int(r["league_sk"]): r.get("league_name")
+        for r in _query(client, f"select league_sk, league_name "
+                                f"from `{GCP_PROJECT}.core.dim_league`")
+    }
+    w1 = {
+        (int(r["upcoming_fixture_sk"]), int(r["team_sk"])): r
+        for r in _query(client, f"select * from `{marts}.mart_momentum__team` "
+                                f"where upcoming_fixture_sk in ({fid_in})")
+    }
+    w2 = {
+        (int(r["upcoming_fixture_sk"]), int(r["team_sk"])): r
+        for r in _query(client, f"select * from `{marts}.mart_season_to_date__team` "
+                                f"where upcoming_fixture_sk in ({fid_in})")
+    }
+    ctx = {
+        (int(r["fixture_sk"]), int(r["team_sk"])): r
+        for r in _query(client, f"select * from `{marts}.mart_fixture_standing_context` "
+                                f"where fixture_sk in ({fid_in})")
+    }
+    pair_keys = {
+        f"{int(f['home_team_sk'])}-{int(f['away_team_sk'])}"
+        for f in fixtures
+        if f.get("home_team_sk") is not None and f.get("away_team_sk") is not None
+    }
+    h2h: dict = {}
+    if pair_keys:
+        pk_in = ", ".join(f"'{k}'" for k in pair_keys)
+        for r in _query(client, f"select * from `{marts}.mart_head_to_head` where concat("
+                                f"cast(team_sk as string), '-', cast(opponent_team_sk as string)"
+                                f") in ({pk_in})"):
+            h2h[(int(r["team_sk"]), int(r["opponent_team_sk"]))] = r
+
+    payloads = []
+    for f in fixtures:
+        fid = int(f["fixture_sk"])
+        h, a = int(f["home_team_sk"]), int(f["away_team_sk"])
+        f["league_name"] = leagues.get(int(f["league_sk"])) if f.get("league_sk") is not None else None
+        f["home_team_name"] = (teams.get(h) or {}).get("team_name")
+        f["away_team_name"] = (teams.get(a) or {}).get("team_name")
+        home_side = _fixture_side(h, teams.get(h), w1.get((fid, h)), w2.get((fid, h)), ctx.get((fid, h)))
+        away_side = _fixture_side(a, teams.get(a), w1.get((fid, a)), w2.get((fid, a)), ctx.get((fid, a)))
+        h2h_row = h2h.get((h, a))
+        payloads.append(
+            shape_fixture_payload(f, home_side, away_side, _drop(h2h_row, _H2H_DROP) if h2h_row else None)
+        )
+    return payloads
+
+
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
@@ -229,6 +366,11 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             e = write_entity(out_root, "players", p["player_id"], p)
             entries.append(e)
             slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
+    if "fixtures" in entities:
+        for p in fetch_fixture_payloads(client, sample):
+            e = write_entity(out_root, "fixtures", p["fixture_id"], p)
+            entries.append(e)
+            slug_map[p["slug"]] = {"type": "fixture", "id": p["fixture_id"]}
 
     (out_root / "slug_map.json").write_text(
         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"
