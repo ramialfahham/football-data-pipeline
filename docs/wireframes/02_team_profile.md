@@ -1,7 +1,7 @@
 # 02 — Team profile ⭐ (#391)
 
 > Field-bound against `shape_team_payload` / `mart_team_profile` (verified
-> 2026-06-12). Metric rows follow the LOCKED contract in
+> 2026-06-11). Metric rows follow the LOCKED contract in
 > [`metrics_display.md`](metrics_display.md).
 
 ## 1. Purpose
@@ -153,10 +153,13 @@ the fixture comparison, not here. Coverage caption from
 
 ### (9) Fixtures + (10) links
 
-Next + recent matches list — **GAP-15**: not in the payload. Until ruled, the
-section renders as links to the competition's `/fixtures/` page. Internal links:
-competition hub, `/table/`, `/top-scorers/`; player links live on fixture pages
-(no squad surface yet — no squad mart).
+**Next fixture + last 5 results** per (team, season) — scope ruled (GAP-15,
+approved): ships via the team-export extension from `fct_fixture`/legs. Rows
+reuse the fixture-row component (opponent, H/A, score, result chip; next fixture
+links to its fixture page). Until the data PR lands the section renders links to
+the competition's `/fixtures/` page. Internal links: competition hub, `/table/`,
+`/top-scorers/`; player links live on fixture pages (no squad surface yet — no
+squad mart).
 
 ## 6. States
 
