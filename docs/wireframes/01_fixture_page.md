@@ -52,13 +52,15 @@ Mobile (primary). `▸` = link. Sections numbered for §5.
 ├────────────────────────────────────────────┤
 │  [ Last 5 ●——○ Season ]                    │  (3) form comparison
 │  5 games · 13/15 pts    5 games · 9/15 pts │  (3a) window header
-│  Form  W W W D W        W L W W D          │  (3b) form strings
-│  Goals/match       2.6 ▐████▌▐██▌ 1.8      │  (3c) metric rows
-│  Goals against     0.6 ▐█▌  ▐███▌ 1.4      │
-│  Shots/match      17.2 ▐████▌▐███▌ 14.1    │
-│  Shot accuracy %    48 ▐███▌ ▐███▌ 44      │
+│  Form  W W W D W        W L W W D          │  (3b) W1 pills (W2: counts)
+│  GOALS                                     │  (3c) metric rows, grouped
+│  Ø Goals           2.6 ▐████▌▐██▌ 1.8      │       per metrics_display.md
+│  Ø Goals against   0.6 ▐█▌  ▐███▌ 1.4      │
+│  Clean sheets      3/5 ▐███▌ ▐█▌  1/5      │
+│  SHOOTING                                  │
+│  Ø Shots          17.2 ▐████▌▐███▌ 14.1    │
 ├──────────────— fold (~700px) —─────────────┤
-│   …13 more metric rows…                    │
+│   …12 more rows under group subheads…      │
 │  ⓘ incl. Champions League, DFB-Pokal       │  (3d) window caption
 ├────────────────────────────────────────────┤
 │  RECENT MATCHES                            │  (4) form drill-down
