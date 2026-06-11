@@ -46,6 +46,10 @@ models:
       - dbt_utils.expression_is_true:
           expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
           name: momentum_team_dribbles_success_pct_in_range
+      # clean sheets are scoreline-based: always present, bounded by the window
+      - dbt_utils.expression_is_true:
+          expression: "clean_sheets between 0 and games_in_window"
+          name: momentum_team_clean_sheets_in_range
     columns:
       - name: upcoming_fixture_sk
         tests: [not_null]
@@ -308,6 +312,16 @@ models:
       - dbt_utils.expression_is_true:
           expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
           name: std_team_dribbles_success_pct_in_range
+      # W/D/L counts (GAP-10): must reconcile with games and points exactly
+      - dbt_utils.expression_is_true:
+          expression: "wins + draws + losses = games_played"
+          name: std_team_wdl_sums_to_games
+      - dbt_utils.expression_is_true:
+          expression: "3 * wins + draws = points_won"
+          name: std_team_points_match_wdl
+      - dbt_utils.expression_is_true:
+          expression: "clean_sheets between 0 and games_played"
+          name: std_team_clean_sheets_in_range
     columns:
       - name: upcoming_fixture_sk
         tests:
@@ -624,8 +638,9 @@ models:
       CPO-approved catalogue extension. Beyond catalogue metrics, only raw descriptors
       are carried (appearances/starts/minutes, identity, position). pass_accuracy_pct
       uses the catalogue's derived passes_accurate (per-fixture round then sum). save_pct
-      is only meaningful for goalkeepers (position_code = 'G'). Grain: (player_sk,
-      season_sk).
+      is only meaningful for goalkeepers (position_code = 'G'); saves and
+      shots_on_target_faced (GAP-12) carry its numerator/denominator for the GK
+      full-triple display. Grain: (player_sk, season_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, season_sk]
@@ -641,6 +656,10 @@ models:
       - dbt_utils.expression_is_true:
           expression: "save_pct is null or (save_pct between 0 and 1)"
           name: player_profile_save_pct_in_range
+      # GK full-triple (GAP-12): saves can never exceed shots on target faced
+      - dbt_utils.expression_is_true:
+          expression: "saves <= shots_on_target_faced"
+          name: player_profile_saves_lte_faced
     columns:
       - name: player_season_sk
         tests: [unique, not_null]

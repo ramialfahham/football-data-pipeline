@@ -43,6 +43,9 @@ team_agg as (
         -- per-input coverage: stats are sparse in lower leagues, so each rate
         -- must divide over the games where its inputs actually exist
         countif(shots_total is not null) as games_with_team_stats,
+        -- shots_on_goal can be null where shots_total isn't: the SoT rate needs
+        -- its own coverage count (same-window rule)
+        countif(shots_on_goal is not null) as games_with_sot_stats,
         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
         array_agg(distinct leg_league_code order by leg_league_code)
             as contributing_competitions,
@@ -50,6 +53,8 @@ team_agg as (
             as points_won,
         sum(goals_for) as goals_for,
         sum(goals_against) as goals_against,
+        -- scoreline-based, full window (clean sheets display as x of games)
+        countif(goals_against = 0) as clean_sheet_games,
         -- coverage-restricted scoreline sums keep finishing_efficiency and
         -- save_ratio same-window with their stat denominators
         sum(if(shots_on_goal is not null, goals_for, null))
@@ -104,11 +109,13 @@ select
     'last_5' as window_type,
     ta.games_in_window,
     ta.games_with_team_stats,
+    ta.games_with_sot_stats,
     ta.games_with_opp_stats,
     ta.contributing_competitions,
     ta.points_won,
     ta.goals_for,
     ta.goals_against,
+    ta.clean_sheet_games,
     ta.goals_for_in_shot_games,
     ta.goals_against_in_save_games,
     ta.shots_total,

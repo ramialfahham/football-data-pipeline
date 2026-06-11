@@ -38,6 +38,8 @@ select
     b.contributing_competitions,
     b.games_with_player_stats,
     b.points_won,
+    -- clean sheets: scoreline-based count, displays as x of games_in_window
+    b.clean_sheet_games as clean_sheets,
     b.team_sk = f.home_team_sk as is_home,
     -- goals (scoreline — always present, divide over the full window)
     safe_divide(b.goals_for, b.games_in_window) as goals_per_match,
@@ -46,6 +48,8 @@ select
     safe_divide(b.shots_total, b.games_with_team_stats) as shots_per_match,
     safe_divide(b.shots_on_goal, b.shots_total) as shot_accuracy,
     safe_divide(b.shots_inside_box, b.shots_total) as danger_zone_ratio,
+    safe_divide(b.shots_on_goal, b.games_with_sot_stats)
+        as shots_on_target_per_match,
     -- finishing: goals restricted to shot-covered games keeps it same-window
     safe_divide(b.goals_for_in_shot_games, b.shots_on_goal)
         as finishing_efficiency,
@@ -65,6 +69,11 @@ select
     safe_divide(b.interceptions, b.games_with_player_stats)
         as interceptions_per_match,
     safe_divide(b.blocks, b.games_with_player_stats) as blocks_per_match,
+    -- T+I+B share one coverage window (same player rows), so the sum is
+    -- same-window by construction; null when any input is null (no coverage)
+    safe_divide(b.tackles + b.interceptions + b.blocks, b.games_with_player_stats)
+        as defensive_actions_per_match,
+    safe_divide(b.duels_total, b.games_with_player_stats) as duels_per_match,
     safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
     safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct
 from builder as b
