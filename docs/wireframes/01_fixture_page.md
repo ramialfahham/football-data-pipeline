@@ -50,7 +50,7 @@ Mobile (primary). `▸` = link. Sections numbered for §5.
 │        Allianz Arena · Bundesliga          │
 │  ┌ #1 · 33 pts ┐          ┌ #4 · 26 pts ┐  │  (2a) standing chips
 ├────────────────────────────────────────────┤
-│  [ Last 5 ●——○ Season ]                    │  (3) form comparison
+│  [ Last 5 · all comps ●—○ Bundesliga ]     │  (3) form comparison
 │  5 games · 13/15 pts    5 games · 9/15 pts │  (3a) window header
 │  Form  W W W D W        W L W W D          │  (3b) W1 pills (W2: counts)
 │  GOALS                                     │  (3c) metric rows, grouped
@@ -153,13 +153,24 @@ defined but not displayed. Formats and `lower_is_better` per catalogue row. Pair
 bars are normalized to the larger of the two values (a relative share, never a
 probability).
 
-Window caption (3d):
-- W1: `w1.contributing_competitions` → "incl. {list}" when it names more than the
-  fixture's own competition; coverage note from `w1.games_with_team_stats` when
-  `< games_in_window` ("stats from N of M matches", chrome).
-- W2: `w2.window_type` — `season_to_date` → "{season} season so far";
-  `prev_season` → "last season ({w2.season_api_year})" (chrome templates; the
-  season string uses the registry's split/calendar-year rule).
+Segment + caption labels (3, 3d) — **the toggle changes BOTH window and
+competition scope; the labels must declare it** (window & scope display contract
+in [`metrics_display.md`](metrics_display.md)):
+- Segment states: "Last 5 · all competitions" ↔ "{competition}" (never bare
+  "Last 5 / Season"). National-team fixtures: "all national-team matches".
+- W1 caption: `w1.contributing_competitions` → "incl. {list}" when it names more
+  than the fixture's own competition; coverage note from
+  `w1.games_with_team_stats` when `< games_in_window` ("stats from N of M
+  matches", chrome).
+- W2 caption: `w2.window_type` — `season_to_date` → "{competition} · through
+  matchday {w2.games_played}"; `prev_season` → "{competition} · last season
+  ({w2.season_api_year})" (chrome templates; the season string uses the
+  registry's split/calendar-year rule).
+- Tournament fixtures (world/continental championship): the window is
+  cumulative-within-the-tournament with a qualifier preview pre-MD2 — labelled
+  "This tournament so far" / "Qualifiers", never "last 5". ⚠ GAP-18: the
+  shipped W1 mart hard-caps at 5 and has no phase descriptor; until it lands,
+  tournament labels cannot be derived honestly from the payload.
 
 ### (4) Form drill-down — per side `form_window[]` (≤5 rows, `recency_rank` asc)
 
@@ -264,3 +275,4 @@ internal-links footer ➕. (➕ = new vs brief §7 — see 00 census.)
 - [GAP-09](99_gaps_register.md) — `metric_group` / `importance_tier` / `group_display_order` catalogue columns (§5.3c grouping).
 - [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_season_to_date__team` (§5.3b).
 - [GAP-11](99_gaps_register.md) — four new team metrics + finishing relabel + description tightenings (§5.3c).
+- [GAP-18](99_gaps_register.md) — tournament window mode + phase descriptor missing from the window marts (§5.3d) — needed before WC 2026.
