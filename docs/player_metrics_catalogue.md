@@ -131,6 +131,14 @@ Source fields: `cards_yellow`, `cards_red`.
 
 ## Display patterns
 
+> **Superseded for v2 (CPO, 2026-06-11):** row order, grouping and the ratio
+> display strings are now governed by
+> [`docs/wireframes/metrics_display.md`](wireframes/metrics_display.md) — rows
+> resequenced into the shared block order, ratio rows standardized to
+> `{num} of {den} · {pct}%`, GK row gains `saves of shots_on_target_faced`.
+> The definitions, formulas, windows and the zero-denominator rule below remain
+> canonical.
+
 Each leaderboard row renders: `{rank}. {player_name}    {metric_display}`.
 
 | # | Leaderboard | Per-row display | Example |
