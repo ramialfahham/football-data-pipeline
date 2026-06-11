@@ -35,8 +35,17 @@ from datetime import datetime, timezone
 GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
 DEFAULT_OUT = "artifacts/site_data"
-ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav")
+ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+                "leaderboards", "matchstats", "glossary")
 REGISTRY_PATH = "docs/competition_registry.yml"
+CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+
+# Player leaderboards: unambiguous catalogue count metrics, each ranked desc.
+# (More boards are a one-line addition; per-metric ranking choices beyond these
+# are a design call.)
+_LEADERBOARD_METRICS = ("goals", "assists", "shots_on_target")
+_LB_KEEP = ("player_sk", "player_name", "player_photo_url", "position_code",
+            "appearances", "minutes", "goals", "assists", "shots_on_target")
 
 # Join/identity keys dropped from each per-side block in the fixture payload
 # (they live at the fixture top level or are join plumbing, not display data).
@@ -549,6 +558,95 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     return payloads
 
 
+def shape_leaderboards(profile_rows: list[dict], metrics=_LEADERBOARD_METRICS,
+                       limit: int = 25) -> dict:
+    """Per-metric player leaderboards: top `limit` by each metric (desc), zeros
+    excluded. Pure — players' identity + counts come straight from the profile rows."""
+    boards: dict = {}
+    for m in metrics:
+        ranked = sorted(
+            [r for r in profile_rows if (r.get(m) or 0) > 0],
+            key=lambda r: (r.get(m) or 0),
+            reverse=True,
+        )[:limit]
+        boards[m] = [{k: r.get(k) for k in _LB_KEEP} for r in ranked]
+    return boards
+
+
+def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
+    meta = {
+        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+        for c in _registry_competitions(registry_path)
+    }
+    grouped = _group2(
+        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`"),
+        "league_code", "season_api_year",
+    )
+    keys = sorted(grouped.keys())
+    if sample:
+        keys = keys[:sample]
+    out = []
+    for (lc, season) in keys:
+        boards = shape_leaderboards(grouped[(lc, season)])
+        if not any(boards.values()):
+            continue
+        out.append({
+            "type": "leaderboards", "league_code": lc, "season": season,
+            "slug": (meta.get(lc) or {}).get("slug"),
+            "name": (meta.get(lc) or {}).get("name"), "boards": boards,
+        })
+    return out
+
+
+def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
+    """One played fixture's full stat lines (the form-window click-through):
+    both teams' team-stat rows + every player's row."""
+    return {
+        "type": "matchstats",
+        "fixture_id": fixture_id,
+        "team_stats": [_drop(r, {"fixture_sk"}) for r in team_rows],
+        "player_stats": [_drop(r, {"fixture_sk"}) for r in player_rows],
+    }
+
+
+def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
+    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+    fids = sorted({
+        int(r["played_fixture_sk"])
+        for r in _query(client, f"select distinct played_fixture_sk "
+                                f"from `{marts}.mart_form_window__team` "
+                                f"where played_fixture_sk is not null")
+    })
+    if sample:
+        fids = fids[:sample]
+    if not fids:
+        return []
+    fid_in = ", ".join(str(i) for i in fids)
+    team = _group_by(
+        _query(client, f"select * from `{marts}.mart_fixture_stats__team` where fixture_sk in ({fid_in})"),
+        "fixture_sk",
+    )
+    player = _group_by(
+        _query(client, f"select * from `{marts}.mart_fixture_stats__player` where fixture_sk in ({fid_in})"),
+        "fixture_sk",
+    )
+    out = []
+    for fid in fids:
+        ts, ps = team.get(fid, []), player.get(fid, [])
+        if ts or ps:
+            out.append(shape_matchstats(fid, ts, ps))
+    return out
+
+
+def fetch_glossary(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
+    """metrics.json — the metric catalogue (definitions + i18n keys + format).
+    No BigQuery; the seed is the single source of metric definitions (#327)."""
+    import csv
+
+    with open(seed_path, encoding="utf-8") as f:
+        return {"type": "glossary", "metrics": list(csv.DictReader(f))}
+
+
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
@@ -609,6 +707,23 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "nav.json", nav)
         entries.append({"type": "nav", "id": "nav", "slug": None,
                         "path": "nav.json", "sha256": sha})
+    if "leaderboards" in entities:
+        for p in fetch_leaderboard_payloads(client, sample):
+            relpath = f"leaderboards/{p['league_code']}/{p['season']}.json"
+            sha = write_file(out_root, relpath, p)
+            entries.append({"type": "leaderboards",
+                            "id": f"{p['league_code']}-{p['season']}",
+                            "slug": p.get("slug"), "path": relpath, "sha256": sha})
+    if "matchstats" in entities:
+        for p in fetch_matchstats_payloads(client, sample):
+            relpath = f"matchstats/{p['fixture_id']}.json"
+            sha = write_file(out_root, relpath, p)
+            entries.append({"type": "matchstats", "id": p["fixture_id"],
+                            "slug": None, "path": relpath, "sha256": sha})
+    if "glossary" in entities:
+        sha = write_file(out_root, "metrics.json", fetch_glossary())
+        entries.append({"type": "glossary", "id": "metrics", "slug": None,
+                        "path": "metrics.json", "sha256": sha})
 
     (out_root / "slug_map.json").write_text(
         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"

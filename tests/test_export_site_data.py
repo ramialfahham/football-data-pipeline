@@ -8,14 +8,47 @@ from scripts.export_site_data import (
     _fixture_side,
     build_manifest,
     build_nav,
+    fetch_glossary,
     fixture_slug,
     shape_competition_payload,
     shape_fixture_payload,
+    shape_leaderboards,
+    shape_matchstats,
     shape_player_payload,
     shape_team_payload,
     shape_top_players,
     slugify,
 )
+
+
+def test_shape_leaderboards_ranks_excludes_zeros():
+    rows = [
+        {"player_sk": 1, "player_name": "A", "goals": 0, "assists": 5},
+        {"player_sk": 2, "player_name": "B", "goals": 9, "assists": 1},
+        {"player_sk": 3, "player_name": "C", "goals": 4, "assists": 0},
+    ]
+    boards = shape_leaderboards(rows, metrics=("goals", "assists"), limit=10)
+    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]  # zeros excluded, desc
+    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]
+
+
+def test_shape_matchstats_drops_fixture_sk():
+    p = shape_matchstats(
+        99,
+        [{"fixture_sk": 99, "team_sk": 1, "shots_total": 10}],
+        [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1}],
+    )
+    assert p["type"] == "matchstats" and p["fixture_id"] == 99
+    assert "fixture_sk" not in p["team_stats"][0]
+    assert p["team_stats"][0]["shots_total"] == 10
+    assert p["player_stats"][0]["goals_total"] == 1
+
+
+def test_fetch_glossary_reads_catalogue_seed():
+    g = fetch_glossary()                       # reads the real seed (offline, no BQ)
+    assert g["type"] == "glossary"
+    assert len(g["metrics"]) > 10
+    assert all("metric_id" in m for m in g["metrics"])
 
 
 def test_build_nav_groups_and_country_hubs():
