@@ -46,7 +46,7 @@ Next: player insights chain (#153 → #156).
 - **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share six unified raw tables, discriminated by a `league_code STRING` column. There are no per-competition raw tables. Staging models are generic — one file per entity, not per competition.
 - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
-- **UI flow**: Landing (competition cards) → Fixture list (next round only) → Fixture detail (carousel/deep dive).
+- **UI flow**: v2 website IA per `docs/site_architecture.md` (hybrid browse + fixtures-first home, epic #361). The legacy card MVP (Landing → fixture list → fixture detail carousel) stays live until cutover (#377).
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
 - **Base models are views** — `2_base` models materialise as views by design. Never change this to table without a documented reason.
