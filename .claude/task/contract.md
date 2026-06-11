@@ -31,4 +31,7 @@ done_when:
   - python hook still passes its path-matrix self-test
   - validate-local tier-1 gates green; PR open
 
-amendments: (none)
+amendments:
+  - 2026-06-11: + .claude/active_work.md — authority: the standing handover rule
+    ("keep active_work.md current", enforced by the handover write-out hook);
+    content: status refresh only, no new decisions.
