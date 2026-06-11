@@ -43,6 +43,9 @@ team_agg as (
         -- per-input coverage: stats are sparse in lower leagues, so each rate
         -- must divide over the games where its inputs actually exist
         countif(shots_total is not null) as games_with_team_stats,
+        -- shots_on_goal can be null where shots_total isn't: the SoT rate needs
+        -- its own coverage count (same-window rule)
+        countif(shots_on_goal is not null) as games_with_sot_stats,
         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
         array_agg(distinct leg_league_code order by leg_league_code)
             as contributing_competitions,
@@ -106,6 +109,7 @@ select
     'last_5' as window_type,
     ta.games_in_window,
     ta.games_with_team_stats,
+    ta.games_with_sot_stats,
     ta.games_with_opp_stats,
     ta.contributing_competitions,
     ta.points_won,

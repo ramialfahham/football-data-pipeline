@@ -48,7 +48,7 @@ select
     safe_divide(b.shots_total, b.games_with_team_stats) as shots_per_match,
     safe_divide(b.shots_on_goal, b.shots_total) as shot_accuracy,
     safe_divide(b.shots_inside_box, b.shots_total) as danger_zone_ratio,
-    safe_divide(b.shots_on_goal, b.games_with_team_stats)
+    safe_divide(b.shots_on_goal, b.games_with_sot_stats)
         as shots_on_target_per_match,
     -- finishing: goals restricted to shot-covered games keeps it same-window
     safe_divide(b.goals_for_in_shot_games, b.shots_on_goal)
