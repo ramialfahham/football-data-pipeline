@@ -14,6 +14,8 @@ Read this at the start of every session before doing anything else.
 
 **Read [`docs/working_agreement.md`](docs/working_agreement.md) before doing anything.** It defines what you are and are not allowed to do, quality standards, branch discipline, layer rules, and communication style. Non-negotiable.
 
+Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, no recommendation), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, the classification itself is a CPO decision — never decide by analogy.
+
 ## North star
 
 **Read [`docs/north_star.md`](docs/north_star.md) first.** It defines the product vision, the user, the navigation flow, what makes it sticky, and the roles. Everything else flows from there.

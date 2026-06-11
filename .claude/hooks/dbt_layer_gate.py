@@ -34,7 +34,9 @@ _CONSUMPTION_RULE = (
     "no entity affiliation, no slug/identity generation, no taxonomy mapping. Test: would the "
     "value deserve a DQ test, or need to be byte-identical across two frontends? -> dbt. If no "
     "mart serves what the page needs, that is a DATA GAP (register it, ship the mart first) — "
-    "never bridge it here. See dbt_project/docs/layering.md §Consumption layer."
+    "never bridge it here. See dbt_project/docs/layering.md §Consumption layer. "
+    "Unsure how to classify a case? That classification is a CPO decision — escalate blinded "
+    "(working_agreement.md §10/§11, anti-pattern A3)."
 )
 
 _LAYER_RULES = {
@@ -66,7 +68,9 @@ _LAYER_RULES = {
     "5_marts": (
         "LAYER = marts — consumption: denormalised, app-optimised. `league_code` is the partition "
         "key: never hardcode a competition identifier (D1/BL1/WC/…) in business logic; the mart "
-        "must work for any league_code unchanged. See dbt_project/docs/layering.md §5_marts."
+        "must work for any league_code unchanged. See dbt_project/docs/layering.md §5_marts. "
+        "New metrics/labels/formats and any NEW mechanism (UDFs, hooks, packages) are CPO "
+        "decisions — escalate blinded (working_agreement.md §10/§11)."
     ),
 }
 
