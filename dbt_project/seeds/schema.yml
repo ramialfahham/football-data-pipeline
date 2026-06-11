@@ -46,19 +46,26 @@ seeds:
 
   - name: metric_catalogue
     description: >
-      Single source of truth for every metric the platform computes. One row per metric.
-      Captures the formula (numerator / denominator), entity type (team/player), i18n key,
-      and display format. Formulas reference raw totals from int_legs__* building-block legs;
-      the mart applies the window context and computes the final values. Window-agnostic:
-      metric IDs carry no window suffix. Part of epic #317.
+      Single source of truth for every metric the platform computes. One row per metric
+      per entity. Captures the formula (numerator / denominator), entity type (team/player),
+      i18n key, display format, and the display dimensions (group, tier, order) ruled in
+      docs/wireframes/metrics_display.md. Formulas reference raw totals from int_legs__*
+      building-block legs; the mart applies the window context and computes the final
+      values. Window-agnostic: metric IDs carry no window suffix. Part of epic #317;
+      display columns added for #391 (GAP-09).
     config:
       +full_refresh: true
+      column_types:
+        importance_tier: int64
+        group_display_order: int64
     columns:
       - name: metric_id
-        description: "Stable semantic id. Window-agnostic — no _recent or _pretournament suffix."
+        description: >
+          Stable semantic id. Window-agnostic — no _recent or _pretournament suffix.
+          Unique per (metric_id, entity) — duels_won_pct and dribbles_success_pct exist
+          for both entities (enforced by assert_metric_catalogue_unique_by_entity).
         tests:
           - not_null
-          - unique
       - name: entity
         description: "Whether this metric describes a team or a player."
         tests:
@@ -79,11 +86,35 @@ seeds:
         description: "True when a lower value indicates better performance."
         tests: [not_null]
       - name: format
-        description: "Display format: integer, decimal_0, decimal_1, percent, or points_fraction."
+        description: >
+          Display format: integer, decimal_0, decimal_1, percent, points_fraction
+          (points of available, e.g. 10/15), or count_fraction (count of games, e.g. 3/5).
         tests:
           - not_null
           - accepted_values:
-              values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction"]
+              values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction", "count_fraction"]
+      - name: metric_group
+        description: >
+          Display taxonomy block (docs/wireframes/metrics_display.md). Shared across
+          entities — a metric family keeps its group on team and player. Null for
+          header/context metrics that are not metric rows (league_rank, points_won).
+        tests:
+          - accepted_values:
+              values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline"]
+      - name: importance_tier
+        description: >
+          Team-only display importance (1 = compact surfaces, 2 = standard, 3 = depth).
+          Tier never reorders; it gates visibility under space constraint. Null for all
+          player metrics (no player tiers — ruled) and for unrendered team metrics.
+        tests:
+          - accepted_values:
+              values: [1, 2, 3]
+              quote: false
+      - name: group_display_order
+        description: >
+          Position within the metric_group. Team: row order. Player: the bundle's
+          position within its group (atomics of one bundle share the value). Null for
+          unrendered metrics; full row order lives in docs/wireframes/metrics_display.md.
 
   - name: metric_definitions
     description: >
