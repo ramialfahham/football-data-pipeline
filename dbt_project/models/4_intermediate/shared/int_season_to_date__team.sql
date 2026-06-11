@@ -90,6 +90,8 @@ select
     -- team-stat coverage (cumulative)
     sum(case when shots_total is not null then 1 else 0 end) over w
         as games_with_team_stats,
+    sum(case when shots_on_goal is not null then 1 else 0 end) over w
+        as games_with_sot_stats,
     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
         as games_with_opp_stats,
     -- coverage-restricted scoreline sums keep finishing/save same-window
