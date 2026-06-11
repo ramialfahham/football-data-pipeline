@@ -246,6 +246,38 @@ Canonical mart inventory for this project:
 | `mart_matchday_insights` | fixture_sk (per `league_code`) | view | Domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
 | `mart_team_season_insights` | (league_code, team_sk) | table | Latest season per league; slice by `league_code` at export/UI. |
 
+## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+
+> CPO ruling (2026-06-11): "All the logic and transformation is done in dbt. We could
+> consume from the metrics using any frontend tooling. Transformations, logic must
+> never happen in the frontend."
+
+Everything downstream of the marts — `scripts/export_site_data.py`, the legacy
+`export_pages_data.py`, `site/`, `site_v2/` — is **frontend**. The marts are the
+product's data API: complete, finished, consumable by any tool.
+
+Allowed in the frontend:
+- Select, filter, group, paginate; drop join/plumbing keys; rename for the payload.
+- Formatting and serialization: locale number/date rendering, JSON file layout,
+  sitemaps, cache headers.
+- Routing mechanics.
+
+**Never allowed in the frontend** (each of these has produced or nearly produced a
+drift bug):
+- Metric math, window selection, result/perspective computation.
+- Ranking or ordering that encodes a business rule (leaderboard ranks live in marts —
+  `mart_top_scorers.scorer_rank` is the pattern).
+- Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
+  published URL identity — they must come from the warehouse so every frontend links
+  identically).
+- Taxonomy mappings (competition groupings etc. — those are seeds/registry fields).
+
+The test: **would this value deserve a DQ test, or need to be byte-identical across
+two frontends? Then it belongs in dbt.** If no mart serves a value a page needs,
+that is a data gap — register it and ship the mart first; never bridge it in Python.
+Edit-time guardrail: `dbt_layer_gate.py` injects this contract when an export/site
+file is edited.
+
 ## Testing Guidance by Layer
 
 - `1_staging`: light data sanity checks close to source.

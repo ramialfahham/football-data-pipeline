@@ -22,6 +22,21 @@ _LAYER_RE = re.compile(
     r"dbt_project/models/(1_staging|2_base|3_core|4_intermediate|5_marts)/"
 )
 
+# Frontend/consumption files (the export scripts and both site trees) — bound by
+# the consumption-layer contract in dbt_project/docs/layering.md.
+_CONSUMPTION_RE = re.compile(r"/scripts/export_[a-z_]+\.py$|/site(_v2)?/")
+
+_CONSUMPTION_RULE = (
+    "CONSUMPTION LAYER (frontend) — CPO ruling: ALL logic and transformation lives in dbt; "
+    "the marts are the data API, consumable by any frontend tooling. This file may select, "
+    "filter, group, drop keys, rename, format, serialize, route — it may NEVER compute: no "
+    "metric math, no window selection, no result/perspective derivation, no business ranking, "
+    "no entity affiliation, no slug/identity generation, no taxonomy mapping. Test: would the "
+    "value deserve a DQ test, or need to be byte-identical across two frontends? -> dbt. If no "
+    "mart serves what the page needs, that is a DATA GAP (register it, ship the mart first) — "
+    "never bridge it here. See dbt_project/docs/layering.md §Consumption layer."
+)
+
 _LAYER_RULES = {
     "1_staging": (
         "LAYER = staging. ALLOWED only: latest-snapshot select (`partition by league_code` "
@@ -65,6 +80,9 @@ def main() -> int:
     if not file_path:
         return 0
     norm = file_path.replace("\\", "/")
+    if _CONSUMPTION_RE.search(norm):
+        emit_context("PreToolUse", _CONSUMPTION_RULE)
+        return 0
     if not norm.endswith(".sql"):
         return 0
     m = _LAYER_RE.search(norm)
