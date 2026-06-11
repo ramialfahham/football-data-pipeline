@@ -3,12 +3,39 @@
 {#
   Per (league_code, season_api_year, team_sk) advanced metrics over all finished legs in that season.
   Full window, no five-game cap. Reads from int_legs__team_match (the shared building-block leg,
-  cross-competition by design — group by league_code naturally scopes to one competition).
+  cross-competition by design — group by league_code naturally scopes to one competition) plus
+  int_legs__team_from_players for the player-derived team metrics (GAP-13 — the same five
+  metrics the window marts carry; they inherit player-stat coverage gaps and divide over
+  player_stat_coverage_season_games, the same-window rule).
   Grain: (league_code, season_api_year, team_sk). mart_team_season_insights keeps latest season per league.
+
+  Note: the original per-match rates divide by season_games_played (pre-coverage-rule
+  convention, consumed by the live MVP) — left unchanged deliberately; see GAP-17.
 #}
 
 with legs as (
     select * from {{ ref('int_legs__team_match') }}
+),
+
+player_legs as (
+    select * from {{ ref('int_legs__team_from_players') }}
+),
+
+joined as (
+    select
+        l.*,
+        pl.key_passes,
+        pl.tackles,
+        pl.interceptions,
+        pl.blocks,
+        pl.duels_total,
+        pl.duels_won,
+        pl.fixture_sk is not null as has_player_stats
+    from legs as l
+    left join player_legs as pl
+        on
+            l.fixture_sk = pl.fixture_sk
+            and l.team_sk = pl.team_sk
 ),
 
 aggregated_season as (
@@ -22,6 +49,8 @@ aggregated_season as (
         count(distinct round_name) as season_matchdays_used,
         count(distinct case when shots_on_goal is not null then fixture_sk end)
             as stat_coverage_season_games,
+        count(distinct case when has_player_stats then fixture_sk end)
+            as player_stat_coverage_season_games,
         sum(
             case upper(trim(result))
                 when 'W' then 3
@@ -39,8 +68,15 @@ aggregated_season as (
         sum(opponent_corner_kicks) as opponent_corner_kicks_sum_season,
         sum(passes_accurate) as passes_accurate_sum_season,
         sum(passes_total) as passes_total_sum_season,
-        sum(goalkeeper_saves) as goalkeeper_saves_sum_season
-    from legs
+        sum(goalkeeper_saves) as goalkeeper_saves_sum_season,
+        -- player-derived sums (GAP-13; null when no player-stat coverage)
+        sum(key_passes) as key_passes_sum_season,
+        sum(tackles) as tackles_sum_season,
+        sum(interceptions) as interceptions_sum_season,
+        sum(blocks) as blocks_sum_season,
+        sum(duels_total) as duels_total_sum_season,
+        sum(duels_won) as duels_won_sum_season
+    from joined
     group by league_code, season_api_year, team_sk
 )
 
@@ -54,6 +90,7 @@ select
     season_games_played,
     season_matchdays_used,
     stat_coverage_season_games,
+    player_stat_coverage_season_games,
     points_won_sum_season,
     goals_for_sum_season,
     goals_against_sum_season,
@@ -88,5 +125,20 @@ select
     safe_divide(
         goalkeeper_saves_sum_season,
         nullif(goalkeeper_saves_sum_season + goals_against_sum_season, 0)
-    ) as save_ratio_season
+    ) as save_ratio_season,
+    -- GAP-13: the five locked-contract season variants. Coverage denominators
+    -- (the window marts' same-window rule): shots over stat-covered games,
+    -- player-derived over player-stat-covered games.
+    safe_divide(shots_on_goal_sum_season, stat_coverage_season_games)
+        as shots_on_target_per_match_season,
+    safe_divide(key_passes_sum_season, player_stat_coverage_season_games)
+        as key_passes_per_match_season,
+    safe_divide(duels_total_sum_season, player_stat_coverage_season_games)
+        as duels_per_match_season,
+    safe_divide(duels_won_sum_season, duels_total_sum_season)
+        as duels_won_pct_season,
+    safe_divide(
+        tackles_sum_season + interceptions_sum_season + blocks_sum_season,
+        player_stat_coverage_season_games
+    ) as defensive_actions_per_match_season
 from aggregated_season
