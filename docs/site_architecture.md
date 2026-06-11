@@ -95,6 +95,15 @@ Two browse axes, both fully registry-driven (#364 adds the fields):
 The landing page (#367) surfaces both axes; the nav exposes
 `Competitions · Matches · Teams · Players · Standings · Stats`.
 
+**Home composition (agreed hybrid, CPO 2026-06-10).** The MVP's competition-card
+landing is obsolete for the website. The home is fixtures-first with stats/storylines
+below: (1) **fixtures hero** — upcoming matches across competitions, the product's core
+feature elevated (⚠ needs a cross-competition fixtures feed; the per-competition list +
+fixture page exist); (2) **hybrid browse** (groups + country hubs, registry-driven);
+(3) **storylines/trending** from `mart_team_profile` (⚠ needs the data-to-text narrative
+generator); (4) **stats** — leaderboard teasers + mini standings. Full module spec +
+data status: `docs/ui_design_brief.md` §6.3.
+
 ## 5. Templates → data contract
 
 One template per entity type; each consumes exactly the export files listed.
