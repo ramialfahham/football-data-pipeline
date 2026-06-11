@@ -50,6 +50,23 @@ def simple_commands(command: str):
         yield _PREFIX.sub("", part).strip()
 
 
+_HEREDOC_MARK = re.compile(r"<<-?\s*'?\"?\w+")
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+
+
+def strip_quoted_and_heredoc(command: str) -> str:
+    """Command text with quoted substrings removed and everything from the first
+    heredoc marker truncated. Lets callers scan for shell OPERATORS (redirects,
+    flags) without false-positives on quoted SQL ("x > 0.5"), commit-message
+    bodies, or heredoc content."""
+    try:
+        cut = _HEREDOC_MARK.search(command or "")
+        head = command[: cut.start()] if cut else (command or "")
+        return _QUOTED.sub(" ", head)
+    except Exception:
+        return command or ""
+
+
 def emit_context(event_name: str, text: str) -> None:
     """Inject additional context for the model (non-blocking)."""
     print(json.dumps({

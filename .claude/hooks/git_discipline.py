@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 """PreToolUse(Bash) guardrail — git discipline (project-specific wording).
 
-Two checks, self-gated against the *actual* command (see _command_utils):
+Checks, self-gated against the *actual* command (see _command_utils):
   1. Block agent-initiated `gh pr merge` — merging is the user's call.
-  2. Nudge the branch-consolidation questions on branch creation.
+  2. Block `git commit --amend` / `--no-verify` / `-n` — history integrity and
+     the governance hash-chain depend on append-only, hook-verified commits
+     (governance G2; flags matched on quote-stripped text so commit-message
+     bodies cannot false-positive).
+  3. Block `git config core.hooksPath` — repointing git hooks disables the
+     repo's automation.
+  4. Nudge the branch-consolidation questions on branch creation.
 
 Fails open: any error or non-matching command exits 0 with no output.
 """
@@ -21,17 +27,23 @@ from _command_utils import (  # noqa: E402
     emit_deny,
     read_event,
     simple_commands,
+    strip_quoted_and_heredoc,
 )
 
 _GH_PR_MERGE = re.compile(r"gh\s+pr\s+merge\b")
 _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
+_GIT_COMMIT = re.compile(r"git\s+commit\b")
+_COMMIT_FORBIDDEN = re.compile(r"(?:^|\s)(--no-verify|--amend|-n)(?=\s|$)")
+_HOOKSPATH = re.compile(r"git\s+config\b.*core\.hookspath", re.IGNORECASE)
 
 
 def main() -> int:
     cmd = bash_command(read_event())
     if not cmd:
         return 0
+    stripped = strip_quoted_and_heredoc(cmd)
     parts = list(simple_commands(cmd))
+    stripped_parts = list(simple_commands(stripped))
 
     for part in parts:
         if _GH_PR_MERGE.match(part):
@@ -40,6 +52,25 @@ def main() -> int:
                 "Open the PR, get CI green, and stop — the user merges. "
                 "(Only proceed if the user explicitly typed 'merge it' in this thread.) "
                 "See docs/working_agreement.md §3."
+            )
+            return 0
+
+    for part in stripped_parts:
+        if _GIT_COMMIT.match(part):
+            flag = _COMMIT_FORBIDDEN.search(part)
+            if flag:
+                emit_deny(
+                    f"COMMIT FLAG BLOCKED: `{flag.group(1)}` is not allowed. "
+                    "`--amend` rewrites a reviewed commit (history must stay "
+                    "append-only for the governance hash-chain); `--no-verify`/`-n` "
+                    "skips the repo's git hooks. Make a NEW, hook-verified commit "
+                    "instead. See docs/working_agreement.md §2/§3."
+                )
+                return 0
+        if _HOOKSPATH.search(part):
+            emit_deny(
+                "HOOKS-PATH BLOCKED: repointing `core.hooksPath` disables the "
+                "repo's git automation. Not permitted."
             )
             return 0
 
