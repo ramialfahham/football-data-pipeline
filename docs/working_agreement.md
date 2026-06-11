@@ -12,14 +12,38 @@ This document governs how any AI agent (Claude, Cursor, or other) operates in th
 
 ---
 
-## 2. Before any non-trivial change
+## 2. Before any non-trivial change — the task contract (machine-gated)
 
-State a short block first:
-- **Intent**: what you are about to do
-- **Files / systems touched**: every file, table, workflow, or external service affected
-- **Definition of done**: what "finished" looks like and how it will be verified
+Every unit of work begins with a **task contract** at `.claude/task/contract.md`
+(template: `.claude/task/TEMPLATE.md`), written BEFORE any file is touched and
+committed with the branch so it is PR-visible:
 
-If anything could silently shrink scope or affect something not listed, stop and ask.
+- **objective + refs** — what and why, tied to the issue/gap/plan
+- **scope_paths** — the surgical file allowlist; the contract gate
+  (`.claude/hooks/task_contract_gate.py`) DENIES any edit outside it
+- **decisions_taken** — what the contract pre-approves, quoting the CPO ruling
+- **decisions_reserved** — known CPO-class questions (§10); each is escalated
+  blinded (§11), never decided
+- **done_when** — mechanical verification steps
+- **amendments** — scope extensions: allowed only on a CLEAN tree (never mixed
+  into code changes), each recording the CPO authority
+
+Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+- No contract → repo edits denied. Out-of-scope path → denied.
+- **Protected paths** (`.claude/hooks/`, `.claude/settings.json`,
+  `.github/workflows/`) are never editable except in a dedicated CPO-approved
+  governance task whose contract carries `protected_override`.
+- **File changes go through the Edit/Write tools only** — shell redirection,
+  `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
+  check and the turn-end stop gate force reversion of anything that slips
+  through.
+- `git commit --amend`, `--no-verify`/`-n`, and `core.hooksPath` repointing are
+  denied — history stays append-only and hook-verified.
+- Escalations are appended to `.claude/task/escalations.log` (committed).
+
+If anything could silently shrink scope or affect something not listed, stop and
+ask — extending the contract without recorded CPO authority is drift by
+definition.
 
 ---
 

@@ -9,17 +9,29 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git_discipline.py\"",
             "statusMessage": "Checking git discipline..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
+            "statusMessage": "Checking task contract (shell)..."
           }
         ]
       },
       {
-        "matcher": "Edit|Write|MultiEdit",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/dbt_layer_gate.py\"",
             "statusMessage": "Checking dbt layer contract..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
+            "statusMessage": "Checking task contract..."
           }
         ]
       }
@@ -33,6 +45,24 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git_workflow.py\"",
             "statusMessage": "Enforcing branch workflow..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
+            "statusMessage": "Verifying tree matches contract..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py\"",
+            "statusMessage": "Stop gate: contract check..."
           }
         ]
       }
