@@ -1,7 +1,7 @@
 # 03 — Player profile ⭐ (#391)
 
 > Field-bound against `shape_player_payload` / `mart_player_profile` /
-> `mart_player_match_log` (verified 2026-06-12). Stat rows follow the LOCKED
+> `mart_player_match_log` (verified 2026-06-11). Stat rows follow the LOCKED
 > player bundles in [`metrics_display.md`](metrics_display.md) — 9 bundled rows,
 > no tiers, full-triple ratios, zero-denominator rule.
 
@@ -76,8 +76,8 @@ season stats; right: match log (it carries the scroll).
 |---|---|---|
 | Name / photo / nationality | top-level `name`, `photo`, `nationality` | photo fallback = initials monogram |
 | Position badge | `position` (`G/D/M/F`) | i18n badge labels (GK/DF/MF/FW) |
-| Birth date / age | — | **GAP-14** (in dim, stripped by the export) |
-| Current team | — | **GAP-16** (no team affiliation in the profile mart; derivable from latest `match_log[]` row) |
+| Birth date / age | — | **GAP-14, approved** — `player_birth_date` is in the mart; export will surface `birth_date` top-level |
+| Current team + history | — | **GAP-16, approved** — `current_team` from the latest match-log row + per-season team history; ▸ team profile link |
 | Selector | `seasons[].league_code` + `season_api_year` | default = most recent |
 
 ### (4) Appearance facts (selected season row)

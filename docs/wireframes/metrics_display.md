@@ -132,6 +132,9 @@ mixes groups; (3) ratio displays standardized to the full triple
   exists as `goals_saves`/`goals_conceded`), display strings standardized to the
   full triple (duels, pass accuracy, saves), `player_metrics_catalogue.md`
   display table superseded by this document.
+- **GAP-13** — full-season variants of the five player-stat-derived team rows
+  (shots on target, duels pair, defensive actions, key passes) in the season
+  rollup + `mart_team_profile` (the team profile renders the same locked table).
 
 ## Rulings log
 
