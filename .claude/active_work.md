@@ -4,10 +4,13 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-11 (governance pivot). **The website blueprint (#391) is PAUSED
+_Last updated: 2026-06-11 (governance build). **The website blueprint (#391) is PAUSED
 by CPO order.** Current program: the agent-governance system (approved plan:
-`C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md` — READ IT FIRST). G1 open as
-PR #401; next = G2 (task-contract gate)._
+`C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md` — READ IT FIRST). G1 MERGED
+(#401). **G2 open as PR #402 — and its gates are LIVE in the repo settings**: every
+edit now requires a task contract at `.claude/task/contract.md` (template:
+`.claude/task/TEMPLATE.md`); out-of-scope edits and shell writes are DENIED; the stop
+gate blocks turn-end on contract mismatch. Next = G3 (role reviewers + commit gate)._
 
 ## Why the pivot (do not re-litigate)
 The CPO repeatedly caught agent drift by watching live (wrong-layer logic, unilateral
@@ -16,20 +19,18 @@ will not keep supervising. Until the governance machinery lands, NO blueprint or
 feature work proceeds.
 
 ## The governance program (approved 2026-06-11, two Gemini review rounds + CPO edits)
-1. **G1 — OPEN, PR #401**: working_agreement.md §10 Decision rights (CPO-only
+1. **G1 — MERGED (#401)**: working_agreement.md §10 Decision rights (CPO-only
    classes + meta-rule: unclear classification is itself a CPO decision), §11
    Blinded escalation (premise_check; ≥2 conflicting paths; NO recommendation),
    Appendix A Historical anti-patterns (A1–A5). CLAUDE.md pointer; hook-message
-   pointers. First task contract at `.claude/task/contract.md`.
-2. **G2 — NEXT (after #401 merges; it also edits working_agreement §2)**:
-   `task_contract_gate.py` (PreToolUse Edit|Write: no contract → deny; out-of-scope
-   path → deny; clean-tree-only contract amendments; protected paths `.claude/hooks/`,
-   `.claude/settings.json`, `.github/workflows/`), shell-mutation coverage (Bash
-   PreToolUse write-pattern denies + PostToolUse git-status check w/ stop_gate
-   fallback if latency), `stop_gate.py` (turn-end reversion loop), git_discipline
-   denies for `--amend`/`--no-verify`/`-n`/hooksPath, `.claude/task/TEMPLATE.md`,
-   escalations.log convention. Bootstrap: write G2's own contract BEFORE registering
-   the gate in settings.
+   pointers.
+2. **G2 — OPEN, PR #402, gates LIVE**: `task_contract_gate.py` (edit + shell + post-
+   Bash check), `stop_gate.py`, git_discipline flag denies
+   (`--amend`/`--no-verify`/`-n`/hooksPath), TEMPLATE.md, working_agreement §2
+   machine-gated, 27 hook tests in tests/test_governance_hooks.py. Live-fire
+   verified: out-of-contract Write denied, shell redirect denied, quoted ">" not
+   false-positived. NOTE FOR EVERY FUTURE TASK: write the contract FIRST (clean
+   tree), or all edits are denied.
 3. **G3**: refresh role briefs (analytics_engineer.md is pre-refactor stale!) →
    read-only reviewer subagents `.claude/agents/analytics-engineer-reviewer.md` +
    `scope-auditor.md` (praise banned; default FAIL; PASS requires ≥2 real risks
