@@ -55,8 +55,9 @@ Every screen file follows this structure:
 | # | File | Screen | Spec status | PR |
 |---|------|--------|-------------|----|
 | 01 | [01_fixture_page.md](01_fixture_page.md) | Fixture page ⭐ | **spec'd** | 1 |
-| 02 | 02_team_profile.md | Team profile ⭐ | pending | 2 |
-| 03 | 03_player_profile.md | Player profile ⭐ | pending | 2 |
+| — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
+| 02 | [02_team_profile.md](02_team_profile.md) | Team profile ⭐ | **spec'd** | 2 |
+| 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
 | 04 | 04_competition_hub.md | Competition hub + season + table + fixtures + top scorers | pending | 3 |
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
 | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
@@ -89,9 +90,21 @@ inventory, flagged as new for the design system (#366).
 | Result chip (W/D/L) | 01 | part of form string family |
 | Player row (photo, name, stat columns) | 01 | player row ✓ |
 | H2H record block (aggregate W-D-L bar + counts) | 01 | ➕ |
-| Empty/absent state | 01 | ✓ |
+| Empty/absent state | 01, 02, 03 | ✓ |
 | Narrative block (data-to-text slot) | 01 | ➕ (slot only — GAP-03) |
-| Internal-links footer | 01 | ➕ (SEO-driven) |
+| Internal-links footer | 01, 02, 03 | ➕ (SEO-driven) |
+| Profile header (team/player) | 02, 03 | ✓ |
+| Competition-/season selector | 02, 03 | ➕ |
+| Big-number record block | 02 | big-number callout ✓ |
+| Single-bar ratio row + gap callout (deserved vs actual) | 02 | ➕ |
+| Aligned-comparison row (YoY) | 02 | sparkline/trend family ✓ |
+| Streak chip | 02 | ➕ |
+| Stat row (label + value + direction) | 02 | ✓ |
+| Group subhead | 01, 02, 03 | ➕ |
+| Position badge | 03 | ➕ |
+| Fact summary line | 03 | ➕ |
+| Bundled stat row (player contract) | 03 | player row ✓ |
+| Match-log row | 03 | ➕ |
 
 ## Verification (per screen, before its PR merges)
 

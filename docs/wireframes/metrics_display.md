@@ -38,6 +38,30 @@ surfaces).
   recency order). W2 shows aggregate counts `10W · 3D · 1L` — pills would
   misrepresent a 14+-game window (needs GAP-10).
 
+## Window & scope display contract (ruled 2026-06-11)
+
+The windows themselves are settled in `docs/metrics_context_model.md` (the
+context→window matrix, §1/§4). This section binds them to DISPLAY:
+
+1. **One cross-competition number exists in the product**: W1 live form. Every
+   cumulative number (W2, season rollups, profiles) is **within one
+   competition**. No surface may aggregate a season across competitions.
+2. **W2's user-facing name is "through matchday N"** — "season-to-date" is the
+   internal mart name only. At the final matchday it equals the full season;
+   aligned by matchday it powers YoY.
+3. **The W1/W2 switch must declare scope per state** (the toggle changes BOTH
+   window and competition scope — the labels carry that, always):
+   - W1: "Last 5 · all club competitions" / national: "all national-team
+     matches" + the `contributing_competitions` caption.
+   - W2: "{competition} · through matchday {N}"; `prev_season` fallback →
+     "{competition} · last season ({year})"; finished season → "final".
+4. **Tournament exception** (matrix §4): world/continental championships use
+   cumulative-within-the-tournament while running ("This tournament so far"),
+   with qualifier matches as the pre-MD2 preview — never a bare "last 5"
+   label. ⚠ Not yet implemented in the new window marts — **GAP-18**.
+5. Sample size is always displayable (`games_in_window` / `games_played`);
+   the window meta line is part of the component, not optional copy.
+
 ## Team metrics — LOCKED (CPO, 2026-06-11)
 
 Display order top to bottom. MVP rows keep their relative order; new blocks slot
@@ -132,6 +156,9 @@ mixes groups; (3) ratio displays standardized to the full triple
   exists as `goals_saves`/`goals_conceded`), display strings standardized to the
   full triple (duels, pass accuracy, saves), `player_metrics_catalogue.md`
   display table superseded by this document.
+- **GAP-13** — full-season variants of the five player-stat-derived team rows
+  (shots on target, duels pair, defensive actions, key passes) in the season
+  rollup + `mart_team_profile` (the team profile renders the same locked table).
 
 ## Rulings log
 
@@ -147,3 +174,5 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | Player display unit = the bundled rows from `player_metrics_catalogue.md`; resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
 | 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
 | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
+| 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
+| 2026-06-11 | Tournament window exception (cumulative + qualifier preview) confirmed as the matrix rule for display; found unimplemented in the new window marts → GAP-18, scheduled before WC 2026. |
