@@ -254,6 +254,10 @@ models:
       - dbt_utils.expression_is_true:
           expression: "performance_vs_results_gap is null or (performance_vs_results_gap between -1 and 1)"
           name: team_profile_perf_gap_in_range
+      # GAP-13 season variant of the duel win rate — same-window ratio bound
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct_season is null or (duels_won_pct_season between 0 and 1)"
+          name: team_profile_duels_won_pct_season_in_range
     columns:
       - name: team_sk
         tests:

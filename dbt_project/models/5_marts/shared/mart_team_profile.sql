@@ -92,6 +92,14 @@ select
     m.corner_kicks_per_match_season,
     m.corners_conceded_per_match_season,
     m.save_ratio_season,
+    -- GAP-13: locked-contract season variants (player-derived ones inherit
+    -- player-stat coverage gaps; caption from player_stat_coverage_season_games)
+    m.player_stat_coverage_season_games,
+    m.shots_on_target_per_match_season,
+    m.key_passes_per_match_season,
+    m.duels_per_match_season,
+    m.duels_won_pct_season,
+    m.defensive_actions_per_match_season,
     -- deserved vs actual: dominance (shot_share) vs achievement (points_capture)
     m.shot_share_season,
     m.points_capture_season,
