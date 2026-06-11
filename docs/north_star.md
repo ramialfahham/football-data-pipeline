@@ -32,16 +32,9 @@ Open the app, instantly see what's on today across competitions, tap a match, an
 
 ## Navigation flow
 
-```
-Landing page
-  └─ Competition cards (one per active competition, sorted by next kickoff)
-       └─ Fixture list (next round / matchday only)
-            └─ Fixture detail (deep dive — the analysis carousel)
-```
+**v2 — the website (target, epic #361):** defined in [`site_architecture.md`](site_architecture.md) §3–4. Hybrid IA: browse by competition group (Leagues / Cups / Continental club / National teams) **and** by country hub; programmatic pages for every competition, fixture, team and player under locale-prefixed URLs. Home is **fixtures-first** — upcoming matches across competitions — with browse, storylines and stats below.
 
-- **Landing**: Cards for each active competition — competition name, current round label (e.g. "Spieltag 32", "Gruppenphase", "Achtelfinale"), next fixture date, number of upcoming fixtures.
-- **Fixture list**: All fixtures for the next round. Clean list — teams, kickoff time, subtle form signal.
-- **Fixture detail**: Full pre-match analysis. Swipe left/right between fixtures in the same round.
+**Legacy MVP (live until cutover, #377):** the card-based mobile app — Landing (competition cards) → Fixture list (next round only) → Fixture detail (analysis carousel). It stays fully functional until v2 reaches parity and the CPO signs off the switch.
 
 ---
 
@@ -77,12 +70,15 @@ Multiple revenue streams, built in layers:
 
 ## Competitions roadmap
 
-| Phase | Competition | Status |
-|-------|-------------|--------|
-| Live | Bundesliga (D1) | ✅ |
-| Next | WC 2026 + qualifiers | 🔜 |
-| After WC | Premier League, La Liga, Serie A | 📋 |
-| Future | All major competitions | 🌍 |
+**45 competitions are onboarded and active** — domestic leagues, cups, continental club and national-team competitions across confederations. The single source of truth is [`competition_registry.yml`](competition_registry.yml); adding a competition is one registry entry and nothing else (the zero-file rule, CI-enforced).
+
+| Phase | Status |
+|-------|--------|
+| Bundesliga pilot | ✅ done |
+| WC 2026 + linked qualifiers | ✅ ingested (tournament runs summer 2026) |
+| Major European leagues + cups | ✅ live |
+| Onboarding waves 1–5 (→ 45 competitions) | ✅ live |
+| Further competitions | registry decision per competition (CPO), zero-file onboarding |
 
 **WC 2026 note**: Through Group Stage Matchday 1, form uses **all** finished qualifier matches for each team across the confederation + inter-confederation competitions linked to WC 2026 in the registry. From Group Stage Matchday 2 onward, only **WC** `league_code` matches count — **all finished tournament games so far** (cumulative).
 
@@ -90,11 +86,11 @@ Multiple revenue streams, built in layers:
 
 ## Future features (in priority order)
 
-1. **Cool visualizations** — radar charts, shot maps, trend lines. Stats you can feel.
+1. **Cool visualizations** — radar charts, trend lines. Stats you can feel. (Shot maps are **data-gated**: the provider feed has no shot coordinates — do not design them until a data source exists.)
 2. **Predictions** — rule-based first, ML eventually. Honest probabilities, not guesses.
 3. **Social / sharing** — share a match card, start a debate, see what your friends think.
 4. **Live match companion** — stats updating in real time during the match.
-5. **Historical deep dives** — head-to-head history, season comparisons, player career arcs.
+5. **Historical deep dives** — head-to-head history (✅ modelled: `mart_head_to_head`), season comparisons, player career arcs.
 
 ---
 
@@ -108,10 +104,10 @@ Quality bar first. Growth comes after the product deserves it.
 
 ## Technical north star
 
-- Adding a new competition requires **ingestion config, per-endpoint staging models, and one `ref()` line per base UNION** (mechanical, CI-checked via `assert_base_*_covers_active_competition_var` + `scripts/check_registry_var_sync.py`). **No changes to core, intermediate, or marts** once the endpoint surfaces exist in unified bases.
+- Adding a new competition requires **a single entry in `docs/competition_registry.yml` and nothing else** — the zero-file rule, CI-enforced (`check_layer_contract.py`, `check_registry_var_sync.py`). Raw tables are unified with a `league_code` discriminator; staging models are generic (one per entity, never per competition); **no changes to staging, base, core, intermediate, or marts**.
 - `league_code` is the partition key on everything. Never hardcode a competition.
 - Data quality is automated and enforced. The product must be trustworthy at all times without manual verification.
-- Architecture: Python ingestion → BigQuery raw → dbt (staging → base UNION ALL → core → marts) → GitHub Pages UI.
+- Architecture: Python ingestion → BigQuery raw → dbt (staging → base → core → marts) → GitHub Pages UI.
 
 ---
 
