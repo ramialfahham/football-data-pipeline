@@ -702,6 +702,36 @@ models:
       - name: is_home
         tests: [not_null]
 
+  - name: mart_fixture_standing_context
+    description: >
+      Phase-relevant standings context per upcoming-fixture side (epic #361). The single
+      source of "this team's table position going into this fixture", shared by the MVP's
+      mart_matchday_insights and the v2 fixtures export. league_rank (and the standing
+      fields) are NULL for knockout rounds (is_knockout_round) and for overlapping-table
+      leagues (a team with >1 section that season); group_name is kept regardless.
+      Covers all upcoming fixtures. Grain: (fixture_sk, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "league_rank is null or league_rank >= 1"
+          name: fixture_standing_context_rank_positive
+    columns:
+      - name: fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: is_knockout
+        tests: [not_null]
+
   - name: mart_head_to_head
     description: >
       Head-to-head (#375). All-time past meetings between two teams, directed: one row
