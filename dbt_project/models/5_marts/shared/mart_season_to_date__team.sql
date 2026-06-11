@@ -76,6 +76,10 @@ matched as (
         sf.games_with_opp_stats,
         sf.games_with_player_stats,
         sf.points_won,
+        sf.wins,
+        sf.draws,
+        sf.losses,
+        sf.clean_sheet_games,
         sf.goals_for,
         sf.goals_against,
         sf.goals_for_in_shot_games,
@@ -119,6 +123,10 @@ matched as (
         sf.games_with_opp_stats,
         sf.games_with_player_stats,
         sf.points_won,
+        sf.wins,
+        sf.draws,
+        sf.losses,
+        sf.clean_sheet_games,
         sf.goals_for,
         sf.goals_against,
         sf.goals_for_in_shot_games,
@@ -168,6 +176,12 @@ select
     games_with_team_stats,
     is_home,
     points_won,
+    -- W/D/L counts (the W2 form display — pills misrepresent a season window)
+    wins,
+    draws,
+    losses,
+    -- clean sheets: scoreline-based count, displays as x of games_played
+    clean_sheet_games as clean_sheets,
     -- goals (scoreline window)
     safe_divide(goals_for, games_played) as goals_per_match,
     safe_divide(goals_against, games_played) as goals_against_per_match,
@@ -175,6 +189,7 @@ select
     safe_divide(shots_total, games_with_team_stats) as shots_per_match,
     safe_divide(shots_on_goal, shots_total) as shot_accuracy,
     safe_divide(shots_inside_box, shots_total) as danger_zone_ratio,
+    safe_divide(shots_on_goal, games_with_team_stats) as shots_on_target_per_match,
     safe_divide(goals_for_in_shot_games, shots_on_goal) as finishing_efficiency,
     -- passing (team-stat window)
     safe_divide(passes_total, games_with_team_stats) as passes_per_match,
@@ -191,6 +206,10 @@ select
     safe_divide(tackles, games_with_player_stats) as tackles_per_match,
     safe_divide(interceptions, games_with_player_stats) as interceptions_per_match,
     safe_divide(blocks, games_with_player_stats) as blocks_per_match,
+    -- T+I+B share one coverage window (same player rows): same-window by construction
+    safe_divide(tackles + interceptions + blocks, games_with_player_stats)
+        as defensive_actions_per_match,
+    safe_divide(duels_total, games_with_player_stats) as duels_per_match,
     safe_divide(duels_won, duels_total) as duels_won_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct
 from chosen

@@ -127,7 +127,7 @@ agg as (
         -- passes_accurate: catalogue derivation (per-fixture round, then sum)
         sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64))
             as passes_accurate,
-        -- save_pct inputs (not surfaced as standalone metrics)
+        -- save_pct inputs; surfaced as saves / shots_on_target_faced (GAP-12)
         sum(coalesce(goals_saves, 0)) as goals_saves,
         sum(coalesce(goals_conceded, 0)) as goals_conceded
     from per_fixture
@@ -179,7 +179,10 @@ select
     a.cards_red,
     a.penalty_won,
     a.penalty_committed,
+    -- GK atomics (GAP-12): the save full-triple — saves of shots faced
+    a.goals_saves as saves,
     -- catalogue ratio metrics (computed by catalogue formula; null when denom 0)
+    a.goals_saves + a.goals_conceded as shots_on_target_faced,
     safe_divide(a.passes_accurate, a.passes_total) as pass_accuracy_pct,
     safe_divide(a.duels_won, a.duels_total) as duels_won_pct,
     safe_divide(a.dribbles_success, a.dribbles_attempts) as dribbles_success_pct,

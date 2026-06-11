@@ -58,6 +58,7 @@ legs as (
         pl.duels_won,
         pl.dribbles_attempts,
         pl.dribbles_success,
+        tl.result,
         case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
         pl.fixture_sk is not null as has_player_stats
     from team_legs as tl
@@ -80,8 +81,12 @@ select
     row_number() over w_seq as games_played,
     -- scoreline (always present)
     sum(points) over w as points_won,
+    sum(case when result = 'W' then 1 else 0 end) over w as wins,
+    sum(case when result = 'D' then 1 else 0 end) over w as draws,
+    sum(case when result = 'L' then 1 else 0 end) over w as losses,
     sum(goals_for) over w as goals_for,
     sum(goals_against) over w as goals_against,
+    sum(case when goals_against = 0 then 1 else 0 end) over w as clean_sheet_games,
     -- team-stat coverage (cumulative)
     sum(case when shots_total is not null then 1 else 0 end) over w
         as games_with_team_stats,

@@ -50,6 +50,8 @@ team_agg as (
             as points_won,
         sum(goals_for) as goals_for,
         sum(goals_against) as goals_against,
+        -- scoreline-based, full window (clean sheets display as x of games)
+        countif(goals_against = 0) as clean_sheet_games,
         -- coverage-restricted scoreline sums keep finishing_efficiency and
         -- save_ratio same-window with their stat denominators
         sum(if(shots_on_goal is not null, goals_for, null))
@@ -109,6 +111,7 @@ select
     ta.points_won,
     ta.goals_for,
     ta.goals_against,
+    ta.clean_sheet_games,
     ta.goals_for_in_shot_games,
     ta.goals_against_in_save_games,
     ta.shots_total,
