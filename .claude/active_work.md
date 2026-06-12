@@ -7,8 +7,12 @@
 _Last updated: 2026-06-12 (governance build). **The website blueprint (#391) is PAUSED
 by CPO order.** Current program: the agent-governance system (approved plan:
 `C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md` — READ IT FIRST). G1 MERGED
-(#401). G2 MERGED (#402) — contract/scope/shell/stop gates LIVE. **G3 open as PR
-#403 — and its machinery is LIVE too**: reviewer subagents in `.claude/agents/`
+(#401). G2 MERGED (#402) — contract/scope/shell/stop gates LIVE. **G3 MERGED
+(#403)**, and **reviewer-model-pinning MERGED (#405)**: reviewers pinned in their
+agent frontmatter (scope-auditor=haiku, five specialists=sonnet) with an
+orchestrator opus-on-guards rule, and `.claude/agents/** -> cto-reviewer` now
+routed (so reviewer-cast changes are gate-required for platform review). All G3
+machinery is LIVE: reviewer subagents in `.claude/agents/`
 (PROTECTED per CPO ruling), CPO-approved routing in `.claude/review_routing.json`
 (PROTECTED), the 4-step review cycle (Code Lock → cold Blinding →
 Cross-Examination → SHA-256 Lock in `.claude/task/review.md`), and the commit gate:
@@ -23,7 +27,10 @@ staged hash → commit. Artifact-only commits (`.claude/task/**`,
 2–5 found real gate bypasses that were fixed + regression-tested (80 hook tests).
 Next = G4 (retroactive audit — discuss scope with CPO first; he said "wider, maybe
 commit history"), then the Pilot (rework the parked marts stash under the full
-workflow incl. the two blinded slug escalations)._
+workflow incl. the two blinded slug escalations). **G4 hardening candidate found
+on #405**: the CI backstop can't bind review.md to the PR diff, so a merge between
+the code commit and the artifact commit false-greens on the prior task's
+artifacts (memory: governance_artifact_commit_ordering.md)._
 
 ## Why the pivot (do not re-litigate)
 The CPO repeatedly caught agent drift by watching live (wrong-layer logic, unilateral

@@ -1,78 +1,54 @@
-# Review — governance/g3-role-reviewers — 2026-06-12
+# Review — governance/reviewer-model-pinning — 2026-06-12
 
-> Final review artifact (step 4 — Lock), after SEVEN blinded review rounds.
-> Rounds 2–5 returned blocking findings — self-staging commit forms, bundled
-> (`-qam`) and abbreviated (`--inc`) spellings, git global-option skips,
-> compound-call restaging, quoted-pathspec and quotePath enumeration defects,
-> per-section/preamble escalation pairing, risks-quota anchoring — each fixed,
-> re-tested and re-staged, with the reviewers re-spawned cold against the new
-> hash. Round 6 surfaced the two reserved §10 questions as a blocking
-> escalation; the CPO answered both (recorded below); ruling 1 was implemented
-> and round 7 verified implementation fidelity. 80/80 hook tests green.
+> Step 4 (Lock). Two iterations: iteration 1 returned scope-auditor PASS +
+> cto-reviewer ESCALATE (agents/** named a guard path but not routed to
+> cto-reviewer — no gate/CI back-stop for reviewer-definition changes). The CPO
+> ruled Path A (add the routing row); the diff now routes `.claude/agents/**` ->
+> cto-reviewer (contract amendment A1). Iteration 2 (this artifact): both
+> reviewers PASS on the fixed diff. cto-reviewer ran on opus both iterations
+> (guard diff — opus-on-guards).
 
-diff_sha256: e5d37c9daccddec9948b2094fa19ffd8268ef342e095856764a404a750167100
+diff_sha256: 78a540739141502c5f0642cdb4d3cef484db887c6ea2808d385c5f006b3147ba
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Commit-form denial via allowlist inversion (git_discipline.py): shlex
-  raw-token walk catches POSIX option bundling (`-qam`), long-option prefix
-  abbreviations (`--inc`), git global options before `commit`, and quoted
-  pathspecs; unbalanced quoting fails closed; pathspecs caught both as
-  positional tokens and after `--`; flag-value tracking prevents a value
-  being misread as a pathspec; the sole-command rule prevents index mutation
-  after hash verification. Each bypass class is tested individually.
-- Per-section ESCALATE/CPO-ANSWER pairing including the `_preamble`
-  pseudo-section (git_discipline.py + check_task_artifacts.py mirror): an
-  answer in one section cannot mask an unanswered escalation in another or in
-  the preamble; verified against
-  test_answer_elsewhere_does_not_mask_unanswered_escalation,
-  test_preamble_escalation_not_masked, and the CI mirror test.
+- Protected-path enforcement and CPO authority: the contract carries
+  protected_override naming the G3 escalation authority (2026-06-12); amendment
+  A1 records the CPO Path A ruling for the `.claude/agents/**` routing row;
+  scope-auditor.md is deliberately excluded (already pinned to haiku in G3). All
+  eight staged files are within scope_paths.
+- Doc-sync across four locations: working_agreement.md §2, agent_guardrails.md,
+  cto-reviewer.md and the routing _doc all name the same five guard paths and
+  describe the opus-on-guards override identically as procedural (not
+  hook-enforced); the routing `paths` block now contains all five guard paths.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Ruling-1 fidelity: `.claude/agents/` added to PROTECTED_PREFIXES in
-  task_contract_gate.py with the CPO-answer citation; backslash
-  normalization precedes the prefix match so the Windows path form cannot
-  slip past; test_agents_dir_is_protected covers it; doc sync present in
-  working_agreement §2 and agent_guardrails.
-- Ruling-2 fidelity: allowlist inversion, `--`/positional pathspec deny,
-  shlex on the RAW command with unparseable quoting denied, exact
-  `git commit` spelling, sole-command rule, NUL-split staged-path
-  enumeration — all present and each exercised by a parametrized test
-  (bundled, abbreviated, `-p`, global options, quoted pathspec, unclosed
-  quote, non-ASCII path). No deviation from the confirmed package.
-- Accidental-spelling sweep: quoted messages containing `&&`/`;`/newlines do
-  not trip the sole-command deny (strip-then-split order); heredoc message
-  pattern and double `-m` forms pass. Residual false positive: attached-value
-  `-m"msg"` (no space) is over-denied in the fail-closed direction with the
-  corrective spelling in the deny text — advisory.
-- Fail-open (hook) vs fail-closed (CI) polarity verified per rule on both
-  sides; untested fail-open branches remain an accepted follow-up.
-- Re-run/interruption safety: all gate components read-only and idempotent;
-  `--staged-hash` CLI side-effect-free.
-- Cost/permissions on ci-validate.yml: no permissions widening, no new
-  trigger; `fetch-depth: 0` negligible; base-ref fallback degrades to an
-  empty diff on push-to-main, so the new step cannot brick main; additions
-  stdlib-only.
+- fnmatch semantics of the new row: `_required_reviewers` (git_discipline.py)
+  uses Python `fnmatch`, where `*`/`**` both match `/`, so `.claude/agents/**`
+  matches `.claude/agents/cto-reviewer.md` — cto-reviewer is now a REQUIRED
+  reviewer for any agents/** diff at both the commit gate and the CI backstop;
+  staged paths are forward-slash normalized so it fires on Windows too. Same
+  proven mechanism as the existing `.claude/hooks/**` row.
+- review_routing.json structural integrity: the four new `_doc` strings are
+  appended inside the existing array; `.claude/agents/**` adds no duplicate key;
+  file is valid JSON so `_load_routing` does not fall to its fail-open path.
+- Documented↔mechanical inconsistency closed: no guard path named in the docs is
+  missing from the routing → cto-reviewer set (the iteration-1 gap is gone).
+- Protected-path authority quoted, not asserted (contract protected_override +
+  amendment A1); scope-auditor unchanged at `model: haiku`; the opus-on-guards
+  override is honestly documented as procedural; the gate's fail-closed direction
+  is tightened, not inverted.
 
 ## escalations
-- question: Should `.claude/agents/**` (the reviewer agent definitions) be a
-  PROTECTED path — editable only in a dedicated CPO-approved governance task
-  with `protected_override`, like `.claude/hooks/` and the routing file — or
-  remain contract-gated (editable inside any task whose contract lists them,
-  caught at review time by the scope-auditor)?
-  CPO ANSWER: Protect `.claude/agents/**` (blinded escalation, 2026-06-12).
-  Implemented in task_contract_gate.py PROTECTED_PREFIXES with
-  test_agents_dir_is_protected and doc sync; verified by round-7 reviewers.
-- question: Confirm or narrow the commit-form deny package implemented as
-  enforcement of the approved review gate: flag allowlist (`-m`/`--message`,
-  `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff` only), exact
-  `git commit` spelling (git global options denied), commit as the SOLE
-  command in its shell call, shlex raw-token walk (unparseable quoting
-  denied), NUL-split path enumeration — versus the plan's literal minimum
-  (hash + verdict checks only, no form denies)?
-  CPO ANSWER: Confirm the full deny package (blinded escalation, 2026-06-12).
-  No narrowing; the package stands as the enforcement of the approved review
-  gate.
+- question: `.claude/agents/**` is a PROTECTED guard path named in the
+  opus-on-guards docs, but it was not routed to cto-reviewer — so a change to a
+  reviewer definition was reviewed only by the always-on scope-auditor (haiku),
+  with no commit-gate or CI back-stop (unlike the other guard paths, which the
+  routing table back-stops). Add the routing row (mechanical enforcement) or keep
+  it procedural and qualify the docs?
+  CPO ANSWER: Add the routing row (mechanical) — blinded escalation 2026-06-12.
+  Implemented: `.claude/agents/** -> cto-reviewer` added to review_routing.json
+  (contract amendment A1); iteration-2 reviewers verified the fix.
