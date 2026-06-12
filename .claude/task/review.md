@@ -1,48 +1,53 @@
-# Review — data/afccl-id-verified — 2026-06-12
+# Review — docs/audit-doc-sync — 2026-06-13
 
-> Issue #426 / audit F23: AFCCL provider_league_id 17 verification. The builder
-> queried RAW_APIF_LEAGUES (BigQuery) — id 17 returns "AFC Champions League Elite"
-> (Cup), seasons 2016-2025 incl. current 2024/2025, so the ID is CORRECT and the
-> "disable" branch of #426 does not apply. The diff updates only the AFCCL registry
-> note to record that evidence + drop the stale "legacy ID" caveat; no field changed.
-> Required reviewers for docs/competition_registry.yml: scope-auditor + data-engineer.
+> Issue #419: G4 audit batched stale-doc cleanup (F27–F37). Pure doc/comment/
+> docstring fixes, no behavior change. F35 + F37 found already-correct, not touched.
+> Required reviewers for the staged paths: scope-auditor (always) + analytics-engineer
+> (layering.md + int models) + data-engineer (ingestion comments + registry).
 
-diff_sha256: 0ab1e54db51b2f9f1ee459e4f874978c70c6bae160b1c01d8030677ffb41a4ab
+diff_sha256: 4c7297590de682fc2d19f2de2ec5ab62cdd266fc94712261e2d6d62c6f251955
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Cost-knob boundary: the contract reserves provider_league_id / ingest_active /
-  history_seasons / cost knobs; the diff shows all structural fields (924-930)
-  UNCHANGED — `ingest_active: true`, `provider_league_id: 17`, `history_seasons: 5`,
-  `current_season: "2024"` untouched. The note phrase "ingest_active confirmed" is
-  evidentiary, not a silent re-enable (the field was already true). No §10 decision
-  taken: keeping ingest_active is the data-driven result of a successful verification,
-  not a product/cost call.
-- Registry/CI integrity + scope: only `docs/competition_registry.yml` changed (in
-  scope_paths); the edit stays within the existing folded `>` notes block with no
-  structural YAML change, so registry parse + check_registry_var_sync +
-  check_competition_type_seed hold. The note records verifiable evidence (source
-  RAW_APIF_LEAGUES, returned name + seasons), not an unsupported assertion.
+- Grain accuracy in the expanded 19-mart inventory: sampled grains (mart_team_season,
+  mart_season_to_date__team, mart_fixture_standing_context) against the model
+  docstrings — all matched; the new claims are load-bearing descriptors of the actual
+  schemas, not aspirational. No §10 decision is disguised as documentation.
+- Materialization (view vs table) correctness + scope: spot-checked table/view claims
+  against `config(materialized=...)`; all 8 changed files are within scope_paths; the
+  diff changes only comments/docstrings/markdown/yaml-notes — no code logic, column,
+  config value, or registry data field; the orphaned int_player_season__metrics model
+  is NOT deleted (only its stale docstring corrected), honoring decisions_reserved.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Mart inventory exhaustiveness + materialization: enumerated all 19 `5_marts/**/*.sql`
+  via glob and verified EACH model's `config(materialized=...)` against the inventory
+  table — all 19 match (table/view correct); grains cross-checked against each model's
+  inline `Grain:` docstring — all align. No phantom rows; no real mart omitted.
+- Fact inventory + league_code exception: `fct_team_market_value_snapshot` row is
+  accurate — grain `(team_sk, as_of_date, source_code)`, seed-sourced, no `league_code`
+  column in the SELECT; softening "All facts propagate league_code" → "Most…" is
+  warranted. The retired-consumer fix is correct: no `int_matchday__fixture_player_insights`
+  .sql exists anywhere in models/; only the two stale docstrings were corrected, no logic.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Provider-ID evidence (four-wrong-IDs rule): the note cites the query source
-  (RAW_APIF_LEAGUES), date (2026-06-12), returned name ("AFC Champions League Elite",
-  Cup) and seasons through the current 2024/2025 — specific, internally consistent
-  with the registry `name` and `competition_type: continental_club`, and sufficient to
-  retire the "spot-check" caveat. The current-season presence rules out a defunct/
-  reassigned id-17 entry. No ID-confusion vector remains.
-- Silent cost/scope change: all cost/scope fields (provider_league_id, ingest_active,
-  history_seasons, current_season, status, ingest_completeness_gate) are unchanged;
-  the `notes` field is not read by sync_dbt_vars.py (which uses only league_code,
-  status, competition_type), is not in the derived competition_registry.csv seed, and
-  is not in dbt_project.yml vars — so no sync artefact is affected or missing.
-- ID interpretation: verification path is RAW_APIF_LEAGUES (the ingested response for
-  id 17 itself), not an external lookup that could confuse competitions; "AFC Champions
-  League Elite" with active seasons maps unambiguously to AFCCL. Not a new competition,
-  so the verify-competition-ingest post-merge gate (new-onboarding rule) does not apply.
+- Write-mode comment (F32): the corrected comment in catalog.py now reads WRITE_APPEND,
+  matching the actual `append=True` passed to `load_json_to_bq`; the empty-payload guard
+  is unchanged and its justification is now accurate. No code line changed.
+- Quota-budget docstring (F33): `_fixture_fanout_http_estimate()` hard-returns 4 and its
+  inline docstring already states predictions are not ingested; the corrected docstring
+  ("4 calls — lineups, events, stats, players") now matches the runtime value (the old
+  "5 incl. predictions" overstated budget by 20%). No predictions endpoint is called
+  (no-API-predictions rule upheld). Behavior unchanged.
+- Registry header (F34): all five #262 'Continental club showpieces' entries (LIBER,
+  CAFCL, AFCCL, CCCU, CWC) carry `status: in_progress` / `ingest_active: true`, so the
+  PLANNED→IN PROGRESS header is correct; only the comment line changed — no
+  provider_league_id, history_seasons, or ingest_active field touched.
 
 ## escalations
-(none — both reviewers PASS.)
+(none — all three reviewers PASS.)

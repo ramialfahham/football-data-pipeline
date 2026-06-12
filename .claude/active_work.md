@@ -53,9 +53,12 @@ mechanism is reserved to CPO. FROZEN (GAP-17): F8/F9 — do NOT act. PARKED to
 Pilot test case), F38 (streaks, at wireframe sign-off). Folded into GAP-19: F4/F5-
 migration/F6. KEPT: F18 (board-sync) + PAT-audit #413. **NEXT:** the Pilot (rework
 the parked marts stash under the full workflow incl. the two blinded slug
-escalations) — OR the remaining audit cleanup issues (#410–#427), the GAP-18
-parent-child modeling, or the deferred gate task #409, as CPO directs. (Both audit
-PRIORITIES #414 and #426 are now DONE.) (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
+escalations) — OR the remaining audit cleanup issues, the GAP-18
+parent-child modeling, or the deferred gate task #409, as CPO directs. **DONE so far:**
+#414 (form_source #429), #426 (AFCCL #432), **#419 doc-sync (PR #433** — F27–F37; F35/F37
+were already-correct). Remaining open audit issues: #409 (gate-integrity, needs gate-lift),
+#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#425/#427 (cleanups),
+#430 (form_source stale-ref follow-up). (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
 DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
 REGENERATE `.claude/task/review_input.patch` before each blinding — a stale patch
 (from the prior merged task) caused a false scope-FAIL; also the 2nd haiku
