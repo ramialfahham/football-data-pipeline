@@ -18,6 +18,7 @@ refs: governance plan §5 (C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md
 
 scope_paths:
   - docs/audits/2026-06_alignment_audit.md
+  - .claude/active_work.md   # artifact-only (handover write-out); see amendment A1
 
 decisions_taken: >
   CPO kickoff rulings 2026-06-12 — DEPTH: current-state + per-finding provenance
@@ -45,6 +46,13 @@ done_when:
   - review.md written with a staged-diff hash matching the doc; commit gate passes.
   - PR opened with the governance block.
 
-amendments: (none)
+amendments:
+  - 2026-06-12: + .claude/active_work.md — authority: standing handover practice
+    (working_agreement.md §2 names .claude/active_work.md an artifact_only path;
+    the handover is refreshed at task close). Content: update the handover status
+    to "G4 audit shipped" + next actions. Artifact-only, review-exempt. NOTE: this
+    amendment is itself an instance of finding F10 (contract scope widened via the
+    review-exempt artifact lane) — done here under the sanctioned clean-tree +
+    recorded-authority mechanism, surfaced honestly in the audit it accompanies.
 # On amendment (clean tree only):
 #   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
