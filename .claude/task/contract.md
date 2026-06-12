@@ -1,62 +1,42 @@
-# Task contract — retire dead supporting_leagues / form_source mechanism
+# Task contract — AFCCL provider_league_id verification
 
-> Cleanup of dead, unconsumed code surfaced by the G4 audit (F22 reclassified).
-> Form is recency-based (`int_form_window__team`, #320/#323); the old form-source
-> path's only consumer (`int_matchday__team_form_metrics`) was retired in #321, so
-> `supporting_leagues`, `form_source`, and the `wc_supporting_league_codes` seed are
-> vestigial. See docs/working_agreement.md §2/§5/§10, Appendix A.
+> Audit F23 / issue #426: AFCCL carried provider_league_id 17 as `ingest_active: true`
+> with a "legacy ID — spot-check" caveat (the four-wrong-IDs pattern). Verified id 17
+> against the ingested RAW_APIF_LEAGUES data. See docs/working_agreement.md §5/§10.
 
 objective: >
-  Retire the dead supporting_leagues / form_source form mechanism. Form is computed
-  via cross-competition recency (int_form_window__team); this path drives nothing.
-  Remove the WC supporting_leagues block, the form_source field, the buggy
-  competition_type guard, and the orphaned wc_supporting_league_codes seed. KEEP
-  parent_competition as curated intent reserved for GAP-18 (it is the clean general
-  representation of the parent-child relationship; it makes the deleted seed
-  redundant).
-refs: G4 audit F22 (#414 — reclassified: NOT a live form bug; the impact claim was
-  overstated, form comes from recency). GAP-18 = the deferred consumer.
+  Resolve issue #426 (audit F23). provider_league_id 17 for AFCCL was VERIFIED against
+  RAW_APIF_LEAGUES (BigQuery): it returns "AFC Champions League Elite" (Cup), seasons
+  2016–2025 incl. the current 2024/2025 — API-Football kept id 17 through the 2024/25
+  "Elite" rebrand. The ID is CORRECT, so the issue's conservative "disable until
+  verified" default does NOT apply; instead, keep ingest_active and record the
+  verification evidence in the registry note (replacing the stale "legacy ID" caveat).
+refs: #426 (audit F23); evidence: RAW_APIF_LEAGUES query 2026-06-12.
 
 scope_paths:
-  - ingestion/api_football/registry.py
   - docs/competition_registry.yml
-  - dbt_project/seeds/wc_supporting_league_codes.csv
-  - dbt_project/seeds/schema.yml
-  - docs/competitions/wc26.md                       # amendment A1: doc-sync (stale seed ref)
-  - .claude/skills/onboard-competition/SKILL.md     # amendment A1: stale form_source boilerplate
   - .claude/active_work.md   # artifact-only: handover write-out at close
 
 decisions_taken: >
-  CPO approval this session (2026-06-12): remove the dead supporting_leagues +
-  form_source mechanism entirely (both unconsumed; form_source removal explicitly
-  approved). KEEP parent_competition (reserved for GAP-18) with a clarifying comment.
-  Delete wc_supporting_league_codes.csv (redundant with parent_competition) + its
-  schema.yml entry.
+  ID-17 verification result (RAW_APIF_LEAGUES, 2026-06-12) is the authority: id 17 =
+  "AFC Champions League Elite", current seasons present → CORRECT. Action = record
+  evidence + keep ingest_active: true. The "disable" branch of #426 is not taken
+  because verification succeeded (data-quality favors keeping a confirmed-correct
+  competition over a needless disable).
 
 decisions_reserved:
-  - The parent-child Core dim (parent_league_code) and the WC tournament-window form
-    rule (cumulative from Group-Stage MD2) are GAP-18 — NOT in scope; do not build.
-  - If removing form_source surfaces an unforeseen live consumer, STOP and escalate
-    (§11) rather than work around it.
+  - No change to provider_league_id, ingest_active, history_seasons, or any cost knob —
+    only the human-readable note is updated. If the verification were ambiguous, the
+    disable decision would be CPO-class (§10) — it is not, the data is unambiguous.
 
 done_when:
-  - grep shows zero remaining references to `supporting_leagues`, `form_source`, and
-    `wc_supporting_league_codes` across ingestion/, dbt_project/models|seeds, scripts/
-    (excluding target/ build artifacts and .pyc caches).
-  - parent_competition retained in the registry with a reserved-for-GAP-18 comment.
-  - `python -c "import ingestion.api_football.registry"` succeeds; the existing
-    registry test suite passes; validate-local (offline gates) green.
-  - reviewers: scope-auditor (always) + data-engineer-reviewer (registry/ingestion +
-    competition_registry.yml) + analytics-engineer-reviewer (seeds) — all PASS or
-    answered ESCALATE.
+  - the AFCCL note records the id-17 verification (source: RAW_APIF_LEAGUES; name "AFC
+    Champions League Elite"; seasons through 2025) and drops the stale "legacy ID" line.
+  - ingest_active stays true; provider_league_id stays 17; no other field changes.
+  - registry still parses: `python -c "import ingestion.api_football.registry as r;
+    r._parse_competitions()"` succeeds; check_registry_var_sync + check_competition_type_seed pass.
+  - reviewers: scope-auditor (always) + data-engineer-reviewer (competition_registry.yml) — PASS.
 
-amendments:
-  - 2026-06-12 (A1): + docs/competitions/wc26.md, + .claude/skills/onboard-competition/SKILL.md
-    — authority: CPO approval this session. The scope-auditor FAILed review cycle 1 on
-    stale references to the deleted seed/mechanism in these two files (doc-sync). CPO
-    approved fixing both in this branch. The protected workflow trigger
-    (.github/workflows/pages-match-preview.yml:34, deleted-seed path) is INERT (two
-    reviewers confirmed a deleted-file path can never trigger) and is DEFERRED to a
-    follow-up issue per CPO — NOT gate-lifted here.
+amendments: (none)
 # On amendment (clean tree only):
 #   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
