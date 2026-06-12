@@ -931,8 +931,10 @@ competitions:
     api_coverage_verified: "2026-05-28"
     notes: >
       AFC flagship club competition (rebranded 'Elite' in 2024/25 with new format).
-      provider_league_id 17 is the legacy ID — spot-check first ingest run for coverage.
-      Full fanout enabled. Onboarded in issue #262.
+      provider_league_id 17 VERIFIED 2026-06-12 against RAW_APIF_LEAGUES: returns "AFC
+      Champions League Elite" (Cup), seasons 2016-2025 incl. current 2024/2025 —
+      API-Football kept id 17 through the Elite rebrand. ingest_active confirmed.
+      Full fanout enabled. Onboarded in issue #262. Fixes #426.
 
   - league_code: "CCCU"
     name: "CONCACAF Champions Cup"
