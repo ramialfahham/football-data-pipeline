@@ -1,58 +1,53 @@
-# Task contract — G4 retroactive alignment audit
+# Task contract — retire dead supporting_leagues / form_source mechanism
 
-> Governance program §5 (retroactive audit). Findings only — every disposition
-> for a violation/unapproved-decision is a CPO ruling; findings become issues
-> only after the CPO rules. Blinded reviewers generate findings per domain; the
-> builder compiles and never re-judges its own past work.
-> See docs/working_agreement.md §2 (contract), §10 (decision rights),
-> §11 (blinded escalation), Appendix A (anti-patterns).
+> Cleanup of dead, unconsumed code surfaced by the G4 audit (F22 reclassified).
+> Form is recency-based (`int_form_window__team`, #320/#323); the old form-source
+> path's only consumer (`int_matchday__team_form_metrics`) was retired in #321, so
+> `supporting_leagues`, `form_source`, and the `wc_supporting_league_codes` seed are
+> vestigial. See docs/working_agreement.md §2/§5/§10, Appendix A.
 
 objective: >
-  Produce docs/audits/2026-06_alignment_audit.md: a current-state alignment
-  audit of the codebase against its locked contracts. Findings only — every
-  disposition for a violation/unapproved-decision is a CPO ruling; findings
-  become issues only after the CPO rules. Builder compiles; blinded reviewers
-  generate the findings per domain.
-refs: governance plan §5 (C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md);
-  CPO kickoff rulings 2026-06-12.
+  Retire the dead supporting_leagues / form_source form mechanism. Form is computed
+  via cross-competition recency (int_form_window__team); this path drives nothing.
+  Remove the WC supporting_leagues block, the form_source field, the buggy
+  competition_type guard, and the orphaned wc_supporting_league_codes seed. KEEP
+  parent_competition as curated intent reserved for GAP-18 (it is the clean general
+  representation of the parent-child relationship; it makes the deleted seed
+  redundant).
+refs: G4 audit F22 (#414 — reclassified: NOT a live form bug; the impact claim was
+  overstated, form comes from recency). GAP-18 = the deferred consumer.
 
 scope_paths:
-  - docs/audits/2026-06_alignment_audit.md
-  - .claude/active_work.md   # artifact-only (handover write-out); see amendment A1
+  - ingestion/api_football/registry.py
+  - docs/competition_registry.yml
+  - dbt_project/seeds/wc_supporting_league_codes.csv
+  - dbt_project/seeds/schema.yml
+  - .claude/active_work.md   # artifact-only: handover write-out at close
 
 decisions_taken: >
-  CPO kickoff rulings 2026-06-12 — DEPTH: current-state + per-finding provenance
-  (no full commit-history walk). SURFACES: the plan's five passes (dbt models;
-  scripts/export_*; seeds/macros; docs-vs-reality; metric values) PLUS ingestion
-  code and CI workflows; the live MVP site is EXCLUDED (frozen/record-only).
-  FINDING SOURCE: each blinded domain reviewer runs its pass independently and
-  emits findings; the builder aggregates them verbatim into the table and never
-  re-judges its own past work. ROUTING: dbt -> analytics-engineer-reviewer;
-  scripts/tooling/seeds/macros/CI -> cto-reviewer; ingestion -> data-engineer-
-  reviewer; decisions/provenance/doc-faithfulness -> scope-auditor.
+  CPO approval this session (2026-06-12): remove the dead supporting_leagues +
+  form_source mechanism entirely (both unconsumed; form_source removal explicitly
+  approved). KEEP parent_competition (reserved for GAP-18) with a clarifying comment.
+  Delete wc_supporting_league_codes.csv (redundant with parent_competition) + its
+  schema.yml entry.
 
 decisions_reserved:
-  - Every finding's disposition (violation / unapproved-decision) is a CPO
-    ruling — the audit proposes, never decides; escalate blinded (§11).
-  - Any finding implying a change to shipped numbers (GAP-17 frozen) — reserved.
-  - The two parked slug rulings, if a finding surfaces them — reserved for the Pilot.
+  - The parent-child Core dim (parent_league_code) and the WC tournament-window form
+    rule (cumulative from Group-Stage MD2) are GAP-18 — NOT in scope; do not build.
+  - If removing form_source surfaces an unforeseen live consumer, STOP and escalate
+    (§11) rather than work around it.
 
 done_when:
-  - 7 passes run via the four blinded reviewers (cold, read-only); findings table
-    populated: columns = class | evidence (file:line / commit) | proposed
-    disposition | CPO ruling (blank until ruled).
-  - scope-auditor faithfulness pass = PASS (doc aggregates the reviewer findings;
-    no finding silently resolved as a CPO-class decision).
-  - review.md written with a staged-diff hash matching the doc; commit gate passes.
-  - PR opened with the governance block.
+  - grep shows zero remaining references to `supporting_leagues`, `form_source`, and
+    `wc_supporting_league_codes` across ingestion/, dbt_project/models|seeds, scripts/
+    (excluding target/ build artifacts and .pyc caches).
+  - parent_competition retained in the registry with a reserved-for-GAP-18 comment.
+  - `python -c "import ingestion.api_football.registry"` succeeds; the existing
+    registry test suite passes; validate-local (offline gates) green.
+  - reviewers: scope-auditor (always) + data-engineer-reviewer (registry/ingestion +
+    competition_registry.yml) + analytics-engineer-reviewer (seeds) — all PASS or
+    answered ESCALATE.
 
-amendments:
-  - 2026-06-12: + .claude/active_work.md — authority: standing handover practice
-    (working_agreement.md §2 names .claude/active_work.md an artifact_only path;
-    the handover is refreshed at task close). Content: update the handover status
-    to "G4 audit shipped" + next actions. Artifact-only, review-exempt. NOTE: this
-    amendment is itself an instance of finding F10 (contract scope widened via the
-    review-exempt artifact lane) — done here under the sanctioned clean-tree +
-    recorded-authority mechanism, surfaced honestly in the audit it accompanies.
+amendments: (none)
 # On amendment (clean tree only):
 #   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
