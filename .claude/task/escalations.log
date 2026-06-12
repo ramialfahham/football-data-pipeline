@@ -1,0 +1,6 @@
+2026-06-12 governance/g3-role-reviewers — blinded escalation (working_agreement §11), two §10 questions raised by the G3 blinded reviews:
+  (1) Protect `.claude/agents/**` as a protected path vs leave contract-gated + routed.
+      CPO ANSWER: Protect `.claude/agents/**`.
+  (2) Confirm the commit-form deny package (flag allowlist, exact `git commit` spelling, sole-command rule, shlex raw walk, NUL-split enumeration) vs revert to the plan's literal minimum (hash + verdict checks only).
+      CPO ANSWER: Confirm the full deny package.
+  Both answers recorded in .claude/task/review.md ## escalations; ruling 1 implemented in task_contract_gate.py and verified by round-7 reviewers.

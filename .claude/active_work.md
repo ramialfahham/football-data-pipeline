@@ -4,13 +4,26 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-11 (governance build). **The website blueprint (#391) is PAUSED
+_Last updated: 2026-06-12 (governance build). **The website blueprint (#391) is PAUSED
 by CPO order.** Current program: the agent-governance system (approved plan:
 `C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md` — READ IT FIRST). G1 MERGED
-(#401). **G2 open as PR #402 — and its gates are LIVE in the repo settings**: every
-edit now requires a task contract at `.claude/task/contract.md` (template:
-`.claude/task/TEMPLATE.md`); out-of-scope edits and shell writes are DENIED; the stop
-gate blocks turn-end on contract mismatch. Next = G3 (role reviewers + commit gate)._
+(#401). G2 MERGED (#402) — contract/scope/shell/stop gates LIVE. **G3 open as PR
+#403 — and its machinery is LIVE too**: reviewer subagents in `.claude/agents/`
+(PROTECTED per CPO ruling), CPO-approved routing in `.claude/review_routing.json`
+(PROTECTED), the 4-step review cycle (Code Lock → cold Blinding →
+Cross-Examination → SHA-256 Lock in `.claude/task/review.md`), and the commit gate:
+`git commit` is DENIED without a matching review artifact, and the commit form is
+locked to a SOLE plain `git commit -m` (flag allowlist; no pathspecs; no global
+options; no chained siblings) — both confirmed by blinded CPO escalation
+2026-06-12. CI backstop `scripts/check_task_artifacts.py` runs in ci-validate.
+EVERY substantive commit now goes: write contract → build → `git add` → spawn the
+required reviewers cold (scope-auditor always + routed) → write review.md with the
+staged hash → commit. Artifact-only commits (`.claude/task/**`,
+`.claude/active_work.md`) are exempt. G3 itself ran SEVEN blinded rounds; rounds
+2–5 found real gate bypasses that were fixed + regression-tested (80 hook tests).
+Next = G4 (retroactive audit — discuss scope with CPO first; he said "wider, maybe
+commit history"), then the Pilot (rework the parked marts stash under the full
+workflow incl. the two blinded slug escalations)._
 
 ## Why the pivot (do not re-litigate)
 The CPO repeatedly caught agent drift by watching live (wrong-layer logic, unilateral
