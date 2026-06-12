@@ -1,150 +1,115 @@
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index bd72840..528ba87 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -182,8 +182,10 @@ Canonical fact inventory for this project:
- | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
- | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
- | `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `base_apif__transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
-+| `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR); full-refresh table. WC-scoped — no `league_code`. |
- 
--All facts propagate `league_code` so they are safe to union across future leagues.
-+Most facts propagate `league_code` so they are safe to union across future leagues
-+(the seed-sourced `fct_team_market_value_snapshot` is the WC-only exception).
- 
- ### Materialization: incremental vs full-refresh
- 
-@@ -236,15 +238,29 @@ Not allowed:
- - Every mart carries `league_code` as a column so multi-league slicing is a filter, not a schema change. When a second league is onboarded, marts do not need to be rewritten.
- - Rollup marts (one row per business entity and grain) materialize as `table`; flat denormalized projections materialize as `view` unless a latency requirement forces a table.
- 
--Canonical mart inventory for this project:
-+Canonical mart inventory (exhaustive) for this project:
- 
- | Mart | Grain | Materialization | Notes |
- |------|-------|-----------------|-------|
- | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
- | `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
- | `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
--| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | Domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
--| `mart_team_season_insights` | (league_code, team_sk) | table | Latest season per league; slice by `league_code` at export/UI. |
-+| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
-+| `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
-+| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | Current league standings per team-season. |
-+| `mart_team_market_value` | team_sk | view | Team squad market value; currently WC-scoped (see #418 to generalize). |
-+| `mart_team_profile` | (team_sk, season_sk) | table | v2 team profile: full-season metrics, YoY deltas, streaks. |
-+| `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
-+| `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
-+| `mart_momentum__team` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 form-window aggregate (team). |
-+| `mart_momentum__player` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 form-window aggregate (player). |
-+| `mart_form_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 form-window drill-down legs (team). |
-+| `mart_season_to_date__team` | (upcoming_fixture_sk, team_sk) | view | W2 season-to-date aggregate (team). |
-+| `mart_season_to_date__player` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-to-date aggregate (player). |
-+| `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
-+| `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
-+| `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
-+| `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
- 
- ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
- 
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index 2e25156..fa82307 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-@@ -6,8 +6,8 @@
-   Grain: (league_code, season_api_year, player_sk).
- 
-   Used by:
--    - int_matchday__fixture_player_insights (WC pre-tournament: full domestic season window)
--    - Future player profile / season-recap surface
-+    - (none currently — former consumer int_matchday__fixture_player_insights was
-+      retired in #321; retained for the planned player profile / season-recap surface)
- 
-   Atom definitions follow docs/player_metrics_catalogue.md exactly.
-   Rates are null when the denominator is zero; never coerced to 0.
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 181ef32..65a3990 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -65,8 +65,8 @@ models:
-     description: >
-       Per (league_code, season_api_year, player_sk) full-season aggregate statistics over all
-       finished matches. Mirrors int_team_season__full_season_metrics at player grain.
--      Used by int_matchday__fixture_player_insights for the WC pre-tournament dispatch
--      (full current/most-recent domestic season).
-+      Retained for the planned player profile / season-recap surface; its former
-+      consumer int_matchday__fixture_player_insights was retired in #321.
-       team_sk is the player's last known club in that league/season (any_value ordered by kickoff desc).
-       Rates are null when denominator is zero; never coerced to 0.
-       Grain: (league_code, season_api_year, player_sk).
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 3f8327f..163b605 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -65,8 +65,8 @@ Routing: `.claude/review_routing.json` (PROTECTED — changing who reviews what
- CPO governance event). The agent definitions themselves are likewise PROTECTED
- (CPO ruling, G3 escalation 2026-06-12) — the builder must not be able to weaken
- its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small model) +
--`analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + dormant
--`cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
-+`analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + the path-routed
-+specialists `cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
- (ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframes/i18n/payload
- shapes), `football-analytics-expert-reviewer` (catalogue formula edits). Defined
- later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
-diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
-index 8ba7022..cc1429e 100644
---- a/docs/competition_registry.yml
-+++ b/docs/competition_registry.yml
-@@ -871,7 +871,7 @@ competitions:
-     notes: "Italian domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
- 
-   # -------------------------------------------------------------------------
--  # PLANNED — Continental club showpieces (issue #262)
-+  # IN PROGRESS — Continental club showpieces (issue #262)
-   # -------------------------------------------------------------------------
- 
-   - league_code: "LIBER"
-diff --git a/docs/operations_guide.md b/docs/operations_guide.md
-index 79716a1..a4a337d 100644
---- a/docs/operations_guide.md
-+++ b/docs/operations_guide.md
-@@ -220,7 +220,7 @@ GitHub Actions workflows are split by change type so UI-only PRs do not run live
- | `ci-ui.yml` | PR/push when `site/**` or Pages build/export scripts change | JSON syntax checks; `scripts/check_ui_i18n_metrics.py` (manifest ↔ i18n). No GCP. |
- | `python-ci.yml` | Every PR and push to `main` | `pytest tests/ -v` (ingestion unit tests). |
- | `security-secrets.yml` | Every PR and push to `main` | Gitleaks secret scan. |
--| `dbt-scheduled.yml` | Twice daily (`04:00`, `16:00` UTC) + manual | **Full ingest** for all active competitions, then `dbt build` (incl. freshness). Source of truth for raw tables used by PR builds. |
-+| `dbt-scheduled.yml` | Once daily (`04:00` UTC) + manual | **Full ingest** for all active competitions, then `dbt build` (incl. freshness). Source of truth for raw tables used by PR builds. |
- | `pages-match-preview.yml` | Push to `main` (path-filtered), daily schedule, manual | Build matchday marts, `export_pages_data.py` → `data/{league}/`, assemble `_site`, deploy GitHub Pages. |
- 
- ### Conditional ingest on PR data builds
-diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
-index 2dcb826..84e3c86 100644
---- a/ingestion/api_football/fixture_scheduling.py
-+++ b/ingestion/api_football/fixture_scheduling.py
-@@ -385,7 +385,7 @@ def _budgeted_fixture_fanout_ids(
- ) -> list[int]:
-     """Return the fixtures that fit within today's remaining API quota.
- 
--    We estimate 5 HTTP calls per fixture (lineups, events, stats, players, predictions)
-+    We estimate 4 HTTP calls per fixture (lineups, events, stats, players)
-     and reserve a block for /players squad pagination. The daily remaining call count
-     comes from the x-ratelimit-requests-remaining response header, updated after each
-     HTTP call. If the header has not yet been seen (first call of the day), we fall back
-diff --git a/ingestion/api_football/loads/catalog.py b/ingestion/api_football/loads/catalog.py
-index 21f2a20..deb25f9 100644
---- a/ingestion/api_football/loads/catalog.py
-+++ b/ingestion/api_football/loads/catalog.py
-@@ -29,9 +29,9 @@ def fetch_catalog_persist_and_plan(
-     league_catalog = fetch_json("/leagues", ctx.headers, params={"id": league_id})
-     append_api_errors(league_catalog, f"leagues/catalog {league_code}", ctx.errors)
-     # Skip the BigQuery write when the API returned no league rows (rate limit,
--    # auth error, transient outage). load_json_to_bq uses WRITE_TRUNCATE; an
--    # empty payload would wipe valid leagues data and break the dim_league /
--    # dim_competition_season relationship tests downstream.
-+    # auth error, transient outage). The write is WRITE_APPEND (append=True below),
-+    # so an empty payload would add zero useful rows; skipping avoids a spurious
-+    # load and keeps the dim_league / dim_competition_season relationship tests clean.
-     if league_catalog.get("response"):
-         load_json_to_bq(
-             ctx.client,
+diff --git a/scripts/add_footer_i18n_keys.py b/scripts/add_footer_i18n_keys.py
+deleted file mode 100644
+index 8c639bf..0000000
+--- a/scripts/add_footer_i18n_keys.py
++++ /dev/null
+@@ -1,69 +0,0 @@
+-"""
+-Add new matchPreview footer + formContext i18n keys to all three locale files.
+-Writes with straight ASCII quotes to avoid curly-quote encoding issues.
+-"""
+-import json
+-
+-LOCALES = {
+-    "de": {
+-        "formContext": "Form: letzte 5 Spiele dieser Saison",
+-        "formContextDomestic": "Form: letzte 5 Spiele dieser Saison",
+-        "formContextDomesticPreseason": "Form: komplette Vorsaison",
+-        "formContextWcQualifiers": "Form: alle Qualifikationsspiele",
+-        "formContextWcTournament": "Form: alle bisherigen WM-Spiele",
+-        "footAvgDesc": "Durchschnittswert pro Spiel im Formfenster",
+-        "footPctDesc": "Quote über alle Formspiele kombiniert – Summe der Treffer geteilt durch Summe der Versuche, kein Mittelwert der Einzelquoten",
+-        "footMissingDesc": "Vom Datenanbieter nicht geliefert",
+-        "footMissingWcDesc": "Keine Qualifikationsdaten verfügbar. Gastgeberländer spielen keine Qualifikation und zeigen – bei allen Formkennzahlen vor Turnierbeginn.",
+-    },
+-    "en": {
+-        "formContext": "Form: last 5 matches this season",
+-        "formContextDomestic": "Form: last 5 matches this season",
+-        "formContextDomesticPreseason": "Form: full previous season",
+-        "formContextWcQualifiers": "Form: all qualifying matches",
+-        "formContextWcTournament": "Form: all World Cup matches so far",
+-        "footAvgDesc": "Per-match average in the form window",
+-        "footPctDesc": "Ratio across all form matches combined – total hits ÷ total attempts, not an average of per-match rates",
+-        "footMissingDesc": "Not provided by the data source",
+-        "footMissingWcDesc": "No qualifying data available for this team. Host nations do not play qualifiers and show – for all form metrics before the tournament begins.",
+-    },
+-    "fi": {
+-        "formContext": "Muoto: viimeiset 5 ottelua tällä kaudella",
+-        "formContextDomestic": "Muoto: viimeiset 5 ottelua tällä kaudella",
+-        "formContextDomesticPreseason": "Muoto: koko edellinen kausi",
+-        "formContextWcQualifiers": "Muoto: kaikki karsintaottelut",
+-        "formContextWcTournament": "Muoto: kaikki tähänastiset MM-ottelut",
+-        "footAvgDesc": "Ottelukohtainen keskiarvo muotojaksolla",
+-        "footPctDesc": "Suhde kaikilla muoto-otteluilla yhteensä – onnistumisten summa jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvo",
+-        "footMissingDesc": "Tietolähde ei toimittanut tätä arvoa",
+-        "footMissingWcDesc": "Joukkueella ei ole karsintadataa saatavilla. Isäntämaat eivät pelaa karsinnoissa ja näyttävät – kaikissa muotoluvuissa ennen turnauksen alkua.",
+-    },
+-}
+-
+-FILES = {
+-    "de": "site/i18n/de.json",
+-    "en": "site/i18n/en.json",
+-    "fi": "site/i18n/fi.json",
+-}
+-
+-KEYS_TO_REMOVE = ["foot", "footWc", "footDataGap"]
+-
+-ORDER_AFTER = "errorPrefix"
+-
+-for lang, path in FILES.items():
+-    with open(path, encoding="utf-8") as f:
+-        data = json.load(f)
+-
+-    mp = data.setdefault("matchPreview", {})
+-
+-    for k in KEYS_TO_REMOVE:
+-        mp.pop(k, None)
+-
+-    for k, v in LOCALES[lang].items():
+-        mp[k] = v
+-
+-    with open(path, "w", encoding="utf-8") as f:
+-        json.dump(data, f, ensure_ascii=False, indent=2)
+-        f.write("\n")
+-
+-    print(f"{lang}: written ok")
+diff --git a/scripts/scaffold_domestic_league_staging.py b/scripts/scaffold_domestic_league_staging.py
+deleted file mode 100644
+index 5197466..0000000
+--- a/scripts/scaffold_domestic_league_staging.py
++++ /dev/null
+@@ -1,34 +0,0 @@
+-#!/usr/bin/env python3
+-"""Scaffold staging models from BL1. Usage: python scripts/scaffold_domestic_league_staging.py CODE folder"""
+-
+-from __future__ import annotations
+-
+-import sys
+-from pathlib import Path
+-
+-REPO = Path(__file__).resolve().parents[1]
+-BL1_DIR = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "bl1"
+-STAGING_ROOT = REPO / "dbt_project" / "models" / "1_staging" / "api_football"
+-
+-
+-def main() -> int:
+-    if len(sys.argv) != 3:
+-        print("Usage: scaffold_domestic_league_staging.py LEAGUE_CODE folder")
+-        return 1
+-    league_code = sys.argv[1].upper()
+-    folder = sys.argv[2].lower()
+-    target = STAGING_ROOT / folder
+-    target.mkdir(parents=True, exist_ok=True)
+-    for src_path in sorted(BL1_DIR.glob("stg_apif__bl1_*.sql")):
+-        entity = src_path.stem.replace("stg_apif__bl1_", "")
+-        text = src_path.read_text(encoding="utf-8")
+-        text = text.replace("'BL1'", f"'{league_code}'")
+-        text = text.replace("BL1", league_code)
+-        text = text.replace("bl1", folder)
+-        (target / f"stg_apif__{folder}_{entity}.sql").write_text(text, encoding="utf-8")
+-    print(f"Wrote staging for {league_code} -> {target}")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(main())
