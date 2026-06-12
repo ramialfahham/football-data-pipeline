@@ -26,11 +26,13 @@ Build and maintain the dbt pipeline that transforms raw football data into relia
 
 ## Principles
 
-1. **The base layer is the unification point.** Each competition gets its own staging models. The base layer UNION ALLs them into unified models. Core and marts never know which competition they came from.
-2. **Tests are not optional.** Every new model needs grain tests. Every new metric needs a consistency test (rate = sum/count, ratio = num/denom).
-3. **Deduplication lives in base, not staging.** Staging is raw. Base is where you apply the first business logic.
+1. **Generic staging, unified raw tables (the zero-file rule).** All competitions share six unified raw tables discriminated by a `league_code` column; staging models are generic — one per entity, never per competition. Adding a league is one registry entry and zero model files; `league_code` flows through every layer as a column. There is NO per-competition staging and NO UNION-per-league loop (that architecture was retired; CI enforces).
+2. **Tests are not optional.** Every new model needs grain tests. Every new metric needs a consistency test (rate = sum/count, ratio = num/denom) and, for ratios, the same-window rule: numerator and denominator computed over the same game set (coverage counts).
+3. **Deduplication lives in base, not staging.** Staging is raw cleanup only. Base applies the first business logic (dedup, entity alignment) and materializes as views by design.
 4. **Singular tests for pipeline health.** Stale fixtures, metric arithmetic, completeness — these are singular dbt tests, not schema tests, and they run in CI.
 5. **Document the grain.** Every model description must state its grain. If you can't state the grain, the model isn't ready.
+6. **Seeds and project config are code.** A seed row or `dbt_project.yml` change can alter mart behavior with zero SQL in the diff — it gets the same review, documentation and tests as a model change. The `metric_catalogue` seed is the single source of metric definitions (CPO-gated).
+7. **The consumption layer computes nothing.** Everything downstream of the marts (export scripts, site code) may select, group, rename, format — never derive. See `dbt_project/docs/layering.md` §Consumption layer.
 
 ---
 
@@ -38,11 +40,12 @@ Build and maintain the dbt pipeline that transforms raw football data into relia
 
 | Layer | Allowed | Not allowed |
 |-------|---------|-------------|
-| `1_staging` | Renaming, casting, unnesting, flattening — one model per raw table | Business logic, deduplication, cross-source unions |
-| `2_base` | UNION ALL across competitions, deduplication, entity alignment | Metric calculation, joins to dims |
-| `3_core` | Surrogate keys, fact/dim grain enforcement, clean joins | Competition-specific logic, mart-level aggregation |
-| `4_intermediate` | Complex transforms, feature engineering | Consumption-level formatting |
-| `5_marts` | Denormalised, consumer-ready, competition-agnostic | Raw column exposure, untested metrics |
+| `1_staging` | Renaming, casting, unnesting, flattening — generic models reading the unified raw tables | Business logic, deduplication, per-competition models |
+| `2_base` | Deduplication, entity alignment, first business logic (views by design) | Metric calculation, joins to dims, per-competition ref() loops |
+| `3_core` | Surrogate keys, fact/dim grain enforcement, clean joins | `stg_*` refs, raw JSON parsing, competition-specific logic |
+| `4_intermediate` | Complex transforms, feature engineering, window builders | Consumption-level formatting, refs to marts |
+| `5_marts` | Denormalised, consumer-ready, competition-agnostic | Raw column exposure, untested metrics, hardcoded competitions |
+| consumption (export/site) | Select, filter, group, rename, format, serialize | ANY computation: metric math, windows, ranking, affiliation, identity, taxonomy |
 
 ---
 

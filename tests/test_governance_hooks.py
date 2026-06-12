@@ -247,3 +247,399 @@ def test_commit_message_mentioning_flags_not_denied(repo):
 def test_normal_commit_not_denied(repo):
     out, _ = run_hook("git_discipline.py", bash_event('git commit -m "feat: x"'), repo)
     assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# git_discipline — the review/commit gate (G3)
+# --------------------------------------------------------------------------- #
+ROUTING = {
+    "always": ["scope-auditor"],
+    "paths": {"dbt_project/**": ["analytics-engineer-reviewer"]},
+    "artifact_only": [".claude/task/**", ".claude/active_work.md"],
+}
+
+
+def setup_review_repo(repo, stage_path="dbt_project/models/allowed.sql"):
+    (repo / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "routing"], cwd=repo, check=True)
+    target = repo / stage_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("select 99")
+    subprocess.run(["git", "add", str(target)], cwd=repo, check=True)
+
+
+def staged_hash(repo) -> str:
+    import hashlib
+    diff = subprocess.run(["git", "diff", "--staged"], cwd=repo, capture_output=True).stdout
+    return hashlib.sha256(diff).hexdigest()
+
+
+def write_review(repo, hash_hex, body):
+    (repo / ".claude" / "task" / "review.md").write_text(
+        f"# Review\ndiff_sha256: {hash_hex}\n\n{body}\n"
+    )
+
+
+GOOD_BODY = """## scope-auditor
+VERDICT: PASS
+risks_checked:
+- risk one checked
+- risk two checked
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- risk one checked
+- risk two checked
+"""
+
+COMMIT_CMD = 'git commit -m "feat: x"'
+
+
+def test_commit_denied_without_review_artifact(repo):
+    setup_review_repo(repo)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "no review artifact" in out
+
+
+def test_commit_denied_on_hash_mismatch(repo):
+    setup_review_repo(repo)
+    write_review(repo, "0" * 64, GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "hash mismatch" in out
+
+
+def test_commit_denied_on_fail_verdict(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY.replace(
+        "## analytics-engineer-reviewer\nVERDICT: PASS",
+        "## analytics-engineer-reviewer\nVERDICT: FAIL"))
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "FAIL" in out
+
+
+def test_commit_denied_on_unanswered_escalation(repo):
+    setup_review_repo(repo)
+    body = GOOD_BODY + "\n## escalations\n- question: x?\nVERDICT: ESCALATE\n"
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "CPO ANSWER" in out
+
+
+def test_commit_denied_when_required_reviewer_missing(repo):
+    setup_review_repo(repo)
+    body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "analytics-engineer-reviewer" in out
+
+
+def test_commit_denied_on_pass_without_two_risks(repo):
+    setup_review_repo(repo)
+    body = GOOD_BODY.replace("- risk two checked\n\n## analytics", "\n## analytics", 1)
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "two named risks" in out
+
+
+def test_bullets_before_risks_marker_do_not_satisfy_quota(repo):
+    """Risks count anchors to the risks_checked: marker (CTO, round 3) —
+    stray bullets above it must not pass for checked risks."""
+    setup_review_repo(repo)
+    body = GOOD_BODY.replace(
+        "VERDICT: PASS\nrisks_checked:\n- risk one checked\n- risk two checked\n\n## analytics",
+        "- stray bullet\n- another stray\nVERDICT: PASS\nrisks_checked:\n\n## analytics", 1)
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "two named risks" in out
+
+
+def test_commit_allowed_with_complete_review(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+def test_artifact_only_commit_exempt_from_review(repo):
+    setup_review_repo(repo)
+    subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
+    (repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
+    subprocess.run(["git", "add", ".claude/task/notes.md"], cwd=repo, check=True)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+def test_escalation_with_answer_allows_commit(repo):
+    setup_review_repo(repo)
+    body = GOOD_BODY + (
+        "\n## escalations\nVERDICT: ESCALATE\n- question: x?\n  CPO ANSWER: do y\n"
+    )
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+def test_answer_elsewhere_does_not_mask_unanswered_escalation(repo):
+    setup_review_repo(repo)
+    body = GOOD_BODY + (
+        "\n## escalations\nVERDICT: ESCALATE\n- question: x?\n"
+        "\n## notes\nCPO ANSWER: for something else entirely\n"
+    )
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "escalations" in out
+
+
+def test_preamble_escalation_not_masked(repo):
+    """An ESCALATE before the first ## header belongs to the _preamble
+    pseudo-section and must pair there (CTO finding, round 4)."""
+    setup_review_repo(repo)
+    body = (
+        "VERDICT: ESCALATE\n- question: x?\n\n" + GOOD_BODY +
+        "\n## notes\nCPO ANSWER: for something else entirely\n"
+    )
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "_preamble" in out
+
+
+@pytest.mark.parametrize("cmd", [
+    'git add extra.txt && git commit -m "sneak"',
+    'echo x; git commit -m "sneak"',
+    'git commit -m "ok" && git push origin main',
+])
+def test_commit_chained_with_sibling_commands_denied(repo, cmd):
+    """The hash is verified at PreToolUse time; sibling commands in the same
+    call could restage content before the commit runs (CTO finding, round 4).
+    `git commit` must be the sole command in the Bash call."""
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
+    assert denied(out) and "SOLE" in out
+
+
+@pytest.mark.parametrize("cmd", [
+    'git commit -am "sneak"',
+    'git commit -a -m "sneak"',
+    'git commit --all -m "sneak"',
+    'git commit -i extra.txt -m "sneak"',
+    'git commit --only thing.sql -m "sneak"',
+    'git commit dbt_project/models/allowed.sql -m "sneak"',
+    'git commit -m "msg" -- some/path.sql',
+])
+def test_selfstaging_commit_forms_denied(repo, cmd):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
+    assert denied(out) and "COMMIT FORM BLOCKED" in out
+
+
+def test_plain_commit_with_quoted_message_not_form_blocked(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook(
+        "git_discipline.py",
+        bash_event('git commit -m "feat: mentions -a and files.sql in text"'), repo)
+    assert not denied(out)
+
+
+@pytest.mark.parametrize("cmd", [
+    'git commit -qam "sneak"',                       # POSIX short-option bundle
+    'git commit -sam "sneak"',
+    'git commit --inc -m "sneak"',                   # long-option prefix abbreviation
+    'git commit -p -m "sneak"',                      # commit-time staging via patch
+    'git commit --interactive',
+    'git -C . commit -a -m "sneak"',                 # git global options before commit
+    'git -c user.name=x commit --all -m "sneak"',
+    'git --no-pager commit -am "sneak"',
+    'git -p commit -am "sneak"',                     # valueless short global flag
+    'git -P commit -am "sneak"',
+    'git --git-dir .git commit -am "sneak"',         # space-separated global value
+    'git --work-tree . commit -a -m "sneak"',
+    'git commit -m "sneak" "dbt_project/models/allowed file.sql"',  # QUOTED pathspec
+    'git commit -m "unclosed',                       # unparseable quoting: fail-closed
+])
+def test_bundled_abbreviated_and_global_option_forms_denied(repo, cmd):
+    """Allowlist inversion (CTO findings, rounds 2-3): spellings a denylist
+    regex misses must still be form-blocked — only exactly `git commit`
+    enters the gate's allowed path."""
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
+    assert denied(out) and "COMMIT FORM BLOCKED" in out
+
+
+@pytest.mark.parametrize("cmd", [
+    'git commit -m "feat: x" -q',
+    'git commit --message="feat: x" -S',
+    'git commit -v -m "feat: x"',
+    'git commit -F notes.txt -q',
+])
+def test_allowed_commit_flag_set_not_form_blocked(repo, cmd):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
+    assert not denied(out)
+
+
+def test_non_ascii_staged_path_still_requires_reviewer(repo):
+    """quotePath-escaped paths must not drop a required reviewer (CTO,
+    round 5): the -z enumeration keeps the path matchable by routing."""
+    setup_review_repo(repo, stage_path="dbt_project/models/täst.sql")
+    body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
+    write_review(repo, staged_hash(repo), body)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "analytics-engineer-reviewer" in out
+
+
+# --------------------------------------------------------------------------- #
+# task_contract_gate — G3 additions
+# --------------------------------------------------------------------------- #
+def test_routing_file_is_protected(repo):
+    write_contract(repo)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/review_routing.json"), repo)
+    assert denied(out) and "PROTECTED" in out
+
+
+def test_agents_dir_is_protected(repo):
+    """Per the CPO's recorded G3 escalation answer (2026-06-12): reviewer
+    definitions are governance artifacts — protected like the routing file."""
+    write_contract(repo)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/agents/scope-auditor.md"), repo)
+    assert denied(out) and "PROTECTED" in out
+
+
+def test_untracked_dir_files_in_scope_not_flagged(repo):
+    """-uall: files inside an untracked directory are matched individually."""
+    write_contract(repo, CONTRACT.replace(
+        "scope_paths:\n", "scope_paths:\n  - newdir/\n"))
+    (repo / "newdir").mkdir()
+    (repo / "newdir" / "inside.md").write_text("in scope")
+    out, _ = run_hook("task_contract_gate.py", bash_event("echo done", "PostToolUse"), repo)
+    assert "VIOLATION" not in out
+
+
+def test_untracked_dir_files_out_of_scope_flagged_by_file(repo):
+    write_contract(repo)
+    (repo / "newdir").mkdir()
+    (repo / "newdir" / "stray.md").write_text("drift")
+    out, _ = run_hook("task_contract_gate.py", bash_event("echo done", "PostToolUse"), repo)
+    assert "VIOLATION" in out and "newdir/stray.md" in out
+
+
+# --------------------------------------------------------------------------- #
+# check_task_artifacts.py — the CI backstop (fail-closed)
+# --------------------------------------------------------------------------- #
+SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
+
+
+def run_ci_check(repo) -> tuple[int, str]:
+    r = subprocess.run(
+        [sys.executable, os.path.join(SCRIPTS, "check_task_artifacts.py"), "--base", "main"],
+        capture_output=True, text=True, cwd=str(repo), timeout=60,
+    )
+    return r.returncode, r.stdout + r.stderr
+
+
+@pytest.fixture()
+def ci_repo(repo):
+    subprocess.run(["git", "branch", "-m", "main"], cwd=repo, check=True)
+    (repo / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=repo, check=True)
+    subprocess.run(["git", "checkout", "-q", "-b", "feature"], cwd=repo, check=True)
+    return repo
+
+
+def test_ci_check_fails_without_review(ci_repo):
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "review.md" in out
+
+
+def test_ci_check_passes_artifact_only_pr(ci_repo):
+    (ci_repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "artifacts"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 0 and "artifact-only" in out
+
+
+def test_ci_check_passes_with_complete_artifacts(ci_repo):
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + GOOD_BODY
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+artifacts"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 0, out
+
+
+def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+partial"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "analytics-engineer-reviewer" in out
+
+
+def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
+    """CI mirror of the -z enumeration fix (CTO finding, round 5)."""
+    (ci_repo / "dbt_project" / "models" / "täst.sql").write_text(
+        "select 1", encoding="utf-8")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "analytics-engineer-reviewer" in out
+
+
+def test_ci_check_fails_on_preamble_escalation(ci_repo):
+    """CI mirror of the _preamble pseudo-section rule (CTO finding, round 4)."""
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    body = (
+        "VERDICT: ESCALATE\n- question: x?\n\n" + GOOD_BODY +
+        "\n## notes\nCPO ANSWER: for something else entirely\n"
+    )
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+artifacts"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "_preamble" in out
+
+
+def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
+    """Per-section pairing (scope-auditor finding, round 2): an answer in one
+    section must not mask another section's unanswered ESCALATE — the global
+    count alone would pass this body."""
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    body = GOOD_BODY + (
+        "\n## escalations\nVERDICT: ESCALATE\n- question: x?\n"
+        "\n## notes\nCPO ANSWER: for something else entirely\n"
+    )
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+artifacts"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "escalations" in out

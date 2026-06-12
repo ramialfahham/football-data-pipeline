@@ -1,3 +1,10 @@
+## Governance (G3 — required; the artifacts live in this diff)
+
+- **Contract**: <objective + refs — `.claude/task/contract.md`>
+- **Reviewer verdicts**: <e.g. scope-auditor PASS · analytics-engineer-reviewer PASS — `.claude/task/review.md`, hash-locked>
+- **Escalations**: <none | each question + the CPO answer>
+- **Contract amendments**: <none | each with its recorded authority>
+
 ## Summary
 
 - 

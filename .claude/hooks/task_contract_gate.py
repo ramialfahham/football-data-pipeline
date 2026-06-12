@@ -44,8 +44,12 @@ from _command_utils import (  # noqa: E402
 
 CONTRACT_REL = ".claude/task/contract.md"
 TASK_DIR_REL = ".claude/task/"
-PROTECTED_PREFIXES = (".claude/hooks/", ".github/workflows/")
-PROTECTED_FILES = (".claude/settings.json",)
+# .claude/agents/ added per the CPO's recorded escalation answer (G3 review,
+# 2026-06-12): the reviewer definitions are governance artifacts like the
+# routing file — the builder must never be able to weaken its own adversary
+# inside an ordinary task contract.
+PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".github/workflows/")
+PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
 
 _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
@@ -117,7 +121,7 @@ def _is_protected(rel: str) -> bool:
 def _dirty_outside_task_dir(root: str) -> list[str]:
     try:
         out = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=root,
+            ["git", "status", "--porcelain", "-uall"], cwd=root,
             capture_output=True, text=True, timeout=15,
         ).stdout
     except Exception:

@@ -1,0 +1,39 @@
+{
+  "_doc": [
+    "CPO-approved review routing (governance G3, ruled 2026-06-12). PROTECTED file:",
+    "changing who reviews what is a governance event (CPO-approved task with",
+    "protected_override). The commit gate computes the REQUIRED reviewer set for a",
+    "diff from these path patterns (fnmatch); 'always' reviewers run on every",
+    "substantive commit. Commits whose staged paths ALL match 'artifact_only'",
+    "patterns are exempt from review (bookkeeping: handover, review files,",
+    "escalation log). JSON not YAML so the stdlib-only hooks can parse it.",
+    "Dormant-but-undefined reviewers (activate with their surface): ui-expert",
+    "(site_v2 templates/components, when #366/#368 build), data-journalist",
+    "(generated narratives, when GAP-03 builds), legal-counsel (crest/logo/photo",
+    "asset policy, when site asset work starts)."
+  ],
+  "always": ["scope-auditor"],
+  "paths": {
+    "dbt_project/**": ["analytics-engineer-reviewer"],
+    "scripts/export_*.py": ["analytics-engineer-reviewer", "cto-reviewer"],
+    "scripts/**": ["cto-reviewer"],
+    "tests/**": ["cto-reviewer"],
+    "requirements*.txt": ["cto-reviewer"],
+    ".claude/hooks/**": ["cto-reviewer"],
+    ".claude/settings.json": ["cto-reviewer"],
+    ".claude/review_routing.json": ["cto-reviewer"],
+    ".github/workflows/**": ["cto-reviewer"],
+    "site_v2/**": ["cto-reviewer"],
+    "ingestion/**": ["data-engineer-reviewer"],
+    "docs/competition_registry.yml": ["data-engineer-reviewer"],
+    "dbt_project/seeds/competition_registry.csv": ["data-engineer-reviewer"],
+    "docs/data_contract.md": ["data-engineer-reviewer"],
+    "docs/wireframes/**": ["bi-analyst-reviewer"],
+    "site/i18n/**": ["bi-analyst-reviewer"],
+    "dbt_project/seeds/metric_catalogue.csv": ["analytics-engineer-reviewer", "football-analytics-expert-reviewer"]
+  },
+  "artifact_only": [
+    ".claude/task/**",
+    ".claude/active_work.md"
+  ]
+}

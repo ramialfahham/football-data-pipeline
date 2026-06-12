@@ -40,6 +40,8 @@ These need no credentials and finish in seconds. They mirror `ci-validate`
 ```bash
 python scripts/check_layer_contract.py
 python scripts/check_registry_var_sync.py
+python scripts/check_competition_type_seed.py
+python scripts/check_task_artifacts.py --base origin/main
 python scripts/check_ui_i18n_metrics.py
 python -m json.tool site/i18n/en.json > /dev/null
 python -m json.tool site/i18n/de.json > /dev/null
@@ -92,6 +94,8 @@ it before pushing — that failure would have turned into a red CI check.
 |---|---|
 | `check_layer_contract.py` | ci-validate → Enforce layer contract |
 | `check_registry_var_sync.py` | ci-validate → Check registry/var sync |
+| `check_competition_type_seed.py` | ci-validate → Check competition-type seed coverage |
+| `check_task_artifacts.py` | ci-validate → Check governance task artifacts |
 | `dbt deps` + `dbt parse` | ci-validate → dbt deps / Parse project |
 | `check_ui_i18n_metrics.py` + JSON validity | ci-ui |
 | `pytest tests/` | python-ci |
