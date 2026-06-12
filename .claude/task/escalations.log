@@ -4,3 +4,8 @@
   (2) Confirm the commit-form deny package (flag allowlist, exact `git commit` spelling, sole-command rule, shlex raw walk, NUL-split enumeration) vs revert to the plan's literal minimum (hash + verdict checks only).
       CPO ANSWER: Confirm the full deny package.
   Both answers recorded in .claude/task/review.md ## escalations; ruling 1 implemented in task_contract_gate.py and verified by round-7 reviewers.
+
+2026-06-12 governance/reviewer-model-pinning — blinded escalation (working_agreement §11), one §10 question raised by the cto-reviewer (opus):
+  `.claude/agents/**` is a PROTECTED guard path named in the opus-on-guards docs, but it was not routed to cto-reviewer — so a reviewer-definition change was reviewed only by the always-on scope-auditor (haiku), with no commit-gate or CI back-stop. Add the routing row (mechanical) vs keep procedural + qualify the docs.
+      CPO ANSWER: Add the routing row (mechanical).
+  Implemented as contract amendment A1: `.claude/agents/** -> cto-reviewer` added to review_routing.json; iteration-2 reviewers (scope-auditor haiku + cto-reviewer opus) both PASS.
