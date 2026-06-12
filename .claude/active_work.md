@@ -45,7 +45,14 @@ all PASS) → gated commit. Follow-up **#430** (2 inert stale refs: pages-match-
 trigger + pipeline_architecture_plan.md). **#426 DONE (PR #432):** provider_league_id 17 VERIFIED via RAW_APIF_LEAGUES = "AFC
 Champions League Elite" (current 2024/2025 seasons present) — the "legacy ID" was a
 false alarm; kept ingest_active, recorded the evidence in the registry note (the
-"disable" branch would have wrongly stopped a correct competition). DEFERRED
+"disable" branch would have wrongly stopped a correct competition). **#419 doc-sync
+RECOVERED:** PR #433 merged CONTRACT-ONLY (ordering bug, 3rd time — #405/#408/#419);
+the actual fixes stranded → recovered as **PR #434** (pending merge). **#423/#424 DONE
+(PR #436):** retired two dead scripts (scaffold, footer-migration). **NEW COMMIT
+DISCIPLINE (adopted 2026-06-13):** the contract now rides WITH the code in one commit —
+never a separate first commit — so a PR never opens in a bare-contract,
+prematurely-mergeable state (the #419 failure mode). **PRIORITIZE #409** — the ordering
+bug is now a recurring work-loss hazard, not theoretical. DEFERRED
 gate-integrity task: **#409**
 (F10/F11, + F12/#421) — touches protected paths, needs CPO gate-lift; the fix
 mechanism is reserved to CPO. FROZEN (GAP-17): F8/F9 — do NOT act. PARKED to
