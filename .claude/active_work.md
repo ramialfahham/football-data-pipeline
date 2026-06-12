@@ -29,13 +29,22 @@ provenance; scope-auditor faithfulness pass PASS; gate-validated commit.
 **CPO scope rulings 2026-06-12:** current-state + per-finding provenance (no full
 history walk); the 5 plan passes + ingestion + CI workflows; MVP site EXCLUDED
 (frozen); reviewers-audit / builder-compiles (builder never re-judges own past
-work). **NEXT (in order):** (1) CPO rules the 40 findings row-by-row (CPO-ruling
-column) — only THEN do approved findings become issues; (2) hardening candidate
-**(c)/F11** (CI can't bind review.md to the PR diff — memory
-`governance_artifact_commit_ordering.md`) as its OWN gate-lifted protected-path task
-this G4 phase; candidates (a) tier-alias guard note + (b) tier→reviewer recheck
-habit are DEFERRED per CPO; (3) the Pilot (rework parked marts stash under the full
-workflow incl. the two blinded slug escalations). **Correction (F40):**
+work). **G4 RULINGS COMPLETE 2026-06-12** — all 40 findings ruled (consolidated
+table in the audit doc). Approved actions FILED as **issues #409–#427**. PRIORITIES:
+**#414** (silent missing-form DQ bug, F22 — before WC 2026) + **#426** (AFCCL
+provider_league_id 17 verify/disable, F23). DEFERRED gate-integrity task: **#409**
+(F10/F11, + F12/#421) — touches protected paths, needs CPO gate-lift; the fix
+mechanism is reserved to CPO. FROZEN (GAP-17): F8/F9 — do NOT act. PARKED to
+#391/Pilot: F5 slug-spelling, **F7** (Python-vs-mart consumption boundary — a clean
+Pilot test case), F38 (streaks, at wireframe sign-off). Folded into GAP-19: F4/F5-
+migration/F6. KEPT: F18 (board-sync) + PAT-audit #413. **NEXT:** the Pilot (rework
+the parked marts stash under the full workflow incl. the two blinded slug
+escalations) — unless CPO directs the priority issues #414/#426 or the gate task
+#409 first. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
+DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
+REGENERATE `.claude/task/review_input.patch` before each blinding — a stale patch
+(from the prior merged task) caused a false scope-FAIL; also the 2nd haiku
+false-positive of the session (after F39). **Correction (F40):**
 `docs/roles/analytics_engineer.md` is NOT stale — G3 refreshed it; the old "pre-
 refactor stale" note below is itself the stale assumption._
 
