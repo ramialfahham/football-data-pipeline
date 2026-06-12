@@ -42,16 +42,20 @@ parent-child Core dim** (the proper modeling — do it there, with a consumer). 
 ran: contract → build → 3 cold reviewers, TWO cycles (cycle-1 scope-auditor doc-sync FAIL
 on stale refs → CPO approved fixing wc26.md + onboard SKILL.md via amendment A1 → cycle-2
 all PASS) → gated commit. Follow-up **#430** (2 inert stale refs: pages-match-preview
-trigger + pipeline_architecture_plan.md). REMAINING audit PRIORITY: **#426** (AFCCL
-provider_league_id 17 verify/disable, F23). DEFERRED gate-integrity task: **#409**
+trigger + pipeline_architecture_plan.md). **#426 DONE (PR #432):** provider_league_id 17 VERIFIED via RAW_APIF_LEAGUES = "AFC
+Champions League Elite" (current 2024/2025 seasons present) — the "legacy ID" was a
+false alarm; kept ingest_active, recorded the evidence in the registry note (the
+"disable" branch would have wrongly stopped a correct competition). DEFERRED
+gate-integrity task: **#409**
 (F10/F11, + F12/#421) — touches protected paths, needs CPO gate-lift; the fix
 mechanism is reserved to CPO. FROZEN (GAP-17): F8/F9 — do NOT act. PARKED to
 #391/Pilot: F5 slug-spelling, **F7** (Python-vs-mart consumption boundary — a clean
 Pilot test case), F38 (streaks, at wireframe sign-off). Folded into GAP-19: F4/F5-
 migration/F6. KEPT: F18 (board-sync) + PAT-audit #413. **NEXT:** the Pilot (rework
 the parked marts stash under the full workflow incl. the two blinded slug
-escalations) — unless CPO directs the priority issues #414/#426 or the gate task
-#409 first. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
+escalations) — OR the remaining audit cleanup issues (#410–#427), the GAP-18
+parent-child modeling, or the deferred gate task #409, as CPO directs. (Both audit
+PRIORITIES #414 and #426 are now DONE.) (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
 DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
 REGENERATE `.claude/task/review_input.patch` before each blinding — a stale patch
 (from the prior merged task) caused a false scope-FAIL; also the 2nd haiku
