@@ -22,6 +22,8 @@ scope_paths:
   - docs/competition_registry.yml
   - dbt_project/seeds/wc_supporting_league_codes.csv
   - dbt_project/seeds/schema.yml
+  - docs/competitions/wc26.md                       # amendment A1: doc-sync (stale seed ref)
+  - .claude/skills/onboard-competition/SKILL.md     # amendment A1: stale form_source boilerplate
   - .claude/active_work.md   # artifact-only: handover write-out at close
 
 decisions_taken: >
@@ -48,6 +50,13 @@ done_when:
     competition_registry.yml) + analytics-engineer-reviewer (seeds) — all PASS or
     answered ESCALATE.
 
-amendments: (none)
+amendments:
+  - 2026-06-12 (A1): + docs/competitions/wc26.md, + .claude/skills/onboard-competition/SKILL.md
+    — authority: CPO approval this session. The scope-auditor FAILed review cycle 1 on
+    stale references to the deleted seed/mechanism in these two files (doc-sync). CPO
+    approved fixing both in this branch. The protected workflow trigger
+    (.github/workflows/pages-match-preview.yml:34, deleted-seed path) is INERT (two
+    reviewers confirmed a deleted-file path can never trigger) and is DEFERRED to a
+    follow-up issue per CPO — NOT gate-lifted here.
 # On amendment (clean tree only):
 #   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>

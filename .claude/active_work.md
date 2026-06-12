@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-12 (G4 audit shipped). **The website blueprint (#391) is PAUSED
+_Last updated: 2026-06-12 (G4 audit + first cleanup under the machinery shipped). **The website blueprint (#391) is PAUSED
 by CPO order.** Current program: the agent-governance system (approved plan:
 `C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md` — READ IT FIRST). G1 MERGED
 (#401). G2 MERGED (#402). **G3 MERGED (#403)** + **reviewer-model-pinning MERGED
@@ -30,8 +30,19 @@ provenance; scope-auditor faithfulness pass PASS; gate-validated commit.
 history walk); the 5 plan passes + ingestion + CI workflows; MVP site EXCLUDED
 (frozen); reviewers-audit / builder-compiles (builder never re-judges own past
 work). **G4 RULINGS COMPLETE 2026-06-12** — all 40 findings ruled (consolidated
-table in the audit doc). Approved actions FILED as **issues #409–#427**. PRIORITIES:
-**#414** (silent missing-form DQ bug, F22 — before WC 2026) + **#426** (AFCCL
+table in the audit doc). Approved actions FILED as **issues #409–#427**.
+**FIRST WORK UNDER THE MACHINERY — DONE, PR #429 (`chore/retire-dead-form-source`):**
+F22/#414 RECLASSIFIED on investigation — it was NOT a live form bug. WC/national form
+is recency-based (`int_form_window__team`, #320/#323, last-N cross-competition); the
+`supporting_leagues`/`form_source` mechanism + the `wc_supporting_league_codes` seed were
+DEAD (the consumer `int_matchday__team_form_metrics` was retired in #321). Retired all
+three + the buggy `competition_type` guard; KEPT `parent_competition` (the general
+parent-child spine: qualifier→tournament + cup→league) reserved for the **GAP-18
+parent-child Core dim** (the proper modeling — do it there, with a consumer). Full cycle
+ran: contract → build → 3 cold reviewers, TWO cycles (cycle-1 scope-auditor doc-sync FAIL
+on stale refs → CPO approved fixing wc26.md + onboard SKILL.md via amendment A1 → cycle-2
+all PASS) → gated commit. Follow-up **#430** (2 inert stale refs: pages-match-preview
+trigger + pipeline_architecture_plan.md). REMAINING audit PRIORITY: **#426** (AFCCL
 provider_league_id 17 verify/disable, F23). DEFERRED gate-integrity task: **#409**
 (F10/F11, + F12/#421) — touches protected paths, needs CPO gate-lift; the fix
 mechanism is reserved to CPO. FROZEN (GAP-17): F8/F9 — do NOT act. PARKED to
