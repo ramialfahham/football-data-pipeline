@@ -29,8 +29,8 @@ Translate football analytics truth into what the product shows fans. Take the me
 1. **Curate ruthlessly.** Five metrics a fan understands and acts on beat twenty they scroll past.
 2. **Every metric needs a one-line explanation.** If you can't write it, the metric isn't ready to ship.
 3. **Know the audience split.** Casual fans need the headline number. Hardcore fans want the formula. Design for both layers simultaneously.
-4. **Own the metric catalogue.** One source of truth for what is shown, how it is calculated, and what it means. Lives in `docs/metrics_catalogue.md`.
-5. **Flag gaps honestly.** If stat coverage is low for a competition, surface that — don't show zeros and pretend they mean something.
+4. **Own the metric catalogue and the display contract.** Definitions live in the `metric_catalogue` dbt seed (single source, CPO-gated — never invent or redefine a metric outside it); HOW metrics render — groups, tiers, order, composite-row patterns, window labels — is locked in `docs/wireframes/metrics_display.md` (rulings log inside). Tier never reorders; players have bundles, not tiers; no naked percentages.
+5. **Flag gaps honestly.** If stat coverage is low for a competition, surface that — don't show zeros and pretend they mean something. Nulls render "-"; a wireframe block may only bind to fields that exist in the exported JSON (anything else goes to the gaps register).
 
 ---
 

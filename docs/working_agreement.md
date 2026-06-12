@@ -30,9 +30,13 @@ committed with the branch so it is PR-visible:
 
 Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - No contract → repo edits denied. Out-of-scope path → denied.
-- **Protected paths** (`.claude/hooks/`, `.claude/settings.json`,
+- **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
+  `.claude/settings.json`, `.claude/review_routing.json`,
   `.github/workflows/`) are never editable except in a dedicated CPO-approved
-  governance task whose contract carries `protected_override`.
+  governance task whose contract carries `protected_override`. The reviewer
+  definitions and routing are protected so the builder can never weaken its
+  own adversary inside an ordinary task (CPO ruling, G3 escalation
+  2026-06-12).
 - **File changes go through the Edit/Write tools only** — shell redirection,
   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
   check and the turn-end stop gate force reversion of anything that slips
@@ -40,6 +44,42 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - `git commit --amend`, `--no-verify`/`-n`, and `core.hooksPath` repointing are
   denied — history stays append-only and hook-verified.
 - Escalations are appended to `.claude/task/escalations.log` (committed).
+
+**The review cycle (governance G3)** — every substantive commit passes the
+serialized four steps; the commit gate enforces them mechanically:
+
+1. **Code Lock** — implementation declared complete; everything staged via
+   `git add`; no further edits this cycle.
+2. **Blinding** — the reviewers required by `.claude/review_routing.json` for
+   the staged paths (the Scope-Auditor always, plus the path-routed
+   specialists) are spawned cold: read-only tools, no builder context, judging
+   the CUMULATIVE branch diff (written to `.claude/task/review_input.patch`).
+3. **Cross-Examination** — adversarial verdicts under the no-free-pass rule: a
+   PASS must name at least two real risks checked; a reviewer that cannot find
+   two must FAIL/ESCALATE; praise is banned; §10 decisions are never approved
+   by a reviewer.
+4. **Lock** — verdicts + the SHA-256 of the staged diff
+   (`python .claude/hooks/git_discipline.py --staged-hash`) written to
+   `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`).
+
+`git commit` is DENIED when: review.md is missing, its hash does not match the
+live staged diff, any verdict is FAIL, an ESCALATE lacks a recorded
+`CPO ANSWER:` in its own section, a required reviewer has no verdict, or a
+PASS lacks its two risks. **Only `git add` + plain `git commit` is allowed** —
+commit flags are allowlisted (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`,
+`-S`/`--gpg-sign`, `-s`/`--signoff`); every other flag and any positional
+pathspec is denied, because the self-staging forms (`-a`/`--all`/`-am`,
+`-i`/`--include`, `-o`/`--only`, `-p`/`--interactive` — including bundled
+spellings like `-qam` and prefix abbreviations like `--inc`) stage content at
+commit time, after the hash was computed. Git global options between `git`
+and `commit` (`git -p commit`, `git --git-dir x commit`) are denied for the
+same reason — the only allowed spelling is exactly `git commit`. The commit
+must also be the SOLE command in its shell call: a chained sibling
+(`git add x && git commit -m …`) could restage content after the hash was
+verified. Commits touching only governance artifacts
+(`.claude/task/**`, `.claude/active_work.md`) are exempt. CI re-checks the
+artifacts on every PR (`scripts/check_task_artifacts.py`); the PR template
+surfaces the trail.
 
 If anything could silently shrink scope or affect something not listed, stop and
 ask — extending the contract without recorded CPO authority is drift by
