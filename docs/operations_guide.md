@@ -220,7 +220,7 @@ GitHub Actions workflows are split by change type so UI-only PRs do not run live
 | `ci-ui.yml` | PR/push when `site/**` or Pages build/export scripts change | JSON syntax checks; `scripts/check_ui_i18n_metrics.py` (manifest ↔ i18n). No GCP. |
 | `python-ci.yml` | Every PR and push to `main` | `pytest tests/ -v` (ingestion unit tests). |
 | `security-secrets.yml` | Every PR and push to `main` | Gitleaks secret scan. |
-| `dbt-scheduled.yml` | Twice daily (`04:00`, `16:00` UTC) + manual | **Full ingest** for all active competitions, then `dbt build` (incl. freshness). Source of truth for raw tables used by PR builds. |
+| `dbt-scheduled.yml` | Once daily (`04:00` UTC) + manual | **Full ingest** for all active competitions, then `dbt build` (incl. freshness). Source of truth for raw tables used by PR builds. |
 | `pages-match-preview.yml` | Push to `main` (path-filtered), daily schedule, manual | Build matchday marts, `export_pages_data.py` → `data/{league}/`, assemble `_site`, deploy GitHub Pages. |
 
 ### Conditional ingest on PR data builds

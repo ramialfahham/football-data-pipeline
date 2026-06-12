@@ -65,8 +65,8 @@ models:
     description: >
       Per (league_code, season_api_year, player_sk) full-season aggregate statistics over all
       finished matches. Mirrors int_team_season__full_season_metrics at player grain.
-      Used by int_matchday__fixture_player_insights for the WC pre-tournament dispatch
-      (full current/most-recent domestic season).
+      Retained for the planned player profile / season-recap surface; its former
+      consumer int_matchday__fixture_player_insights was retired in #321.
       team_sk is the player's last known club in that league/season (any_value ordered by kickoff desc).
       Rates are null when denominator is zero; never coerced to 0.
       Grain: (league_code, season_api_year, player_sk).

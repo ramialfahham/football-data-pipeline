@@ -29,9 +29,9 @@ def fetch_catalog_persist_and_plan(
     league_catalog = fetch_json("/leagues", ctx.headers, params={"id": league_id})
     append_api_errors(league_catalog, f"leagues/catalog {league_code}", ctx.errors)
     # Skip the BigQuery write when the API returned no league rows (rate limit,
-    # auth error, transient outage). load_json_to_bq uses WRITE_TRUNCATE; an
-    # empty payload would wipe valid leagues data and break the dim_league /
-    # dim_competition_season relationship tests downstream.
+    # auth error, transient outage). The write is WRITE_APPEND (append=True below),
+    # so an empty payload would add zero useful rows; skipping avoids a spurious
+    # load and keeps the dim_league / dim_competition_season relationship tests clean.
     if league_catalog.get("response"):
         load_json_to_bq(
             ctx.client,
