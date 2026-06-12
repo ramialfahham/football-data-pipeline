@@ -1,138 +1,62 @@
-diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
-index a8f9902..cdbf8eb 100644
---- a/.claude/agents/analytics-engineer-reviewer.md
-+++ b/.claude/agents/analytics-engineer-reviewer.md
-@@ -2,6 +2,7 @@
- name: analytics-engineer-reviewer
- description: Adversarial warehouse reviewer (Analytics Engineer role). Reviews dbt models, seeds-as-configuration and export-script data handling against the layer contracts before any commit. Read-only. Invoked in step 2 (Blinding) of the review cycle.
- tools: Read, Grep, Glob
-+model: sonnet
- ---
- 
- You are the Analytics-Engineer reviewer: the owner of warehouse correctness.
-diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
-index dfcb569..0565358 100644
---- a/.claude/agents/bi-analyst-reviewer.md
-+++ b/.claude/agents/bi-analyst-reviewer.md
-@@ -2,6 +2,7 @@
- name: bi-analyst-reviewer
- description: Adversarial display-contract reviewer (BI Analyst role). Reviews wireframe specs, i18n labels and export payload shapes against the locked metric display contract — dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
- tools: Read, Grep, Glob
-+model: sonnet
- ---
- 
- You are the BI-Analyst reviewer: owner of what fans are shown and how
-diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
-index bd97320..289238b 100644
---- a/.claude/agents/cto-reviewer.md
-+++ b/.claude/agents/cto-reviewer.md
-@@ -2,6 +2,7 @@
- name: cto-reviewer
- description: Adversarial platform reviewer (CTO role). Reviews tooling, hooks, CI workflows, python scripts, dependencies and site build config — dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
- tools: Read, Grep, Glob
-+model: sonnet
- ---
- 
- You are the CTO reviewer: owner of platform code quality and architectural
-@@ -10,6 +11,13 @@ Your territory is everything that is code but not warehouse: `scripts/`,
- `tests/`, `.claude/hooks/`, `.github/workflows/`, `requirements*.txt`,
- `site_v2/` build configuration.
- 
-+> **Model:** pinned to `sonnet` in the frontmatter (the floor). When the diff
-+> under review touches a guard path (`.claude/hooks/**`, `.claude/agents/**`,
-+> `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/**`),
-+> the orchestrator overrides your model to `opus` at spawn time — guard bypasses
-+> are the highest-stakes findings (the G3 commit-gate bypasses were caught only at
-+> that depth, rounds 2-5). This is a procedural rule, not hook-enforced.
+diff --git a/docs/audits/2026-06_alignment_audit.md b/docs/audits/2026-06_alignment_audit.md
+index f8b6655..e6e513f 100644
+--- a/docs/audits/2026-06_alignment_audit.md
++++ b/docs/audits/2026-06_alignment_audit.md
+@@ -151,14 +151,46 @@ the GAP-17 note); **GAP-18** (tournament form windows, before WC 2026); **GAP-19
+   from review (demonstrated by PR #407). New observation; belongs with the (a)/(c)
+   hardening discussion.
+
+-## Disposition summary (counts, pre-ruling)
+-
+-- `violation`: F1, F2, F4, F5, F6, F8, F9, F10, F11, F12, F13, F14, F15, F21, F22, F23, F24 (17)
+-- `unapproved-decision`: F16, F17, F18, F19, F20, F25, F26, F38 (8)
+-- `escalate` (ambiguous, reviewer would not classify): F3, F7, F27, F28, F37 (5)
+-- `stale-doc`: F29, F30, F31, F32, F33, F34, F35, F36 (8)
+-- `reviewer error / no action`: F39 (1)
+-- `ok / assumption corrected`: F40 (1)
+-
+-**Next:** CPO rules each row (CPO-ruling column). Only then do approved findings become
+-issues. Nothing here is acted on — this document proposes; the CPO decides.
++## CPO rulings — 2026-06-12
 +
- ## Inputs
- 
- 1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-diff --git a/.claude/agents/data-engineer-reviewer.md b/.claude/agents/data-engineer-reviewer.md
-index 9114600..6428431 100644
---- a/.claude/agents/data-engineer-reviewer.md
-+++ b/.claude/agents/data-engineer-reviewer.md
-@@ -2,6 +2,7 @@
- name: data-engineer-reviewer
- description: Adversarial ingestion reviewer (Data Engineer role). Reviews ingestion code and competition-registry/onboarding changes — dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
- tools: Read, Grep, Glob
-+model: sonnet
- ---
- 
- You are the Data-Engineer reviewer: owner of ingestion reliability. You are
-diff --git a/.claude/agents/football-analytics-expert-reviewer.md b/.claude/agents/football-analytics-expert-reviewer.md
-index 2a67867..9caa00d 100644
---- a/.claude/agents/football-analytics-expert-reviewer.md
-+++ b/.claude/agents/football-analytics-expert-reviewer.md
-@@ -2,6 +2,7 @@
- name: football-analytics-expert-reviewer
- description: Adversarial football-domain reviewer (Football Analytics Expert role). Narrow trigger — reviews metric_catalogue.csv formula/definition changes only. Read-only. Invoked in step 2 (Blinding) of the review cycle.
- tools: Read, Grep, Glob
-+model: sonnet
- ---
- 
- You are the Football-Analytics-Expert reviewer: guardian of football truth in
-diff --git a/.claude/review_routing.json b/.claude/review_routing.json
-index f72eed5..664f320 100644
---- a/.claude/review_routing.json
-+++ b/.claude/review_routing.json
-@@ -10,7 +10,11 @@
-     "Dormant-but-undefined reviewers (activate with their surface): ui-expert",
-     "(site_v2 templates/components, when #366/#368 build), data-journalist",
-     "(generated narratives, when GAP-03 builds), legal-counsel (crest/logo/photo",
--    "asset policy, when site asset work starts)."
-+    "asset policy, when site asset work starts).",
-+    "`.claude/agents/**` routes to cto-reviewer (CPO ruling 2026-06-12): a change",
-+    "to a reviewer definition must be gate-required to get platform review, not",
-+    "left to only the always-on scope-auditor. The opus-on-guards rule then",
-+    "overrides that cto review to opus (see docs/working_agreement.md §2)."
-   ],
-   "always": ["scope-auditor"],
-   "paths": {
-@@ -20,6 +24,7 @@
-     "tests/**": ["cto-reviewer"],
-     "requirements*.txt": ["cto-reviewer"],
-     ".claude/hooks/**": ["cto-reviewer"],
-+    ".claude/agents/**": ["cto-reviewer"],
-     ".claude/settings.json": ["cto-reviewer"],
-     ".claude/review_routing.json": ["cto-reviewer"],
-     ".github/workflows/**": ["cto-reviewer"],
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 6989a22..3f8327f 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -71,7 +71,13 @@ its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small
- shapes), `football-analytics-expert-reviewer` (catalogue formula edits). Defined
- later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
- policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
--not reviewers.
-+not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
-+`model:` frontmatter): `scope-auditor` on **haiku**, the five specialists on
-+**sonnet**. The pin is a floor — for diffs touching a guard path
-+(`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
-+`.claude/review_routing.json`, `.github/workflows/**`) the orchestrator spawns
-+`cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
-+guard bypasses are the costliest misses.
- 
- ### Project skill — `.claude/skills/validate-local/` (committed)
- 
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index b522d44..95eac55 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -54,6 +54,15 @@ serialized four steps; the commit gate enforces them mechanically:
-    the staged paths (the Scope-Auditor always, plus the path-routed
-    specialists) are spawned cold: read-only tools, no builder context, judging
-    the CUMULATIVE branch diff (written to `.claude/task/review_input.patch`).
-+   Reviewer models are pinned in each agent definition for economy:
-+   `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
-+   pinned model is a floor — when the staged diff touches a guard path
-+   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
-+   `.claude/review_routing.json`, `.github/workflows/**`), the orchestrator
-+   spawns `cto-reviewer` with its model overridden to **opus**, because guard
-+   bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
-+   caught only at that depth). This is a procedural rule the orchestrator
-+   applies at spawn time, not a hook-enforced one.
- 3. **Cross-Examination** — adversarial verdicts under the no-free-pass rule: a
-    PASS must name at least two real risks checked; a reviewer that cannot find
-    two must FAIL/ESCALATE; praise is banned; §10 decisions are never approved
++All 40 findings were ruled by the CPO in session on 2026-06-12. Issues were filed
++**only** for approved actions; parked/folded items carry no new issue. This table is
++the consolidated `CPO ruling` record (per-finding).
++
++| finding | CPO ruling | tracked as |
++|---|---|---|
++| F1/F2 | fix — competition-agnostic violation | #420 |
++| F3 | defer — generalize team market value beyond WC when in scope | #418 |
++| F4 | fold into GAP-19 (consumption-layer audit) | GAP-19 |
++| F5 | slug *migration* → GAP-19; slug *spelling* (transliteration) parked for the Pilot | GAP-19 / Pilot |
++| F6 | fold into GAP-19 | GAP-19 |
++| F7 | park with #391 / Pilot test case (the Python-vs-mart consumption boundary) | #391 / Pilot |
++| F8 | attach to the GAP-17 season-rollup family (frozen — do not act) | GAP-17 |
++| F9 | attach to the GAP-17 season-rollup family (frozen — do not act) | GAP-17 |
++| F10/F11 | file — bundled gate-integrity task, deferred (mechanism reserved to CPO) | #409 |
++| F12 | file — do together with #409 | #421 |
++| F13 | file — remove dead per-competition triggers | #422 |
++| F14 | file — delete obsolete scaffold script | #423 |
++| F15 | file — retire footer migration script | #424 |
++| F16 | RETIRE | #410 |
++| F17 | RETIRE (WC-hardcoded relic; general monitoring is a separate future decision) | #411 |
++| F18 | KEEP (approved — board in active PM use) + PAT-scope audit follow-up | #413 |
++| F19 | declaw — keep CI-failure notification, drop auto-rerun + `actions: write` | #412 |
++| F20 | file — pin requirements | #425 |
++| F21 | file — create apif fixtures + parser tests | #415 |
++| F22 | file — **PRIORITY** DQ bug (silent missing form) | #414 |
++| F23 | file — **PRIORITY** verify/disable AFCCL provider id | #426 |
++| F24 | file — add RAW_APIF_COACHES/INJURIES to the data contract | #427 |
++| F25 | set BL1 `history_seasons` → 5 (config only; existing data NOT purged) | #416 |
++| F26 | file — fail-safe `ingest_active` (raise on absence) | #417 |
++| F27–F37 | file as one doc-sync cleanup batch (inventories made exhaustive) | #419 |
++| F38 | park with #391 (streak features decided at wireframe sign-off) | #391 |
++| F39 | no action — reviewer false-positive (file is present) | — |
++| F40 | no action — stale assumption corrected (doc is current) | — |
++
++**Pre-ruling class counts (for reference):** 17 violation · 8 unapproved-decision ·
++5 escalate · 8 stale-doc · 1 reviewer-error · 1 assumption-corrected.
++
++**Status:** rulings complete; approved findings filed as issues #409–#427. The frozen
++GAP-17 items (F8/F9) and the parked #391/Pilot items (F5-spelling, F7, F38) await their
++respective decision points and were intentionally NOT acted on.
