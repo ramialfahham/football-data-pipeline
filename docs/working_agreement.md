@@ -54,6 +54,15 @@ serialized four steps; the commit gate enforces them mechanically:
    the staged paths (the Scope-Auditor always, plus the path-routed
    specialists) are spawned cold: read-only tools, no builder context, judging
    the CUMULATIVE branch diff (written to `.claude/task/review_input.patch`).
+   Reviewer models are pinned in each agent definition for economy:
+   `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
+   pinned model is a floor — when the staged diff touches a guard path
+   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
+   `.claude/review_routing.json`, `.github/workflows/**`), the orchestrator
+   spawns `cto-reviewer` with its model overridden to **opus**, because guard
+   bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
+   caught only at that depth). This is a procedural rule the orchestrator
+   applies at spawn time, not a hook-enforced one.
 3. **Cross-Examination** — adversarial verdicts under the no-free-pass rule: a
    PASS must name at least two real risks checked; a reviewer that cannot find
    two must FAIL/ESCALATE; praise is banned; §10 decisions are never approved

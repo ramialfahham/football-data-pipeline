@@ -71,7 +71,13 @@ its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small 
 shapes), `football-analytics-expert-reviewer` (catalogue formula edits). Defined
 later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
 policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
-not reviewers.
+not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
+`model:` frontmatter): `scope-auditor` on **haiku**, the five specialists on
+**sonnet**. The pin is a floor — for diffs touching a guard path
+(`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
+`.claude/review_routing.json`, `.github/workflows/**`) the orchestrator spawns
+`cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
+guard bypasses are the costliest misses.
 
 ### Project skill — `.claude/skills/validate-local/` (committed)
 
