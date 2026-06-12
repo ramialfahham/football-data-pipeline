@@ -182,8 +182,10 @@ Canonical fact inventory for this project:
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
 | `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `base_apif__transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
+| `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR); full-refresh table. WC-scoped — no `league_code`. |
 
-All facts propagate `league_code` so they are safe to union across future leagues.
+Most facts propagate `league_code` so they are safe to union across future leagues
+(the seed-sourced `fct_team_market_value_snapshot` is the WC-only exception).
 
 ### Materialization: incremental vs full-refresh
 
@@ -236,15 +238,29 @@ Not allowed:
 - Every mart carries `league_code` as a column so multi-league slicing is a filter, not a schema change. When a second league is onboarded, marts do not need to be rewritten.
 - Rollup marts (one row per business entity and grain) materialize as `table`; flat denormalized projections materialize as `view` unless a latency requirement forces a table.
 
-Canonical mart inventory for this project:
+Canonical mart inventory (exhaustive) for this project:
 
 | Mart | Grain | Materialization | Notes |
 |------|-------|-----------------|-------|
 | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
 | `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
 | `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
-| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | Domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
-| `mart_team_season_insights` | (league_code, team_sk) | table | Latest season per league; slice by `league_code` at export/UI. |
+| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+| `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
+| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | Current league standings per team-season. |
+| `mart_team_market_value` | team_sk | view | Team squad market value; currently WC-scoped (see #418 to generalize). |
+| `mart_team_profile` | (team_sk, season_sk) | table | v2 team profile: full-season metrics, YoY deltas, streaks. |
+| `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
+| `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
+| `mart_momentum__team` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 form-window aggregate (team). |
+| `mart_momentum__player` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 form-window aggregate (player). |
+| `mart_form_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 form-window drill-down legs (team). |
+| `mart_season_to_date__team` | (upcoming_fixture_sk, team_sk) | view | W2 season-to-date aggregate (team). |
+| `mart_season_to_date__player` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-to-date aggregate (player). |
+| `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
+| `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+| `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
+| `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
 

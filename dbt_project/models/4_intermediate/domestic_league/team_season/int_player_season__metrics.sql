@@ -6,8 +6,8 @@
   Grain: (league_code, season_api_year, player_sk).
 
   Used by:
-    - int_matchday__fixture_player_insights (WC pre-tournament: full domestic season window)
-    - Future player profile / season-recap surface
+    - (none currently — former consumer int_matchday__fixture_player_insights was
+      retired in #321; retained for the planned player profile / season-recap surface)
 
   Atom definitions follow docs/player_metrics_catalogue.md exactly.
   Rates are null when the denominator is zero; never coerced to 0.

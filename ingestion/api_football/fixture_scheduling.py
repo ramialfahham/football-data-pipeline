@@ -385,7 +385,7 @@ def _budgeted_fixture_fanout_ids(
 ) -> list[int]:
     """Return the fixtures that fit within today's remaining API quota.
 
-    We estimate 5 HTTP calls per fixture (lineups, events, stats, players, predictions)
+    We estimate 4 HTTP calls per fixture (lineups, events, stats, players)
     and reserve a block for /players squad pagination. The daily remaining call count
     comes from the x-ratelimit-requests-remaining response header, updated after each
     HTTP call. If the header has not yet been seen (first call of the day), we fall back

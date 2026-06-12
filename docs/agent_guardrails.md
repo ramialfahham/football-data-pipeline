@@ -65,8 +65,8 @@ Routing: `.claude/review_routing.json` (PROTECTED — changing who reviews what 
 CPO governance event). The agent definitions themselves are likewise PROTECTED
 (CPO ruling, G3 escalation 2026-06-12) — the builder must not be able to weaken
 its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small model) +
-`analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + dormant
-`cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
+`analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + the path-routed
+specialists `cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
 (ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframes/i18n/payload
 shapes), `football-analytics-expert-reviewer` (catalogue formula edits). Defined
 later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
