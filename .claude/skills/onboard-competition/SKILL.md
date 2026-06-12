@@ -160,7 +160,6 @@ status section (`ACTIVE` or `IN PROGRESS`):
     status: "active"
     ingest_active: {INGEST_ACTIVE}
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "{TODAY_YYYY_MM_DD}"
     notes: "{NOTES}"
 ```

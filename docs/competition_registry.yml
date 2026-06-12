@@ -17,10 +17,6 @@
 #   backlog      — considered, no timeline
 #   completed    — finished, scope doc moved to docs/archive/
 #
-# form_source values:
-#   league_only          — form from fixtures within this competition only
-#   supporting_leagues   — form from qualifier/related competitions (international tournaments)
-#
 # Site display metadata (consumed by the site export ONLY — not by dbt; issue #364):
 #   confederation : UEFA | CONMEBOL | CONCACAF | CAF | AFC | OFC | FIFA (global)
 #   tier          : league pyramid level (domestic_league only; 1 = top flight)
@@ -57,7 +53,6 @@ competitions:
     history_seasons: 10             # backfill window: last N season start years
     status: "active"
     ingest_active: true
-    form_source: "league_only"
     notes: >
       First competition onboarded. Reference implementation for all future leagues.
 
@@ -81,7 +76,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     team_count: 48
     match_count: 104
     start_date: "2026-06-11"
@@ -101,17 +95,13 @@ competitions:
     form_data_strategy: >
       /fixtures?team={id}&last=10 per team. Returns last 10 international fixtures
       across all competitions. Initial backfill = 48 API calls.
-    supporting_leagues:
-      - {id: 29, name: "WC Qualification Africa",                   league_code: "WCQAF", season: 2023, stats: true}
-      - {id: 30, name: "WC Qualification Asia",                     league_code: "WCQAS", season: 2026, stats: true}
-      - {id: 31, name: "WC Qualification CONCACAF",                 league_code: "WCQCA", season: 2026, stats: true}
-      - {id: 32, name: "WC Qualification Europe",                   league_code: "WCQEU", season: 2024, stats: true}
-      - {id: 34, name: "WC Qualification South America",            league_code: "WCQSA", season: 2026, stats: true}
-      - {id: 37, name: "WC Qualification Intercontinental Playoffs", league_code: "WCQIP", season: 2026, stats: true}
-      - {id: 33, name: "WC Qualification Oceania",                  league_code: "WCQOC", season: 2026, stats: false}
 
   # WC 2026 qualifier confederations — first-class competitions (PR #39 / #48).
   # Each has its own raw tables RAW_APIF_WCQ*_* ingested like BL1/WC.
+  # `parent_competition` links a child (qualifier → tournament; domestic cup →
+  # league) to its parent. Curated intent, NOT yet consumed — reserved for the
+  # GAP-18 tournament-window modeling (a Core parent-child dim). Team form is
+  # recency-based (int_form_window__team), so it needs no parent mapping today.
 
   - league_code: "WCQEU"
     name: "WC Qualification Europe"
@@ -129,7 +119,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "UEFA zone. Season 2024 (group + playoff stages)."
 
@@ -149,7 +138,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "CAF zone. Season 2023."
 
@@ -169,7 +157,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "CONCACAF zone. Season 2026."
 
@@ -189,7 +176,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "CONMEBOL zone. Season 2026."
 
@@ -209,7 +195,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "AFC zone. Season 2026."
 
@@ -229,7 +214,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "Inter-confederation playoffs. Season 2026."
 
@@ -249,7 +233,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "WC"
     notes: "OFC zone. Season 2026. API catalog has no fixture statistics; soft gate only."
 
@@ -270,7 +253,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "PD"
@@ -290,7 +272,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "BL2"
@@ -310,7 +291,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "SA"
@@ -330,7 +310,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "L1"
@@ -350,7 +329,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "VL"
@@ -370,7 +348,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-18"
     notes: "2026 campaign (current) + 2025 (form fallback); calendar-year league."
 
@@ -391,7 +368,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-21"
     notes: "Onboarded for WC 2026 pre-tournament host-nation (Mexico) player coverage. Apertura + Clausura in one API season; treat as split_year. See #151."
 
@@ -412,7 +388,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 Portugal squad player coverage. Split-year league (2025/2026 season)."
 
@@ -433,7 +408,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 host-nation (USA + Canada) player coverage. Calendar-year league."
 
@@ -454,7 +428,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 host-nation (Saudi Arabia) player coverage. Split-year league (2025/2026 season)."
 
@@ -475,7 +448,6 @@ competitions:
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-22"
     notes: "WC 2026 Netherlands squad player coverage. Split-year league (2025/2026 season)."
   # -------------------------------------------------------------------------
@@ -506,7 +478,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     api_coverage:
       fixtures: true
@@ -533,7 +504,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "UEFA Europa League. 5-season rolling window approved by CPO 2026-05-27."
 
@@ -553,7 +523,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "UEFA Europa Conference League. 5-season rolling window approved by CPO 2026-05-27."
 
@@ -573,7 +542,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "Annual August fixture between UCL and UEL winners. 5-season window approved by CPO 2026-05-27."
 
@@ -597,7 +565,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-27"
     notes: "Biennial CONMEBOL tournament. Last edition: 2024 (USA). 2 editions approved by CPO 2026-05-27."
 
@@ -617,7 +584,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-27"
     notes: "Biennial CAF tournament. Last edition: 2025 (Morocco). 2 editions approved by CPO 2026-05-27."
 
@@ -637,7 +603,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-27"
     notes: "Quadrennial AFC tournament. Last edition: 2023 (Qatar, played Jan 2024). 2 editions approved by CPO 2026-05-27."
 
@@ -657,7 +622,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-28"
     notes: "Biennial CONCACAF tournament. Last edition: 2023. 2 editions approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 8=Women's World Cup, now 22=CONCACAF Gold Cup). Fixes #293."
 
@@ -677,7 +641,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-27"
     notes: "Biennial UEFA league-format tournament. 2024/25 edition ongoing. 2 editions approved by CPO 2026-05-27."
 
@@ -697,7 +660,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-27"
     notes: "Quadrennial UEFA tournament. Last edition: 2024 (Germany). 2 editions approved by CPO 2026-05-27."
 
@@ -717,7 +679,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "supporting_leagues"
     api_coverage_verified: "2026-05-28"
     notes: "Annual CONCACAF league-format tournament. 2 editions approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 43=English National League tier 5, now 536=CONCACAF Nations League). Fixes #294."
 
@@ -742,7 +703,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "Top Brazilian division. Calendar-year (March–December). 5-season window approved by CPO 2026-05-27."
 
@@ -763,7 +723,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "Top Argentine division. Calendar-year full season format since 2020. 5-season window approved by CPO 2026-05-27."
 
@@ -784,7 +743,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "Top Japanese division. Calendar-year (Feb–Nov). 5-season window approved by CPO 2026-05-27."
 
@@ -805,7 +763,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-27"
     notes: "Top South Korean division. Calendar-year (Feb–Nov). 5-season window approved by CPO 2026-05-27."
 
@@ -829,7 +786,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "BL1"
     api_coverage_verified: "2026-05-28"
     notes: "German domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 529=DFL-Supercup, now 81=DFB-Pokal). Fixes #295."
@@ -850,7 +806,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "PL"
     api_coverage_verified: "2026-05-27"
     notes: "English domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
@@ -871,7 +826,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "PD"
     api_coverage_verified: "2026-05-28"
     notes: "Spanish domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27. ID corrected 2026-05-28 (was 556=Supercopa de España, now 143=Copa del Rey). Fixes #291."
@@ -892,7 +846,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "L1"
     api_coverage_verified: "2026-05-27"
     notes: "French domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
@@ -913,7 +866,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     parent_competition: "SA"
     api_coverage_verified: "2026-05-27"
     notes: "Italian domestic cup. Knockout — no standings. 5-season window approved by CPO 2026-05-27."
@@ -938,7 +890,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-28"
     notes: "CONMEBOL flagship club competition. Calendar-year (Feb–Nov). Full fanout enabled. Onboarded in issue #262."
 
@@ -958,7 +909,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-28"
     notes: "CAF flagship club competition. Full fanout enabled. Onboarded in issue #262."
 
@@ -978,7 +928,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-28"
     notes: >
       AFC flagship club competition (rebranded 'Elite' in 2024/25 with new format).
@@ -1001,7 +950,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-28"
     notes: "CONCACAF flagship club competition (formerly Champions League). Full fanout enabled. Onboarded in issue #262."
 
@@ -1021,7 +969,6 @@ competitions:
     status: "in_progress"
     ingest_active: true
     ingest_completeness_gate: soft
-    form_source: "league_only"
     api_coverage_verified: "2026-05-28"
     notes: >
       Expanded 32-team format, June–July 2025 (USA). Clubs from all confederations.
