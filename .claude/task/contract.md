@@ -1,78 +1,50 @@
-# Task contract — reviewer model pinning
+# Task contract — G4 retroactive alignment audit
 
-> Governance economy change. Pins each reviewer subagent to an explicit model so
-> the blinded review cycle runs cheaply, with top-tier scrutiny kept exactly where
-> bypasses hurt most. See docs/working_agreement.md §2/§10/§11, Appendix A.
+> Governance program §5 (retroactive audit). Findings only — every disposition
+> for a violation/unapproved-decision is a CPO ruling; findings become issues
+> only after the CPO rules. Blinded reviewers generate findings per domain; the
+> builder compiles and never re-judges its own past work.
+> See docs/working_agreement.md §2 (contract), §10 (decision rights),
+> §11 (blinded escalation), Appendix A (anti-patterns).
 
 objective: >
-  Pin each reviewer subagent to an explicit model so the blinded review cycle is
-  economical: scope-auditor stays haiku; the five specialist reviewers are pinned
-  to sonnet; a documented orchestrator rule spawns cto-reviewer on opus when the
-  staged diff touches a guard path. G3 ran the specialists on the session's top
-  model (Fable/Opus) every round — needless cost for contract-bound review work.
-refs: governance program (C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md);
-  CPO model-tiering ruling 2026-06-12 ("Sonnet + opus-on-guards"); G3
-  decisions_taken already blessed "model tiering (scope-auditor on haiku)".
+  Produce docs/audits/2026-06_alignment_audit.md: a current-state alignment
+  audit of the codebase against its locked contracts. Findings only — every
+  disposition for a violation/unapproved-decision is a CPO ruling; findings
+  become issues only after the CPO rules. Builder compiles; blinded reviewers
+  generate the findings per domain.
+refs: governance plan §5 (C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md);
+  CPO kickoff rulings 2026-06-12.
 
 scope_paths:
-  - .claude/agents/analytics-engineer-reviewer.md
-  - .claude/agents/cto-reviewer.md
-  - .claude/agents/data-engineer-reviewer.md
-  - .claude/agents/bi-analyst-reviewer.md
-  - .claude/agents/football-analytics-expert-reviewer.md
-  - .claude/review_routing.json
-  - docs/working_agreement.md
-  - docs/agent_guardrails.md
-  - .claude/active_work.md
-
-protected_override: >
-  .claude/agents/** is a PROTECTED path (CPO ruling, G3 escalation 2026-06-12).
-  Edited here under the CPO's explicit model-tiering ruling in this session
-  ("Sonnet + opus-on-guards", 2026-06-12) plus the standing G3 decisions_taken
-  item "model tiering (scope-auditor on haiku)". scope-auditor.md is NOT touched
-  (already pinned to haiku).
+  - docs/audits/2026-06_alignment_audit.md
 
 decisions_taken: >
-  Tier map (CPO ruling 2026-06-12 "Sonnet + opus-on-guards"): scope-auditor =
-  haiku (unchanged); analytics-engineer-reviewer, cto-reviewer,
-  data-engineer-reviewer, bi-analyst-reviewer, football-analytics-expert-reviewer
-  = sonnet, pinned via the `model:` frontmatter line. Documented orchestrator
-  rule: when the staged diff touches a guard path (.claude/hooks/**,
-  .claude/agents/**, .claude/settings.json, .claude/review_routing.json,
-  .github/workflows/**), cto-reviewer is spawned with its model overridden to
-  opus — guard bypasses are the highest-stakes findings (empirically, G3 review
-  rounds 2-5). This is a PROCEDURAL rule (the orchestrator passes the model
-  override to the Agent tool at spawn time), not hook-enforced — documented
-  honestly as such. The model frontmatter is the floor; the orchestrator may
-  override upward for a hard diff.
+  CPO kickoff rulings 2026-06-12 — DEPTH: current-state + per-finding provenance
+  (no full commit-history walk). SURFACES: the plan's five passes (dbt models;
+  scripts/export_*; seeds/macros; docs-vs-reality; metric values) PLUS ingestion
+  code and CI workflows; the live MVP site is EXCLUDED (frozen/record-only).
+  FINDING SOURCE: each blinded domain reviewer runs its pass independently and
+  emits findings; the builder aggregates them verbatim into the table and never
+  re-judges its own past work. ROUTING: dbt -> analytics-engineer-reviewer;
+  scripts/tooling/seeds/macros/CI -> cto-reviewer; ingestion -> data-engineer-
+  reviewer; decisions/provenance/doc-faithfulness -> scope-auditor.
 
 decisions_reserved:
-  - RESOLVED by amendment A1 (below): the question "should `.claude/agents/**`
-    be routed to cto-reviewer" was escalated blinded; CPO answered Path A (add
-    the routing row) on 2026-06-12. Now implemented in scope, not reserved.
+  - Every finding's disposition (violation / unapproved-decision) is a CPO
+    ruling — the audit proposes, never decides; escalate blinded (§11).
+  - Any finding implying a change to shipped numbers (GAP-17 frozen) — reserved.
+  - The two parked slug rulings, if a finding surfaces them — reserved for the Pilot.
 
 done_when:
-  - each of the five specialist agent files carries `model: sonnet` in its
-    frontmatter; scope-auditor.md still reads `model: haiku`
-  - cto-reviewer.md body documents the opus-on-guards spawn rule
-  - working_agreement.md §2 review-cycle block and the agent_guardrails.md reviewer
-    subagent section document the tier map + the opus-on-guards rule
-  - review cycle run: scope-auditor (haiku) + cto-reviewer (opus, guard diff)
-    spawned cold; review.md written with a matching staged hash; the routing-row
-    question escalated with a recorded CPO ANSWER
-  - commit passes the gate; PR opened with the governance block
+  - 7 passes run via the four blinded reviewers (cold, read-only); findings table
+    populated: columns = class | evidence (file:line / commit) | proposed
+    disposition | CPO ruling (blank until ruled).
+  - scope-auditor faithfulness pass = PASS (doc aggregates the reviewer findings;
+    no finding silently resolved as a CPO-class decision).
+  - review.md written with a staged-diff hash matching the doc; commit gate passes.
+  - PR opened with the governance block.
 
-amendments:
-  - 2026-06-12: + .claude/review_routing.json — authority: CPO blinded escalation
-    answer (Path A, this session). The cto-reviewer ESCALATED that `.claude/agents/**`
-    is named a guard path in the docs but is not routed to cto-reviewer, leaving
-    reviewer-definition changes reviewed only by scope-auditor (haiku) with no
-    gate/CI back-stop. CPO ruled "Add routing row (mechanical)". Content: add
-    `.claude/agents/** -> cto-reviewer` to review_routing.json so agent-definition
-    changes gate-require platform review; the opus-on-guards rule then overrides
-    that cto review to opus.
-  - 2026-06-12: + .claude/active_work.md — authority: standing handover practice
-    (working_agreement.md §2 names .claude/active_work.md an artifact_only path;
-    the handover is refreshed at task close). Content: update the handover status
-    line (G3 merged #403; reviewer-pinning open #405; next = G4). Artifact-only,
-    review-exempt.
+amendments: (none)
+# On amendment (clean tree only):
+#   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
