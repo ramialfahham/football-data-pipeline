@@ -151,14 +151,46 @@ the GAP-17 note); **GAP-18** (tournament form windows, before WC 2026); **GAP-19
   from review (demonstrated by PR #407). New observation; belongs with the (a)/(c)
   hardening discussion.
 
-## Disposition summary (counts, pre-ruling)
+## CPO rulings — 2026-06-12
 
-- `violation`: F1, F2, F4, F5, F6, F8, F9, F10, F11, F12, F13, F14, F15, F21, F22, F23, F24 (17)
-- `unapproved-decision`: F16, F17, F18, F19, F20, F25, F26, F38 (8)
-- `escalate` (ambiguous, reviewer would not classify): F3, F7, F27, F28, F37 (5)
-- `stale-doc`: F29, F30, F31, F32, F33, F34, F35, F36 (8)
-- `reviewer error / no action`: F39 (1)
-- `ok / assumption corrected`: F40 (1)
+All 40 findings were ruled by the CPO in session on 2026-06-12. Issues were filed
+**only** for approved actions; parked/folded items carry no new issue. This table is
+the consolidated `CPO ruling` record (per-finding).
 
-**Next:** CPO rules each row (CPO-ruling column). Only then do approved findings become
-issues. Nothing here is acted on — this document proposes; the CPO decides.
+| finding | CPO ruling | tracked as |
+|---|---|---|
+| F1/F2 | fix — competition-agnostic violation | #420 |
+| F3 | defer — generalize team market value beyond WC when in scope | #418 |
+| F4 | fold into GAP-19 (consumption-layer audit) | GAP-19 |
+| F5 | slug *migration* → GAP-19; slug *spelling* (transliteration) parked for the Pilot | GAP-19 / Pilot |
+| F6 | fold into GAP-19 | GAP-19 |
+| F7 | park with #391 / Pilot test case (the Python-vs-mart consumption boundary) | #391 / Pilot |
+| F8 | attach to the GAP-17 season-rollup family (frozen — do not act) | GAP-17 |
+| F9 | attach to the GAP-17 season-rollup family (frozen — do not act) | GAP-17 |
+| F10/F11 | file — bundled gate-integrity task, deferred (mechanism reserved to CPO) | #409 |
+| F12 | file — do together with #409 | #421 |
+| F13 | file — remove dead per-competition triggers | #422 |
+| F14 | file — delete obsolete scaffold script | #423 |
+| F15 | file — retire footer migration script | #424 |
+| F16 | RETIRE | #410 |
+| F17 | RETIRE (WC-hardcoded relic; general monitoring is a separate future decision) | #411 |
+| F18 | KEEP (approved — board in active PM use) + PAT-scope audit follow-up | #413 |
+| F19 | declaw — keep CI-failure notification, drop auto-rerun + `actions: write` | #412 |
+| F20 | file — pin requirements | #425 |
+| F21 | file — create apif fixtures + parser tests | #415 |
+| F22 | file — **PRIORITY** DQ bug (silent missing form) | #414 |
+| F23 | file — **PRIORITY** verify/disable AFCCL provider id | #426 |
+| F24 | file — add RAW_APIF_COACHES/INJURIES to the data contract | #427 |
+| F25 | set BL1 `history_seasons` → 5 (config only; existing data NOT purged) | #416 |
+| F26 | file — fail-safe `ingest_active` (raise on absence) | #417 |
+| F27–F37 | file as one doc-sync cleanup batch (inventories made exhaustive) | #419 |
+| F38 | park with #391 (streak features decided at wireframe sign-off) | #391 |
+| F39 | no action — reviewer false-positive (file is present) | — |
+| F40 | no action — stale assumption corrected (doc is current) | — |
+
+**Pre-ruling class counts (for reference):** 17 violation · 8 unapproved-decision ·
+5 escalate · 8 stale-doc · 1 reviewer-error · 1 assumption-corrected.
+
+**Status:** rulings complete; approved findings filed as issues #409–#427. The frozen
+GAP-17 items (F8/F9) and the parked #391/Pilot items (F5-spelling, F7, F38) await their
+respective decision points and were intentionally NOT acted on.
