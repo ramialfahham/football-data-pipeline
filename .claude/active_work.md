@@ -83,18 +83,18 @@ anywhere (fct_transfer was a leaf; only use was the dim_player identity fallback
 derivable from dim_player_team_season_mapping if ever needed). Removed end-to-end: ingestion
 loader, stg/base/core transfers models, raw source, the transfers_src identity CTE, + docs.
 **This CLOSES #420/#441 by deletion** (the BL1 hardcode is gone with the model) AND removes the
-name-less-transfer DQ problem at root. 3 cold reviewers PASS (iter-1 had a spurious "sample-fixture
-rule" finding — rebutted; no such rule exists). **⚠ POST-MERGE TODO (once #446 is on main):**
-`bq rm` the RAW_APIF_TRANSFERS BigQuery table (verify identity first) — no writer remains so the
-04:00 UTC run won't recreate it; do this BEFORE relying on the "table dropped" data_contract note.
-**NEXT — PR B (the breaking rework, now SIMPLER):** dim_player → pure entity (drop
-league_code/last_known_*); collapse base_apif__players to one identity dedup; DELETE
-base_apif__players_global; repoint consumers (int_player_season__metrics,
-mart_player_season/profile/match_log/fixture_stats__player, scripts/export_site_data.py). The
-name-less-transfer identity question is now MOOT (transfers retired — no transfers identity
-fallback remains; base_apif__players already collapsed to 3 fixture/players sources in #446).
-Close #441 (superseded; folded into #446's deletion).
-Remaining audit cleanups (deprioritized under the redesign): #421/#422, #409 (gate-lift),
+name-less-transfer DQ problem at root. **MERGED (#446); RAW_APIF_TRANSFERS dropped from BigQuery
+2026-06-13 (bq rm, verified gone).** #441 closed (superseded), issue #420 closed (resolved by deletion).
+**PR B — DONE (PR #448):** dim_player → pure global entity (dropped league_code + last_known_*);
+collapsed base_apif__players into ONE global dedup (grain player_api_id, ordered source_priority
+asc then raw_ingested_at desc — most authoritative named source wins globally); DELETED
+base_apif__players_global. No consumer repointing needed (verified: no mart/export used
+dim_player.league_code or last_known_*). The new single dedup is strictly better than the old
+recency-only collapse (can't add nulls). Both cold reviewers PASS first iteration; full DQ in
+ci-data-build. **PLAYER-MODEL REDESIGN COMPLETE** (PR A mapping + transfers retirement + PR B
+entity). dim_player = pure entity; affiliation = dim_player_team_season_mapping (rostered) + facts.
+**NEXT:** back to the audit-cleanup backlog (the redesign is done). Picks:
+Remaining audit cleanups: #421/#422, #409 (gate-lift),
 #410/#411/#412, #413, #430. **Follow-up from #427 review (pre-existing doc staleness):**
 Landing-Zone "verbatim envelope" line vs coaches.py's wrapped dict; the "Append-only writes"
 prose list doesn't enumerate coaches/injuries. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
