@@ -1,75 +1,68 @@
-# Review — chore/pat-scope-audit-413 — 2026-06-13
+# Review — chore/retire-declaw-automation-g4 — 2026-06-13
 
-> #413 (audit F18 follow-up): document the least-privilege scope for the board-sync PAT
-> `PROJECT_AUTOMATION_TOKEN`. READ-ONLY audit, docs-only, non-protected. Within the CPO
-> standing autonomous-backlog grant (escalations.log 2026-06-13, names "#413 PAT audit
-> (read-only)"). Required reviewer: scope-auditor (always). cto-reviewer run VOLUNTARILY
-> (security/CI-token domain; not path-required since only docs/ changed).
+> G4 audit cleanup: retire #410 (Slack-to-Executor bridge) + #411 (squad_watch.py),
+> declaw #412 (ci-failure-watchdog.yml). Dispositions ruled by the CPO 2026-06-12 (audit
+> table); §10 retire/declaw substance + two protected_overrides approved 2026-06-13
+> ("as recommended", escalations.log). Required: scope-auditor (always) + cto-reviewer
+> (scripts/** + .github/workflows/**). One cold iteration: both PASS against the hash below.
 >
-> iter-1 (hash a63695a…): both PASS, but cto-reviewer surfaced a real accuracy defect —
-> the operation table attributed the `projectItems` sub-field reads to Issues/Pull-requests
-> permission when on a fine-grained PAT that sub-field is governed by the Projects
-> permission. Fixed (split the table row; added the account-vs-repository permission note).
-> iter-2 (hash below): cto-reviewer PASS; scope-auditor FAIL on ONE point — claimed the
-> markdown anchor `…f18--413` (double hyphen) was broken. That finding is FALSE: GitHub's
-> github-slugger deletes `/` in place and converts the two surrounding spaces to two
-> hyphens (deterministically reproduced; cto-reviewer independently verified the same).
-> The diff is correct as-is — "fixing" the anchor to a single hyphen would BREAK it, so the
-> diff was NOT changed. iter-3 cross-examination: scope-auditor re-ran on the unchanged
-> hash, traced the algorithm itself, and confirmed PASS. Both PASS against the hash below.
+> Build note: during build two doc-sync consequences surfaced (the agent_company_roadmap
+> index link to the deleted slack doc; the ci_failure_watchdog.md auto-rerun description).
+> Scope was widened on a clean tree (contract amendment to add those two docs) BEFORE the
+> reviewed commit, so the diff is doc-sync-complete. Repo-secret removal
+> (CURSOR_EXECUTOR_BRIDGE_URL/TOKEN) is a CPO settings action, intentionally NOT in the diff.
 
-diff_sha256: 6222a50b19e5aced8d9c72f0425b72a2f381e929fe8aa68334f6fcb014ef327d
+diff_sha256: 8ae91d88ba7905796f90e3612cb92a961820fb311771846ca00faf615a827d6d
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Authorization + §10: the task is explicitly named in the recorded STANDING CPO GRANT
-  (escalations.log 2026-06-13) and mandated by the F18 ruling ("KEEP + PAT-scope audit
-  follow-up | #413"). The change documents the scope an EXISTING mechanism already needs
-  (mechanically derived from the workflow's API calls) — no product/metric/naming/mechanism
-  decision, no behaviour change. No §10.
-- Scope discipline + protected paths: only the three scope_paths files changed
-  (docs/board_request_sync.md, docs/project_status_sync.md, .claude/task/contract.md). The
-  protected `.github/workflows/**` is NOT touched — the workflow needs no edit (PAT scope is
-  a GitHub-secret setting, a CPO action outside the tree). Surgical per decisions_reserved:
-  scope on the active doc, pointer superseding the stale classic guidance on the paused doc;
-  the board mechanism is not re-described.
-- Contested anchor (cross-examined, iter-3): traced github-slugger on
-  `### Least-privilege scope (audit F18 / #413)` — lowercase → delete `(` `)` `/` `#` in place
-  → spaces→hyphens (the two spaces around the deleted `/` become `--`, not collapsed) →
-  `least-privilege-scope-audit-f18--413`. The pointer in project_status_sync.md targets
-  exactly that anchor — it RESOLVES. The iter-2 "broken anchor" FAIL was a false-positive on
-  a verifiable fact. Both docs mutually consistent; all done_when items satisfied.
+- Authorization + §10 + protected paths: both protected paths
+  (_paused/slack-executor-bridge.yml deletion, ci-failure-watchdog.yml edit) are named in
+  the contract's protected_override block AND in scope_paths, and backed by the CPO ruling
+  in escalations.log 2026-06-13 ("as recommended" for #410/#411/#412) with explicit
+  justification that each exceeds the batch dead-trigger grant. No other protected path
+  (.claude/hooks, .claude/agents, settings.json, review_routing.json, other workflows)
+  touched. The two unrelated paused workflows (cursor-dispatch.yml, project-status-sync.yml)
+  and the active workflows (pr-autopilot, pages, board-sync) are untouched. No decision taken
+  beyond the CPO ruling.
+- Scope discipline + surgical #412: every changed file is in scope_paths; the watchdog edit
+  changed only the auto-rerun step + `actions: write` permission + the now-false body/Next-action
+  text — the watched-workflow list, issue title, and dedup logic are unchanged.
+- Doc-sync completeness: repo-wide search confirms no remaining reference to the slack bridge
+  scripts/workflow or squad_watch, and no doc still claims the watchdog auto-reruns, outside
+  the historical audit record (docs/audits/2026-06_alignment_audit.md, correctly left as-is).
+  The agent_company_roadmap index link to the deleted slack doc is removed (no dangling link);
+  chat_driven_workflow.md + ci_failure_watchdog.md updated to notification-only.
+- decisions_reserved: secret removal is NOT done in the diff (correctly left to the CPO).
+escalations:
+- (none)
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Scope completeness vs source: independently enumerated every PAT-authenticated call in
-  board-request-sync.yml — loadUserProjects, loadOrgProjects, addProjectV2ItemById,
-  updateProjectV2ItemFieldValue, repository.pullRequest+projectItems, repository.issue+
-  projectItems, rest.pulls.list, rest.issues.listForRepo (core.summary uses GITHUB_STEP_SUMMARY,
-  no PAT scope). Recommended Projects RW + Issues R + Pull requests R + Metadata R covers all
-  exactly: nothing missing, nothing over-granted.
-- projectItems attribution (iter-1 defect, now fixed): `projectItems` on a PR/issue node is
-  governed by the Projects permission, not Issues/PR — the corrected table attributes it to
-  Projects: read, and the new account-vs-repository note (Projects = account-wide; Issues/
-  PRs/Metadata = repo-scoped) matches the actual fine-grained PAT model.
-- user-owned vs org claim: verified against loadUserProjects (primary) + loadOrgProjects
-  (try/catch on "Could not resolve to an Organization") — board is a user-owned ProjectV2;
-  org path is the NOT_FOUND fallback. (Noted: both paths fire unconditionally — the prose
-  "fallback" slightly understates the laziness, but the required scope is unaffected.)
-- classic-PAT + permissions-block claims: `project` is the only classic write scope for
-  ProjectsV2 (account-wide, no narrowing); `public_repo` (not full `repo`) suffices for reads
-  on this public repo; the workflow-level `permissions:` block governs only the unused
-  GITHUB_TOKEN, not the injected PAT. All accurate.
-- No protected-path edit: diff is docs-only (docs/*.md + .claude/task/contract.md); no
-  .github/workflows/** or other guard path touched.
-- Markdown anchor: verified `#least-privilege-scope-audit-f18--413` resolves to the heading
-  per github-slugger (double-hyphen from ` / ` is correct).
+- Watchdog integrity after rerun excision: all five variables used after the deleted block
+  (runUrl, attempt, branch, workflowName, actor) remain defined; `rerunTriggered` is gone from
+  BOTH the logic and the issue body line that referenced it; the rerun API call is fully
+  removed; braces/template literals balanced; YAML valid.
+- Permission narrowing correct + complete: `actions: write` was required ONLY by the deleted
+  rerun-failed-jobs request; the remaining ops (issues.listForRepo, issues.create,
+  issues.createComment) are all covered by the retained `issues: write` (+ `contents: read`
+  baseline). Nothing remaining needs actions:write; nothing remaining lacks a permission.
+- Deletion blast radius: scripts/slack_bridge/, squad_watch.py, and the paused workflow are
+  fully absent; grep finds zero live references to slack_bridge/slack_executor/squad_watch/
+  CURSOR_EXECUTOR outside .claude/task/ and the historical audit doc; no 404-producing
+  markdown link remains.
+- Surgical scope: the trigger workflow list, issueTitle template, dedup predicate, and
+  paginate call are byte-identical to pre-patch; only the rerun step + permission + body text
+  differ. Unrelated paused + active workflows untouched.
+- Guard integrity: contract carries explicit protected_override for both protected paths with
+  traceable CPO approval (escalations.log 2026-06-13); justification for each override recorded.
+escalations:
+- (none)
 
 ## escalations
-(none — iter-1 accuracy defect (projectItems table attribution) fixed in-cycle; iter-2
-scope-auditor anchor FAIL was a false-positive on a verifiable fact, refuted by deterministic
-github-slugger reproduction + cto-reviewer's independent check + scope-auditor's own iter-3
-re-trace. Diff unchanged between iter-2 and iter-3; both reviewers PASS against the locked hash.
-The actual PAT rotation remains a CPO action in GitHub secret settings, outside the tree.)
+(none — single cold iteration; both reviewers PASS against the locked hash. The two doc-sync
+files were added to scope via a clean-tree contract amendment before the reviewed commit.
+Repo secrets CURSOR_EXECUTOR_BRIDGE_URL/TOKEN remain for the CPO to remove in GitHub settings,
+outside the tree.)
