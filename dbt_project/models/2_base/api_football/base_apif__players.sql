@@ -22,8 +22,8 @@ with players_src as (
 ),
 
 -- Transfers fallback: provides player identity for players who appear in transfer
--- history but have no /players endpoint record. BL1 only for now; extend this CTE
--- when additional leagues gain transfer base models.
+-- history but have no /players endpoint record. Covers all leagues via the
+-- competition-agnostic base_apif__transfers (league_code flows through).
 transfers_src as (
     select
         league_code,

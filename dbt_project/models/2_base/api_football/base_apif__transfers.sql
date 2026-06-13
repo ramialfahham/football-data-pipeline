@@ -1,6 +1,6 @@
 with src as (
     select * from {{ ref('stg_apif__transfers') }}
-    where player_id is not null and league_code = 'BL1'
+    where player_id is not null
 )
 
 select
