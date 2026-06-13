@@ -1,386 +1,924 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d7855a4..38ddf39 100644
+index 38ddf39..16d1012 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,77 +1,88 @@
--# Task contract — add COACHES + INJURIES to the data contract (#427)
-+# Task contract — player↔team↔season rostered mapping (PR A of player-model redesign)
+@@ -1,88 +1,101 @@
+-# Task contract — player↔team↔season rostered mapping (PR A of player-model redesign)
++# Task contract — retire the transfers chain entirely
  
--> Audit F24: ingestion writes RAW_APIF_COACHES and RAW_APIF_INJURIES every run,
--> but neither is in docs/data_contract.md — no contractual anchor for downstream
--> consumers. CPO ruling 2026-06-12: file. Docs-only. See docs/working_agreement.md §2.
-+> CPO-approved design (2026-06-13 working session; see memory project-player-model-redesign
-+> + .claude/task/escalations.log 2026-06-13). PR A is the ADDITIVE step: introduce the
-+> rostered affiliation models. Nothing existing changes behaviour. The breaking rework
-+> (dim_player → pure entity, drop base_apif__players_global, repoint consumers) is PR B.
-+> See docs/working_agreement.md §2; dbt_project/docs/layering.md.
+-> CPO-approved design (2026-06-13 working session; see memory project-player-model-redesign
+-> + .claude/task/escalations.log 2026-06-13). PR A is the ADDITIVE step: introduce the
+-> rostered affiliation models. Nothing existing changes behaviour. The breaking rework
+-> (dim_player → pure entity, drop base_apif__players_global, repoint consumers) is PR B.
+-> See docs/working_agreement.md §2; dbt_project/docs/layering.md.
++> CPO ruling 2026-06-13: transfers are not consumed anywhere (fct_transfer is a leaf with
++> zero consumers; no mart/export/UI reads transfers; the only use was a dim_player identity
++> fallback feeding the unconsumed fct_transfer). They are derivable from
++> dim_player_team_season_mapping if ever needed. CPO approved: REMOVE ENTIRELY, including
++> dropping the RAW_APIF_TRANSFERS BigQuery table (explicit destructive-drop authorization +
++> cost approval to stop the daily /transfers ingest). Follows the RAW_APIF_ROUNDS retirement
++> precedent (docs/data_contract.md). See docs/working_agreement.md §2/§10.
  
  objective: >
--  Document the two undocumented unified raw tables in docs/data_contract.md.
--  Verified this session against the ingestion code:
--  - RAW_APIF_COACHES — written by ingestion/api_football/loads/coaches.py via
--    load_json_to_bq(raw_table("COACHES"), as_json_payload=True, append=True,
--    league_code=...) → ensure_unified_raw_table. Source endpoint: /coachs (per team).
--  - RAW_APIF_INJURIES — written by ingestion/api_football/loads/injuries.py via the
--    same unified-append path. Source endpoint: /injuries (per league per season).
--  Both are invoked in the per-competition cheap-phase run (loads/competition_runner.py
--  run_cheap_phases, lines 93-96) for active competitions. They append one row per run when
--  data is available, with early-return guards: coaches skips when no team_ids resolved
--  (coaches.py:38), injuries skips when no season returned data (injuries.py:67). Idle/poll
--  runs (run_poll_phases) do not call them. This matches how the other conditional append
--  tables (transfers via load_transfers_if_enabled, standings via load_standings_if_enabled)
--  already behave — so the doc rows need no per-table conditional caveat (the general skip
--  pattern is already covered by the doc's "Coverage flags" + "Append-only writes" sections).
--  F24's premise (these tables are written and need a contract anchor) holds.
--  Both are unified raw tables with the standard schema/behaviour (see bigquery.py
--  ensure_unified_raw_table): columns league_code STRING / payload JSON / ingested_at
--  TIMESTAMP; WRITE_APPEND; partitioned by DATE(ingested_at); clustered by league_code;
--  no merge key.
--refs: #427 (audit F24).
-+  Add the rostered player↔team↔season affiliation, sourced single-source from the
-+  /players roster (stg_apif__players), at its natural grain — capturing squad members
-+  who never played a match (which no fact can express). Two new models, additive only:
-+  - base_apif__player_team_season (2_base view) ← stg_apif__players. Grain
-+    (league_code, player_id, team_id, season_year); dedup to latest ingest. Drops rows
-+    missing player_id / team_id / season_year.
-+  - dim_player_team_season_mapping (3_core table) — conformed rostered membership mapping.
-+    Keys: player_sk (=player_id), team_sk (=team_id), season_sk + league_sk via lookup
-+    join to dim_competition_season on (league_code, season_api_year=season_year),
-+    league_code, season_api_year. PK player_team_season_sk = surrogate_key(player_id,
-+    team_id, league_code, season_year). The season-lookup CTE dedups dim_competition_season
-+    to one row per (league_code, season_api_year) (row_number qualify) so the join cannot
-+    fan out — the league_code↔league_api_id 1:1 is untested.
-+  Definition = ROSTERED only (CPO ruling: NOT "any affiliation evidence" — that would
-+  duplicate facts and rebuild the multi-source union bug).
-+refs: player-model redesign (memory project-player-model-redesign); relates #153→#156.
+-  Add the rostered player↔team↔season affiliation, sourced single-source from the
+-  /players roster (stg_apif__players), at its natural grain — capturing squad members
+-  who never played a match (which no fact can express). Two new models, additive only:
+-  - base_apif__player_team_season (2_base view) ← stg_apif__players. Grain
+-    (league_code, player_id, team_id, season_year); dedup to latest ingest. Drops rows
+-    missing player_id / team_id / season_year.
+-  - dim_player_team_season_mapping (3_core table) — conformed rostered membership mapping.
+-    Keys: player_sk (=player_id), team_sk (=team_id), season_sk + league_sk via lookup
+-    join to dim_competition_season on (league_code, season_api_year=season_year),
+-    league_code, season_api_year. PK player_team_season_sk = surrogate_key(player_id,
+-    team_id, league_code, season_year). The season-lookup CTE dedups dim_competition_season
+-    to one row per (league_code, season_api_year) (row_number qualify) so the join cannot
+-    fan out — the league_code↔league_api_id 1:1 is untested.
+-  Definition = ROSTERED only (CPO ruling: NOT "any affiliation evidence" — that would
+-  duplicate facts and rebuild the multi-source union bug).
+-refs: player-model redesign (memory project-player-model-redesign); relates #153→#156.
++  Retire transfers end-to-end: stop ingesting /transfers, delete the staging/base/core
++  transfers models, drop the dim_player transfer-identity fallback, remove the raw source,
++  and update the docs. The RAW_APIF_TRANSFERS BigQuery table is dropped as a POST-MERGE
++  step (after the no-writer code is on main, so the 04:00 UTC run cannot recreate it).
++  This closes #420/#441 by deletion and removes the name-less-transfer DQ problem at root.
++  Verified: fct_transfer has no consumers (only comments mention it); no metric_catalogue
++  entry; no export/site reference.
  
  scope_paths:
--  - docs/data_contract.md
-+  - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
++  # deletions
++  - ingestion/api_football/loads/transfers.py
++  - dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
++  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
++  - dbt_project/models/3_core/fct_transfer.sql
++  # ingestion edits
++  - ingestion/api_football/loads/competition_runner.py
++  - ingestion/api_football/main.py
++  - ingestion/api_football/quota.py
++  - ingestion/api_football/settings.py
++  # dbt model edits
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
+   - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
+-  - dbt_project/models/2_base/api_football/base.yml
+   - dbt_project/models/3_core/dim_player_team_season_mapping.sql
++  # dbt config / yml edits
++  - dbt_project/models/1_staging/api_football/sources.yml
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
 +  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/models/3_core/dim_player_team_season_mapping.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/docs/layering.md
+   - dbt_project/models/3_core/core.yml
++  - dbt_project/macros/apif_latest_source_partition.sql
++  # docs
+   - dbt_project/docs/layering.md
++  - docs/data_contract.md
++  - docs/operations_guide.md
++  - README.md
++  - dbt_project/models/1_staging/api_football/README.md
++  - .env.example
++  # task artifacts
    - .claude/task/contract.md
--  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A2)
-+  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A1)
+-  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A1)
++  - .claude/active_work.md
  
  decisions_taken: >
--  CPO-approved doc addition (audit ruling 2026-06-12: file). Pure documentation of
--  EXISTING, verified pipeline behaviour — no code, schema, or pipeline change. The two
--  new rows mirror the existing unified-append rows verbatim (write mode / partition /
--  cluster / merge key) and the endpoints map gains /coachs and /injuries.
-+  CPO-approved target shape + classification (2026-06-13; recorded in escalations.log).
-+  Additive only for the warehouse models — no existing MODEL SQL or consumer is touched
-+  (dim_player, base_apif__players(_global), marts unchanged; they are PR B). CPO ruling:
-+  the conformed mapping is a CORE object named `dim_player_team_season_mapping` — keeps the
-+  dim_ prefix (its core home) + a _mapping suffix (it is a conformed many-to-many
-+  RELATIONSHIP, not an entity). layering.md's dimension rules are EXTENDED to sanction a
-+  "relationship (mapping) dimension": exempt from the Entity condition + the
-+  degenerate-dimension exclusion, but still required to satisfy Reuse + Conformance and to
-+  carry a single tested unique grain key (the property that earns any table its place in
-+  core). season_sk is resolved by LOOKUP join to dim_competition_season (mirrors
-+  mart_player_season), not recomputed, because the roster source has league_code not
-+  league_api_id. Materialisation follows the layer contract: base = view, dim = table.
+-  CPO-approved target shape + classification (2026-06-13; recorded in escalations.log).
+-  Additive only for the warehouse models — no existing MODEL SQL or consumer is touched
+-  (dim_player, base_apif__players(_global), marts unchanged; they are PR B). CPO ruling:
+-  the conformed mapping is a CORE object named `dim_player_team_season_mapping` — keeps the
+-  dim_ prefix (its core home) + a _mapping suffix (it is a conformed many-to-many
+-  RELATIONSHIP, not an entity). layering.md's dimension rules are EXTENDED to sanction a
+-  "relationship (mapping) dimension": exempt from the Entity condition + the
+-  degenerate-dimension exclusion, but still required to satisfy Reuse + Conformance and to
+-  carry a single tested unique grain key (the property that earns any table its place in
+-  core). season_sk is resolved by LOOKUP join to dim_competition_season (mirrors
+-  mart_player_season), not recomputed, because the roster source has league_code not
+-  league_api_id. Materialisation follows the layer contract: base = view, dim = table.
++  CPO-approved full retirement + BQ table drop (2026-06-13; cost + destructive-drop
++  authorized). Removing the transfers_src CTE from base_apif__players is a deliberate
++  behaviour change: dim_player loses transfer-only player identities — safe because
++  fct_transfer (the only consumer of those identities) is deleted, and played players are
++  covered by the fixture identity sources. RAW_APIF_TRANSFERS left in BQ ONLY until the PR
++  merges, then dropped (bq rm) — sequencing prevents recreation by the scheduled run.
  
  decisions_reserved:
--  - The contract currently asserts "six tables" / "Six tables serve the entire fleet"
--    (lines 3, 33) and an "additional smaller table: RAW_APIF_LEAGUES". Adding two more
--    unified tables makes those counts internally inconsistent. Updating the count to
--    match is REQUIRED for the doc to stay self-consistent (the whole point of F24 — a
--    correct contractual anchor), not a scope expansion. If a reviewer judges the count
--    wording itself a CPO-class naming/structure decision, STOP and escalate rather than
--    decide the phrasing unilaterally.
--  - Do NOT reclassify, re-describe, or "improve" any existing UNIFIED-RAW-TABLE row, the
--    merge model, or the freshness/completeness sections — out of scope for F24. (The
--    "Plan vs product" coaches/injuries fixes under amendment A1 are the exception: they
--    remove a contradiction the additions create, not an unprompted improvement.)
-+  - FK test severities / coverage, to be confirmed by the analytics-engineer reviewer and
-+    proven by ci-data-build (the authoritative DQ gate; not run locally):
-+    * player_sk → dim_player: holds BY CONSTRUCTION (same source stg_apif__players,
-+      player_id not null) → relationships ERROR is safe.
-+    * team_sk → dim_team: roster /players is fetched only for already-discovered team_ids
-+      AFTER load_teams runs (competition_runner), and dim_team unions /teams + fixture
-+      team_ids, so roster teams ⊆ dim_team by construction → relationships ERROR is safe.
-+      If ci-data-build shows a real gap, STOP and escalate, do NOT silently downgrade.
-+    * season_sk → dim_competition_season: resolved by the dedup-guarded left join; season_sk
-+      left NULLABLE (no not_null) to tolerate a roster season with no /leagues
-+      competition-season row; relationships ERROR validates non-null values.
-+  - Whether the mapping later needs an "is_current"/as-of flag is a PR-B/consumer question.
+-  - FK test severities / coverage, to be confirmed by the analytics-engineer reviewer and
+-    proven by ci-data-build (the authoritative DQ gate; not run locally):
+-    * player_sk → dim_player: holds BY CONSTRUCTION (same source stg_apif__players,
+-      player_id not null) → relationships ERROR is safe.
+-    * team_sk → dim_team: roster /players is fetched only for already-discovered team_ids
+-      AFTER load_teams runs (competition_runner), and dim_team unions /teams + fixture
+-      team_ids, so roster teams ⊆ dim_team by construction → relationships ERROR is safe.
+-      If ci-data-build shows a real gap, STOP and escalate, do NOT silently downgrade.
+-    * season_sk → dim_competition_season: resolved by the dedup-guarded left join; season_sk
+-      left NULLABLE (no not_null) to tolerate a roster season with no /leagues
+-      competition-season row; relationships ERROR validates non-null values.
+-  - Whether the mapping later needs an "is_current"/as-of flag is a PR-B/consumer question.
++  - Intentionally NOT updated (out of scope, not contract-docs): docs/pipeline_architecture_plan.md
++    (draft roadmap / historical), docs/audits/2026-06_alignment_audit.md and
++    .claude/task/audit_reviewer_outputs.md (point-in-time records), and generic-prose
++    mentions of the word "transfers" (shared.yml mart description, layering.md fact-example
++    "a transfer", gaps_register.md "players transfer"). If a reviewer judges any of these a
++    required doc-sync, STOP and escalate rather than expand silently.
++  - README.md line 29 also undercounts dims (omits dim_player_team_season_mapping from #444);
++    fixing the dims count is a #444 doc-sync follow-up, not this task — I will correct only
++    the facts list (remove fct_transfer) unless a reviewer requires the whole line be made
++    consistent.
  
  done_when:
--  - docs/data_contract.md "Unified raw tables" table has two new rows: RAW_APIF_COACHES
--    and RAW_APIF_INJURIES (append / DATE(ingested_at) / league_code / no merge key).
--  - the "Endpoints and raw tables" map has /coachs → RAW_APIF_COACHES and /injuries →
--    RAW_APIF_INJURIES.
--  - the "six tables" counts (lines 3, 33) are corrected so the prose matches the table.
--  - the "Plan vs product" section is made consistent with the additions (amendment A1):
--    the "Players & coaches" row no longer claims "no separate coaches ingest", and an
--    "Injuries" row is added — both reflect EXISTING ingest (RAW_APIF_COACHES via /coachs,
--    RAW_APIF_INJURIES via /injuries). /sidelined remains not-ingested (distinct endpoint).
--  - no other section of the doc is altered; markdown still renders (tables intact).
--  - reviewers: scope-auditor (always) + data-engineer-reviewer (docs/data_contract.md) — PASS.
-+  - base_apif__player_team_season.sql exists (2_base view), grain
-+    (league_code, player_id, team_id, season_year), reads ref('stg_apif__players').
-+  - dim_player_team_season_mapping.sql exists (3_core table) with the keys above + the
-+    dedup-guarded season lookup.
-+  - base.yml carries the base grain test; core.yml carries a NEW dim block:
-+    PK not_null+unique; grain unique_combination; not_null on player_sk/team_sk/league_code;
-+    relationships player_sk→dim_player, team_sk→dim_team, season_sk→dim_competition_season,
-+    league_sk→dim_league.
-+  - layering.md: a "relationship (mapping) dimensions" clause added to the dimension
-+    qualification rules, + an inventory row for dim_player_team_season_mapping (doc-sync).
-+  - NO existing MODEL SQL or consumer modified (additive); the only edits to existing files
-+    are appended yml test blocks + the layering.md rule/inventory. grep shows dim_player,
-+    base_apif__players, base_apif__players_global unchanged on this branch.
-+  - validate-local Tier 1+2 green (dbt parse, sqlfluff lint); full DQ build → ci-data-build.
-+  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) — PASS.
+-  - base_apif__player_team_season.sql exists (2_base view), grain
+-    (league_code, player_id, team_id, season_year), reads ref('stg_apif__players').
+-  - dim_player_team_season_mapping.sql exists (3_core table) with the keys above + the
+-    dedup-guarded season lookup.
+-  - base.yml carries the base grain test; core.yml carries a NEW dim block:
+-    PK not_null+unique; grain unique_combination; not_null on player_sk/team_sk/league_code;
+-    relationships player_sk→dim_player, team_sk→dim_team, season_sk→dim_competition_season,
+-    league_sk→dim_league.
+-  - layering.md: a "relationship (mapping) dimensions" clause added to the dimension
+-    qualification rules, + an inventory row for dim_player_team_season_mapping (doc-sync).
+-  - NO existing MODEL SQL or consumer modified (additive); the only edits to existing files
+-    are appended yml test blocks + the layering.md rule/inventory. grep shows dim_player,
+-    base_apif__players, base_apif__players_global unchanged on this branch.
+-  - validate-local Tier 1+2 green (dbt parse, sqlfluff lint); full DQ build → ci-data-build.
+-  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) — PASS.
++  - the 4 files above are git-rm'd; no remaining ref()/import to stg_apif__transfers,
++    base_apif__transfers, fct_transfer, loads.transfers, or raw_apif_transfers anywhere in
++    ingestion/ or dbt_project/models/ (grep clean).
++  - base_apif__players no longer has a transfers_src CTE / union member; dim_player_team_season_mapping
++    + base_apif__player_team_season comments no longer reference fct_transfer/the transfer fact.
++  - sources.yml, stg_apif__generic.yml, base.yml, core.yml no longer carry the transfers
++    entries; the macro comment + README tables drop transfers.
++  - data_contract.md: transfers removed from unified-tables/endpoints/plan-vs-product/append-only
++    prose + a "Retired" note added (mirroring ROUNDS); operations_guide.md drops the transfers
++    env-var sections; layering.md drops the fct_transfer inventory row + full-refresh mention.
++  - validate-local Tier 1+2 green (dbt parse, sqlfluff lint, layer contract, pytest); full DQ
++    build → ci-data-build.
++  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/** + docs/data_contract.md)
++    + analytics-engineer-reviewer (dbt_project/**) — PASS.
++  - POST-MERGE: drop RAW_APIF_TRANSFERS from BigQuery (verify table identity first).
  
  amendments:
--  - 2026-06-13 A1: scope unchanged (docs/data_contract.md already in scope_paths), but
--    the edit set is extended to the "Plan vs product" section — authority: standing
--    consistency rule (a doc change must not leave the doc self-contradictory; raised by
--    the iteration-1 data-engineer-reviewer FAIL, which found line 161 "no separate
--    'coaches only' ingest" contradicted by the new RAW_APIF_COACHES row). content: fix
--    the coaches claim + add an Injuries row. Also corrected the objective's inaccurate
--    "unconditionally every run" wording (early-return guards; poll-mode runs skip both).
--  - 2026-06-13 A2: + .claude/active_work.md — authority: standing rule (handover kept
--    current at task close; commit-exempt but not auto-editable). content: status update
--    marking #427 done (PR #439).
-+  - 2026-06-13 A1: + dbt_project/docs/layering.md and + .claude/active_work.md to scope;
-+    model renamed dim_player_team_season → dim_player_team_season_mapping. authority: CPO
-+    ruling 2026-06-13 (escalations.log) resolving the iteration-2 scope-auditor FAIL — keep
-+    dim_ + _mapping suffix and extend layering.md to recognize relationship (mapping) dims;
-+    plus the standing handover rule for active_work.md. content: the layering.md clause +
-+    inventory row, and the rename. Also added the season-lookup dedup guard (fan-out fix,
-+    analytics-engineer iter-1 finding).
+-  - 2026-06-13 A1: + dbt_project/docs/layering.md and + .claude/active_work.md to scope;
+-    model renamed dim_player_team_season → dim_player_team_season_mapping. authority: CPO
+-    ruling 2026-06-13 (escalations.log) resolving the iteration-2 scope-auditor FAIL — keep
+-    dim_ + _mapping suffix and extend layering.md to recognize relationship (mapping) dims;
+-    plus the standing handover rule for active_work.md. content: the layering.md clause +
+-    inventory row, and the rename. Also added the season-lookup dedup guard (fan-out fix,
+-    analytics-engineer iter-1 finding).
++  - 2026-06-13 A1: + .env.example to scope. authority: iteration-1 data-engineer-reviewer
++    finding — `# API_FOOTBALL_FETCH_TRANSFERS=1` left as a dangling commented example var
++    after the env var was removed from all live code. content: remove that line. (Also
++    fixed two in-scope iter-1 findings: the competition_runner module docstring still
++    listed "→ transfers", and the data_contract Retired note said the table was "dropped"
++    past-tense — reworded to "dropped post-merge".)
++  - 2026-06-13 NOTE (not an amendment): the iter-1 data-engineer-reviewer also raised a
++    "sample-based test rule (2026-06-12)" requiring fixture coverage before deleting a
++    parser. REBUTTED as spurious: no such rule exists in engineering_standards.md,
++    working_agreement.md, or development_workflow.md (grep); there is no tests/fixtures
++    directory and the repo has no sample-payload parser tests; and deleting code does not
++    require test coverage OF the deleted code. Not actioned.
+diff --git a/.env.example b/.env.example
+index 116b34f..997dfee 100644
+--- a/.env.example
++++ b/.env.example
+@@ -15,7 +15,6 @@ API_FOOTBALL_API_KEY=
+ # API_FOOTBALL_FIXTURE_USE_PAGE=0
+ # API_FOOTBALL_LINEUPS_MAX_FIXTURES=
+ # API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER=6
+-# API_FOOTBALL_FETCH_TRANSFERS=1
+ # API_FOOTBALL_FANOUT_PRIORITY=upcoming
+ # API_FOOTBALL_FRESH_HORIZON_DAYS=14
+ # API_FOOTBALL_SKIP_PLAYERS=0
+diff --git a/README.md b/README.md
+index da28948..03a2a08 100644
+--- a/README.md
++++ b/README.md
+@@ -26,7 +26,7 @@ Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_proje
+ |-------|--------|---------------|
+ | `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
+ | `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
+-| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`). |
++| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 5 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`). |
+ | `4_intermediate` | 6 models | `int_pipeline__raw_ingestion_spread` (ingestion-spread audit); `int_team_season__standings_primary` (deduped standings for marts); `int_matchday__fixture_denormalized`, `int_matchday__finished_fixture_team_leg`, `int_matchday__upcoming_round_fixtures`, `int_matchday__team_form_metrics` (matchday spine + form). |
+ | `5_marts` | populated | Matchday/team-season insights (`mart_matchday_insights` all domestic leagues, `mart_matchday_insights_wc`, `mart_matchday_insights_bl1_relegation`, `mart_team_season_insights`), plus `mart_team_season`, rankings/scorers, debug. Slice by `league_code` at export/UI. |
+ 
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 528ba87..8f3e929 100644
+index 8f3e929..c52f03b 100644
 --- a/dbt_project/docs/layering.md
 +++ b/dbt_project/docs/layering.md
-@@ -145,6 +145,8 @@ Patterns that look like dimensions but are not:
- - **Attribute masquerading as entity.** Country, nationality, position, language: keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation, position group). Promote to a dim when the rollup logic appears, not before.
- - **Entity requiring cross-source resolution.** If consolidating the entity requires reconciling identifiers across sources (e.g. venue from `/teams` vs `/fixtures`), that work lives in `2_base`; `3_core` receives the already-conformed version.
+@@ -184,7 +184,6 @@ Canonical fact inventory for this project:
+ | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+ | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
+ | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
+-| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `base_apif__transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
+ | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR); full-refresh table. WC-scoped — no `league_code`. |
  
-+**Relationship (mapping) dimensions.** A `dim_…_mapping` may also be a *conformed relationship table* resolving a many-to-many association between existing dimensions — e.g. `dim_player_team_season_mapping`, recording which players were rostered to which team in which season. This is the one sanctioned exception to qualification rule #1 (Entity) and to the degenerate-dimension exclusion: the "thing" it represents is the association itself, so it legitimately carries only the participating keys (plus lineage), with no independent descriptive attributes. It must still satisfy **Reuse** and **Conformance**, and — like every core table — have a single **tested, unique grain key** (its surrogate over the full grain). That uniquely-keyed grain is precisely what qualifies it as a system-of-record object; on that key it is a clean one-row-per-key lookup. The `_mapping` suffix marks its grain and role: each row is an *association across dimensions*, not a single entity, so joining on one participating key (e.g. `player_sk`) resolves a many-to-many relationship and returns many rows by design.
-+
- Canonical dimension inventory for this project:
+ Most facts propagate `league_code` so they are safe to union across future leagues
+@@ -201,7 +200,7 @@ Core materialization is **decided per fact by how its raw source delivers data**
  
- | Dim | Grain | Source staging model | Notes |
-@@ -154,6 +156,7 @@ Canonical dimension inventory for this project:
- | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
- | `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
- | `dim_player` | player_api_id | `base_apif__players_global` | Globally scoped; surrogate key is the API integer directly; `last_known_team_api_id` is a snapshot attribute, not a join key. |
-+| `dim_player_team_season_mapping` | (player_sk, team_sk, season_api_year, league_code) | `base_apif__player_team_season` | Relationship (mapping) dim, not an entity: rostered player↔team↔season membership incl. never-played squad members. Keys only, no descriptive attributes; many rows per player. |
+ Applied to the current inventory:
  
- All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
+-- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_transfer`, `fct_team_market_value_snapshot`. The `/fixtures`, `/standings`, `/transfers` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
++- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`. The `/fixtures` and `/standings` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
+ - **`incremental`:** `fct_fixture_event` (`unique_key='event_sk'`), `fct_fixture_player_stats` (`fixture_player_stat_sk`), `fct_fixture_team_stats` (`fixture_team_stat_sk`). These per-fixture fanout tables fetch only the next round's fixtures each run, so prior fixtures' rows must persist in core.
  
+ **Rule for the next agent:** do **not** "upgrade" a reference-derived fact (`fct_fixture` etc.) to `incremental` — full-refresh is intentional and depends on the raw snapshot carrying full history (a property PR #311 / issue #283 explicitly preserves by still writing skipped historical seasons into the snapshot). Only make a *new* fact incremental if its source delivers a partial payload per run, and document the `unique_key` and the reason inline, mirroring the fanout facts. This split is the historical resolution of issue #223 (which originally proposed making *all* core facts incremental — that premise only held for the fanout tables).
+diff --git a/dbt_project/macros/apif_latest_source_partition.sql b/dbt_project/macros/apif_latest_source_partition.sql
+index 2f66227..f8d778b 100644
+--- a/dbt_project/macros/apif_latest_source_partition.sql
++++ b/dbt_project/macros/apif_latest_source_partition.sql
+@@ -3,7 +3,7 @@
+ 
+   WHY THIS MACRO EXISTS
+   ---------------------
+-  Reference tables (fixtures, standings, teams, transfers, rounds, players, leagues)
++  Reference tables (fixtures, standings, teams, rounds, players, leagues)
+   use append-only writes since issue #220. Each daily pipeline run appends one new
+   complete snapshot row. BigQuery partitions the table by DATE(ingested_at).
+ 
+diff --git a/dbt_project/models/1_staging/api_football/README.md b/dbt_project/models/1_staging/api_football/README.md
+index c7a79e2..335d57b 100644
+--- a/dbt_project/models/1_staging/api_football/README.md
++++ b/dbt_project/models/1_staging/api_football/README.md
+@@ -24,7 +24,6 @@ time from the raw column **`ingested_at`**).
+ | `raw_apif_standings` (`RAW_APIF_STANDINGS`) | [`stg_apif__standings.sql`](stg_apif__standings.sql) |
+ | `raw_apif_teams` (`RAW_APIF_TEAMS`) | [`stg_apif__teams.sql`](stg_apif__teams.sql) |
+ | `raw_apif_players` (`RAW_APIF_PLAYERS`) | [`stg_apif__players.sql`](stg_apif__players.sql) |
+-| `raw_apif_transfers` (`RAW_APIF_TRANSFERS`) | [`stg_apif__transfers.sql`](stg_apif__transfers.sql) |
+ | `raw_apif_fixture_details` (`RAW_APIF_FIXTURE_DETAILS`) | [`stg_apif__fixture_events.sql`](stg_apif__fixture_events.sql), [`stg_apif__fixture_players.sql`](stg_apif__fixture_players.sql), [`stg_apif__fixture_statistics.sql`](stg_apif__fixture_statistics.sql), [`stg_apif__lineups.sql`](stg_apif__lineups.sql) |
+ 
+ The four fixture-detail models all flatten different arrays out of the single
+diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
+index 08e8049..cfdc83f 100644
+--- a/dbt_project/models/1_staging/api_football/sources.yml
++++ b/dbt_project/models/1_staging/api_football/sources.yml
+@@ -40,13 +40,6 @@ sources:
+           warn_after: {count: 30, period: hour}
+           error_after: {count: 54, period: hour}
+ 
+-      - name: raw_apif_transfers
+-        identifier: RAW_APIF_TRANSFERS
+-        loaded_at_field: ingested_at
+-        freshness:
+-          warn_after: {count: 30, period: hour}
+-          error_after: {count: 54, period: hour}
+-
+       - name: raw_apif_fixture_details
+         identifier: RAW_APIF_FIXTURE_DETAILS
+         loaded_at_field: ingested_at
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 63f5b2a..4f81a72 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -85,23 +85,6 @@ models:
+       - name: raw_ingested_at
+         tests: [not_null]
+ 
+-  - name: stg_apif__transfers
+-    description: >
+-      One row per transfer line per player per league from GET /transfers. Latest ingestion
+-      snapshot selected per league_code, then the payload is flattened 1:1 — no entity-grain
+-      deduplication here. Rows with no transfer date are dropped (date is part of the grain).
+-      Unique transfer-per-event dedup happens in base_apif__transfers at grain
+-      (league_code, player_id, transfer_date, from_team_api_id, to_team_api_id, transfer_type).
+-    columns:
+-      - name: league_code
+-        tests: [not_null]
+-      - name: player_id
+-        tests: [not_null]
+-      - name: transfer_date
+-        tests: [not_null]
+-      - name: raw_ingested_at
+-        tests: [not_null]
+-
+   - name: stg_apif__fixture_events
+     description: >
+       One row per event per fixture from the $.events array in raw_apif_fixture_details.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__transfers.sql b/dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
+deleted file mode 100644
+index 21f9c4b..0000000
+--- a/dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
++++ /dev/null
+@@ -1,72 +0,0 @@
+-with src as (
+-    select *
+-    from {{ source('api_football', 'raw_apif_transfers') }}
+-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
+-),
+-
+-exploded as (
+-    select
+-        src.league_code,
+-        src.ingested_at as raw_ingested_at,
+-        row_json,
+-        to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,
+-        safe_cast(json_value(src.payload, '$.results') as int64) as api_reported_result_count,
+-        to_json_string(json_query(src.payload, '$.parameters')) as request_parameters_json
+-    from src,
+-        unnest({{ apif_payload_response_json_strings('src') }}) as row_json
+-),
+-
+-transfer_rows_raw as (
+-    select
+-        league_code,
+-        raw_ingested_at,
+-        api_errors_json,
+-        api_reported_result_count,
+-        request_parameters_json,
+-        row_json,
+-        transfer_el
+-    from exploded,
+-        unnest(
+-            coalesce(
+-                json_query_array(json_query(safe.parse_json(row_json), '$.transfers'), '$'),
+-                []
+-            )
+-        ) as transfer_el
+-),
+-
+-transfer_rows as (
+-    select
+-        league_code,
+-        raw_ingested_at,
+-        api_errors_json,
+-        api_reported_result_count,
+-        request_parameters_json,
+-        row_json,
+-        transfer_el,
+-        safe_cast(json_value(row_json, '$.player.id') as int64) as player_id,
+-        json_value(row_json, '$.player.name') as player_name,
+-        json_value(row_json, '$.player.photo') as player_photo_url
+-    from transfer_rows_raw
+-)
+-
+-select
+-    league_code,
+-    raw_ingested_at,
+-    api_errors_json,
+-    api_reported_result_count,
+-    request_parameters_json,
+-    row_json as source_json,
+-    player_id,
+-    player_name,
+-    player_photo_url,
+-    safe_cast(json_value(transfer_el, '$.date') as date) as transfer_date,
+-    json_value(transfer_el, '$.type') as transfer_type,
+-    safe_cast(json_value(transfer_el, '$.teams.out.id') as int64) as from_team_api_id,
+-    json_value(transfer_el, '$.teams.out.name') as from_team_name_snapshot,
+-    safe_cast(json_value(transfer_el, '$.teams.in.id') as int64) as to_team_api_id,
+-    json_value(transfer_el, '$.teams.in.name') as to_team_name_snapshot
+-from transfer_rows
+--- Drop transfers with no usable date (date is part of the transfer grain).
+--- Entity-grain deduplication is NOT done here: it is business logic that
+--- belongs in base_apif__transfers, which dedups at the identical grain.
+-where safe_cast(json_value(transfer_el, '$.date') as date) is not null
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 95ccf9e..1db0bb6 100644
+index 1db0bb6..df84a24 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -245,3 +245,27 @@ models:
+@@ -220,32 +220,6 @@ models:
+       - name: league_code
          tests: [not_null]
-       - name: transfer_date
-         tests: [not_null]
-+
-+  - name: base_apif__player_team_season
-+    description: >
-+      Rostered player↔team↔season membership from the /players squad source
-+      (stg_apif__players), including squad members who never played a match.
-+      Grain: (league_code, player_id, team_id, season_year), latest ingest per grain.
-+    config:
-+      tags: ["base", "api_football", "player_context"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns:
-+            - league_code
-+            - player_id
-+            - team_id
-+            - season_year
-+    columns:
-+      - name: league_code
-+        tests: [not_null]
-+      - name: player_id
-+        tests: [not_null]
-+      - name: team_id
-+        tests: [not_null]
-+      - name: season_year
-+        tests: [not_null]
+ 
+-  - name: base_apif__transfers
+-    description: >
+-      Deduplicated transfer events from stg_apif__transfers.
+-      Resolves duplicate entries that the API occasionally returns within a
+-      single player's transfers array by keeping the most recently ingested row
+-      per transfer grain. Grain: (league_code, player_id, transfer_date,
+-      from_team_api_id, to_team_api_id, transfer_type).
+-    config:
+-      tags: ["base", "api_football", "player_context"]
+-    tests:
+-      - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns:
+-            - league_code
+-            - player_id
+-            - transfer_date
+-            - from_team_api_id
+-            - to_team_api_id
+-            - transfer_type
+-    columns:
+-      - name: league_code
+-        tests: [not_null]
+-      - name: player_id
+-        tests: [not_null]
+-      - name: transfer_date
+-        tests: [not_null]
+-
+   - name: base_apif__player_team_season
+     description: >
+       Rostered player↔team↔season membership from the /players squad source
 diff --git a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-new file mode 100644
-index 0000000..5a21368
---- /dev/null
+index 5a21368..cf84f30 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-@@ -0,0 +1,24 @@
-+-- Rostered player↔team↔season affiliation: one row per player per team per season,
-+-- taken directly from the /players squad source (stg_apif__players). This captures
-+-- squad members who never played a match — which no appearance/transfer fact can
-+-- express — so membership is single-source ROSTERED, never derived from facts.
-+-- Grain: (league_code, player_id, team_id, season_year). league_code flows through.
-+with src as (
-+    select * from {{ ref('stg_apif__players') }}
-+)
-+
-+select
-+    league_code,
-+    player_id,
-+    team_id,
-+    season_year,
-+    raw_ingested_at
-+from src
-+where
-+    player_id is not null
-+    and team_id is not null
-+    and season_year is not null
-+qualify row_number() over (
-+    partition by league_code, player_id, team_id, season_year
-+    order by raw_ingested_at desc
-+) = 1
+@@ -1,7 +1,7 @@
+ -- Rostered player↔team↔season affiliation: one row per player per team per season,
+ -- taken directly from the /players squad source (stg_apif__players). This captures
+--- squad members who never played a match — which no appearance/transfer fact can
+--- express — so membership is single-source ROSTERED, never derived from facts.
++-- squad members who never played a match — which no fact can express — so membership
++-- is single-source ROSTERED, never derived from facts.
+ -- Grain: (league_code, player_id, team_id, season_year). league_code flows through.
+ with src as (
+     select * from {{ ref('stg_apif__players') }}
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index 6e265aa..8f9d2ba 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -1,6 +1,8 @@
+--- Two sources:
++-- Player identity, unioned from three sources (lowest source_priority wins per
++-- (league_code, player_api_id)):
+ --   priority 1 — /players endpoint (biographical attributes, most complete)
+---   priority 2 — transfers fallback (covers players known only from transfer history)
++--   priority 2 — fixture player stats (match appearances)
++--   priority 3 — fixture events (broadest appearance coverage)
+ -- Output grain: (league_code, player_api_id) — one row per player per league.
+ -- base_apif__players_global deduplicates further to one row per player_api_id.
+ with players_src as (
+@@ -21,27 +23,6 @@ with players_src as (
+     where player_id is not null
+ ),
+ 
+--- Transfers fallback: provides player identity for players who appear in transfer
+--- history but have no /players endpoint record. BL1 only for now; extend this CTE
+--- when additional leagues gain transfer base models.
+-transfers_src as (
+-    select
+-        league_code,
+-        player_id as player_api_id,
+-        player_name,
+-        cast(null as string) as player_first_name,
+-        cast(null as string) as player_last_name,
+-        cast(null as date) as player_birth_date,
+-        cast(null as string) as player_nationality,
+-        player_photo_url,
+-        cast(null as int64) as last_known_team_api_id,
+-        cast(null as int64) as last_known_season_year,
+-        raw_ingested_at,
+-        2 as source_priority
+-    from {{ ref('base_apif__transfers') }}
+-    where player_id is not null
+-),
+-
+ -- Match-appearance fallback: players seen in fixture player stats but absent from the
+ -- above. Completes dim_player so player-stat / leg facts have valid FKs. Only id, name,
+ -- photo and the team they appeared for are known from this source.
+@@ -58,7 +39,7 @@ fixture_players_src as (
+         team_id as last_known_team_api_id,
+         cast(null as int64) as last_known_season_year,
+         raw_ingested_at,
+-        3 as source_priority
++        2 as source_priority
+     from {{ ref('stg_apif__fixture_players') }}
+     where player_id is not null and player_id != 0
+ ),
+@@ -78,7 +59,7 @@ fixture_events_src as (
+         cast(null as int64) as last_known_team_api_id,
+         cast(null as int64) as last_known_season_year,
+         raw_ingested_at,
+-        4 as source_priority
++        3 as source_priority
+     from {{ ref('base_apif__fixture_events') }}
+     where
+         safe_cast(player_id as int64) is not null
+@@ -88,8 +69,6 @@ fixture_events_src as (
+ src as (
+     select * from players_src
+     union all
+-    select * from transfers_src
+-    union all
+     select * from fixture_players_src
+     union all
+     select * from fixture_events_src
+diff --git a/dbt_project/models/2_base/api_football/base_apif__transfers.sql b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
+deleted file mode 100644
+index 984e5d1..0000000
+--- a/dbt_project/models/2_base/api_football/base_apif__transfers.sql
++++ /dev/null
+@@ -1,32 +0,0 @@
+-with src as (
+-    select * from {{ ref('stg_apif__transfers') }}
+-    where player_id is not null and league_code = 'BL1'
+-)
+-
+-select
+-    league_code,
+-    player_id,
+-    player_name,
+-    player_photo_url,
+-    transfer_date,
+-    transfer_type,
+-    from_team_api_id,
+-    from_team_name_snapshot,
+-    to_team_api_id,
+-    to_team_name_snapshot,
+-    raw_ingested_at,
+-    source_json,
+-    api_errors_json,
+-    api_reported_result_count,
+-    request_parameters_json
+-from src
+-qualify row_number() over (
+-    partition by
+-        league_code,
+-        player_id,
+-        transfer_date,
+-        from_team_api_id,
+-        to_team_api_id,
+-        transfer_type
+-    order by raw_ingested_at desc
+-) = 1
 diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 263b175..353c9d1 100644
+index 353c9d1..cce2c0d 100644
 --- a/dbt_project/models/3_core/core.yml
 +++ b/dbt_project/models/3_core/core.yml
-@@ -235,6 +235,70 @@ models:
-       - name: raw_ingested_at
-         description: "UTC timestamp of the raw row this dimension row was derived from."
+@@ -12,7 +12,6 @@ version: 2
+ #   - surrogate key: unique + not_null
+ #   - natural-key grain: dbt_utils.unique_combination_of_columns
+ #   - every FK to a dim: not_null + relationships (severity error by default)
+-#     exception: fct_transfer.{from,to}_team_sk are nullable by design (cross-league teams) and use severity warn
+ #   - accepted_values on closed API enums (severity warn while the data still backfills)
  
-+  - name: dim_player_team_season_mapping
-+    description: >
-+      Relationship (mapping) dimension: rostered player↔team↔season membership.
-+      Grain: (player_sk, team_sk, league_code, season_api_year) — one row per player per
-+      team per season they were in the /players roster, including squad members with zero
-+      appearances. An association across dimensions, not an entity dim and not a fact (no
-+      measures, no descriptive attributes — only participating keys + lineage). On its
-+      grain key it is a clean one-row-per-key lookup; joining on a single participating key
-+      (e.g. player_sk) resolves a many-to-many and returns many rows by design. Use this
-+      for "which team/competition was a player part of, when"; appearances live in
-+      fct_fixture_player_stats, moves in fct_transfer. See the "relationship (mapping)
-+      dimensions" clause in dbt_project/docs/layering.md.
-+    meta:
-+      owner: "data-platform"
-+      domain: "football"
-+      criticality: "medium"
-+    config:
-+      tags: ["core", "dimension"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns:
-+            - player_sk
-+            - team_sk
-+            - league_code
-+            - season_api_year
-+    columns:
-+      - name: player_team_season_sk
-+        description: "Surrogate key over (player_id, team_id, league_code, season_year) — the relationship grain."
-+        tests: [not_null, unique]
-+      - name: player_sk
-+        description: "FK to dim_player (player_api_id cast to INT64)."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_player')
-+              field: player_sk
-+      - name: team_sk
-+        description: "FK to dim_team (team_api_id cast to INT64)."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: season_sk
-+        description: "FK to dim_competition_season, resolved by (league_code, season_api_year). Nullable: a roster season uncovered by /leagues yields null rather than dropping the membership."
-+        tests:
-+          - relationships:
-+              to: ref('dim_competition_season')
-+              field: season_sk
-+      - name: league_sk
-+        description: "FK to dim_league, resolved via dim_competition_season. Nullable for the same reason as season_sk."
-+        tests:
-+          - relationships:
-+              to: ref('dim_league')
-+              field: league_sk
-+      - name: league_code
-+        description: "Internal league code — the competition the roster belongs to."
-+        tests: [not_null]
-+      - name: season_api_year
-+        description: "API-Football season year of the roster."
-+        tests: [not_null]
-+      - name: raw_ingested_at
-+        description: "UTC timestamp of the raw row this membership row was derived from."
-+
-   - name: fct_fixture
-     description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
+ models:
+@@ -245,7 +244,7 @@ models:
+       grain key it is a clean one-row-per-key lookup; joining on a single participating key
+       (e.g. player_sk) resolves a many-to-many and returns many rows by design. Use this
+       for "which team/competition was a player part of, when"; appearances live in
+-      fct_fixture_player_stats, moves in fct_transfer. See the "relationship (mapping)
++      fct_fixture_player_stats. See the "relationship (mapping)
+       dimensions" clause in dbt_project/docs/layering.md.
      meta:
+       owner: "data-platform"
+@@ -634,62 +633,6 @@ models:
+         description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
+       - name: raw_ingested_at
+ 
+-  - name: fct_transfer
+-    description: "Player transfer events. Grain: transfer_sk hashed over (league_code, player, date, from_team, to_team, type). Transfer event expansion/parsing is done in staging. from_team_sk / to_team_sk are nullable because transfers often involve teams outside the configured leagues; both legs keep api_id and name_snapshot regardless."
+-    meta:
+-      owner: "data-platform"
+-      domain: "football"
+-      criticality: "medium"
+-    config:
+-      tags: ["core", "fact"]
+-    columns:
+-      - name: transfer_sk
+-        description: "Surrogate key hashing the transfer grain."
+-        tests: [not_null, unique]
+-      - name: player_sk
+-        description: "FK to dim_player."
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_player')
+-              field: player_sk
+-      - name: from_team_sk
+-        description: "FK to dim_team for the selling side. Nullable: cross-league outgoing teams are not in dim_team."
+-        tests:
+-          - relationships:
+-              to: ref('dim_team')
+-              field: team_sk
+-              severity: warn
+-              where: "from_team_sk is not null"
+-      - name: to_team_sk
+-        description: "FK to dim_team for the buying side. Nullable: cross-league incoming teams are not in dim_team."
+-        tests:
+-          - relationships:
+-              to: ref('dim_team')
+-              field: team_sk
+-              severity: warn
+-              where: "to_team_sk is not null"
+-      - name: transfer_date_sk
+-        description: "FK to dim_date on the transfer date."
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_date')
+-              field: date_sk
+-      - name: league_code
+-        tests: [not_null]
+-      - name: player_api_id
+-        tests: [not_null]
+-      - name: transfer_date
+-        tests: [not_null]
+-      - name: transfer_type
+-        description: "Transfer type as delivered by the API (e.g. Free, Loan, N/A)."
+-      - name: from_team_api_id
+-      - name: from_team_name_snapshot
+-      - name: to_team_api_id
+-      - name: to_team_name_snapshot
+-      - name: raw_ingested_at
+-
+   - name: fct_team_market_value_snapshot
+     description: >
+       Team-level squad market value estimate snapshots (published-style total EUR). Grain:
 diff --git a/dbt_project/models/3_core/dim_player_team_season_mapping.sql b/dbt_project/models/3_core/dim_player_team_season_mapping.sql
-new file mode 100644
-index 0000000..2fd8329
---- /dev/null
+index 2fd8329..6252125 100644
+--- a/dbt_project/models/3_core/dim_player_team_season_mapping.sql
 +++ b/dbt_project/models/3_core/dim_player_team_season_mapping.sql
-@@ -0,0 +1,66 @@
-+{{ config(materialized='table') }}
+@@ -10,7 +10,7 @@
+     "relationship (mapping) dimensions" clause in dbt_project/docs/layering.md.
+ 
+     Use this to answer "which team/competition was a player part of, when". "Did they
+-    play" lives in fct_fixture_player_stats; "did they move" lives in fct_transfer.
++    play" lives in fct_fixture_player_stats.
+ 
+     A player legitimately produces multiple rows: a mid-season transfer (two teams,
+     same season) and club + national-team membership in the same window are both real.
+diff --git a/dbt_project/models/3_core/fct_transfer.sql b/dbt_project/models/3_core/fct_transfer.sql
+deleted file mode 100644
+index 8696ccd..0000000
+--- a/dbt_project/models/3_core/fct_transfer.sql
++++ /dev/null
+@@ -1,43 +0,0 @@
+-{{ config(materialized='table') }}
+-
+-{#
+-    One row per transfer event per player. A player can have many transfers;
+-    transfers_json is an array on the player staging row.
+-
+-    Transfers frequently involve teams outside D1 (e.g. incoming from a foreign
+-    league), which will not resolve to dim_team. from_team_sk / to_team_sk are
+-    therefore nullable by design; from_team_api_id / from_team_name_snapshot
+-    always come through so the fact stays self-sufficient.
+-#}
+-
+-with import_base_apif__transfers as (
+-    select * from {{ ref('base_apif__transfers') }}
+-)
+-
+-select
+-    {{ dbt_utils.generate_surrogate_key([
+-        'league_code',
+-        'player_id',
+-        'transfer_date',
+-        'from_team_api_id',
+-        'to_team_api_id',
+-        'transfer_type'
+-    ]) }} as transfer_sk,
+-    cast(player_id as int64) as player_sk,
+-    case
+-        when from_team_api_id is not null then cast(from_team_api_id as int64)
+-    end as from_team_sk,
+-    case
+-        when to_team_api_id is not null then cast(to_team_api_id as int64)
+-    end as to_team_sk,
+-    cast(format_date('%Y%m%d', transfer_date) as int64) as transfer_date_sk,
+-    league_code,
+-    player_id as player_api_id,
+-    transfer_date,
+-    transfer_type,
+-    from_team_api_id,
+-    from_team_name_snapshot,
+-    to_team_api_id,
+-    to_team_name_snapshot,
+-    raw_ingested_at
+-from import_base_apif__transfers
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 5933903..1e4448b 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -1,6 +1,6 @@
+ # Data contract: API-Football → BigQuery
+ 
+-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eight raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
++Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same seven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+ 
+ API references:
+ 
+@@ -30,7 +30,7 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+ 
+ ## Unified raw tables
+ 
+-Eight tables serve the entire fleet of competitions. No per-competition raw tables exist.
++Seven tables serve the entire fleet of competitions. No per-competition raw tables exist.
+ 
+ | Table | Write mode | Partition | Cluster | Merge key |
+ |-------|------------|-----------|---------|-----------|
+@@ -39,7 +39,6 @@ Eight tables serve the entire fleet of competitions. No per-competition raw tabl
+ | `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
+-| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
+ 
+@@ -49,7 +48,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
+ 
+ ## Append-only writes (reference tables)
+ 
+-Reference tables — fixtures-next, standings, teams, transfers, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
++Reference tables — fixtures-next, standings, teams, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
+ 
+ 1. The pipeline calls the API for all configured seasons (the full history window).
+ 2. The complete response is written as a new row with the current UTC timestamp.
+@@ -99,7 +98,7 @@ Data is complete when four conditions hold:
+ 
+ 1. **Coverage** — every in-scope raw table has been refreshed, and staging has been rebuilt on top of that refresh.
+ 2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
+-3. **Freshness** — when new source data appears (matchdays, transfers), the next run merges it into the corresponding raw tables.
++3. **Freshness** — when new source data appears (matchdays, results), the next run merges it into the corresponding raw tables.
+ 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
+ 
+ Heavy per-match coverage typically takes several runs under daily API limits; that is expected behaviour, not an outage. Each check below answers one of the four conditions:
+@@ -125,7 +124,6 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
+ | League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_APIF_LEAGUES` |
+ | Standings | `/standings` | `RAW_APIF_STANDINGS` |
+ | Teams | `/teams` | `RAW_APIF_TEAMS` |
+-| Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_TRANSFERS` |
+ | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
+ | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
+ | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
+@@ -133,13 +131,15 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
+ 
+ **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
+ 
++**Retired:** `/transfers` → `RAW_APIF_TRANSFERS` is no longer ingested. Nothing consumed transfers — `fct_transfer` was a leaf fact with no mart/export/UI reader, and the only internal use was a `dim_player` identity fallback feeding that unconsumed fact. Club changes are derivable from `dim_player_team_season_mapping` (season-level roster diffs) if ever needed. The daily call was removed to save quota; the staging/base/core transfers models were deleted and the `RAW_APIF_TRANSFERS` table is dropped post-merge. Reintroduce only if a feature needs the transfer date / type / cross-league detail the roster mapping cannot express.
 +
-+{#
-+    Rostered player↔team↔season membership (conformed). One row per player per team
-+    per season they were in the /players roster — including squad members with zero
-+    appearances. A relationship (mapping) dimension, not an entity dim and not a fact:
-+    no measures, no descriptive attributes — only the participating keys (plus lineage).
-+    Its grain is one row per association occurrence, so joining on a single participating
-+    key (e.g. player_sk) resolves a many-to-many and returns many rows by design. See the
-+    "relationship (mapping) dimensions" clause in dbt_project/docs/layering.md.
-+
-+    Use this to answer "which team/competition was a player part of, when". "Did they
-+    play" lives in fct_fixture_player_stats; "did they move" lives in fct_transfer.
-+
-+    A player legitimately produces multiple rows: a mid-season transfer (two teams,
-+    same season) and club + national-team membership in the same window are both real.
-+
-+    season_sk / league_sk are resolved by lookup against dim_competition_season on
-+    (league_code, season_api_year) — the roster source carries league_code, not
-+    league_api_id. season_sk is nullable: a roster season with no competition-season
-+    row (uncovered by /leagues) yields null rather than dropping the membership.
-+
-+    The lookup CTE is reduced to one row per (league_code, season_api_year) first:
-+    dim_competition_season's TESTED grain is (league_api_id, season_api_year), and a
-+    league_code maps to one league_api_id by registry design (one provider_league_id
-+    per competition) — but that 1:1 is not tested, so the dedup guarantees the join
-+    cannot fan out and duplicate membership rows even if the invariant were violated.
-+    With the invariant intact it is a no-op.
-+#}
-+
-+with base_apif__player_team_season as (
-+    select * from {{ ref('base_apif__player_team_season') }}
-+),
-+
-+dim_competition_season as (
-+    select
-+        league_code,
-+        season_api_year,
-+        season_sk,
-+        league_sk
-+    from {{ ref('dim_competition_season') }}
-+    qualify row_number() over (
-+        partition by league_code, season_api_year
-+        order by season_sk
-+    ) = 1
-+)
-+
-+select
-+    {{ dbt_utils.generate_surrogate_key([
-+        'pts.player_id',
-+        'pts.team_id',
-+        'pts.league_code',
-+        'pts.season_year'
-+    ]) }} as player_team_season_sk,
-+    cast(pts.player_id as int64) as player_sk,
-+    cast(pts.team_id as int64) as team_sk,
-+    cs.season_sk,
-+    cs.league_sk,
-+    pts.league_code,
-+    pts.season_year as season_api_year,
-+    pts.raw_ingested_at
-+from base_apif__player_team_season as pts
-+left join dim_competition_season as cs
-+    on
-+        pts.league_code = cs.league_code
-+        and pts.season_year = cs.season_api_year
+ ### /fixtures query style
+ 
+ Default is `season` (`league` + `season` only). Alternative modes `from_to` and `next` exist for other use cases; `next` typically requires a paid plan. Fixture paging (`page=`) is only sent when `API_FOOTBALL_FIXTURE_USE_PAGE=1`, because many plans reject it.
+ 
+ ### Pagination
+ 
+-`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, `/standings`, or `/transfers`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in per endpoint with `API_FOOTBALL_FIXTURE_USE_PAGE=1` or `API_FOOTBALL_TRANSFERS_USE_PAGE=1` only when the key is known to support it.
++`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, or `/standings`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
+ 
+ ### Coverage flags
+ 
+@@ -160,7 +160,7 @@ Mapping from a typical API-Football subscription list to what this repository in
+ | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
+ | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
+ | Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
+-| Player transfers | Yes — `GET /transfers` by team |
++| Player transfers | Retired — `/transfers` no longer ingested (see Retired note above); club changes are derivable from `dim_player_team_season_mapping` |
+ | Pre-match / in-play odds | Not in this repo (no odds ingest) |
+ | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+ | Predictions | Removed in PR #237 — not ingested |
+diff --git a/docs/operations_guide.md b/docs/operations_guide.md
+index a4a337d..0c62140 100644
+--- a/docs/operations_guide.md
++++ b/docs/operations_guide.md
+@@ -111,14 +111,6 @@ Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `
+ 
+ `1` / `true` / `yes` skips `/players` squad pulls. Use on cursor archive runs when squads are refreshed on a separate schedule.
+ 
+-#### `API_FOOTBALL_FETCH_TRANSFERS` (optional)
+-
+-`1` (default) loads `/transfers`. Set to `0` / `false` / `no` to skip transfers entirely.
+-
+-#### `API_FOOTBALL_TRANSFERS_USE_PAGE` (optional)
+-
+-Whether to send `page=` on `/transfers`. Default `0`, because many plans (including free and several paid tiers) reject paging on this endpoint with `"The Page field do not exist."`. Pairs with `API_FOOTBALL_TRANSFERS_MAX_PAGE` (default `3`) when enabled.
+-
+ #### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
+ 
+ Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing under economy profile and `0` under `full`. Set explicitly to enforce a specific rate.
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index 09d7de7..5878c23 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -1,7 +1,7 @@
+ """Ingestion pipeline for a single competition.
+ 
+ Two entry points:
+-- run_cheap_phases(): catalog → fixtures → standings → teams → transfers.
++- run_cheap_phases(): catalog → fixtures → standings → teams → injuries → coaches.
+   Returns CompetitionRunResult so the orchestrator can collect all competitions' state before
+   running the global fanout pass.
+ - run_squads_for_competition(): squad /players batch, run after global fanout.
+@@ -21,7 +21,6 @@ from .injuries import load_injuries
+ from .squads import load_squad_players_batch
+ from .standings import load_standings_if_enabled
+ from .teams import load_teams_merge_and_extend_ids
+-from .transfers import load_transfers_if_enabled
+ 
+ 
+ def _ingestion_phase(league_code: str, step: str) -> None:
+@@ -88,8 +87,6 @@ def run_cheap_phases(
+         load_teams_merge_and_extend_ids(
+             ctx, league_code, league_id, seasons_list, reference_season, team_ids
+         )
+-        _ingestion_phase(league_code, "transfers")
+-        load_transfers_if_enabled(ctx, league_code, team_ids)
+         _ingestion_phase(league_code, "injuries")
+         load_injuries(ctx, league_code, league_id, seasons_list)
+         _ingestion_phase(league_code, "coaches")
+diff --git a/ingestion/api_football/loads/transfers.py b/ingestion/api_football/loads/transfers.py
+deleted file mode 100644
+index ee4facc..0000000
+--- a/ingestion/api_football/loads/transfers.py
++++ /dev/null
+@@ -1,74 +0,0 @@
+-"""Fetch /transfers per team → RAW_*_TRANSFERS.
+-
+-Each run fetches transfers for all current teams and appends a fresh snapshot row.
+-No cross-run merge: we fetch all teams on every run so the snapshot is complete.
+-"""
+-
+-from __future__ import annotations
+-
+-import os
+-
+-from .. import quota as errors_quota
+-from ..bigquery import load_json_to_bq
+-from ..settings import _env_int, raw_table
+-from ..quota import append_api_errors, _flatten_api_errors
+-from ..http_client import fetch_merged_paged
+-from .context import PipelineContext
+-
+-
+-def load_transfers_if_enabled(
+-    ctx: PipelineContext,
+-    league_code: str,
+-    team_ids: set[int],
+-) -> None:
+-    if os.getenv("API_FOOTBALL_FETCH_TRANSFERS", "1").strip().lower() in (
+-        "0",
+-        "false",
+-        "no",
+-    ):
+-        return
+-    try:
+-        use_page = os.getenv("API_FOOTBALL_TRANSFERS_USE_PAGE", "0").strip().lower() in (
+-            "1",
+-            "true",
+-            "yes",
+-        )
+-        tr_pages = _env_int("API_FOOTBALL_TRANSFERS_MAX_PAGE", 3)
+-        merged_tr: list = []
+-        tr_errors: list[str] = []
+-        tr_meta: dict | None = None
+-        for tid in sorted(team_ids):
+-            if errors_quota._http_quota_exhausted:
+-                break
+-            tr_part = fetch_merged_paged(
+-                "/transfers",
+-                ctx.headers,
+-                {"team": tid},
+-                paginate=use_page,
+-                max_pages=tr_pages if use_page else None,
+-            )
+-            if tr_meta is None:
+-                tr_meta = {
+-                    k: v
+-                    for k, v in tr_part.items()
+-                    if k not in ("response", "errors", "results", "paging")
+-                }
+-            tr_errors.extend(_flatten_api_errors(tr_part.get("errors")))
+-            merged_tr.extend(tr_part.get("response") or [])
+-        tr = dict(tr_meta or {})
+-        tr["errors"] = tr_errors
+-        tr["response"] = merged_tr
+-        tr["results"] = len(merged_tr)
+-        tr["paging"] = {"current": 1, "total": 1}
+-        append_api_errors(tr, f"transfers {league_code}", ctx.errors)
+-        load_json_to_bq(
+-            ctx.client,
+-            raw_table("TRANSFERS"),
+-            tr,
+-            as_json_payload=True,
+-            append=True,
+-            league_code=league_code,
+-        )
+-        ctx.add_loaded(1)
+-    except Exception as e:
+-        ctx.errors.append(f"transfers {league_code}: {e}")
+diff --git a/ingestion/api_football/main.py b/ingestion/api_football/main.py
+index 57943bc..5382a66 100644
+--- a/ingestion/api_football/main.py
++++ b/ingestion/api_football/main.py
+@@ -2,7 +2,7 @@
+ API-Football → BigQuery raw loads (D1 MVP).
+ 
+ **Ingestion model:** one job loads the raw tables this repo defines (fixtures, league
+-metadata, standings, teams, transfers, squad ``/players``, and per-fixture bundles).
++metadata, standings, teams, squad ``/players``, and per-fixture bundles).
+ There is no hidden “extra” data tier—only API coverage and your plan’s limits.
+ 
+ **Configuration:** unset ``API_FOOTBALL_INGEST_PROFILE`` for the warehouse default
+diff --git a/ingestion/api_football/quota.py b/ingestion/api_football/quota.py
+index 68ee194..160a6d6 100644
+--- a/ingestion/api_football/quota.py
++++ b/ingestion/api_football/quota.py
+@@ -10,7 +10,7 @@ import time
+ _last_requests_remaining: int | None = None
+ 
+ # When API-Sports returns the daily cap in the JSON body, stop issuing further HTTP in this run
+-# (avoids hammering /transfers per team and per-fixture bundles after quota is gone).
++# (avoids hammering per-fixture bundles after quota is gone).
+ _http_quota_exhausted: bool = False
+ _pipeline_errors_for_quota: list[str] | None = None
+ 
+diff --git a/ingestion/api_football/settings.py b/ingestion/api_football/settings.py
+index 5996c92..a88f426 100644
+--- a/ingestion/api_football/settings.py
++++ b/ingestion/api_football/settings.py
+@@ -143,7 +143,6 @@ def _apply_ingest_profile_defaults() -> None:
+     d.setdefault("API_FOOTBALL_ALL_SEASONS", "1")
+     d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
+     d.setdefault("API_FOOTBALL_PLAYERS_MAX_PAGE", "50")
+-    d.setdefault("API_FOOTBALL_TRANSFERS_MAX_PAGE", "50")
+     d.setdefault("API_FOOTBALL_PLAYERS_RESERVE_CALLS", "20")
+     d.setdefault("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", "-1")
+     d.setdefault("API_FOOTBALL_MAX_PAGES", "250")
