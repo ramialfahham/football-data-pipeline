@@ -1,42 +1,56 @@
-# Review — chore/retire-dead-pages-triggers — 2026-06-13
+# Review — governance/gate-integrity-409 — 2026-06-13
 
-> Issue #422 (audit F13): remove six dead per-competition staging path triggers
-> (pl/pd/bl2/sa/l1/vl) from .github/workflows/pages-match-preview.yml. Protected path —
-> protected_override (CPO "Option 1 granted", 2026-06-13). Required reviewers for
-> .github/workflows/**: scope-auditor + cto-reviewer. Both PASS first iteration.
+> #409 (F10/F11) + #421 (F12) gate-integrity bundle. CPO gate-lift + fix picks recorded in
+> escalations.log (2026-06-13): F10=(a) stop exempting contract.md; F11=(a) hash
+> branch-diff-excluding-artifacts (CI recomputes); F12 demote the redundant global check.
+> Protected paths under protected_override. Required reviewers: scope-auditor (always) +
+> cto-reviewer (.claude/hooks/**, scripts/**, review_routing.json; opus-on-guards).
+> Three cold iterations: iter-1 PASS/PASS with two cto findings (untested local==CI
+> invariant; stale REVIEW_TEMPLATE caption) — addressed; iter-2 cto ESCALATE (the invariant
+> test covered only adds; blob-abbrev length unpinned) — resolved by --no-abbrev on both diff
+> sides + a modified-base-file end-to-end test; iter-3 both PASS against the hash below.
 
-diff_sha256: 1cd28110bd28c1ca2d2447c01ccdeda7170c89ad8f5fa5c15145a37647306efb
+diff_sha256: 367bfb63b83114e8cedfc9cf0b2fc8d54fda18909ce0ef29ea756526da611708
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Protected-path authorization: the contract carries a protected_override quoting CPO
-  approval 2026-06-13 ("Option 1 granted"), specific to #422 and to editing
-  .github/workflows/pages-match-preview.yml — dated, contemporaneous, not a blanket grant.
-  Only the declared scope_paths are touched; no other protected file.
-- Behaviour-preserving + scope discipline: the generic "dbt_project/models/1_staging/**"
-  trigger remains and subsumes the six removed per-competition globs (which are strict
-  sub-paths), so no push that previously triggered the deploy is now missed; the per-competition
-  staging dirs are forbidden by the zero-file rule (check_layer_contract.py) and don't exist,
-  so the triggers were permanently dead. The diff removes ONLY those six lines — other
-  stale-looking triggers (retired wc_supporting_league_codes.csv seed, stale mart paths)
-  were left untouched (they belong to #430), no scope creep.
+- Authorization + strictness (highest-stakes guard change): the CPO gate-lift and the
+  F10(a)/F11(a) fix picks are recorded in .claude/task/escalations.log (2026-06-13) and the
+  contract carries protected_override naming them; every change STRENGTHENS the gate
+  (artifact_only_never carves contract.md out of the exempt lane; hash_exclude_paths +
+  CI recompute bind the review to the PR) — nothing loosens routing, broadens artifact_only,
+  or adds a bypass. Diff touches only the declared scope_paths.
+- Faithfulness + hole-closure with tests: F10 (contract.md never artifact-exempt) enforced
+  identically in git_discipline.py and check_task_artifacts.py; F11 binds code+contract via
+  the excluded-diff hash, recomputed by CI; F12 demotes the global escalate-count to a
+  commented secondary while the per-section loop stays authoritative. New tests prove the
+  closed holes: contract-only commit denied (local + CI), stale review hash rejected by CI
+  (#405), and the load-bearing local-==-CI invariant end-to-end over a MODIFIED base file.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Trigger subsumption / no missed-trigger regression: GitHub Actions path globs are OR-based;
-  each removed glob (1_staging/api_football/{pl,…}/**) is a strict sub-path of the surviving
-  generic "1_staging/**" (line 12), so every push the six could have matched is still covered.
-  No behaviour change to which pushes fire the deploy.
-- Dead-trigger verification + structural integrity + guard safety: Glob of
-  1_staging/api_football/ shows only flat files (no pl/pd/bl2/sa/l1/vl subdirs);
-  check_layer_contract.py hard-fails CI if any per-competition staging subdir appears, so the
-  triggers are structurally guaranteed dead. The six contiguous lines were removed cleanly;
-  the rest of on.push.paths and the whole workflow (jobs, the permissions block contents:read /
-  id-token:write / pages:write) are byte-for-byte unchanged; no credentials/secrets in the diff;
-  protected_override authority recorded.
+- F11 byte-equivalence (load-bearing): all three diff sites (git_discipline _staged_diff_bytes,
+  check_task_artifacts recompute, test branch_hash) use identical `--no-renames --no-abbrev`
+  + the same `:(exclude)` pathspec. For identical content the local staged diff and the CI
+  `base...HEAD` recompute are byte-identical across all shapes — new file, MODIFIED
+  base-resident file (base blob == HEAD-side old blob; --no-abbrev removes abbreviation-length
+  divergence; --no-renames removes rename-detection divergence), and excluded bookkeeping.
+  The invariant is UNCONDITIONAL for the supported single-substantive-commit flow and
+  test-locked end-to-end by test_local_staged_hash_equals_ci_recompute (add + modify +
+  excluded together). Residual vectors (split/amended commits, diverged base) all fail CLOSED.
+- F10 dual-gate consistency + F12 + fail-mode/scope: contract.md is in artifact_only_never in
+  BOTH gates and deliberately NOT in hash_exclude_paths (so it is hashed); other bookkeeping
+  stays exempt+excluded — locked by three tests. F12 keeps the global check as a commented
+  SECONDARY backstop with the per-section loop AUTHORITATIVE (no weakening). Fail polarity is
+  correct: local gate fails OPEN (try/except → no self-lockout; _hash_exclude_pathspec(None)
+  safe), CI fails CLOSED (check=True + non-zero on error). Only declared scope_paths;
+  protected_override present; no allowlist/sole-command/escalation logic weakened.
 
 ## escalations
-(none — both reviewers PASS first iteration. Behaviour-preserving workflow-config cleanup;
-no CI run needed to prove data correctness — the change only removes permanently-dead trigger globs.)
+(none — iter-2 cto ESCALATE on the invariant's test coverage + unpinned abbreviation was
+resolved by hardening (--no-abbrev on both diff sides; the end-to-end test now modifies a
+base-resident file), not escalated to the CPO — it was a fixable robustness gap, not a
+CPO-class decision. Both reviewers PASS in iter-3. The same-PR self-binding is verified
+post-commit by running check_task_artifacts against the PR's own diff.)
