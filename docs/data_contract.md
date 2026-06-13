@@ -11,16 +11,16 @@ API references:
 
 ## Landing zone
 
-Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores that envelope unchanged. Every raw table holds:
+Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores the response data, but loaders that batch multiple calls (per team, per season, or paged) do not keep each raw envelope as-is: most concatenate the calls' `response` arrays into one standard envelope (recomputing `results`/`paging`), while the per-team loaders for **players/squads** and **coaches** store a reshaped `{league_code, response: [...]}` payload without the envelope metadata (each `response` item is itself wrapped — `{team_id, coach}` for coaches, `{team_id, season, players_payload}` for players/squads). The per-item `response` data is preserved in every case. Every raw table holds:
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
-| `payload` | `JSON` | Verbatim API-Football response envelope |
+| `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (see the Landing-zone note above) |
 | `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
 | `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
 
-Nothing is discarded at ingest, so new fields become available to modelling without refetching.
+No `response` data is discarded at ingest, so new fields surface in modelling without refetching; the reshape loaders above drop only the per-call envelope metadata (`get`/`parameters`/`errors`/`results`/`paging`), not the response items.
 
 All raw tables are partitioned by `DATE(ingested_at)` and clustered by `league_code`. Queries that filter on both `league_code` and `ingested_at` read only the relevant league's data within the relevant partition, keeping scan costs low as the table grows across seasons and competitions.
 
@@ -48,7 +48,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
 
 ## Append-only writes (reference tables)
 
-Reference tables — fixtures-next, standings, teams, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
+Reference tables — fixtures-next, standings, teams, players, coaches, injuries, leagues — are written with `WRITE_APPEND`. On every pipeline run:
 
 1. The pipeline calls the API for all configured seasons (the full history window).
 2. The complete response is written as a new row with the current UTC timestamp.
