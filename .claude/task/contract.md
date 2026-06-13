@@ -1,76 +1,63 @@
-# Task contract — retire #410/#411 + declaw #412 (G4 audit cleanup)
+# Task contract — #430 stale supporting_leagues/form_source cleanup
 
-> Retire two never-approved automation relics and declaw a live over-permissioned
-> watchdog, per the G4 audit (F16/#410, F17/#411, F19/#412). Dispositions ruled by the
-> CPO 2026-06-12 (audit table) and the §10 retire/declaw SUBSTANCE + two protected_overrides
-> approved 2026-06-13 ("as recommended", see escalations.log). One PR (shared grant,
-> identical reviewer routing). See docs/working_agreement.md §2/§10.
+> Follow-up to PR #429 (retire the dead supporting_leagues/form_source mechanism, audit
+> F22). Two stale references the CPO deferred at the time. Both are doc/config hygiene with
+> NO runtime effect and NO product-rule change. Part 1 (a dead workflow trigger) is covered
+> by the BATCH protected_override in the STANDING CPO GRANT (escalations.log 2026-06-13);
+> part 2 (the plan doc) is non-protected, within the standing autonomous backlog grant.
+> See docs/working_agreement.md §2.
 
 objective: >
-  #410 (F16) — FULL RETIRE the paused Slack-to-Executor bridge (a never-approved A3
-  mechanism, already paused, no active trigger): delete the three scripts under
-  scripts/slack_bridge/, docs/slack_executor_bridge.md, the bridge line in
-  docs/chat_driven_workflow.md's paused list, AND the paused workflow file
-  .github/workflows/_paused/slack-executor-bridge.yml (PROTECTED — explicit
-  protected_override, escalations.log 2026-06-13). Repo secrets
-  CURSOR_EXECUTOR_BRIDGE_URL/TOKEN are removed by the CPO in settings (outside the tree).
-  #411 (F17) — RETIRE scripts/squad_watch.py (un-budgeted WC API-volume relic; no callers).
-  #412 (F19) — DECLAW the LIVE .github/workflows/ci-failure-watchdog.yml (PROTECTED —
-  explicit protected_override): remove the auto-rerun-failed-jobs step, DROP the
-  `actions: write` permission, KEEP the [CI Failure] issue open/comment notification
-  (`issues: write` + `contents: read`). Update the watchdog behaviour text in
-  docs/chat_driven_workflow.md to match (notification-only, no auto-rerun).
+  Part 1 — remove the dead `push` path-trigger line in
+  .github/workflows/pages-match-preview.yml that lists the DELETED seed
+  dbt_project/seeds/wc_supporting_league_codes.csv (inert; a deleted-file path can never
+  trigger). Surgical: remove only that one line, touch nothing else in the workflow.
+  Part 2 — in docs/pipeline_architecture_plan.md "Step 3" locked-rules section, update the
+  four stale references (lines ~185/189/190/207) to the RETIRED `form_source`/
+  `supporting_leagues` registry mechanism. The PRODUCT RULES (the form windows) are
+  unchanged and stay exactly as written — only the mechanism by which a competition is
+  classified is corrected: classification is now the competition_types taxonomy
+  (competition_type → entity_type club/national), and a national team's qualifier legs are
+  selected by `entity_type = 'national'` recency/season-to-date (int_form_window__team W1 +
+  int_season_to_date__team W2), not an enumerated `supporting_leagues` registry list. Note
+  that an explicit WC↔qualifier parent link is reserved for GAP-18 (`parent_competition`).
 
-refs: audit F16/#410, F17/#411, F19/#412; docs/audits/2026-06_alignment_audit.md ruling table.
+refs: #430; PR #429 (mechanism retirement); audit F22; docs/competition_types taxonomy.
 
 protected_override:
-  approval: CPO, 2026-06-13 ("as recommended" for #410/#411/#412 — escalations.log entry
-    "chore/retire-declaw-automation-g4"). Two explicit overrides beyond the batch
-    dead-trigger grant:
-  - .github/workflows/_paused/slack-executor-bridge.yml  # #410: delete the whole paused workflow (more than a trigger)
-  - .github/workflows/ci-failure-watchdog.yml            # #412: edit a LIVE workflow's logic + narrow its permissions
+  approval: CPO BATCH override in the STANDING CPO GRANT (escalations.log 2026-06-13) —
+    "removing dead/stale entries from .github/workflows/ flagged by the G4 audit … covers
+    #430's pages-match-preview stale trigger". This is exactly that dead trigger line.
+  - .github/workflows/pages-match-preview.yml  # part 1: remove one dead path-trigger line
 
 scope_paths:
-  - scripts/slack_bridge/forward_to_executor.py
-  - scripts/slack_bridge/normalize_brief.py
-  - scripts/slack_bridge/post_thread_update.py
-  - scripts/squad_watch.py
-  - .github/workflows/_paused/slack-executor-bridge.yml
-  - .github/workflows/ci-failure-watchdog.yml
-  - docs/slack_executor_bridge.md
-  - docs/chat_driven_workflow.md
-  - docs/ci_failure_watchdog.md
-  - docs/agent_company_roadmap.md
+  - .github/workflows/pages-match-preview.yml
+  - docs/pipeline_architecture_plan.md
   - .claude/task/contract.md
 
 decisions_taken: >
-  Dispositions + the two protected_overrides are CPO-approved (escalations.log 2026-06-13,
-  "as recommended"). #410/#411 are deletions of never-approved/un-budgeted relics; #412 keeps
-  the useful failure-notification and drops only the unapproved auto-rerun + its broad
-  `actions: write` scope (also removes the flaky-failure-masking behaviour). No behaviour
-  change to any KEPT automation. Other paused workflows (cursor-dispatch.yml, pr-autopilot.yml,
-  project-status-sync.yml) and the active pr-autopilot/pages/board-sync are OUT of scope.
+  Doc/config hygiene only, within the standing grant (part 1 batch override; part 2
+  non-protected). NO product-rule change: the locked form-window rules (last-5 W1 +
+  season-to-matchday W2, pre/during/post-competition phase, season boundaries) are intact
+  and unchanged. CLAUDE.md's form-window rule names neither retired mechanism, so it does
+  not change. Only the retired registry-field references in the plan doc are corrected to
+  the live taxonomy basis. Verified: form_source/supporting_leagues exist only in stale
+  build artifacts (target/, .pyc), the seed is deleted, and competition_types.csv carries
+  the entity_type taxonomy.
 
 decisions_reserved:
-  - Repo-secret removal (CURSOR_EXECUTOR_BRIDGE_URL/TOKEN) is a CPO settings action, NOT done here.
-  - Keep it surgical: retire exactly the named #410/#411 assets; for #412 change ONLY the
-    auto-rerun step + the `actions: write` permission + the matching doc/body text — do NOT
-    alter the watched-workflow list, the issue title/dedup logic, or the notification body
-    beyond removing the now-false "auto-rerun" line. Do NOT touch any other workflow or the
-    two unrelated paused workflows. If a reviewer finds a kept automation would break, STOP.
+  - Keep it surgical. Do NOT alter the form-window product rules, the window models, the
+    other pages-match-preview triggers, or CLAUDE.md/memory. If a reviewer finds the plan
+    doc's rule TEXT (not the mechanism names) is itself wrong vs the implementation, STOP and
+    surface it rather than rewriting the rule here — that would be a §10 product question.
 
 done_when:
-  - #410: the 3 slack_bridge scripts, docs/slack_executor_bridge.md, and
-    _paused/slack-executor-bridge.yml are deleted; the bridge entry is gone from
-    chat_driven_workflow.md's paused list AND its index link is removed from
-    docs/agent_company_roadmap.md; no remaining repo reference to the slack bridge
-    scripts/workflow (the historical audit record + secrets-in-settings excepted).
-  - #411: scripts/squad_watch.py is deleted; no remaining caller.
-  - #412: ci-failure-watchdog.yml no longer reruns jobs and no longer declares
-    `actions: write`; it still opens/comments the [CI Failure] issue (`issues: write`,
-    `contents: read`); the issue body no longer claims an auto-rerun; chat_driven_workflow.md's
-    watchdog behaviour text AND docs/ci_failure_watchdog.md match (notification-only, no
-    auto-rerun). The workflow still parses (valid YAML).
-  - reviewers: scope-auditor (always) + cto-reviewer (scripts/** + .github/workflows/**) — PASS.
+  - pages-match-preview.yml no longer lists wc_supporting_league_codes.csv; every other
+    trigger line is byte-identical; YAML still valid.
+  - the plan doc no longer references form_source/supporting_leagues as live; the four spots
+    describe the competition_types taxonomy + the live window models instead; the form-window
+    RULES are unchanged; no remaining source reference to the retired mechanism (stale
+    build artifacts in target/ excepted).
+  - reviewers: scope-auditor (always) + cto-reviewer (.github/workflows/**) — PASS.
 
 amendments: (none)
