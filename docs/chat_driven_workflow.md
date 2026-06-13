@@ -39,8 +39,10 @@ To avoid founder-only monitoring, CI watchdog is active:
 
 Behavior:
 - Detects failed CI runs for core workflows
-- Automatically reruns failed jobs once on first failure (transient recovery)
 - Creates/updates a `[CI Failure] ...` issue with run link and next actions
+
+It does not rerun jobs automatically — reruns are a manual decision so transient
+(flaky) failures stay visible rather than being silently retried.
 
 ## What remains active
 
@@ -54,7 +56,6 @@ Behavior:
 
 - `.github/workflows/_paused/cursor-dispatch.yml`
 - `.github/workflows/_paused/project-status-sync.yml`
-- `.github/workflows/_paused/slack-executor-bridge.yml`
 - `.github/ISSUE_TEMPLATE/_paused/idea_intake.yml`
 
 These assets are retained for recovery, but excluded from active automation.

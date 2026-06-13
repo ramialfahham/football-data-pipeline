@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
   issues: write
 
 jobs:
@@ -49,20 +48,6 @@ jobs:
             const workflowName = run.name || "unknown-workflow";
             const actor = run.triggering_actor?.login || run.actor?.login || "unknown";
 
-            let rerunTriggered = false;
-            if (attempt === 1) {
-              try {
-                await github.request(
-                  "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
-                  { owner, repo, run_id: run.id }
-                );
-                rerunTriggered = true;
-              } catch (error) {
-                const msg = String(error.message || "");
-                core.warning(`Failed to rerun failed jobs automatically: ${msg}`);
-              }
-            }
-
             const issueTitle = `[CI Failure] ${workflowName} on ${branch}`;
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
@@ -80,11 +65,10 @@ jobs:
               `- Branch: \`${branch}\`\n` +
               `- Triggered by: \`${actor}\`\n` +
               `- Run attempt: \`${attempt}\`\n` +
-              `- Failed run: ${runUrl}\n` +
-              `- Auto-rerun failed jobs: \`${rerunTriggered ? "triggered" : "not-triggered"}\`\n\n` +
+              `- Failed run: ${runUrl}\n\n` +
               "Next action:\n" +
-              "- If the rerun passes, close this issue.\n" +
-              "- If it fails again, fix root cause in code/workflow and link the PR here.\n";
+              "- Investigate the failed run, fix the root cause in code/workflow, and link the PR here.\n" +
+              "- Close this issue once CI is green.\n";
 
             if (!existing) {
               await github.rest.issues.create({
