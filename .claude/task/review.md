@@ -9,8 +9,17 @@
 > resolve), sqlfluff PASS on changed SQL. Required reviewers (routing): scope-auditor +
 > analytics-engineer-reviewer + cto-reviewer + data-engineer-reviewer + bi-analyst-reviewer.
 > One cold iteration: all five PASS against the hash below.
+>
+> REBASE RE-LOCK (2026-06-13): after the reviews, #430 (PR #460) + the handover (PR #462)
+> merged to main, so this branch was rebased onto the new origin/main to clear a GitHub
+> conflict that existed ONLY in the bookkeeping artifacts (contract.md/review.md/patch,
+> rewritten by #430) — NOT in the rename code. The rebase moved contract.md's diff base from
+> the prior task's contract to #430's, changing the diff_sha256 from 8e55b6cc… to the value
+> below. The reviewed CONTENT is byte-identical (same rename, same #463 contract — the renamed
+> model files do not conflict with #430); the five verdicts stand. No re-review needed: nothing
+> the reviewers examined changed, only the diff's base commit.
 
-diff_sha256: 8e55b6cc209e621ee14366128ade80afa5415147191e0de53c2778da1796a2c9
+diff_sha256: 47de79930c1c67a84015f8e49499c8ff252d46d35cb5ab18a662b0d121115663
 
 ## scope-auditor
 VERDICT: PASS
