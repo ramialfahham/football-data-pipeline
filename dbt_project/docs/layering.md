@@ -184,7 +184,6 @@ Canonical fact inventory for this project:
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
-| `fct_transfer` | `transfer_sk` hashed over (league, player, date, from, to, type) | `base_apif__transfers` | `{from,to}_team_sk` nullable: transfers frequently touch teams outside the configured leagues. |
 | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR); full-refresh table. WC-scoped — no `league_code`. |
 
 Most facts propagate `league_code` so they are safe to union across future leagues
@@ -201,7 +200,7 @@ Core materialization is **decided per fact by how its raw source delivers data**
 
 Applied to the current inventory:
 
-- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_transfer`, `fct_team_market_value_snapshot`. The `/fixtures`, `/standings`, `/transfers` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
+- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`. The `/fixtures` and `/standings` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
 - **`incremental`:** `fct_fixture_event` (`unique_key='event_sk'`), `fct_fixture_player_stats` (`fixture_player_stat_sk`), `fct_fixture_team_stats` (`fixture_team_stat_sk`). These per-fixture fanout tables fetch only the next round's fixtures each run, so prior fixtures' rows must persist in core.
 
 **Rule for the next agent:** do **not** "upgrade" a reference-derived fact (`fct_fixture` etc.) to `incremental` — full-refresh is intentional and depends on the raw snapshot carrying full history (a property PR #311 / issue #283 explicitly preserves by still writing skipped historical seasons into the snapshot). Only make a *new* fact incremental if its source delivers a partial payload per run, and document the `unique_key` and the reason inline, mirroring the fanout facts. This split is the historical resolution of issue #223 (which originally proposed making *all* core facts incremental — that premise only held for the fanout tables).

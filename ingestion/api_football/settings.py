@@ -143,7 +143,6 @@ def _apply_ingest_profile_defaults() -> None:
     d.setdefault("API_FOOTBALL_ALL_SEASONS", "1")
     d.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "0")
     d.setdefault("API_FOOTBALL_PLAYERS_MAX_PAGE", "50")
-    d.setdefault("API_FOOTBALL_TRANSFERS_MAX_PAGE", "50")
     d.setdefault("API_FOOTBALL_PLAYERS_RESERVE_CALLS", "20")
     d.setdefault("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", "-1")
     d.setdefault("API_FOOTBALL_MAX_PAGES", "250")

@@ -1,6 +1,6 @@
 # Data contract: API-Football → BigQuery
 
-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eight raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same seven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
 
 API references:
 
@@ -30,7 +30,7 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
 
 ## Unified raw tables
 
-Eight tables serve the entire fleet of competitions. No per-competition raw tables exist.
+Seven tables serve the entire fleet of competitions. No per-competition raw tables exist.
 
 | Table | Write mode | Partition | Cluster | Merge key |
 |-------|------------|-----------|---------|-----------|
@@ -39,7 +39,6 @@ Eight tables serve the entire fleet of competitions. No per-competition raw tabl
 | `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
 
@@ -49,7 +48,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
 
 ## Append-only writes (reference tables)
 
-Reference tables — fixtures-next, standings, teams, transfers, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
+Reference tables — fixtures-next, standings, teams, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
 
 1. The pipeline calls the API for all configured seasons (the full history window).
 2. The complete response is written as a new row with the current UTC timestamp.
@@ -99,7 +98,7 @@ Data is complete when four conditions hold:
 
 1. **Coverage** — every in-scope raw table has been refreshed, and staging has been rebuilt on top of that refresh.
 2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
-3. **Freshness** — when new source data appears (matchdays, transfers), the next run merges it into the corresponding raw tables.
+3. **Freshness** — when new source data appears (matchdays, results), the next run merges it into the corresponding raw tables.
 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
 
 Heavy per-match coverage typically takes several runs under daily API limits; that is expected behaviour, not an outage. Each check below answers one of the four conditions:
@@ -125,7 +124,6 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | League + coverage | `/leagues?id=` (all seasons in `seasons[]`) | `RAW_APIF_LEAGUES` |
 | Standings | `/standings` | `RAW_APIF_STANDINGS` |
 | Teams | `/teams` | `RAW_APIF_TEAMS` |
-| Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_TRANSFERS` |
 | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
 | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
 | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
@@ -133,13 +131,15 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 
 **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
 
+**Retired:** `/transfers` → `RAW_APIF_TRANSFERS` is no longer ingested. Nothing consumed transfers — `fct_transfer` was a leaf fact with no mart/export/UI reader, and the only internal use was a `dim_player` identity fallback feeding that unconsumed fact. Club changes are derivable from `dim_player_team_season_mapping` (season-level roster diffs) if ever needed. The daily call was removed to save quota; the staging/base/core transfers models were deleted and the `RAW_APIF_TRANSFERS` table is dropped post-merge. Reintroduce only if a feature needs the transfer date / type / cross-league detail the roster mapping cannot express.
+
 ### /fixtures query style
 
 Default is `season` (`league` + `season` only). Alternative modes `from_to` and `next` exist for other use cases; `next` typically requires a paid plan. Fixture paging (`page=`) is only sent when `API_FOOTBALL_FIXTURE_USE_PAGE=1`, because many plans reject it.
 
 ### Pagination
 
-`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, `/standings`, or `/transfers`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in per endpoint with `API_FOOTBALL_FIXTURE_USE_PAGE=1` or `API_FOOTBALL_TRANSFERS_USE_PAGE=1` only when the key is known to support it.
+`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, or `/standings`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
 
 ### Coverage flags
 
@@ -160,7 +160,7 @@ Mapping from a typical API-Football subscription list to what this repository in
 | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
 | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
 | Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
-| Player transfers | Yes — `GET /transfers` by team |
+| Player transfers | Retired — `/transfers` no longer ingested (see Retired note above); club changes are derivable from `dim_player_team_season_mapping` |
 | Pre-match / in-play odds | Not in this repo (no odds ingest) |
 | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
 | Predictions | Removed in PR #237 — not ingested |

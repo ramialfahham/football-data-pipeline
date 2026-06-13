@@ -24,7 +24,6 @@ time from the raw column **`ingested_at`**).
 | `raw_apif_standings` (`RAW_APIF_STANDINGS`) | [`stg_apif__standings.sql`](stg_apif__standings.sql) |
 | `raw_apif_teams` (`RAW_APIF_TEAMS`) | [`stg_apif__teams.sql`](stg_apif__teams.sql) |
 | `raw_apif_players` (`RAW_APIF_PLAYERS`) | [`stg_apif__players.sql`](stg_apif__players.sql) |
-| `raw_apif_transfers` (`RAW_APIF_TRANSFERS`) | [`stg_apif__transfers.sql`](stg_apif__transfers.sql) |
 | `raw_apif_fixture_details` (`RAW_APIF_FIXTURE_DETAILS`) | [`stg_apif__fixture_events.sql`](stg_apif__fixture_events.sql), [`stg_apif__fixture_players.sql`](stg_apif__fixture_players.sql), [`stg_apif__fixture_statistics.sql`](stg_apif__fixture_statistics.sql), [`stg_apif__lineups.sql`](stg_apif__lineups.sql) |
 
 The four fixture-detail models all flatten different arrays out of the single

@@ -10,7 +10,7 @@
     "relationship (mapping) dimensions" clause in dbt_project/docs/layering.md.
 
     Use this to answer "which team/competition was a player part of, when". "Did they
-    play" lives in fct_fixture_player_stats; "did they move" lives in fct_transfer.
+    play" lives in fct_fixture_player_stats.
 
     A player legitimately produces multiple rows: a mid-season transfer (two teams,
     same season) and club + national-team membership in the same window are both real.

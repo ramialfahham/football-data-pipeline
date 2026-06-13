@@ -111,14 +111,6 @@ Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `
 
 `1` / `true` / `yes` skips `/players` squad pulls. Use on cursor archive runs when squads are refreshed on a separate schedule.
 
-#### `API_FOOTBALL_FETCH_TRANSFERS` (optional)
-
-`1` (default) loads `/transfers`. Set to `0` / `false` / `no` to skip transfers entirely.
-
-#### `API_FOOTBALL_TRANSFERS_USE_PAGE` (optional)
-
-Whether to send `page=` on `/transfers`. Default `0`, because many plans (including free and several paid tiers) reject paging on this endpoint with `"The Page field do not exist."`. Pairs with `API_FOOTBALL_TRANSFERS_MAX_PAGE` (default `3`) when enabled.
-
 #### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
 
 Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing under economy profile and `0` under `full`. Set explicitly to enforce a specific rate.

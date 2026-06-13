@@ -26,7 +26,7 @@ Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_proje
 |-------|--------|---------------|
 | `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
 | `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
-| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 6 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`, `fct_transfer`). |
+| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 5 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`). |
 | `4_intermediate` | 6 models | `int_pipeline__raw_ingestion_spread` (ingestion-spread audit); `int_team_season__standings_primary` (deduped standings for marts); `int_matchday__fixture_denormalized`, `int_matchday__finished_fixture_team_leg`, `int_matchday__upcoming_round_fixtures`, `int_matchday__team_form_metrics` (matchday spine + form). |
 | `5_marts` | populated | Matchday/team-season insights (`mart_matchday_insights` all domestic leagues, `mart_matchday_insights_wc`, `mart_matchday_insights_bl1_relegation`, `mart_team_season_insights`), plus `mart_team_season`, rankings/scorers, debug. Slice by `league_code` at export/UI. |
 
