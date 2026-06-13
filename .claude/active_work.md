@@ -4,8 +4,8 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-13 (G4 audit-cleanup backlog COMPLETE this session). **Website
-blueprint (#391) is PAUSED by CPO order.** The agent-governance system (plan
+_Last updated: 2026-06-13 (G4 audit-cleanup backlog COMPLETE + form-model naming refactor
+#463 MERGED, old BQ tables dropped). **Website blueprint (#391) is PAUSED by CPO order.** The agent-governance system (plan
 `C:\Users\Rami\.claude\plans\fuzzy-launching-meadow.md`) is fully LIVE: G1–G4 shipped.
 Machinery: reviewer subagents in `.claude/agents/` (PROTECTED), routing in
 `.claude/review_routing.json` (PROTECTED), the 4-step review cycle (Code Lock → cold
@@ -34,17 +34,30 @@ amendments)._
   squad_watch.py (#411); declawed ci-failure-watchdog.yml (#412: removed the auto-rerun step
   + dropped `actions: write`, KEPT the [CI Failure] issue notification). Both protected-file
   edits done under explicit CPO protected_override (escalations.log 2026-06-13).
-- **#430 → PR #460 OPEN (awaiting CPO merge)** — removed the dead pages-match-preview
-  trigger for the deleted `wc_supporting_league_codes.csv` seed, and corrected the retired
+- **#430 → PR #460 MERGED** — removed the dead pages-match-preview trigger for the deleted
+  `wc_supporting_league_codes.csv` seed, and corrected the retired
   `form_source`/`supporting_leagues` references in pipeline_architecture_plan.md to the
   competition_types taxonomy basis. **Product/form rules unchanged; CLAUDE.md unchanged.**
 
-## PENDING CPO ACTIONS (outside the tree — only the CPO can do these)
-1. **Merge PR #460** (#430).
-2. **Set `PROJECT_AUTOMATION_TOKEN`** to the fine-grained least-privilege scope (Projects
+## After the backlog — form-model naming refactor (CPO request, COMPLETE)
+- **PR #463 MERGED** — consistent naming for the form-window model family (CPO §10 ruling
+  "Option 2", escalations.log 2026-06-13). PURE rename, no logic/grain/metric change. The
+  NEW VOCABULARY (use these names):
+  - live form: `int_momentum_window__team` (selection legs) + `int_momentum__{team,player}`
+    (aggregate); marts `mart_momentum_window__team` + `mart_momentum__{team,player}`.
+  - season record: `int_season_record__{team,player}`; marts `mart_season_record__{team,player}`.
+  - OLD names (`int_form_window__team`, `int/mart_season_to_date__*`, `mart_form_window__team`)
+    are GONE — renamed AND the orphaned BigQuery tables were DROPPED 2026-06-13 (CPO-approved,
+    after the green ci-data-build built the new tables; 7-day BQ time-travel recovery exists).
+  - KEPT deliberately: `window_type` VALUES (`last_5`/`season_to_date`/`prev_season` = the cut,
+    not the model root) and the published JSON key `form_window` (UI contract). Authoritative
+    window matrix = docs/metrics_context_model.md §4 (per competition_type × pre/during/post).
+
+## PENDING CPO ACTIONS (outside the tree — only the CPO can do these; verify if done)
+1. **Set `PROJECT_AUTOMATION_TOKEN`** to the fine-grained least-privilege scope (Projects
    RW, Issues R, Pull requests R, Metadata R, this-repo-only) per docs/board_request_sync.md
    (from #413, merged).
-3. **Remove now-unused secrets** `CURSOR_EXECUTOR_BRIDGE_URL` + `CURSOR_EXECUTOR_BRIDGE_TOKEN`
+2. **Remove now-unused secrets** `CURSOR_EXECUTOR_BRIDGE_URL` + `CURSOR_EXECUTOR_BRIDGE_TOKEN`
    (from #458, merged — nothing in the tree references them anymore).
 
 ## Process lessons locked this session (do not repeat)
@@ -63,6 +76,15 @@ amendments)._
 - **Editing `.claude/active_work.md` needs it in the contract's scope_paths** even though
   the commit is review-exempt (edit-gate vs commit-gate scope; see memory
   feedback_governance_edit_gate_scope).
+- **A PR rebased past a sibling task that rewrote contract.md needs a review-hash re-lock.**
+  When another task merges first, the shared `.claude/task/` artifacts conflict; rebase onto
+  main, resolve those to YOURS, then RECOMPUTE the diff_sha256 (it changes because contract.md's
+  diff base moved) and update review.md — content is identical, so the verdicts stand; note the
+  re-lock. Then `--force-with-lease` the feature branch (never main). Rebase sidesteps the
+  commit gate (git, not a Bash `git commit`); the post-commit auto-push fails mid-rebase
+  harmlessly.
+- **A model rename's old BQ tables are dropped AFTER the merge's ci-data-build is green** (so
+  the new tables exist as the fallback) — never before. Destructive → needs explicit CPO approval.
 
 ## NEXT (CPO directs — none of these are auto-granted)
 The G4 audit-cleanup backlog (issues #409–#430) is essentially done. Remaining larger work,
