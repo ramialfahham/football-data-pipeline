@@ -1,51 +1,47 @@
-# Review — docs/data-contract-coaches-injuries — 2026-06-13
+# Review — fix/transfers-drop-bl1-hardcode — 2026-06-13
 
-> Issue #427 (audit F24): document RAW_APIF_COACHES + RAW_APIF_INJURIES in
-> docs/data_contract.md. Docs-only. Required reviewers for docs/data_contract.md:
-> scope-auditor + data-engineer-reviewer. Two cold blinded iterations:
-> iteration-1 data-engineer-reviewer FAIL (the additions left "Plan vs product"
-> line 161 — "no separate 'coaches only' ingest" — self-contradictory; the
-> contract's "unconditionally every run" wording was also inaccurate). Resolved
-> via amendment A1: fixed the coaches line + added an Injuries row, and corrected
-> the contract's invocation wording (early-return guards; poll-mode runs skip both).
-> Iteration-2: both reviewers PASS against the hash below.
+> Issue #420 (audit F1/F2): remove the hardcoded `league_code = 'BL1'` filter from the
+> 2_base model base_apif__transfers (competition-agnostic violation); update the stale
+> "BL1 only for now" comment in base_apif__players. REAL behaviour change (surfaces all
+> leagues' transfers). Required reviewers for dbt_project/**: scope-auditor +
+> analytics-engineer-reviewer. Both PASS first iteration against the hash below.
 
-diff_sha256: 799e12b34aa6088e36ace9ad5c0742575318169dd5a6824bf05134894879611f
+diff_sha256: 2e86fb5ff7c75adc12ee6e7d8ce5f846f4910ae81cd7811ee44378c2777462c7
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Schema/write-mode attestation: verified coaches.py:64 + injuries.py:74 both call
-  load_json_to_bq(as_json_payload=True, append=True, league_code=...) → ensure_unified_raw_table
-  (bigquery.py:166), which creates exactly the declared schema (league_code STRING /
-  payload JSON / ingested_at TIMESTAMP), partition DATE(ingested_at), cluster league_code,
-  no merge key — the two new rows match the code, not invented attributes.
-- Internal doc coherence: confirmed "six"→"eight" applied at both prose sites (lines 3, 33)
-  and the unified table now has 8 rows; no remaining statement contradicts the existence of
-  the two tables (the Plan-vs-product coaches line is fixed, /sidelined correctly stays
-  "not ingested" as a distinct endpoint); the Plan-vs-product edits are consistency fixes
-  flowing from the additions, not a smuggled §10 editorial/naming decision; only the two
-  declared scope_paths touched, no protected path.
+- §10 meta-rule (rule enforcement vs reinterpretation): verified CLAUDE.md §8 +
+  working_agreement.md §8 prohibit hardcoded competition identifiers in absolute terms
+  ("never"), and the contract rests on a recorded CPO "file" ruling (audit 2026-06-12) —
+  so removing the hardcode is codified-correct enforcement, not an agent-taken §10 scope
+  decision. stg_apif__transfers already handles all leagues, confirming the BL1 filter was
+  not a data-quality gate being silently removed.
+- Lockstep / scope discipline: confirmed base_apif__players.transfers_src already reads
+  ALL of base_apif__transfers (only `player_id is not null`), so fct_transfer and the
+  dim_player fallback stay in lockstep across leagues; the diff touches only the two
+  declared models + contract (no .yml test edited, no test severity changed, no protected
+  path), so no DQ guard is downgraded or hidden. The ERROR-severity player_sk relationship
+  in ci-data-build is the authoritative gate.
 
-## data-engineer-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Write-path correctness: coaches.py:64 and injuries.py:74 both route through
-  ensure_unified_raw_table producing WRITE_APPEND / partition DATE(ingested_at) /
-  cluster league_code / no merge key — the doc rows claim exactly this; no WRITE_TRUNCATE
-  risk. Both merge their fan-out (coaches: all teams; injuries: all seasons) into one
-  appended row per run per competition.
-- Invocation accuracy + poll-mode: verified both are called only in run_cheap_phases
-  (competition_runner.py:93-96), not run_poll_phases; early-return guards confirmed at the
-  exact cited lines (coaches.py:38 no team_ids; injuries.py:67 no merged data). Leaving the
-  doc rows caveat-free is consistent with the conditional transfers/standings rows.
-- Count + /sidelined: eight unified rows match the "eight tables" prose; RAW_APIF_LEAGUES
-  stays the separate "additional" table; the new Plan-vs-product coaches/injuries entries
-  are correct and /sidelined (distinct endpoint) correctly remains "not ingested".
+- player_sk → dim_player lockstep across all leagues: fct_transfer.player_sk =
+  cast(player_id as int64) and dim_player.player_sk = cast(player_api_id as int64) both
+  derive from the SAME base_apif__transfers (fct directly; dim via transfers_src →
+  base_apif__players_global). Any player_id passing the base filter is injected into both,
+  so the ERROR-severity relationships test (no where guard, no warn) holds by construction.
+- from/to_team_sk → dim_team: both tests are severity:warn + where "...is not null";
+  fct_transfer nulls unresolved foreign-league team SKs (CASE WHEN), excluding them from
+  the predicate — more leagues = more warns, zero new ERROR failures. transfer_date_sk →
+  dim_date is safe (dim_date spans 1900–2101). base not_null/grain tests hold (staging
+  guards transfer_date, base guards player_id, qualify guarantees the grain).
+- Layer + idempotency + blast radius: base stays a view reading ref('stg_apif__transfers')
+  with league_code flowing through; zero hardcoded league_code remains in 2_base (grep).
+  fct_transfer is a leaf fact — no mart/intermediate/export/UI consumer (grep), so no
+  BL1-assuming downstream silently changes. View re-computes; fct rebuilds idempotently.
 
 ## escalations
-(none — iteration-1 FAIL resolved by amendment A1 consistency fixes + contract wording
-correction; both reviewers PASS in iteration-2. Two PRE-EXISTING staleness items the
-data-engineer noted are out of F24 scope and flagged as a follow-up: the Landing Zone
-"verbatim envelope" line vs coaches.py's wrapped dict, and the "Append-only writes" prose
-list not enumerating coaches/injuries.)
+(none — both reviewers PASS first iteration. DQ proof for the player_sk relationship across
+all leagues runs in ci-data-build, the authoritative gate for this behaviour change.)
