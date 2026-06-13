@@ -1,17 +1,16 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 080ed0d..e05e755 100644
+index 080ed0d..9c1a78f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,33 +1,57 @@
+@@ -1,33 +1,73 @@
 -# Task contract — retire two obsolete scripts (#423, #424)
-+# Task contract — pin requirements.txt, drop dead deps (#425)
++# Task contract — add COACHES + INJURIES to the data contract (#427)
  
 -> Audit F14/F15: delete two dead scripts. Both verified unreferenced (no CI, no
 -> imports, no docs). Pure deletion. See docs/working_agreement.md §2/§4.
-+> Audit F20: root requirements.txt leaves several deps unpinned (supply-chain /
-+> reproducibility drift). CPO ruling 2026-06-12: file. CPO scope ruling 2026-06-13:
-+> "Pin + remove dead" — pin used deps, drop the unused/misplaced ones.
-+> See docs/working_agreement.md §2/§10.
++> Audit F24: ingestion writes RAW_APIF_COACHES and RAW_APIF_INJURIES every run,
++> but neither is in docs/data_contract.md — no contractual anchor for downstream
++> consumers. CPO ruling 2026-06-12: file. Docs-only. See docs/working_agreement.md §2.
  
  objective: >
 -  Retire two obsolete scripts flagged by the G4 audit:
@@ -21,76 +20,129 @@ index 080ed0d..e05e755 100644
 -    long complete; no __main__ guard, not idempotent. Retire it.
 -  Both confirmed unreferenced by CI, other scripts, and docs (grep, this session).
 -refs: #423 (F14), #424 (F15).
-+  Harden the root requirements.txt against supply-chain / reproducibility drift
-+  (audit F20). Investigation this session (grep across all .py, no .venv):
-+  - `requests` — USED (http_client, scripts/diagnostics, scripts/squad_watch) → pin
-+    to the installed/tested version 2.33.1.
-+  - `beautifulsoup4` — ZERO usage anywhere → remove (dead).
-+  - `pandas` — ZERO usage anywhere (no import, no load_table_from_dataframe / DataFrame)
-+    → remove (dead; not flagged by F20 but surfaced to the CPO and approved under the
-+    "remove dead" ruling).
-+  - `functions-framework` — used ONLY in ingestion/api_football/main.py, where it is
-+    already declared in ingestion/api_football/requirements.txt → remove the redundant
-+    root copy (it belongs with the ingestion entrypoint, not at repo root).
-+refs: #425 (audit F20).
++  Document the two undocumented unified raw tables in docs/data_contract.md.
++  Verified this session against the ingestion code:
++  - RAW_APIF_COACHES — written by ingestion/api_football/loads/coaches.py via
++    load_json_to_bq(raw_table("COACHES"), as_json_payload=True, append=True,
++    league_code=...) → ensure_unified_raw_table. Source endpoint: /coachs (per team).
++  - RAW_APIF_INJURIES — written by ingestion/api_football/loads/injuries.py via the
++    same unified-append path. Source endpoint: /injuries (per league per season).
++  Both are invoked in the per-competition cheap-phase run (loads/competition_runner.py
++  run_cheap_phases, lines 93-96) for active competitions. They append one row per run when
++  data is available, with early-return guards: coaches skips when no team_ids resolved
++  (coaches.py:38), injuries skips when no season returned data (injuries.py:67). Idle/poll
++  runs (run_poll_phases) do not call them. This matches how the other conditional append
++  tables (transfers via load_transfers_if_enabled, standings via load_standings_if_enabled)
++  already behave — so the doc rows need no per-table conditional caveat (the general skip
++  pattern is already covered by the doc's "Coverage flags" + "Append-only writes" sections).
++  F24's premise (these tables are written and need a contract anchor) holds.
++  Both are unified raw tables with the standard schema/behaviour (see bigquery.py
++  ensure_unified_raw_table): columns league_code STRING / payload JSON / ingested_at
++  TIMESTAMP; WRITE_APPEND; partitioned by DATE(ingested_at); clustered by league_code;
++  no merge key.
++refs: #427 (audit F24).
  
  scope_paths:
 -  - scripts/scaffold_domestic_league_staging.py
 -  - scripts/add_footer_i18n_keys.py
 -  - .claude/active_work.md   # artifact-only: handover write-out at close
-+  - requirements.txt
++  - docs/data_contract.md
 +  - .claude/task/contract.md
  
  decisions_taken: >
 -  CPO-approved deletions (audit rulings 2026-06-12). Pure removal of dead code; no
 -  behavior change to any live path (both scripts are unreferenced).
-+  CPO ruling 2026-06-13 "Pin + remove dead", RECORDED in
-+  `.claude/task/escalations.log` (entry 2026-06-13, question 1): pin the used dep
-+  (requests==2.33.1), remove the two unused deps (beautifulsoup4, pandas) and the
-+  redundant root functions-framework. The pandas removal — NOT named in F20's text —
-+  was explicitly surfaced to the CPO in the question context and the chosen option's
-+  description, and approved knowingly (see the log entry). No live import or CI step
-+  depends on any removed dep: verified by grep across all repo .py (zero hits for
-+  bs4/pandas; functions-framework only in ingestion/api_football/main.py, which is
-+  covered by ingestion/api_football/requirements.txt), and confirmed by validate-local
-+  offline gates (recorded under done_when). No CI workflow installs root +
-+  ingestion requirements in the same pip invocation, so dropping the root
-+  functions-framework cannot break the ingestion entrypoint.
++  CPO-approved doc addition (audit ruling 2026-06-12: file). Pure documentation of
++  EXISTING, verified pipeline behaviour — no code, schema, or pipeline change. The two
++  new rows mirror the existing unified-append rows verbatim (write mode / partition /
++  cluster / merge key) and the endpoints map gains /coachs and /injuries.
  
  decisions_reserved:
 -  - None. If a reviewer finds ANY live reference, STOP and escalate rather than delete.
-+  - pyarrow is also fully unpinned but was NOT named by F20 and IS used (transitively by
-+    the BigQuery Storage path); do NOT pin or touch it here — out of this issue's scope.
-+    If a reviewer judges it the same defect, STOP and escalate rather than expand scope.
-+  - The other floor-pinned deps (python-dotenv>=, google-cloud-bigquery-storage>=,
-+    PyYAML>=, pytest>=) are pre-existing and out of F20's scope — leave untouched.
++  - The contract currently asserts "six tables" / "Six tables serve the entire fleet"
++    (lines 3, 33) and an "additional smaller table: RAW_APIF_LEAGUES". Adding two more
++    unified tables makes those counts internally inconsistent. Updating the count to
++    match is REQUIRED for the doc to stay self-consistent (the whole point of F24 — a
++    correct contractual anchor), not a scope expansion. If a reviewer judges the count
++    wording itself a CPO-class naming/structure decision, STOP and escalate rather than
++    decide the phrasing unilaterally.
++  - Do NOT reclassify, re-describe, or "improve" any existing UNIFIED-RAW-TABLE row, the
++    merge model, or the freshness/completeness sections — out of scope for F24. (The
++    "Plan vs product" coaches/injuries fixes under amendment A1 are the exception: they
++    remove a contradiction the additions create, not an unprompted improvement.)
  
  done_when:
 -  - both script files are removed (git rm); grep shows zero remaining references to
 -    either script name anywhere except the audit doc + task artifacts.
 -  - validate-local offline gates green (the python-ci test suite does not import either).
 -  - reviewers: scope-auditor (always) + cto-reviewer (scripts/) — PASS.
-+  - requirements.txt: `requests==2.33.1`; no `beautifulsoup4`, no `pandas`, no
-+    root-level `functions-framework`; every other line unchanged.
-+  - grep confirms zero live references to the removed deps (already verified:
-+    beautifulsoup4/pandas unused; functions-framework only in ingestion, still declared
-+    in ingestion/api_football/requirements.txt).
-+  - validate-local offline gates green (pip install of the trimmed file resolves; the
-+    python-ci test suite imports none of the removed deps).
-+  - reviewers: scope-auditor (always) + cto-reviewer (requirements*.txt) — PASS.
++  - docs/data_contract.md "Unified raw tables" table has two new rows: RAW_APIF_COACHES
++    and RAW_APIF_INJURIES (append / DATE(ingested_at) / league_code / no merge key).
++  - the "Endpoints and raw tables" map has /coachs → RAW_APIF_COACHES and /injuries →
++    RAW_APIF_INJURIES.
++  - the "six tables" counts (lines 3, 33) are corrected so the prose matches the table.
++  - the "Plan vs product" section is made consistent with the additions (amendment A1):
++    the "Players & coaches" row no longer claims "no separate coaches ingest", and an
++    "Injuries" row is added — both reflect EXISTING ingest (RAW_APIF_COACHES via /coachs,
++    RAW_APIF_INJURIES via /injuries). /sidelined remains not-ingested (distinct endpoint).
++  - no other section of the doc is altered; markdown still renders (tables intact).
++  - reviewers: scope-auditor (always) + data-engineer-reviewer (docs/data_contract.md) — PASS.
  
- amendments: (none)
-diff --git a/requirements.txt b/requirements.txt
-index 4fe0a82..cd5a0af 100644
---- a/requirements.txt
-+++ b/requirements.txt
-@@ -1,8 +1,5 @@
--requests
-+requests==2.33.1
- python-dotenv>=1.0.0
--functions-framework
--beautifulsoup4
--pandas
- google-cloud-bigquery==3.25.0
- google-cloud-bigquery-storage>=2.25.0
- pyarrow
+-amendments: (none)
++amendments:
++  - 2026-06-13 A1: scope unchanged (docs/data_contract.md already in scope_paths), but
++    the edit set is extended to the "Plan vs product" section — authority: standing
++    consistency rule (a doc change must not leave the doc self-contradictory; raised by
++    the iteration-1 data-engineer-reviewer FAIL, which found line 161 "no separate
++    'coaches only' ingest" contradicted by the new RAW_APIF_COACHES row). content: fix
++    the coaches claim + add an Injuries row. Also corrected the objective's inaccurate
++    "unconditionally every run" wording (early-return guards; poll-mode runs skip both).
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 496dc96..5933903 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -1,6 +1,6 @@
+ # Data contract: API-Football → BigQuery
+ 
+-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same six raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
++Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eight raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+ 
+ API references:
+ 
+@@ -30,7 +30,7 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+ 
+ ## Unified raw tables
+ 
+-Six tables serve the entire fleet of competitions. No per-competition raw tables exist.
++Eight tables serve the entire fleet of competitions. No per-competition raw tables exist.
+ 
+ | Table | Write mode | Partition | Cluster | Merge key |
+ |-------|------------|-----------|---------|-----------|
+@@ -40,6 +40,8 @@ Six tables serve the entire fleet of competitions. No per-competition raw tables
+ | `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
+ 
+ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
+ 
+@@ -125,6 +127,8 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
+ | Teams | `/teams` | `RAW_APIF_TEAMS` |
+ | Transfers | `/transfers` (when league and season are accepted) | `RAW_APIF_TRANSFERS` |
+ | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
++| Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
++| Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
+ | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+ 
+ **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
+@@ -154,7 +158,8 @@ Mapping from a typical API-Football subscription list to what this repository in
+ | Events | Yes — `GET /fixtures/events` (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+ | Line-ups | Yes — `GET /fixtures/lineups` (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+ | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
+-| Players & coaches | Partly — squad `/players` per club; coach may appear on lineup payloads where the API returns it; no separate "coaches only" ingest |
++| Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
++| Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
+ | Player transfers | Yes — `GET /transfers` by team |
+ | Pre-match / in-play odds | Not in this repo (no odds ingest) |
+ | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
