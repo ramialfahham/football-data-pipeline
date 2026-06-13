@@ -54,7 +54,6 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
 - Chat-driven workflow: `docs/chat_driven_workflow.md`
 - Board request sync: `docs/board_request_sync.md`
 - CI failure watchdog: `docs/ci_failure_watchdog.md`
-- Slack executor bridge: `docs/slack_executor_bridge.md`
 - PR merge autopilot guide: `docs/pr_autopilot.md`
 - Project status sync guide: `docs/project_status_sync.md`
 
