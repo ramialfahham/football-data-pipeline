@@ -25,8 +25,11 @@ committed with the branch so it is PR-visible:
 - **decisions_reserved** — known CPO-class questions (§10); each is escalated
   blinded (§11), never decided
 - **done_when** — mechanical verification steps
-- **amendments** — scope extensions: allowed only on a CLEAN tree (never mixed
-  into code changes), each recording the CPO authority
+- **amendments** — scope extensions, written on a CLEAN tree, each recording the
+  CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
+  rides INTO the reviewed commit, never a separate later artifact-only commit. If
+  you must amend after the code is committed, re-stage and re-run the review cycle —
+  a post-commit contract change breaks the review hash and CI rejects it.
 
 Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - No contract → repo edits denied. Out-of-scope path → denied.
@@ -69,10 +72,15 @@ serialized four steps; the commit gate enforces them mechanically:
    by a reviewer.
 4. **Lock** — verdicts + the SHA-256 of the staged diff
    (`python .claude/hooks/git_discipline.py --staged-hash`) written to
-   `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`).
+   `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`). The hash
+   covers the substantive diff — code **and** `contract.md` — EXCLUDING the
+   bookkeeping artifacts (`hash_exclude_paths` in review_routing.json), so CI can
+   recompute it from `git diff base...HEAD` and bind the review to the PR's actual
+   code (F11/#409). `contract.md` is never artifact-exempt, so a contract change
+   always goes through review (F10/#409).
 
 `git commit` is DENIED when: review.md is missing, its hash does not match the
-live staged diff, any verdict is FAIL, an ESCALATE lacks a recorded
+live staged diff (code + contract, bookkeeping excluded), any verdict is FAIL, an ESCALATE lacks a recorded
 `CPO ANSWER:` in its own section, a required reviewer has no verdict, or a
 PASS lacks its two risks. **Only `git add` + plain `git commit` is allowed** —
 commit flags are allowlisted (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`,

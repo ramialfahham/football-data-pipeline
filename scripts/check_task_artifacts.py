@@ -3,12 +3,14 @@
 
 Local hooks can be bypassed by a misbehaving or misconfigured agent; this
 check keeps the gate honest at the PR boundary. For the diff between the PR
-branch and the base, it verifies (plausibility, not local-only facts — CI
-cannot recompute a STAGED hash):
+branch and the base, it verifies:
 
-  - artifact-only PRs (only .claude/task/** / .claude/active_work.md) pass;
+  - artifact-only PRs (only bookkeeping paths) pass — but a PR touching
+    .claude/task/contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
   - otherwise .claude/task/contract.md and .claude/task/review.md must exist;
-  - review.md carries a well-formed 64-hex diff_sha256;
+  - review.md carries a well-formed 64-hex diff_sha256 that MATCHES the recomputed
+    hash of `git diff base...HEAD` excluding the bookkeeping artifacts — binding the
+    review to this PR's code + contract (F11/#409);
   - every reviewer required by .claude/review_routing.json for the PR's
     changed paths has a verdict section;
   - no "VERDICT: FAIL"; every "VERDICT: ESCALATE" has a "CPO ANSWER:" in its
@@ -25,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -76,7 +79,12 @@ def main() -> int:
         routing = json.load(f)
 
     artifact_pats = routing.get("artifact_only") or []
-    if all(any(fnmatch.fnmatch(p, pat) for pat in artifact_pats) for p in paths):
+    # F10 (#409): a PR touching contract.md is never artifact-exempt (it authorizes scope).
+    never = routing.get("artifact_only_never") or []
+    is_never = any(fnmatch.fnmatch(p, pat) for p in paths for pat in never)
+    if not is_never and all(
+        any(fnmatch.fnmatch(p, pat) for pat in artifact_pats) for p in paths
+    ):
         print("check_task_artifacts: artifact-only PR — OK")
         return 0
 
@@ -90,15 +98,38 @@ def main() -> int:
         return 1
 
     text = open(REVIEW, encoding="utf-8", errors="replace").read()
-    if not re.search(r"diff_sha256:\s*[0-9a-fA-F]{64}", text):
+    m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
+    if not m:
         errors.append("review.md has no well-formed diff_sha256")
+    else:
+        # F11 (#409): bind review.md to THIS PR's code. Recompute the hash over the
+        # branch diff EXCLUDING the bookkeeping artifacts — the same diff the local gate
+        # hashes. --no-renames + --no-abbrev so the two invocations are byte-identical for
+        # identical content (rename detection off; full 40-hex blob SHAs in index lines so
+        # the abbreviation length cannot diverge pre- vs post-commit). A code-then-stale-
+        # review ordering (the #405 false-green) now fails here.
+        excludes = routing.get("hash_exclude_paths") or []
+        pathspec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
+        diff = subprocess.run(
+            ["git", "diff", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"] + pathspec,
+            capture_output=True, check=True,
+        ).stdout
+        recomputed = hashlib.sha256(diff).hexdigest()
+        if m.group(1).lower() != recomputed:
+            errors.append(
+                "review.md diff_sha256 does not match this PR's code+contract diff "
+                f"(recomputed {recomputed}) — the review is not bound to this PR (F11)")
     if "VERDICT: FAIL" in text:
         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
+    # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
+    # AUTHORITATIVE check for unanswered escalations (it can't be fooled by an answer in a
+    # different section). This global count is a cheap sanity net; keep it adjacent to the
+    # per-section loop and never rely on it alone.
     if text.count("VERDICT: ESCALATE") > text.count("CPO ANSWER:"):
-        errors.append("an ESCALATE verdict lacks a recorded CPO ANSWER")
+        errors.append("an ESCALATE verdict lacks a recorded CPO ANSWER (global backstop)")
     sections = review_sections(text)
     for name, body in sections.items():
-        # per-section pairing, same rule as the local commit gate: one
+        # per-section pairing (AUTHORITATIVE), same rule as the local commit gate: one
         # section's answer must not mask another's unanswered escalation
         if "VERDICT: ESCALATE" in body and "CPO ANSWER:" not in body:
             errors.append(

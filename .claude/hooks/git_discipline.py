@@ -93,8 +93,18 @@ def _repo_root() -> str:
 
 def _staged_diff_bytes(root: str) -> bytes:
     import subprocess
+    # F11 (#409): hash the staged diff EXCLUDING the bookkeeping artifacts, so the
+    # review hash covers code + contract.md only and CI can recompute the same value
+    # over `git diff base...HEAD` (it has no staging index). See _hash_exclude_pathspec.
+    # --no-renames AND --no-abbrev pin the diff so the local staged hash and the CI
+    # recompute (`git diff base...HEAD`) are byte-identical for identical content:
+    # --no-renames removes endpoint-sensitive rename detection; --no-abbrev forces full
+    # 40-hex blob SHAs in the `index` lines so the abbreviation length (which depends on
+    # the repo's object count, and so differs pre- vs post-commit) cannot diverge them.
     return subprocess.run(
-        ["git", "diff", "--staged"], cwd=root, capture_output=True, timeout=30,
+        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
+        + _hash_exclude_pathspec(_load_routing(root)),
+        cwd=root, capture_output=True, timeout=30,
     ).stdout
 
 
@@ -129,8 +139,23 @@ def _required_reviewers(paths: list[str], routing: dict) -> set[str]:
     return required
 
 
+def _hash_exclude_pathspec(routing: dict | None) -> list[str]:
+    """Git pathspec excluding the bookkeeping artifacts from the review diff
+    (F11/#409): `-- . :(exclude)<path>...`. contract.md is deliberately NOT in
+    hash_exclude_paths, so the review hash binds code + the authorizing contract."""
+    excludes = (routing or {}).get("hash_exclude_paths") or []
+    if not excludes:
+        return []
+    return ["--", "."] + [f":(exclude){p}" for p in excludes]
+
+
 def _artifact_only(paths: list[str], routing: dict) -> bool:
     import fnmatch
+    # F10 (#409): contract.md authorizes which code may be edited, so a commit that
+    # touches it is NEVER review-exempt — even though it matches the artifact_only glob.
+    never = routing.get("artifact_only_never") or []
+    if any(fnmatch.fnmatch(p, pat) for p in paths for pat in never):
+        return False
     pats = routing.get("artifact_only") or []
     return bool(paths) and all(
         any(fnmatch.fnmatch(p, pat) for pat in pats) for p in paths

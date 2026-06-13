@@ -256,6 +256,13 @@ ROUTING = {
     "always": ["scope-auditor"],
     "paths": {"dbt_project/**": ["analytics-engineer-reviewer"]},
     "artifact_only": [".claude/task/**", ".claude/active_work.md"],
+    "artifact_only_never": [".claude/task/contract.md"],
+    "hash_exclude_paths": [
+        ".claude/task/review.md",
+        ".claude/task/review_input.patch",
+        ".claude/task/escalations.log",
+        ".claude/active_work.md",
+    ],
 }
 
 
@@ -270,9 +277,14 @@ def setup_review_repo(repo, stage_path="dbt_project/models/allowed.sql"):
 
 
 def staged_hash(repo) -> str:
-    import hashlib
-    diff = subprocess.run(["git", "diff", "--staged"], cwd=repo, capture_output=True).stdout
-    return hashlib.sha256(diff).hexdigest()
+    # Compute via the hook's own --staged-hash so the test's expected value always
+    # equals what the commit gate computes (F11: excludes bookkeeping, --no-renames).
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
+    )
+    return r.stdout.strip()
 
 
 def write_review(repo, hash_hex, body):
@@ -369,6 +381,32 @@ def test_artifact_only_commit_exempt_from_review(repo):
     subprocess.run(["git", "add", ".claude/task/notes.md"], cwd=repo, check=True)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert not denied(out)
+
+
+def test_contract_commit_not_artifact_exempt(repo):
+    """F10/#409: a commit touching contract.md is NEVER artifact-exempt — it
+    authorizes scope, so it must go through review (here: denied for lack of one)."""
+    setup_review_repo(repo)
+    subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
+    (repo / ".claude" / "task" / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
+    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "no review artifact" in out
+
+
+def test_hash_excludes_bookkeeping_but_binds_contract(repo):
+    """F11/#409: the review hash covers code + contract.md, not bookkeeping artifacts."""
+    setup_review_repo(repo)  # stages dbt_project/models/allowed.sql
+    h_code = staged_hash(repo)
+    assert h_code  # non-empty
+    # adding a bookkeeping artifact does NOT change the hash (excluded)
+    (repo / ".claude" / "task" / "escalations.log").write_text("log entry")
+    subprocess.run(["git", "add", ".claude/task/escalations.log"], cwd=repo, check=True)
+    assert staged_hash(repo) == h_code
+    # adding contract.md DOES change the hash (it is bound to the review)
+    (repo / ".claude" / "task" / "contract.md").write_text("# contract\n")
+    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
+    assert staged_hash(repo) != h_code
 
 
 def test_escalation_with_answer_allows_commit(repo):
@@ -543,6 +581,19 @@ def run_ci_check(repo) -> tuple[int, str]:
     return r.returncode, r.stdout + r.stderr
 
 
+def branch_hash(repo, base="main") -> str:
+    """The F11 hash CI recomputes: sha256 of `git diff base...HEAD` excluding the
+    bookkeeping artifacts (--no-renames), mirroring check_task_artifacts.py."""
+    import hashlib
+    excludes = ROUTING["hash_exclude_paths"]
+    pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
+    diff = subprocess.run(
+        ["git", "diff", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
+        cwd=repo, capture_output=True,
+    ).stdout
+    return hashlib.sha256(diff).hexdigest()
+
+
 @pytest.fixture()
 def ci_repo(repo):
     subprocess.run(["git", "branch", "-m", "main"], cwd=repo, check=True)
@@ -570,15 +621,63 @@ def test_ci_check_passes_artifact_only_pr(ci_repo):
 
 
 def test_ci_check_passes_with_complete_artifacts(ci_repo):
+    # F11: review.md must carry the hash of the actual PR diff (code + contract,
+    # bookkeeping excluded). Commit code+contract first, then write review.md with the
+    # recomputed hash, then commit it — CI recomputes the same and passes.
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+    real_hash = branch_hash(ci_repo)
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY
+    )
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 0, out
+
+
+def test_ci_check_contract_only_pr_not_artifact_exempt(ci_repo):
+    """F10/#409: a contract-only PR is no longer artifact-exempt at CI — it must carry
+    a review (here it doesn't, so CI fails). Closes the #407 contract-only-merge hole."""
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "contract only"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "review.md" in out
+
+
+def test_ci_check_fails_on_stale_review_hash(ci_repo):
+    """F11/#409: a review.md whose hash does not match this PR's diff (the #405
+    false-green) is now rejected by CI."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
     (ci_repo / ".claude" / "task" / "review.md").write_text(
-        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + GOOD_BODY
+        "# Review\ndiff_sha256: " + "b" * 64 + "\n\n" + GOOD_BODY
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "code+artifacts"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "stale review"], cwd=ci_repo, check=True)
     code, out = run_ci_check(ci_repo)
-    assert code == 0, out
+    assert code == 1 and "not bound to this PR" in out
+
+
+def test_local_staged_hash_equals_ci_recompute(ci_repo):
+    """F11/#409 — the LOAD-BEARING invariant: the local commit gate's --staged-hash
+    (computed on the staged tree, pre-commit) must equal the CI recompute
+    (`git diff base...HEAD`, post-commit). If this ever diverges, a locally-passing
+    commit would be falsely rejected by CI. Exercises ALL three diff shapes:
+    a MODIFIED base-resident file (allowed.sql — its index line carries a non-zero OLD
+    blob, the one vector where pre/post-commit could diverge), a NEW file (contract.md),
+    and a bookkeeping artifact that must be excluded (escalations.log)."""
+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")  # MODIFY base file
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)  # add
+    (ci_repo / ".claude" / "task" / "escalations.log").write_text("noise\n")  # excluded
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    local = staged_hash(ci_repo)            # what the local gate checks
+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+    ci = branch_hash(ci_repo)               # what CI recomputes
+    assert local == ci, f"local {local} != ci {ci}"
 
 
 def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
