@@ -1,70 +1,49 @@
-# Task contract — dim_player → pure entity (PR B of the player-model redesign)
+# Task contract — remove dead per-competition path triggers from pages-match-preview.yml (#422)
 
-> CPO-approved design (2026-06-13 working session; memory project-player-model-redesign).
-> PR A (#444) added the rostered mapping; #446 retired transfers. PR B is the breaking
-> rework: make dim_player a pure global entity and collapse the two-stage player dedup.
-> See docs/working_agreement.md §2; dbt_project/docs/layering.md.
+> Audit F13: .github/workflows/pages-match-preview.yml lists per-competition staging path
+> triggers (pl/pd/bl2/sa/l1/vl) that the zero-file rule forbids and that do not exist —
+> permanently dead, and they falsely imply a per-competition architecture. Remove them.
+> Touches a PROTECTED path (.github/workflows/) → protected_override below.
+> See docs/working_agreement.md §2.
 
 objective: >
-  Make dim_player a pure entity (one row per player, identity attributes only) and remove
-  the affiliation snapshot that the redesign replaced with dim_player_team_season_mapping.
-  - dim_player: drop league_code, last_known_team_api_id, last_known_season_year. Keep
-    player_sk (=player_api_id), player_api_id, player_name, first/last, birth_date,
-    nationality, photo_url, raw_ingested_at. Grain: player_api_id.
-  - base_apif__players: collapse the two-stage dedup into ONE global dedup per
-    player_api_id, ordered by source_priority asc then raw_ingested_at desc (so the most
-    authoritative NAMED source wins globally). Drop league_code + last_known_* from the
-    source CTEs and output. Grain becomes player_api_id (was (league_code, player_api_id)).
-  - DELETE base_apif__players_global (its sole consumer, dim_player, now reads
-    base_apif__players directly).
-  Verified: NO consumer uses dim_player.league_code or last_known_* (grep across
-  4_intermediate, 5_marts, scripts/export_site_data.py — marts get league_code from facts
-  and only pull name/photo/bio from dim_player; zero last_known references downstream), so
-  this needs no consumer repointing.
-refs: player-model redesign (memory project-player-model-redesign); relates #153→#156.
+  Remove the six dead per-competition staging path triggers from the push.paths list of
+  .github/workflows/pages-match-preview.yml:
+    dbt_project/models/1_staging/api_football/{pl,pd,bl2,sa,l1,vl}/**
+  These directories cannot exist under the zero-file rule (staging is generic, one model
+  per entity, no per-competition subdirs — enforced by check_layer_contract.py). The
+  generic trigger `dbt_project/models/1_staging/**` already above them covers any real
+  staging change, so removing the six is a pure no-op to the workflow's actual behaviour.
+
+refs: #422 (audit F13).
+
+protected_override: >
+  CPO approval 2026-06-13 (conversation): "Option 1 granted" — explicit authorization to
+  edit the protected .github/workflows/ path for #422 (remove the dead per-competition
+  staging path triggers from pages-match-preview.yml).
 
 scope_paths:
-  - dbt_project/models/2_base/api_football/base_apif__players.sql
-  - dbt_project/models/2_base/api_football/base_apif__players_global.sql
-  - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/models/3_core/dim_player.sql
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/docs/layering.md
+  - .github/workflows/pages-match-preview.yml
   - .claude/task/contract.md
   - .claude/active_work.md
 
 decisions_taken: >
-  CPO-approved target shape (2026-06-13, memory project-player-model-redesign): dim_player
-  is a pure Type-1 entity; affiliation lives in dim_player_team_season_mapping (PR A) and
-  the facts, not on the entity. The single global dedup ordered by (source_priority asc,
-  raw_ingested_at desc) is strictly better than the old players_global recency-only order
-  (which ignored source authority) — it can only reduce null attributes, never add them, so
-  not_null(player_name) is preserved or improved. Additive consumer impact: none (verified).
+  CPO-approved (audit ruling 2026-06-12: file; protected_override granted 2026-06-13). Pure
+  removal of permanently-dead trigger globs. STRICTLY scoped to the six per-competition
+  staging path triggers (F13) — other stale-looking triggers (e.g. the retired
+  wc_supporting_league_codes.csv seed) belong to #430, NOT this task; leave them untouched.
 
 decisions_reserved:
-  - DQ proof runs in ci-data-build (not local): not_null(dim_player.player_name) +
-    unique(player_sk) + the surviving FK relationships (fct_fixture_player_stats /
-    fct_fixture_event / dim_player_team_season_mapping → dim_player). Expected to hold:
-    the single dedup yields exactly one row per player_api_id (unique), picks the most
-    authoritative source globally (name quality ≥ before), and every player feeding those
-    FKs is sourced from the same three sources that now compose dim_player. If ci-data-build
-    surfaces a NEW hard failure, STOP and escalate — do not paper over it.
-  - dim_player.league_code removal makes it a global (non-league-scoped) entity like
-    dim_date; layering.md's "all league-scoped dims carry league_code" note still holds (it
-    is no longer league-scoped). Update the inventory row accordingly.
+  - None. The change is behaviour-preserving: the generic 1_staging/** trigger already
+    fires on any staging change, so removing the per-competition globs cannot change which
+    pushes trigger the workflow. If a reviewer finds these dirs DO exist (they must not,
+    per the zero-file rule), STOP and escalate rather than remove.
 
 done_when:
-  - base_apif__players: single dedup per player_api_id (source_priority asc, raw_ingested_at
-    desc); no league_code / last_known_* columns; grain player_api_id.
-  - base_apif__players_global.sql deleted (git rm); no remaining ref() to it.
-  - dim_player: reads base_apif__players; entity columns only; no league_code / last_known_*.
-  - base.yml: base_apif__players grain test → [player_api_id]; base_apif__players_global block removed.
-  - core.yml: dim_player block drops league_code + last_known_* columns/tests; description updated.
-  - layering.md: dim_player inventory row → source base_apif__players, pure global entity, no
-    last_known note.
-  - grep: no ref()/column use of base_apif__players_global, dim_player.league_code, or last_known_*
-    anywhere; consumers unchanged and still compile.
-  - validate-local Tier 1+2 green (dbt parse, sqlfluff lint, layer contract, pytest); full DQ → ci-data-build.
-  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) — PASS.
+  - the six `.../1_staging/api_football/{pl,pd,bl2,sa,l1,vl}/**` lines are removed from the
+    push.paths list; every other trigger line is unchanged.
+  - the workflow YAML still parses (valid YAML; trigger block intact).
+  - grep confirms no remaining per-competition staging path glob in the workflow.
+  - reviewers: scope-auditor (always) + cto-reviewer (.github/workflows/**) — PASS.
 
 amendments: (none)
