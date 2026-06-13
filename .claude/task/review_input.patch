@@ -1,115 +1,96 @@
-diff --git a/scripts/add_footer_i18n_keys.py b/scripts/add_footer_i18n_keys.py
-deleted file mode 100644
-index 8c639bf..0000000
---- a/scripts/add_footer_i18n_keys.py
-+++ /dev/null
-@@ -1,69 +0,0 @@
--"""
--Add new matchPreview footer + formContext i18n keys to all three locale files.
--Writes with straight ASCII quotes to avoid curly-quote encoding issues.
--"""
--import json
--
--LOCALES = {
--    "de": {
--        "formContext": "Form: letzte 5 Spiele dieser Saison",
--        "formContextDomestic": "Form: letzte 5 Spiele dieser Saison",
--        "formContextDomesticPreseason": "Form: komplette Vorsaison",
--        "formContextWcQualifiers": "Form: alle Qualifikationsspiele",
--        "formContextWcTournament": "Form: alle bisherigen WM-Spiele",
--        "footAvgDesc": "Durchschnittswert pro Spiel im Formfenster",
--        "footPctDesc": "Quote über alle Formspiele kombiniert – Summe der Treffer geteilt durch Summe der Versuche, kein Mittelwert der Einzelquoten",
--        "footMissingDesc": "Vom Datenanbieter nicht geliefert",
--        "footMissingWcDesc": "Keine Qualifikationsdaten verfügbar. Gastgeberländer spielen keine Qualifikation und zeigen – bei allen Formkennzahlen vor Turnierbeginn.",
--    },
--    "en": {
--        "formContext": "Form: last 5 matches this season",
--        "formContextDomestic": "Form: last 5 matches this season",
--        "formContextDomesticPreseason": "Form: full previous season",
--        "formContextWcQualifiers": "Form: all qualifying matches",
--        "formContextWcTournament": "Form: all World Cup matches so far",
--        "footAvgDesc": "Per-match average in the form window",
--        "footPctDesc": "Ratio across all form matches combined – total hits ÷ total attempts, not an average of per-match rates",
--        "footMissingDesc": "Not provided by the data source",
--        "footMissingWcDesc": "No qualifying data available for this team. Host nations do not play qualifiers and show – for all form metrics before the tournament begins.",
--    },
--    "fi": {
--        "formContext": "Muoto: viimeiset 5 ottelua tällä kaudella",
--        "formContextDomestic": "Muoto: viimeiset 5 ottelua tällä kaudella",
--        "formContextDomesticPreseason": "Muoto: koko edellinen kausi",
--        "formContextWcQualifiers": "Muoto: kaikki karsintaottelut",
--        "formContextWcTournament": "Muoto: kaikki tähänastiset MM-ottelut",
--        "footAvgDesc": "Ottelukohtainen keskiarvo muotojaksolla",
--        "footPctDesc": "Suhde kaikilla muoto-otteluilla yhteensä – onnistumisten summa jaettuna yritysten summalla, ei ottelukohtaisten prosenttien keskiarvo",
--        "footMissingDesc": "Tietolähde ei toimittanut tätä arvoa",
--        "footMissingWcDesc": "Joukkueella ei ole karsintadataa saatavilla. Isäntämaat eivät pelaa karsinnoissa ja näyttävät – kaikissa muotoluvuissa ennen turnauksen alkua.",
--    },
--}
--
--FILES = {
--    "de": "site/i18n/de.json",
--    "en": "site/i18n/en.json",
--    "fi": "site/i18n/fi.json",
--}
--
--KEYS_TO_REMOVE = ["foot", "footWc", "footDataGap"]
--
--ORDER_AFTER = "errorPrefix"
--
--for lang, path in FILES.items():
--    with open(path, encoding="utf-8") as f:
--        data = json.load(f)
--
--    mp = data.setdefault("matchPreview", {})
--
--    for k in KEYS_TO_REMOVE:
--        mp.pop(k, None)
--
--    for k, v in LOCALES[lang].items():
--        mp[k] = v
--
--    with open(path, "w", encoding="utf-8") as f:
--        json.dump(data, f, ensure_ascii=False, indent=2)
--        f.write("\n")
--
--    print(f"{lang}: written ok")
-diff --git a/scripts/scaffold_domestic_league_staging.py b/scripts/scaffold_domestic_league_staging.py
-deleted file mode 100644
-index 5197466..0000000
---- a/scripts/scaffold_domestic_league_staging.py
-+++ /dev/null
-@@ -1,34 +0,0 @@
--#!/usr/bin/env python3
--"""Scaffold staging models from BL1. Usage: python scripts/scaffold_domestic_league_staging.py CODE folder"""
--
--from __future__ import annotations
--
--import sys
--from pathlib import Path
--
--REPO = Path(__file__).resolve().parents[1]
--BL1_DIR = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "bl1"
--STAGING_ROOT = REPO / "dbt_project" / "models" / "1_staging" / "api_football"
--
--
--def main() -> int:
--    if len(sys.argv) != 3:
--        print("Usage: scaffold_domestic_league_staging.py LEAGUE_CODE folder")
--        return 1
--    league_code = sys.argv[1].upper()
--    folder = sys.argv[2].lower()
--    target = STAGING_ROOT / folder
--    target.mkdir(parents=True, exist_ok=True)
--    for src_path in sorted(BL1_DIR.glob("stg_apif__bl1_*.sql")):
--        entity = src_path.stem.replace("stg_apif__bl1_", "")
--        text = src_path.read_text(encoding="utf-8")
--        text = text.replace("'BL1'", f"'{league_code}'")
--        text = text.replace("BL1", league_code)
--        text = text.replace("bl1", folder)
--        (target / f"stg_apif__{folder}_{entity}.sql").write_text(text, encoding="utf-8")
--    print(f"Wrote staging for {league_code} -> {target}")
--    return 0
--
--
--if __name__ == "__main__":
--    raise SystemExit(main())
+diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+index 080ed0d..e05e755 100644
+--- a/.claude/task/contract.md
++++ b/.claude/task/contract.md
+@@ -1,33 +1,57 @@
+-# Task contract — retire two obsolete scripts (#423, #424)
++# Task contract — pin requirements.txt, drop dead deps (#425)
+ 
+-> Audit F14/F15: delete two dead scripts. Both verified unreferenced (no CI, no
+-> imports, no docs). Pure deletion. See docs/working_agreement.md §2/§4.
++> Audit F20: root requirements.txt leaves several deps unpinned (supply-chain /
++> reproducibility drift). CPO ruling 2026-06-12: file. CPO scope ruling 2026-06-13:
++> "Pin + remove dead" — pin used deps, drop the unused/misplaced ones.
++> See docs/working_agreement.md §2/§10.
+ 
+ objective: >
+-  Retire two obsolete scripts flagged by the G4 audit:
+-  - #423 (F14): scripts/scaffold_domestic_league_staging.py — generates per-competition
+-    staging dirs, which the zero-file rule forbids; obsolete under unified raw tables.
+-  - #424 (F15): scripts/add_footer_i18n_keys.py — a one-time footer i18n migration,
+-    long complete; no __main__ guard, not idempotent. Retire it.
+-  Both confirmed unreferenced by CI, other scripts, and docs (grep, this session).
+-refs: #423 (F14), #424 (F15).
++  Harden the root requirements.txt against supply-chain / reproducibility drift
++  (audit F20). Investigation this session (grep across all .py, no .venv):
++  - `requests` — USED (http_client, scripts/diagnostics, scripts/squad_watch) → pin
++    to the installed/tested version 2.33.1.
++  - `beautifulsoup4` — ZERO usage anywhere → remove (dead).
++  - `pandas` — ZERO usage anywhere (no import, no load_table_from_dataframe / DataFrame)
++    → remove (dead; not flagged by F20 but surfaced to the CPO and approved under the
++    "remove dead" ruling).
++  - `functions-framework` — used ONLY in ingestion/api_football/main.py, where it is
++    already declared in ingestion/api_football/requirements.txt → remove the redundant
++    root copy (it belongs with the ingestion entrypoint, not at repo root).
++refs: #425 (audit F20).
+ 
+ scope_paths:
+-  - scripts/scaffold_domestic_league_staging.py
+-  - scripts/add_footer_i18n_keys.py
+-  - .claude/active_work.md   # artifact-only: handover write-out at close
++  - requirements.txt
++  - .claude/task/contract.md
+ 
+ decisions_taken: >
+-  CPO-approved deletions (audit rulings 2026-06-12). Pure removal of dead code; no
+-  behavior change to any live path (both scripts are unreferenced).
++  CPO ruling 2026-06-13 "Pin + remove dead", RECORDED in
++  `.claude/task/escalations.log` (entry 2026-06-13, question 1): pin the used dep
++  (requests==2.33.1), remove the two unused deps (beautifulsoup4, pandas) and the
++  redundant root functions-framework. The pandas removal — NOT named in F20's text —
++  was explicitly surfaced to the CPO in the question context and the chosen option's
++  description, and approved knowingly (see the log entry). No live import or CI step
++  depends on any removed dep: verified by grep across all repo .py (zero hits for
++  bs4/pandas; functions-framework only in ingestion/api_football/main.py, which is
++  covered by ingestion/api_football/requirements.txt), and confirmed by validate-local
++  offline gates (recorded under done_when). No CI workflow installs root +
++  ingestion requirements in the same pip invocation, so dropping the root
++  functions-framework cannot break the ingestion entrypoint.
+ 
+ decisions_reserved:
+-  - None. If a reviewer finds ANY live reference, STOP and escalate rather than delete.
++  - pyarrow is also fully unpinned but was NOT named by F20 and IS used (transitively by
++    the BigQuery Storage path); do NOT pin or touch it here — out of this issue's scope.
++    If a reviewer judges it the same defect, STOP and escalate rather than expand scope.
++  - The other floor-pinned deps (python-dotenv>=, google-cloud-bigquery-storage>=,
++    PyYAML>=, pytest>=) are pre-existing and out of F20's scope — leave untouched.
+ 
+ done_when:
+-  - both script files are removed (git rm); grep shows zero remaining references to
+-    either script name anywhere except the audit doc + task artifacts.
+-  - validate-local offline gates green (the python-ci test suite does not import either).
+-  - reviewers: scope-auditor (always) + cto-reviewer (scripts/) — PASS.
++  - requirements.txt: `requests==2.33.1`; no `beautifulsoup4`, no `pandas`, no
++    root-level `functions-framework`; every other line unchanged.
++  - grep confirms zero live references to the removed deps (already verified:
++    beautifulsoup4/pandas unused; functions-framework only in ingestion, still declared
++    in ingestion/api_football/requirements.txt).
++  - validate-local offline gates green (pip install of the trimmed file resolves; the
++    python-ci test suite imports none of the removed deps).
++  - reviewers: scope-auditor (always) + cto-reviewer (requirements*.txt) — PASS.
+ 
+ amendments: (none)
+diff --git a/requirements.txt b/requirements.txt
+index 4fe0a82..cd5a0af 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,8 +1,5 @@
+-requests
++requests==2.33.1
+ python-dotenv>=1.0.0
+-functions-framework
+-beautifulsoup4
+-pandas
+ google-cloud-bigquery==3.25.0
+ google-cloud-bigquery-storage>=2.25.0
+ pyarrow

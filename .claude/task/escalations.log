@@ -9,3 +9,10 @@
   `.claude/agents/**` is a PROTECTED guard path named in the opus-on-guards docs, but it was not routed to cto-reviewer — so a reviewer-definition change was reviewed only by the always-on scope-auditor (haiku), with no commit-gate or CI back-stop. Add the routing row (mechanical) vs keep procedural + qualify the docs.
       CPO ANSWER: Add the routing row (mechanical).
   Implemented as contract amendment A1: `.claude/agents/** -> cto-reviewer` added to review_routing.json; iteration-2 reviewers (scope-auditor haiku + cto-reviewer opus) both PASS.
+
+2026-06-13 chore/pin-requirements — CPO scope ruling on #425 (audit F20). F20's text said "pin requirements.txt deps" and noted bs4 "appears unused" + functions-framework "likely belongs in ingestion". During investigation the builder confirmed bs4 AND pandas have zero usage anywhere (no import, no DataFrame/load_table_from_dataframe), requests is used, and functions-framework is used only in ingestion (already declared in ingestion/api_football/requirements.txt). The builder surfaced this to the CPO with two questions:
+  (1) Scope of #425 — pin-only / pin + drop bs4 only / pin + remove all dead.
+      CPO ANSWER (AskUserQuestion, 2026-06-13): "Pin + remove dead" — pin the used dep (requests==2.33.1), DROP the two unused deps (beautifulsoup4 AND pandas) and the redundant root functions-framework, leave pyarrow + the floor-pinned deps untouched (out of F20 scope). The pandas removal — NOT named in F20's text — was explicitly stated in the question context ("beautifulsoup4 + pandas have zero usage anywhere") and in the chosen option's description ("DROP unused (beautifulsoup4, pandas)"); the CPO approved it knowingly.
+  (2) PR structure for #425 + #427.
+      CPO ANSWER (AskUserQuestion, 2026-06-13): two separate PRs (#425 deps, #427 data-contract docs) — independent, different reviewer routings, independent merge.
+  Recorded here so the contract's decisions_taken cites a locatable ruling (scope-auditor finding, iteration-1 FAIL).
