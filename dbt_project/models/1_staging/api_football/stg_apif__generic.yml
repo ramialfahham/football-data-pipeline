@@ -85,23 +85,6 @@ models:
       - name: raw_ingested_at
         tests: [not_null]
 
-  - name: stg_apif__transfers
-    description: >
-      One row per transfer line per player per league from GET /transfers. Latest ingestion
-      snapshot selected per league_code, then the payload is flattened 1:1 — no entity-grain
-      deduplication here. Rows with no transfer date are dropped (date is part of the grain).
-      Unique transfer-per-event dedup happens in base_apif__transfers at grain
-      (league_code, player_id, transfer_date, from_team_api_id, to_team_api_id, transfer_type).
-    columns:
-      - name: league_code
-        tests: [not_null]
-      - name: player_id
-        tests: [not_null]
-      - name: transfer_date
-        tests: [not_null]
-      - name: raw_ingested_at
-        tests: [not_null]
-
   - name: stg_apif__fixture_events
     description: >
       One row per event per fixture from the $.events array in raw_apif_fixture_details.

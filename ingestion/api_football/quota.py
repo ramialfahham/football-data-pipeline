@@ -10,7 +10,7 @@ import time
 _last_requests_remaining: int | None = None
 
 # When API-Sports returns the daily cap in the JSON body, stop issuing further HTTP in this run
-# (avoids hammering /transfers per team and per-fixture bundles after quota is gone).
+# (avoids hammering per-fixture bundles after quota is gone).
 _http_quota_exhausted: bool = False
 _pipeline_errors_for_quota: list[str] | None = None
 

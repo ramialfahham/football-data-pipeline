@@ -12,7 +12,6 @@ version: 2
 #   - surrogate key: unique + not_null
 #   - natural-key grain: dbt_utils.unique_combination_of_columns
 #   - every FK to a dim: not_null + relationships (severity error by default)
-#     exception: fct_transfer.{from,to}_team_sk are nullable by design (cross-league teams) and use severity warn
 #   - accepted_values on closed API enums (severity warn while the data still backfills)
 
 models:
@@ -245,7 +244,7 @@ models:
       grain key it is a clean one-row-per-key lookup; joining on a single participating key
       (e.g. player_sk) resolves a many-to-many and returns many rows by design. Use this
       for "which team/competition was a player part of, when"; appearances live in
-      fct_fixture_player_stats, moves in fct_transfer. See the "relationship (mapping)
+      fct_fixture_player_stats. See the "relationship (mapping)
       dimensions" clause in dbt_project/docs/layering.md.
     meta:
       owner: "data-platform"
@@ -632,62 +631,6 @@ models:
       - name: player_name_snapshot
       - name: assist_player_name
         description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
-      - name: raw_ingested_at
-
-  - name: fct_transfer
-    description: "Player transfer events. Grain: transfer_sk hashed over (league_code, player, date, from_team, to_team, type). Transfer event expansion/parsing is done in staging. from_team_sk / to_team_sk are nullable because transfers often involve teams outside the configured leagues; both legs keep api_id and name_snapshot regardless."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["core", "fact"]
-    columns:
-      - name: transfer_sk
-        description: "Surrogate key hashing the transfer grain."
-        tests: [not_null, unique]
-      - name: player_sk
-        description: "FK to dim_player."
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_player')
-              field: player_sk
-      - name: from_team_sk
-        description: "FK to dim_team for the selling side. Nullable: cross-league outgoing teams are not in dim_team."
-        tests:
-          - relationships:
-              to: ref('dim_team')
-              field: team_sk
-              severity: warn
-              where: "from_team_sk is not null"
-      - name: to_team_sk
-        description: "FK to dim_team for the buying side. Nullable: cross-league incoming teams are not in dim_team."
-        tests:
-          - relationships:
-              to: ref('dim_team')
-              field: team_sk
-              severity: warn
-              where: "to_team_sk is not null"
-      - name: transfer_date_sk
-        description: "FK to dim_date on the transfer date."
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_date')
-              field: date_sk
-      - name: league_code
-        tests: [not_null]
-      - name: player_api_id
-        tests: [not_null]
-      - name: transfer_date
-        tests: [not_null]
-      - name: transfer_type
-        description: "Transfer type as delivered by the API (e.g. Free, Loan, N/A)."
-      - name: from_team_api_id
-      - name: from_team_name_snapshot
-      - name: to_team_api_id
-      - name: to_team_name_snapshot
       - name: raw_ingested_at
 
   - name: fct_team_market_value_snapshot

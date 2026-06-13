@@ -3,7 +3,7 @@
 
   WHY THIS MACRO EXISTS
   ---------------------
-  Reference tables (fixtures, standings, teams, transfers, rounds, players, leagues)
+  Reference tables (fixtures, standings, teams, rounds, players, leagues)
   use append-only writes since issue #220. Each daily pipeline run appends one new
   complete snapshot row. BigQuery partitions the table by DATE(ingested_at).
 
