@@ -26,6 +26,7 @@ scope_paths:
   - dbt_project/models/2_base/api_football/base_apif__transfers.sql
   - dbt_project/models/2_base/api_football/base_apif__players.sql
   - .claude/task/contract.md
+  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A1)
 
 decisions_taken: >
   CPO-approved fix (audit ruling 2026-06-12: file). Replace the league_code='BL1' filter
@@ -59,4 +60,7 @@ done_when:
     ci-data-build (the authoritative gate for this change).
   - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) — PASS.
 
-amendments: (none)
+amendments:
+  - 2026-06-13 A1: + .claude/active_work.md — authority: standing rule (handover kept
+    current at task close; commit-exempt but not auto-editable). content: status update
+    marking #420 done (PR #441).

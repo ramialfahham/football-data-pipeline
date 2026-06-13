@@ -63,18 +63,22 @@ the parked marts stash under the full workflow incl. the two blinded slug
 escalations) — OR the remaining audit cleanup issues, the GAP-18
 parent-child modeling, or the deferred gate task #409, as CPO directs. **DONE so far:**
 #414 (form_source #429), #426 (AFCCL #432), **#419 doc-sync (PR #433** — F27–F37; F35/F37
-were already-correct), #423/#424 (dead scripts, PR #436), **#425 (PR #438):** pinned
+were already-correct), #423/#424 (dead scripts, PR #436), **#425 MERGED (PR #438):** pinned
 requests==2.33.1 + dropped bs4/pandas/redundant-root functions-framework from
 requirements.txt (iter-1 scope FAIL: ruling not recorded → recorded → iter-2 PASS),
-**#427 (PR #439):** added RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md
+**#427 MERGED (PR #439):** added RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md
 (iter-1 data-eng FAIL: Plan-vs-product "no separate coaches ingest" contradiction +
-inaccurate "every run" → amendment A1 fixed both → iter-2 PASS). **#425 + #427 are SEPARATE
-PRs per CPO ruling 2026-06-13.** NOTE: PR #438 + #439 each edit this DONE block
-independently — expect a small merge conflict on whichever merges second (resolve by
-keeping both lines). **NEXT cleanup picks:** #420 (remove BL1 hardcode in
-base_apif__transfers — REAL behaviour change, verify DQ), #421/#422 (remaining cleanups).
+inaccurate "every run" → amendment A1 fixed both → iter-2 PASS; #439 hit the #425 merge-order
+conflict → resolved by REBASE onto main, not merge — a merge commit carries main's
+requirements.txt pin which the commit-form gate blocks; rebase --continue ≠ git commit).
+**#420 DONE (PR #441):** dropped the `league_code='BL1'` hardcode in base_apif__transfers
+(2_base competition-agnostic violation, F1/F2) — now `where player_id is not null` only;
+fixed the stale BL1-only comment in base_apif__players. REAL behaviour change: fct_transfer
++ dim_player now cover all leagues' transfers; player_sk→dim_player holds by construction
+(both consume the same base); DQ proof runs in ci-data-build. Both reviewers PASS first
+iteration. **NEXT cleanup picks:** #421/#422 (remaining cleanups).
 Remaining open audit issues: #409 (gate-integrity, needs gate-lift),
-#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#422 (cleanups),
+#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #421/#422 (cleanups),
 #430 (form_source stale-ref follow-up). **Follow-up from #427 review (pre-existing
 doc staleness, out of F24 scope):** Landing-Zone "verbatim envelope" line vs coaches.py's
 wrapped dict; the "Append-only writes" prose list doesn't enumerate coaches/injuries. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
