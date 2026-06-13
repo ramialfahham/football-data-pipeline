@@ -1,56 +1,46 @@
-# Review — governance/gate-integrity-409 — 2026-06-13
+# Review — docs/data-contract-followups-427 — 2026-06-13
 
-> #409 (F10/F11) + #421 (F12) gate-integrity bundle. CPO gate-lift + fix picks recorded in
-> escalations.log (2026-06-13): F10=(a) stop exempting contract.md; F11=(a) hash
-> branch-diff-excluding-artifacts (CI recomputes); F12 demote the redundant global check.
-> Protected paths under protected_override. Required reviewers: scope-auditor (always) +
-> cto-reviewer (.claude/hooks/**, scripts/**, review_routing.json; opus-on-guards).
-> Three cold iterations: iter-1 PASS/PASS with two cto findings (untested local==CI
-> invariant; stale REVIEW_TEMPLATE caption) — addressed; iter-2 cto ESCALATE (the invariant
-> test covered only adds; blob-abbrev length unpinned) — resolved by --no-abbrev on both diff
-> sides + a modified-base-file end-to-end test; iter-3 both PASS against the hash below.
+> #427 review follow-up: fix two pre-existing data_contract.md inaccuracies (the
+> "verbatim envelope" Landing-zone wording; the append-only prose missing coaches/injuries).
+> Within the CPO standing autonomous-backlog grant (escalations.log 2026-06-13). Docs-only,
+> non-protected. Required reviewers: scope-auditor + data-engineer-reviewer (docs/data_contract.md).
+> Three cold iterations: iter-1 data-eng FAIL (the squads/players reshape was unacknowledged),
+> iter-2 data-eng FAIL (the fix then contradicted line 23 "Nothing is discarded"); both fixed
+> (merge-vs-reshape split named for players/squads + coaches; line 23 scoped to response data;
+> contract done_when corrected). iter-3: both PASS against the hash below.
 
-diff_sha256: 367bfb63b83114e8cedfc9cf0b2fc8d54fda18909ce0ef29ea756526da611708
+diff_sha256: 379a079f8ec2ad3a6f78e3a8590f52bb40e1e39a6af68c3f4e8673cbde4e2cd1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Authorization + strictness (highest-stakes guard change): the CPO gate-lift and the
-  F10(a)/F11(a) fix picks are recorded in .claude/task/escalations.log (2026-06-13) and the
-  contract carries protected_override naming them; every change STRENGTHENS the gate
-  (artifact_only_never carves contract.md out of the exempt lane; hash_exclude_paths +
-  CI recompute bind the review to the PR) — nothing loosens routing, broadens artifact_only,
-  or adds a bypass. Diff touches only the declared scope_paths.
-- Faithfulness + hole-closure with tests: F10 (contract.md never artifact-exempt) enforced
-  identically in git_discipline.py and check_task_artifacts.py; F11 binds code+contract via
-  the excluded-diff hash, recomputed by CI; F12 demotes the global escalate-count to a
-  commented secondary while the per-section loop stays authoritative. New tests prove the
-  closed holes: contract-only commit denied (local + CI), stale review hash rejected by CI
-  (#405), and the load-bearing local-==-CI invariant end-to-end over a MODIFIED base file.
+- Authorization + §10: the task is a #427 doc follow-up explicitly covered by the recorded
+  standing autonomous-backlog grant (escalations.log 2026-06-13); changes describe EXISTING
+  loader behaviour (correcting an inaccurate doc), not a product/metric/naming/mechanism
+  decision — no §10. Only non-protected paths; no protected path touched.
+- Scope + internal consistency: only the flagged areas of data_contract.md changed
+  (Landing-zone note, payload column, line 23, append prose) + the contract's own done_when
+  correction; the unified-tables table and merge model are untouched. The Landing-zone note,
+  payload column, line 23, and append list are mutually consistent (merge vs players/squads+coaches
+  reshape; response data kept, envelope metadata dropped; append list matches the table).
 
-## cto-reviewer
+## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- F11 byte-equivalence (load-bearing): all three diff sites (git_discipline _staged_diff_bytes,
-  check_task_artifacts recompute, test branch_hash) use identical `--no-renames --no-abbrev`
-  + the same `:(exclude)` pathspec. For identical content the local staged diff and the CI
-  `base...HEAD` recompute are byte-identical across all shapes — new file, MODIFIED
-  base-resident file (base blob == HEAD-side old blob; --no-abbrev removes abbreviation-length
-  divergence; --no-renames removes rename-detection divergence), and excluded bookkeeping.
-  The invariant is UNCONDITIONAL for the supported single-substantive-commit flow and
-  test-locked end-to-end by test_local_staged_hash_equals_ci_recompute (add + modify +
-  excluded together). Residual vectors (split/amended commits, diverged base) all fail CLOSED.
-- F10 dual-gate consistency + F12 + fail-mode/scope: contract.md is in artifact_only_never in
-  BOTH gates and deliberately NOT in hash_exclude_paths (so it is hashed); other bookkeeping
-  stays exempt+excluded — locked by three tests. F12 keeps the global check as a commented
-  SECONDARY backstop with the per-section loop AUTHORITATIVE (no weakening). Fail polarity is
-  correct: local gate fails OPEN (try/except → no self-lockout; _hash_exclude_pathspec(None)
-  safe), CI fails CLOSED (check=True + non-zero on error). Only declared scope_paths;
-  protected_override present; no allowlist/sole-command/escalation logic weakened.
+- Loader-faithfulness: verified against the code — RESHAPE loaders coaches.py
+  (`{league_code, response:[{team_id, coach}]}`) and squads.py
+  (`{league_code, response:[{team_id, season, players_payload}]}`) store no envelope metadata;
+  MERGE loaders fixtures/standings/teams/injuries concatenate responses into a standard envelope
+  recomputing results/paging (injuries correctly classified as MERGE). The note's structures
+  match the actual payloads.
+- Line 23 consistency + append accuracy: the old absolute "Nothing is discarded" is replaced by
+  "No `response` data is discarded… reshape loaders drop only the per-call envelope metadata,
+  not the response items" — factually correct and no longer contradicting the reshape note. The
+  append-only prose now lists fixtures-next/standings/teams/players/coaches/injuries/leagues,
+  matching the unified-raw-tables table (all WRITE_APPEND). Pre-existing out-of-scope note: teams.py
+  also injects a per-item `league` block (a separate undocumented detail, predates this patch).
 
 ## escalations
-(none — iter-2 cto ESCALATE on the invariant's test coverage + unpinned abbreviation was
-resolved by hardening (--no-abbrev on both diff sides; the end-to-end test now modifies a
-base-resident file), not escalated to the CPO — it was a fixable robustness gap, not a
-CPO-class decision. Both reviewers PASS in iter-3. The same-PR self-binding is verified
-post-commit by running check_task_artifacts against the PR's own diff.)
+(none — iter-1/iter-2 data-engineer FAILs (squads reshape omission; line-23 contradiction) fixed
+in-cycle; both PASS in iter-3. Pre-existing teams.py league-injection doc gap flagged as a future
+follow-up, out of this task's scope.)
