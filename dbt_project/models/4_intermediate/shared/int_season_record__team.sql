@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 {#
-  W2 season-to-date builder — team. Cumulative running totals over a team's finished
+  W2 season-record builder — team. Cumulative running totals over a team's finished
   matches within one competition+season, one row per match played (the totals THROUGH
   that match). The complement to int_momentum__team (W1 = last 5): this answers
   "what have they done in this competition this season?".

@@ -115,16 +115,16 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
-  - name: mart_form_window__team
+  - name: mart_momentum_window__team
     description: >
-      W1 form-window list mart — team (#323). The drill-down behind the momentum
+      W1 momentum-window list mart — team (#323). The drill-down behind the momentum
       metrics: the same last-5 matches mart_momentum__team aggregates, exposed
       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
       is the click-through key into mart_fixture_stats__team / __player; has_team_stats
       and has_player_stats are derived from those detail marts (same-layer refs, the
       documented layering exception), so true literally means the drill-down returns
       rows. Consistency with the momentum aggregate is guarded by
-      assert_form_window_matches_momentum. Grain: (upcoming_fixture_sk, team_sk,
+      assert_momentum_window_matches_momentum. Grain: (upcoming_fixture_sk, team_sk,
       played_fixture_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -281,9 +281,9 @@ models:
       - name: points_delta_yoy
         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
 
-  - name: mart_season_to_date__team
+  - name: mart_season_record__team
     description: >
-      W2 season-to-date mart — team. One row per upcoming fixture side: the team's
+      W2 season-record mart — team. One row per upcoming fixture side: the team's
       cumulative record in the fixture's own competition this season (shown beside W1
       momentum). Falls back to the same competition's previous season before the team has
       played (window_type='prev_season'). Same metric_ids/formulas as mart_momentum__team;
@@ -357,9 +357,9 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
-  - name: mart_season_to_date__player
+  - name: mart_season_record__player
     description: >
-      W2 season-to-date mart — player. One row per player per upcoming fixture side: the
+      W2 season-record mart — player. One row per player per upcoming fixture side: the
       player's cumulative record in the fixture's own competition this season (complement to
       mart_momentum__player). Previous-season fallback before the team has played. Raw counts
       passed through; ratios via safe_divide. Grain: (upcoming_fixture_sk, team_sk, player_sk).

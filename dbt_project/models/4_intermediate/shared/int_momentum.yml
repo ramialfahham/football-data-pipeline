@@ -4,7 +4,7 @@ models:
   - name: int_momentum__team
     description: >
       W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
-      totals over the window legs selected by int_form_window__team (the selection was
+      totals over the window legs selected by int_momentum_window__team (the selection was
       extracted there in #323 so this aggregate and the drill-down list mart consume the
       same matches). No ratios — those are computed in mart_momentum__team.
       Player-derived columns (key_passes, tackles, …) are NULL when player stats are

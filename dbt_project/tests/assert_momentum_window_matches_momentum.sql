@@ -1,15 +1,15 @@
--- The form-window list (mart_form_window__team) and the momentum aggregate
+-- The momentum-window list (mart_momentum_window__team) and the momentum aggregate
 -- (mart_momentum__team) must describe the same matches: for every upcoming
 -- fixture side, the number of rows in the list must equal games_in_window,
 -- and neither surface may have a side the other lacks. Both consume
--- int_form_window__team, so a mismatch means a build-order or join bug.
+-- int_momentum_window__team, so a mismatch means a build-order or join bug.
 
 with list_counts as (
     select
         upcoming_fixture_sk,
         team_sk,
         count(*) as games_in_list
-    from {{ ref('mart_form_window__team') }}
+    from {{ ref('mart_momentum_window__team') }}
     group by
         upcoming_fixture_sk,
         team_sk

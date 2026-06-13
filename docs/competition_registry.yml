@@ -101,7 +101,7 @@ competitions:
   # `parent_competition` links a child (qualifier → tournament; domestic cup →
   # league) to its parent. Curated intent, NOT yet consumed — reserved for the
   # GAP-18 tournament-window modeling (a Core parent-child dim). Team form is
-  # recency-based (int_form_window__team), so it needs no parent mapping today.
+  # recency-based (int_momentum_window__team), so it needs no parent mapping today.
 
   - league_code: "WCQEU"
     name: "WC Qualification Europe"

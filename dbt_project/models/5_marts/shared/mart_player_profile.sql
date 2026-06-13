@@ -14,7 +14,7 @@
 
   passes_accurate follows the catalogue definition exactly: per-fixture
   ROUND(passes_total × passes_accuracy_percent / 100) then summed (matches
-  int_momentum__player / int_season_to_date__player; small rounding error).
+  int_momentum__player / int_season_record__player; small rounding error).
 
   Grain: (player_sk, season_sk). A player active in two competitions in one
   season has one row per competition-season. Only finished matches with a
