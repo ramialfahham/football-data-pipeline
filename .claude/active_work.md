@@ -66,18 +66,28 @@ parent-child modeling, or the deferred gate task #409, as CPO directs. **DONE so
 were already-correct), #423/#424 (dead scripts, PR #436), **#425 (PR #438):** pinned
 requests==2.33.1 + dropped bs4/pandas/redundant-root functions-framework from
 requirements.txt (iter-1 scope FAIL: ruling not recorded → recorded → iter-2 PASS),
-**#427 (PR #439):** added RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md
-(iter-1 data-eng FAIL: Plan-vs-product "no separate coaches ingest" contradiction +
-inaccurate "every run" → amendment A1 fixed both → iter-2 PASS). **#425 + #427 are SEPARATE
-PRs per CPO ruling 2026-06-13.** NOTE: PR #438 + #439 each edit this DONE block
-independently — expect a small merge conflict on whichever merges second (resolve by
-keeping both lines). **NEXT cleanup picks:** #420 (remove BL1 hardcode in
-base_apif__transfers — REAL behaviour change, verify DQ), #421/#422 (remaining cleanups).
-Remaining open audit issues: #409 (gate-integrity, needs gate-lift),
-#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#422 (cleanups),
-#430 (form_source stale-ref follow-up). **Follow-up from #427 review (pre-existing
-doc staleness, out of F24 scope):** Landing-Zone "verbatim envelope" line vs coaches.py's
-wrapped dict; the "Append-only writes" prose list doesn't enumerate coaches/injuries. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
+**#427 (PR #439) MERGED:** added RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md.
+**#425 (PR #438) MERGED.** **#420 (PR #441) PARKED RED:** the BL1-hardcode removal in
+base_apif__transfers is correct, but it surfaced a pre-existing DQ gap via the transfers→player
+identity fallback (not_null_dim_player_player_name = 37 nulls in ci-data-build). That FAIL led to
+a CPO design session that REPLACES the band-aid with a proper **player-model redesign** (memory:
+[[project-player-model-redesign]] — shape LOCKED 2026-06-13). #420 stays parked; the redesign is
+the real fix (it removes the last_known_*/two-stage-collapse that manufactured the bug).
+**PLAYER-MODEL REDESIGN — PR A DONE (PR #444):** added `dim_player_team_season_mapping` (3_core
+relationship/mapping dim) + `base_apif__player_team_season` (2_base) — rostered membership,
+single-source from /players, incl. never-played squad members. Extended layering.md with a
+"relationship (mapping) dimensions" rule (CPO ruling, escalations.log 2026-06-13: keep dim_ +
+_mapping suffix). 3 cold reviewer iterations (fan-out guard + classification) → both PASS.
+**NEXT — PR B (the breaking rework):** dim_player → pure entity (drop league_code/last_known_*);
+collapse base_apif__players to one identity dedup; DELETE base_apif__players_global; repoint
+consumers (int_player_season__metrics, mart_player_season/profile/match_log/fixture_stats__player,
+scripts/export_site_data.py). **Settle FIRST in PR B:** the name-less transfer-only identity
+player (drop name-less transfers from the identity fallback vs allow + relax not_null) — this is
+what blocks #420/#441 green. Fold #420's base_apif__transfers fix into PR B (or close #441).
+Remaining audit cleanups (deprioritized under the redesign): #421/#422, #409 (gate-lift),
+#410/#411/#412, #413, #430. **Follow-up from #427 review (pre-existing doc staleness):**
+Landing-Zone "verbatim envelope" line vs coaches.py's wrapped dict; the "Append-only writes"
+prose list doesn't enumerate coaches/injuries. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
 DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
 REGENERATE `.claude/task/review_input.patch` before each blinding — a stale patch
 (from the prior merged task) caused a false scope-FAIL; also the 2nd haiku
