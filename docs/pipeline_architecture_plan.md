@@ -182,12 +182,14 @@ Total work for Step 2:
 
 #### Locked rules (CPO-aligned)
 
-1. **Domestic leagues (`form_source: league_only`, e.g. BL1)**  
+> Classification is by the **competition_types taxonomy** (`competition_type` → `entity_type`). The per-competition `form_source` field and the `supporting_leagues` enumeration were retired (PR #429); the rules below are unchanged — only the mechanism that selects which rule applies (taxonomy + competition phase) is restated.
+
+1. **Domestic leagues (club `entity_type`, e.g. BL1)**  
    - **Before the competition has started** (no finished league match yet in the **current** `season_api_year` for that `league_code`): compute form from the **entire previous season** — all finished matches for that team in the same `league_code` with the prior season year (`season_type` / split-year rules from `dim_competition_season`).  
    - **After the first finished match of the current season:** use **only** the **current** competition. Rolling window = the **last five finished matches** in that `league_code` + current `season_api_year`, ordered by kickoff (deterministic tie-break). **Until five such matches exist**, include **every** finished match played so far (matchday 1 → one game, matchday 3 → up to three games, etc.). **Never** use `dense_rank()` on `round_order` to fake five slots when postponements leave gaps — the window is **games**, not **matchdays**.
 
-2. **WC (`form_source: supporting_leagues`)**  
-   - **Through Group Stage Matchday 1:** form uses **all** finished qualifier legs for that team across every internal `league_code` listed under WC’s `supporting_leagues` in **`docs/competition_registry.yml`** (no cap).  
+2. **WC (national `entity_type`)**  
+   - **Through Group Stage Matchday 1:** form uses **all** finished qualifier legs for that team across its national competitions (legs with `entity_type = 'national'`, selected by recency rather than an enumerated supporting-league list) — no cap.  
    - **From Group Stage Matchday 2 onward (including knockout):** use **only** finished `league_code = 'WC'` tournament legs before kickoff — cumulative tournament-to-date (no five-game cap).
 
 3. **Season boundaries**  
@@ -204,7 +206,7 @@ Total work for Step 2:
 
 - **“Competition started” for domestic** = exists at least one **finished** (FT/AET/PEN) fixture in `fct_fixture` for that `league_code` + current `season_api_year` (with non-null goals per finished-leg int).  
 - **First WC tournament match for dispatch** = earliest finished WC leg for the team with `kickoff_datetime <` the reference upcoming fixture kickoff.  
-- **Supporting qualifier set** = WC registry `supporting_leagues` → internal `league_code` list actually ingested.
+- **Qualifier set for a national team** = its finished legs with `entity_type = 'national'` (selected by recency / season-to-date across the team’s national competitions), not an enumerated registry list. An explicit WC↔qualifier parent link is reserved for GAP-18 (`parent_competition`).
 
 ### Step 4 — Intermediate-layer tests
 
