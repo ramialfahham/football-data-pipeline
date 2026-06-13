@@ -193,11 +193,11 @@ models:
 
   - name: dim_player
     description: >
-      Canonical player dimension. Grain: player_api_id (globally unique in API-Football).
-      Sourced from base_apif__players_global (latest ingest per player across league rows).
-      A player keeps one row even when they change teams within a season; the last known team
-      and season are retained as snapshot attributes rather than joinable keys, because team
-      attribution belongs on facts that involve player and team simultaneously.
+      Canonical player dimension — a pure global entity. Grain: player_api_id (globally
+      unique in API-Football). Sourced 1:1 from base_apif__players (single global identity
+      dedup). Identity attributes only; a player is one entity across competitions, so this
+      carries NO league_code and NO team/season affiliation — "which team/season" lives in
+      dim_player_team_season_mapping (roster membership) and the facts (appearances).
     meta:
       owner: "data-platform"
       domain: "football"
@@ -208,9 +208,6 @@ models:
       - name: player_sk
         description: "Surrogate key: player_api_id cast to INT64 (globally unique in API-Football)."
         tests: [not_null, unique]
-      - name: league_code
-        description: "Internal league code."
-        tests: [not_null]
       - name: player_api_id
         description: "API-Football player id."
         tests: [not_null]
@@ -227,10 +224,6 @@ models:
         description: "Nationality string from API-Football."
       - name: player_photo_url
         description: "Player photo URL."
-      - name: last_known_team_api_id
-        description: "Snapshot attribute: the most recent team this player was seen with in ingested squad data. Not a join key; use facts for authoritative player-team attribution at a point in time."
-      - name: last_known_season_year
-        description: "Snapshot attribute: the most recent season year this player was seen with last_known_team_api_id."
       - name: raw_ingested_at
         description: "UTC timestamp of the raw row this dimension row was derived from."
 

@@ -165,19 +165,18 @@ models:
 
   - name: base_apif__players
     description: >
-      Unified player entity rows across all onboarded competitions.
-      League list driven by var('active_competition_league_codes').
-      Deduplicated per (league_code, player_api_id), preferring the most
-      recent season snapshot. Feeds base_apif__players_global.
-      Output grain: (league_code, player_api_id).
+      Global player identity: one row per player_api_id, unioned from /players,
+      fixture player stats, and fixture events, deduplicated in a single pass that
+      prefers the most authoritative named source (source_priority) then the most
+      recent ingest. Identity only — no league_code or team/season affiliation
+      (those live in dim_player_team_season_mapping and the facts). Feeds dim_player.
+      Grain: player_api_id.
     config:
       tags: ["base", "api_football", "player_context"]
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [league_code, player_api_id]
+          combination_of_columns: [player_api_id]
     columns:
-      - name: league_code
-        tests: [not_null]
       - name: player_api_id
         tests: [not_null]
 
@@ -200,22 +199,6 @@ models:
             - event_index
     columns:
       - name: fixture_id
-        tests: [not_null]
-      - name: league_code
-        tests: [not_null]
-
-  - name: base_apif__players_global
-    description: >
-      One row per player_api_id: latest ingest across (league_code, player_api_id)
-      rows from base_apif__players (all active competitions). Entity resolution for dim_player.
-      Grain: player_api_id.
-    config:
-      tags: ["base", "api_football", "player_context"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [player_api_id]
-    columns:
-      - name: player_api_id
         tests: [not_null]
       - name: league_code
         tests: [not_null]
