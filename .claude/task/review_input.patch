@@ -1,491 +1,149 @@
-diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
-index bf49048..146d2ae 100644
---- a/.claude/hooks/git_discipline.py
-+++ b/.claude/hooks/git_discipline.py
-@@ -93,8 +93,18 @@ def _repo_root() -> str:
- 
- def _staged_diff_bytes(root: str) -> bytes:
-     import subprocess
-+    # F11 (#409): hash the staged diff EXCLUDING the bookkeeping artifacts, so the
-+    # review hash covers code + contract.md only and CI can recompute the same value
-+    # over `git diff base...HEAD` (it has no staging index). See _hash_exclude_pathspec.
-+    # --no-renames AND --no-abbrev pin the diff so the local staged hash and the CI
-+    # recompute (`git diff base...HEAD`) are byte-identical for identical content:
-+    # --no-renames removes endpoint-sensitive rename detection; --no-abbrev forces full
-+    # 40-hex blob SHAs in the `index` lines so the abbreviation length (which depends on
-+    # the repo's object count, and so differs pre- vs post-commit) cannot diverge them.
-     return subprocess.run(
--        ["git", "diff", "--staged"], cwd=root, capture_output=True, timeout=30,
-+        ["git", "diff", "--staged", "--no-renames", "--no-abbrev"]
-+        + _hash_exclude_pathspec(_load_routing(root)),
-+        cwd=root, capture_output=True, timeout=30,
-     ).stdout
- 
- 
-@@ -129,8 +139,23 @@ def _required_reviewers(paths: list[str], routing: dict) -> set[str]:
-     return required
- 
- 
-+def _hash_exclude_pathspec(routing: dict | None) -> list[str]:
-+    """Git pathspec excluding the bookkeeping artifacts from the review diff
-+    (F11/#409): `-- . :(exclude)<path>...`. contract.md is deliberately NOT in
-+    hash_exclude_paths, so the review hash binds code + the authorizing contract."""
-+    excludes = (routing or {}).get("hash_exclude_paths") or []
-+    if not excludes:
-+        return []
-+    return ["--", "."] + [f":(exclude){p}" for p in excludes]
-+
-+
- def _artifact_only(paths: list[str], routing: dict) -> bool:
-     import fnmatch
-+    # F10 (#409): contract.md authorizes which code may be edited, so a commit that
-+    # touches it is NEVER review-exempt — even though it matches the artifact_only glob.
-+    never = routing.get("artifact_only_never") or []
-+    if any(fnmatch.fnmatch(p, pat) for p in paths for pat in never):
-+        return False
-     pats = routing.get("artifact_only") or []
-     return bool(paths) and all(
-         any(fnmatch.fnmatch(p, pat) for pat in pats) for p in paths
-diff --git a/.claude/review_routing.json b/.claude/review_routing.json
-index 664f320..b5703e3 100644
---- a/.claude/review_routing.json
-+++ b/.claude/review_routing.json
-@@ -6,7 +6,13 @@
-     "diff from these path patterns (fnmatch); 'always' reviewers run on every",
-     "substantive commit. Commits whose staged paths ALL match 'artifact_only'",
-     "patterns are exempt from review (bookkeeping: handover, review files,",
--    "escalation log). JSON not YAML so the stdlib-only hooks can parse it.",
-+    "escalation log) — EXCEPT any path in 'artifact_only_never' (contract.md",
-+    "authorizes scope, so a contract change is never exempt; F10/#409).",
-+    "'hash_exclude_paths' = bookkeeping artifacts excluded from the review",
-+    "diff_sha256, so the hash covers code + contract.md; CI recomputes",
-+    "`git diff base...HEAD` over the same exclusion to bind review.md to the PR",
-+    "(F11/#409). contract.md is NOT excluded — it is hashed.",
-+    "JSON not YAML so the stdlib-only hooks can parse it.",
-     "Dormant-but-undefined reviewers (activate with their surface): ui-expert",
-     "(site_v2 templates/components, when #366/#368 build), data-journalist",
-     "(generated narratives, when GAP-03 builds), legal-counsel (crest/logo/photo",
-@@ -40,5 +46,17 @@
-   "artifact_only": [
-     ".claude/task/**",
-     ".claude/active_work.md"
-+  ],
-+  "artifact_only_never": [
-+    ".claude/task/contract.md"
-+  ],
-+  "hash_exclude_paths": [
-+    ".claude/task/review.md",
-+    ".claude/task/review_input.patch",
-+    ".claude/task/escalations.log",
-+    ".claude/task/audit_reviewer_outputs.md",
-+    ".claude/task/TEMPLATE.md",
-+    ".claude/task/REVIEW_TEMPLATE.md",
-+    ".claude/active_work.md"
-   ]
- }
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b6b7a8b..8920c93 100644
+index 8920c93..2c4624f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,49 +1,76 @@
--# Task contract — remove dead per-competition path triggers from pages-match-preview.yml (#422)
-+# Task contract — governance gate integrity (#409 F10/F11 + #421 F12)
+@@ -1,76 +1,50 @@
+-# Task contract — governance gate integrity (#409 F10/F11 + #421 F12)
++# Task contract — data_contract.md doc-staleness follow-ups (#427 review)
  
--> Audit F13: .github/workflows/pages-match-preview.yml lists per-competition staging path
--> triggers (pl/pd/bl2/sa/l1/vl) that the zero-file rule forbids and that do not exist —
--> permanently dead, and they falsely imply a per-competition architecture. Remove them.
--> Touches a PROTECTED path (.github/workflows/) → protected_override below.
--> See docs/working_agreement.md §2.
-+> CPO gate-lift granted 2026-06-13 ("Do it") to edit the protected gate machinery, plus
-+> the reserved fix-mechanism picks: F10 = stop exempting contract.md; F11 = hash the
-+> branch-diff-excluding-artifacts (CI recomputes); F12 = demote the redundant global check.
-+> Touches PROTECTED paths (.claude/review_routing.json, .claude/hooks/git_discipline.py) +
-+> the CI backstop scripts/check_task_artifacts.py → protected_override below.
-+> See docs/working_agreement.md §2; memory governance_artifact_commit_ordering.md.
+-> CPO gate-lift granted 2026-06-13 ("Do it") to edit the protected gate machinery, plus
+-> the reserved fix-mechanism picks: F10 = stop exempting contract.md; F11 = hash the
+-> branch-diff-excluding-artifacts (CI recomputes); F12 = demote the redundant global check.
+-> Touches PROTECTED paths (.claude/review_routing.json, .claude/hooks/git_discipline.py) +
+-> the CI backstop scripts/check_task_artifacts.py → protected_override below.
+-> See docs/working_agreement.md §2; memory governance_artifact_commit_ordering.md.
++> Two pre-existing data_contract.md inaccuracies surfaced by the #427 data-engineer review
++> (out of #427's scope at the time, flagged as follow-up). Docs-only, non-protected — part
++> of the CPO-granted autonomous non-protected backlog (2026-06-13, see escalations.log).
++> See docs/working_agreement.md §2.
  
  objective: >
--  Remove the six dead per-competition staging path triggers from the push.paths list of
--  .github/workflows/pages-match-preview.yml:
--    dbt_project/models/1_staging/api_football/{pl,pd,bl2,sa,l1,vl}/**
--  These directories cannot exist under the zero-file rule (staging is generic, one model
--  per entity, no per-competition subdirs — enforced by check_layer_contract.py). The
--  generic trigger `dbt_project/models/1_staging/**` already above them covers any real
--  staging change, so removing the six is a pure no-op to the workflow's actual behaviour.
+-  Close the three gate-integrity findings:
+-  - F10: a contract-only commit reaches main with zero review (the artifact_only lane
+-    exempts contract.md, which authorizes scope). FIX (CPO pick a): contract.md is NEVER
+-    artifact-exempt — any commit containing it requires the routed reviewers (scope-auditor).
+-    Implemented via a new `artifact_only_never` routing key honoured by both the local
+-    commit gate and the CI backstop.
+-  - F11: CI cannot bind review.md to the PR code (it can't recompute a staged hash). FIX
+-    (CPO pick a): the canonical review hash becomes sha256 of the diff EXCLUDING the
+-    bookkeeping artifacts (a new `hash_exclude_paths` routing key) — contract.md + code are
+-    hashed; review.md/patch/escalations/templates/active_work are not. The local gate hashes
+-    the STAGED such diff; the CI backstop recomputes `git diff <base>...HEAD` over the same
+-    exclusion and compares — so the review is now bound to the PR's code+contract.
+-  - F12 (#421): demote the redundant global count(ESCALATE)>count(ANSWER) in
+-    check_task_artifacts.py to a clearly-commented SECONDARY backstop; document that the
+-    per-section loop is authoritative.
+-  CONSEQUENCE of F11(a) (intended): contract.md + code must be final in the substantive
+-  (commit-1) diff; a later commit that changes contract.md or code alters the branch-diff
+-  hash and no longer matches review.md → CI fails. So no post-commit contract amendments;
+-  the contract must be complete before the reviewed commit.
+-refs: #409 (F10/F11), #421 (F12); memory governance_artifact_commit_ordering.
 -
--refs: #422 (audit F13).
-+  Close the three gate-integrity findings:
-+  - F10: a contract-only commit reaches main with zero review (the artifact_only lane
-+    exempts contract.md, which authorizes scope). FIX (CPO pick a): contract.md is NEVER
-+    artifact-exempt — any commit containing it requires the routed reviewers (scope-auditor).
-+    Implemented via a new `artifact_only_never` routing key honoured by both the local
-+    commit gate and the CI backstop.
-+  - F11: CI cannot bind review.md to the PR code (it can't recompute a staged hash). FIX
-+    (CPO pick a): the canonical review hash becomes sha256 of the diff EXCLUDING the
-+    bookkeeping artifacts (a new `hash_exclude_paths` routing key) — contract.md + code are
-+    hashed; review.md/patch/escalations/templates/active_work are not. The local gate hashes
-+    the STAGED such diff; the CI backstop recomputes `git diff <base>...HEAD` over the same
-+    exclusion and compares — so the review is now bound to the PR's code+contract.
-+  - F12 (#421): demote the redundant global count(ESCALATE)>count(ANSWER) in
-+    check_task_artifacts.py to a clearly-commented SECONDARY backstop; document that the
-+    per-section loop is authoritative.
-+  CONSEQUENCE of F11(a) (intended): contract.md + code must be final in the substantive
-+  (commit-1) diff; a later commit that changes contract.md or code alters the branch-diff
-+  hash and no longer matches review.md → CI fails. So no post-commit contract amendments;
-+  the contract must be complete before the reviewed commit.
-+refs: #409 (F10/F11), #421 (F12); memory governance_artifact_commit_ordering.
- 
- protected_override: >
--  CPO approval 2026-06-13 (conversation): "Option 1 granted" — explicit authorization to
--  edit the protected .github/workflows/ path for #422 (remove the dead per-competition
--  staging path triggers from pages-match-preview.yml).
-+  CPO gate-lift 2026-06-13 (conversation): "Do it" — explicit authorization to edit the
-+  protected gate machinery for the #409 + #421 gate-integrity bundle, with fix mechanisms
-+  F10=(a) stop exempting contract.md and F11=(a) hash branch-diff-excluding-artifacts
-+  (both chosen by the CPO via AskUserQuestion, 2026-06-13).
+-protected_override: >
+-  CPO gate-lift 2026-06-13 (conversation): "Do it" — explicit authorization to edit the
+-  protected gate machinery for the #409 + #421 gate-integrity bundle, with fix mechanisms
+-  F10=(a) stop exempting contract.md and F11=(a) hash branch-diff-excluding-artifacts
+-  (both chosen by the CPO via AskUserQuestion, 2026-06-13).
++  Fix two stale/inaccurate statements in docs/data_contract.md, verified against the
++  ingestion loaders this session:
++  1. The "Landing zone" section says the payload is the "verbatim"/"unchanged" API
++     envelope. Not literally true: loaders that batch multiple calls don't keep each raw
++     envelope as-is. Two shapes: the MERGE loaders (fixtures, standings, teams, injuries)
++     concatenate the calls' `response` arrays into one standard envelope (recomputing
++     results/paging); the per-team RESHAPE loaders players/squads (loads/squads.py) AND
++     coaches (loads/coaches.py) store a `{league_code, response:[...]}` payload WITHOUT the
++     envelope metadata (coaches items {team_id, coach}; squads items {team_id, season,
++     players_payload}). Correct the "verbatim/unchanged" wording, AND scope line 23
++     ("Nothing is discarded") to response DATA — the reshape loaders drop the per-call
++     envelope metadata (get/parameters/errors/results/paging), keeping the response items.
++  2. The "Append-only writes (reference tables)" prose lists "fixtures-next, standings,
++     teams, players, leagues" but omits coaches + injuries (added as unified append tables
++     in #427). Add them so the prose matches the unified-raw-tables table.
++refs: #427 review follow-up (data-engineer pre-existing-staleness findings).
  
  scope_paths:
--  - .github/workflows/pages-match-preview.yml
-+  - .claude/review_routing.json
-+  - .claude/hooks/git_discipline.py
-+  - scripts/check_task_artifacts.py
-+  - tests/test_governance_hooks.py
-+  - docs/working_agreement.md
-+  - docs/agent_guardrails.md
+-  - .claude/review_routing.json
+-  - .claude/hooks/git_discipline.py
+-  - scripts/check_task_artifacts.py
+-  - tests/test_governance_hooks.py
+-  - docs/working_agreement.md
+-  - docs/agent_guardrails.md
++  - docs/data_contract.md
    - .claude/task/contract.md
    - .claude/active_work.md
  
  decisions_taken: >
--  CPO-approved (audit ruling 2026-06-12: file; protected_override granted 2026-06-13). Pure
--  removal of permanently-dead trigger globs. STRICTLY scoped to the six per-competition
--  staging path triggers (F13) — other stale-looking triggers (e.g. the retired
--  wc_supporting_league_codes.csv seed) belong to #430, NOT this task; leave them untouched.
-+  CPO gate-lift + fix-mechanism picks recorded above and in .claude/task/escalations.log
-+  (2026-06-13). One config-driven design: review_routing.json gains `artifact_only_never`
-+  (F10) and `hash_exclude_paths` (F11); both hooks + the CI check read them so the local
-+  gate and CI agree. The artifact_only glob (.claude/task/**) is unchanged except contract.md
-+  is carved out via artifact_only_never (review.md/patch/escalations/etc. stay exempt).
+-  CPO gate-lift + fix-mechanism picks recorded above and in .claude/task/escalations.log
+-  (2026-06-13). One config-driven design: review_routing.json gains `artifact_only_never`
+-  (F10) and `hash_exclude_paths` (F11); both hooks + the CI check read them so the local
+-  gate and CI agree. The artifact_only glob (.claude/task/**) is unchanged except contract.md
+-  is carved out via artifact_only_never (review.md/patch/escalations/etc. stay exempt).
++  Docs-only accuracy fixes within the CPO-granted autonomous non-protected backlog
++  (2026-06-13). No code/behaviour change. Wording verified against the actual loaders
++  (coaches.py reshapes; injuries.py merges seasons) — describing existing behaviour, not
++  changing it.
  
  decisions_reserved:
--  - None. The change is behaviour-preserving: the generic 1_staging/** trigger already
--    fires on any staging change, so removing the per-competition globs cannot change which
--    pushes trigger the workflow. If a reviewer finds these dirs DO exist (they must not,
--    per the zero-file rule), STOP and escalate rather than remove.
-+  - Self-modification ordering: this PR edits the gate that gates its own commit. The commit
-+    is verified by the NEW logic (live hook). I will (1) update tests, (2) run the full hook
-+    suite, (3) manually verify the new --staged-hash + that the new gate accepts this commit,
-+    BEFORE committing. If self-verification fails, STOP and escalate rather than force.
-+  - Docs: working_agreement §2 commit-discipline + agent_guardrails get the new
-+    contract-finality rule. memory governance_artifact_commit_ordering updated separately.
+-  - Self-modification ordering: this PR edits the gate that gates its own commit. The commit
+-    is verified by the NEW logic (live hook). I will (1) update tests, (2) run the full hook
+-    suite, (3) manually verify the new --staged-hash + that the new gate accepts this commit,
+-    BEFORE committing. If self-verification fails, STOP and escalate rather than force.
+-  - Docs: working_agreement §2 commit-discipline + agent_guardrails get the new
+-    contract-finality rule. memory governance_artifact_commit_ordering updated separately.
++  - Keep it surgical: only the two flagged statements. Do NOT re-describe the merge model,
++    the unified-tables table, or other sections. If a reviewer finds a deeper inaccuracy,
++    STOP and surface it rather than expanding.
  
  done_when:
--  - the six `.../1_staging/api_football/{pl,pd,bl2,sa,l1,vl}/**` lines are removed from the
--    push.paths list; every other trigger line is unchanged.
--  - the workflow YAML still parses (valid YAML; trigger block intact).
--  - grep confirms no remaining per-competition staging path glob in the workflow.
--  - reviewers: scope-auditor (always) + cto-reviewer (.github/workflows/**) — PASS.
-+  - review_routing.json: artifact_only_never=[contract.md], hash_exclude_paths=[bookkeeping
-+    set], _doc updated. git_discipline.py: _artifact_only honours artifact_only_never;
-+    --staged-hash + _commit_gate hash over the hash_exclude exclusion. check_task_artifacts.py:
-+    artifact-only honours artifact_only_never; RECOMPUTES the branch-diff hash and compares;
-+    F12 global check demoted to a commented secondary backstop.
-+  - tests/test_governance_hooks.py: existing tests pass; NEW tests for (F10) contract.md not
-+    exempt, (F11) hash excludes bookkeeping / contract.md is bound.
-+  - validate-local Tier 1 green (pytest all-green incl the governance hook suite).
-+  - manual self-check: `python .claude/hooks/git_discipline.py --staged-hash` matches what
-+    review.md will carry; the gate accepts the staged commit.
-+  - reviewers: scope-auditor (always) + cto-reviewer (hooks/, scripts/, review_routing.json) — PASS.
+-  - review_routing.json: artifact_only_never=[contract.md], hash_exclude_paths=[bookkeeping
+-    set], _doc updated. git_discipline.py: _artifact_only honours artifact_only_never;
+-    --staged-hash + _commit_gate hash over the hash_exclude exclusion. check_task_artifacts.py:
+-    artifact-only honours artifact_only_never; RECOMPUTES the branch-diff hash and compares;
+-    F12 global check demoted to a commented secondary backstop.
+-  - tests/test_governance_hooks.py: existing tests pass; NEW tests for (F10) contract.md not
+-    exempt, (F11) hash excludes bookkeeping / contract.md is bound.
+-  - validate-local Tier 1 green (pytest all-green incl the governance hook suite).
+-  - manual self-check: `python .claude/hooks/git_discipline.py --staged-hash` matches what
+-    review.md will carry; the gate accepts the staged commit.
+-  - reviewers: scope-auditor (always) + cto-reviewer (hooks/, scripts/, review_routing.json) — PASS.
++  - Landing-zone "verbatim/unchanged" wording corrected to reflect the MERGE vs
++    players/squads+coaches RESHAPE split; line 23 "Nothing is discarded" SCOPED to response
++    data (no longer an absolute claim — reshape loaders drop envelope metadata, keep response items).
++  - the append-only reference-tables prose lists coaches + injuries.
++  - no other section changed; markdown renders (tables intact).
++  - reviewers: scope-auditor (always) + data-engineer-reviewer (docs/data_contract.md) — PASS.
  
  amendments: (none)
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 163b605..80b24b3 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -53,7 +53,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
- | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
- | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
--| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash, every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt. `--staged-hash` CLI mode prints the live hash. |
-+| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 1e4448b..78e2262 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -11,16 +11,16 @@ API references:
  
- ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
+ ## Landing zone
  
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index 95eac55..6b98951 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -25,8 +25,11 @@ committed with the branch so it is PR-visible:
- - **decisions_reserved** — known CPO-class questions (§10); each is escalated
-   blinded (§11), never decided
- - **done_when** — mechanical verification steps
--- **amendments** — scope extensions: allowed only on a CLEAN tree (never mixed
--  into code changes), each recording the CPO authority
-+- **amendments** — scope extensions, written on a CLEAN tree, each recording the
-+  CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
-+  rides INTO the reviewed commit, never a separate later artifact-only commit. If
-+  you must amend after the code is committed, re-stage and re-run the review cycle —
-+  a post-commit contract change breaks the review hash and CI rejects it.
+-Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores that envelope unchanged. Every raw table holds:
++Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores the response data, but loaders that batch multiple calls (per team, per season, or paged) do not keep each raw envelope as-is: most concatenate the calls' `response` arrays into one standard envelope (recomputing `results`/`paging`), while the per-team loaders for **players/squads** and **coaches** store a reshaped `{league_code, response: [...]}` payload without the envelope metadata (each `response` item is itself wrapped — `{team_id, coach}` for coaches, `{team_id, season, players_payload}` for players/squads). The per-item `response` data is preserved in every case. Every raw table holds:
  
- Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
- - No contract → repo edits denied. Out-of-scope path → denied.
-@@ -69,10 +72,15 @@ serialized four steps; the commit gate enforces them mechanically:
-    by a reviewer.
- 4. **Lock** — verdicts + the SHA-256 of the staged diff
-    (`python .claude/hooks/git_discipline.py --staged-hash`) written to
--   `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`).
-+   `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`). The hash
-+   covers the substantive diff — code **and** `contract.md` — EXCLUDING the
-+   bookkeeping artifacts (`hash_exclude_paths` in review_routing.json), so CI can
-+   recompute it from `git diff base...HEAD` and bind the review to the PR's actual
-+   code (F11/#409). `contract.md` is never artifact-exempt, so a contract change
-+   always goes through review (F10/#409).
+ | Column | Type | Notes |
+ |--------|------|-------|
+ | `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
+-| `payload` | `JSON` | Verbatim API-Football response envelope |
++| `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (see the Landing-zone note above) |
+ | `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
+ | `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
  
- `git commit` is DENIED when: review.md is missing, its hash does not match the
--live staged diff, any verdict is FAIL, an ESCALATE lacks a recorded
-+live staged diff (code + contract, bookkeeping excluded), any verdict is FAIL, an ESCALATE lacks a recorded
- `CPO ANSWER:` in its own section, a required reviewer has no verdict, or a
- PASS lacks its two risks. **Only `git add` + plain `git commit` is allowed** —
- commit flags are allowlisted (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`,
-diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
-index 4719488..08750a6 100644
---- a/scripts/check_task_artifacts.py
-+++ b/scripts/check_task_artifacts.py
-@@ -3,12 +3,14 @@
+-Nothing is discarded at ingest, so new fields become available to modelling without refetching.
++No `response` data is discarded at ingest, so new fields surface in modelling without refetching; the reshape loaders above drop only the per-call envelope metadata (`get`/`parameters`/`errors`/`results`/`paging`), not the response items.
  
- Local hooks can be bypassed by a misbehaving or misconfigured agent; this
- check keeps the gate honest at the PR boundary. For the diff between the PR
--branch and the base, it verifies (plausibility, not local-only facts — CI
--cannot recompute a STAGED hash):
-+branch and the base, it verifies:
+ All raw tables are partitioned by `DATE(ingested_at)` and clustered by `league_code`. Queries that filter on both `league_code` and `ingested_at` read only the relevant league's data within the relevant partition, keeping scan costs low as the table grows across seasons and competitions.
  
--  - artifact-only PRs (only .claude/task/** / .claude/active_work.md) pass;
-+  - artifact-only PRs (only bookkeeping paths) pass — but a PR touching
-+    .claude/task/contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
-   - otherwise .claude/task/contract.md and .claude/task/review.md must exist;
--  - review.md carries a well-formed 64-hex diff_sha256;
-+  - review.md carries a well-formed 64-hex diff_sha256 that MATCHES the recomputed
-+    hash of `git diff base...HEAD` excluding the bookkeeping artifacts — binding the
-+    review to this PR's code + contract (F11/#409);
-   - every reviewer required by .claude/review_routing.json for the PR's
-     changed paths has a verdict section;
-   - no "VERDICT: FAIL"; every "VERDICT: ESCALATE" has a "CPO ANSWER:" in its
-@@ -25,6 +27,7 @@ from __future__ import annotations
+@@ -48,7 +48,7 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
  
- import argparse
- import fnmatch
-+import hashlib
- import json
- import os
- import re
-@@ -76,7 +79,12 @@ def main() -> int:
-         routing = json.load(f)
+ ## Append-only writes (reference tables)
  
-     artifact_pats = routing.get("artifact_only") or []
--    if all(any(fnmatch.fnmatch(p, pat) for pat in artifact_pats) for p in paths):
-+    # F10 (#409): a PR touching contract.md is never artifact-exempt (it authorizes scope).
-+    never = routing.get("artifact_only_never") or []
-+    is_never = any(fnmatch.fnmatch(p, pat) for p in paths for pat in never)
-+    if not is_never and all(
-+        any(fnmatch.fnmatch(p, pat) for pat in artifact_pats) for p in paths
-+    ):
-         print("check_task_artifacts: artifact-only PR — OK")
-         return 0
+-Reference tables — fixtures-next, standings, teams, players, leagues — are written with `WRITE_APPEND`. On every pipeline run:
++Reference tables — fixtures-next, standings, teams, players, coaches, injuries, leagues — are written with `WRITE_APPEND`. On every pipeline run:
  
-@@ -90,15 +98,38 @@ def main() -> int:
-         return 1
- 
-     text = open(REVIEW, encoding="utf-8", errors="replace").read()
--    if not re.search(r"diff_sha256:\s*[0-9a-fA-F]{64}", text):
-+    m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
-+    if not m:
-         errors.append("review.md has no well-formed diff_sha256")
-+    else:
-+        # F11 (#409): bind review.md to THIS PR's code. Recompute the hash over the
-+        # branch diff EXCLUDING the bookkeeping artifacts — the same diff the local gate
-+        # hashes. --no-renames + --no-abbrev so the two invocations are byte-identical for
-+        # identical content (rename detection off; full 40-hex blob SHAs in index lines so
-+        # the abbreviation length cannot diverge pre- vs post-commit). A code-then-stale-
-+        # review ordering (the #405 false-green) now fails here.
-+        excludes = routing.get("hash_exclude_paths") or []
-+        pathspec = (["--", "."] + [f":(exclude){p}" for p in excludes]) if excludes else []
-+        diff = subprocess.run(
-+            ["git", "diff", "--no-renames", "--no-abbrev", f"{args.base}...HEAD"] + pathspec,
-+            capture_output=True, check=True,
-+        ).stdout
-+        recomputed = hashlib.sha256(diff).hexdigest()
-+        if m.group(1).lower() != recomputed:
-+            errors.append(
-+                "review.md diff_sha256 does not match this PR's code+contract diff "
-+                f"(recomputed {recomputed}) — the review is not bound to this PR (F11)")
-     if "VERDICT: FAIL" in text:
-         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
-+    # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
-+    # AUTHORITATIVE check for unanswered escalations (it can't be fooled by an answer in a
-+    # different section). This global count is a cheap sanity net; keep it adjacent to the
-+    # per-section loop and never rely on it alone.
-     if text.count("VERDICT: ESCALATE") > text.count("CPO ANSWER:"):
--        errors.append("an ESCALATE verdict lacks a recorded CPO ANSWER")
-+        errors.append("an ESCALATE verdict lacks a recorded CPO ANSWER (global backstop)")
-     sections = review_sections(text)
-     for name, body in sections.items():
--        # per-section pairing, same rule as the local commit gate: one
-+        # per-section pairing (AUTHORITATIVE), same rule as the local commit gate: one
-         # section's answer must not mask another's unanswered escalation
-         if "VERDICT: ESCALATE" in body and "CPO ANSWER:" not in body:
-             errors.append(
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index e32938d..76a2122 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -256,6 +256,13 @@ ROUTING = {
-     "always": ["scope-auditor"],
-     "paths": {"dbt_project/**": ["analytics-engineer-reviewer"]},
-     "artifact_only": [".claude/task/**", ".claude/active_work.md"],
-+    "artifact_only_never": [".claude/task/contract.md"],
-+    "hash_exclude_paths": [
-+        ".claude/task/review.md",
-+        ".claude/task/review_input.patch",
-+        ".claude/task/escalations.log",
-+        ".claude/active_work.md",
-+    ],
- }
- 
- 
-@@ -270,9 +277,14 @@ def setup_review_repo(repo, stage_path="dbt_project/models/allowed.sql"):
- 
- 
- def staged_hash(repo) -> str:
--    import hashlib
--    diff = subprocess.run(["git", "diff", "--staged"], cwd=repo, capture_output=True).stdout
--    return hashlib.sha256(diff).hexdigest()
-+    # Compute via the hook's own --staged-hash so the test's expected value always
-+    # equals what the commit gate computes (F11: excludes bookkeeping, --no-renames).
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
-+    r = subprocess.run(
-+        [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
-+        cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
-+    )
-+    return r.stdout.strip()
- 
- 
- def write_review(repo, hash_hex, body):
-@@ -371,6 +383,32 @@ def test_artifact_only_commit_exempt_from_review(repo):
-     assert not denied(out)
- 
- 
-+def test_contract_commit_not_artifact_exempt(repo):
-+    """F10/#409: a commit touching contract.md is NEVER artifact-exempt — it
-+    authorizes scope, so it must go through review (here: denied for lack of one)."""
-+    setup_review_repo(repo)
-+    subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
-+    (repo / ".claude" / "task" / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
-+    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
-+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
-+    assert denied(out) and "no review artifact" in out
-+
-+
-+def test_hash_excludes_bookkeeping_but_binds_contract(repo):
-+    """F11/#409: the review hash covers code + contract.md, not bookkeeping artifacts."""
-+    setup_review_repo(repo)  # stages dbt_project/models/allowed.sql
-+    h_code = staged_hash(repo)
-+    assert h_code  # non-empty
-+    # adding a bookkeeping artifact does NOT change the hash (excluded)
-+    (repo / ".claude" / "task" / "escalations.log").write_text("log entry")
-+    subprocess.run(["git", "add", ".claude/task/escalations.log"], cwd=repo, check=True)
-+    assert staged_hash(repo) == h_code
-+    # adding contract.md DOES change the hash (it is bound to the review)
-+    (repo / ".claude" / "task" / "contract.md").write_text("# contract\n")
-+    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
-+    assert staged_hash(repo) != h_code
-+
-+
- def test_escalation_with_answer_allows_commit(repo):
-     setup_review_repo(repo)
-     body = GOOD_BODY + (
-@@ -543,6 +581,19 @@ def run_ci_check(repo) -> tuple[int, str]:
-     return r.returncode, r.stdout + r.stderr
- 
- 
-+def branch_hash(repo, base="main") -> str:
-+    """The F11 hash CI recomputes: sha256 of `git diff base...HEAD` excluding the
-+    bookkeeping artifacts (--no-renames), mirroring check_task_artifacts.py."""
-+    import hashlib
-+    excludes = ROUTING["hash_exclude_paths"]
-+    pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
-+    diff = subprocess.run(
-+        ["git", "diff", "--no-renames", "--no-abbrev", f"{base}...HEAD"] + pathspec,
-+        cwd=repo, capture_output=True,
-+    ).stdout
-+    return hashlib.sha256(diff).hexdigest()
-+
-+
- @pytest.fixture()
- def ci_repo(repo):
-     subprocess.run(["git", "branch", "-m", "main"], cwd=repo, check=True)
-@@ -570,17 +621,65 @@ def test_ci_check_passes_artifact_only_pr(ci_repo):
- 
- 
- def test_ci_check_passes_with_complete_artifacts(ci_repo):
-+    # F11: review.md must carry the hash of the actual PR diff (code + contract,
-+    # bookkeeping excluded). Commit code+contract first, then write review.md with the
-+    # recomputed hash, then commit it — CI recomputes the same and passes.
-     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
-+    real_hash = branch_hash(ci_repo)
-     (ci_repo / ".claude" / "task" / "review.md").write_text(
--        "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + GOOD_BODY
-+        "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY
-     )
-     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
--    subprocess.run(["git", "commit", "-qm", "code+artifacts"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
-     code, out = run_ci_check(ci_repo)
-     assert code == 0, out
- 
- 
-+def test_ci_check_contract_only_pr_not_artifact_exempt(ci_repo):
-+    """F10/#409: a contract-only PR is no longer artifact-exempt at CI — it must carry
-+    a review (here it doesn't, so CI fails). Closes the #407 contract-only-merge hole."""
-+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "contract only"], cwd=ci_repo, check=True)
-+    code, out = run_ci_check(ci_repo)
-+    assert code == 1 and "review.md" in out
-+
-+
-+def test_ci_check_fails_on_stale_review_hash(ci_repo):
-+    """F11/#409: a review.md whose hash does not match this PR's diff (the #405
-+    false-green) is now rejected by CI."""
-+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-+    (ci_repo / ".claude" / "task" / "review.md").write_text(
-+        "# Review\ndiff_sha256: " + "b" * 64 + "\n\n" + GOOD_BODY
-+    )
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    subprocess.run(["git", "commit", "-qm", "stale review"], cwd=ci_repo, check=True)
-+    code, out = run_ci_check(ci_repo)
-+    assert code == 1 and "not bound to this PR" in out
-+
-+
-+def test_local_staged_hash_equals_ci_recompute(ci_repo):
-+    """F11/#409 — the LOAD-BEARING invariant: the local commit gate's --staged-hash
-+    (computed on the staged tree, pre-commit) must equal the CI recompute
-+    (`git diff base...HEAD`, post-commit). If this ever diverges, a locally-passing
-+    commit would be falsely rejected by CI. Exercises ALL three diff shapes:
-+    a MODIFIED base-resident file (allowed.sql — its index line carries a non-zero OLD
-+    blob, the one vector where pre/post-commit could diverge), a NEW file (contract.md),
-+    and a bookkeeping artifact that must be excluded (escalations.log)."""
-+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")  # MODIFY base file
-+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)  # add
-+    (ci_repo / ".claude" / "task" / "escalations.log").write_text("noise\n")  # excluded
-+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-+    local = staged_hash(ci_repo)            # what the local gate checks
-+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
-+    ci = branch_hash(ci_repo)               # what CI recomputes
-+    assert local == ci, f"local {local} != ci {ci}"
-+
-+
- def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
-     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+ 1. The pipeline calls the API for all configured seasons (the full history window).
+ 2. The complete response is written as a new row with the current UTC timestamp.
