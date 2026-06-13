@@ -30,6 +30,7 @@ refs: #427 (audit F24).
 scope_paths:
   - docs/data_contract.md
   - .claude/task/contract.md
+  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A2)
 
 decisions_taken: >
   CPO-approved doc addition (audit ruling 2026-06-12: file). Pure documentation of
@@ -71,3 +72,6 @@ amendments:
     'coaches only' ingest" contradicted by the new RAW_APIF_COACHES row). content: fix
     the coaches claim + add an Injuries row. Also corrected the objective's inaccurate
     "unconditionally every run" wording (early-return guards; poll-mode runs skip both).
+  - 2026-06-13 A2: + .claude/active_work.md — authority: standing rule (handover kept
+    current at task close; commit-exempt but not auto-editable). content: status update
+    marking #427 done (PR #439).
