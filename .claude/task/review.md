@@ -1,68 +1,63 @@
-# Review — chore/retire-declaw-automation-g4 — 2026-06-13
+# Review — chore/cleanup-stale-supporting-leagues-430 — 2026-06-13
 
-> G4 audit cleanup: retire #410 (Slack-to-Executor bridge) + #411 (squad_watch.py),
-> declaw #412 (ci-failure-watchdog.yml). Dispositions ruled by the CPO 2026-06-12 (audit
-> table); §10 retire/declaw substance + two protected_overrides approved 2026-06-13
-> ("as recommended", escalations.log). Required: scope-auditor (always) + cto-reviewer
-> (scripts/** + .github/workflows/**). One cold iteration: both PASS against the hash below.
->
-> Build note: during build two doc-sync consequences surfaced (the agent_company_roadmap
-> index link to the deleted slack doc; the ci_failure_watchdog.md auto-rerun description).
-> Scope was widened on a clean tree (contract amendment to add those two docs) BEFORE the
-> reviewed commit, so the diff is doc-sync-complete. Repo-secret removal
-> (CURSOR_EXECUTOR_BRIDGE_URL/TOKEN) is a CPO settings action, intentionally NOT in the diff.
+> #430 — clean up two stale references to the retired supporting_leagues/form_source
+> mechanism (follow-up to PR #429, audit F22). Part 1: remove a dead pages-match-preview
+> push-trigger line (deleted seed) — covered by the BATCH protected_override (STANDING CPO
+> GRANT, escalations.log 2026-06-13). Part 2: replace the four form_source/supporting_leagues
+> references in pipeline_architecture_plan.md's locked-rules section with the competition_types
+> taxonomy basis — PRODUCT RULES UNCHANGED. Required: scope-auditor (always) + cto-reviewer
+> (.github/workflows/**). One cold iteration: both PASS against the hash below.
 
-diff_sha256: 8ae91d88ba7905796f90e3612cb92a961820fb311771846ca00faf615a827d6d
+diff_sha256: cfde0e79fc68c2453078bf59c2e0ee4cc16382dc9cc1928884612ff7709c7e29
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Authorization + §10 + protected paths: both protected paths
-  (_paused/slack-executor-bridge.yml deletion, ci-failure-watchdog.yml edit) are named in
-  the contract's protected_override block AND in scope_paths, and backed by the CPO ruling
-  in escalations.log 2026-06-13 ("as recommended" for #410/#411/#412) with explicit
-  justification that each exceeds the batch dead-trigger grant. No other protected path
-  (.claude/hooks, .claude/agents, settings.json, review_routing.json, other workflows)
-  touched. The two unrelated paused workflows (cursor-dispatch.yml, project-status-sync.yml)
-  and the active workflows (pr-autopilot, pages, board-sync) are untouched. No decision taken
-  beyond the CPO ruling.
-- Scope discipline + surgical #412: every changed file is in scope_paths; the watchdog edit
-  changed only the auto-rerun step + `actions: write` permission + the now-false body/Next-action
-  text — the watched-workflow list, issue title, and dedup logic are unchanged.
-- Doc-sync completeness: repo-wide search confirms no remaining reference to the slack bridge
-  scripts/workflow or squad_watch, and no doc still claims the watchdog auto-reruns, outside
-  the historical audit record (docs/audits/2026-06_alignment_audit.md, correctly left as-is).
-  The agent_company_roadmap index link to the deleted slack doc is removed (no dangling link);
-  chat_driven_workflow.md + ci_failure_watchdog.md updated to notification-only.
-- decisions_reserved: secret removal is NOT done in the diff (correctly left to the CPO).
+- §10 product-rule preservation (the crux): verified the plan-doc diff changed only the
+  mechanism references (form_source/supporting_leagues → competition_types taxonomy
+  competition_type→entity_type), and ALL five locked form-window rules (domestic last-5 +
+  prior-season fallback; WC no-cap qualifier/cumulative; season boundaries; marts-thin;
+  missing-data-null) are byte-identical. No window behaviour, metric, or rule altered.
+  CLAUDE.md + memory NOT changed (CLAUDE.md's form rule names neither retired mechanism, so
+  it is not stale).
+- Authorization + protected path: pages-match-preview.yml is named in the contract's
+  protected_override AND backed by the batch grant (escalations.log 2026-06-13); the deleted
+  seed wc_supporting_league_codes.csv is confirmed gone (only target/ artifacts remain). The
+  removed trigger is inert (deleted-file path can never fire).
+- Scope discipline + taxonomy accuracy: only the two enumerated refs + the dead trigger
+  changed; club→domestic_league / national→qualifying,world_championship mapping matches
+  competition_types.csv; "recency" matches int_form_window__team's recency_rank selection;
+  parent_competition correctly described as reserved (not yet consumed by any model).
+  docs/player_metrics_catalogue.md's form_source_* hits are output column names (substring
+  coincidence), correctly left untouched; the audit doc is historical, untouched.
 escalations:
 - (none)
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Watchdog integrity after rerun excision: all five variables used after the deleted block
-  (runUrl, attempt, branch, workflowName, actor) remain defined; `rerunTriggered` is gone from
-  BOTH the logic and the issue body line that referenced it; the rerun API call is fully
-  removed; braces/template literals balanced; YAML valid.
-- Permission narrowing correct + complete: `actions: write` was required ONLY by the deleted
-  rerun-failed-jobs request; the remaining ops (issues.listForRepo, issues.create,
-  issues.createComment) are all covered by the retained `issues: write` (+ `contents: read`
-  baseline). Nothing remaining needs actions:write; nothing remaining lacks a permission.
-- Deletion blast radius: scripts/slack_bridge/, squad_watch.py, and the paused workflow are
-  fully absent; grep finds zero live references to slack_bridge/slack_executor/squad_watch/
-  CURSOR_EXECUTOR outside .claude/task/ and the historical audit doc; no 404-producing
-  markdown link remains.
-- Surgical scope: the trigger workflow list, issueTitle template, dedup predicate, and
-  paginate call are byte-identical to pre-patch; only the rerun step + permission + body text
-  differ. Unrelated paused + active workflows untouched.
-- Guard integrity: contract carries explicit protected_override for both protected paths with
-  traceable CPO approval (escalations.log 2026-06-13); justification for each override recorded.
+- Workflow edit surgical + inert: exactly one push-path line removed
+  (wc_supporting_league_codes.csv); every other trigger line byte-identical; seed confirmed
+  absent from repo; a deleted-file path can never fire → zero runtime change; YAML valid;
+  permissions block untouched.
+- No protected-path collateral: diff touches only pages-match-preview.yml (protected_override
+  present) + docs/pipeline_architecture_plan.md (non-protected); no other workflow, hook,
+  settings, or routing file.
+- Plan-doc accuracy vs live models: W1 int_form_window__team confirmed entity_type='national'
+  no-season-cap recency; competition_types.csv taxonomy confirmed; parent_competition exists
+  in the registry YAML but is consumed by zero SQL models, so "reserved for GAP-18" holds in
+  substance. (Noted: the "season-to-date" phrasing for the qualifier set is slightly imprecise
+  re W2's per-league-per-season grain, but it is a pre-existing doc-level nuance the diff does
+  not worsen, and is consistent with the two-window model.)
+- No live mechanism left behind: zero form_source/supporting_leagues hits in .sql/.yml/.py/.csv
+  source; remaining hits are stale target/ artifacts, the historical audit doc, and the plan
+  doc's own past-tense retirement note. No secrets/permission changes; idempotent.
 escalations:
 - (none)
 
 ## escalations
-(none — single cold iteration; both reviewers PASS against the locked hash. The two doc-sync
-files were added to scope via a clean-tree contract amendment before the reviewed commit.
-Repo secrets CURSOR_EXECUTOR_BRIDGE_URL/TOKEN remain for the CPO to remove in GitHub settings,
-outside the tree.)
+(none — single cold iteration; both reviewers PASS against the locked hash. NOTE on process:
+the builder initially mis-read int_form_window__team in isolation and raised a §10 product-rule
+concern to the CPO; the CPO clarified the rule is settled (taxonomy + pre/during/post phase +
+last-5 / season-to-matchday windows). The escalation was withdrawn and the task correctly
+re-scoped to mechanism-name cleanup with the product rules preserved.)
