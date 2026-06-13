@@ -93,9 +93,16 @@ dim_player.league_code or last_known_*). The new single dedup is strictly better
 recency-only collapse (can't add nulls). Both cold reviewers PASS first iteration; full DQ in
 ci-data-build. **PLAYER-MODEL REDESIGN COMPLETE** (PR A mapping + transfers retirement + PR B
 entity). dim_player = pure entity; affiliation = dim_player_team_season_mapping (rostered) + facts.
-**NEXT:** back to the audit-cleanup backlog (the redesign is done). Picks:
-Remaining audit cleanups: #421/#422, #409 (gate-lift),
-#410/#411/#412, #413, #430. **Follow-up from #427 review (pre-existing doc staleness):**
+**#422 DONE (PR #450):** removed the six dead per-competition staging path triggers
+(pl/pd/bl2/sa/l1/vl) from pages-match-preview.yml — protected-path edit under protected_override
+(CPO "Option 1 granted" 2026-06-13); behaviour-preserving (generic 1_staging/** trigger subsumes
+them); both reviewers PASS. **NEXT — audit-cleanup backlog.** Remaining: **#421** (F12,
+check_task_artifacts.py) — coupled to #409, NEEDS CPO GATE-LIFT (don't touch the gate machinery
+without it); **#409** (gate-integrity, standing priority, needs gate-lift — best as its own
+dedicated session); #410/#411/#412 (retire/declaw automation, SOME touch protected workflows →
+need protected_override); #413 (PAT audit); #430 (2 stale refs: a pages-match-preview trigger
+[protected] + pipeline_architecture_plan.md [not protected]). **Non-protected pick available now:**
+the two #427 doc-staleness follow-ups (data_contract). **Follow-up from #427 review (pre-existing doc staleness):**
 Landing-Zone "verbatim envelope" line vs coaches.py's wrapped dict; the "Append-only writes"
 prose list doesn't enumerate coaches/injuries. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
 DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
