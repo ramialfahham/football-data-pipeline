@@ -1,10 +1,10 @@
 {{ config(materialized='view') }}
 
 {#
-  W2 season-to-date mart — team. One row per upcoming fixture side: the team's cumulative
+  W2 season-record mart — team. One row per upcoming fixture side: the team's cumulative
   record in the fixture's own competition this season (the number shown beside W1 momentum).
 
-  Source: int_season_to_date__team (cumulative builder). For each upcoming fixture side we
+  Source: int_season_record__team (cumulative builder). For each upcoming fixture side we
   take the team's LATEST season-to-date row for the fixture's (league_code, season_api_year);
   if the team has not played in that competition this season yet (before phase), we fall
   back to the same competition's previous season final value (window_type = 'prev_season').
@@ -54,7 +54,7 @@ sides as (
 -- team's latest played match that season.
 season_final as (
     select *
-    from {{ ref('int_season_to_date__team') }}
+    from {{ ref('int_season_record__team') }}
     qualify row_number() over (
         partition by team_sk, league_code, season_api_year
         order by kickoff_datetime desc, fixture_sk desc

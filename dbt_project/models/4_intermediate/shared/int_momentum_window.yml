@@ -1,9 +1,9 @@
 version: 2
 
 models:
-  - name: int_form_window__team
+  - name: int_momentum_window__team
     description: >
-      W1 last-5 form-window selection — team. One row per (upcoming fixture side, window
+      W1 last-5 momentum-window selection — team. One row per (upcoming fixture side, window
       leg): the team's last 5 finished matches before the upcoming fixture, cross-
       competition within the same entity_type, season_api_year-capped for clubs and
       recency-only for national teams. Extracted from int_momentum__team (#323) so the
@@ -14,7 +14,7 @@ models:
           combination_of_columns: [upcoming_fixture_sk, team_sk, leg_fixture_sk]
       - dbt_utils.expression_is_true:
           expression: "recency_rank between 1 and 5"
-          name: form_window_team_recency_rank_in_range
+          name: momentum_window_team_recency_rank_in_range
     columns:
       - name: upcoming_fixture_sk
         tests: [not_null]

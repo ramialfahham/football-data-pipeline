@@ -1,11 +1,11 @@
 {{ config(materialized='view') }}
 
 {#
-  W2 season-to-date mart — player. One row per player per upcoming fixture side: the
+  W2 season-record mart — player. One row per player per upcoming fixture side: the
   player's cumulative record in the fixture's own competition this season (complement to
   mart_momentum__player, W1 = last 5).
 
-  Source: int_season_to_date__player. Each upcoming fixture side's team is joined to its
+  Source: int_season_record__player. Each upcoming fixture side's team is joined to its
   players' latest season-to-date row for the fixture's (league_code, season_api_year);
   before-phase fallback to the same competition's previous season (window_type='prev_season').
 
@@ -49,7 +49,7 @@ sides as (
 
 season_final as (
     select *
-    from {{ ref('int_season_to_date__player') }}
+    from {{ ref('int_season_record__player') }}
     qualify row_number() over (
         partition by team_sk, player_sk, league_code, season_api_year
         order by kickoff_datetime desc, fixture_sk desc

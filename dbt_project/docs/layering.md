@@ -254,11 +254,11 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_team_profile` | (team_sk, season_sk) | table | v2 team profile: full-season metrics, YoY deltas, streaks. |
 | `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
 | `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
-| `mart_momentum__team` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 form-window aggregate (team). |
-| `mart_momentum__player` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 form-window aggregate (player). |
-| `mart_form_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 form-window drill-down legs (team). |
-| `mart_season_to_date__team` | (upcoming_fixture_sk, team_sk) | view | W2 season-to-date aggregate (team). |
-| `mart_season_to_date__player` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-to-date aggregate (player). |
+| `mart_momentum__team` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 momentum aggregate (team). |
+| `mart_momentum__player` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
+| `mart_momentum_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
+| `mart_season_record__team` | (upcoming_fixture_sk, team_sk) | view | W2 season-record aggregate (team). |
+| `mart_season_record__player` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
 | `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
 | `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
 | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |

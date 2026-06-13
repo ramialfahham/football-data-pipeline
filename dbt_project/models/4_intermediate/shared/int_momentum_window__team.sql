@@ -1,13 +1,13 @@
 {{ config(materialized='table') }}
 
 {#
-  W1 last-5 form-window selection — team.
+  W1 last-5 momentum-window selection — team.
 
   For each upcoming fixture side, selects the team's last 5 finished matches
   (cross-competition, same entity_type, kickoff before this fixture) and keeps
   them UN-aggregated — one row per window leg, with the leg's stats and
   descriptors. Extracted from int_momentum__team (#323) so the aggregate
-  (momentum) and its drill-down list (mart_form_window__team) consume the same
+  (momentum) and its drill-down list (mart_momentum_window__team) consume the same
   selection and cannot drift.
 
   Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).

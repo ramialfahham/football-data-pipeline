@@ -146,7 +146,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
   `importance_tier` (**team-only** — null for player entries),
   `group_display_order` (this document is the source for the values).
-- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_season_to_date__team`
+- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_season_record__team`
   (the W2 counts display).
 - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),

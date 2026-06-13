@@ -1,7 +1,7 @@
 {{ config(materialized='table') }}
 
 {#
-  W1 form-window list mart — team. The drill-down behind the momentum metrics
+  W1 momentum-window list mart — team. The drill-down behind the momentum metrics
   (#323): the same last-5 matches mart_momentum__team aggregates, exposed
   un-aggregated — one row per (upcoming fixture side, past match), newest first.
 
@@ -17,7 +17,7 @@
 #}
 
 with window_legs as (
-    select * from {{ ref('int_form_window__team') }}
+    select * from {{ ref('int_momentum_window__team') }}
 ),
 
 fixtures as (

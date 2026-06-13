@@ -124,7 +124,7 @@ the **intermediate** layer.
 core facts (fct_fixture, fct_fixture_team_stats, fct_fixture_player_stats)
    └─ building-block "match leg" tables  (one row per team / player per finished match)
         ├─ last-5 momentum builder      (cross-competition, as of the upcoming fixture)
-        └─ season-to-date builder        (within-competition, cumulative through matchday)
+        └─ season-record builder         (within-competition, cumulative through matchday)
               └─ marts
 ```
 
@@ -135,7 +135,7 @@ core facts (fct_fixture, fct_fixture_team_stats, fct_fixture_player_stats)
 - **Last-5 momentum builder** — the entity's last 5 legs across all its competitions, as
   of the upcoming fixture. Computed **only for the upcoming fixture** — it is momentum,
   obsolete once the match is played. Grain: (upcoming fixture, team/player).
-- **Season-to-date builder** — cumulative within one competition through each matchday.
+- **Season-record builder** — cumulative within one competition through each matchday (season-to-date).
   Grain: (team, league_code, season, matchday). Yields current-to-date, full-season, and
   year-over-year from one model. *How best to surface full-season analysis is its own
   discussion.*
