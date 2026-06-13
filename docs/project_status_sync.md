@@ -22,8 +22,14 @@ Workflow: `.github/workflows/project-status-sync.yml`
 Add this repository secret:
 
 - Name: `PROJECT_AUTOMATION_TOKEN`
-- Value: GitHub personal access token (classic)
-- Scopes: `repo`, `project`
+- Value: GitHub personal access token
+
+> **Scope superseded (audit F18 / #413).** The `repo`, `project` classic scopes once
+> prescribed here are over-broad. The token is shared with the active
+> `board-request-sync` workflow; use the least-privilege scope documented in
+> [`docs/board_request_sync.md`](board_request_sync.md#least-privilege-scope-audit-f18--413)
+> (a fine-grained PAT: Projects read+write, Issues read, Pull requests read, Metadata
+> read — this repo only).
 
 Settings path:
 
