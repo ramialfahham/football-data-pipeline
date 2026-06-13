@@ -1,191 +1,1282 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 2c4624f..8840ed3 100644
+index 8840ed3..5f8bd85 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,50 +1,65 @@
--# Task contract — data_contract.md doc-staleness follow-ups (#427 review)
-+# Task contract — PROJECT_AUTOMATION_TOKEN scope audit (#413, audit F18 follow-up)
+@@ -1,65 +1,76 @@
+-# Task contract — PROJECT_AUTOMATION_TOKEN scope audit (#413, audit F18 follow-up)
++# Task contract — retire #410/#411 + declaw #412 (G4 audit cleanup)
  
--> Two pre-existing data_contract.md inaccuracies surfaced by the #427 data-engineer review
--> (out of #427's scope at the time, flagged as follow-up). Docs-only, non-protected — part
--> of the CPO-granted autonomous non-protected backlog (2026-06-13, see escalations.log).
-+> Audit the board-sync PAT (`PROJECT_AUTOMATION_TOKEN`) and document the exact
-+> least-privilege scope it needs, derived from the workflow's actual operations.
-+> F18 ruling: the board-sync mechanism is KEPT (CPO approved 2026-06-12); this is
-+> the agreed security follow-up. Docs-only, non-protected — part of the CPO-granted
-+> autonomous non-protected backlog (2026-06-13, see escalations.log).
- > See docs/working_agreement.md §2.
+-> Audit the board-sync PAT (`PROJECT_AUTOMATION_TOKEN`) and document the exact
+-> least-privilege scope it needs, derived from the workflow's actual operations.
+-> F18 ruling: the board-sync mechanism is KEPT (CPO approved 2026-06-12); this is
+-> the agreed security follow-up. Docs-only, non-protected — part of the CPO-granted
+-> autonomous non-protected backlog (2026-06-13, see escalations.log).
+-> See docs/working_agreement.md §2.
++> Retire two never-approved automation relics and declaw a live over-permissioned
++> watchdog, per the G4 audit (F16/#410, F17/#411, F19/#412). Dispositions ruled by the
++> CPO 2026-06-12 (audit table) and the §10 retire/declaw SUBSTANCE + two protected_overrides
++> approved 2026-06-13 ("as recommended", see escalations.log). One PR (shared grant,
++> identical reviewer routing). See docs/working_agreement.md §2/§10.
  
  objective: >
--  Fix two stale/inaccurate statements in docs/data_contract.md, verified against the
--  ingestion loaders this session:
--  1. The "Landing zone" section says the payload is the "verbatim"/"unchanged" API
--     envelope. Not literally true: loaders that batch multiple calls don't keep each raw
--     envelope as-is. Two shapes: the MERGE loaders (fixtures, standings, teams, injuries)
--     concatenate the calls' `response` arrays into one standard envelope (recomputing
--     results/paging); the per-team RESHAPE loaders players/squads (loads/squads.py) AND
--     coaches (loads/coaches.py) store a `{league_code, response:[...]}` payload WITHOUT the
--     envelope metadata (coaches items {team_id, coach}; squads items {team_id, season,
--     players_payload}). Correct the "verbatim/unchanged" wording, AND scope line 23
--     ("Nothing is discarded") to response DATA — the reshape loaders drop the per-call
--     envelope metadata (get/parameters/errors/results/paging), keeping the response items.
--  2. The "Append-only writes (reference tables)" prose lists "fixtures-next, standings,
--     teams, players, leagues" but omits coaches + injuries (added as unified append tables
--     in #427). Add them so the prose matches the unified-raw-tables table.
--refs: #427 review follow-up (data-engineer pre-existing-staleness findings).
-+  Read-only audit. Enumerate every operation `board-request-sync.yml` performs with
-+  PROJECT_AUTOMATION_TOKEN, derive the minimum token scope, and write that scope into
-+  the active doc so the CPO can rotate the secret to least privilege. Findings this
-+  session (verified against the workflow source + repo facts):
-+    - The token authenticates ALL github-script calls in board-request-sync.yml
-+      (the `github-token:` override replaces GITHUB_TOKEN for the whole step).
-+    - Operations: ProjectsV2 READ (user/org projectsV2 + fields) and ProjectsV2 WRITE
-+      (addProjectV2ItemById, updateProjectV2ItemFieldValue); repository Issues READ
-+      (repository.issue + issues.listForRepo); repository Pull requests READ
-+      (repository.pullRequest + pulls.list). No contents/blob reads, no writes to
-+      issues/PRs/contents.
-+    - Repo is PUBLIC and USER-owned (ramialfahham, not an org) — the org projectsV2
-+      path is a NOT_FOUND fallback; the board is a user-owned ProjectV2.
-+  Therefore least privilege is a FINE-GRAINED PAT (owner ramialfahham, this repo only):
-+  Projects = Read and write; Issues = Read-only; Pull requests = Read-only; Metadata =
-+  Read-only (mandatory). Nothing else. The classic `repo, project` currently prescribed
-+  in docs/project_status_sync.md is over-scoped on two counts: full `repo` (public repo
-+  needs no repo scope / at most public_repo) and classic `project` (account/org-wide,
-+  not single-project).
+-  Read-only audit. Enumerate every operation `board-request-sync.yml` performs with
+-  PROJECT_AUTOMATION_TOKEN, derive the minimum token scope, and write that scope into
+-  the active doc so the CPO can rotate the secret to least privilege. Findings this
+-  session (verified against the workflow source + repo facts):
+-    - The token authenticates ALL github-script calls in board-request-sync.yml
+-      (the `github-token:` override replaces GITHUB_TOKEN for the whole step).
+-    - Operations: ProjectsV2 READ (user/org projectsV2 + fields) and ProjectsV2 WRITE
+-      (addProjectV2ItemById, updateProjectV2ItemFieldValue); repository Issues READ
+-      (repository.issue + issues.listForRepo); repository Pull requests READ
+-      (repository.pullRequest + pulls.list). No contents/blob reads, no writes to
+-      issues/PRs/contents.
+-    - Repo is PUBLIC and USER-owned (ramialfahham, not an org) — the org projectsV2
+-      path is a NOT_FOUND fallback; the board is a user-owned ProjectV2.
+-  Therefore least privilege is a FINE-GRAINED PAT (owner ramialfahham, this repo only):
+-  Projects = Read and write; Issues = Read-only; Pull requests = Read-only; Metadata =
+-  Read-only (mandatory). Nothing else. The classic `repo, project` currently prescribed
+-  in docs/project_status_sync.md is over-scoped on two counts: full `repo` (public repo
+-  needs no repo scope / at most public_repo) and classic `project` (account/org-wide,
+-  not single-project).
++  #410 (F16) — FULL RETIRE the paused Slack-to-Executor bridge (a never-approved A3
++  mechanism, already paused, no active trigger): delete the three scripts under
++  scripts/slack_bridge/, docs/slack_executor_bridge.md, the bridge line in
++  docs/chat_driven_workflow.md's paused list, AND the paused workflow file
++  .github/workflows/_paused/slack-executor-bridge.yml (PROTECTED — explicit
++  protected_override, escalations.log 2026-06-13). Repo secrets
++  CURSOR_EXECUTOR_BRIDGE_URL/TOKEN are removed by the CPO in settings (outside the tree).
++  #411 (F17) — RETIRE scripts/squad_watch.py (un-budgeted WC API-volume relic; no callers).
++  #412 (F19) — DECLAW the LIVE .github/workflows/ci-failure-watchdog.yml (PROTECTED —
++  explicit protected_override): remove the auto-rerun-failed-jobs step, DROP the
++  `actions: write` permission, KEEP the [CI Failure] issue open/comment notification
++  (`issues: write` + `contents: read`). Update the watchdog behaviour text in
++  docs/chat_driven_workflow.md to match (notification-only, no auto-rerun).
+ 
+-refs: audit F18 (#413); docs/audits/2026-06_alignment_audit.md (F18 row + ruling table).
++refs: audit F16/#410, F17/#411, F19/#412; docs/audits/2026-06_alignment_audit.md ruling table.
 +
-+refs: audit F18 (#413); docs/audits/2026-06_alignment_audit.md (F18 row + ruling table).
++protected_override:
++  approval: CPO, 2026-06-13 ("as recommended" for #410/#411/#412 — escalations.log entry
++    "chore/retire-declaw-automation-g4"). Two explicit overrides beyond the batch
++    dead-trigger grant:
++  - .github/workflows/_paused/slack-executor-bridge.yml  # #410: delete the whole paused workflow (more than a trigger)
++  - .github/workflows/ci-failure-watchdog.yml            # #412: edit a LIVE workflow's logic + narrow its permissions
  
  scope_paths:
--  - docs/data_contract.md
-+  - docs/board_request_sync.md
-+  - docs/project_status_sync.md
+-  - docs/board_request_sync.md
+-  - docs/project_status_sync.md
++  - scripts/slack_bridge/forward_to_executor.py
++  - scripts/slack_bridge/normalize_brief.py
++  - scripts/slack_bridge/post_thread_update.py
++  - scripts/squad_watch.py
++  - .github/workflows/_paused/slack-executor-bridge.yml
++  - .github/workflows/ci-failure-watchdog.yml
++  - docs/slack_executor_bridge.md
++  - docs/chat_driven_workflow.md
++  - docs/ci_failure_watchdog.md
++  - docs/agent_company_roadmap.md
    - .claude/task/contract.md
--  - .claude/active_work.md
  
  decisions_taken: >
--  Docs-only accuracy fixes within the CPO-granted autonomous non-protected backlog
--  (2026-06-13). No code/behaviour change. Wording verified against the actual loaders
--  (coaches.py reshapes; injuries.py merges seasons) — describing existing behaviour, not
--  changing it.
-+  Docs-only security-audit deliverable within the CPO-granted autonomous non-protected
-+  backlog (2026-06-13). No code/workflow change — the .github/workflows path is protected
-+  and needs no edit (the workflow's own `permissions:` block governs GITHUB_TOKEN, not the
-+  PAT; the PAT scope is set in GitHub secret settings, a CPO action outside the tree). The
-+  recommended scope is mechanically derived from the workflow's actual API calls, not a
-+  product/mechanism choice.
+-  Docs-only security-audit deliverable within the CPO-granted autonomous non-protected
+-  backlog (2026-06-13). No code/workflow change — the .github/workflows path is protected
+-  and needs no edit (the workflow's own `permissions:` block governs GITHUB_TOKEN, not the
+-  PAT; the PAT scope is set in GitHub secret settings, a CPO action outside the tree). The
+-  recommended scope is mechanically derived from the workflow's actual API calls, not a
+-  product/mechanism choice.
++  Dispositions + the two protected_overrides are CPO-approved (escalations.log 2026-06-13,
++  "as recommended"). #410/#411 are deletions of never-approved/un-budgeted relics; #412 keeps
++  the useful failure-notification and drops only the unapproved auto-rerun + its broad
++  `actions: write` scope (also removes the flaky-failure-masking behaviour). No behaviour
++  change to any KEPT automation. Other paused workflows (cursor-dispatch.yml, pr-autopilot.yml,
++  project-status-sync.yml) and the active pr-autopilot/pages/board-sync are OUT of scope.
  
  decisions_reserved:
--  - Keep it surgical: only the two flagged statements. Do NOT re-describe the merge model,
--    the unified-tables table, or other sections. If a reviewer finds a deeper inaccuracy,
--    STOP and surface it rather than expanding.
-+  - The actual secret rotation (applying the scope, regenerating the token) is a CPO
-+    action in GitHub settings — outside the tree, NOT done here.
-+  - Keep it surgical: document the scope on the active doc + supersede the stale classic
-+    guidance on the paused doc. Do NOT edit the workflow, change behaviour, or re-describe
-+    the board mechanism. If a reviewer finds the derived scope is wrong (too narrow / too
-+    broad) or that an operation needs a scope not listed, STOP and correct before commit.
+-  - The actual secret rotation (applying the scope, regenerating the token) is a CPO
+-    action in GitHub settings — outside the tree, NOT done here.
+-  - Keep it surgical: document the scope on the active doc + supersede the stale classic
+-    guidance on the paused doc. Do NOT edit the workflow, change behaviour, or re-describe
+-    the board mechanism. If a reviewer finds the derived scope is wrong (too narrow / too
+-    broad) or that an operation needs a scope not listed, STOP and correct before commit.
++  - Repo-secret removal (CURSOR_EXECUTOR_BRIDGE_URL/TOKEN) is a CPO settings action, NOT done here.
++  - Keep it surgical: retire exactly the named #410/#411 assets; for #412 change ONLY the
++    auto-rerun step + the `actions: write` permission + the matching doc/body text — do NOT
++    alter the watched-workflow list, the issue title/dedup logic, or the notification body
++    beyond removing the now-false "auto-rerun" line. Do NOT touch any other workflow or the
++    two unrelated paused workflows. If a reviewer finds a kept automation would break, STOP.
  
  done_when:
--  - Landing-zone "verbatim/unchanged" wording corrected to reflect the MERGE vs
--    players/squads+coaches RESHAPE split; line 23 "Nothing is discarded" SCOPED to response
--    data (no longer an absolute claim — reshape loaders drop envelope metadata, keep response items).
--  - the append-only reference-tables prose lists coaches + injuries.
--  - no other section changed; markdown renders (tables intact).
--  - reviewers: scope-auditor (always) + data-engineer-reviewer (docs/data_contract.md) — PASS.
-+  - docs/board_request_sync.md "Required secret" section states the exact least-privilege
-+    fine-grained PAT scope (owner + this-repo-only; Projects RW; Issues R; Pull requests R;
-+    Metadata R), notes the classic fallback is broader/discouraged, and explains rotation
-+    is a CPO settings action.
-+  - docs/project_status_sync.md's broad classic `repo, project` guidance is superseded by a
-+    pointer to the active doc's least-privilege scope (the PAT is shared).
-+  - no workflow / code change; markdown renders.
-+  - reviewers: scope-auditor (always) + cto-reviewer (voluntary — security/CI-token domain,
-+    not path-required since only docs/ change) — PASS.
+-  - docs/board_request_sync.md "Required secret" section states the exact least-privilege
+-    fine-grained PAT scope (owner + this-repo-only; Projects RW; Issues R; Pull requests R;
+-    Metadata R), notes the classic fallback is broader/discouraged, and explains rotation
+-    is a CPO settings action.
+-  - docs/project_status_sync.md's broad classic `repo, project` guidance is superseded by a
+-    pointer to the active doc's least-privilege scope (the PAT is shared).
+-  - no workflow / code change; markdown renders.
+-  - reviewers: scope-auditor (always) + cto-reviewer (voluntary — security/CI-token domain,
+-    not path-required since only docs/ change) — PASS.
++  - #410: the 3 slack_bridge scripts, docs/slack_executor_bridge.md, and
++    _paused/slack-executor-bridge.yml are deleted; the bridge entry is gone from
++    chat_driven_workflow.md's paused list AND its index link is removed from
++    docs/agent_company_roadmap.md; no remaining repo reference to the slack bridge
++    scripts/workflow (the historical audit record + secrets-in-settings excepted).
++  - #411: scripts/squad_watch.py is deleted; no remaining caller.
++  - #412: ci-failure-watchdog.yml no longer reruns jobs and no longer declares
++    `actions: write`; it still opens/comments the [CI Failure] issue (`issues: write`,
++    `contents: read`); the issue body no longer claims an auto-rerun; chat_driven_workflow.md's
++    watchdog behaviour text AND docs/ci_failure_watchdog.md match (notification-only, no
++    auto-rerun). The workflow still parses (valid YAML).
++  - reviewers: scope-auditor (always) + cto-reviewer (scripts/** + .github/workflows/**) — PASS.
  
  amendments: (none)
-diff --git a/docs/board_request_sync.md b/docs/board_request_sync.md
-index 48ada36..4d68967 100644
---- a/docs/board_request_sync.md
-+++ b/docs/board_request_sync.md
-@@ -38,7 +38,59 @@ Issues:
- Repository secret:
- - `PROJECT_AUTOMATION_TOKEN`
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 8d0f516..6fe2225 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -30,3 +30,9 @@
+   F12 (#421): demote the redundant global ESCALATE/ANSWER count to a commented secondary backstop; per-section loop authoritative.
  
--Token must have scopes needed to update user/org projects.
-+### Least-privilege scope (audit F18 / #413)
+ 2026-06-13 STANDING CPO GRANT (conversation, "granted") — autonomous backlog operation. After #409 merged, the CPO granted: (1) a standing green-light to work the NON-protected, non-§10 audit-cleanup backlog end-to-end autonomously (full review cycle → open PR; CPO merges) — covers #427 doc follow-ups, #430's pipeline_architecture_plan.md ref, #413 PAT audit (read-only). (2) a BATCH protected_override for "removing dead/stale entries from .github/workflows/ flagged by the G4 audit" — covers #430's pages-match-preview stale trigger and the #410-412 cases that ONLY touch dead workflow triggers. Standing stop-conditions remain: never merge (CPO does); escalate §10 blinded; stop for cost/destructive; the §10 "what to declaw/retire" substance of #410/#411/#412 still needs the CPO's decision (builder brings options, does not decide). This grant is the recorded authority cited by the contracts of the autonomous-backlog tasks.
 +
-+The token authenticates **every** API call this workflow makes — the `github-token:`
-+input replaces the default `GITHUB_TOKEN` for the whole step, so the workflow's own
-+`permissions:` block (`contents/pull-requests/issues: read`) governs nothing here; the
-+PAT's own scope is what matters.
++2026-06-13 chore/retire-declaw-automation-g4 — CPO ruling on the §10 retire/declaw SUBSTANCE of #410/#411/#412 (the part the STANDING GRANT reserved). Builder presented plain-language options; CPO chose "as recommended" for all three (conversation, 2026-06-13):
++  #410 (F16, Slack-to-Executor bridge — never approved, paused): FULL RETIRE. Delete scripts/slack_bridge/*.py (3 files), docs/slack_executor_bridge.md, the chat_driven_workflow.md mention, AND .github/workflows/_paused/slack-executor-bridge.yml. The workflow-file deletion is beyond a "dead trigger", so this carries an EXPLICIT protected_override for .github/workflows/_paused/slack-executor-bridge.yml (the batch override did not cover it). CPO to remove repo secrets CURSOR_EXECUTOR_BRIDGE_URL + CURSOR_EXECUTOR_BRIDGE_TOKEN in settings (outside the tree).
++  #411 (F17, squad_watch.py — un-budgeted WC API-volume relic): RETIRE. Delete scripts/squad_watch.py (non-protected, no callers). Within the existing non-protected grant; recorded here for completeness.
++  #412 (F19, ci-failure-watchdog.yml — LIVE): DECLAW as recommended (the audit shape). Remove the auto-rerun-failed-jobs step, DROP the `actions: write` permission, KEEP the [CI Failure] issue open/comment notification (`issues: write` + `contents: read`). Editing a live workflow's logic + narrowing a permission is beyond a "dead trigger", so this carries an EXPLICIT protected_override for .github/workflows/ci-failure-watchdog.yml. Update the chat_driven_workflow.md watchdog behaviour text to match.
++  Done as ONE PR (single shared grant, identical reviewer routing scope-auditor+cto-reviewer, avoids triplicating this grant across branches). Recorded here so each objective's contract cites a locatable ruling + the two protected_overrides.
+diff --git a/.github/workflows/_paused/slack-executor-bridge.yml b/.github/workflows/_paused/slack-executor-bridge.yml
+deleted file mode 100644
+index f74837f..0000000
+--- a/.github/workflows/_paused/slack-executor-bridge.yml
++++ /dev/null
+@@ -1,100 +0,0 @@
+-name: slack-executor-bridge
+-
+-on:
+-  repository_dispatch:
+-    types: [slack_executor_brief]
+-  workflow_dispatch:
+-    inputs:
+-      brief_title:
+-        description: "Manual brief title (chat fallback testing)"
+-        required: true
+-        type: string
+-      brief_body:
+-        description: "Manual brief body (chat fallback testing)"
+-        required: true
+-        type: string
+-      brief_id:
+-        description: "Optional brief ID"
+-        required: false
+-        type: string
+-      requested_by:
+-        description: "Requester identifier"
+-        required: false
+-        default: "manual-dispatch"
+-        type: string
+-
+-permissions:
+-  contents: read
+-
+-jobs:
+-  ingest-and-forward:
+-    runs-on: ubuntu-latest
+-    steps:
+-      - name: Checkout
+-        uses: actions/checkout@v4
+-
+-      - name: Normalize intake payload
+-        env:
+-          CLIENT_PAYLOAD_JSON: ${{ toJson(github.event.client_payload) }}
+-          BRIEF_TITLE: ${{ inputs.brief_title || '' }}
+-          BRIEF_BODY: ${{ inputs.brief_body || '' }}
+-          BRIEF_ID: ${{ inputs.brief_id || '' }}
+-          REQUESTED_BY: ${{ inputs.requested_by || '' }}
+-        run: |
+-          python3 scripts/slack_bridge/normalize_brief.py \
+-            --event-name "${{ github.event_name }}" \
+-            --client-payload-json "$CLIENT_PAYLOAD_JSON" \
+-            --repository "${{ github.repository }}" \
+-            --out /tmp/normalized_brief.json \
+-            --summary-out /tmp/slack_bridge_summary.md \
+-            --manual-title "$BRIEF_TITLE" \
+-            --manual-body "$BRIEF_BODY" \
+-            --manual-brief-id "$BRIEF_ID" \
+-            --manual-requested-by "$REQUESTED_BY"
+-          cat /tmp/slack_bridge_summary.md >> "$GITHUB_STEP_SUMMARY"
+-
+-      - name: Upload normalized brief artifact
+-        uses: actions/upload-artifact@v4
+-        with:
+-          name: slack-brief-${{ github.run_id }}
+-          path: /tmp/normalized_brief.json
+-
+-      - name: Acknowledge receipt in Slack thread
+-        run: |
+-          python3 scripts/slack_bridge/post_thread_update.py \
+-            --brief-json /tmp/normalized_brief.json \
+-            --status received \
+-            --message "Brief received by the executor bridge. Work has been queued."
+-
+-      - name: Forward brief to executor endpoint
+-        id: forward
+-        continue-on-error: true
+-        env:
+-          EXECUTOR_BRIDGE_URL: ${{ secrets.CURSOR_EXECUTOR_BRIDGE_URL }}
+-          EXECUTOR_BRIDGE_TOKEN: ${{ secrets.CURSOR_EXECUTOR_BRIDGE_TOKEN }}
+-        run: |
+-          python3 scripts/slack_bridge/forward_to_executor.py \
+-            --brief-json /tmp/normalized_brief.json \
+-            --endpoint-url "$EXECUTOR_BRIDGE_URL" \
+-            --bearer-token "$EXECUTOR_BRIDGE_TOKEN" \
+-            --result-out /tmp/executor_forward_result.json
+-          echo "Executor forward result:"
+-          cat /tmp/executor_forward_result.json
+-
+-      - name: Upload executor forward result
+-        uses: actions/upload-artifact@v4
+-        with:
+-          name: executor-forward-result-${{ github.run_id }}
+-          path: /tmp/executor_forward_result.json
+-
+-      - name: Report forwarding failure in Slack thread
+-        if: steps.forward.outcome == 'failure'
+-        run: |
+-          python3 scripts/slack_bridge/post_thread_update.py \
+-            --brief-json /tmp/normalized_brief.json \
+-            --status failed \
+-            --message "Bridge intake succeeded but executor forwarding failed. Check GitHub Actions run logs."
+-
+-      - name: Fail when forwarding fails
+-        if: steps.forward.outcome == 'failure'
+-        run: exit 1
+diff --git a/.github/workflows/ci-failure-watchdog.yml b/.github/workflows/ci-failure-watchdog.yml
+index 4840343..efa6ccf 100644
+--- a/.github/workflows/ci-failure-watchdog.yml
++++ b/.github/workflows/ci-failure-watchdog.yml
+@@ -14,7 +14,6 @@ on:
+ 
+ permissions:
+   contents: read
+-  actions: write
+   issues: write
+ 
+ jobs:
+@@ -49,20 +48,6 @@ jobs:
+             const workflowName = run.name || "unknown-workflow";
+             const actor = run.triggering_actor?.login || run.actor?.login || "unknown";
+ 
+-            let rerunTriggered = false;
+-            if (attempt === 1) {
+-              try {
+-                await github.request(
+-                  "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
+-                  { owner, repo, run_id: run.id }
+-                );
+-                rerunTriggered = true;
+-              } catch (error) {
+-                const msg = String(error.message || "");
+-                core.warning(`Failed to rerun failed jobs automatically: ${msg}`);
+-              }
+-            }
+-
+             const issueTitle = `[CI Failure] ${workflowName} on ${branch}`;
+             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+               owner,
+@@ -80,11 +65,10 @@ jobs:
+               `- Branch: \`${branch}\`\n` +
+               `- Triggered by: \`${actor}\`\n` +
+               `- Run attempt: \`${attempt}\`\n` +
+-              `- Failed run: ${runUrl}\n` +
+-              `- Auto-rerun failed jobs: \`${rerunTriggered ? "triggered" : "not-triggered"}\`\n\n` +
++              `- Failed run: ${runUrl}\n\n` +
+               "Next action:\n" +
+-              "- If the rerun passes, close this issue.\n" +
+-              "- If it fails again, fix root cause in code/workflow and link the PR here.\n";
++              "- Investigate the failed run, fix the root cause in code/workflow, and link the PR here.\n" +
++              "- Close this issue once CI is green.\n";
+ 
+             if (!existing) {
+               await github.rest.issues.create({
+diff --git a/docs/agent_company_roadmap.md b/docs/agent_company_roadmap.md
+index eeefbc7..3d36713 100644
+--- a/docs/agent_company_roadmap.md
++++ b/docs/agent_company_roadmap.md
+@@ -54,7 +54,6 @@ Replace `ramialfahham/football-data-pipeline` only if the repo moves.
+ - Chat-driven workflow: `docs/chat_driven_workflow.md`
+ - Board request sync: `docs/board_request_sync.md`
+ - CI failure watchdog: `docs/ci_failure_watchdog.md`
+-- Slack executor bridge: `docs/slack_executor_bridge.md`
+ - PR merge autopilot guide: `docs/pr_autopilot.md`
+ - Project status sync guide: `docs/project_status_sync.md`
+ 
+diff --git a/docs/chat_driven_workflow.md b/docs/chat_driven_workflow.md
+index 90b7657..2ecc0cf 100644
+--- a/docs/chat_driven_workflow.md
++++ b/docs/chat_driven_workflow.md
+@@ -39,9 +39,11 @@ To avoid founder-only monitoring, CI watchdog is active:
+ 
+ Behavior:
+ - Detects failed CI runs for core workflows
+-- Automatically reruns failed jobs once on first failure (transient recovery)
+ - Creates/updates a `[CI Failure] ...` issue with run link and next actions
+ 
++It does not rerun jobs automatically — reruns are a manual decision so transient
++(flaky) failures stay visible rather than being silently retried.
 +
-+What the workflow actually does with it:
+ ## What remains active
+ 
+ - `.github/workflows/pr-autopilot.yml`
+@@ -54,7 +56,6 @@ Behavior:
+ 
+ - `.github/workflows/_paused/cursor-dispatch.yml`
+ - `.github/workflows/_paused/project-status-sync.yml`
+-- `.github/workflows/_paused/slack-executor-bridge.yml`
+ - `.github/ISSUE_TEMPLATE/_paused/idea_intake.yml`
+ 
+ These assets are retained for recovery, but excluded from active automation.
+diff --git a/docs/ci_failure_watchdog.md b/docs/ci_failure_watchdog.md
+index fdbd015..d4440c2 100644
+--- a/docs/ci_failure_watchdog.md
++++ b/docs/ci_failure_watchdog.md
+@@ -2,7 +2,7 @@
+ 
+ ## Purpose
+ 
+-Detect CI failures automatically, trigger one immediate auto-recovery attempt, and create a persistent triage record without requiring founder monitoring.
++Detect CI failures automatically and create a persistent triage record without requiring founder monitoring.
+ 
+ Workflow:
+ - `.github/workflows/ci-failure-watchdog.yml`
+@@ -20,13 +20,16 @@ Workflow:
+ 
+ When a tracked workflow run completes with `failure`:
+ 
+-1. If `run_attempt == 1`, watchdog calls GitHub's `rerun-failed-jobs`.
+-2. It creates or updates a dedicated issue:
++1. It creates or updates a dedicated issue:
+    - Title: `[CI Failure] <workflow> on <branch>`
+-   - Includes failed run URL, attempt, trigger actor, and rerun outcome.
+-3. The issue is then visible to board sync automation for prioritization/execution.
++   - Includes failed run URL, attempt, and trigger actor.
++2. The issue is then visible to board sync automation for prioritization/execution.
 +
-+| Operation | API | Access needed |
-+|-----------|-----|---------------|
-+| List the user's ProjectsV2 + Status field/options | GraphQL `user.projectsV2` (org path is a NOT_FOUND fallback) | Projects: **read** |
-+| Read whether a PR/issue is already a board item | GraphQL `projectItems` sub-field of `repository.pullRequest` / `repository.issue` | Projects: **read** |
-+| Add a PR/issue to the board | GraphQL `addProjectV2ItemById` | Projects: **write** |
-+| Set the board item's Status | GraphQL `updateProjectV2ItemFieldValue` | Projects: **write** |
-+| Read a PR's state/draft/merged | GraphQL `repository.pullRequest`; REST `pulls.list` | Pull requests: **read** |
-+| Read an issue's state | GraphQL `repository.issue`; REST `issues.listForRepo` | Issues: **read** |
-+
-+It never reads file contents and never writes to issues, PRs, or contents. Note that the
-+`projectItems` sub-field embedded in the PR/issue queries is governed by the **Projects**
-+permission, not by Issues / Pull requests — so Projects: read is required for the
-+existence check as well as for the writes.
-+
-+**Use a fine-grained PAT** (the board is a **user-owned** ProjectV2 on `ramialfahham`,
-+and this is a **public** repo):
-+
-+- **Resource owner:** `ramialfahham`
-+- **Repository access:** Only select repositories → `ramialfahham/football-data-pipeline`
-+- **Repository permissions:** Issues → **Read-only**; Pull requests → **Read-only**;
-+  Metadata → **Read-only** (mandatory baseline, auto-selected)
-+- **Account permissions:** Projects → **Read and write**
-+- Nothing else — no Contents, no Administration, no Workflows, no org permissions.
-+
-+Note the split: the Issues / Pull requests / Metadata permissions above are
-+**repository** permissions and are limited to the one selected repo; **Projects** is an
-+**account** permission and applies to all ProjectsV2 the owner has — GitHub does not let
-+it be narrowed to a single project. That is unavoidable for either token type (see the
-+classic note below) and is the one permission that is account-wide by design.
-+
-+A **classic** PAT works but is broader than needed and is **not recommended**: the only
-+classic scope that allows ProjectsV2 writes is `project`, which grants access to **all**
-+projects across the account (not just this board), and there is no narrower classic
-+project-write scope. If a classic token must be used, pair `project` with at most
-+`public_repo` (this repo is public) — **not** full `repo`. The older
-+`docs/project_status_sync.md` setup note that prescribes `repo, project` is superseded by
-+this section.
-+
-+### Rotation
-+
-+Setting/regenerating the token is a repo-admin action in GitHub settings
-+(`Settings → Secrets and variables → Actions → PROJECT_AUTOMATION_TOKEN`) — done by the
-+CPO, not by automation. This document specifies the scope to apply; it does not and
-+cannot change the live secret.
++The watchdog does not rerun jobs. Reruns are a manual decision so transient (flaky)
++failures stay visible rather than being silently retried. It holds only `issues: write`
++(plus `contents: read`); it does not carry `actions: write`.
  
  ## Notes
  
-diff --git a/docs/project_status_sync.md b/docs/project_status_sync.md
-index e594746..0145dbb 100644
---- a/docs/project_status_sync.md
-+++ b/docs/project_status_sync.md
-@@ -22,8 +22,14 @@ Workflow: `.github/workflows/project-status-sync.yml`
- Add this repository secret:
- 
- - Name: `PROJECT_AUTOMATION_TOKEN`
--- Value: GitHub personal access token (classic)
--- Scopes: `repo`, `project`
-+- Value: GitHub personal access token
-+
-+> **Scope superseded (audit F18 / #413).** The `repo`, `project` classic scopes once
-+> prescribed here are over-broad. The token is shared with the active
-+> `board-request-sync` workflow; use the least-privilege scope documented in
-+> [`docs/board_request_sync.md`](board_request_sync.md#least-privilege-scope-audit-f18--413)
-+> (a fine-grained PAT: Projects read+write, Issues read, Pull requests read, Metadata
-+> read — this repo only).
- 
- Settings path:
- 
+ - This does not attempt speculative code edits.
+-- It auto-recovers transient failures and guarantees every persistent failure is surfaced as an executable item.
++- It guarantees every CI failure is surfaced as an executable item; recovery (rerun or fix) is a manual decision.
+diff --git a/docs/slack_executor_bridge.md b/docs/slack_executor_bridge.md
+deleted file mode 100644
+index 0548b55..0000000
+--- a/docs/slack_executor_bridge.md
++++ /dev/null
+@@ -1,110 +0,0 @@
+-# Slack-to-Executor Bridge
+-
+-> PAUSED 2026-05-20 — Slack intake is disabled; chat-driven briefs are the active path.
+-> Archived workflow location: `.github/workflows/_paused/slack-executor-bridge.yml`.
+-
+-## Purpose
+-
+-Accept a brief from Slack and route it into the same execution path used for chat briefs:
+-
+-`brief -> executor -> PR -> autopilot merge -> deploy -> Slack thread confirmation`
+-
+-This bridge does not create tickets, labels, or board updates.
+-
+-## Active workflow
+-
+-- None (workflow paused)
+-
+-Triggers:
+-- `repository_dispatch` with `event_type=slack_executor_brief`
+-- optional manual `workflow_dispatch` for dry-run testing
+-
+-## Interface contract (payload shape)
+-
+-The bridge expects `client_payload` in this exact shape:
+-
+-{
+-  "schema_version": "2026-05-20",
+-  "brief_id": "slack-20260520-001",
+-  "source": "slack",
+-  "requested_by": {
+-    "id": "U01234567",
+-    "display_name": "Rami"
+-  },
+-  "brief": {
+-    "title": "Short title",
+-    "body": "Full implementation brief text"
+-  },
+-  "routing": {
+-    "channel_id": "C01234567",
+-    "thread_ts": "1716227770.123456",
+-    "response_webhook_url": "https://hooks.slack.com/services/..."
+-  }
+-}
+-
+-Notes:
+-- `response_webhook_url` is used to post callbacks to the same Slack thread.
+-- The URL is redacted from workflow summaries.
+-- `brief_id` is the idempotency key and must be stable for retries.
+-
+-## Error handling
+-
+-- Validation errors (missing/invalid fields) fail fast in `normalize_brief.py`.
+-- Executor forwarding retries 3 times on transient errors (`408`, `409`, `425`, `429`, `5xx`, network failures).
+-- If forwarding still fails:
+-  - workflow run fails
+-  - bridge posts a `failed` update to the same Slack thread (if webhook is present)
+-- If no executor endpoint secret is configured:
+-  - brief is accepted and stored as an artifact
+-  - workflow succeeds with status `accepted_not_forwarded`
+-
+-## Slack-side wiring (exact steps)
+-
+-Do only this on Slack side when you are ready:
+-
+-1. Create a dedicated channel, for example `#product-briefs`.
+-2. Create/enable an Incoming Webhook for that channel in your Slack app.
+-3. In Slack Workflow Builder (or your Slack automation tool), trigger on new message in the channel.
+-4. Add an HTTP step that calls GitHub Repository Dispatch:
+-   - URL: `https://api.github.com/repos/ramialfahham/football-data-pipeline/dispatches`
+-   - Method: `POST`
+-   - Headers:
+-     - `Authorization: Bearer <GITHUB_DISPATCH_TOKEN>`
+-     - `Accept: application/vnd.github+json`
+-     - `Content-Type: application/json`
+-   - Body:
+-     {
+-       "event_type": "slack_executor_brief",
+-       "client_payload": {
+-         "schema_version": "2026-05-20",
+-         "brief_id": "<stable-unique-id>",
+-         "source": "slack",
+-         "requested_by": {
+-           "id": "<slack-user-id>",
+-           "display_name": "<slack-display-name>"
+-         },
+-         "brief": {
+-           "title": "<message-title>",
+-           "body": "<full-brief-text>"
+-         },
+-         "routing": {
+-           "channel_id": "<channel-id>",
+-           "thread_ts": "<thread-ts>",
+-           "response_webhook_url": "<incoming-webhook-url>"
+-         }
+-       }
+-     }
+-5. Store the GitHub dispatch token in Slack secret storage (do not hardcode it in plain text).
+-6. When unpaused, post a test brief and confirm workflow `slack-executor-bridge` appears in GitHub Actions.
+-
+-## Repo-side secrets for forwarding to executor
+-
+-Optional (for full automation into an executor endpoint):
+-- `CURSOR_EXECUTOR_BRIDGE_URL`
+-- `CURSOR_EXECUTOR_BRIDGE_TOKEN`
+-
+-Without these, the bridge still accepts Slack briefs and stores normalized payload artifacts.
+-
+-## Until Slack is wired
+-
+-Chat-pasted briefs remain the primary path and follow the same no-ticket flow.
+diff --git a/scripts/slack_bridge/forward_to_executor.py b/scripts/slack_bridge/forward_to_executor.py
+deleted file mode 100644
+index ae1072e..0000000
+--- a/scripts/slack_bridge/forward_to_executor.py
++++ /dev/null
+@@ -1,100 +0,0 @@
+-#!/usr/bin/env python3
+-"""Forward normalized brief payload to an executor endpoint."""
+-
+-from __future__ import annotations
+-
+-import argparse
+-import json
+-import sys
+-import time
+-import urllib.error
+-import urllib.request
+-from pathlib import Path
+-
+-
+-def parse_args() -> argparse.Namespace:
+-    parser = argparse.ArgumentParser(description="Forward brief to executor endpoint.")
+-    parser.add_argument("--brief-json", required=True, help="Path to normalized brief JSON")
+-    parser.add_argument("--endpoint-url", default="", help="Executor intake endpoint")
+-    parser.add_argument("--bearer-token", default="", help="Optional bearer token")
+-    parser.add_argument("--result-out", required=True, help="Output result JSON path")
+-    return parser.parse_args()
+-
+-
+-def _post_json(url: str, payload: dict, bearer_token: str) -> tuple[int, str]:
+-    encoded = json.dumps(payload).encode("utf-8")
+-    headers = {"Content-Type": "application/json"}
+-    if bearer_token:
+-        headers["Authorization"] = f"Bearer {bearer_token}"
+-    request = urllib.request.Request(url=url, data=encoded, headers=headers, method="POST")
+-    with urllib.request.urlopen(request, timeout=20) as response:
+-        body = response.read().decode("utf-8", errors="replace")
+-        return response.status, body
+-
+-
+-def main() -> int:
+-    args = parse_args()
+-    brief_payload = json.loads(Path(args.brief_json).read_text(encoding="utf-8"))
+-    result_path = Path(args.result_out)
+-    result_path.parent.mkdir(parents=True, exist_ok=True)
+-
+-    if not args.endpoint_url.strip():
+-        result = {
+-            "status": "accepted_not_forwarded",
+-            "reason": "No executor endpoint configured",
+-            "brief_id": brief_payload.get("brief_id", ""),
+-        }
+-        result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+-        print("No executor endpoint configured. Brief accepted locally.")
+-        return 0
+-
+-    last_error = ""
+-    for attempt in range(1, 4):
+-        try:
+-            status_code, response_body = _post_json(
+-                url=args.endpoint_url.strip(),
+-                payload=brief_payload,
+-                bearer_token=args.bearer_token.strip(),
+-            )
+-            if 200 <= status_code < 300:
+-                result = {
+-                    "status": "forwarded",
+-                    "brief_id": brief_payload.get("brief_id", ""),
+-                    "executor_status_code": status_code,
+-                    "executor_response": response_body,
+-                }
+-                result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+-                print(f"Forwarded brief to executor endpoint (status={status_code}).")
+-                return 0
+-            if status_code in {408, 409, 425, 429} or status_code >= 500:
+-                last_error = f"HTTP {status_code}: {response_body}"
+-                time.sleep(2 ** attempt)
+-                continue
+-            last_error = f"HTTP {status_code}: {response_body}"
+-            break
+-        except urllib.error.HTTPError as exc:
+-            body = exc.read().decode("utf-8", errors="replace")
+-            last_error = f"HTTP {exc.code}: {body}"
+-            if exc.code in {408, 409, 425, 429} or exc.code >= 500:
+-                time.sleep(2 ** attempt)
+-                continue
+-            break
+-        except urllib.error.URLError as exc:
+-            last_error = f"Network error: {exc.reason}"
+-            time.sleep(2 ** attempt)
+-        except TimeoutError:
+-            last_error = "Timeout while connecting to executor endpoint"
+-            time.sleep(2 ** attempt)
+-
+-    result = {
+-        "status": "forward_failed",
+-        "brief_id": brief_payload.get("brief_id", ""),
+-        "error": last_error or "Unknown executor forwarding error",
+-    }
+-    result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+-    sys.stderr.write(f"Executor forwarding failed: {result['error']}\n")
+-    return 1
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(main())
+diff --git a/scripts/slack_bridge/normalize_brief.py b/scripts/slack_bridge/normalize_brief.py
+deleted file mode 100644
+index befc0fc..0000000
+--- a/scripts/slack_bridge/normalize_brief.py
++++ /dev/null
+@@ -1,220 +0,0 @@
+-#!/usr/bin/env python3
+-"""Normalize Slack/chat brief payloads for executor intake."""
+-
+-from __future__ import annotations
+-
+-import argparse
+-import json
+-import re
+-import sys
+-import uuid
+-from datetime import datetime, timezone
+-from pathlib import Path
+-
+-
+-SCHEMA_VERSION = "2026-05-20"
+-BRIEF_ID_PATTERN = re.compile(r"^[a-zA-Z0-9._:-]{3,120}$")
+-MAX_TITLE_LEN = 160
+-MAX_BODY_LEN = 16000
+-
+-
+-class ValidationError(Exception):
+-    """Raised when payload validation fails."""
+-
+-
+-def _now_iso() -> str:
+-    return datetime.now(timezone.utc).isoformat()
+-
+-
+-def _trimmed(value: str | None) -> str:
+-    return (value or "").strip()
+-
+-
+-def _validate_required_str(value: str | None, field: str) -> str:
+-    parsed = _trimmed(value)
+-    if not parsed:
+-        raise ValidationError(f"Missing required field: `{field}`.")
+-    return parsed
+-
+-
+-def _validate_brief_id(brief_id: str) -> str:
+-    if not BRIEF_ID_PATTERN.match(brief_id):
+-        raise ValidationError(
+-            "Invalid `brief_id`. Use 3-120 chars from [a-zA-Z0-9._:-]."
+-        )
+-    return brief_id
+-
+-
+-def _validate_webhook_url(url: str | None) -> str:
+-    parsed = _validate_required_str(url, "routing.response_webhook_url")
+-    if not (
+-        parsed.startswith("https://hooks.slack.com/")
+-        or parsed.startswith("https://hooks.slack-gov.com/")
+-    ):
+-        raise ValidationError(
+-            "Invalid `routing.response_webhook_url`. Expected a Slack incoming webhook URL."
+-        )
+-    return parsed
+-
+-
+-def _load_dispatch_payload(raw_json: str) -> dict:
+-    if not raw_json.strip():
+-        raise ValidationError("`client_payload` is empty for repository_dispatch.")
+-    try:
+-        parsed = json.loads(raw_json)
+-    except json.JSONDecodeError as exc:
+-        raise ValidationError(f"`client_payload` is not valid JSON: {exc}") from exc
+-    if not isinstance(parsed, dict):
+-        raise ValidationError("`client_payload` must be a JSON object.")
+-    return parsed
+-
+-
+-def _build_manual_payload(args: argparse.Namespace) -> dict:
+-    return {
+-        "schema_version": SCHEMA_VERSION,
+-        "brief_id": args.manual_brief_id or f"manual-{uuid.uuid4().hex[:12]}",
+-        "source": "chat",
+-        "brief": {
+-            "title": args.manual_title,
+-            "body": args.manual_body,
+-        },
+-        "requested_by": {
+-            "id": args.manual_requested_by or "manual-workflow-dispatch",
+-            "display_name": args.manual_requested_by_display or "Manual dispatch",
+-        },
+-        "routing": {
+-            "channel_id": args.manual_channel_id or "",
+-            "thread_ts": args.manual_thread_ts or "",
+-            "response_webhook_url": args.manual_response_webhook_url or "",
+-        },
+-    }
+-
+-
+-def _normalize(payload: dict, event_name: str, repository: str) -> dict:
+-    schema_version = _validate_required_str(payload.get("schema_version"), "schema_version")
+-    if schema_version != SCHEMA_VERSION:
+-        raise ValidationError(
+-            f"Unsupported `schema_version`: {schema_version}. Expected {SCHEMA_VERSION}."
+-        )
+-
+-    source = _validate_required_str(payload.get("source"), "source").lower()
+-    if source not in {"slack", "chat"}:
+-        raise ValidationError("`source` must be either `slack` or `chat`.")
+-
+-    brief = payload.get("brief")
+-    if not isinstance(brief, dict):
+-        raise ValidationError("Missing required object: `brief`.")
+-    title = _validate_required_str(brief.get("title"), "brief.title")
+-    body = _validate_required_str(brief.get("body"), "brief.body")
+-    if len(title) > MAX_TITLE_LEN:
+-        raise ValidationError(f"`brief.title` exceeds {MAX_TITLE_LEN} characters.")
+-    if len(body) > MAX_BODY_LEN:
+-        raise ValidationError(f"`brief.body` exceeds {MAX_BODY_LEN} characters.")
+-
+-    requested_by = payload.get("requested_by")
+-    if not isinstance(requested_by, dict):
+-        raise ValidationError("Missing required object: `requested_by`.")
+-    requester_id = _validate_required_str(requested_by.get("id"), "requested_by.id")
+-    requester_name = _trimmed(requested_by.get("display_name")) or requester_id
+-
+-    routing = payload.get("routing")
+-    if not isinstance(routing, dict):
+-        raise ValidationError("Missing required object: `routing`.")
+-    channel_id = _trimmed(routing.get("channel_id"))
+-    thread_ts = _trimmed(routing.get("thread_ts"))
+-    response_webhook_url = _trimmed(routing.get("response_webhook_url"))
+-
+-    if source == "slack":
+-        channel_id = _validate_required_str(channel_id, "routing.channel_id")
+-        thread_ts = _validate_required_str(thread_ts, "routing.thread_ts")
+-        response_webhook_url = _validate_webhook_url(response_webhook_url)
+-
+-    brief_id = _validate_brief_id(
+-        _validate_required_str(payload.get("brief_id"), "brief_id")
+-    )
+-
+-    return {
+-        "schema_version": SCHEMA_VERSION,
+-        "brief_id": brief_id,
+-        "source": source,
+-        "submitted_at": _now_iso(),
+-        "repository": repository,
+-        "received_via": event_name,
+-        "requested_by": {
+-            "id": requester_id,
+-            "display_name": requester_name,
+-        },
+-        "brief": {
+-            "title": title,
+-            "body": body,
+-        },
+-        "routing": {
+-            "channel_id": channel_id,
+-            "thread_ts": thread_ts,
+-            "response_webhook_url": response_webhook_url,
+-        },
+-    }
+-
+-
+-def parse_args() -> argparse.Namespace:
+-    parser = argparse.ArgumentParser(description="Normalize Slack/chat brief payloads.")
+-    parser.add_argument("--event-name", required=True, help="GitHub event name")
+-    parser.add_argument("--client-payload-json", default="", help="Dispatch payload JSON")
+-    parser.add_argument("--repository", required=True, help="owner/repo")
+-    parser.add_argument("--out", required=True, help="Output JSON file")
+-    parser.add_argument("--summary-out", required=True, help="Output summary markdown file")
+-
+-    parser.add_argument("--manual-title", default="")
+-    parser.add_argument("--manual-body", default="")
+-    parser.add_argument("--manual-brief-id", default="")
+-    parser.add_argument("--manual-requested-by", default="")
+-    parser.add_argument("--manual-requested-by-display", default="")
+-    parser.add_argument("--manual-channel-id", default="")
+-    parser.add_argument("--manual-thread-ts", default="")
+-    parser.add_argument("--manual-response-webhook-url", default="")
+-    return parser.parse_args()
+-
+-
+-def main() -> int:
+-    args = parse_args()
+-    try:
+-        if args.event_name == "repository_dispatch":
+-            payload = _load_dispatch_payload(args.client_payload_json)
+-        elif args.event_name == "workflow_dispatch":
+-            payload = _build_manual_payload(args)
+-        else:
+-            raise ValidationError(
+-                f"Unsupported event `{args.event_name}`. Use repository_dispatch or workflow_dispatch."
+-            )
+-
+-        normalized = _normalize(payload, event_name=args.event_name, repository=args.repository)
+-    except ValidationError as exc:
+-        sys.stderr.write(f"Brief payload validation failed: {exc}\n")
+-        return 1
+-
+-    out_path = Path(args.out)
+-    out_path.parent.mkdir(parents=True, exist_ok=True)
+-    out_path.write_text(json.dumps(normalized, indent=2), encoding="utf-8")
+-
+-    summary_lines = [
+-        "### Slack bridge intake",
+-        f"- brief_id: `{normalized['brief_id']}`",
+-        f"- source: `{normalized['source']}`",
+-        f"- received_via: `{normalized['received_via']}`",
+-        f"- requested_by: `{normalized['requested_by']['display_name']}`",
+-        f"- title: `{normalized['brief']['title']}`",
+-    ]
+-    if normalized["routing"]["channel_id"]:
+-        summary_lines.append(f"- channel_id: `{normalized['routing']['channel_id']}`")
+-    if normalized["routing"]["thread_ts"]:
+-        summary_lines.append(f"- thread_ts: `{normalized['routing']['thread_ts']}`")
+-    summary_lines.append("- response_webhook_url: `[redacted]`")
+-
+-    summary_path = Path(args.summary_out)
+-    summary_path.parent.mkdir(parents=True, exist_ok=True)
+-    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(main())
+diff --git a/scripts/slack_bridge/post_thread_update.py b/scripts/slack_bridge/post_thread_update.py
+deleted file mode 100644
+index 7d99ce9..0000000
+--- a/scripts/slack_bridge/post_thread_update.py
++++ /dev/null
+@@ -1,62 +0,0 @@
+-#!/usr/bin/env python3
+-"""Post status updates back to a Slack thread via incoming webhook."""
+-
+-from __future__ import annotations
+-
+-import argparse
+-import json
+-import sys
+-import urllib.error
+-import urllib.request
+-from pathlib import Path
+-
+-
+-def parse_args() -> argparse.Namespace:
+-    parser = argparse.ArgumentParser(description="Post update to Slack thread webhook.")
+-    parser.add_argument("--brief-json", required=True, help="Path to normalized brief JSON")
+-    parser.add_argument("--status", required=True, choices=["received", "failed", "shipped"])
+-    parser.add_argument("--message", required=True, help="Status message")
+-    parser.add_argument("--shipped-url", default="", help="Optional shipped URL")
+-    return parser.parse_args()
+-
+-
+-def main() -> int:
+-    args = parse_args()
+-    brief_payload = json.loads(Path(args.brief_json).read_text(encoding="utf-8"))
+-    routing = brief_payload.get("routing", {})
+-    webhook_url = (routing.get("response_webhook_url") or "").strip()
+-
+-    if not webhook_url:
+-        print("No response webhook URL set. Skipping Slack callback.")
+-        return 0
+-
+-    parts = [f"*Status:* `{args.status}`", args.message]
+-    if args.shipped_url.strip():
+-        parts.append(f"Shipped to: {args.shipped_url.strip()}")
+-    text = "\n".join(parts)
+-
+-    payload = {"text": text}
+-    thread_ts = (routing.get("thread_ts") or "").strip()
+-    if thread_ts:
+-        payload["thread_ts"] = thread_ts
+-
+-    req = urllib.request.Request(
+-        url=webhook_url,
+-        data=json.dumps(payload).encode("utf-8"),
+-        headers={"Content-Type": "application/json"},
+-        method="POST",
+-    )
+-    try:
+-        with urllib.request.urlopen(req, timeout=15) as response:
+-            if response.status < 200 or response.status >= 300:
+-                raise RuntimeError(f"Unexpected Slack webhook status {response.status}")
+-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, RuntimeError) as exc:
+-        sys.stderr.write(f"Slack callback failed: {exc}\n")
+-        return 1
+-
+-    print("Slack callback posted.")
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    raise SystemExit(main())
+diff --git a/scripts/squad_watch.py b/scripts/squad_watch.py
+deleted file mode 100644
+index 9bfd89d..0000000
+--- a/scripts/squad_watch.py
++++ /dev/null
+@@ -1,389 +0,0 @@
+-"""Squad-watch monitor for WC 2026 player coverage.
+-
+-Question this script answers:
+-
+-    For each WC 2026 participant national team, what share of squad players
+-    play in a league we already ingest, versus a league we do not?
+-
+-The answer drives Wave 2 league-onboarding decisions. As provisional and
+-final WC 2026 squads are announced (typically late May / early June 2026),
+-re-run the script to refresh coverage and surface new gaps.
+-
+-The script does NOT modify any data layer. It is a read-only API + BigQuery
+-report.
+-
+-Usage:
+-    # From repo root, with .env populated:
+-    python scripts/squad_watch.py                       # full run, outputs to ./squad_watch_report/
+-
+-    python scripts/squad_watch.py --team-id 26           # just one team (debug)
+-    python scripts/squad_watch.py --output-dir custom/   # custom output location
+-    python scripts/squad_watch.py --cache-only           # use cached API data, skip new calls
+-    python scripts/squad_watch.py --no-bigquery          # skip BQ participant fetch; pass --team-ids manually
+-
+-Reads:
+-- ``.env`` for ``API_FOOTBALL_API_KEY``
+-- ``docs/competition_registry.yml`` for the set of ingested ``provider_league_id`` values
+-- BigQuery ``intermediate.int_wc__participant_teams`` joined to ``core.dim_team`` for the
+-  48 WC 2026 participant team IDs and names
+-
+-Writes (to ``--output-dir``, default ``squad_watch_report/`` at repo root):
+-- ``raw_squads.json``         — last squad-endpoint response per team
+-- ``player_clubs.json``       — last player-endpoint response per player
+-- ``coverage_summary.json``   — per-team summary with covered / uncovered counts
+-- ``coverage_summary.md``     — human-readable Markdown report
+-- ``uncovered_leagues.json``  — aggregated list of leagues NOT in our registry that
+-                                hold one or more WC squad players, with player counts
+-
+-The two JSON caches (``raw_squads.json`` and ``player_clubs.json``) double as state for
+-incremental runs: existing entries are skipped unless ``--force-refresh`` is set.
+-
+-Exit codes:
+-    0 — success
+-    1 — input error (missing key, bad CLI args, etc.)
+-    2 — API quota exhausted mid-run; partial state still written
+-"""
+-
+-from __future__ import annotations
+-
+-import argparse
+-import json
+-import os
+-import sys
+-import time
+-from collections import defaultdict
+-from pathlib import Path
+-from typing import Any
+-
+-import yaml
+-
+-
+-APISPORTS_BASE = "https://v3.football.api-sports.io"
+-DEFAULT_OUTPUT_DIR = "squad_watch_report"
+-REQUEST_PAUSE_SECONDS = 0.15  # ~400 req/min, well under the 450/min APISports limit
+-
+-# API-Football league IDs we explicitly do NOT consider "onboardable" — they're
+-# international or friendly competitions, not domestic leagues. Hosts and
+-# top-tier national-team players show up in these when the calendar year is
+-# friendly-heavy (pre-tournament periods). Surfacing them as gaps would be
+-# misleading: we can't add "Friendlies" as a domestic league.
+-NON_DOMESTIC_LEAGUE_IDS: set[int] = {
+-    10,    # Friendlies / FIFA Friendlies International
+-    667,   # Friendlies Clubs (pre-season etc.)
+-}
+-
+-
+-class QuotaExhausted(Exception):
+-    """Raised when the API responds with the daily-quota error."""
+-
+-
+-def _load_dotenv(repo_root: Path) -> None:
+-    """Minimal .env loader so the script runs standalone without python-dotenv."""
+-    env_path = repo_root / ".env"
+-    if not env_path.exists():
+-        return
+-    with env_path.open(encoding="utf-8") as fp:
+-        for line in fp:
+-            line = line.strip()
+-            if not line or line.startswith("#") or "=" not in line:
+-                continue
+-            key, value = line.split("=", 1)
+-            os.environ.setdefault(key.strip(), value.strip())
+-
+-
+-def _api_key() -> str:
+-    key = os.getenv("API_FOOTBALL_API_KEY", "").strip()
+-    if not key:
+-        print("ERROR: API_FOOTBALL_API_KEY missing from environment.", file=sys.stderr)
+-        sys.exit(1)
+-    return key
+-
+-
+-def _api_get(path: str, params: dict[str, Any], api_key: str) -> dict:
+-    """Issue a single APISports GET and return the JSON payload.
+-
+-    Raises QuotaExhausted if the response signals daily limit exceeded.
+-    """
+-    import requests  # imported here so the script can be parsed without requests installed
+-
+-    url = f"{APISPORTS_BASE}{path}"
+-    headers = {"x-apisports-key": api_key}
+-    response = requests.get(url, headers=headers, params=params, timeout=30)
+-    response.raise_for_status()
+-    data = response.json()
+-    errors = data.get("errors") or {}
+-    if isinstance(errors, dict):
+-        for key, value in errors.items():
+-            text = str(value).lower()
+-            if "limit" in text or "quota" in text or "too many" in text:
+-                raise QuotaExhausted(f"{key}: {value}")
+-    time.sleep(REQUEST_PAUSE_SECONDS)
+-    return data
+-
+-
+-def load_registered_league_ids(repo_root: Path) -> set[int]:
+-    """Read the registry to get the set of provider_league_id values we ingest."""
+-    registry_path = repo_root / "docs" / "competition_registry.yml"
+-    with registry_path.open(encoding="utf-8") as fp:
+-        data = yaml.safe_load(fp)
+-    out: set[int] = set()
+-    competitions = data.get("competitions") if isinstance(data, dict) else None
+-    iterable = competitions if isinstance(competitions, list) else (data if isinstance(data, list) else [])
+-    for entry in iterable:
+-        if not isinstance(entry, dict):
+-            continue
+-        pid = entry.get("provider_league_id")
+-        if isinstance(pid, int):
+-            out.add(pid)
+-    return out
+-
+-
+-def fetch_wc_participants_from_bq() -> list[tuple[int, str]]:
+-    """Query BQ for the 48 WC 2026 participant team API IDs and names."""
+-    try:
+-        from google.cloud import bigquery
+-    except ImportError:
+-        print("ERROR: google-cloud-bigquery not installed.", file=sys.stderr)
+-        print("  pip install google-cloud-bigquery", file=sys.stderr)
+-        sys.exit(1)
+-    client = bigquery.Client(project="football-data-pipeline-gcp")
+-    sql = """
+-        select t.team_api_id, t.team_name
+-        from `football-data-pipeline-gcp.intermediate.int_wc__participant_teams` p
+-        left join `football-data-pipeline-gcp.core.dim_team` t on t.team_sk = p.team_sk
+-        where t.team_api_id is not null
+-        order by t.team_name
+-    """
+-    return [(row.team_api_id, row.team_name) for row in client.query(sql).result()]
+-
+-
+-def fetch_squad_for_team(team_api_id: int, api_key: str) -> list[dict]:
+-    """Fetch the squad for one team. Returns list of player dicts.
+-
+-    Uses APISports /players/squads?team={id}, which returns the active squad
+-    list as of now. For WC squads specifically, this picks up the FIFA-submitted
+-    squad once it's published.
+-    """
+-    payload = _api_get("/players/squads", {"team": team_api_id}, api_key)
+-    response = payload.get("response", []) or []
+-    if not response:
+-        return []
+-    first = response[0] if isinstance(response, list) else response
+-    players = first.get("players", []) if isinstance(first, dict) else []
+-    return players
+-
+-
+-def fetch_player_current_club(player_api_id: int, season: int, api_key: str) -> tuple[int | None, str | None, int | None, str | None]:
+-    """Fetch the player's primary club for a season.
+-
+-    The /players endpoint returns a ``statistics[]`` array with one entry per
+-    (team, league) the player appeared in during the season. For our purposes
+-    the relevant entry is the player's CLUB — not an international or
+-    friendly league entry. We pick the statistics entry with the maximum
+-    ``games.appearences`` value, which naturally selects the player's primary
+-    club over national-team / friendly appearances.
+-
+-    Returns (team_id, team_name, league_id, league_name) of the chosen entry,
+-    or (None, None, None, None) on miss.
+-    """
+-    payload = _api_get("/players", {"id": player_api_id, "season": season}, api_key)
+-    response = payload.get("response", []) or []
+-    if not response:
+-        return (None, None, None, None)
+-    item = response[0]
+-    statistics = item.get("statistics") or []
+-    if not statistics:
+-        return (None, None, None, None)
+-    def appearances(stat: dict) -> int:
+-        games = stat.get("games") or {}
+-        val = games.get("appearences")  # API spelling, "appearences"
+-        try:
+-            return int(val) if val is not None else 0
+-        except (TypeError, ValueError):
+-            return 0
+-    best = max(statistics, key=appearances)
+-    team = best.get("team") or {}
+-    league = best.get("league") or {}
+-    return (team.get("id"), team.get("name"), league.get("id"), league.get("name"))
+-
+-
+-def main() -> int:
+-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+-    parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Where to write reports (default: squad_watch_report/)")
+-    parser.add_argument("--season", type=int, default=2026, help="Season year for /players lookups (default: 2026)")
+-    parser.add_argument("--team-id", type=int, action="append", help="Run only for the given team_api_id; can pass multiple times for debug")
+-    parser.add_argument("--no-bigquery", action="store_true", help="Skip BigQuery participant fetch; requires --team-id to be passed")
+-    parser.add_argument("--cache-only", action="store_true", help="Use cached API responses; do not make new API calls")
+-    parser.add_argument("--force-refresh", action="store_true", help="Ignore cached API responses and re-fetch everything")
+-    args = parser.parse_args()
+-
+-    repo_root = Path(__file__).resolve().parent.parent
+-    _load_dotenv(repo_root)
+-
+-    registered_league_ids = load_registered_league_ids(repo_root)
+-    print(f"Registered (ingested) leagues: {sorted(registered_league_ids)}")
+-
+-    output_dir = Path(args.output_dir)
+-    output_dir.mkdir(parents=True, exist_ok=True)
+-    squads_cache_path = output_dir / "raw_squads.json"
+-    players_cache_path = output_dir / "player_clubs.json"
+-
+-    squads_cache: dict[str, list[dict]] = {}
+-    if squads_cache_path.exists() and not args.force_refresh:
+-        squads_cache = json.loads(squads_cache_path.read_text(encoding="utf-8"))
+-    players_cache: dict[str, dict] = {}
+-    if players_cache_path.exists() and not args.force_refresh:
+-        players_cache = json.loads(players_cache_path.read_text(encoding="utf-8"))
+-
+-    if args.team_id:
+-        participants: list[tuple[int, str]] = [(tid, f"team {tid}") for tid in args.team_id]
+-        print(f"Running for {len(participants)} explicit team(s): {participants}")
+-    elif args.no_bigquery:
+-        print("ERROR: --no-bigquery requires at least one --team-id.", file=sys.stderr)
+-        return 1
+-    else:
+-        print("Fetching WC 2026 participants from BigQuery...")
+-        participants = fetch_wc_participants_from_bq()
+-        print(f"Found {len(participants)} participants.")
+-
+-    api_key = "" if args.cache_only else _api_key()
+-
+-    coverage: dict[str, dict[str, Any]] = {}
+-    uncovered_leagues: dict[int, dict[str, Any]] = {}
+-    quota_hit = False
+-
+-    try:
+-        for team_api_id, team_name in participants:
+-            key = str(team_api_id)
+-            print(f"\n=== {team_name} (id={team_api_id}) ===")
+-
+-            # Squad
+-            if key in squads_cache and not args.force_refresh:
+-                squad = squads_cache[key]
+-                print(f"  squad: cached ({len(squad)} players)")
+-            elif args.cache_only:
+-                print("  squad: no cache, --cache-only set, skipping")
+-                squad = []
+-            else:
+-                try:
+-                    squad = fetch_squad_for_team(team_api_id, api_key)
+-                except QuotaExhausted as exc:
+-                    print(f"  squad: QUOTA EXHAUSTED ({exc})")
+-                    quota_hit = True
+-                    break
+-                squads_cache[key] = squad
+-                print(f"  squad: fetched ({len(squad)} players)")
+-
+-            # Per-player club
+-            by_league: dict[int | None, list[str]] = defaultdict(list)
+-            for player in squad:
+-                pid = player.get("id")
+-                pname = player.get("name", "?")
+-                if pid is None:
+-                    continue
+-                pkey = str(pid)
+-                club_data = players_cache.get(pkey)
+-                if club_data is None and not args.cache_only:
+-                    try:
+-                        team_id, team_name_p, league_id, league_name = fetch_player_current_club(pid, args.season, api_key)
+-                    except QuotaExhausted as exc:
+-                        print(f"  player {pid}: QUOTA EXHAUSTED ({exc})")
+-                        quota_hit = True
+-                        break
+-                    club_data = {
+-                        "player_id": pid,
+-                        "player_name": pname,
+-                        "team_id": team_id,
+-                        "team_name": team_name_p,
+-                        "league_id": league_id,
+-                        "league_name": league_name,
+-                    }
+-                    players_cache[pkey] = club_data
+-                if club_data is None:
+-                    by_league[None].append(pname)
+-                    continue
+-                by_league[club_data.get("league_id")].append(pname)
+-            if quota_hit:
+-                break
+-
+-            # Aggregate
+-            covered_count = sum(len(names) for lid, names in by_league.items() if lid in registered_league_ids)
+-            uncovered_count = sum(len(names) for lid, names in by_league.items() if lid not in registered_league_ids and lid is not None)
+-            missing_count = len(by_league.get(None, []))
+-            total = sum(len(names) for names in by_league.values())
+-            coverage[team_name] = {
+-                "team_api_id": team_api_id,
+-                "squad_size": total,
+-                "covered_squad_players": covered_count,
+-                "uncovered_squad_players": uncovered_count,
+-                "missing_club_data": missing_count,
+-                "covered_pct": round(100 * covered_count / total, 1) if total else 0,
+-                "by_league": {
+-                    str(lid) if lid is not None else "(no club)": {
+-                        "league_id": lid,
+-                        "is_covered": lid in registered_league_ids if lid is not None else False,
+-                        "player_count": len(names),
+-                        "players_sample": names[:5],
+-                    }
+-                    for lid, names in sorted(by_league.items(), key=lambda kv: -len(kv[1]))
+-                },
+-            }
+-            for lid, names in by_league.items():
+-                if lid is None or lid in registered_league_ids:
+-                    continue
+-                if lid in NON_DOMESTIC_LEAGUE_IDS:
+-                    # Friendlies / international categories aren't onboardable
+-                    # domestic competitions — don't surface them as gaps.
+-                    continue
+-                bucket = uncovered_leagues.setdefault(lid, {"league_id": lid, "total_players": 0, "by_team": {}})
+-                bucket["total_players"] += len(names)
+-                bucket["by_team"][team_name] = len(names)
+-            print(f"  -> covered {covered_count}/{total} ({coverage[team_name]['covered_pct']}%); uncovered {uncovered_count}; missing {missing_count}")
+-
+-    finally:
+-        # Always persist caches so we can resume partial runs
+-        squads_cache_path.write_text(json.dumps(squads_cache, indent=2, ensure_ascii=False), encoding="utf-8")
+-        players_cache_path.write_text(json.dumps(players_cache, indent=2, ensure_ascii=False), encoding="utf-8")
+-
+-    # Write reports
+-    summary_path = output_dir / "coverage_summary.json"
+-    summary_path.write_text(json.dumps(coverage, indent=2, ensure_ascii=False), encoding="utf-8")
+-
+-    uncovered_path = output_dir / "uncovered_leagues.json"
+-    uncovered_path.write_text(json.dumps(uncovered_leagues, indent=2, ensure_ascii=False), encoding="utf-8")
+-
+-    md_lines = ["# Squad-watch coverage report\n"]
+-    md_lines.append(f"Season: {args.season}.   Registered (ingested) leagues: {sorted(registered_league_ids)}\n")
+-    md_lines.append("\n## Coverage per WC participant\n")
+-    md_lines.append("| Team | Squad size | Covered | % | Uncovered | Missing club |")
+-    md_lines.append("|---|---|---|---|---|---|")
+-    for team_name, row in sorted(coverage.items(), key=lambda kv: -kv[1].get("uncovered_squad_players", 0)):
+-        md_lines.append(
+-            f"| {team_name} | {row['squad_size']} | {row['covered_squad_players']} | {row['covered_pct']}% | "
+-            f"{row['uncovered_squad_players']} | {row['missing_club_data']} |"
+-        )
+-
+-    md_lines.append("\n## Uncovered leagues by total WC-squad-player count\n")
+-    md_lines.append("Sorted by impact: leagues holding the most WC squad players we cannot currently surface.\n")
+-    md_lines.append("| League ID | Total players in WC squads | Teams represented |")
+-    md_lines.append("|---|---|---|")
+-    for entry in sorted(uncovered_leagues.values(), key=lambda x: -x["total_players"]):
+-        teams_repr = ", ".join(f"{t}({n})" for t, n in sorted(entry["by_team"].items(), key=lambda kv: -kv[1]))
+-        md_lines.append(f"| {entry['league_id']} | {entry['total_players']} | {teams_repr} |")
+-
+-    md_path = output_dir / "coverage_summary.md"
+-    md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+-
+-    print("\n=== Reports written ===")
+-    print(f"  {summary_path}")
+-    print(f"  {uncovered_path}")
+-    print(f"  {md_path}")
+-
+-    if quota_hit:
+-        print("\nWARNING: API quota exhausted mid-run. Reports are partial. Re-run later to fill gaps.")
+-        return 2
+-    return 0
+-
+-
+-if __name__ == "__main__":
+-    sys.exit(main())
