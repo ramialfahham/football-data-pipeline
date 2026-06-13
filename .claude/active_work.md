@@ -63,15 +63,21 @@ the parked marts stash under the full workflow incl. the two blinded slug
 escalations) — OR the remaining audit cleanup issues, the GAP-18
 parent-child modeling, or the deferred gate task #409, as CPO directs. **DONE so far:**
 #414 (form_source #429), #426 (AFCCL #432), **#419 doc-sync (PR #433** — F27–F37; F35/F37
-were already-correct), #423/#424 (dead scripts, PR #436), **#425 DONE (PR #438):** pinned
-requests==2.33.1, dropped 3 dead deps (bs4 + pandas + redundant root functions-framework)
-from requirements.txt — CPO ruling "Pin + remove dead" recorded in escalations.log;
-iteration-1 scope-auditor FAIL (ruling not yet recorded) → recorded → iteration-2 both PASS.
-**NEXT: #427** (add RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md — F24,
-docs-only, routes to data-engineer-reviewer; separate PR per CPO ruling 2026-06-13).
+were already-correct), #423/#424 (dead scripts, PR #436), **#425 (PR #438):** pinned
+requests==2.33.1 + dropped bs4/pandas/redundant-root functions-framework from
+requirements.txt (iter-1 scope FAIL: ruling not recorded → recorded → iter-2 PASS),
+**#427 (PR #439):** added RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md
+(iter-1 data-eng FAIL: Plan-vs-product "no separate coaches ingest" contradiction +
+inaccurate "every run" → amendment A1 fixed both → iter-2 PASS). **#425 + #427 are SEPARATE
+PRs per CPO ruling 2026-06-13.** NOTE: PR #438 + #439 each edit this DONE block
+independently — expect a small merge conflict on whichever merges second (resolve by
+keeping both lines). **NEXT cleanup picks:** #420 (remove BL1 hardcode in
+base_apif__transfers — REAL behaviour change, verify DQ), #421/#422 (remaining cleanups).
 Remaining open audit issues: #409 (gate-integrity, needs gate-lift),
-#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#422/#427 (cleanups),
-#430 (form_source stale-ref follow-up). (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
+#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#422 (cleanups),
+#430 (form_source stale-ref follow-up). **Follow-up from #427 review (pre-existing
+doc staleness, out of F24 scope):** Landing-Zone "verbatim envelope" line vs coaches.py's
+wrapped dict; the "Append-only writes" prose list doesn't enumerate coaches/injuries. (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
 DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
 REGENERATE `.claude/task/review_input.patch` before each blinding — a stale patch
 (from the prior merged task) caused a false scope-FAIL; also the 2nd haiku
