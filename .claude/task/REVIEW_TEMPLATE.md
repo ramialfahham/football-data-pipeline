@@ -14,7 +14,7 @@
 > pathspec, any git global option, and any chained sibling command is denied
 > (each would commit content the hash never covered).
 
-diff_sha256: <64-hex sha256 of `git diff --staged`>
+diff_sha256: <64-hex; run `python .claude/hooks/git_discipline.py --staged-hash` (covers code + contract.md, excludes bookkeeping artifacts; CI recomputes the same — F11/#409)>
 
 ## scope-auditor
 VERDICT: PASS
