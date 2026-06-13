@@ -1,77 +1,88 @@
-# Task contract — add COACHES + INJURIES to the data contract (#427)
+# Task contract — player↔team↔season rostered mapping (PR A of player-model redesign)
 
-> Audit F24: ingestion writes RAW_APIF_COACHES and RAW_APIF_INJURIES every run,
-> but neither is in docs/data_contract.md — no contractual anchor for downstream
-> consumers. CPO ruling 2026-06-12: file. Docs-only. See docs/working_agreement.md §2.
+> CPO-approved design (2026-06-13 working session; see memory project-player-model-redesign
+> + .claude/task/escalations.log 2026-06-13). PR A is the ADDITIVE step: introduce the
+> rostered affiliation models. Nothing existing changes behaviour. The breaking rework
+> (dim_player → pure entity, drop base_apif__players_global, repoint consumers) is PR B.
+> See docs/working_agreement.md §2; dbt_project/docs/layering.md.
 
 objective: >
-  Document the two undocumented unified raw tables in docs/data_contract.md.
-  Verified this session against the ingestion code:
-  - RAW_APIF_COACHES — written by ingestion/api_football/loads/coaches.py via
-    load_json_to_bq(raw_table("COACHES"), as_json_payload=True, append=True,
-    league_code=...) → ensure_unified_raw_table. Source endpoint: /coachs (per team).
-  - RAW_APIF_INJURIES — written by ingestion/api_football/loads/injuries.py via the
-    same unified-append path. Source endpoint: /injuries (per league per season).
-  Both are invoked in the per-competition cheap-phase run (loads/competition_runner.py
-  run_cheap_phases, lines 93-96) for active competitions. They append one row per run when
-  data is available, with early-return guards: coaches skips when no team_ids resolved
-  (coaches.py:38), injuries skips when no season returned data (injuries.py:67). Idle/poll
-  runs (run_poll_phases) do not call them. This matches how the other conditional append
-  tables (transfers via load_transfers_if_enabled, standings via load_standings_if_enabled)
-  already behave — so the doc rows need no per-table conditional caveat (the general skip
-  pattern is already covered by the doc's "Coverage flags" + "Append-only writes" sections).
-  F24's premise (these tables are written and need a contract anchor) holds.
-  Both are unified raw tables with the standard schema/behaviour (see bigquery.py
-  ensure_unified_raw_table): columns league_code STRING / payload JSON / ingested_at
-  TIMESTAMP; WRITE_APPEND; partitioned by DATE(ingested_at); clustered by league_code;
-  no merge key.
-refs: #427 (audit F24).
+  Add the rostered player↔team↔season affiliation, sourced single-source from the
+  /players roster (stg_apif__players), at its natural grain — capturing squad members
+  who never played a match (which no fact can express). Two new models, additive only:
+  - base_apif__player_team_season (2_base view) ← stg_apif__players. Grain
+    (league_code, player_id, team_id, season_year); dedup to latest ingest. Drops rows
+    missing player_id / team_id / season_year.
+  - dim_player_team_season_mapping (3_core table) — conformed rostered membership mapping.
+    Keys: player_sk (=player_id), team_sk (=team_id), season_sk + league_sk via lookup
+    join to dim_competition_season on (league_code, season_api_year=season_year),
+    league_code, season_api_year. PK player_team_season_sk = surrogate_key(player_id,
+    team_id, league_code, season_year). The season-lookup CTE dedups dim_competition_season
+    to one row per (league_code, season_api_year) (row_number qualify) so the join cannot
+    fan out — the league_code↔league_api_id 1:1 is untested.
+  Definition = ROSTERED only (CPO ruling: NOT "any affiliation evidence" — that would
+  duplicate facts and rebuild the multi-source union bug).
+refs: player-model redesign (memory project-player-model-redesign); relates #153→#156.
 
 scope_paths:
-  - docs/data_contract.md
+  - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
+  - dbt_project/models/2_base/api_football/base.yml
+  - dbt_project/models/3_core/dim_player_team_season_mapping.sql
+  - dbt_project/models/3_core/core.yml
+  - dbt_project/docs/layering.md
   - .claude/task/contract.md
-  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A2)
+  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A1)
 
 decisions_taken: >
-  CPO-approved doc addition (audit ruling 2026-06-12: file). Pure documentation of
-  EXISTING, verified pipeline behaviour — no code, schema, or pipeline change. The two
-  new rows mirror the existing unified-append rows verbatim (write mode / partition /
-  cluster / merge key) and the endpoints map gains /coachs and /injuries.
+  CPO-approved target shape + classification (2026-06-13; recorded in escalations.log).
+  Additive only for the warehouse models — no existing MODEL SQL or consumer is touched
+  (dim_player, base_apif__players(_global), marts unchanged; they are PR B). CPO ruling:
+  the conformed mapping is a CORE object named `dim_player_team_season_mapping` — keeps the
+  dim_ prefix (its core home) + a _mapping suffix (it is a conformed many-to-many
+  RELATIONSHIP, not an entity). layering.md's dimension rules are EXTENDED to sanction a
+  "relationship (mapping) dimension": exempt from the Entity condition + the
+  degenerate-dimension exclusion, but still required to satisfy Reuse + Conformance and to
+  carry a single tested unique grain key (the property that earns any table its place in
+  core). season_sk is resolved by LOOKUP join to dim_competition_season (mirrors
+  mart_player_season), not recomputed, because the roster source has league_code not
+  league_api_id. Materialisation follows the layer contract: base = view, dim = table.
 
 decisions_reserved:
-  - The contract currently asserts "six tables" / "Six tables serve the entire fleet"
-    (lines 3, 33) and an "additional smaller table: RAW_APIF_LEAGUES". Adding two more
-    unified tables makes those counts internally inconsistent. Updating the count to
-    match is REQUIRED for the doc to stay self-consistent (the whole point of F24 — a
-    correct contractual anchor), not a scope expansion. If a reviewer judges the count
-    wording itself a CPO-class naming/structure decision, STOP and escalate rather than
-    decide the phrasing unilaterally.
-  - Do NOT reclassify, re-describe, or "improve" any existing UNIFIED-RAW-TABLE row, the
-    merge model, or the freshness/completeness sections — out of scope for F24. (The
-    "Plan vs product" coaches/injuries fixes under amendment A1 are the exception: they
-    remove a contradiction the additions create, not an unprompted improvement.)
+  - FK test severities / coverage, to be confirmed by the analytics-engineer reviewer and
+    proven by ci-data-build (the authoritative DQ gate; not run locally):
+    * player_sk → dim_player: holds BY CONSTRUCTION (same source stg_apif__players,
+      player_id not null) → relationships ERROR is safe.
+    * team_sk → dim_team: roster /players is fetched only for already-discovered team_ids
+      AFTER load_teams runs (competition_runner), and dim_team unions /teams + fixture
+      team_ids, so roster teams ⊆ dim_team by construction → relationships ERROR is safe.
+      If ci-data-build shows a real gap, STOP and escalate, do NOT silently downgrade.
+    * season_sk → dim_competition_season: resolved by the dedup-guarded left join; season_sk
+      left NULLABLE (no not_null) to tolerate a roster season with no /leagues
+      competition-season row; relationships ERROR validates non-null values.
+  - Whether the mapping later needs an "is_current"/as-of flag is a PR-B/consumer question.
 
 done_when:
-  - docs/data_contract.md "Unified raw tables" table has two new rows: RAW_APIF_COACHES
-    and RAW_APIF_INJURIES (append / DATE(ingested_at) / league_code / no merge key).
-  - the "Endpoints and raw tables" map has /coachs → RAW_APIF_COACHES and /injuries →
-    RAW_APIF_INJURIES.
-  - the "six tables" counts (lines 3, 33) are corrected so the prose matches the table.
-  - the "Plan vs product" section is made consistent with the additions (amendment A1):
-    the "Players & coaches" row no longer claims "no separate coaches ingest", and an
-    "Injuries" row is added — both reflect EXISTING ingest (RAW_APIF_COACHES via /coachs,
-    RAW_APIF_INJURIES via /injuries). /sidelined remains not-ingested (distinct endpoint).
-  - no other section of the doc is altered; markdown still renders (tables intact).
-  - reviewers: scope-auditor (always) + data-engineer-reviewer (docs/data_contract.md) — PASS.
+  - base_apif__player_team_season.sql exists (2_base view), grain
+    (league_code, player_id, team_id, season_year), reads ref('stg_apif__players').
+  - dim_player_team_season_mapping.sql exists (3_core table) with the keys above + the
+    dedup-guarded season lookup.
+  - base.yml carries the base grain test; core.yml carries a NEW dim block:
+    PK not_null+unique; grain unique_combination; not_null on player_sk/team_sk/league_code;
+    relationships player_sk→dim_player, team_sk→dim_team, season_sk→dim_competition_season,
+    league_sk→dim_league.
+  - layering.md: a "relationship (mapping) dimensions" clause added to the dimension
+    qualification rules, + an inventory row for dim_player_team_season_mapping (doc-sync).
+  - NO existing MODEL SQL or consumer modified (additive); the only edits to existing files
+    are appended yml test blocks + the layering.md rule/inventory. grep shows dim_player,
+    base_apif__players, base_apif__players_global unchanged on this branch.
+  - validate-local Tier 1+2 green (dbt parse, sqlfluff lint); full DQ build → ci-data-build.
+  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) — PASS.
 
 amendments:
-  - 2026-06-13 A1: scope unchanged (docs/data_contract.md already in scope_paths), but
-    the edit set is extended to the "Plan vs product" section — authority: standing
-    consistency rule (a doc change must not leave the doc self-contradictory; raised by
-    the iteration-1 data-engineer-reviewer FAIL, which found line 161 "no separate
-    'coaches only' ingest" contradicted by the new RAW_APIF_COACHES row). content: fix
-    the coaches claim + add an Injuries row. Also corrected the objective's inaccurate
-    "unconditionally every run" wording (early-return guards; poll-mode runs skip both).
-  - 2026-06-13 A2: + .claude/active_work.md — authority: standing rule (handover kept
-    current at task close; commit-exempt but not auto-editable). content: status update
-    marking #427 done (PR #439).
+  - 2026-06-13 A1: + dbt_project/docs/layering.md and + .claude/active_work.md to scope;
+    model renamed dim_player_team_season → dim_player_team_season_mapping. authority: CPO
+    ruling 2026-06-13 (escalations.log) resolving the iteration-2 scope-auditor FAIL — keep
+    dim_ + _mapping suffix and extend layering.md to recognize relationship (mapping) dims;
+    plus the standing handover rule for active_work.md. content: the layering.md clause +
+    inventory row, and the rename. Also added the season-lookup dedup guard (fan-out fix,
+    analytics-engineer iter-1 finding).

@@ -235,6 +235,70 @@ models:
       - name: raw_ingested_at
         description: "UTC timestamp of the raw row this dimension row was derived from."
 
+  - name: dim_player_team_season_mapping
+    description: >
+      Relationship (mapping) dimension: rostered player↔team↔season membership.
+      Grain: (player_sk, team_sk, league_code, season_api_year) — one row per player per
+      team per season they were in the /players roster, including squad members with zero
+      appearances. An association across dimensions, not an entity dim and not a fact (no
+      measures, no descriptive attributes — only participating keys + lineage). On its
+      grain key it is a clean one-row-per-key lookup; joining on a single participating key
+      (e.g. player_sk) resolves a many-to-many and returns many rows by design. Use this
+      for "which team/competition was a player part of, when"; appearances live in
+      fct_fixture_player_stats, moves in fct_transfer. See the "relationship (mapping)
+      dimensions" clause in dbt_project/docs/layering.md.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - team_sk
+            - league_code
+            - season_api_year
+    columns:
+      - name: player_team_season_sk
+        description: "Surrogate key over (player_id, team_id, league_code, season_year) — the relationship grain."
+        tests: [not_null, unique]
+      - name: player_sk
+        description: "FK to dim_player (player_api_id cast to INT64)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_sk
+        description: "FK to dim_team (team_api_id cast to INT64)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        description: "FK to dim_competition_season, resolved by (league_code, season_api_year). Nullable: a roster season uncovered by /leagues yields null rather than dropping the membership."
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        description: "FK to dim_league, resolved via dim_competition_season. Nullable for the same reason as season_sk."
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        description: "Internal league code — the competition the roster belongs to."
+        tests: [not_null]
+      - name: season_api_year
+        description: "API-Football season year of the roster."
+        tests: [not_null]
+      - name: raw_ingested_at
+        description: "UTC timestamp of the raw row this membership row was derived from."
+
   - name: fct_fixture
     description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
     meta:
