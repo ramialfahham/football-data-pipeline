@@ -1,55 +1,71 @@
-# Review — feat/dim-player-team-season — 2026-06-13
+# Review — chore/retire-transfers — 2026-06-13
 
-> PR A of the player-model redesign: add the rostered player↔team↔season mapping
-> (additive). base_apif__player_team_season (2_base) + dim_player_team_season_mapping
-> (3_core relationship/mapping dim) + tests + layering.md rule clause/inventory.
-> Required reviewers for dbt_project/**: scope-auditor + analytics-engineer-reviewer.
-> Three cold blinded iterations: iter-1 analytics FAIL (season-lookup fan-out on the
-> untested league_code↔league_api_id 1:1) → fixed with a dedup-guard qualify. iter-2
-> scope-auditor FAIL (per layering.md the attribute-less association does not earn dim_
-> status; classification unsanctioned + inventory stale) → CPO ruling (escalations.log
-> 2026-06-13): keep dim_ + _mapping suffix, extend layering.md to recognize a
-> "relationship (mapping) dimension"; layering.md updated (clause + inventory).
-> iter-3: both reviewers PASS against the hash below.
+> Retire the transfers chain entirely (CPO ruling 2026-06-13, recorded in
+> .claude/task/escalations.log): delete stg/base/core transfers models + the ingestion
+> loader, remove the raw source + the dim_player transfers identity fallback, update docs,
+> drop the dangling .env.example var. RAW_APIF_TRANSFERS dropped from BQ post-merge.
+> Required reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/** +
+> docs/data_contract.md) + analytics-engineer-reviewer (dbt_project/**).
+> Iterations: iter-1 all FAIL — competition_runner docstring stale (all 3), .env.example
+> dangling var (data-eng), data_contract "dropped" past-tense (data-eng), §10 ruling not
+> recorded (scope-auditor); one spurious data-eng finding (a "sample-based test rule" that
+> does not exist — REBUTTED, not actioned). Fixes: docstring + data_contract wording (in
+> scope), .env.example via amendment A1, CPO ruling recorded in escalations.log.
+> iter-2: data-eng + analytics PASS. iter-3: scope-auditor PASS (recorded-ruling check).
+> All three verdicts below are against the same hash.
 
-diff_sha256: bb3dbb3780d393246586d0c338ff62227b7aab0ff716249abae1e675191522fa
+diff_sha256: b93070f691381c9ffc003c69bfede29af9250d0aec9c65547c12422fb9a6158f
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Classification authority (§10): the model is a many-to-many relationship, not an entity,
-  so it failed layering.md's dimension-qualification rules in iter-2. Verified the resolving
-  CPO ruling is RECORDED in .claude/task/escalations.log (2026-06-13) and that layering.md
-  now carries a "relationship (mapping) dimensions" clause sanctioning it (exempt from the
-  Entity + degenerate-dimension rules; still requires Reuse + Conformance + a tested unique
-  grain key) plus the inventory row — so the classification is CPO-authorized and the doc is
-  internally consistent, not a silently-taken decision. The contract amendment A1 records
-  layering.md in scope with that authority.
-- Scope + additive: every changed path is in scope_paths (incl. layering.md); no protected
-  path touched; no existing MODEL SQL or consumer changed (dim_player, base_apif__players(_global)
-  untouched — grep) — only new model files, appended yml test blocks, and the layering.md
-  rule/inventory. Tests are real guards (PK not_null+unique, grain unique_combination, FK
-  relationships), not decorative.
+- §10 authorization (cost + destructive): verified the CPO ruling to retire transfers and
+  DROP the RAW_APIF_TRANSFERS table is RECORDED in .claude/task/escalations.log (2026-06-13
+  chore/retire-transfers entry) — it covers both the cost (stop the daily /transfers ingest)
+  and the explicit destructive-drop ("BQ table dropped too → yes"), matching the contract's
+  "CPO ruling 2026-06-13" attribution. Not a silently-taken decision.
+- Behaviour-change honesty + post-merge sequencing: removing transfers_src drops transfer-only
+  identities from dim_player — the contract names this deliberately and the rationale holds
+  (fct_transfer, the only consumer, is deleted in the same PR; played players covered by
+  fixture sources). The RAW_APIF_TRANSFERS drop is documented as a POST-MERGE step; no-writer
+  code lands first, so the 04:00 UTC run cannot recreate it (ROUNDS precedent). Also confirmed:
+  the "sample-based test rule (2026-06-12)" cited by an iter-1 reviewer does not exist
+  (engineering_standards/working_agreement/development_workflow; no tests/fixtures) — rebuttal sound.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Ingestion writer elimination (no recreation): loads/transfers.py deleted; its import + call
+  removed from competition_runner.py (phases now teams → injuries; docstring updated);
+  settings.py drops API_FOOTBALL_TRANSFERS_MAX_PAGE; no remaining read of FETCH_TRANSFERS /
+  TRANSFERS_USE_PAGE / TRANSFERS_MAX_PAGE; .env.example var removed. Grep of ingestion/**: zero
+  transfers hits. No code writes raw_table("TRANSFERS") post-merge → the 04:00 run cannot
+  recreate the table; the post-merge bq rm sequencing is sound.
+- Raw source + data_contract consistency: sources.yml drops raw_apif_transfers (no staging
+  reads it); the unified-table count eight→seven is arithmetically correct vs the 7 surviving
+  rows; endpoints map, append-only prose, pagination note, plan-vs-product row and the Retired
+  note ("dropped post-merge", mirroring ROUNDS) are all consistent — nothing still claims
+  transfers is ingested. operations_guide transfers env-var sections removed.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Season-lookup fan-out: the dim_competition_season CTE qualifies to one row per
-  (league_code, season_api_year) (deterministic hash tie-break) BEFORE the left join, so even
-  if the untested league_code↔league_api_id 1:1 were violated the join cannot multiply rows;
-  the surrogate key is generated from the pts-side columns. No residual fan-out path; the
-  player_team_season_sk unique test is safe. Base grain (league_code, player_id, team_id,
-  season_year) is unique after its qualify (stg_apif__players is one snapshot per league).
-- FK relationships (ci-data-build predictions): player_sk → dim_player PASS by construction
-  (same stg_apif__players source, player_id not null; dim_player globally dedups it);
-  team_sk → dim_team PASS by construction (roster /players fetched only for already-discovered
-  team_ids after load_teams; dim_team unions /teams + fixture team_ids); season_sk/league_sk
-  relationships correct as nullable (left join; test fires on non-null only). Layer-compliant
-  (base=view reads stg; core=table reads base + dim_competition_season, qualify allowed, no
-  stg/json/union_all); SK over (player_id,team_id,league_code,season_year) is bijective with
-  the unique_combination test columns.
+- FK integrity after transfer-only player removal: every player feeding the surviving
+  ERROR-severity relationships tests (fct_fixture_player_stats.player_sk→dim_player,
+  fct_fixture_event.player_sk→dim_player, dim_player_team_season_mapping.player_sk→dim_player)
+  is sourced from fixture_players_src / fixture_events_src / stg_apif__players — the same paths
+  that now exclusively compose dim_player. Transfer-only identities had exactly one consumer
+  (fct_transfer, deleted here), so no surviving test can fail on a now-absent player. ci-data-build
+  predicted PASS.
+- Dangling-ref completeness + union integrity: grep across all .sql/.py/.yml finds zero refs to
+  base_apif__transfers / stg_apif__transfers / fct_transfer / raw_apif_transfers (dbt parse
+  compiles clean). base_apif__players union is 3 aligned CTEs with source_priority renumbered
+  1/2/3 preserving precedence (players > fixture_players > fixture_events); header comment matches.
+  Layer compliance holds.
 
 ## escalations
-(none — iter-1 fan-out fixed (dedup guard); iter-2 classification resolved by the recorded
-CPO ruling + layering.md extension; both reviewers PASS in iter-3. DQ proof (FK relationships
-across all leagues) runs in ci-data-build, the authoritative gate.)
+(none — iter-1 FAILs resolved: in-scope doc fixes, .env.example via amendment A1, and the §10
+ruling recorded in escalations.log (not escalated — the ruling genuinely exists from this
+session). The spurious "sample-based test rule" finding was rebutted (no such rule in the repo),
+independently confirmed by data-engineer + scope-auditor. DQ proof (FK relationships) runs in
+ci-data-build.)
