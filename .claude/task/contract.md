@@ -22,6 +22,7 @@ refs: #425 (audit F20).
 scope_paths:
   - requirements.txt
   - .claude/task/contract.md
+  - .claude/active_work.md   # artifact-only: handover write-out at close (amendment A1)
 
 decisions_taken: >
   CPO ruling 2026-06-13 "Pin + remove dead", RECORDED in
@@ -54,4 +55,8 @@ done_when:
     python-ci test suite imports none of the removed deps).
   - reviewers: scope-auditor (always) + cto-reviewer (requirements*.txt) — PASS.
 
-amendments: (none)
+amendments:
+  - 2026-06-13: + .claude/active_work.md — authority: standing rule (handover must be
+    kept current at task close; active_work.md is commit-exempt but not auto-editable,
+    so it is added to scope_paths to write the handover). content: status update marking
+    #425 done (PR #438) and #427 next.

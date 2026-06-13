@@ -63,8 +63,14 @@ the parked marts stash under the full workflow incl. the two blinded slug
 escalations) — OR the remaining audit cleanup issues, the GAP-18
 parent-child modeling, or the deferred gate task #409, as CPO directs. **DONE so far:**
 #414 (form_source #429), #426 (AFCCL #432), **#419 doc-sync (PR #433** — F27–F37; F35/F37
-were already-correct). Remaining open audit issues: #409 (gate-integrity, needs gate-lift),
-#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#425/#427 (cleanups),
+were already-correct), #423/#424 (dead scripts, PR #436), **#425 DONE (PR #438):** pinned
+requests==2.33.1, dropped 3 dead deps (bs4 + pandas + redundant root functions-framework)
+from requirements.txt — CPO ruling "Pin + remove dead" recorded in escalations.log;
+iteration-1 scope-auditor FAIL (ruling not yet recorded) → recorded → iteration-2 both PASS.
+**NEXT: #427** (add RAW_APIF_COACHES + RAW_APIF_INJURIES to docs/data_contract.md — F24,
+docs-only, routes to data-engineer-reviewer; separate PR per CPO ruling 2026-06-13).
+Remaining open audit issues: #409 (gate-integrity, needs gate-lift),
+#410/#411/#412 (retire/declaw automation), #413 (PAT audit), #420–#422/#427 (cleanups),
 #430 (form_source stale-ref follow-up). (a) tier-alias guard note + (b) tier→reviewer recheck habit remain
 DEFERRED per CPO. **Workflow defect found this session:** the review cycle must
 REGENERATE `.claude/task/review_input.patch` before each blinding — a stale patch
