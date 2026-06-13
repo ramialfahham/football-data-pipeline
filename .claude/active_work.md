@@ -77,13 +77,23 @@ the real fix (it removes the last_known_*/two-stage-collapse that manufactured t
 relationship/mapping dim) + `base_apif__player_team_season` (2_base) — rostered membership,
 single-source from /players, incl. never-played squad members. Extended layering.md with a
 "relationship (mapping) dimensions" rule (CPO ruling, escalations.log 2026-06-13: keep dim_ +
-_mapping suffix). 3 cold reviewer iterations (fan-out guard + classification) → both PASS.
-**NEXT — PR B (the breaking rework):** dim_player → pure entity (drop league_code/last_known_*);
-collapse base_apif__players to one identity dedup; DELETE base_apif__players_global; repoint
-consumers (int_player_season__metrics, mart_player_season/profile/match_log/fixture_stats__player,
-scripts/export_site_data.py). **Settle FIRST in PR B:** the name-less transfer-only identity
-player (drop name-less transfers from the identity fallback vs allow + relax not_null) — this is
-what blocks #420/#441 green. Fold #420's base_apif__transfers fix into PR B (or close #441).
+_mapping suffix). 3 cold reviewer iterations (fan-out guard + classification) → both PASS. **PR A MERGED (#444).**
+**TRANSFERS RETIRED — DONE (PR #446):** CPO ruling 2026-06-13 — transfers are not consumed
+anywhere (fct_transfer was a leaf; only use was the dim_player identity fallback feeding it;
+derivable from dim_player_team_season_mapping if ever needed). Removed end-to-end: ingestion
+loader, stg/base/core transfers models, raw source, the transfers_src identity CTE, + docs.
+**This CLOSES #420/#441 by deletion** (the BL1 hardcode is gone with the model) AND removes the
+name-less-transfer DQ problem at root. 3 cold reviewers PASS (iter-1 had a spurious "sample-fixture
+rule" finding — rebutted; no such rule exists). **⚠ POST-MERGE TODO (once #446 is on main):**
+`bq rm` the RAW_APIF_TRANSFERS BigQuery table (verify identity first) — no writer remains so the
+04:00 UTC run won't recreate it; do this BEFORE relying on the "table dropped" data_contract note.
+**NEXT — PR B (the breaking rework, now SIMPLER):** dim_player → pure entity (drop
+league_code/last_known_*); collapse base_apif__players to one identity dedup; DELETE
+base_apif__players_global; repoint consumers (int_player_season__metrics,
+mart_player_season/profile/match_log/fixture_stats__player, scripts/export_site_data.py). The
+name-less-transfer identity question is now MOOT (transfers retired — no transfers identity
+fallback remains; base_apif__players already collapsed to 3 fixture/players sources in #446).
+Close #441 (superseded; folded into #446's deletion).
 Remaining audit cleanups (deprioritized under the redesign): #421/#422, #409 (gate-lift),
 #410/#411/#412, #413, #430. **Follow-up from #427 review (pre-existing doc staleness):**
 Landing-Zone "verbatim envelope" line vs coaches.py's wrapped dict; the "Append-only writes"
