@@ -20,7 +20,11 @@
     "`.claude/agents/**` routes to cto-reviewer (CPO ruling 2026-06-12): a change",
     "to a reviewer definition must be gate-required to get platform review, not",
     "left to only the always-on scope-auditor. The opus-on-guards rule then",
-    "overrides that cto review to opus (see docs/working_agreement.md §2)."
+    "overrides that cto review to opus (see docs/working_agreement.md §2).",
+    "`.claude/commands/**` is PROTECTED + routed to cto-reviewer (CPO ruling",
+    "2026-06-14): a custom slash command can embed shell, so a command file is",
+    "governed like a hook — protected-path edit (needs protected_override) +",
+    "platform review + opus floor."
   ],
   "always": ["scope-auditor"],
   "paths": {
@@ -31,6 +35,7 @@
     "requirements*.txt": ["cto-reviewer"],
     ".claude/hooks/**": ["cto-reviewer"],
     ".claude/agents/**": ["cto-reviewer"],
+    ".claude/commands/**": ["cto-reviewer"],
     ".claude/settings.json": ["cto-reviewer"],
     ".claude/review_routing.json": ["cto-reviewer"],
     ".github/workflows/**": ["cto-reviewer"],

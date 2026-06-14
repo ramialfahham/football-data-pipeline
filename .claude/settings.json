@@ -1,4 +1,24 @@
 {
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -r -f *)",
+      "Bash(git clean *)",
+      "Bash(bq rm *)",
+      "Bash(gcloud projects delete *)",
+      "Bash(git push -f *)",
+      "Bash(git push -f)",
+      "Bash(git commit --no-verify *)",
+      "Bash(git commit -n *)",
+      "Read(.env)",
+      "Read(.envrc)",
+      "Read(**/*.secrets.env)",
+      "Read(**/*.local.env)",
+      "Edit(.env)",
+      "Edit(.envrc)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

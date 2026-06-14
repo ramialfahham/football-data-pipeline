@@ -1,186 +1,327 @@
+diff --git a/.claude/commands/status.md b/.claude/commands/status.md
+new file mode 100644
+index 0000000..5c65657
+--- /dev/null
++++ b/.claude/commands/status.md
+@@ -0,0 +1,25 @@
++---
++description: Snapshot of where work stands — branch, tree, open PRs + CI, and the active handover.
++allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(gh pr list *), Read(.claude/active_work.md)
++---
++
++Give the user a fast, read-only situational snapshot. Be concise — short sections, no
++preamble — and do NOT start any work.
++
++## Branch & working tree
++- Branch: !`git branch --show-current`
++- Uncommitted changes: !`git status --short`
++- Recent commits: !`git log --oneline -5`
++
++## Open PRs + CI
++!`gh pr list --state open --json number,title,headRefName,statusCheckRollup --jq '.[] | {pr: .number, branch: .headRefName, title, checks: [.statusCheckRollup[]? | (.conclusion // .status)]}'`
++
++Summarize each open PR as one line: `#<n> <title> [branch] — CI: <pass/fail/pending rollup>`.
++
++## Active handover
++Read `.claude/active_work.md`. Report ONLY: the _Last updated_ line, the **NEXT** actions,
++and any live **Do NOT** items. Do not reproduce the whole file.
++
++## Bottom line
++Close with 2–3 plain-English lines: where things stand and the single most likely next
++action. This command is reporting only — take no action.
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 3339a02..d98791b 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -47,8 +47,11 @@ TASK_DIR_REL = ".claude/task/"
+ # .claude/agents/ added per the CPO's recorded escalation answer (G3 review,
+ # 2026-06-12): the reviewer definitions are governance artifacts like the
+ # routing file — the builder must never be able to weaken its own adversary
+-# inside an ordinary task contract.
+-PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".github/workflows/")
++# inside an ordinary task contract. .claude/commands/ added per the CPO ruling
++# 2026-06-14 (this branch's escalations.log): custom slash commands can embed
++# shell, so a command file is the same high-stakes class as a hook — never add
++# one inside an ordinary task without protected_override + cto review.
++PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
+ PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
+ 
+ _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index b5703e3..5f2500a 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -20,7 +20,11 @@
+     "`.claude/agents/**` routes to cto-reviewer (CPO ruling 2026-06-12): a change",
+     "to a reviewer definition must be gate-required to get platform review, not",
+     "left to only the always-on scope-auditor. The opus-on-guards rule then",
+-    "overrides that cto review to opus (see docs/working_agreement.md §2)."
++    "overrides that cto review to opus (see docs/working_agreement.md §2).",
++    "`.claude/commands/**` is PROTECTED + routed to cto-reviewer (CPO ruling",
++    "2026-06-14): a custom slash command can embed shell, so a command file is",
++    "governed like a hook — protected-path edit (needs protected_override) +",
++    "platform review + opus floor."
+   ],
+   "always": ["scope-auditor"],
+   "paths": {
+@@ -31,6 +35,7 @@
+     "requirements*.txt": ["cto-reviewer"],
+     ".claude/hooks/**": ["cto-reviewer"],
+     ".claude/agents/**": ["cto-reviewer"],
++    ".claude/commands/**": ["cto-reviewer"],
+     ".claude/settings.json": ["cto-reviewer"],
+     ".claude/review_routing.json": ["cto-reviewer"],
+     ".github/workflows/**": ["cto-reviewer"],
+diff --git a/.claude/settings.json b/.claude/settings.json
+index a6b046d..524ad00 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -1,4 +1,24 @@
+ {
++  "permissions": {
++    "deny": [
++      "Bash(rm -rf *)",
++      "Bash(rm -fr *)",
++      "Bash(rm -r -f *)",
++      "Bash(git clean *)",
++      "Bash(bq rm *)",
++      "Bash(gcloud projects delete *)",
++      "Bash(git push -f *)",
++      "Bash(git push -f)",
++      "Bash(git commit --no-verify *)",
++      "Bash(git commit -n *)",
++      "Read(.env)",
++      "Read(.envrc)",
++      "Read(**/*.secrets.env)",
++      "Read(**/*.local.env)",
++      "Edit(.env)",
++      "Edit(.envrc)"
++    ]
++  },
+   "hooks": {
+     "PreToolUse": [
+       {
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6d857bc..e4b6565 100644
+index e4b6565..9758b9d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,102 +1,60 @@
--# Task contract — PR-i: transfers chain rebuild (player-data initiative)
-+# Task contract — fix: transfers ingest fetched empty (paginate=False)
+@@ -1,60 +1,81 @@
+-# Task contract — fix: transfers ingest fetched empty (paginate=False)
++# Task contract — chore: settings deny-list + governed /status command (AI-collab tuning)
  
--> APPROVED player-data plan (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md §2/§4/§5/§8)
--> + CPO rulings (escalations.log 2026-06-14): reinstate the retired transfers chain (#420) as the
--> dated source for affiliation order. Cost APPROVED (by-team axis; ~930–3,000 backfill,
--> ~130–430/day ongoing). History depth = FULL (all current teams). This is PR-i: ingestion →
--> RAW_APIF_TRANSFERS → staging → base (dedup) → `fct_transfer` (dated moves fact). The affiliation
--> TIMELINE (int_player_affiliation_timeline) + current-team derivation are LATER PRs, NOT here.
--> Built following the new `onboard-endpoint` skill (Steps 0–4 already satisfied this session).
--> See docs/working_agreement.md §2/§5/§6/§10, docs/data_contract.md, docs/agent_guardrails.md.
-+> Follow-up bugfix to PR-i (#467, merged). The dispatched pipeline run revealed that the
-+> transfers chain produced 0 rows: every team's `transfers_payload` came back empty. Cause:
-+> `transfers_response_for_team` uses `fetch_merged_paged` with default pagination, which sends
-+> `page=1` — and `/transfers` rejects the `page` param (like `/teams` and `/standings`,
-+> "The Page field do not exist.") and returns empty. The chain built GREEN on empty data,
-+> masking it. Verified fix: a single `team=` call (no `page`) returns the team's full move list
-+> (live curl `?team=157` → 289 results, paging total=1). See docs/data_contract.md §Pagination,
-+> docs/working_agreement.md §2/§7.
+-> Follow-up bugfix to PR-i (#467, merged). The dispatched pipeline run revealed that the
+-> transfers chain produced 0 rows: every team's `transfers_payload` came back empty. Cause:
+-> `transfers_response_for_team` uses `fetch_merged_paged` with default pagination, which sends
+-> `page=1` — and `/transfers` rejects the `page` param (like `/teams` and `/standings`,
+-> "The Page field do not exist.") and returns empty. The chain built GREEN on empty data,
+-> masking it. Verified fix: a single `team=` call (no `page`) returns the team's full move list
+-> (live curl `?team=157` → 289 results, paging total=1). See docs/data_contract.md §Pagination,
+-> docs/working_agreement.md §2/§7.
++> CPO-directed tuning of the repo's AI-collaboration infrastructure, arising from assessing
++> `.claude/` against a best-practice post. Two user-facing changes — (1) a deterministic
++> `permissions.deny` backstop in `.claude/settings.json`; (2) the repo's first custom slash
++> command, `/status` (read-only snapshot) — plus the governance lock-down the CPO ruled must
++> precede shipping any command: make `.claude/commands/**` a PROTECTED + cto-routed + opus-
++> guarded path, mirroring the `.claude/agents/**` precedent. Touches PROTECTED paths
++> (settings.json, task_contract_gate.py, review_routing.json) → protected_override below.
++> See docs/working_agreement.md §2, §10; .claude/task/escalations.log 2026-06-14 (this branch).
  
  objective: >
--  Rebuild the transfers ingestion chain end-to-end:
--  (1) Ingestion: a `loads/transfers.py` module (mirror `loads/squads.py`) that pulls
--      `/transfers?team={id}` for every team (by-team axis — one call returns all of a team's
--      players' moves) and appends to the unified raw table; a `transfers_response_for_team`
--      helper in `fixture_scheduling.py` (mirror `players_response_for_team`); a
--      `run_transfers_for_competition` in `loads/competition_runner.py`; wired into
--      `orchestrator.py` right after `run_squads_for_competition`. Respects the ingest lock +
--      daily quota (quota-exhaustion break, per-team try/except), with an
--      `API_FOOTBALL_SKIP_TRANSFERS` env skip mirroring `API_FOOTBALL_SKIP_PLAYERS`.
--  (2) Raw: `RAW_APIF_TRANSFERS` is created by `load_json_to_bq(..., as_json_payload=True,
--      append=True, league_code=...)` (unified {league_code, payload, ingested_at} — no manual DDL).
--  (3) Staging: `stg_apif__transfers` (raw cleanup only) unpacking the payload to one row per
--      raw move: player_id, transfer_date, type (raw string), team_in_id, team_out_id,
--      league_code, raw_ingested_at. Source `raw_apif_transfers` declared in `sources.yml`.
--  (4) Base: `base_apif__transfers` — dedup the provider's duplicate move-records (same
--      player/team_in/team_out, near-identical date — e.g. the Barkok double-Schalke case) to one
--      row per distinct move; keep the raw `type` string.
--  (5) Core: `fct_transfer` — the dated moves fact. Grain: one row per distinct
--      (player, team_out, team_in, transfer_date) move, surrogate-keyed; tested unique + not-null
--      on the keys. Latest-season dim resolution (league_sk/season_sk) is NOT required here —
--      this is the move event, not a season rollup.
-+  Switch `transfers_response_for_team` (ingestion/api_football/fixture_scheduling.py) from the
-+  default paginated fetch to `paginate=False` (single `{"team": team_id}` call, no `page` param),
-+  so /transfers returns real data instead of empty. Drop the now-unused
-+  `API_FOOTBALL_TRANSFERS_MAX_PAGE` lookup. Ingestion-only; no dbt/model change (the chain on
-+  main is correct — it was just fed empty raw data).
+-  Switch `transfers_response_for_team` (ingestion/api_football/fixture_scheduling.py) from the
+-  default paginated fetch to `paginate=False` (single `{"team": team_id}` call, no `page` param),
+-  so /transfers returns real data instead of empty. Drop the now-unused
+-  `API_FOOTBALL_TRANSFERS_MAX_PAGE` lookup. Ingestion-only; no dbt/model change (the chain on
+-  main is correct — it was just fed empty raw data).
++  (1) Add a `permissions.deny` block to `.claude/settings.json` (filesystem / shared-prod /
++  git-history / secrets backstops), leaving the `hooks` block byte-identical. (2) Govern the
++  command surface BEFORE shipping a command: add `.claude/commands/` to the contract gate's
++  PROTECTED_PREFIXES, route `.claude/commands/**` to cto-reviewer, add it to the opus-on-guards
++  floor, and sync the protected/guard enumerations in working_agreement.md + agent_guardrails.md.
++  (3) Add the read-only `.claude/commands/status.md` slash command.
  
--refs: player-data plan §2/§4/§5/§8; escalations.log 2026-06-14 (transfers reinstated + cost
--  approved + history=all); onboard-endpoint skill; loads/squads.py + players_response_for_team
--  (the mirrored patterns).
-+refs: #467 (merged PR-i); the empty-data finding (dispatched run 27506078487 → RAW_APIF_TRANSFERS
-+  team blocks all `transfers_payload: []`); verification curl `?team=157` → 289 (no page);
-+  docs/data_contract.md §Pagination ("/teams, /standings reject page").
+-refs: #467 (merged PR-i); the empty-data finding (dispatched run 27506078487 → RAW_APIF_TRANSFERS
+-  team blocks all `transfers_payload: []`); verification curl `?team=157` → 289 (no page);
+-  docs/data_contract.md §Pagination ("/teams, /standings reject page").
++refs: CPO in-conversation direction + two blinded rulings, 2026-06-14 (this branch's
++  escalations.log entry): Issue 1 force-push = "block only reckless -f"; Issue 2 command
++  surface = "lock down first, then add /status". Both rulings answer FAIL findings from the
++  iteration-1 blinded review (scope-auditor + cto-reviewer opus).
  
  scope_paths:
--  - ingestion/api_football/loads/transfers.py
-   - ingestion/api_football/fixture_scheduling.py
--  - ingestion/api_football/loads/competition_runner.py
--  - ingestion/api_football/orchestrator.py
--  - dbt_project/models/1_staging/api_football/sources.yml
--  - dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
--  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/3_core/fct_transfer.sql
--  - dbt_project/models/3_core/core.yml
-   - docs/data_contract.md
+-  - ingestion/api_football/fixture_scheduling.py
+-  - docs/data_contract.md
++  - .claude/settings.json
++  - .claude/hooks/task_contract_gate.py
++  - .claude/review_routing.json
++  - .claude/commands/status.md
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
++  - tests/test_governance_hooks.py
    - .claude/task/contract.md
  
++protected_override: >
++  CPO (Rami) directed this work in-conversation (2026-06-14) and ruled both surfaced questions
++  (Issue 1 = block -f only; Issue 2 = lock down the command surface first). That ruling is the
++  authority to edit the protected guard machinery in this task: `.claude/settings.json`,
++  `.claude/hooks/task_contract_gate.py`, and `.claude/review_routing.json`. Recorded in
++  .claude/task/escalations.log (2026-06-14, this branch).
++
  decisions_taken: >
--  Reinstating transfers + its by-team ingest cost is CPO-APPROVED (escalations.log 2026-06-14;
--  reverses #420). History depth = all current teams (CPO-decided). Transfers rides the EXISTING
--  04:00 run via the orchestrator (no new run cadence). By-team axis (one call per team returns all
--  its moves — verified live: Bayern = 289 players in one call). Base dedups the provider's
--  duplicate move-records; `fct_transfer` grain = one distinct move per (player, team_out, team_in,
--  date). The raw `/transfers` `type` field is kept as the raw string in this PR.
-+  paginate=False for /transfers is a fetch-correctness fix, not a §10 decision. PROOF is empirical
-+  (not an analogy): the live verification showed the paged call returns EMPTY while a single
-+  un-paged `team=` call returns the team's full move list (Bayern team=157 → 289 moves, paging
-+  total=1). Truncation risk is self-limiting — /transfers rejects the `page` param, so even if
-+  paging.total were >1 there is no retrievable page 2; a single call is the only correct fetch
-+  (see http_client.py paginate=False). This PR also DOCUMENTS /transfers in data_contract.md
-+  §Pagination (it previously listed only /fixtures, /teams, /standings). The by-team axis, cost,
-+  and dedup are unchanged (all CPO-approved in #467). The unused API_FOOTBALL_TRANSFERS_MAX_PAGE
-+  env is removed.
+-  paginate=False for /transfers is a fetch-correctness fix, not a §10 decision. PROOF is empirical
+-  (not an analogy): the live verification showed the paged call returns EMPTY while a single
+-  un-paged `team=` call returns the team's full move list (Bayern team=157 → 289 moves, paging
+-  total=1). Truncation risk is self-limiting — /transfers rejects the `page` param, so even if
+-  paging.total were >1 there is no retrievable page 2; a single call is the only correct fetch
+-  (see http_client.py paginate=False). This PR also DOCUMENTS /transfers in data_contract.md
+-  §Pagination (it previously listed only /fixtures, /teams, /standings). The by-team axis, cost,
+-  and dedup are unchanged (all CPO-approved in #467). The unused API_FOOTBALL_TRANSFERS_MAX_PAGE
+-  env is removed.
++  The deny-list is a defense-in-depth BACKSTOP (the active hooks remain the boundary). Issue 1
++  ruling: block `git push -f` only — `--force-with-lease` (needed to update a rebased PR),
++  long-form `--force`, and `git reset` stay allowed, because the glob matcher cannot carve
++  `--force` out of `--force-with-lease`. Other denies: `rm -rf` variants, `git clean` (protects
++  parked untracked work), `bq rm` + `gcloud projects delete` (shared prod; CPO ruled KEEP DENIED
++  — friction on rare legit drops is intentional), `git commit --no-verify`/`-n` (defense-in-depth
++  over the git-discipline hook), `.env`-family Read/Edit. Issue 2 ruling: `.claude/commands/**`
++  is treated like the `.claude/agents/**` precedent — PROTECTED (gate), cto-routed
++  (review_routing.json), and in the opus-on-guards floor — because command files can embed shell
++  (the same high-stakes class as hooks). The doc enumerations are synced so the written rule and
++  the code agree. `/status` is read-only (`allowed-tools` allowlists four read commands + reading
++  the handover) and forbidden from acting.
  
  decisions_reserved:
--  - The affiliation TIMELINE (`int_player_affiliation_timeline`, valid_from/to + sequence) and the
--    current-team derivation are NOT in this PR — they are a later core/intermediate PR. PR-i stops
--    at `fct_transfer` (the dated-moves fact).
--  - Do NOT invent a canonical transfer-`type` taxonomy (loan/permanent/free/…) — the provider enum
--    is messy (N/A, Free, Loan, Back from Loan, Transfer, None, fees). Keep the raw string; any
--    normalized type vocabulary is a §10 metric/label decision — surface it, don't decide.
--  - Dedup KEY is EXACT (player_id, team_in_id, team_out_id, transfer_date) — this removes the
--    by-team cross-query duplicates (the dominant, certain duplicate source) and the provider's
--    exact-duplicate rows, WITHOUT merging genuinely-distinct moves (e.g. a player who left and
--    re-joined a club on different dates stays two rows). Provider NEAR-duplicates with differing
--    dates (e.g. the same move recorded 2 days apart under different `type`s) are deliberately NOT
--    fuzzy-merged here — a date-window heuristic risks collapsing real moves; that refinement, if
--    ever wanted, is a separate decision. (data-cleaning, agent-executable)
--  - No new run cadence; no extra schedule; no protected-guard edit (none in scope).
-+  - If a reviewer finds evidence that /transfers DOES paginate for very large teams (so a single
-+    un-paged call would truncate), STOP and surface it — the verification (one page = 289, total=1)
-+    indicates a single call suffices, but flag any contrary signal.
-+  - Real-data validation (RAW_APIF_TRANSFERS populated + fct_transfer non-empty + DQ tests on real
-+    moves) happens on the next full pipeline run after this merges (scheduled 04:00 or a dispatch),
-+    NOT in this PR's CI — this PR's data-build builds the unchanged models against the (still
-+    empty) table and passes as before.
+-  - If a reviewer finds evidence that /transfers DOES paginate for very large teams (so a single
+-    un-paged call would truncate), STOP and surface it — the verification (one page = 289, total=1)
+-    indicates a single call suffices, but flag any contrary signal.
+-  - Real-data validation (RAW_APIF_TRANSFERS populated + fct_transfer non-empty + DQ tests on real
+-    moves) happens on the next full pipeline run after this merges (scheduled 04:00 or a dispatch),
+-    NOT in this PR's CI — this PR's data-build builds the unchanged models against the (still
+-    empty) table and passes as before.
++  - If a reviewer finds a denied pattern that breaks an established legitimate workflow (beyond
++    the bq rm friction already CPO-accepted), STOP and surface it.
++  - Tidying the accreted allow-list in settings.local.json, and any broader ceremony-threshold
++    calibration, are explicitly OUT of scope (separate follow-ups).
  
  done_when:
--  - `loads/transfers.py` + `transfers_response_for_team` + `run_transfers_for_competition` exist
--    and `orchestrator.py` invokes it after squads; `python -m py_compile` clean on changed Python;
--    the ingestion respects the quota break + SKIP env.
--  - `stg_apif__transfers` / `base_apif__transfers` / `fct_transfer` build; `raw_apif_transfers`
--    source declared; `fct_transfer` has a tested unique grain + not-null keys; base dedup tested.
--  - `dbt parse` resolves all refs; sqlfluff clean on changed SQL; validate-local gates
--    (layer contract, registry sync, python) pass.
--  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/**) +
--    analytics-engineer-reviewer (dbt_project/**) — PASS.
-+  - `transfers_response_for_team` calls `fetch_merged_paged(..., paginate=False)` with no `page`
-+    param; `API_FOOTBALL_TRANSFERS_MAX_PAGE` removed; `python -m py_compile` clean.
-+  - docs/data_contract.md §Pagination lists /transfers among the page-rejecting endpoints.
-+  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/**) — PASS.
+-  - `transfers_response_for_team` calls `fetch_merged_paged(..., paginate=False)` with no `page`
+-    param; `API_FOOTBALL_TRANSFERS_MAX_PAGE` removed; `python -m py_compile` clean.
+-  - docs/data_contract.md §Pagination lists /transfers among the page-rejecting endpoints.
+-  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/**) — PASS.
++  - `.claude/settings.json` parses (`python -m json.tool`); `permissions.deny` present; the
++    `hooks` block is unchanged vs main; the deny-list blocks `git push -f` but not
++    `--force-with-lease`/`--force`.
++  - `task_contract_gate.py` PROTECTED_PREFIXES includes `.claude/commands/`; `review_routing.json`
++    routes `.claude/commands/**` → cto-reviewer; both parse.
++  - working_agreement.md §2 + agent_guardrails.md list `.claude/commands/` among the protected /
++    opus-guard paths.
++  - tests/test_governance_hooks.py has `test_commands_dir_is_protected` (mirrors
++    `test_agents_dir_is_protected`); `python -m pytest tests/test_governance_hooks.py -q` passes.
++  - `.claude/commands/status.md` exists, read-only (no write/commit/push in allowed-tools).
++  - reviewers: scope-auditor (always) + cto-reviewer (settings/hooks/routing routing; run on OPUS
++    per opus-on-guards) — both PASS.
  
  amendments:
--  - 2026-06-14: dedup key = EXACT (player, team_in, team_out, transfer_date), in the BASE layer
--    (staging does no dedup; core reads the deduped base). Removes the by-team cross-query duplicate
--    (each move fetched twice, once per involved club) + exact provider duplicates, WITHOUT
--    fuzzy-merging near-duplicate-date records (date-window merge could fuse genuine repeat moves).
--    Authority: CPO RULING (escalations.log 2026-06-14 feat/transfers-chain, "do it") — the
--    iteration-3 scope-auditor flagged that "which records are the same move" is a CPO data-modeling
--    decision, not builder self-classification; the CPO confirmed the exact-key dedup and its base-
--    layer home. content: decisions_taken (cross-query note) + decisions_reserved (exact dedup key).
-   - 2026-06-14: + docs/data_contract.md to scope_paths. Authority: required doc-sync (iteration-1
--    scope-auditor + data-engineer FAIL) — data_contract.md explicitly documents RAW_APIF_TRANSFERS
--    as RETIRED; reinstating the chain MUST un-retire it there (add to the unified raw-table list,
--    update the retired/transfers notes). Clean-tree amendment (code stashed). content: un-retire
--    transfers in data_contract.md.
-+    scope-auditor FAIL) — §Pagination listed only /fixtures/teams/standings as page-rejecting, not
-+    /transfers; the fix rests on the empirical verification, and this PR documents /transfers there
-+    rather than analogizing from a doc that omits it. Clean-tree amendment (code stashed). content:
-+    add /transfers to data_contract.md §Pagination; reframe decisions_taken to lead with the
-+    empirical proof + the self-limiting-truncation reasoning.
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index be74b13..39be056 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -141,7 +141,7 @@ Default is `season` (`league` + `season` only). Alternative modes `from_to` and
+-  - 2026-06-14: + docs/data_contract.md to scope_paths. Authority: required doc-sync (iteration-1
+-    scope-auditor FAIL) — §Pagination listed only /fixtures/teams/standings as page-rejecting, not
+-    /transfers; the fix rests on the empirical verification, and this PR documents /transfers there
+-    rather than analogizing from a doc that omits it. Clean-tree amendment (code stashed). content:
+-    add /transfers to data_contract.md §Pagination; reframe decisions_taken to lead with the
+-    empirical proof + the self-limiting-truncation reasoning.
++  - 2026-06-14: + tests/test_governance_hooks.py to scope_paths. Authority: iteration-2
++    cto-reviewer FAIL — the `.claude/agents/**` precedent shipped WITH a protection test
++    (`test_agents_dir_is_protected`), so mirroring it "exactly" requires the same coverage for
++    `.claude/commands/`. Clean-tree amendment (the six code files stashed). content: add
++    `test_commands_dir_is_protected`; routing unchanged (tests/** already → cto-reviewer).
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 9b09591..6211898 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -49,3 +49,11 @@
+ 2026-06-14 feat/skill-onboard-endpoint — CPO directed creating the `onboard-endpoint` skill (conversation, "go ahead in the order you prefer"): codify the repeatable routine for bringing a NEW API endpoint online — check-if-already-ingested -> throwaway verification calls (masked .env key, cheap by-team/paginated axis) -> cost estimate vs the /status quota -> CPO cost-approval gate -> CPO history-depth -> build (RAW_APIF_{entity} -> staging -> base -> loads), each via the normal contract->review->PR. Guide/checklist only — no auto-ingest, no auto-cost-approval. Not a protected path (.claude/skills/); normal contract, reviewers scope-auditor + cto-reviewer. The player-data initiative decisions this skill will be used for are recorded in the APPROVED plan (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md §6 — transfers reinstated + cost approved by-team; full history of current players; pure mapping dim + new fct_player_team_season appearance fact + rebuilt fct_transfer -> int_player_affiliation_timeline; bio via paginated directory; cadence bio monthly / squads+transfers weekly-in-windows / games monthly) and will be cited by each player-data PR's contract when built.
  
- ### Pagination
- 
--`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, or `/standings`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
-+`page=` is merged for `/players` when the API paginates. It is not sent on `/fixtures`, `/teams`, `/standings`, or `/transfers`, because those endpoints reject paging with `"The Page field do not exist."` and return empty when it is sent (a single `team=` call returns a team's full transfer history — verified). Opt in for `/fixtures` with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
- 
- ### Coverage flags
- 
-diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
-index 5e3067e..1cb974e 100644
---- a/ingestion/api_football/fixture_scheduling.py
-+++ b/ingestion/api_football/fixture_scheduling.py
-@@ -485,13 +485,16 @@ def transfers_response_for_team(
- ) -> list:
-     """All /transfers for a team (every player who moved in/out). Not season-scoped —
-     one call returns the team's full transfer history. Fetching by team returns each
--    move twice (once per involved team); the base model dedups."""
--    max_page = _env_int("API_FOOTBALL_TRANSFERS_MAX_PAGE", 5)
-+    move twice (once per involved team); the base model dedups.
+ 2026-06-14 feat/transfers-chain — CPO ruling on the PR-i transfers DEDUP (raised by the iteration-3 scope-auditor: which records count as "the same move" is a data-modeling decision needing CPO authority, not builder self-classification). Builder presented the rule plainly; CPO ANSWER (conversation, 2026-06-14, "do it"): dedup to ONE ROW per (player, team_in, team_out, transfer_date) — removing the by-team cross-query duplicate (each move is fetched twice, once per involved club) and exact provider duplicates — WITHOUT fuzzy-merging near-duplicate-date records (the same move emitted a few days apart under different `type`s), since a date-window merge could wrongly fuse two genuine moves. Dedup lives in the BASE layer (base_apif__transfers; staging does NO dedup; core reads the deduped base). league_code is excluded from the dedup partition (a transfer is a global event, deduped across leagues; the surviving league_code is pinned deterministically as ingest provenance). Recorded so the PR-i contract's decisions_taken cites a locatable ruling.
 +
-+    paginate=False: /transfers rejects the `page` param (like /teams and /standings —
-+    'The Page field do not exist.') and returns empty when it is sent, so we send a single
-+    `team=` call (verified: returns the team's full move list in one response)."""
-     data = fetch_merged_paged(
-         "/transfers",
-         headers,
-         {"team": team_id},
--        max_pages=max_page,
-+        paginate=False,
-     )
-     if errors is not None:
-         ctx = error_context or f"transfers team_id={team_id}"
++2026-06-14 chore/claude-deny-list-and-status-command — CPO-directed AI-collaboration tuning (settings deny-list + the repo's first custom slash command, /status). Recorded so the contract's protected_override + decisions_taken cite a locatable ruling, and the two iteration-1 blinded-review FAIL findings are resolved §11.
++  CPO DIRECTION (conversation, 2026-06-14): after assessing .claude/ against a best-practice post, "let's do the tunings / improvements that you suggest ... execute after my approval." CPO approved the drafted two changes; bq rm calibration ruled KEEP DENIED; PR bundling = one PR.
++  Iteration-1 blinded review (scope-auditor + cto-reviewer opus) returned FAIL on two points; both were raised to the CPO blinded (>=2 paths, no recommendation), then the CPO chose plainly (AskUserQuestion, 2026-06-14):
++  (Q1) FORCE-PUSH DENY PATTERN — the permission glob matcher cannot carve `--force` out of `--force-with-lease` (string-prefix collision), so a `--force` deny risks blocking the safe `--force-with-lease` needed to update a rebased PR. Paths: (1) block `-f` only; (2) block `--force` broadly, accepting it also blocks `--force-with-lease` (recurring override friction); (3) drop force-push from the deny-list.
++      CPO ANSWER: Path 1 — block only reckless `-f` (`git push -f` and `git push -f *`); leave `--force-with-lease`, long-form `--force`, and `git reset` allowed.
++  (Q2) `.claude/commands/**` GOVERNANCE (§10 NEW mechanism) — /status is the repo's first custom command; the surface can embed shell but routing/protection did not cover it, so future command files would get only the always-on scope-auditor. Paths: (A) govern the surface first (protect + route), then ship; (B) ship now, govern later; (C) don't add a command mechanism.
++      CPO ANSWER: Path A — lock down first, then add /status. Implemented by mirroring the .claude/agents/** precedent exactly: .claude/commands/ added to task_contract_gate.py PROTECTED_PREFIXES; .claude/commands/** routed to cto-reviewer in review_routing.json + added to the opus-on-guards floor; protected/guard enumerations synced in working_agreement.md §2 + agent_guardrails.md.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 80b24b3..2710b5d 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -51,7 +51,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
+ 
+@@ -74,8 +74,9 @@ policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
+ not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
+ `model:` frontmatter): `scope-auditor` on **haiku**, the five specialists on
+ **sonnet**. The pin is a floor — for diffs touching a guard path
+-(`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
+-`.claude/review_routing.json`, `.github/workflows/**`) the orchestrator spawns
++(`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
++`.claude/settings.json`, `.claude/review_routing.json`,
++`.github/workflows/**`) the orchestrator spawns
+ `cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
+ guard bypasses are the costliest misses.
+ 
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 6b98951..6879b88 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -34,12 +34,14 @@ committed with the branch so it is PR-visible:
+ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+ - No contract → repo edits denied. Out-of-scope path → denied.
+ - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
+-  `.claude/settings.json`, `.claude/review_routing.json`,
++  `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
+   `.github/workflows/`) are never editable except in a dedicated CPO-approved
+   governance task whose contract carries `protected_override`. The reviewer
+   definitions and routing are protected so the builder can never weaken its
+   own adversary inside an ordinary task (CPO ruling, G3 escalation
+-  2026-06-12).
++  2026-06-12); `.claude/commands/` is protected because custom slash commands
++  can embed shell, so a command file is the same high-stakes class as a hook
++  (CPO ruling 2026-06-14).
+ - **File changes go through the Edit/Write tools only** — shell redirection,
+   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
+   check and the turn-end stop gate force reversion of anything that slips
+@@ -60,8 +62,9 @@ serialized four steps; the commit gate enforces them mechanically:
+    Reviewer models are pinned in each agent definition for economy:
+    `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
+    pinned model is a floor — when the staged diff touches a guard path
+-   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
+-   `.claude/review_routing.json`, `.github/workflows/**`), the orchestrator
++   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
++   `.claude/settings.json`, `.claude/review_routing.json`,
++   `.github/workflows/**`), the orchestrator
+    spawns `cto-reviewer` with its model overridden to **opus**, because guard
+    bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
+    caught only at that depth). This is a procedural rule the orchestrator
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 76a2122..5604417 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -549,6 +549,14 @@ def test_agents_dir_is_protected(repo):
+     assert denied(out) and "PROTECTED" in out
+ 
+ 
++def test_commands_dir_is_protected(repo):
++    """Per the CPO ruling 2026-06-14: custom slash commands can embed shell, so a
++    command file is protected like a hook/agent definition."""
++    write_contract(repo)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/commands/status.md"), repo)
++    assert denied(out) and "PROTECTED" in out
++
++
+ def test_untracked_dir_files_in_scope_not_flagged(repo):
+     """-uall: files inside an untracked directory are matched individually."""
+     write_contract(repo, CONTRACT.replace(

@@ -47,8 +47,11 @@ TASK_DIR_REL = ".claude/task/"
 # .claude/agents/ added per the CPO's recorded escalation answer (G3 review,
 # 2026-06-12): the reviewer definitions are governance artifacts like the
 # routing file — the builder must never be able to weaken its own adversary
-# inside an ordinary task contract.
-PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".github/workflows/")
+# inside an ordinary task contract. .claude/commands/ added per the CPO ruling
+# 2026-06-14 (this branch's escalations.log): custom slash commands can embed
+# shell, so a command file is the same high-stakes class as a hook — never add
+# one inside an ordinary task without protected_override + cto review.
+PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
 PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
 
 _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}

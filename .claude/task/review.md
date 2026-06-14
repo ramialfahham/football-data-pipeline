@@ -1,53 +1,54 @@
-# Review — fix/transfers-pagination — 2026-06-14
+# Review — chore/claude-deny-list-and-status-command — 2026-06-14
 
-> Follow-up bugfix to merged PR-i (#467). The dispatched pipeline run revealed the transfers chain
-> produced 0 rows — every team's `transfers_payload` was empty — because `transfers_response_for_team`
-> used `fetch_merged_paged` with default pagination (sends `page=1`), and `/transfers` rejects `page`
-> and returns empty. Fix: `paginate=False` (single un-paged `team=` call; verified `?team=157` → 289
-> moves, paging total=1), drop the unused `API_FOOTBALL_TRANSFERS_MAX_PAGE`, and document `/transfers`
-> in `docs/data_contract.md §Pagination`. Ingestion-only; no dbt/model change. py_compile clean.
->
-> Review: TWO cold iterations (scope-auditor + data-engineer-reviewer). Iter 1: data-eng PASS;
-> scope-auditor FAIL — the justification leaned on a doc analogy (§Pagination omitted /transfers).
-> Fix: reframed decisions_taken to lead with the EMPIRICAL proof + self-limiting-truncation
-> reasoning, and added /transfers to §Pagination (data_contract.md added to scope via a recorded
-> amendment). Iter 2: both PASS against the hash below. Non-blocking residuals noted by the
-> reviewers: silent truncation would occur only if /transfers returned paging.total>1 while
-> rejecting `page` — structurally self-limiting (no retrievable page 2; verification showed total=1);
-> the empirical evidence (prior empty run + the un-paged curl) lives outside the diff.
-> Real-data validation (fct_transfer non-empty + DQ on real moves) happens on the next full pipeline
-> run after merge (scheduled 04:00 or a dispatch), not this PR's CI.
+> CPO-directed AI-collaboration tuning: a `permissions.deny` backstop in `.claude/settings.json`
+> + the repo's first custom slash command `/status`, plus the governance lock-down the CPO ruled
+> must precede it (`.claude/commands/**` made PROTECTED + cto-routed + opus-guarded, mirroring the
+> `.claude/agents/**` precedent incl. its protection test). THREE cold iterations. Iter 1: both
+> FAIL — two §10 questions (force-push pattern; command surface as a new mechanism) raised blinded
+> and ruled by the CPO (escalations.log 2026-06-14). Iter 2: scope-auditor PASS, cto-reviewer FAIL
+> — the agents precedent shipped WITH a protection test; this lacked one. Fix: clean-tree amendment
+> adding `tests/test_governance_hooks.py` to scope + a `test_commands_dir_is_protected` test
+> (full suite 86 passed). Iter 3: both PASS against the hash below.
 
-diff_sha256: 3ece5ed8df3eef012b76fa7c9e5fcd873284eee1705351b7211a5b4c3cb5aaf1
+diff_sha256: 83993d18995107aef88d483eec6f8f09475c32af7e82f6617756035cb5fa9d8f
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10 + justification: the fix is fetch-correctness, not a §10 decision — now justified EMPIRICALLY
-  (paged → empty; un-paged → 289 moves, total=1) plus the self-limiting-truncation reasoning, not by
-  analogy; the prior "analogy from a doc that omits /transfers" gap is closed by adding /transfers to
-  data_contract.md §Pagination. No new mechanism (A3) — a single call-site param change; no product
-  decision (A2).
-- Scope + amendment: only fixture_scheduling.py + data_contract.md + contract.md changed (all in
-  scope_paths); the data_contract.md addition is recorded as a clean-tree amendment with authority
-  (the iteration-1 doc-sync FAIL); the §Pagination edit is accurate (lists /transfers among the
-  page-rejecting endpoints). Residual (non-blocking): silent truncation only if paging.total>1, which
-  is self-limiting for a page-rejecting endpoint.
+- Unilateral protected-path editing: the diff touches three protected files
+  (`.claude/settings.json`, `.claude/hooks/task_contract_gate.py`, `.claude/review_routing.json`);
+  all are covered by the contract's `protected_override`, which cites the CPO direction + ruling
+  recorded in escalations.log (2026-06-14, both Q/A pairs). The gate still blocks any future
+  unprotected edit to these paths.
+- Deny-list glob over-blocking: the force-push deny blocks only `-f` (`Bash(git push -f *)`,
+  `Bash(git push -f)`), not `--force` or `--force-with-lease`, and `git reset` stays allowed —
+  exactly the Q1 CPO ruling; the rebased-PR update flow is not broken.
+- Scope + §10: every edited path is in `scope_paths` (incl. `tests/test_governance_hooks.py` via
+  the recorded clean-tree amendment) or artifact-exempt (escalations.log); both §10 rulings match
+  the implementation; no App A (A1–A5) pattern.
 
-## data-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- paginate=False correctness (http_client.py:77-86): the branch issues exactly one `fetch_json` with
-  `base_params={"team": team_id}` and no `page` key — the pagination loop (line 97, `params["page"]`)
-  is never entered, so there is no truncation vector; the self-limiting-truncation argument holds (a
-  page-rejecting endpoint has no retrievable page 2). Error handling intact — `append_api_errors` is
-  still called and the paginate=False branch populates `data["errors"]`.
-- No dangling references / dead imports: `API_FOOTBALL_TRANSFERS_MAX_PAGE` appears only in the patch
-  text + contract, zero live `.py` occurrences; `_env_int` (fixture_scheduling.py:42) is still used at
-  ~9 other call-sites, so the import is not dead. The data_contract.md §Pagination edit accurately
-  documents /transfers as page-rejecting.
+- New-test integrity: `test_commands_dir_is_protected` (tests/test_governance_hooks.py) is a
+  genuine assertion mirroring `test_agents_dir_is_protected` — same fixtures/helpers, drives the
+  real gate against `.claude/commands/status.md` with a no-override contract, asserts
+  `denied(out) and "PROTECTED" in out`; not a no-op or skipped; now in-scope and routed to cto.
+- Prefix over-match: adding `.claude/commands/` to PROTECTED_PREFIXES introduces no collision with
+  sibling `.claude/` subdirs (`skills/`, `task/`, `agents/`, `hooks/`); the override-in-scope branch
+  still permits this task's own `status.md` edit while denying it in ordinary tasks.
+- Re-confirmed: `hooks` block byte-identical to main (only `permissions` added); the
+  task_contract_gate change is confined to PROTECTED_PREFIXES + comment; 4-way commands consistency
+  (gate + routing + opus-floor in both docs + protected-list in both docs); `/status` read-only;
+  both JSON files parse with no trailing commas.
 
 ## escalations
-(none — two cold iterations; both routed reviewers (scope-auditor always + data-engineer-reviewer for
-ingestion/** + docs/data_contract.md) PASS against the locked hash. No §10 question on this diff.
-Real-data validation is tracked for the first full pipeline run after merge.)
+- question: Q1 — force-push deny pattern (a broad `--force` deny risks also blocking the safe
+  `--force-with-lease` needed to update a rebased PR; the glob matcher cannot carve them apart).
+  CPO ANSWER: Path 1 — block only reckless `-f` (`git push -f` / `git push -f *`); leave
+  `--force-with-lease`, long-form `--force`, and `git reset` allowed. (escalations.log 2026-06-14)
+- question: Q2 — `.claude/commands/**` governance (§10 NEW mechanism; `/status` is the repo's first
+  custom command and the surface can embed shell, uncovered by routing/protection).
+  CPO ANSWER: Path A — lock the surface down first (protected + cto-routed + opus-floor, mirroring
+  the `.claude/agents/**` precedent incl. its protection test), then ship `/status`.
+  (escalations.log 2026-06-14)
