@@ -485,13 +485,16 @@ def transfers_response_for_team(
 ) -> list:
     """All /transfers for a team (every player who moved in/out). Not season-scoped —
     one call returns the team's full transfer history. Fetching by team returns each
-    move twice (once per involved team); the base model dedups."""
-    max_page = _env_int("API_FOOTBALL_TRANSFERS_MAX_PAGE", 5)
+    move twice (once per involved team); the base model dedups.
+
+    paginate=False: /transfers rejects the `page` param (like /teams and /standings —
+    'The Page field do not exist.') and returns empty when it is sent, so we send a single
+    `team=` call (verified: returns the team's full move list in one response)."""
     data = fetch_merged_paged(
         "/transfers",
         headers,
         {"team": team_id},
-        max_pages=max_page,
+        paginate=False,
     )
     if errors is not None:
         ctx = error_context or f"transfers team_id={team_id}"

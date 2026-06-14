@@ -141,7 +141,7 @@ Default is `season` (`league` + `season` only). Alternative modes `from_to` and 
 
 ### Pagination
 
-`page=` is merged for `/players` when the API paginates. It is not sent by default on `/fixtures`, `/teams`, or `/standings`, because many plans reject paging on those endpoints with `"The Page field do not exist."`. Opt in with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
+`page=` is merged for `/players` when the API paginates. It is not sent on `/fixtures`, `/teams`, `/standings`, or `/transfers`, because those endpoints reject paging with `"The Page field do not exist."` and return empty when it is sent (a single `team=` call returns a team's full transfer history — verified). Opt in for `/fixtures` with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
 
 ### Coverage flags
 
