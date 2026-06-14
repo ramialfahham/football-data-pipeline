@@ -1,74 +1,62 @@
-# Review — feat/gap15-gap19-marts — 2026-06-14
+# Review — feat/skill-onboard-endpoint — 2026-06-14
 
-> Pilot PR1 (CPO rulings, escalations.log 2026-06-14): GAP-15 (mart_team_fixtures) + GAP-19
-> items 1-4 (leaderboard ranks, top-player rank, nav display_group seed, H2H canonical pair) —
-> move four consumption-layer computations out of scripts/export_site_data.py into dbt; the
-> export shrinks to pure selection. Slugs (GAP-19 item 5) and GAP-16 affiliation are OUT
-> (PR2 / the player-data initiative). Local validation: export unit tests (17) PASS, py_compile
-> OK, layer-contract + registry-sync gates PASS, dbt parse resolves all refs, sqlfluff clean.
+> CPO-directed (escalations.log 2026-06-14, "go ahead"): a new guide/checklist skill
+> `.claude/skills/onboard-endpoint/SKILL.md` codifying the routine for evaluating + ingesting
+> a NEW API endpoint — check-if-ingested -> throwaway verification calls -> cost estimate ->
+> CPO cost-approval gate -> CPO history-depth -> build (raw -> staging -> base -> loads). A
+> single new markdown file; not a protected path. Frontmatter validated (parses).
 >
-> Review cycle: THREE cold iterations (routed reviewers: scope-auditor + analytics-engineer-
-> reviewer + cto-reviewer). Iter 1 — all FAIL (scope-auditor: export re-derived the canonical
-> pair_key in Python (A5); analytics: is_finished semantic + missing rank/pair tests; cto:
-> _display_group_of_type + null-rank untested). Iter 2 — scope-auditor + analytics PASS; cto
-> FAIL (H2H team-id membership over-fetch (~N^2); silent-empty on missing rank column). Iter 3
-> — all PASS against the hash below. Fixes applied across iterations: H2H lookup is now pure
-> directed-(team,opponent)-tuple selection (no identity derivation, no over-fetch);
-> is_finished -> has_result with recency_rank gated on it; assists_rank/shots_on_target_rank/
-> top_player_rank-uniqueness/is_canonical-consistency tests added; _display_group_of_type +
-> null-rank exclusion tests added; leaderboard sort lambda binds rank_col. The cto's residual
-> "KeyError under mart-schema drift" note is non-blocking (a Python fallback would reintroduce
-> the A5 ranking just removed; reliance on the mart column is the consumption-layer contract).
-> Deferred (out of this locked scope): layering.md mart-inventory row for mart_team_fixtures
-> (separate doc-sync task); slug rulings E2/E3 (PR2); GAP-16 affiliation (player-data initiative).
+> Review cycle: FIVE cold iterations (reviewers: scope-auditor [gate-required for .claude/skills]
+> + cto-reviewer [run voluntarily for the tooling change]). Findings caught and fixed across
+> iterations: (1) Step 3 now ASKS the CPO directly + forbids self-grant + cites the §2/§11
+> escalations-recording practice (scope-auditor F1/F2); (2) `set +x` now the first line of the
+> key-load block (cto); (3) Step 0 checks code AND a populated raw table + resolves the
+> configurable raw dataset from settings (cto + scope-auditor); (4) RapidAPI base URL +
+> `x-rapidapi-host` value named; "Path B" defined; (5) coverage wiring names the real
+> `ENDPOINT_REQUIRES_NONEMPTY`/`SHELL_KEY_TO_ENDPOINT` structures (cto); (6) a factual error
+> (claiming entity-keyed endpoints don't carry `league_code`) corrected — the data contract
+> requires `league_code` on all raw tables (cto). Iteration 5: both PASS against the hash below;
+> cto verified every named fact against settings.py / coverage.py / data_contract.md / squads.py.
+> Rejected (with reason): adding `.claude/skills/**` routing to review_routing.json — a protected
+> change, out of this task's scope (cto run voluntarily satisfies the contract). Residual
+> non-blocking notes: the curl+python heredoc quoting footgun (mitigated by an in-skill note),
+> and an explicit multi-day-quota-feasibility check (partially covered by "how the backfill
+> spreads across days").
 
-diff_sha256: 745410d5a2748b4ecfdf455d9ee25234df4a18e878e17c4fa11ebaa4b19e6f3c
+diff_sha256: 410ef5ef8783e65297e5341275b3a105990401cbf8f5521cc7f3804b48099756
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10/Appendix-A integrity: all changed files are within scope_paths; no slug column or
-  url_slugs UDF / on-run-start hook reintroduced (A3); no GAP-16 affiliation column on
-  mart_player_profile; the export now SELECTS the new dbt columns and the H2H lookup filters
-  mart_head_to_head by the directed (team_sk, opponent_team_sk) key — no canonical pair
-  identity derived in Python (A5 resolved from iter 1).
-- Boundary/decisions_reserved: leaderboard set unchanged (goals/assists/shots_on_target, the
-  shipped _LEADERBOARD_METRICS — no invented metric, A1); display_group is a byte-faithful
-  migration of the retired _GROUP_OF_TYPE values (no new published nav identifier); the
-  form_window JSON key and non-migrated payloads are untouched; mart_team_fixtures is a view
-  shipped consumer-later (ship-the-mart-first), not a scope expansion.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- mart_team_fixtures grain + rank populations: (team_sk, fixture_sk) is unique from the
-  union-all spine (the where s.team_sk is not null filter removes one-sided rows; the grain
-  test guards it); has_result = (result leg exists) cleanly partitions the recency population
-  and recency_rank is null-gated so non-result rows carry no rank — covered by
-  team_fixtures_result_present + team_fixtures_recency_has_result.
-- Ranking correctness vs the codified pattern: mart_player_profile leaderboard ranks use
-  DENSE_RANK over (league_code, season_api_year) order goals desc, assists desc, minutes asc —
-  byte-identical to mart_top_scorers.scorer_rank — with CASE goals>0 zero-exclusion; per-side
-  selection ranks (top_player_rank, upcoming/recency) use ROW_NUMBER; every new shown column
-  now has a shared.yml/seeds test; no hardcoded league_code anywhere.
+- §10 routing + auto-grant: Step 3/Step 4 route cost approval and history depth to the CPO and
+  forbid self-granting ("never infer or self-grant it"); recording an already-given approval in
+  escalations.log is the documented §2/§11 builder practice, not a new mechanism. No §10 decision
+  is embedded or presented as auto-grantable.
+- Scope + guards: the diff touches only the two scope_paths (the new SKILL.md + contract.md);
+  no protected guard (.claude/hooks, .claude/agents, settings.json, review_routing.json,
+  .github/workflows) is touched; the skill name follows the `onboard-*` convention (not a new
+  product-naming decision); no Appendix A pattern (A1 invented metrics — it forbids API
+  predictions/leaderboards; A3 new mechanism — a precedented single markdown guide; A5 — it
+  builds in dbt/raw/loads, not the export). Residual (non-blocking): cost step could require an
+  explicit one-day-fit / multi-day-spread feasibility statement before the CPO gate.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- H2H directed-pair filter correctness + safety (export_site_data.py): ids are int()-cast
-  before interpolation (no injection); the directed (team_sk=home and opponent_team_sk=away)
-  OR-filter retrieves exactly the home-perspective row per fixture (no team-id cross product /
-  over-fetch from iter 2) and is indexed by the directed key; pair_key/is_canonical added to
-  _H2H_DROP so the published head_to_head payload stays byte-identical.
-- Export selection purity + tests: shape_top_players/shape_leaderboards/build_nav compute
-  nothing — they select by top_player_rank / <metric>_rank / display_group; the leaderboard
-  sort lambda binds rank_col via default-arg (no late-binding); _display_group_of_type mirrors
-  the existing fetch_glossary seed-read pattern (no new mechanism, A3); updated tests assert
-  the selection contract incl. null-rank exclusion + the seed read. Residual KeyError-under-
-  schema-drift is non-blocking (a fallback would reintroduce A5).
+- Named-fact accuracy (verified against source): apisports base URL + `x-apisports-key`, RapidAPI
+  base URL + `x-rapidapi-key`/`x-rapidapi-host: api-football-v1.p.rapidapi.com` all match
+  settings.py (33-34, 86-90); `ENDPOINT_REQUIRES_NONEMPTY` + `SHELL_KEY_TO_ENDPOINT` exist in
+  coverage.py (56-72); the configurable raw dataset matches settings.py:31; the corrected
+  `league_code` statement matches data_contract.md (required on every raw table) + loads/squads.py
+  (24, 64 stamp it). No remaining factual error.
+- Key safety + cost gate: `set +x` is the first line of the key-load block and the key is only
+  ever a shell var passed as a header (no print); the cost/history decisions route to the CPO and
+  cannot be self-granted; the skill is a guide (no code, no auto-ingest) — no new mechanism (A3),
+  no guard touched. Residual (non-blocking): the curl+python heredoc quoting is a footgun,
+  mitigated by the in-skill note to avoid f-strings with escaped quotes.
 
 ## escalations
-(none — three cold iterations; all three routed reviewers PASS against the locked hash. No
-reviewer raised a §10 question on this diff. The two slug rulings (E2 where produced, E3
-spelling) are recorded in escalations.log as PENDING for PR2 and are NOT part of this PR;
-GAP-16 affiliation is deferred to the player-data ingestion initiative.)
+(none — five cold iterations; the gate-required scope-auditor and the voluntary cto-reviewer
+both PASS against the locked hash. No reviewer raised a §10 question on this diff. Adding
+`.claude/skills/**` to review_routing.json was deliberately NOT done — it is a protected change
+out of this task's scope; running cto-reviewer voluntarily satisfies the contract.)

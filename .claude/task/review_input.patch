@@ -1,808 +1,298 @@
+diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
+new file mode 100644
+index 0000000..40f9e3a
+--- /dev/null
++++ b/.claude/skills/onboard-endpoint/SKILL.md
+@@ -0,0 +1,156 @@
++---
++name: onboard-endpoint
++description: |
++  Evaluate and ingest a NEW API-Football endpoint / data type the pipeline does
++  not currently take (e.g. /players/profiles, /players/squads, /transfers).
++  Walks through: check whether we already ingest it, make a few throwaway
++  verification calls to see what it returns and how good the data is, estimate
++  the cost against the daily quota, get the CPO's explicit cost approval, then
++  build the ingest (raw -> staging -> base -> loads).
++
++  Use this when bringing a new endpoint/entity online. Do NOT use for adding a
++  new competition/league (that's onboard-competition) or for post-ingest health
++  checks (that's verify-competition-ingest). This skill never auto-enables a
++  recurring pull — the cost decision is always the CPO's.
++---
++
++# onboard-endpoint
++
++A new API endpoint is a new recurring cost and a new chain to build. The point of
++this skill is to **learn what we're buying before we build it**: confirm the data
++is real and useful, size the cost, and get the CPO's explicit sign-off — then
++build. It mirrors the cost-gate discipline of `onboard-competition` (Step 0a).
++
++This skill is a **guide**. It does not make production changes by itself: the
++verification calls are throwaway, and **no recurring ingest is enabled without
++explicit CPO cost approval** (cost is non-negotiable — docs/working_agreement.md §5).
++
++## When to use
++- The CPO wants to ingest an endpoint/entity we don't currently take, OR you need
++  to decide whether an endpoint is worth ingesting for a feature.
++
++## When NOT to use
++- Adding a new competition/league → `onboard-competition`.
++- Checking an existing ingest's health → `verify-competition-ingest`.
++- Anything that ingests API-Football **predictions** or provider leaderboards
++  (topscorers/topassists/top*cards) — we build our own metrics; do not ingest these.
++
++## Procedure
++
++Run in order. Confirm what each step found before moving on.
++
++### Step 0 — Is it already ingested?
++Check BOTH — code can exist while the table is stale/empty, or vice versa:
++- Ingestion code: search `ingestion/api_football/` for the endpoint path and any
++  `loads/` module that already calls it.
++- Raw tables: `bq ls --max_results=100 <project>:<raw-dataset>` and look for a
++  `RAW_APIF_{entity}`; sample a few rows to confirm it's populated, not an empty
++  shell. The raw dataset defaults to `raw` but is configurable — resolve the actual
++  name from `ingestion/api_football/settings.py` rather than assuming `raw`.
++Only stop if the endpoint is genuinely ingested (code AND a populated raw table).
++
++### Step 1 — Throwaway verification calls (read-only; never store)
++Confirm the response shape AND the data quality on real examples before building.
++
++Auth (provider = apisports by default): the key is in the repo-root `.env` as
++`API_FOOTBALL_API_KEY`; base URL `https://v3.football.api-sports.io`; header
++`x-apisports-key`. (If `API_FOOTBALL_PROVIDER=rapidapi` is set, the base URL is
++`https://api-football-v1.p.rapidapi.com/v3` and the headers are `x-rapidapi-key`
+++ `x-rapidapi-host: api-football-v1.p.rapidapi.com` — see
++`ingestion/api_football/settings.py`; adapt `$B` and the `-H` headers below
++accordingly.) **Never print the key** — keep it only in a shell variable, pass it
++as a header, and keep shell trace OFF. Load it into a shell var:
++
++```bash
++set +x                                   # never echo the key (no shell trace)
++KEY=$(grep -E '^API_FOOTBALL_API_KEY=' .env | cut -d= -f2- | tr -d '"' | tr -d '\r')
++B=https://v3.football.api-sports.io
++```
++
++Pick the **cheapest axis** the endpoint supports and verify it:
++- Many endpoints can be pulled **by team** (one call returns all rows for that
++  team's players — e.g. `/players/squads?team=`, `/transfers?team=`). By-team is
++  far cheaper than **by-player** (one call per player). Always check whether a
++  by-team (or paginated-directory) form exists before assuming per-player.
++
++Call a few representative cases and summarize the JSON shape + quality — include
++the **hard cases** for that data (e.g. for transfers: a clean move, a loan, a
++lower-league player). Example:
++
++```bash
++curl -s -H "x-apisports-key: $KEY" "$B/<endpoint>?<param>=<id>" | python -c "
++import sys, json
++d = json.load(sys.stdin)
++print('errors:', d.get('errors'), 'results:', d.get('results'), 'paging:', d.get('paging'))
++r = d.get('response') or []
++print(json.dumps(r[0], indent=1)[:1200] if r else 'EMPTY')"
++```
++(Build the summary with plain string concatenation, not f-strings containing
++escaped quotes — Python f-strings can't hold backslashes.)
++
++Record: which fields exist, whether the dates/identity you need are present, and
++any noise (messy enum fields, duplicate rows, missing values) that will need
++cleaning in staging. The `�` you may see is just the terminal mangling UTF-8
++(€, ü) — the stored JSON is fine.
++
++### Step 2 — Estimate the cost
++- Get the plan + quota: `curl -s -H "x-apisports-key: $KEY" "$B/status"` →
++  `subscription.plan`, `requests.limit_day`, `requests.current`.
++- Size the universe from our data (e.g. distinct teams / players, active vs all)
++  via `bq query` against the core dims.
++- Compute **backfill** (cheapest axis × universe) and **ongoing/day** (refresh
++  cadence × universe, amortized). Slow-moving data (bios, careers) refreshes
++  monthly; squad/transfer data weekly during windows.
++- State both as call counts against `limit_day`, and how the backfill spreads
++  across days within quota.
++
++### Step 3 — CPO cost-approval gate (do not skip)
++**Ask the CPO directly** — present the cost from Step 2 in plain language and ask
++for explicit approval to enable the recurring pull (this mirrors
++`onboard-competition` Step 0a, which asks the user the cost questions before any
++file is written). Do NOT write ingestion code or enable a schedule until that
++approval is given, and **never infer or self-grant it** — cost is non-negotiable
++(CLAUDE.md "Cost is non-negotiable"; docs/working_agreement.md §5). Once the CPO
++gives it, record the approval in `.claude/task/escalations.log` — the builder
++appends rulings there as the standard practice (docs/working_agreement.md §2/§11)
++so the build contract's `decisions_taken` can cite a locatable ruling. No new
++daily run cadence without separate approval — ride the 04:00 run or a sub-schedule.
++
++### Step 4 — CPO history-depth decision
++How far back to backfill is a CPO decision stored as the source's history depth
++(active-only vs full history). Get it explicitly; it's the main backfill-cost lever.
++
++### Step 5 — Build (each piece via the normal contract -> review -> PR)
++Follow the unified-raw pattern ("Path B" — all competitions share unified
++`RAW_APIF_{entity}` tables discriminated by a `league_code` column; no
++per-competition files):
++- **Raw:** a `RAW_APIF_{entity}` table. The landing schema — including `league_code`
++  (the data contract requires it on raw tables; even player/team-keyed pulls stamp the
++  league they were fetched under, e.g. `loads/squads.py`) and the merge/landing key —
++  must follow `docs/data_contract.md`. Do not invent a schema.
++- **Ingestion:** a new `loads/` module mirroring `loads/squads.py`; registry-driven;
++  respects the ingest lock + daily quota. If the endpoint is part of the per-fixture
++  fanout, also wire it into the ingestion coverage/completeness CHECK (Python, not a
++  dbt model) — add it to `ENDPOINT_REQUIRES_NONEMPTY` + `SHELL_KEY_TO_ENDPOINT` in
++  `ingestion/api_football/coverage.py` (omitting this makes the fanout silently
++  re-fetch already-covered fixtures every run). Team-/player-keyed pulls (like
++  squads/transfers) are NOT fanout and do not go there.
++- **Staging:** a generic `stg_apif__{entity}` (raw cleanup only).
++- **Base/Core/Marts:** as the feature needs — base dedup/clean (handle the noise
++  found in Step 1), core facts/dims, marts for consumption. Ship the mart first if
++  a surface needs data we don't yet expose.
++
++## Known edge cases
++- **Axis matters most for cost.** A by-team or paginated-directory pull can be 30×+
++  cheaper than per-player. Always look for the cheaper axis in Step 1.
++- **Provider noise.** Enum/`type` fields are often inconsistent and rows can
++  duplicate; plan a dedup/clean pass in base. Verify the *keys you need* (dates,
++  ids) are reliable, not the cosmetic fields.
++- **Retired chains.** Re-enabling a previously-retired endpoint (e.g. transfers)
++  is a rebuild + a cost reversal — treat it as a fresh onboard, with the cost gate.
++
++## Related
++- `onboard-competition` — add a new league (registry-only, zero SQL).
++- `verify-competition-ingest` — post-ingest health check.
++- docs/data_contract.md — raw landing + merge model.
++- docs/operations_guide.md — ingest lock, env vars, quota.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b3a63ae..53df200 100644
+index 53df200..f64aaf3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,95 +1,87 @@
--# Task contract — consistent form-window model naming (momentum + season_record)
-+# Task contract — GAP-15 + GAP-19 (items 1–4): consumption-layer migration to dbt (Pilot PR1)
+@@ -1,87 +1,58 @@
+-# Task contract — GAP-15 + GAP-19 (items 1–4): consumption-layer migration to dbt (Pilot PR1)
++# Task contract — new skill: onboard-endpoint (evaluate + ingest a new API endpoint)
  
--> CPO naming decision (conversation 2026-06-13, "Option 2"): make the form/window model
--> family use ONE root per concept from the metrics_context_model.md matrix — `momentum`
--> (live form / last-5) and `season_record` (within-competition cumulative). Today the live
--> concept uses three roots (form_window, momentum, last_5) and the season concept uses
--> `season_to_date`. Pure rename — NO logic/metric change. See docs/working_agreement.md §2/§10.
-+> CPO directions (this session, escalations.log 2026-06-14): the Pilot is sliced into TWO PRs.
-+> THIS is PR1 — the unblocked work. Move four consumption-layer computations out of the Python
-+> export into dbt (anti-pattern A5: logic/ranking in the frontend), and add the GAP-15
-+> team-fixtures mart. Slugs (GAP-19 item 5) are PR2; GAP-16 affiliation is deferred to the new
-+> player-data ingestion initiative. See docs/working_agreement.md §2/§6/§10, Appendix A (A3/A5).
+-> CPO directions (this session, escalations.log 2026-06-14): the Pilot is sliced into TWO PRs.
+-> THIS is PR1 — the unblocked work. Move four consumption-layer computations out of the Python
+-> export into dbt (anti-pattern A5: logic/ranking in the frontend), and add the GAP-15
+-> team-fixtures mart. Slugs (GAP-19 item 5) are PR2; GAP-16 affiliation is deferred to the new
+-> player-data ingestion initiative. See docs/working_agreement.md §2/§6/§10, Appendix A (A3/A5).
++> CPO-directed this session (2026-06-14): codify the repeatable routine we ran twice (the four
++> player endpoints, then transfers) for bringing a NEW API endpoint / data type into the
++> pipeline — check-if-already-ingested, throwaway verification calls, cost estimate, the
++> CPO cost-approval gate, then the build. Complements onboard-competition (add a league) and
++> verify-competition-ingest (post-ingest health). A guide/checklist skill — not a protected
++> guard. See docs/working_agreement.md §2/§10, docs/agent_guardrails.md.
  
  objective: >
--  Rename the two concepts consistently:
--  (A) live form: keep `momentum`; rename the SELECTION model `int_form_window__team` →
--      `int_momentum_window__team` and its drill-down mart `mart_form_window__team` →
--      `mart_momentum_window__team`.
--  (B) season record: rename `int_season_to_date__{team,player}` →
--      `int_season_record__{team,player}` and `mart_season_to_date__{team,player}` →
--      `mart_season_record__{team,player}`.
--  Update every `ref()`, model `name:`, the consuming intermediates/marts, the export script's
--  mart-table reads, the one cross-check test, and all docs that name these models.
--  BOUNDARIES (do NOT change): the `window_type` literal VALUES (`last_5`, `season_to_date`,
--  `prev_season`) — they label the cut, not the model, and the wireframe reads `w2.window_type`;
--  the published JSON output key `form_window` in export_site_data.py (UI contract — only the
--  3 mart TABLE-NAME reads change, not the key/variable); the future-spec column
--  `form_window_kind` in player_metrics_catalogue.md (substring coincidence, not this model);
--  the unrelated `int_matchday__player_form_window` ref in player_stats_ui_data_modeling_concept.md
--  (a different, pre-existing stale ref — out of scope); the historical audit doc.
-+  Make the v2 export pure selection for these four surfaces by sourcing the facts from dbt:
-+  (1) GAP-19.1 leaderboard ranks — add goals_rank / assists_rank / shots_on_target_rank to
-+      mart_player_profile (DENSE_RANK over (league_code, season_api_year), zero performers
-+      unranked — the mart_top_scorers.scorer_rank pattern the CPO cited).
-+  (2) GAP-19.2 top-player rank — add top_player_rank to mart_momentum__player (ROW_NUMBER per
-+      (upcoming_fixture_sk, team_sk) ordered goals → assists → key passes → player_sk; the
-+      goals→assists→key-passes order is named in the GAP).
-+  (3) GAP-19.3 nav taxonomy — add a display_group column to the competition_types seed (a
-+      faithful migration of the export's _GROUP_OF_TYPE dict: same 9 mappings; the 3 friendly
-+      types map to empty = not in nav) + a seeds/schema.yml accepted_values test.
-+  (4) GAP-19.4 H2H canonical pair — add pair_key + is_canonical to mart_head_to_head.
-+  (5) GAP-15 — a new mart_team_fixtures (one row per (team, fixture), team perspective): next
-+      fixture + last-5 results, built on fct_fixture (both-side spine) + int_legs__team_match
-+      (finished perspective result, NOT re-derived) + dim_team (opponent identity), with
-+      upcoming_rank / recency_rank so the export selects rather than computes. NO slug column.
-+  Then shrink scripts/export_site_data.py: delete the Python ranking (shape_top_players,
-+  shape_leaderboards), the _GROUP_OF_TYPE nav dict in build_nav, and the H2H pair_keys
-+  computation; replace each with selection of the new dbt columns. Update the affected unit
-+  tests in tests/test_export_site_data.py. The slug code (slugify / fixture_slug / slug_map)
-+  and the form_window JSON key are NOT touched.
- 
--refs: CPO Option-2 ruling (conversation 2026-06-13); docs/metrics_context_model.md §1/§4/§5.
-+refs: GAP-15, GAP-19 (docs/wireframes/99_gaps_register.md, approved 2026-06-11); audit F4/F5/F6
-+  (F5 slug deferred); CPO Pilot rulings (escalations.log 2026-06-14).
+-  Make the v2 export pure selection for these four surfaces by sourcing the facts from dbt:
+-  (1) GAP-19.1 leaderboard ranks — add goals_rank / assists_rank / shots_on_target_rank to
+-      mart_player_profile (DENSE_RANK over (league_code, season_api_year), zero performers
+-      unranked — the mart_top_scorers.scorer_rank pattern the CPO cited).
+-  (2) GAP-19.2 top-player rank — add top_player_rank to mart_momentum__player (ROW_NUMBER per
+-      (upcoming_fixture_sk, team_sk) ordered goals → assists → key passes → player_sk; the
+-      goals→assists→key-passes order is named in the GAP).
+-  (3) GAP-19.3 nav taxonomy — add a display_group column to the competition_types seed (a
+-      faithful migration of the export's _GROUP_OF_TYPE dict: same 9 mappings; the 3 friendly
+-      types map to empty = not in nav) + a seeds/schema.yml accepted_values test.
+-  (4) GAP-19.4 H2H canonical pair — add pair_key + is_canonical to mart_head_to_head.
+-  (5) GAP-15 — a new mart_team_fixtures (one row per (team, fixture), team perspective): next
+-      fixture + last-5 results, built on fct_fixture (both-side spine) + int_legs__team_match
+-      (finished perspective result, NOT re-derived) + dim_team (opponent identity), with
+-      upcoming_rank / recency_rank so the export selects rather than computes. NO slug column.
+-  Then shrink scripts/export_site_data.py: delete the Python ranking (shape_top_players,
+-  shape_leaderboards), the _GROUP_OF_TYPE nav dict in build_nav, and the H2H pair_keys
+-  computation; replace each with selection of the new dbt columns. Update the affected unit
+-  tests in tests/test_export_site_data.py. The slug code (slugify / fixture_slug / slug_map)
+-  and the form_window JSON key are NOT touched.
+-
+-refs: GAP-15, GAP-19 (docs/wireframes/99_gaps_register.md, approved 2026-06-11); audit F4/F5/F6
+-  (F5 slug deferred); CPO Pilot rulings (escalations.log 2026-06-14).
++  Add a new skill `.claude/skills/onboard-endpoint/SKILL.md` that walks an agent through
++  evaluating and ingesting an API-Football endpoint we don't currently take:
++  (0) check whether we already ingest it (codebase + raw tables);
++  (1) make a few THROWAWAY verification calls (auth from .env, mask the key, pick the cheap
++      axis e.g. by-team vs by-player, summarize response shape + data quality on real examples);
++  (2) estimate cost (cheapest axis, backfill size, ongoing amortized, against the /status daily
++      quota);
++  (3) the CPO COST-APPROVAL gate — never enable a recurring pull without explicit CPO approval
++      (cost-non-negotiable); (4) CPO history-depth decision; (5) build (RAW_APIF_{entity} raw
++      table, generic staging, base, a loads/ module, coverage/completeness wiring), each piece
++      through the normal contract → review → PR governance. Mirror onboard-competition's format
++      and its Step-0a cost-gate discipline.
++
++refs: CPO direction (this conversation, 2026-06-14); the player-data ingestion plan
++  (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md, §1–§5); existing skills
++  onboard-competition + verify-competition-ingest.
  
  scope_paths:
--  # renamed model files (old + new paths both appear during git mv)
--  - dbt_project/models/4_intermediate/shared/int_form_window.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_form_window__team.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
--  - dbt_project/models/4_intermediate/shared/int_season_to_date.yml
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
--  - dbt_project/models/4_intermediate/shared/int_season_to_date__team.sql
--  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
--  - dbt_project/models/4_intermediate/shared/int_season_to_date__player.sql
--  - dbt_project/models/4_intermediate/shared/int_season_record__player.sql
--  - dbt_project/models/5_marts/shared/mart_form_window__team.sql
--  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
--  - dbt_project/models/5_marts/shared/mart_season_to_date__team.sql
--  - dbt_project/models/5_marts/shared/mart_season_record__team.sql
--  - dbt_project/models/5_marts/shared/mart_season_to_date__player.sql
--  - dbt_project/models/5_marts/shared/mart_season_record__player.sql
--  - dbt_project/tests/assert_form_window_matches_momentum.sql
--  - dbt_project/tests/assert_momentum_window_matches_momentum.sql
--  # referencing code (refs/comments updated, not renamed)
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
--  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-+  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-+  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
-+  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
-   - dbt_project/models/5_marts/shared/mart_player_profile.sql
-   - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/seeds/competition_types.csv
-+  - dbt_project/seeds/schema.yml
-   - scripts/export_site_data.py
--  # docs that NAME the models (doc-sync)
--  - dbt_project/docs/layering.md
--  - docs/metrics_context_model.md
--  - docs/site_architecture.md
--  - docs/competition_registry.yml
--  - docs/competitions/wc26.md
--  - docs/wireframes/01_fixture_page.md
--  - docs/wireframes/99_gaps_register.md
--  - docs/wireframes/metrics_display.md
-+  - tests/test_export_site_data.py
+-  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+-  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
+-  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/seeds/competition_types.csv
+-  - dbt_project/seeds/schema.yml
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
++  - .claude/skills/onboard-endpoint/SKILL.md
    - .claude/task/contract.md
  
  decisions_taken: >
--  Pure rename approved by the CPO (Option 2). No SQL logic, grain, or metric changes — the
--  compiled output of each model is identical apart from its table name. `window_type` VALUES
--  and the published JSON key `form_window` are deliberately preserved (model-root vs
--  cut-label vs UI-contract are separate axes). Verified by `dbt parse` (all refs resolve) +
--  sqlfluff; no parallel-run needed because the logic is byte-identical. Old BQ tables become
--  orphaned after the next build — dropping them is a separate CPO-approved cleanup (destructive).
-+  Approved by the CPO this session ("PR1 approved", 2026-06-14). The four migrations and the
-+  GAP-15 mart implement CPO-approved GAP dispositions (gaps_register 2026-06-11) — no new
-+  product/metric/naming decisions. Ranking method follows the cited codified pattern:
-+  leaderboard ranks use DENSE_RANK + >0 exclusion (= mart_top_scorers.scorer_rank); per-side
-+  SELECTION ranks (top_player_rank, upcoming_rank, recency_rank) use ROW_NUMBER (strict pick
-+  order). display_group is a 1:1 migration of the shipped _GROUP_OF_TYPE values (no new nav
-+  identifiers). mart_team_fixtures reuses the tested int_legs__team_match for finished results
-+  (no result re-derivation); it materialises as a view (thin denormalisation over tested core,
-+  no heavy aggregate) — consistent with the parked stash's choice.
+-  Approved by the CPO this session ("PR1 approved", 2026-06-14). The four migrations and the
+-  GAP-15 mart implement CPO-approved GAP dispositions (gaps_register 2026-06-11) — no new
+-  product/metric/naming decisions. Ranking method follows the cited codified pattern:
+-  leaderboard ranks use DENSE_RANK + >0 exclusion (= mart_top_scorers.scorer_rank); per-side
+-  SELECTION ranks (top_player_rank, upcoming_rank, recency_rank) use ROW_NUMBER (strict pick
+-  order). display_group is a 1:1 migration of the shipped _GROUP_OF_TYPE values (no new nav
+-  identifiers). mart_team_fixtures reuses the tested int_legs__team_match for finished results
+-  (no result re-derivation); it materialises as a view (thin denormalisation over tested core,
+-  no heavy aggregate) — consistent with the parked stash's choice.
++  CPO directed creating this skill (conversation 2026-06-14, "go ahead"). The name follows the
++  existing `onboard-*` convention (a codified naming pattern, not a new product-naming decision).
++  Scope: a guide/checklist ONLY — it documents steps + project specifics (auth, key masking,
++  cost sizing, the cheap-axis idea). It must NOT auto-fire API calls or auto-enable ingestion;
++  the cost-approval and history-depth decisions stay with the CPO (mirrors onboard-competition
++  Step 0a). No code, no model, no protected-guard change — a single new markdown file.
  
  decisions_reserved:
--  - Do NOT change `window_type` values, the `form_window` JSON output key/variable, the
--    UI "form window" caption term, or any model SQL logic. Do NOT rename
--    `int_matchday__player_form_window` (different, pre-existing stale ref) or
--    `form_window_kind` (future spec). If a reviewer finds a missed consumer or a stale
--    model-name ref outside this scope, STOP and surface it.
--  - Renaming the published JSON key or UI terms is a separate UI-contract decision, NOT here.
-+  - SLUGS (GAP-19.5, E2 where produced / E3 spelling) are NOT in this PR — they are PR2, pending
-+    the two blinded CPO rulings. Do NOT add any slug column, and do NOT reintroduce the stash's
-+    url_slugs UDF macros or the dbt_project.yml on-run-start hook (anti-pattern A3). If a slug
-+    surfaces in this diff, it is a defect.
-+  - GAP-16 team affiliation is NOT in this PR — deferred to the player-data ingestion initiative.
-+    mart_player_profile gets ONLY the leaderboard rank columns; no latest_team / team history.
-+  - Leaderboard SET is fixed to the shipped _LEADERBOARD_METRICS (goals, assists,
-+    shots_on_target). Adding/removing a board, or any per-90/new metric, is a CPO catalogue
-+    decision — out of scope.
-+  - If a reviewer finds a consumer of the removed export functions that this PR misses, or any
-+    behaviour change in the published JSON beyond "same values, now sourced from dbt", STOP and
-+    surface it — the export migration must be value-preserving (the form_window key, slug_map,
-+    and all non-migrated payloads unchanged).
+-  - SLUGS (GAP-19.5, E2 where produced / E3 spelling) are NOT in this PR — they are PR2, pending
+-    the two blinded CPO rulings. Do NOT add any slug column, and do NOT reintroduce the stash's
+-    url_slugs UDF macros or the dbt_project.yml on-run-start hook (anti-pattern A3). If a slug
+-    surfaces in this diff, it is a defect.
+-  - GAP-16 team affiliation is NOT in this PR — deferred to the player-data ingestion initiative.
+-    mart_player_profile gets ONLY the leaderboard rank columns; no latest_team / team history.
+-  - Leaderboard SET is fixed to the shipped _LEADERBOARD_METRICS (goals, assists,
+-    shots_on_target). Adding/removing a board, or any per-90/new metric, is a CPO catalogue
+-    decision — out of scope.
+-  - If a reviewer finds a consumer of the removed export functions that this PR misses, or any
+-    behaviour change in the published JSON beyond "same values, now sourced from dbt", STOP and
+-    surface it — the export migration must be value-preserving (the form_window key, slug_map,
+-    and all non-migrated payloads unchanged).
++  - The skill must route every §10 decision (cost approval, history depth, any NEW mechanism) to
++    the CPO — it may not present any of them as auto-grantable. If drafting surfaces a need to
++    touch a protected guard (.claude/hooks, .claude/agents, settings.json, review_routing.json,
++    .github/workflows) or to assert a product/metric rule, STOP and surface it.
++  - The skill name (`onboard-endpoint`) is user-facing; if a reviewer reads it as a §10 naming
++    decision rather than convention-following, flag it for the CPO rather than guessing an
++    alternative.
  
  done_when:
--  - all 8 models + the 1 test are renamed; every `ref()`/`name:`/comment pointing at an old
--    name is updated; the export reads `mart_momentum_window__team` + `mart_season_record__*`
--    while keeping the `form_window` output key; no stale `int_form_window`/`int_season_to_date`/
--    `mart_form_window`/`mart_season_to_date` model-name reference remains in code or the
--    in-scope docs (window_type values, the JSON key, form_window_kind, the unrelated
--    int_matchday__player_form_window, and the historical audit excepted).
--  - `dbt parse` succeeds (refs resolve); sqlfluff clean on changed SQL.
--  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/** +
--    export_*) + cto-reviewer (scripts/export_* + tests/**) + data-engineer-reviewer
--    (competition_registry.yml) + bi-analyst-reviewer (wireframes/**) — PASS.
-+  - mart_team_fixtures exists (grain (team_sk, fixture_sk); upcoming_rank/recency_rank; no slug)
-+    with relationships + grain + result accepted_values tests in shared.yml.
-+  - mart_head_to_head has pair_key + is_canonical; mart_momentum__player has top_player_rank;
-+    mart_player_profile has goals_rank/assists_rank/shots_on_target_rank — each with a
-+    shared.yml test.
-+  - competition_types.csv has display_group (9 mapped + 3 empty); seeds/schema.yml asserts its
-+    accepted_values; the values byte-match the retired _GROUP_OF_TYPE dict.
-+  - export_site_data.py computes none of the four in Python (functions removed/replaced by
-+    selection); tests/test_export_site_data.py updated; slug code + form_window key untouched.
-+  - `dbt parse` succeeds (all refs resolve); sqlfluff clean on changed SQL; validate-local gates
-+    (layer contract, registry sync, python) pass; python export unit tests pass.
-+  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/** + export_*)
-+    + cto-reviewer (scripts/export_* + tests/**) — PASS against the locked diff hash.
+-  - mart_team_fixtures exists (grain (team_sk, fixture_sk); upcoming_rank/recency_rank; no slug)
+-    with relationships + grain + result accepted_values tests in shared.yml.
+-  - mart_head_to_head has pair_key + is_canonical; mart_momentum__player has top_player_rank;
+-    mart_player_profile has goals_rank/assists_rank/shots_on_target_rank — each with a
+-    shared.yml test.
+-  - competition_types.csv has display_group (9 mapped + 3 empty); seeds/schema.yml asserts its
+-    accepted_values; the values byte-match the retired _GROUP_OF_TYPE dict.
+-  - export_site_data.py computes none of the four in Python (functions removed/replaced by
+-    selection); tests/test_export_site_data.py updated; slug code + form_window key untouched.
+-  - `dbt parse` succeeds (all refs resolve); sqlfluff clean on changed SQL; validate-local gates
+-    (layer contract, registry sync, python) pass; python export unit tests pass.
+-  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/** + export_*)
+-    + cto-reviewer (scripts/export_* + tests/**) — PASS against the locked diff hash.
++  - `.claude/skills/onboard-endpoint/SKILL.md` exists with valid frontmatter (name + description)
++    and a stepwise procedure: check-if-ingested -> throwaway verification calls -> cost estimate
++    -> CPO cost-approval gate -> history-depth -> build -> caveats/known-issues, mirroring
++    onboard-competition's structure and cost-gate discipline.
++  - The skill explicitly states it is a guide (no auto-ingest, no auto-cost-approval) and points
++    at onboard-competition / verify-competition-ingest for adjacent workflows.
++  - reviewers: scope-auditor (always) + cto-reviewer (tooling/process) PASS.
  
  amendments: (none)
-diff --git a/dbt_project/models/5_marts/shared/mart_head_to_head.sql b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-index 232eeb3..b7e2506 100644
---- a/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-+++ b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-@@ -115,7 +115,16 @@ select
-     lm.last_meeting_goals_for,
-     lm.last_meeting_goals_against,
-     lm.last_meeting_result,
--    a.recent_meetings
-+    a.recent_meetings,
-+    -- canonical pair identity for the /h2h/ URL (GAP-19.4): lower id first, so both
-+    -- directed rows share one key; is_canonical marks the lower-id direction (one row
-+    -- per unordered pair). opponent_team_sk is non-null (filtered in legs).
-+    concat(
-+        cast(least(a.team_sk, a.opponent_team_sk) as string),
-+        '-',
-+        cast(greatest(a.team_sk, a.opponent_team_sk) as string)
-+    ) as pair_key,
-+    a.team_sk < a.opponent_team_sk as is_canonical
- from agg as a
- left join last_meeting as lm
-     on
-diff --git a/dbt_project/models/5_marts/shared/mart_momentum__player.sql b/dbt_project/models/5_marts/shared/mart_momentum__player.sql
-index 440a9da..cb53462 100644
---- a/dbt_project/models/5_marts/shared/mart_momentum__player.sql
-+++ b/dbt_project/models/5_marts/shared/mart_momentum__player.sql
-@@ -64,7 +64,18 @@ select
-     safe_divide(b.goals_saves, b.goals_saves + b.goals_conceded) as save_pct,
-     safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct,
-     safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy_pct,
--    safe_divide(b.duels_won, b.duels_total) as duels_won_pct
-+    safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
-+    -- per-side ranking for the top-players strip (GAP-19.2): goals, then assists, then
-+    -- key passes (the order named in the GAP); ROW_NUMBER = strict pick order, player_sk
-+    -- breaks ties deterministically. Selection rank, so ROW_NUMBER not DENSE_RANK.
-+    row_number() over (
-+        partition by b.upcoming_fixture_sk, b.team_sk
-+        order by
-+            coalesce(b.goals_total, 0) desc,
-+            coalesce(b.goals_assists, 0) desc,
-+            coalesce(b.passes_key, 0) desc,
-+            b.player_sk asc
-+    ) as top_player_rank
- from builder as b
- inner join fixtures as f
-     on b.upcoming_fixture_sk = f.fixture_sk
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index 4863a76..81fba60 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -186,7 +186,22 @@ select
-     safe_divide(a.passes_accurate, a.passes_total) as pass_accuracy_pct,
-     safe_divide(a.duels_won, a.duels_total) as duels_won_pct,
-     safe_divide(a.dribbles_success, a.dribbles_attempts) as dribbles_success_pct,
--    safe_divide(a.goals_saves, a.goals_saves + a.goals_conceded) as save_pct
-+    safe_divide(a.goals_saves, a.goals_saves + a.goals_conceded) as save_pct,
-+    -- per-(league, season) leaderboard ranks (GAP-19.1): zero performers unranked
-+    -- (null), DENSE_RANK so ties share a rank — the mart_top_scorers.scorer_rank
-+    -- pattern. Selected by the export's player leaderboards (no Python ranking).
-+    case when a.goals > 0 then dense_rank() over (
-+        partition by a.league_code, a.season_api_year
-+        order by a.goals desc, a.assists desc, a.minutes asc
-+    ) end as goals_rank,
-+    case when a.assists > 0 then dense_rank() over (
-+        partition by a.league_code, a.season_api_year
-+        order by a.assists desc, a.goals desc, a.minutes asc
-+    ) end as assists_rank,
-+    case when a.shots_on_target > 0 then dense_rank() over (
-+        partition by a.league_code, a.season_api_year
-+        order by a.shots_on_target desc, a.goals desc, a.minutes asc
-+    ) end as shots_on_target_rank
- from agg as a
- left join players as p
-     on a.player_sk = p.player_sk
-diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-new file mode 100644
-index 0000000..3540568
---- /dev/null
-+++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-@@ -0,0 +1,146 @@
-+{{ config(materialized='view') }}
-+
-+{#
-+  Team fixtures (GAP-15). One row per (team, fixture), team perspective: the
-+  team-profile page's "next fixture + recent results" surface.
-+
-+  Spine: fct_fixture, unpivoted to two team-perspective rows per fixture (home +
-+  away). The opponent's identity (name, crest) comes from dim_team. Finished
-+  results (goals_for/against, W/D/L) are taken from the tested perspective leg
-+  int_legs__team_match — NOT re-derived here (consumption-layer contract). Rank
-+  columns make the consumption pure selection: upcoming_rank = 1 is the next
-+  fixture, recency_rank <= 5 the last five results — no window logic in any
-+  frontend.
-+
-+  Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD)
-+  and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
-+  ranks (no honest place in "next" or "recent results").
-+
-+  No slug column: the published fixture URL identity is a separate, CPO-ruled
-+  concern (GAP-19 item 5) and is added in its own PR. league_code is the
-+  partition key; the model is competition-agnostic.
-+
-+  Grain: (team_sk, fixture_sk).
-+#}
-+
-+with fixtures as (
-+    select
-+        fixture_sk,
-+        league_code,
-+        season_api_year,
-+        kickoff_datetime,
-+        round_name,
-+        status_short,
-+        home_team_sk,
-+        away_team_sk
-+    from {{ ref('fct_fixture') }}
-+),
-+
-+teams as (
-+    select
-+        team_sk,
-+        team_name,
-+        team_logo_url
-+    from {{ ref('dim_team') }}
-+),
-+
-+legs as (
-+    select
-+        team_sk,
-+        fixture_sk,
-+        goals_for,
-+        goals_against,
-+        result
-+    from {{ ref('int_legs__team_match') }}
-+),
-+
-+-- each fixture as two team-perspective rows (home side, away side)
-+sides as (
-+    select
-+        fixture_sk,
-+        league_code,
-+        season_api_year,
-+        kickoff_datetime,
-+        round_name,
-+        status_short,
-+        home_team_sk as team_sk,
-+        away_team_sk as opponent_team_sk,
-+        true as is_home
-+    from fixtures
-+    union all
-+    select
-+        fixture_sk,
-+        league_code,
-+        season_api_year,
-+        kickoff_datetime,
-+        round_name,
-+        status_short,
-+        away_team_sk as team_sk,
-+        home_team_sk as opponent_team_sk,
-+        false as is_home
-+    from fixtures
-+),
-+
-+joined as (
-+    select
-+        s.team_sk,
-+        s.fixture_sk,
-+        s.league_code,
-+        s.season_api_year,
-+        s.kickoff_datetime,
-+        s.round_name,
-+        s.status_short,
-+        s.is_home,
-+        s.opponent_team_sk,
-+        t.team_name as opponent_name,
-+        t.team_logo_url as opponent_logo_url,
-+        l.goals_for,
-+        l.goals_against,
-+        l.result,
-+        -- has_result = a tested result leg exists (int_legs requires FT/AET/PEN with
-+        -- non-null scores). This — not raw status — is the honest "show in recent
-+        -- results" population; a finished fixture with null scores has no leg.
-+        l.fixture_sk is not null as has_result,
-+        s.status_short in ('NS', 'TBD') as is_upcoming
-+    from sides as s
-+    left join teams as t
-+        on s.opponent_team_sk = t.team_sk
-+    left join legs as l
-+        on
-+            s.fixture_sk = l.fixture_sk
-+            and s.team_sk = l.team_sk
-+    where s.team_sk is not null
-+)
-+
-+select
-+    team_sk,
-+    fixture_sk,
-+    league_code,
-+    season_api_year,
-+    kickoff_datetime,
-+    round_name,
-+    status_short,
-+    is_home,
-+    opponent_team_sk,
-+    opponent_name,
-+    opponent_logo_url,
-+    goals_for,
-+    goals_against,
-+    result,
-+    has_result,
-+    is_upcoming,
-+    -- selection ranks: the eligibility flag is IN partition by, so each rank is dense
-+    -- within its own population (1..n) and no rank is consumed by an ineligible row
-+    case
-+        when is_upcoming then row_number() over (
-+            partition by team_sk, league_code, season_api_year, is_upcoming
-+            order by kickoff_datetime asc, fixture_sk asc
-+        )
-+    end as upcoming_rank,
-+    case
-+        when has_result then row_number() over (
-+            partition by team_sk, league_code, season_api_year, has_result
-+            order by kickoff_datetime desc, fixture_sk desc
-+        )
-+    end as recency_rank
-+from joined
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 4e98037..3d04dfb 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -87,6 +87,13 @@ models:
-     tests:
-       - dbt_utils.unique_combination_of_columns:
-           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
-+      # top_player_rank (GAP-19.2): strict per-side pick order, starts at 1 and is
-+      # unique within each (upcoming_fixture_sk, team_sk) side (guards upstream fan-out)
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [upcoming_fixture_sk, team_sk, top_player_rank]
-+      - dbt_utils.expression_is_true:
-+          expression: "top_player_rank >= 1"
-+          name: momentum_player_rank_positive
-     columns:
-       - name: upcoming_fixture_sk
-         tests: [not_null]
-@@ -660,6 +667,16 @@ models:
-       - dbt_utils.expression_is_true:
-           expression: "saves <= shots_on_target_faced"
-           name: player_profile_saves_lte_faced
-+      # leaderboard ranks (GAP-19.1): positive when present; zero performers unranked (null)
-+      - dbt_utils.expression_is_true:
-+          expression: "goals_rank is null or goals_rank >= 1"
-+          name: player_profile_goals_rank_positive
-+      - dbt_utils.expression_is_true:
-+          expression: "assists_rank is null or assists_rank >= 1"
-+          name: player_profile_assists_rank_positive
-+      - dbt_utils.expression_is_true:
-+          expression: "shots_on_target_rank is null or shots_on_target_rank >= 1"
-+          name: player_profile_shots_on_target_rank_positive
-     columns:
-       - name: player_season_sk
-         tests: [unique, not_null]
-@@ -776,6 +793,14 @@ models:
-       - dbt_utils.expression_is_true:
-           expression: "meetings_last5 = least(total_meetings, 5)"
-           name: head_to_head_last5_capped_at_5
-+      # pair_key (GAP-19.4): the canonical pair identity is always present, and
-+      # is_canonical marks exactly the lower-id direction (derivation consistency)
-+      - dbt_utils.expression_is_true:
-+          expression: "pair_key is not null"
-+          name: head_to_head_pair_key_not_null
-+      - dbt_utils.expression_is_true:
-+          expression: "is_canonical = (team_sk < opponent_team_sk)"
-+          name: head_to_head_is_canonical_consistent
-     columns:
-       - name: team_sk
-         tests:
-@@ -888,3 +913,51 @@ models:
-       - name: source_code
-         description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
- 
-+  - name: mart_team_fixtures
-+    description: >
-+      Team fixtures (GAP-15). One row per (team, fixture), team perspective — the
-+      team-profile "next fixture + recent results" surface. Spine = fct_fixture
-+      unpivoted to two team rows per fixture; opponent identity from dim_team;
-+      finished result (goals_for/against, W/D/L) reused from int_legs__team_match
-+      (not re-derived). Rank columns make consumption pure selection: upcoming_rank
-+      = 1 is the next fixture, recency_rank <= 5 the last five results. Live /
-+      postponed / cancelled rows carry null ranks. No slug (GAP-19 item 5, separate
-+      PR). Grain: (team_sk, fixture_sk).
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [team_sk, fixture_sk]
-+      # a result-leg row always carries its perspective result, and the ranked
-+      # recency population is exactly the result-leg rows
-+      - dbt_utils.expression_is_true:
-+          expression: "not has_result or result is not null"
-+          name: team_fixtures_result_present
-+      - dbt_utils.expression_is_true:
-+          expression: "recency_rank is null or result is not null"
-+          name: team_fixtures_recency_has_result
-+      - dbt_utils.expression_is_true:
-+          expression: "(upcoming_rank is null or upcoming_rank >= 1) and (recency_rank is null or recency_rank >= 1)"
-+          name: team_fixtures_ranks_positive
-+    columns:
-+      - name: team_sk
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: fixture_sk
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: league_code
-+        description: "Partition key — the app slices by this."
-+        tests: [not_null]
-+      - name: opponent_team_sk
-+        description: "The other side's team_sk; the row carries the team's perspective of the fixture."
-+      - name: result
-+        description: "W/D/L from int_legs__team_match for finished rows; null otherwise."
-+        tests:
-+          - accepted_values:
-+              values: ["W", "D", "L"]
-+
-diff --git a/dbt_project/seeds/competition_types.csv b/dbt_project/seeds/competition_types.csv
-index eb8c179..6de678a 100644
---- a/dbt_project/seeds/competition_types.csv
-+++ b/dbt_project/seeds/competition_types.csv
-@@ -1,13 +1,13 @@
--competition_type,entity_type
--domestic_league,club
--domestic_cup,club
--domestic_super_cup,club
--club_qualifying,club
--continental_club,club
--continental_super_cup,club
--club_friendly_domestic,club
--club_friendly_international,club
--qualifying,national
--continental_championship,national
--world_championship,national
--national_team_friendly,national
-+competition_type,entity_type,display_group
-+domestic_league,club,leagues
-+domestic_cup,club,cups
-+domestic_super_cup,club,cups
-+club_qualifying,club,continental-club
-+continental_club,club,continental-club
-+continental_super_cup,club,continental-club
-+club_friendly_domestic,club,
-+club_friendly_international,club,
-+qualifying,national,national-teams
-+continental_championship,national,national-teams
-+world_championship,national,national-teams
-+national_team_friendly,national,
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index b603aef..467d063 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -23,6 +23,14 @@ seeds:
-           - not_null
-           - accepted_values:
-               values: ["club", "national"]
-+      - name: display_group
-+        description: >
-+          Hybrid-IA nav group for this competition type (GAP-19 — the taxonomy that
-+          previously lived as the _GROUP_OF_TYPE dict in scripts/export_site_data.py).
-+          Empty (null) for types that never appear in the nav (friendlies).
-+        tests:
-+          - accepted_values:
-+              values: ["leagues", "cups", "continental-club", "national-teams"]
- 
-   - name: competition_registry
-     description: >
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 5d594e9..2693fc5 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -39,6 +39,7 @@ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                 "leaderboards", "matchstats", "glossary")
- REGISTRY_PATH = "docs/competition_registry.yml"
- CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
-+COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
- 
- # Player leaderboards: unambiguous catalogue count metrics, each ranked desc.
- # (More boards are a one-line addition; per-metric ranking choices beyond these
-@@ -52,23 +53,15 @@ _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "position_code",
- _W1_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
- _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
- _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
--_H2H_DROP = {"team_sk", "opponent_team_sk"}
-+_H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
- _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
- _TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
--                   "season_api_year", "window_type", "league_code"}
--
--# competition_type -> nav group (the hybrid IA's group axis; site_architecture.md section 4).
--_GROUP_OF_TYPE = {
--    "domestic_league": "leagues",
--    "domestic_cup": "cups",
--    "domestic_super_cup": "cups",
--    "continental_club": "continental-club",
--    "continental_super_cup": "continental-club",
--    "club_qualifying": "continental-club",
--    "world_championship": "national-teams",
--    "continental_championship": "national-teams",
--    "qualifying": "national-teams",
--}
-+                   "season_api_year", "window_type", "league_code", "top_player_rank"}
-+
-+# The competition_type -> nav group MAPPING now lives in the competition_types seed
-+# (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
-+# dict here. _GROUP_ORDER is the display ORDER of the groups (site_architecture.md
-+# section 4): a presentation constant, not a per-competition-type mapping.
- _GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
- # Only these types get a country hub (real nations); international comps live in groups only.
- _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
-@@ -189,17 +182,16 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
- 
- 
- def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
--    """Top N players for a fixture side, ranked by goals then assists then key passes
--    (transparent sort, not a composite score). Names/photos joined from dim_player."""
-+    """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
-+    (goals -> assists -> key passes, computed in mart_momentum__player; the export
-+    does not rank). Names/photos joined from dim_player. Relies on the mart column
-+    being present (ship-the-mart-first); a Python ranking fallback is intentionally
-+    NOT provided — re-deriving the rank here would violate the consumption-layer
-+    contract (anti-pattern A5)."""
-     ranked = sorted(
--        rows,
--        key=lambda r: (
--            r.get("goals_total") or 0,
--            r.get("goals_assists") or 0,
--            r.get("passes_key") or 0,
--        ),
--        reverse=True,
--    )[:limit]
-+        [r for r in rows if r.get("top_player_rank") is not None and r["top_player_rank"] <= limit],
-+        key=lambda r: r["top_player_rank"],
-+    )
-     out = []
-     for r in ranked:
-         p = _drop(r, _TOPPLAYER_DROP)
-@@ -218,7 +210,7 @@ def build_nav(competitions: list[dict]) -> dict:
-     countries: dict[str, list] = {}
-     for c in competitions:
-         ctype = c.get("competition_type")
--        group = _GROUP_OF_TYPE.get(ctype)
-+        group = c.get("display_group")
-         if group:
-             groups[group].append(c)
-         if ctype in _DOMESTIC_TYPES and c.get("country"):
-@@ -410,17 +402,21 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
-         for r in _query(client, f"select * from `{marts}.mart_fixture_standing_context` "
-                                 f"where fixture_sk in ({fid_in})")
-     }
--    pair_keys = {
--        f"{int(f['home_team_sk'])}-{int(f['away_team_sk'])}"
-+    # Pure selection of exactly the directed (home, away) H2H rows — one per fixture —
-+    # filtered by the natural (team_sk, opponent_team_sk) key the fixtures already carry.
-+    # No pair identity is derived here (the canonical pair_key lives in mart_head_to_head,
-+    # GAP-19.4) and the directed filter does not over-fetch (no team-id cross product).
-+    pairs = [
-+        (int(f["home_team_sk"]), int(f["away_team_sk"]))
-         for f in fixtures
-         if f.get("home_team_sk") is not None and f.get("away_team_sk") is not None
--    }
-+    ]
-     h2h: dict = {}
--    if pair_keys:
--        pk_in = ", ".join(f"'{k}'" for k in pair_keys)
--        for r in _query(client, f"select * from `{marts}.mart_head_to_head` where concat("
--                                f"cast(team_sk as string), '-', cast(opponent_team_sk as string)"
--                                f") in ({pk_in})"):
-+    if pairs:
-+        conds = " or ".join(
-+            f"(team_sk = {h} and opponent_team_sk = {a})" for h, a in pairs
-+        )
-+        for r in _query(client, f"select * from `{marts}.mart_head_to_head` where {conds}"):
-             h2h[(int(r["team_sk"]), int(r["opponent_team_sk"]))] = r
- 
-     # Drill-down: the last-5 form-window list and top players per side.
-@@ -464,14 +460,29 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
-     return payloads
- 
- 
-+def _display_group_of_type(seed_path: str = COMPETITION_TYPES_SEED_PATH) -> dict:
-+    """competition_type -> nav display_group, from the competition_types seed
-+    (GAP-19.3). Empty cell -> None (the type does not appear in the nav). Reading
-+    the seed is the sanctioned taxonomy lookup; the mapping is not hardcoded here."""
-+    import csv
-+
-+    with open(seed_path, encoding="utf-8", newline="") as fh:
-+        return {
-+            row["competition_type"]: (row.get("display_group") or None)
-+            for row in csv.DictReader(fh)
-+        }
-+
-+
- def _registry_competitions(registry_path: str = REGISTRY_PATH) -> list[dict]:
-     import yaml
- 
-     data = yaml.safe_load(open(registry_path, encoding="utf-8"))
-     fields = ("league_code", "name", "slug", "country", "confederation",
-               "tier", "sort_order", "competition_type")
-+    group_of_type = _display_group_of_type()
-     return [
--        {k: o.get(k) for k in fields}
-+        {**{k: o.get(k) for k in fields},
-+         "display_group": group_of_type.get(o.get("competition_type"))}
-         for o in (data.get("competitions") or [])
-         if isinstance(o, dict) and "competition_type" in o
-     ]
-@@ -560,15 +571,17 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
- 
- def shape_leaderboards(profile_rows: list[dict], metrics=_LEADERBOARD_METRICS,
-                        limit: int = 25) -> dict:
--    """Per-metric player leaderboards: top `limit` by each metric (desc), zeros
--    excluded. Pure — players' identity + counts come straight from the profile rows."""
-+    """Per-metric player leaderboards: SELECTED by the warehouse <metric>_rank columns
-+    (mart_player_profile; DENSE_RANK, zero performers unranked = null). The export
-+    selects and orders by the rank — it does not rank. Ties share a rank, so a board
-+    may exceed `limit` when ranks tie at the cut (the mart_top_scorers convention)."""
-     boards: dict = {}
-     for m in metrics:
-+        rank_col = f"{m}_rank"
-         ranked = sorted(
--            [r for r in profile_rows if (r.get(m) or 0) > 0],
--            key=lambda r: (r.get(m) or 0),
--            reverse=True,
--        )[:limit]
-+            [r for r in profile_rows if r.get(rank_col) is not None and r[rank_col] <= limit],
-+            key=lambda r, rc=rank_col: r[rc],
-+        )
-         boards[m] = [{k: r.get(k) for k in _LB_KEEP} for r in ranked]
-     return boards
- 
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index e160474..d4746f2 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -5,6 +5,7 @@ fabricated rows so python-ci validates the logic offline.
- """
- 
- from scripts.export_site_data import (
-+    _display_group_of_type,
-     _fixture_side,
-     build_manifest,
-     build_nav,
-@@ -21,15 +22,25 @@ from scripts.export_site_data import (
- )
- 
- 
--def test_shape_leaderboards_ranks_excludes_zeros():
-+def test_shape_leaderboards_selects_by_warehouse_rank():
-+    # selection only: ordered by the <metric>_rank columns; null rank (zero performers,
-+    # unranked in dbt) is excluded. No Python ranking.
-     rows = [
--        {"player_sk": 1, "player_name": "A", "goals": 0, "assists": 5},
--        {"player_sk": 2, "player_name": "B", "goals": 9, "assists": 1},
--        {"player_sk": 3, "player_name": "C", "goals": 4, "assists": 0},
-+        {"player_sk": 1, "player_name": "A", "goals": 0, "goals_rank": None, "assists": 5, "assists_rank": 1},
-+        {"player_sk": 2, "player_name": "B", "goals": 9, "goals_rank": 1, "assists": 1, "assists_rank": 2},
-+        {"player_sk": 3, "player_name": "C", "goals": 4, "goals_rank": 2, "assists": 0, "assists_rank": None},
-     ]
-     boards = shape_leaderboards(rows, metrics=("goals", "assists"), limit=10)
--    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]  # zeros excluded, desc
--    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]
-+    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]    # by goals_rank; null excluded
-+    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]  # by assists_rank; null excluded
-+    assert len(boards["goals"]) == 2 and len(boards["assists"]) == 2    # null-rank rows dropped
-+
-+
-+def test_display_group_of_type_reads_seed():
-+    m = _display_group_of_type()                       # reads the real seed (offline, no BQ)
-+    assert m["domestic_league"] == "leagues"
-+    assert m["world_championship"] == "national-teams"
-+    assert m["club_friendly_domestic"] is None         # empty cell -> None (not in nav)
- 
- 
- def test_shape_matchstats_drops_fixture_sk():
-@@ -52,15 +63,21 @@ def test_fetch_glossary_reads_catalogue_seed():
- 
- 
- def test_build_nav_groups_and_country_hubs():
-+    # build_nav reads display_group off each competition (resolved from the
-+    # competition_types seed upstream), not a hardcoded type->group dict.
-     comps = [
-         {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga",
--         "country": "Germany", "competition_type": "domestic_league", "tier": 1, "sort_order": 30},
-+         "country": "Germany", "competition_type": "domestic_league",
-+         "display_group": "leagues", "tier": 1, "sort_order": 30},
-         {"league_code": "BL2", "name": "2. Bundesliga", "slug": "2-bundesliga",
--         "country": "Germany", "competition_type": "domestic_league", "tier": 2, "sort_order": 60},
-+         "country": "Germany", "competition_type": "domestic_league",
-+         "display_group": "leagues", "tier": 2, "sort_order": 60},
-         {"league_code": "DFBP", "name": "DFB-Pokal", "slug": "dfb-pokal",
--         "country": "Germany", "competition_type": "domestic_cup", "sort_order": 30},
-+         "country": "Germany", "competition_type": "domestic_cup",
-+         "display_group": "cups", "sort_order": 30},
-         {"league_code": "UCL", "name": "Champions League", "slug": "champions-league",
--         "country": "Europe", "competition_type": "continental_club", "sort_order": 10},
-+         "country": "Europe", "competition_type": "continental_club",
-+         "display_group": "continental-club", "sort_order": 10},
-     ]
-     nav = build_nav(comps)
-     groups = {g["key"]: [c["league_code"] for c in g["competitions"]] for g in nav["groups"]}
-@@ -73,16 +90,21 @@ def test_build_nav_groups_and_country_hubs():
-     assert all(c["country"] != "Europe" for c in nav["countries"])
- 
- 
--def test_shape_top_players_ranks_and_joins_names():
-+def test_shape_top_players_selects_by_rank_and_joins_names():
-+    # selection only: ordered by the warehouse top_player_rank, join keys + the rank
-+    # itself dropped from the payload.
-     rows = [
--        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "goals_total": 0, "goals_assists": 2},
--        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "goals_total": 3, "goals_assists": 0},
-+        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 2},
-+        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 1},
-+        {"player_sk": 3, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": None},
-     ]
-     names = {1: {"player_name": "A", "player_photo_url": "a"},
--             2: {"player_name": "B", "player_photo_url": "b"}}
-+             2: {"player_name": "B", "player_photo_url": "b"},
-+             3: {"player_name": "C", "player_photo_url": "c"}}
-     top = shape_top_players(rows, names, limit=5)
--    assert [p["player_name"] for p in top] == ["B", "A"]   # goals desc
-+    assert [p["player_name"] for p in top] == ["B", "A"]   # by rank asc; null-rank C excluded
-     assert "upcoming_fixture_sk" not in top[0]              # join keys dropped
-+    assert "top_player_rank" not in top[0]                 # selection key dropped
- 
- 
- def test_shape_competition_payload_sorts_sections():
