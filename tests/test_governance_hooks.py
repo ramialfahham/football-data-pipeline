@@ -549,6 +549,14 @@ def test_agents_dir_is_protected(repo):
     assert denied(out) and "PROTECTED" in out
 
 
+def test_commands_dir_is_protected(repo):
+    """Per the CPO ruling 2026-06-14: custom slash commands can embed shell, so a
+    command file is protected like a hook/agent definition."""
+    write_contract(repo)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/commands/status.md"), repo)
+    assert denied(out) and "PROTECTED" in out
+
+
 def test_untracked_dir_files_in_scope_not_flagged(repo):
     """-uall: files inside an untracked directory are matched individually."""
     write_contract(repo, CONTRACT.replace(

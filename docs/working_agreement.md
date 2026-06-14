@@ -34,12 +34,14 @@ committed with the branch so it is PR-visible:
 Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - No contract → repo edits denied. Out-of-scope path → denied.
 - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
-  `.claude/settings.json`, `.claude/review_routing.json`,
+  `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
   `.github/workflows/`) are never editable except in a dedicated CPO-approved
   governance task whose contract carries `protected_override`. The reviewer
   definitions and routing are protected so the builder can never weaken its
   own adversary inside an ordinary task (CPO ruling, G3 escalation
-  2026-06-12).
+  2026-06-12); `.claude/commands/` is protected because custom slash commands
+  can embed shell, so a command file is the same high-stakes class as a hook
+  (CPO ruling 2026-06-14).
 - **File changes go through the Edit/Write tools only** — shell redirection,
   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
   check and the turn-end stop gate force reversion of anything that slips
@@ -60,8 +62,9 @@ serialized four steps; the commit gate enforces them mechanically:
    Reviewer models are pinned in each agent definition for economy:
    `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
    pinned model is a floor — when the staged diff touches a guard path
-   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
-   `.claude/review_routing.json`, `.github/workflows/**`), the orchestrator
+   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+   `.claude/settings.json`, `.claude/review_routing.json`,
+   `.github/workflows/**`), the orchestrator
    spawns `cto-reviewer` with its model overridden to **opus**, because guard
    bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
    caught only at that depth). This is a procedural rule the orchestrator
