@@ -39,6 +39,7 @@ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "matchstats", "glossary")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 
 # Player leaderboards: unambiguous catalogue count metrics, each ranked desc.
 # (More boards are a one-line addition; per-metric ranking choices beyond these
@@ -52,23 +53,15 @@ _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "position_code",
 _W1_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
-_H2H_DROP = {"team_sk", "opponent_team_sk"}
+_H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
 _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
 _TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
-                   "season_api_year", "window_type", "league_code"}
+                   "season_api_year", "window_type", "league_code", "top_player_rank"}
 
-# competition_type -> nav group (the hybrid IA's group axis; site_architecture.md section 4).
-_GROUP_OF_TYPE = {
-    "domestic_league": "leagues",
-    "domestic_cup": "cups",
-    "domestic_super_cup": "cups",
-    "continental_club": "continental-club",
-    "continental_super_cup": "continental-club",
-    "club_qualifying": "continental-club",
-    "world_championship": "national-teams",
-    "continental_championship": "national-teams",
-    "qualifying": "national-teams",
-}
+# The competition_type -> nav group MAPPING now lives in the competition_types seed
+# (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
+# dict here. _GROUP_ORDER is the display ORDER of the groups (site_architecture.md
+# section 4): a presentation constant, not a per-competition-type mapping.
 _GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
 # Only these types get a country hub (real nations); international comps live in groups only.
 _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
@@ -189,17 +182,16 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
 
 
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
-    """Top N players for a fixture side, ranked by goals then assists then key passes
-    (transparent sort, not a composite score). Names/photos joined from dim_player."""
+    """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
+    (goals -> assists -> key passes, computed in mart_momentum__player; the export
+    does not rank). Names/photos joined from dim_player. Relies on the mart column
+    being present (ship-the-mart-first); a Python ranking fallback is intentionally
+    NOT provided — re-deriving the rank here would violate the consumption-layer
+    contract (anti-pattern A5)."""
     ranked = sorted(
-        rows,
-        key=lambda r: (
-            r.get("goals_total") or 0,
-            r.get("goals_assists") or 0,
-            r.get("passes_key") or 0,
-        ),
-        reverse=True,
-    )[:limit]
+        [r for r in rows if r.get("top_player_rank") is not None and r["top_player_rank"] <= limit],
+        key=lambda r: r["top_player_rank"],
+    )
     out = []
     for r in ranked:
         p = _drop(r, _TOPPLAYER_DROP)
@@ -218,7 +210,7 @@ def build_nav(competitions: list[dict]) -> dict:
     countries: dict[str, list] = {}
     for c in competitions:
         ctype = c.get("competition_type")
-        group = _GROUP_OF_TYPE.get(ctype)
+        group = c.get("display_group")
         if group:
             groups[group].append(c)
         if ctype in _DOMESTIC_TYPES and c.get("country"):
@@ -410,17 +402,21 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
         for r in _query(client, f"select * from `{marts}.mart_fixture_standing_context` "
                                 f"where fixture_sk in ({fid_in})")
     }
-    pair_keys = {
-        f"{int(f['home_team_sk'])}-{int(f['away_team_sk'])}"
+    # Pure selection of exactly the directed (home, away) H2H rows — one per fixture —
+    # filtered by the natural (team_sk, opponent_team_sk) key the fixtures already carry.
+    # No pair identity is derived here (the canonical pair_key lives in mart_head_to_head,
+    # GAP-19.4) and the directed filter does not over-fetch (no team-id cross product).
+    pairs = [
+        (int(f["home_team_sk"]), int(f["away_team_sk"]))
         for f in fixtures
         if f.get("home_team_sk") is not None and f.get("away_team_sk") is not None
-    }
+    ]
     h2h: dict = {}
-    if pair_keys:
-        pk_in = ", ".join(f"'{k}'" for k in pair_keys)
-        for r in _query(client, f"select * from `{marts}.mart_head_to_head` where concat("
-                                f"cast(team_sk as string), '-', cast(opponent_team_sk as string)"
-                                f") in ({pk_in})"):
+    if pairs:
+        conds = " or ".join(
+            f"(team_sk = {h} and opponent_team_sk = {a})" for h, a in pairs
+        )
+        for r in _query(client, f"select * from `{marts}.mart_head_to_head` where {conds}"):
             h2h[(int(r["team_sk"]), int(r["opponent_team_sk"]))] = r
 
     # Drill-down: the last-5 form-window list and top players per side.
@@ -464,14 +460,29 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
     return payloads
 
 
+def _display_group_of_type(seed_path: str = COMPETITION_TYPES_SEED_PATH) -> dict:
+    """competition_type -> nav display_group, from the competition_types seed
+    (GAP-19.3). Empty cell -> None (the type does not appear in the nav). Reading
+    the seed is the sanctioned taxonomy lookup; the mapping is not hardcoded here."""
+    import csv
+
+    with open(seed_path, encoding="utf-8", newline="") as fh:
+        return {
+            row["competition_type"]: (row.get("display_group") or None)
+            for row in csv.DictReader(fh)
+        }
+
+
 def _registry_competitions(registry_path: str = REGISTRY_PATH) -> list[dict]:
     import yaml
 
     data = yaml.safe_load(open(registry_path, encoding="utf-8"))
     fields = ("league_code", "name", "slug", "country", "confederation",
               "tier", "sort_order", "competition_type")
+    group_of_type = _display_group_of_type()
     return [
-        {k: o.get(k) for k in fields}
+        {**{k: o.get(k) for k in fields},
+         "display_group": group_of_type.get(o.get("competition_type"))}
         for o in (data.get("competitions") or [])
         if isinstance(o, dict) and "competition_type" in o
     ]
@@ -560,15 +571,17 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
 
 def shape_leaderboards(profile_rows: list[dict], metrics=_LEADERBOARD_METRICS,
                        limit: int = 25) -> dict:
-    """Per-metric player leaderboards: top `limit` by each metric (desc), zeros
-    excluded. Pure — players' identity + counts come straight from the profile rows."""
+    """Per-metric player leaderboards: SELECTED by the warehouse <metric>_rank columns
+    (mart_player_profile; DENSE_RANK, zero performers unranked = null). The export
+    selects and orders by the rank — it does not rank. Ties share a rank, so a board
+    may exceed `limit` when ranks tie at the cut (the mart_top_scorers convention)."""
     boards: dict = {}
     for m in metrics:
+        rank_col = f"{m}_rank"
         ranked = sorted(
-            [r for r in profile_rows if (r.get(m) or 0) > 0],
-            key=lambda r: (r.get(m) or 0),
-            reverse=True,
-        )[:limit]
+            [r for r in profile_rows if r.get(rank_col) is not None and r[rank_col] <= limit],
+            key=lambda r, rc=rank_col: r[rc],
+        )
         boards[m] = [{k: r.get(k) for k in _LB_KEEP} for r in ranked]
     return boards
 

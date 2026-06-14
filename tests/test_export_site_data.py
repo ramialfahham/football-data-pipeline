@@ -5,6 +5,7 @@ fabricated rows so python-ci validates the logic offline.
 """
 
 from scripts.export_site_data import (
+    _display_group_of_type,
     _fixture_side,
     build_manifest,
     build_nav,
@@ -21,15 +22,25 @@ from scripts.export_site_data import (
 )
 
 
-def test_shape_leaderboards_ranks_excludes_zeros():
+def test_shape_leaderboards_selects_by_warehouse_rank():
+    # selection only: ordered by the <metric>_rank columns; null rank (zero performers,
+    # unranked in dbt) is excluded. No Python ranking.
     rows = [
-        {"player_sk": 1, "player_name": "A", "goals": 0, "assists": 5},
-        {"player_sk": 2, "player_name": "B", "goals": 9, "assists": 1},
-        {"player_sk": 3, "player_name": "C", "goals": 4, "assists": 0},
+        {"player_sk": 1, "player_name": "A", "goals": 0, "goals_rank": None, "assists": 5, "assists_rank": 1},
+        {"player_sk": 2, "player_name": "B", "goals": 9, "goals_rank": 1, "assists": 1, "assists_rank": 2},
+        {"player_sk": 3, "player_name": "C", "goals": 4, "goals_rank": 2, "assists": 0, "assists_rank": None},
     ]
     boards = shape_leaderboards(rows, metrics=("goals", "assists"), limit=10)
-    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]  # zeros excluded, desc
-    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]
+    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]    # by goals_rank; null excluded
+    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]  # by assists_rank; null excluded
+    assert len(boards["goals"]) == 2 and len(boards["assists"]) == 2    # null-rank rows dropped
+
+
+def test_display_group_of_type_reads_seed():
+    m = _display_group_of_type()                       # reads the real seed (offline, no BQ)
+    assert m["domestic_league"] == "leagues"
+    assert m["world_championship"] == "national-teams"
+    assert m["club_friendly_domestic"] is None         # empty cell -> None (not in nav)
 
 
 def test_shape_matchstats_drops_fixture_sk():
@@ -52,15 +63,21 @@ def test_fetch_glossary_reads_catalogue_seed():
 
 
 def test_build_nav_groups_and_country_hubs():
+    # build_nav reads display_group off each competition (resolved from the
+    # competition_types seed upstream), not a hardcoded type->group dict.
     comps = [
         {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga",
-         "country": "Germany", "competition_type": "domestic_league", "tier": 1, "sort_order": 30},
+         "country": "Germany", "competition_type": "domestic_league",
+         "display_group": "leagues", "tier": 1, "sort_order": 30},
         {"league_code": "BL2", "name": "2. Bundesliga", "slug": "2-bundesliga",
-         "country": "Germany", "competition_type": "domestic_league", "tier": 2, "sort_order": 60},
+         "country": "Germany", "competition_type": "domestic_league",
+         "display_group": "leagues", "tier": 2, "sort_order": 60},
         {"league_code": "DFBP", "name": "DFB-Pokal", "slug": "dfb-pokal",
-         "country": "Germany", "competition_type": "domestic_cup", "sort_order": 30},
+         "country": "Germany", "competition_type": "domestic_cup",
+         "display_group": "cups", "sort_order": 30},
         {"league_code": "UCL", "name": "Champions League", "slug": "champions-league",
-         "country": "Europe", "competition_type": "continental_club", "sort_order": 10},
+         "country": "Europe", "competition_type": "continental_club",
+         "display_group": "continental-club", "sort_order": 10},
     ]
     nav = build_nav(comps)
     groups = {g["key"]: [c["league_code"] for c in g["competitions"]] for g in nav["groups"]}
@@ -73,16 +90,21 @@ def test_build_nav_groups_and_country_hubs():
     assert all(c["country"] != "Europe" for c in nav["countries"])
 
 
-def test_shape_top_players_ranks_and_joins_names():
+def test_shape_top_players_selects_by_rank_and_joins_names():
+    # selection only: ordered by the warehouse top_player_rank, join keys + the rank
+    # itself dropped from the payload.
     rows = [
-        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "goals_total": 0, "goals_assists": 2},
-        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "goals_total": 3, "goals_assists": 0},
+        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 2},
+        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 1},
+        {"player_sk": 3, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": None},
     ]
     names = {1: {"player_name": "A", "player_photo_url": "a"},
-             2: {"player_name": "B", "player_photo_url": "b"}}
+             2: {"player_name": "B", "player_photo_url": "b"},
+             3: {"player_name": "C", "player_photo_url": "c"}}
     top = shape_top_players(rows, names, limit=5)
-    assert [p["player_name"] for p in top] == ["B", "A"]   # goals desc
+    assert [p["player_name"] for p in top] == ["B", "A"]   # by rank asc; null-rank C excluded
     assert "upcoming_fixture_sk" not in top[0]              # join keys dropped
+    assert "top_player_rank" not in top[0]                 # selection key dropped
 
 
 def test_shape_competition_payload_sorts_sections():

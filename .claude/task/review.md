@@ -1,84 +1,74 @@
-# Review — chore/rename-momentum-season-record — 2026-06-13
+# Review — feat/gap15-gap19-marts — 2026-06-14
 
-> CPO §10 naming ruling (Option 2, escalations.log 2026-06-13): the form-window model
-> family adopts ONE root per concept — `momentum` (live form / last-5) and `season_record`
-> (within-competition cumulative). PURE rename: 8 models + 1 test renamed, all refs/comments/
-> consumers updated; NO SQL logic/grain/metric change. Boundaries kept: `window_type` VALUES
-> (last_5/season_to_date/prev_season) and the published JSON key `form_window` are NOT renamed.
-> Local validation: layer contract PASS, registry sync PASS, `dbt parse` PASS (all refs
-> resolve), sqlfluff PASS on changed SQL. Required reviewers (routing): scope-auditor +
-> analytics-engineer-reviewer + cto-reviewer + data-engineer-reviewer + bi-analyst-reviewer.
-> One cold iteration: all five PASS against the hash below.
+> Pilot PR1 (CPO rulings, escalations.log 2026-06-14): GAP-15 (mart_team_fixtures) + GAP-19
+> items 1-4 (leaderboard ranks, top-player rank, nav display_group seed, H2H canonical pair) —
+> move four consumption-layer computations out of scripts/export_site_data.py into dbt; the
+> export shrinks to pure selection. Slugs (GAP-19 item 5) and GAP-16 affiliation are OUT
+> (PR2 / the player-data initiative). Local validation: export unit tests (17) PASS, py_compile
+> OK, layer-contract + registry-sync gates PASS, dbt parse resolves all refs, sqlfluff clean.
 >
-> REBASE RE-LOCK (2026-06-13): after the reviews, #430 (PR #460) + the handover (PR #462)
-> merged to main, so this branch was rebased onto the new origin/main to clear a GitHub
-> conflict that existed ONLY in the bookkeeping artifacts (contract.md/review.md/patch,
-> rewritten by #430) — NOT in the rename code. The rebase moved contract.md's diff base from
-> the prior task's contract to #430's, changing the diff_sha256 from 8e55b6cc… to the value
-> below. The reviewed CONTENT is byte-identical (same rename, same #463 contract — the renamed
-> model files do not conflict with #430); the five verdicts stand. No re-review needed: nothing
-> the reviewers examined changed, only the diff's base commit.
+> Review cycle: THREE cold iterations (routed reviewers: scope-auditor + analytics-engineer-
+> reviewer + cto-reviewer). Iter 1 — all FAIL (scope-auditor: export re-derived the canonical
+> pair_key in Python (A5); analytics: is_finished semantic + missing rank/pair tests; cto:
+> _display_group_of_type + null-rank untested). Iter 2 — scope-auditor + analytics PASS; cto
+> FAIL (H2H team-id membership over-fetch (~N^2); silent-empty on missing rank column). Iter 3
+> — all PASS against the hash below. Fixes applied across iterations: H2H lookup is now pure
+> directed-(team,opponent)-tuple selection (no identity derivation, no over-fetch);
+> is_finished -> has_result with recency_rank gated on it; assists_rank/shots_on_target_rank/
+> top_player_rank-uniqueness/is_canonical-consistency tests added; _display_group_of_type +
+> null-rank exclusion tests added; leaderboard sort lambda binds rank_col. The cto's residual
+> "KeyError under mart-schema drift" note is non-blocking (a Python fallback would reintroduce
+> the A5 ranking just removed; reliance on the mart column is the consumption-layer contract).
+> Deferred (out of this locked scope): layering.md mart-inventory row for mart_team_fixtures
+> (separate doc-sync task); slug rulings E2/E3 (PR2); GAP-16 affiliation (player-data initiative).
 
-diff_sha256: 47de79930c1c67a84015f8e49499c8ff252d46d35cb5ab18a662b0d121115663
+diff_sha256: 745410d5a2748b4ecfdf455d9ee25234df4a18e878e17c4fa11ebaa4b19e6f3c
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10/authorization + pure-rename trap: the naming choice is the CPO's (Option 2 recorded in
-  escalations.log 2026-06-13), not the builder's. Spot-checked renamed SQL bodies — only model
-  name, comments, and ref() targets differ; no filter/window/aggregate/grain/column smuggled
-  under the rename.
-- Boundary integrity + scope: the deliberately-KEPT items are kept — `window_type` values
-  (last_5/season_to_date/prev_season) and the `form_window` JSON output key in
-  export_site_data.py; no stale OLD model-name token in code or in-scope docs; no protected
-  path touched; all changed files within scope_paths; excluded items (form_window_kind,
-  int_matchday__player_form_window) absent from the diff.
+- §10/Appendix-A integrity: all changed files are within scope_paths; no slug column or
+  url_slugs UDF / on-run-start hook reintroduced (A3); no GAP-16 affiliation column on
+  mart_player_profile; the export now SELECTS the new dbt columns and the H2H lookup filters
+  mart_head_to_head by the directed (team_sk, opponent_team_sk) key — no canonical pair
+  identity derived in Python (A5 resolved from iter 1).
+- Boundary/decisions_reserved: leaderboard set unchanged (goals/assists/shots_on_target, the
+  shipped _LEADERBOARD_METRICS — no invented metric, A1); display_group is a byte-faithful
+  migration of the retired _GROUP_OF_TYPE values (no new published nav identifier); the
+  form_window JSON key and non-migrated payloads are untouched; mart_team_fixtures is a view
+  shipped consumer-later (ship-the-mart-first), not a scope expansion.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Logic drift: all 6 renamed model SQL bodies confirmed byte-identical to their predecessors
-  (no CTE/filter/window/partition/aggregate/join/column change) — only comment + ref() strings.
-- Ref-graph closure: grep across all .sql/.yml finds zero old-name occurrences; every consumer
-  (int_momentum__team, mart_momentum_window__team, mart_season_record__{team,player},
-  int_team_profile__yoy, the test, export, shared.yml name: entries) resolves to a new name
-  with a matching file.
-- window_type value integrity: 'season_to_date'/'last_5'/'prev_season' literals + the
-  int_season_record.yml accepted_values are unchanged.
-- DAG direction: no intermediate refs a mart; all models stayed in their layer.
+- mart_team_fixtures grain + rank populations: (team_sk, fixture_sk) is unique from the
+  union-all spine (the where s.team_sk is not null filter removes one-sided rows; the grain
+  test guards it); has_result = (result leg exists) cleanly partitions the recency population
+  and recency_rank is null-gated so non-result rows carry no rank — covered by
+  team_fixtures_result_present + team_fixtures_recency_has_result.
+- Ranking correctness vs the codified pattern: mart_player_profile leaderboard ranks use
+  DENSE_RANK over (league_code, season_api_year) order goals desc, assists desc, minutes asc —
+  byte-identical to mart_top_scorers.scorer_rank — with CASE goals>0 zero-exclusion; per-side
+  selection ranks (top_player_rank, upcoming/recency) use ROW_NUMBER; every new shown column
+  now has a shared.yml/seeds test; no hardcoded league_code anywhere.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- export_site_data.py: all three renamed-mart reads updated (mart_season_record__team x1,
-  mart_momentum_window__team x2); zero old-name tokens in any .py; the `form_window` variable +
-  JSON key preserved; mart_momentum__team/__player (not renamed) unchanged.
-- Test rename integrity: assert_momentum_window_matches_momentum.sql present with correct new
-  ref()s; assertion logic byte-identical; shared.yml cross-reference updated; no test-name
-  collision. No stale old token in scripts/ or tests/.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Registry integrity: the ONLY competition_registry.yml change is one YAML comment-line model
-  token; no provider_league_id/ingest_active/history_seasons/parent_competition/any data field
-  altered; zero-file + ingest-cost rules unaffected.
-- Accuracy + completeness: int_momentum_window__team exists and implements the recency-based
-  selection the comment describes; repo-wide grep finds zero residual old-name refs in
-  ingestion/ or scheduler workflows.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Display-contract integrity: `form_window[]` JSON key, `window_type` column + caption values
-  (season_to_date/prev_season/last_5), the LOCKED team/player display tables, and the rulings
-  log are all unchanged; only model-name identifiers changed.
-- Stale-reference completeness: zero old-name tokens across the three wireframes; the four
-  targeted refs updated (mart_season_record__team, int_momentum_window__team); GAP-18 remainder
-  (incl. the orphaned wc_supporting_league_codes mention) left as-is per scope.
+- H2H directed-pair filter correctness + safety (export_site_data.py): ids are int()-cast
+  before interpolation (no injection); the directed (team_sk=home and opponent_team_sk=away)
+  OR-filter retrieves exactly the home-perspective row per fixture (no team-id cross product /
+  over-fetch from iter 2) and is indexed by the directed key; pair_key/is_canonical added to
+  _H2H_DROP so the published head_to_head payload stays byte-identical.
+- Export selection purity + tests: shape_top_players/shape_leaderboards/build_nav compute
+  nothing — they select by top_player_rank / <metric>_rank / display_group; the leaderboard
+  sort lambda binds rank_col via default-arg (no late-binding); _display_group_of_type mirrors
+  the existing fetch_glossary seed-read pattern (no new mechanism, A3); updated tests assert
+  the selection contract incl. null-rank exclusion + the seed read. Residual KeyError-under-
+  schema-drift is non-blocking (a fallback would reintroduce A5).
 
 ## escalations
-(none — single cold iteration; all five routed reviewers PASS against the locked hash. Pure
-rename: dbt parse confirms ref resolution; window_type values + the form_window JSON key
-deliberately preserved per the recorded ruling. Old BQ tables become orphaned after the next
-build — dropping them is a separate CPO-approved destructive cleanup, NOT in this PR.)
+(none — three cold iterations; all three routed reviewers PASS against the locked hash. No
+reviewer raised a §10 question on this diff. The two slug rulings (E2 where produced, E3
+spelling) are recorded in escalations.log as PENDING for PR2 and are NOT part of this PR;
+GAP-16 affiliation is deferred to the player-data ingestion initiative.)

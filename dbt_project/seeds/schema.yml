@@ -23,6 +23,14 @@ seeds:
           - not_null
           - accepted_values:
               values: ["club", "national"]
+      - name: display_group
+        description: >
+          Hybrid-IA nav group for this competition type (GAP-19 — the taxonomy that
+          previously lived as the _GROUP_OF_TYPE dict in scripts/export_site_data.py).
+          Empty (null) for types that never appear in the nav (friendlies).
+        tests:
+          - accepted_values:
+              values: ["leagues", "cups", "continental-club", "national-teams"]
 
   - name: competition_registry
     description: >

@@ -1,95 +1,87 @@
-# Task contract — consistent form-window model naming (momentum + season_record)
+# Task contract — GAP-15 + GAP-19 (items 1–4): consumption-layer migration to dbt (Pilot PR1)
 
-> CPO naming decision (conversation 2026-06-13, "Option 2"): make the form/window model
-> family use ONE root per concept from the metrics_context_model.md matrix — `momentum`
-> (live form / last-5) and `season_record` (within-competition cumulative). Today the live
-> concept uses three roots (form_window, momentum, last_5) and the season concept uses
-> `season_to_date`. Pure rename — NO logic/metric change. See docs/working_agreement.md §2/§10.
+> CPO directions (this session, escalations.log 2026-06-14): the Pilot is sliced into TWO PRs.
+> THIS is PR1 — the unblocked work. Move four consumption-layer computations out of the Python
+> export into dbt (anti-pattern A5: logic/ranking in the frontend), and add the GAP-15
+> team-fixtures mart. Slugs (GAP-19 item 5) are PR2; GAP-16 affiliation is deferred to the new
+> player-data ingestion initiative. See docs/working_agreement.md §2/§6/§10, Appendix A (A3/A5).
 
 objective: >
-  Rename the two concepts consistently:
-  (A) live form: keep `momentum`; rename the SELECTION model `int_form_window__team` →
-      `int_momentum_window__team` and its drill-down mart `mart_form_window__team` →
-      `mart_momentum_window__team`.
-  (B) season record: rename `int_season_to_date__{team,player}` →
-      `int_season_record__{team,player}` and `mart_season_to_date__{team,player}` →
-      `mart_season_record__{team,player}`.
-  Update every `ref()`, model `name:`, the consuming intermediates/marts, the export script's
-  mart-table reads, the one cross-check test, and all docs that name these models.
-  BOUNDARIES (do NOT change): the `window_type` literal VALUES (`last_5`, `season_to_date`,
-  `prev_season`) — they label the cut, not the model, and the wireframe reads `w2.window_type`;
-  the published JSON output key `form_window` in export_site_data.py (UI contract — only the
-  3 mart TABLE-NAME reads change, not the key/variable); the future-spec column
-  `form_window_kind` in player_metrics_catalogue.md (substring coincidence, not this model);
-  the unrelated `int_matchday__player_form_window` ref in player_stats_ui_data_modeling_concept.md
-  (a different, pre-existing stale ref — out of scope); the historical audit doc.
+  Make the v2 export pure selection for these four surfaces by sourcing the facts from dbt:
+  (1) GAP-19.1 leaderboard ranks — add goals_rank / assists_rank / shots_on_target_rank to
+      mart_player_profile (DENSE_RANK over (league_code, season_api_year), zero performers
+      unranked — the mart_top_scorers.scorer_rank pattern the CPO cited).
+  (2) GAP-19.2 top-player rank — add top_player_rank to mart_momentum__player (ROW_NUMBER per
+      (upcoming_fixture_sk, team_sk) ordered goals → assists → key passes → player_sk; the
+      goals→assists→key-passes order is named in the GAP).
+  (3) GAP-19.3 nav taxonomy — add a display_group column to the competition_types seed (a
+      faithful migration of the export's _GROUP_OF_TYPE dict: same 9 mappings; the 3 friendly
+      types map to empty = not in nav) + a seeds/schema.yml accepted_values test.
+  (4) GAP-19.4 H2H canonical pair — add pair_key + is_canonical to mart_head_to_head.
+  (5) GAP-15 — a new mart_team_fixtures (one row per (team, fixture), team perspective): next
+      fixture + last-5 results, built on fct_fixture (both-side spine) + int_legs__team_match
+      (finished perspective result, NOT re-derived) + dim_team (opponent identity), with
+      upcoming_rank / recency_rank so the export selects rather than computes. NO slug column.
+  Then shrink scripts/export_site_data.py: delete the Python ranking (shape_top_players,
+  shape_leaderboards), the _GROUP_OF_TYPE nav dict in build_nav, and the H2H pair_keys
+  computation; replace each with selection of the new dbt columns. Update the affected unit
+  tests in tests/test_export_site_data.py. The slug code (slugify / fixture_slug / slug_map)
+  and the form_window JSON key are NOT touched.
 
-refs: CPO Option-2 ruling (conversation 2026-06-13); docs/metrics_context_model.md §1/§4/§5.
+refs: GAP-15, GAP-19 (docs/wireframes/99_gaps_register.md, approved 2026-06-11); audit F4/F5/F6
+  (F5 slug deferred); CPO Pilot rulings (escalations.log 2026-06-14).
 
 scope_paths:
-  # renamed model files (old + new paths both appear during git mv)
-  - dbt_project/models/4_intermediate/shared/int_form_window.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-  - dbt_project/models/4_intermediate/shared/int_form_window__team.sql
-  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
-  - dbt_project/models/4_intermediate/shared/int_season_to_date.yml
-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-  - dbt_project/models/4_intermediate/shared/int_season_to_date__team.sql
-  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
-  - dbt_project/models/4_intermediate/shared/int_season_to_date__player.sql
-  - dbt_project/models/4_intermediate/shared/int_season_record__player.sql
-  - dbt_project/models/5_marts/shared/mart_form_window__team.sql
-  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
-  - dbt_project/models/5_marts/shared/mart_season_to_date__team.sql
-  - dbt_project/models/5_marts/shared/mart_season_record__team.sql
-  - dbt_project/models/5_marts/shared/mart_season_to_date__player.sql
-  - dbt_project/models/5_marts/shared/mart_season_record__player.sql
-  - dbt_project/tests/assert_form_window_matches_momentum.sql
-  - dbt_project/tests/assert_momentum_window_matches_momentum.sql
-  # referencing code (refs/comments updated, not renamed)
-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
-  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
+  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
   - dbt_project/models/5_marts/shared/mart_player_profile.sql
   - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/seeds/competition_types.csv
+  - dbt_project/seeds/schema.yml
   - scripts/export_site_data.py
-  # docs that NAME the models (doc-sync)
-  - dbt_project/docs/layering.md
-  - docs/metrics_context_model.md
-  - docs/site_architecture.md
-  - docs/competition_registry.yml
-  - docs/competitions/wc26.md
-  - docs/wireframes/01_fixture_page.md
-  - docs/wireframes/99_gaps_register.md
-  - docs/wireframes/metrics_display.md
+  - tests/test_export_site_data.py
   - .claude/task/contract.md
 
 decisions_taken: >
-  Pure rename approved by the CPO (Option 2). No SQL logic, grain, or metric changes — the
-  compiled output of each model is identical apart from its table name. `window_type` VALUES
-  and the published JSON key `form_window` are deliberately preserved (model-root vs
-  cut-label vs UI-contract are separate axes). Verified by `dbt parse` (all refs resolve) +
-  sqlfluff; no parallel-run needed because the logic is byte-identical. Old BQ tables become
-  orphaned after the next build — dropping them is a separate CPO-approved cleanup (destructive).
+  Approved by the CPO this session ("PR1 approved", 2026-06-14). The four migrations and the
+  GAP-15 mart implement CPO-approved GAP dispositions (gaps_register 2026-06-11) — no new
+  product/metric/naming decisions. Ranking method follows the cited codified pattern:
+  leaderboard ranks use DENSE_RANK + >0 exclusion (= mart_top_scorers.scorer_rank); per-side
+  SELECTION ranks (top_player_rank, upcoming_rank, recency_rank) use ROW_NUMBER (strict pick
+  order). display_group is a 1:1 migration of the shipped _GROUP_OF_TYPE values (no new nav
+  identifiers). mart_team_fixtures reuses the tested int_legs__team_match for finished results
+  (no result re-derivation); it materialises as a view (thin denormalisation over tested core,
+  no heavy aggregate) — consistent with the parked stash's choice.
 
 decisions_reserved:
-  - Do NOT change `window_type` values, the `form_window` JSON output key/variable, the
-    UI "form window" caption term, or any model SQL logic. Do NOT rename
-    `int_matchday__player_form_window` (different, pre-existing stale ref) or
-    `form_window_kind` (future spec). If a reviewer finds a missed consumer or a stale
-    model-name ref outside this scope, STOP and surface it.
-  - Renaming the published JSON key or UI terms is a separate UI-contract decision, NOT here.
+  - SLUGS (GAP-19.5, E2 where produced / E3 spelling) are NOT in this PR — they are PR2, pending
+    the two blinded CPO rulings. Do NOT add any slug column, and do NOT reintroduce the stash's
+    url_slugs UDF macros or the dbt_project.yml on-run-start hook (anti-pattern A3). If a slug
+    surfaces in this diff, it is a defect.
+  - GAP-16 team affiliation is NOT in this PR — deferred to the player-data ingestion initiative.
+    mart_player_profile gets ONLY the leaderboard rank columns; no latest_team / team history.
+  - Leaderboard SET is fixed to the shipped _LEADERBOARD_METRICS (goals, assists,
+    shots_on_target). Adding/removing a board, or any per-90/new metric, is a CPO catalogue
+    decision — out of scope.
+  - If a reviewer finds a consumer of the removed export functions that this PR misses, or any
+    behaviour change in the published JSON beyond "same values, now sourced from dbt", STOP and
+    surface it — the export migration must be value-preserving (the form_window key, slug_map,
+    and all non-migrated payloads unchanged).
 
 done_when:
-  - all 8 models + the 1 test are renamed; every `ref()`/`name:`/comment pointing at an old
-    name is updated; the export reads `mart_momentum_window__team` + `mart_season_record__*`
-    while keeping the `form_window` output key; no stale `int_form_window`/`int_season_to_date`/
-    `mart_form_window`/`mart_season_to_date` model-name reference remains in code or the
-    in-scope docs (window_type values, the JSON key, form_window_kind, the unrelated
-    int_matchday__player_form_window, and the historical audit excepted).
-  - `dbt parse` succeeds (refs resolve); sqlfluff clean on changed SQL.
-  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/** +
-    export_*) + cto-reviewer (scripts/export_* + tests/**) + data-engineer-reviewer
-    (competition_registry.yml) + bi-analyst-reviewer (wireframes/**) — PASS.
+  - mart_team_fixtures exists (grain (team_sk, fixture_sk); upcoming_rank/recency_rank; no slug)
+    with relationships + grain + result accepted_values tests in shared.yml.
+  - mart_head_to_head has pair_key + is_canonical; mart_momentum__player has top_player_rank;
+    mart_player_profile has goals_rank/assists_rank/shots_on_target_rank — each with a
+    shared.yml test.
+  - competition_types.csv has display_group (9 mapped + 3 empty); seeds/schema.yml asserts its
+    accepted_values; the values byte-match the retired _GROUP_OF_TYPE dict.
+  - export_site_data.py computes none of the four in Python (functions removed/replaced by
+    selection); tests/test_export_site_data.py updated; slug code + form_window key untouched.
+  - `dbt parse` succeeds (all refs resolve); sqlfluff clean on changed SQL; validate-local gates
+    (layer contract, registry sync, python) pass; python export unit tests pass.
+  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/** + export_*)
+    + cto-reviewer (scripts/export_* + tests/**) — PASS against the locked diff hash.
 
 amendments: (none)
