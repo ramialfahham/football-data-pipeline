@@ -186,7 +186,22 @@ select
     safe_divide(a.passes_accurate, a.passes_total) as pass_accuracy_pct,
     safe_divide(a.duels_won, a.duels_total) as duels_won_pct,
     safe_divide(a.dribbles_success, a.dribbles_attempts) as dribbles_success_pct,
-    safe_divide(a.goals_saves, a.goals_saves + a.goals_conceded) as save_pct
+    safe_divide(a.goals_saves, a.goals_saves + a.goals_conceded) as save_pct,
+    -- per-(league, season) leaderboard ranks (GAP-19.1): zero performers unranked
+    -- (null), DENSE_RANK so ties share a rank — the mart_top_scorers.scorer_rank
+    -- pattern. Selected by the export's player leaderboards (no Python ranking).
+    case when a.goals > 0 then dense_rank() over (
+        partition by a.league_code, a.season_api_year
+        order by a.goals desc, a.assists desc, a.minutes asc
+    ) end as goals_rank,
+    case when a.assists > 0 then dense_rank() over (
+        partition by a.league_code, a.season_api_year
+        order by a.assists desc, a.goals desc, a.minutes asc
+    ) end as assists_rank,
+    case when a.shots_on_target > 0 then dense_rank() over (
+        partition by a.league_code, a.season_api_year
+        order by a.shots_on_target desc, a.goals desc, a.minutes asc
+    ) end as shots_on_target_rank
 from agg as a
 left join players as p
     on a.player_sk = p.player_sk

@@ -64,7 +64,18 @@ select
     safe_divide(b.goals_saves, b.goals_saves + b.goals_conceded) as save_pct,
     safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct,
     safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy_pct,
-    safe_divide(b.duels_won, b.duels_total) as duels_won_pct
+    safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
+    -- per-side ranking for the top-players strip (GAP-19.2): goals, then assists, then
+    -- key passes (the order named in the GAP); ROW_NUMBER = strict pick order, player_sk
+    -- breaks ties deterministically. Selection rank, so ROW_NUMBER not DENSE_RANK.
+    row_number() over (
+        partition by b.upcoming_fixture_sk, b.team_sk
+        order by
+            coalesce(b.goals_total, 0) desc,
+            coalesce(b.goals_assists, 0) desc,
+            coalesce(b.passes_key, 0) desc,
+            b.player_sk asc
+    ) as top_player_rank
 from builder as b
 inner join fixtures as f
     on b.upcoming_fixture_sk = f.fixture_sk

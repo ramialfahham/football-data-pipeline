@@ -87,6 +87,13 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+      # top_player_rank (GAP-19.2): strict per-side pick order, starts at 1 and is
+      # unique within each (upcoming_fixture_sk, team_sk) side (guards upstream fan-out)
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [upcoming_fixture_sk, team_sk, top_player_rank]
+      - dbt_utils.expression_is_true:
+          expression: "top_player_rank >= 1"
+          name: momentum_player_rank_positive
     columns:
       - name: upcoming_fixture_sk
         tests: [not_null]
@@ -660,6 +667,16 @@ models:
       - dbt_utils.expression_is_true:
           expression: "saves <= shots_on_target_faced"
           name: player_profile_saves_lte_faced
+      # leaderboard ranks (GAP-19.1): positive when present; zero performers unranked (null)
+      - dbt_utils.expression_is_true:
+          expression: "goals_rank is null or goals_rank >= 1"
+          name: player_profile_goals_rank_positive
+      - dbt_utils.expression_is_true:
+          expression: "assists_rank is null or assists_rank >= 1"
+          name: player_profile_assists_rank_positive
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_target_rank is null or shots_on_target_rank >= 1"
+          name: player_profile_shots_on_target_rank_positive
     columns:
       - name: player_season_sk
         tests: [unique, not_null]
@@ -776,6 +793,14 @@ models:
       - dbt_utils.expression_is_true:
           expression: "meetings_last5 = least(total_meetings, 5)"
           name: head_to_head_last5_capped_at_5
+      # pair_key (GAP-19.4): the canonical pair identity is always present, and
+      # is_canonical marks exactly the lower-id direction (derivation consistency)
+      - dbt_utils.expression_is_true:
+          expression: "pair_key is not null"
+          name: head_to_head_pair_key_not_null
+      - dbt_utils.expression_is_true:
+          expression: "is_canonical = (team_sk < opponent_team_sk)"
+          name: head_to_head_is_canonical_consistent
     columns:
       - name: team_sk
         tests:
@@ -887,4 +912,52 @@ models:
         description: "Published-style total squad estimate in whole EUR; null when unknown."
       - name: source_code
         description: "Provenance (e.g. GEMINI_RESEARCH_V1); null when no estimate loaded."
+
+  - name: mart_team_fixtures
+    description: >
+      Team fixtures (GAP-15). One row per (team, fixture), team perspective — the
+      team-profile "next fixture + recent results" surface. Spine = fct_fixture
+      unpivoted to two team rows per fixture; opponent identity from dim_team;
+      finished result (goals_for/against, W/D/L) reused from int_legs__team_match
+      (not re-derived). Rank columns make consumption pure selection: upcoming_rank
+      = 1 is the next fixture, recency_rank <= 5 the last five results. Live /
+      postponed / cancelled rows carry null ranks. No slug (GAP-19 item 5, separate
+      PR). Grain: (team_sk, fixture_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, fixture_sk]
+      # a result-leg row always carries its perspective result, and the ranked
+      # recency population is exactly the result-leg rows
+      - dbt_utils.expression_is_true:
+          expression: "not has_result or result is not null"
+          name: team_fixtures_result_present
+      - dbt_utils.expression_is_true:
+          expression: "recency_rank is null or result is not null"
+          name: team_fixtures_recency_has_result
+      - dbt_utils.expression_is_true:
+          expression: "(upcoming_rank is null or upcoming_rank >= 1) and (recency_rank is null or recency_rank >= 1)"
+          name: team_fixtures_ranks_positive
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: fixture_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: league_code
+        description: "Partition key — the app slices by this."
+        tests: [not_null]
+      - name: opponent_team_sk
+        description: "The other side's team_sk; the row carries the team's perspective of the fixture."
+      - name: result
+        description: "W/D/L from int_legs__team_match for finished rows; null otherwise."
+        tests:
+          - accepted_values:
+              values: ["W", "D", "L"]
 

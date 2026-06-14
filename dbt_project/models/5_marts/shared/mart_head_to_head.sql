@@ -115,7 +115,16 @@ select
     lm.last_meeting_goals_for,
     lm.last_meeting_goals_against,
     lm.last_meeting_result,
-    a.recent_meetings
+    a.recent_meetings,
+    -- canonical pair identity for the /h2h/ URL (GAP-19.4): lower id first, so both
+    -- directed rows share one key; is_canonical marks the lower-id direction (one row
+    -- per unordered pair). opponent_team_sk is non-null (filtered in legs).
+    concat(
+        cast(least(a.team_sk, a.opponent_team_sk) as string),
+        '-',
+        cast(greatest(a.team_sk, a.opponent_team_sk) as string)
+    ) as pair_key,
+    a.team_sk < a.opponent_team_sk as is_canonical
 from agg as a
 left join last_meeting as lm
     on
