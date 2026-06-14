@@ -1,6 +1,6 @@
 # Data contract: API-Football → BigQuery
 
-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same seven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eight raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
 
 API references:
 
@@ -11,7 +11,7 @@ API references:
 
 ## Landing zone
 
-Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores the response data, but loaders that batch multiple calls (per team, per season, or paged) do not keep each raw envelope as-is: most concatenate the calls' `response` arrays into one standard envelope (recomputing `results`/`paging`), while the per-team loaders for **players/squads** and **coaches** store a reshaped `{league_code, response: [...]}` payload without the envelope metadata (each `response` item is itself wrapped — `{team_id, coach}` for coaches, `{team_id, season, players_payload}` for players/squads). The per-item `response` data is preserved in every case. Every raw table holds:
+Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores the response data, but loaders that batch multiple calls (per team, per season, or paged) do not keep each raw envelope as-is: most concatenate the calls' `response` arrays into one standard envelope (recomputing `results`/`paging`), while the per-team loaders for **players/squads**, **coaches**, and **transfers** store a reshaped `{league_code, response: [...]}` payload without the envelope metadata (each `response` item is itself wrapped — `{team_id, coach}` for coaches, `{team_id, season, players_payload}` for players/squads, `{team_id, transfers_payload}` for transfers). The per-item `response` data is preserved in every case. Every raw table holds:
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -30,7 +30,7 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
 
 ## Unified raw tables
 
-Seven tables serve the entire fleet of competitions. No per-competition raw tables exist.
+Eight tables serve the entire fleet of competitions. No per-competition raw tables exist.
 
 | Table | Write mode | Partition | Cluster | Merge key |
 |-------|------------|-----------|---------|-----------|
@@ -41,6 +41,7 @@ Seven tables serve the entire fleet of competitions. No per-competition raw tabl
 | `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
 
 Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
 
@@ -127,11 +128,12 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
 | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
 | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
+| Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
 | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
 
 **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
 
-**Retired:** `/transfers` → `RAW_APIF_TRANSFERS` is no longer ingested. Nothing consumed transfers — `fct_transfer` was a leaf fact with no mart/export/UI reader, and the only internal use was a `dim_player` identity fallback feeding that unconsumed fact. Club changes are derivable from `dim_player_team_season_mapping` (season-level roster diffs) if ever needed. The daily call was removed to save quota; the staging/base/core transfers models were deleted and the `RAW_APIF_TRANSFERS` table is dropped post-merge. Reintroduce only if a feature needs the transfer date / type / cross-league detail the roster mapping cannot express.
+**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; an append-only full-history snapshot per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
 
 ### /fixtures query style
 
@@ -160,7 +162,7 @@ Mapping from a typical API-Football subscription list to what this repository in
 | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
 | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
 | Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
-| Player transfers | Retired — `/transfers` no longer ingested (see Retired note above); club changes are derivable from `dim_player_team_season_mapping` |
+| Player transfers | Yes — `/transfers` per team (`RAW_APIF_TRANSFERS`); dated moves feed `fct_transfer`, the affiliation-timeline source (reinstated 2026-06-14, see note above) |
 | Pre-match / in-play odds | Not in this repo (no odds ingest) |
 | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
 | Predictions | Removed in PR #237 — not ingested |
