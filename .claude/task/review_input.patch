@@ -1,298 +1,629 @@
-diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
-new file mode 100644
-index 0000000..40f9e3a
---- /dev/null
-+++ b/.claude/skills/onboard-endpoint/SKILL.md
-@@ -0,0 +1,156 @@
-+---
-+name: onboard-endpoint
-+description: |
-+  Evaluate and ingest a NEW API-Football endpoint / data type the pipeline does
-+  not currently take (e.g. /players/profiles, /players/squads, /transfers).
-+  Walks through: check whether we already ingest it, make a few throwaway
-+  verification calls to see what it returns and how good the data is, estimate
-+  the cost against the daily quota, get the CPO's explicit cost approval, then
-+  build the ingest (raw -> staging -> base -> loads).
-+
-+  Use this when bringing a new endpoint/entity online. Do NOT use for adding a
-+  new competition/league (that's onboard-competition) or for post-ingest health
-+  checks (that's verify-competition-ingest). This skill never auto-enables a
-+  recurring pull — the cost decision is always the CPO's.
-+---
-+
-+# onboard-endpoint
-+
-+A new API endpoint is a new recurring cost and a new chain to build. The point of
-+this skill is to **learn what we're buying before we build it**: confirm the data
-+is real and useful, size the cost, and get the CPO's explicit sign-off — then
-+build. It mirrors the cost-gate discipline of `onboard-competition` (Step 0a).
-+
-+This skill is a **guide**. It does not make production changes by itself: the
-+verification calls are throwaway, and **no recurring ingest is enabled without
-+explicit CPO cost approval** (cost is non-negotiable — docs/working_agreement.md §5).
-+
-+## When to use
-+- The CPO wants to ingest an endpoint/entity we don't currently take, OR you need
-+  to decide whether an endpoint is worth ingesting for a feature.
-+
-+## When NOT to use
-+- Adding a new competition/league → `onboard-competition`.
-+- Checking an existing ingest's health → `verify-competition-ingest`.
-+- Anything that ingests API-Football **predictions** or provider leaderboards
-+  (topscorers/topassists/top*cards) — we build our own metrics; do not ingest these.
-+
-+## Procedure
-+
-+Run in order. Confirm what each step found before moving on.
-+
-+### Step 0 — Is it already ingested?
-+Check BOTH — code can exist while the table is stale/empty, or vice versa:
-+- Ingestion code: search `ingestion/api_football/` for the endpoint path and any
-+  `loads/` module that already calls it.
-+- Raw tables: `bq ls --max_results=100 <project>:<raw-dataset>` and look for a
-+  `RAW_APIF_{entity}`; sample a few rows to confirm it's populated, not an empty
-+  shell. The raw dataset defaults to `raw` but is configurable — resolve the actual
-+  name from `ingestion/api_football/settings.py` rather than assuming `raw`.
-+Only stop if the endpoint is genuinely ingested (code AND a populated raw table).
-+
-+### Step 1 — Throwaway verification calls (read-only; never store)
-+Confirm the response shape AND the data quality on real examples before building.
-+
-+Auth (provider = apisports by default): the key is in the repo-root `.env` as
-+`API_FOOTBALL_API_KEY`; base URL `https://v3.football.api-sports.io`; header
-+`x-apisports-key`. (If `API_FOOTBALL_PROVIDER=rapidapi` is set, the base URL is
-+`https://api-football-v1.p.rapidapi.com/v3` and the headers are `x-rapidapi-key`
-++ `x-rapidapi-host: api-football-v1.p.rapidapi.com` — see
-+`ingestion/api_football/settings.py`; adapt `$B` and the `-H` headers below
-+accordingly.) **Never print the key** — keep it only in a shell variable, pass it
-+as a header, and keep shell trace OFF. Load it into a shell var:
-+
-+```bash
-+set +x                                   # never echo the key (no shell trace)
-+KEY=$(grep -E '^API_FOOTBALL_API_KEY=' .env | cut -d= -f2- | tr -d '"' | tr -d '\r')
-+B=https://v3.football.api-sports.io
-+```
-+
-+Pick the **cheapest axis** the endpoint supports and verify it:
-+- Many endpoints can be pulled **by team** (one call returns all rows for that
-+  team's players — e.g. `/players/squads?team=`, `/transfers?team=`). By-team is
-+  far cheaper than **by-player** (one call per player). Always check whether a
-+  by-team (or paginated-directory) form exists before assuming per-player.
-+
-+Call a few representative cases and summarize the JSON shape + quality — include
-+the **hard cases** for that data (e.g. for transfers: a clean move, a loan, a
-+lower-league player). Example:
-+
-+```bash
-+curl -s -H "x-apisports-key: $KEY" "$B/<endpoint>?<param>=<id>" | python -c "
-+import sys, json
-+d = json.load(sys.stdin)
-+print('errors:', d.get('errors'), 'results:', d.get('results'), 'paging:', d.get('paging'))
-+r = d.get('response') or []
-+print(json.dumps(r[0], indent=1)[:1200] if r else 'EMPTY')"
-+```
-+(Build the summary with plain string concatenation, not f-strings containing
-+escaped quotes — Python f-strings can't hold backslashes.)
-+
-+Record: which fields exist, whether the dates/identity you need are present, and
-+any noise (messy enum fields, duplicate rows, missing values) that will need
-+cleaning in staging. The `�` you may see is just the terminal mangling UTF-8
-+(€, ü) — the stored JSON is fine.
-+
-+### Step 2 — Estimate the cost
-+- Get the plan + quota: `curl -s -H "x-apisports-key: $KEY" "$B/status"` →
-+  `subscription.plan`, `requests.limit_day`, `requests.current`.
-+- Size the universe from our data (e.g. distinct teams / players, active vs all)
-+  via `bq query` against the core dims.
-+- Compute **backfill** (cheapest axis × universe) and **ongoing/day** (refresh
-+  cadence × universe, amortized). Slow-moving data (bios, careers) refreshes
-+  monthly; squad/transfer data weekly during windows.
-+- State both as call counts against `limit_day`, and how the backfill spreads
-+  across days within quota.
-+
-+### Step 3 — CPO cost-approval gate (do not skip)
-+**Ask the CPO directly** — present the cost from Step 2 in plain language and ask
-+for explicit approval to enable the recurring pull (this mirrors
-+`onboard-competition` Step 0a, which asks the user the cost questions before any
-+file is written). Do NOT write ingestion code or enable a schedule until that
-+approval is given, and **never infer or self-grant it** — cost is non-negotiable
-+(CLAUDE.md "Cost is non-negotiable"; docs/working_agreement.md §5). Once the CPO
-+gives it, record the approval in `.claude/task/escalations.log` — the builder
-+appends rulings there as the standard practice (docs/working_agreement.md §2/§11)
-+so the build contract's `decisions_taken` can cite a locatable ruling. No new
-+daily run cadence without separate approval — ride the 04:00 run or a sub-schedule.
-+
-+### Step 4 — CPO history-depth decision
-+How far back to backfill is a CPO decision stored as the source's history depth
-+(active-only vs full history). Get it explicitly; it's the main backfill-cost lever.
-+
-+### Step 5 — Build (each piece via the normal contract -> review -> PR)
-+Follow the unified-raw pattern ("Path B" — all competitions share unified
-+`RAW_APIF_{entity}` tables discriminated by a `league_code` column; no
-+per-competition files):
-+- **Raw:** a `RAW_APIF_{entity}` table. The landing schema — including `league_code`
-+  (the data contract requires it on raw tables; even player/team-keyed pulls stamp the
-+  league they were fetched under, e.g. `loads/squads.py`) and the merge/landing key —
-+  must follow `docs/data_contract.md`. Do not invent a schema.
-+- **Ingestion:** a new `loads/` module mirroring `loads/squads.py`; registry-driven;
-+  respects the ingest lock + daily quota. If the endpoint is part of the per-fixture
-+  fanout, also wire it into the ingestion coverage/completeness CHECK (Python, not a
-+  dbt model) — add it to `ENDPOINT_REQUIRES_NONEMPTY` + `SHELL_KEY_TO_ENDPOINT` in
-+  `ingestion/api_football/coverage.py` (omitting this makes the fanout silently
-+  re-fetch already-covered fixtures every run). Team-/player-keyed pulls (like
-+  squads/transfers) are NOT fanout and do not go there.
-+- **Staging:** a generic `stg_apif__{entity}` (raw cleanup only).
-+- **Base/Core/Marts:** as the feature needs — base dedup/clean (handle the noise
-+  found in Step 1), core facts/dims, marts for consumption. Ship the mart first if
-+  a surface needs data we don't yet expose.
-+
-+## Known edge cases
-+- **Axis matters most for cost.** A by-team or paginated-directory pull can be 30×+
-+  cheaper than per-player. Always look for the cheaper axis in Step 1.
-+- **Provider noise.** Enum/`type` fields are often inconsistent and rows can
-+  duplicate; plan a dedup/clean pass in base. Verify the *keys you need* (dates,
-+  ids) are reliable, not the cosmetic fields.
-+- **Retired chains.** Re-enabling a previously-retired endpoint (e.g. transfers)
-+  is a rebuild + a cost reversal — treat it as a fresh onboard, with the cost gate.
-+
-+## Related
-+- `onboard-competition` — add a new league (registry-only, zero SQL).
-+- `verify-competition-ingest` — post-ingest health check.
-+- docs/data_contract.md — raw landing + merge model.
-+- docs/operations_guide.md — ingest lock, env vars, quota.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 53df200..f64aaf3 100644
+index f64aaf3..6d857bc 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,87 +1,58 @@
--# Task contract — GAP-15 + GAP-19 (items 1–4): consumption-layer migration to dbt (Pilot PR1)
-+# Task contract — new skill: onboard-endpoint (evaluate + ingest a new API endpoint)
+@@ -1,58 +1,102 @@
+-# Task contract — new skill: onboard-endpoint (evaluate + ingest a new API endpoint)
++# Task contract — PR-i: transfers chain rebuild (player-data initiative)
  
--> CPO directions (this session, escalations.log 2026-06-14): the Pilot is sliced into TWO PRs.
--> THIS is PR1 — the unblocked work. Move four consumption-layer computations out of the Python
--> export into dbt (anti-pattern A5: logic/ranking in the frontend), and add the GAP-15
--> team-fixtures mart. Slugs (GAP-19 item 5) are PR2; GAP-16 affiliation is deferred to the new
--> player-data ingestion initiative. See docs/working_agreement.md §2/§6/§10, Appendix A (A3/A5).
-+> CPO-directed this session (2026-06-14): codify the repeatable routine we ran twice (the four
-+> player endpoints, then transfers) for bringing a NEW API endpoint / data type into the
-+> pipeline — check-if-already-ingested, throwaway verification calls, cost estimate, the
-+> CPO cost-approval gate, then the build. Complements onboard-competition (add a league) and
-+> verify-competition-ingest (post-ingest health). A guide/checklist skill — not a protected
-+> guard. See docs/working_agreement.md §2/§10, docs/agent_guardrails.md.
+-> CPO-directed this session (2026-06-14): codify the repeatable routine we ran twice (the four
+-> player endpoints, then transfers) for bringing a NEW API endpoint / data type into the
+-> pipeline — check-if-already-ingested, throwaway verification calls, cost estimate, the
+-> CPO cost-approval gate, then the build. Complements onboard-competition (add a league) and
+-> verify-competition-ingest (post-ingest health). A guide/checklist skill — not a protected
+-> guard. See docs/working_agreement.md §2/§10, docs/agent_guardrails.md.
++> APPROVED player-data plan (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md §2/§4/§5/§8)
++> + CPO rulings (escalations.log 2026-06-14): reinstate the retired transfers chain (#420) as the
++> dated source for affiliation order. Cost APPROVED (by-team axis; ~930–3,000 backfill,
++> ~130–430/day ongoing). History depth = FULL (all current teams). This is PR-i: ingestion →
++> RAW_APIF_TRANSFERS → staging → base (dedup) → `fct_transfer` (dated moves fact). The affiliation
++> TIMELINE (int_player_affiliation_timeline) + current-team derivation are LATER PRs, NOT here.
++> Built following the new `onboard-endpoint` skill (Steps 0–4 already satisfied this session).
++> See docs/working_agreement.md §2/§5/§6/§10, docs/data_contract.md, docs/agent_guardrails.md.
  
  objective: >
--  Make the v2 export pure selection for these four surfaces by sourcing the facts from dbt:
--  (1) GAP-19.1 leaderboard ranks — add goals_rank / assists_rank / shots_on_target_rank to
--      mart_player_profile (DENSE_RANK over (league_code, season_api_year), zero performers
--      unranked — the mart_top_scorers.scorer_rank pattern the CPO cited).
--  (2) GAP-19.2 top-player rank — add top_player_rank to mart_momentum__player (ROW_NUMBER per
--      (upcoming_fixture_sk, team_sk) ordered goals → assists → key passes → player_sk; the
--      goals→assists→key-passes order is named in the GAP).
--  (3) GAP-19.3 nav taxonomy — add a display_group column to the competition_types seed (a
--      faithful migration of the export's _GROUP_OF_TYPE dict: same 9 mappings; the 3 friendly
--      types map to empty = not in nav) + a seeds/schema.yml accepted_values test.
--  (4) GAP-19.4 H2H canonical pair — add pair_key + is_canonical to mart_head_to_head.
--  (5) GAP-15 — a new mart_team_fixtures (one row per (team, fixture), team perspective): next
--      fixture + last-5 results, built on fct_fixture (both-side spine) + int_legs__team_match
--      (finished perspective result, NOT re-derived) + dim_team (opponent identity), with
--      upcoming_rank / recency_rank so the export selects rather than computes. NO slug column.
--  Then shrink scripts/export_site_data.py: delete the Python ranking (shape_top_players,
--  shape_leaderboards), the _GROUP_OF_TYPE nav dict in build_nav, and the H2H pair_keys
--  computation; replace each with selection of the new dbt columns. Update the affected unit
--  tests in tests/test_export_site_data.py. The slug code (slugify / fixture_slug / slug_map)
--  and the form_window JSON key are NOT touched.
+-  Add a new skill `.claude/skills/onboard-endpoint/SKILL.md` that walks an agent through
+-  evaluating and ingesting an API-Football endpoint we don't currently take:
+-  (0) check whether we already ingest it (codebase + raw tables);
+-  (1) make a few THROWAWAY verification calls (auth from .env, mask the key, pick the cheap
+-      axis e.g. by-team vs by-player, summarize response shape + data quality on real examples);
+-  (2) estimate cost (cheapest axis, backfill size, ongoing amortized, against the /status daily
+-      quota);
+-  (3) the CPO COST-APPROVAL gate — never enable a recurring pull without explicit CPO approval
+-      (cost-non-negotiable); (4) CPO history-depth decision; (5) build (RAW_APIF_{entity} raw
+-      table, generic staging, base, a loads/ module, coverage/completeness wiring), each piece
+-      through the normal contract → review → PR governance. Mirror onboard-competition's format
+-      and its Step-0a cost-gate discipline.
 -
--refs: GAP-15, GAP-19 (docs/wireframes/99_gaps_register.md, approved 2026-06-11); audit F4/F5/F6
--  (F5 slug deferred); CPO Pilot rulings (escalations.log 2026-06-14).
-+  Add a new skill `.claude/skills/onboard-endpoint/SKILL.md` that walks an agent through
-+  evaluating and ingesting an API-Football endpoint we don't currently take:
-+  (0) check whether we already ingest it (codebase + raw tables);
-+  (1) make a few THROWAWAY verification calls (auth from .env, mask the key, pick the cheap
-+      axis e.g. by-team vs by-player, summarize response shape + data quality on real examples);
-+  (2) estimate cost (cheapest axis, backfill size, ongoing amortized, against the /status daily
-+      quota);
-+  (3) the CPO COST-APPROVAL gate — never enable a recurring pull without explicit CPO approval
-+      (cost-non-negotiable); (4) CPO history-depth decision; (5) build (RAW_APIF_{entity} raw
-+      table, generic staging, base, a loads/ module, coverage/completeness wiring), each piece
-+      through the normal contract → review → PR governance. Mirror onboard-competition's format
-+      and its Step-0a cost-gate discipline.
+-refs: CPO direction (this conversation, 2026-06-14); the player-data ingestion plan
+-  (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md, §1–§5); existing skills
+-  onboard-competition + verify-competition-ingest.
++  Rebuild the transfers ingestion chain end-to-end:
++  (1) Ingestion: a `loads/transfers.py` module (mirror `loads/squads.py`) that pulls
++      `/transfers?team={id}` for every team (by-team axis — one call returns all of a team's
++      players' moves) and appends to the unified raw table; a `transfers_response_for_team`
++      helper in `fixture_scheduling.py` (mirror `players_response_for_team`); a
++      `run_transfers_for_competition` in `loads/competition_runner.py`; wired into
++      `orchestrator.py` right after `run_squads_for_competition`. Respects the ingest lock +
++      daily quota (quota-exhaustion break, per-team try/except), with an
++      `API_FOOTBALL_SKIP_TRANSFERS` env skip mirroring `API_FOOTBALL_SKIP_PLAYERS`.
++  (2) Raw: `RAW_APIF_TRANSFERS` is created by `load_json_to_bq(..., as_json_payload=True,
++      append=True, league_code=...)` (unified {league_code, payload, ingested_at} — no manual DDL).
++  (3) Staging: `stg_apif__transfers` (raw cleanup only) unpacking the payload to one row per
++      raw move: player_id, transfer_date, type (raw string), team_in_id, team_out_id,
++      league_code, raw_ingested_at. Source `raw_apif_transfers` declared in `sources.yml`.
++  (4) Base: `base_apif__transfers` — dedup the provider's duplicate move-records (same
++      player/team_in/team_out, near-identical date — e.g. the Barkok double-Schalke case) to one
++      row per distinct move; keep the raw `type` string.
++  (5) Core: `fct_transfer` — the dated moves fact. Grain: one row per distinct
++      (player, team_out, team_in, transfer_date) move, surrogate-keyed; tested unique + not-null
++      on the keys. Latest-season dim resolution (league_sk/season_sk) is NOT required here —
++      this is the move event, not a season rollup.
 +
-+refs: CPO direction (this conversation, 2026-06-14); the player-data ingestion plan
-+  (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md, §1–§5); existing skills
-+  onboard-competition + verify-competition-ingest.
++refs: player-data plan §2/§4/§5/§8; escalations.log 2026-06-14 (transfers reinstated + cost
++  approved + history=all); onboard-endpoint skill; loads/squads.py + players_response_for_team
++  (the mirrored patterns).
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
--  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
--  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/seeds/competition_types.csv
--  - dbt_project/seeds/schema.yml
--  - scripts/export_site_data.py
--  - tests/test_export_site_data.py
-+  - .claude/skills/onboard-endpoint/SKILL.md
+-  - .claude/skills/onboard-endpoint/SKILL.md
++  - ingestion/api_football/loads/transfers.py
++  - ingestion/api_football/fixture_scheduling.py
++  - ingestion/api_football/loads/competition_runner.py
++  - ingestion/api_football/orchestrator.py
++  - dbt_project/models/1_staging/api_football/sources.yml
++  - dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_transfer.sql
++  - dbt_project/models/3_core/core.yml
++  - docs/data_contract.md
    - .claude/task/contract.md
  
  decisions_taken: >
--  Approved by the CPO this session ("PR1 approved", 2026-06-14). The four migrations and the
--  GAP-15 mart implement CPO-approved GAP dispositions (gaps_register 2026-06-11) — no new
--  product/metric/naming decisions. Ranking method follows the cited codified pattern:
--  leaderboard ranks use DENSE_RANK + >0 exclusion (= mart_top_scorers.scorer_rank); per-side
--  SELECTION ranks (top_player_rank, upcoming_rank, recency_rank) use ROW_NUMBER (strict pick
--  order). display_group is a 1:1 migration of the shipped _GROUP_OF_TYPE values (no new nav
--  identifiers). mart_team_fixtures reuses the tested int_legs__team_match for finished results
--  (no result re-derivation); it materialises as a view (thin denormalisation over tested core,
--  no heavy aggregate) — consistent with the parked stash's choice.
-+  CPO directed creating this skill (conversation 2026-06-14, "go ahead"). The name follows the
-+  existing `onboard-*` convention (a codified naming pattern, not a new product-naming decision).
-+  Scope: a guide/checklist ONLY — it documents steps + project specifics (auth, key masking,
-+  cost sizing, the cheap-axis idea). It must NOT auto-fire API calls or auto-enable ingestion;
-+  the cost-approval and history-depth decisions stay with the CPO (mirrors onboard-competition
-+  Step 0a). No code, no model, no protected-guard change — a single new markdown file.
+-  CPO directed creating this skill (conversation 2026-06-14, "go ahead"). The name follows the
+-  existing `onboard-*` convention (a codified naming pattern, not a new product-naming decision).
+-  Scope: a guide/checklist ONLY — it documents steps + project specifics (auth, key masking,
+-  cost sizing, the cheap-axis idea). It must NOT auto-fire API calls or auto-enable ingestion;
+-  the cost-approval and history-depth decisions stay with the CPO (mirrors onboard-competition
+-  Step 0a). No code, no model, no protected-guard change — a single new markdown file.
++  Reinstating transfers + its by-team ingest cost is CPO-APPROVED (escalations.log 2026-06-14;
++  reverses #420). History depth = all current teams (CPO-decided). Transfers rides the EXISTING
++  04:00 run via the orchestrator (no new run cadence). By-team axis (one call per team returns all
++  its moves — verified live: Bayern = 289 players in one call). Base dedups the provider's
++  duplicate move-records; `fct_transfer` grain = one distinct move per (player, team_out, team_in,
++  date). The raw `/transfers` `type` field is kept as the raw string in this PR.
  
  decisions_reserved:
--  - SLUGS (GAP-19.5, E2 where produced / E3 spelling) are NOT in this PR — they are PR2, pending
--    the two blinded CPO rulings. Do NOT add any slug column, and do NOT reintroduce the stash's
--    url_slugs UDF macros or the dbt_project.yml on-run-start hook (anti-pattern A3). If a slug
--    surfaces in this diff, it is a defect.
--  - GAP-16 team affiliation is NOT in this PR — deferred to the player-data ingestion initiative.
--    mart_player_profile gets ONLY the leaderboard rank columns; no latest_team / team history.
--  - Leaderboard SET is fixed to the shipped _LEADERBOARD_METRICS (goals, assists,
--    shots_on_target). Adding/removing a board, or any per-90/new metric, is a CPO catalogue
--    decision — out of scope.
--  - If a reviewer finds a consumer of the removed export functions that this PR misses, or any
--    behaviour change in the published JSON beyond "same values, now sourced from dbt", STOP and
--    surface it — the export migration must be value-preserving (the form_window key, slug_map,
--    and all non-migrated payloads unchanged).
-+  - The skill must route every §10 decision (cost approval, history depth, any NEW mechanism) to
-+    the CPO — it may not present any of them as auto-grantable. If drafting surfaces a need to
-+    touch a protected guard (.claude/hooks, .claude/agents, settings.json, review_routing.json,
-+    .github/workflows) or to assert a product/metric rule, STOP and surface it.
-+  - The skill name (`onboard-endpoint`) is user-facing; if a reviewer reads it as a §10 naming
-+    decision rather than convention-following, flag it for the CPO rather than guessing an
-+    alternative.
+-  - The skill must route every §10 decision (cost approval, history depth, any NEW mechanism) to
+-    the CPO — it may not present any of them as auto-grantable. If drafting surfaces a need to
+-    touch a protected guard (.claude/hooks, .claude/agents, settings.json, review_routing.json,
+-    .github/workflows) or to assert a product/metric rule, STOP and surface it.
+-  - The skill name (`onboard-endpoint`) is user-facing; if a reviewer reads it as a §10 naming
+-    decision rather than convention-following, flag it for the CPO rather than guessing an
+-    alternative.
++  - The affiliation TIMELINE (`int_player_affiliation_timeline`, valid_from/to + sequence) and the
++    current-team derivation are NOT in this PR — they are a later core/intermediate PR. PR-i stops
++    at `fct_transfer` (the dated-moves fact).
++  - Do NOT invent a canonical transfer-`type` taxonomy (loan/permanent/free/…) — the provider enum
++    is messy (N/A, Free, Loan, Back from Loan, Transfer, None, fees). Keep the raw string; any
++    normalized type vocabulary is a §10 metric/label decision — surface it, don't decide.
++  - Dedup KEY is EXACT (player_id, team_in_id, team_out_id, transfer_date) — this removes the
++    by-team cross-query duplicates (the dominant, certain duplicate source) and the provider's
++    exact-duplicate rows, WITHOUT merging genuinely-distinct moves (e.g. a player who left and
++    re-joined a club on different dates stays two rows). Provider NEAR-duplicates with differing
++    dates (e.g. the same move recorded 2 days apart under different `type`s) are deliberately NOT
++    fuzzy-merged here — a date-window heuristic risks collapsing real moves; that refinement, if
++    ever wanted, is a separate decision. (data-cleaning, agent-executable)
++  - No new run cadence; no extra schedule; no protected-guard edit (none in scope).
  
  done_when:
--  - mart_team_fixtures exists (grain (team_sk, fixture_sk); upcoming_rank/recency_rank; no slug)
--    with relationships + grain + result accepted_values tests in shared.yml.
--  - mart_head_to_head has pair_key + is_canonical; mart_momentum__player has top_player_rank;
--    mart_player_profile has goals_rank/assists_rank/shots_on_target_rank — each with a
--    shared.yml test.
--  - competition_types.csv has display_group (9 mapped + 3 empty); seeds/schema.yml asserts its
--    accepted_values; the values byte-match the retired _GROUP_OF_TYPE dict.
--  - export_site_data.py computes none of the four in Python (functions removed/replaced by
--    selection); tests/test_export_site_data.py updated; slug code + form_window key untouched.
--  - `dbt parse` succeeds (all refs resolve); sqlfluff clean on changed SQL; validate-local gates
--    (layer contract, registry sync, python) pass; python export unit tests pass.
--  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/** + export_*)
--    + cto-reviewer (scripts/export_* + tests/**) — PASS against the locked diff hash.
-+  - `.claude/skills/onboard-endpoint/SKILL.md` exists with valid frontmatter (name + description)
-+    and a stepwise procedure: check-if-ingested -> throwaway verification calls -> cost estimate
-+    -> CPO cost-approval gate -> history-depth -> build -> caveats/known-issues, mirroring
-+    onboard-competition's structure and cost-gate discipline.
-+  - The skill explicitly states it is a guide (no auto-ingest, no auto-cost-approval) and points
-+    at onboard-competition / verify-competition-ingest for adjacent workflows.
-+  - reviewers: scope-auditor (always) + cto-reviewer (tooling/process) PASS.
+-  - `.claude/skills/onboard-endpoint/SKILL.md` exists with valid frontmatter (name + description)
+-    and a stepwise procedure: check-if-ingested -> throwaway verification calls -> cost estimate
+-    -> CPO cost-approval gate -> history-depth -> build -> caveats/known-issues, mirroring
+-    onboard-competition's structure and cost-gate discipline.
+-  - The skill explicitly states it is a guide (no auto-ingest, no auto-cost-approval) and points
+-    at onboard-competition / verify-competition-ingest for adjacent workflows.
+-  - reviewers: scope-auditor (always) + cto-reviewer (tooling/process) PASS.
+-
+-amendments: (none)
++  - `loads/transfers.py` + `transfers_response_for_team` + `run_transfers_for_competition` exist
++    and `orchestrator.py` invokes it after squads; `python -m py_compile` clean on changed Python;
++    the ingestion respects the quota break + SKIP env.
++  - `stg_apif__transfers` / `base_apif__transfers` / `fct_transfer` build; `raw_apif_transfers`
++    source declared; `fct_transfer` has a tested unique grain + not-null keys; base dedup tested.
++  - `dbt parse` resolves all refs; sqlfluff clean on changed SQL; validate-local gates
++    (layer contract, registry sync, python) pass.
++  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/**) +
++    analytics-engineer-reviewer (dbt_project/**) — PASS.
++
++amendments:
++  - 2026-06-14: dedup key = EXACT (player, team_in, team_out, transfer_date), in the BASE layer
++    (staging does no dedup; core reads the deduped base). Removes the by-team cross-query duplicate
++    (each move fetched twice, once per involved club) + exact provider duplicates, WITHOUT
++    fuzzy-merging near-duplicate-date records (date-window merge could fuse genuine repeat moves).
++    Authority: CPO RULING (escalations.log 2026-06-14 feat/transfers-chain, "do it") — the
++    iteration-3 scope-auditor flagged that "which records are the same move" is a CPO data-modeling
++    decision, not builder self-classification; the CPO confirmed the exact-key dedup and its base-
++    layer home. content: decisions_taken (cross-query note) + decisions_reserved (exact dedup key).
++  - 2026-06-14: + docs/data_contract.md to scope_paths. Authority: required doc-sync (iteration-1
++    scope-auditor + data-engineer FAIL) — data_contract.md explicitly documents RAW_APIF_TRANSFERS
++    as RETIRED; reinstating the chain MUST un-retire it there (add to the unified raw-table list,
++    update the retired/transfers notes). Clean-tree amendment (code stashed). content: un-retire
++    transfers in data_contract.md.
+diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
+index cfdc83f..b514383 100644
+--- a/dbt_project/models/1_staging/api_football/sources.yml
++++ b/dbt_project/models/1_staging/api_football/sources.yml
+@@ -46,3 +46,10 @@ sources:
+         freshness:
+           warn_after: {count: 30, period: hour}
+           error_after: {count: 54, period: hour}
++
++      - name: raw_apif_transfers
++        identifier: RAW_APIF_TRANSFERS
++        loaded_at_field: ingested_at
++        freshness:
++          warn_after: {count: 30, period: hour}
++          error_after: {count: 54, period: hour}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 4f81a72..9cbabc5 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -6,8 +6,9 @@ version: 2
+ # No entity-grain deduplication, no aggregation/pivot, no cross-source unions/joins here —
+ # all of that is business logic that belongs in base. See dbt_project/docs/layering.md §1_staging.
+ # Test policy: not_null on grain columns; unique only where a single snapshot is already unique
+-# at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) —
+-# they may carry multiple ingest snapshots; entity dedup is in base.
++# at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) or on
++# transfers — they carry expected duplicates (multiple ingest snapshots, and for transfers the same
++# move fetched under both involved teams); entity dedup is in base.
  
- amendments: (none)
+ models:
+   - name: stg_apif__fixtures_next
+@@ -148,3 +149,16 @@ models:
+         tests: [not_null]
+       - name: raw_ingested_at
+         tests: [not_null]
++
++  - name: stg_apif__transfers
++    description: >
++      One row per transfer move from $.response[].transfers_payload[].transfers in
++      raw_apif_transfers (GET /transfers by team). Latest ingestion snapshot per league_code,
++      then faithful 1:1 flatten. NO dedup here — by-team fetching returns each move twice
++      (once per involved team); entity dedup is in base_apif__transfers. player_id /
++      transfer_date may be null (filtered in base). Grain at staging: one raw transfer row.
++    columns:
++      - name: league_code
++        tests: [not_null]
++      - name: raw_ingested_at
++        tests: [not_null]
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__transfers.sql b/dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
+new file mode 100644
+index 0000000..df60386
+--- /dev/null
++++ b/dbt_project/models/1_staging/api_football/stg_apif__transfers.sql
+@@ -0,0 +1,47 @@
++with src as (
++    select *
++    from {{ source('api_football', 'raw_apif_transfers') }}
++    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++),
++
++team_blocks as (
++    select
++        src.ingested_at as raw_ingested_at,
++        team_block,
++        src.league_code
++    from src,
++        unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as team_block
++),
++
++player_rows as (
++    select
++        league_code,
++        raw_ingested_at,
++        player_el
++    from team_blocks,
++        unnest(
++            json_query_array(json_query(team_block, '$.transfers_payload'), '$')
++        ) as player_el
++),
++
++transfer_rows as (
++    select
++        league_code,
++        raw_ingested_at,
++        transfer_el,
++        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
++    from player_rows,
++        unnest(
++            json_query_array(json_query(player_el, '$.transfers'), '$')
++        ) as transfer_el
++)
++
++select
++    league_code,
++    raw_ingested_at,
++    player_id,
++    safe_cast(json_value(transfer_el, '$.date') as date) as transfer_date,
++    json_value(transfer_el, '$.type') as transfer_type,
++    safe_cast(json_value(transfer_el, '$.teams.in.id') as int64) as team_in_id,
++    safe_cast(json_value(transfer_el, '$.teams.out.id') as int64) as team_out_id
++from transfer_rows
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 38bc50c..9641379 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -226,3 +226,28 @@ models:
+         tests: [not_null]
+       - name: season_year
+         tests: [not_null]
++
++  - name: base_apif__transfers
++    description: >
++      Dated player transfers (moves), deduped from stg_apif__transfers. By-team fetching
++      returns each move twice (once per involved team), so we keep one row per distinct move;
++      provider near-duplicates with different dates are kept distinct (no fuzzy merge).
++      transfer_type is the raw provider string. Grain: (player_id, team_in_id, team_out_id,
++      transfer_date).
++    config:
++      tags: ["base", "api_football", "transfers"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns:
++            - player_id
++            - team_in_id
++            - team_out_id
++            - transfer_date
++    columns:
++      - name: player_id
++        tests: [not_null]
++      - name: transfer_date
++        tests: [not_null]
++      - name: league_code
++        description: "Ingest provenance (the tracked league whose team pull surfaced the move, pinned deterministically), NOT a semantic partition — transfers are global."
++        tests: [not_null]
+diff --git a/dbt_project/models/2_base/api_football/base_apif__transfers.sql b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
+new file mode 100644
+index 0000000..a7dcc10
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
+@@ -0,0 +1,34 @@
++-- Dated player transfers, deduped. By-team fetching returns each move twice (once under
++-- the team-in query, once under the team-out query), so we keep one row per distinct move
++-- (player, team_in, team_out, transfer_date). Provider near-duplicates with DIFFERENT dates
++-- (the same move recorded a few days apart under different `type`s) are kept as distinct
++-- rows — a date-window merge would risk collapsing genuine repeat moves. transfer_type is
++-- the raw provider string (no canonical taxonomy here).
++-- league_code is INGEST PROVENANCE, not a semantic partition: a transfer is a global player
++-- event and the same move can be fetched under more than one tracked league's team pull, so
++-- the move is deduped ACROSS league_code (league_code is NOT in the partition); the surviving
++-- league_code is pinned deterministically (latest ingest, then league_code asc).
++-- Grain: (player_id, team_in_id, team_out_id, transfer_date).
++with src as (
++    select * from {{ ref('stg_apif__transfers') }}
++    where
++        player_id is not null
++        and transfer_date is not null
++        -- a move with neither side is meaningless (and would collide on the grain); a
++        -- single missing side is legitimate (the provider omits team_in or team_out)
++        and not (team_in_id is null and team_out_id is null)
++)
++
++select
++    player_id,
++    team_in_id,
++    team_out_id,
++    transfer_date,
++    transfer_type,
++    league_code,
++    raw_ingested_at
++from src
++qualify row_number() over (
++    partition by player_id, team_in_id, team_out_id, transfer_date
++    order by raw_ingested_at desc, league_code asc
++) = 1
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 38b40f7..eb75646 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -657,3 +657,42 @@ models:
+       - name: source_code
+         tests: [not_null]
+       - name: prompt_version
++
++  - name: fct_transfer
++    description: >
++      Dated player transfers (moves) — one row per distinct move (player, team_out, team_in,
++      date) with the provider's raw type. The dated source of the player affiliation timeline
++      (a later PR derives valid_from/valid_to + chronological order). Reinstated 2026-06-14
++      (transfers chain rebuild; reverses #420). No relationship tests to dim_player/dim_team —
++      transfers legitimately reference clubs and players outside our covered competitions.
++      Grain: (player_sk, team_out_sk, team_in_sk, transfer_date).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["core", "fact", "transfers"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns:
++            - player_sk
++            - team_in_sk
++            - team_out_sk
++            - transfer_date
++      # every move has at least one known side (both-null is filtered in base); a single
++      # missing side (team_in_sk OR team_out_sk null) is legitimate provider behaviour
++      - dbt_utils.expression_is_true:
++          expression: "team_in_sk is not null or team_out_sk is not null"
++          name: fct_transfer_has_a_side
++    columns:
++      - name: transfer_sk
++        tests: [unique, not_null]
++      - name: player_sk
++        tests: [not_null]
++      - name: transfer_date
++        tests: [not_null]
++      - name: transfer_type
++        description: "Raw provider transfer type (N/A, Loan, Free, Transfer, fee, …); no canonical taxonomy."
++      - name: league_code
++        description: "Ingest provenance (the tracked league whose team pull surfaced the move), NOT a semantic partition — transfers are global player events; don't filter affiliation by it expecting completeness."
++        tests: [not_null]
+diff --git a/dbt_project/models/3_core/fct_transfer.sql b/dbt_project/models/3_core/fct_transfer.sql
+new file mode 100644
+index 0000000..b8cdb03
+--- /dev/null
++++ b/dbt_project/models/3_core/fct_transfer.sql
+@@ -0,0 +1,40 @@
++{{ config(materialized='table') }}
++
++{#
++  Dated player transfers (moves). One row per distinct move: which player moved from
++  which team to which team, on which date, plus the provider's raw type string. The
++  dated source of the player affiliation timeline (a later PR derives valid_from /
++  valid_to + chronological order). Reinstated 2026-06-14 (transfers chain rebuild;
++  reverses #420).
++
++  player_sk is the API player id (= dim_player.player_sk); team_in_sk / team_out_sk are
++  API team ids (= dim_team.team_sk). team_in_sk or team_out_sk may be null when the
++  provider omits a side of the move. No relationship tests to dim_player / dim_team:
++  transfers legitimately reference clubs and players outside our covered competitions.
++
++  league_code is INGEST PROVENANCE (the tracked league whose team pull surfaced the move,
++  pinned deterministically in base), NOT a semantic partition — a transfer is a global player
++  event. Do not filter affiliation by league_code expecting completeness.
++
++  Grain: (player_sk, team_out_sk, team_in_sk, transfer_date).
++#}
++
++with src as (
++    select * from {{ ref('base_apif__transfers') }}
++)
++
++select
++    {{ dbt_utils.generate_surrogate_key([
++        'player_id',
++        'team_in_id',
++        'team_out_id',
++        'transfer_date'
++    ]) }} as transfer_sk,
++    cast(player_id as int64) as player_sk,
++    cast(team_in_id as int64) as team_in_sk,
++    cast(team_out_id as int64) as team_out_sk,
++    transfer_date,
++    transfer_type,
++    league_code,
++    raw_ingested_at
++from src
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 78e2262..be74b13 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -1,6 +1,6 @@
+ # Data contract: API-Football → BigQuery
+ 
+-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same seven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
++Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eight raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+ 
+ API references:
+ 
+@@ -11,7 +11,7 @@ API references:
+ 
+ ## Landing zone
+ 
+-Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores the response data, but loaders that batch multiple calls (per team, per season, or paged) do not keep each raw envelope as-is: most concatenate the calls' `response` arrays into one standard envelope (recomputing `results`/`paging`), while the per-team loaders for **players/squads** and **coaches** store a reshaped `{league_code, response: [...]}` payload without the envelope metadata (each `response` item is itself wrapped — `{team_id, coach}` for coaches, `{team_id, season, players_payload}` for players/squads). The per-item `response` data is preserved in every case. Every raw table holds:
++Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors`, `results`, `paging`, and a `response` array. The landing zone stores the response data, but loaders that batch multiple calls (per team, per season, or paged) do not keep each raw envelope as-is: most concatenate the calls' `response` arrays into one standard envelope (recomputing `results`/`paging`), while the per-team loaders for **players/squads**, **coaches**, and **transfers** store a reshaped `{league_code, response: [...]}` payload without the envelope metadata (each `response` item is itself wrapped — `{team_id, coach}` for coaches, `{team_id, season, players_payload}` for players/squads, `{team_id, transfers_payload}` for transfers). The per-item `response` data is preserved in every case. Every raw table holds:
+ 
+ | Column | Type | Notes |
+ |--------|------|-------|
+@@ -30,7 +30,7 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+ 
+ ## Unified raw tables
+ 
+-Seven tables serve the entire fleet of competitions. No per-competition raw tables exist.
++Eight tables serve the entire fleet of competitions. No per-competition raw tables exist.
+ 
+ | Table | Write mode | Partition | Cluster | Merge key |
+ |-------|------------|-----------|---------|-----------|
+@@ -41,6 +41,7 @@ Seven tables serve the entire fleet of competitions. No per-competition raw tabl
+ | `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
+ 
+ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
+ 
+@@ -127,11 +128,12 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
+ | Squad | `/players` per team, with `page=` merged where applicable | `RAW_APIF_PLAYERS` |
+ | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
+ | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
++| Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
+ | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+ 
+ **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
+ 
+-**Retired:** `/transfers` → `RAW_APIF_TRANSFERS` is no longer ingested. Nothing consumed transfers — `fct_transfer` was a leaf fact with no mart/export/UI reader, and the only internal use was a `dim_player` identity fallback feeding that unconsumed fact. Club changes are derivable from `dim_player_team_season_mapping` (season-level roster diffs) if ever needed. The daily call was removed to save quota; the staging/base/core transfers models were deleted and the `RAW_APIF_TRANSFERS` table is dropped post-merge. Reintroduce only if a feature needs the transfer date / type / cross-league detail the roster mapping cannot express.
++**Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; an append-only full-history snapshot per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
+ 
+ ### /fixtures query style
+ 
+@@ -160,7 +162,7 @@ Mapping from a typical API-Football subscription list to what this repository in
+ | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
+ | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
+ | Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
+-| Player transfers | Retired — `/transfers` no longer ingested (see Retired note above); club changes are derivable from `dim_player_team_season_mapping` |
++| Player transfers | Yes — `/transfers` per team (`RAW_APIF_TRANSFERS`); dated moves feed `fct_transfer`, the affiliation-timeline source (reinstated 2026-06-14, see note above) |
+ | Pre-match / in-play odds | Not in this repo (no odds ingest) |
+ | Statistics | Yes — `GET /fixtures/statistics` and fixture player stats (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+ | Predictions | Removed in PR #237 — not ingested |
+diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
+index 84e3c86..5e3067e 100644
+--- a/ingestion/api_football/fixture_scheduling.py
++++ b/ingestion/api_football/fixture_scheduling.py
+@@ -474,3 +474,26 @@ def players_response_for_team(
+         ctx = error_context or f"players team_id={team_id}"
+         append_api_errors(data, ctx, errors)
+     return list(data.get("response") or [])
++
++
++def transfers_response_for_team(
++    headers: dict,
++    team_id: int,
++    errors: list[str] | None = None,
++    *,
++    error_context: str = "",
++) -> list:
++    """All /transfers for a team (every player who moved in/out). Not season-scoped —
++    one call returns the team's full transfer history. Fetching by team returns each
++    move twice (once per involved team); the base model dedups."""
++    max_page = _env_int("API_FOOTBALL_TRANSFERS_MAX_PAGE", 5)
++    data = fetch_merged_paged(
++        "/transfers",
++        headers,
++        {"team": team_id},
++        max_pages=max_page,
++    )
++    if errors is not None:
++        ctx = error_context or f"transfers team_id={team_id}"
++        append_api_errors(data, ctx, errors)
++    return list(data.get("response") or [])
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index 5878c23..a60f93e 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -19,6 +19,7 @@ from .fixtures import fetch_merge_and_persist_fixtures
+ from .catalog import fetch_catalog_persist_and_plan
+ from .injuries import load_injuries
+ from .squads import load_squad_players_batch
++from .transfers import load_transfers_batch
+ from .standings import load_standings_if_enabled
+ from .teams import load_teams_merge_and_extend_ids
+ 
+@@ -116,3 +117,15 @@ def run_squads_for_competition(
+         ctx.errors.append(f"league {result.league_code} squads: {e}")
+ 
+ 
++def run_transfers_for_competition(
++    ctx: PipelineContext,
++    result: CompetitionRunResult,
++) -> None:
++    """Run /transfers batch for one competition's teams after global fanout."""
++    try:
++        _ingestion_phase(result.league_code, "transfers batch")
++        load_transfers_batch(ctx, result.league_code, result.team_ids)
++    except Exception as e:
++        ctx.errors.append(f"league {result.league_code} transfers: {e}")
++
++
+diff --git a/ingestion/api_football/loads/transfers.py b/ingestion/api_football/loads/transfers.py
+new file mode 100644
+index 0000000..30b9a97
+--- /dev/null
++++ b/ingestion/api_football/loads/transfers.py
+@@ -0,0 +1,60 @@
++"""Fetch /transfers per team (batched) → RAW_APIF_TRANSFERS.
++
++Each run fetches the full transfer history for all teams and appends a fresh
++snapshot row. Transfers are not season-scoped — one /transfers?team= call returns
++all of a team's players' moves. Fetching by team returns each move twice (once per
++involved team); the base model dedups. No cross-run merge with prior BQ data.
++"""
++
++from __future__ import annotations
++
++import os
++
++from .. import quota as errors_quota
++from ..bigquery import load_json_to_bq
++from ..settings import raw_table
++from ..fixture_scheduling import transfers_response_for_team
++from .context import PipelineContext
++
++
++def load_transfers_batch(
++    ctx: PipelineContext,
++    league_code: str,
++    team_ids: set[int],
++) -> None:
++    transfers_payload = {"league_code": league_code, "response": []}
++    if os.getenv("API_FOOTBALL_SKIP_TRANSFERS", "").strip().lower() in ("1", "true", "yes"):
++        ctx.errors.append(
++            f"transfers {league_code}: skipped (API_FOOTBALL_SKIP_TRANSFERS set — use on low-quota archive runs)"
++        )
++        return
++    for team_id in sorted(team_ids):
++        if errors_quota._http_quota_exhausted:
++            break
++        try:
++            transfers_rows = transfers_response_for_team(
++                ctx.headers,
++                team_id,
++                ctx.errors,
++                error_context=f"transfers {league_code} team_id={team_id}",
++            )
++            transfers_payload["response"].append(
++                {
++                    "team_id": team_id,
++                    "transfers_payload": transfers_rows,
++                }
++            )
++        except Exception as e:
++            ctx.errors.append(f"transfers {league_code} team {team_id}: {e}")
++    try:
++        load_json_to_bq(
++            ctx.client,
++            raw_table("TRANSFERS"),
++            transfers_payload,
++            as_json_payload=True,
++            append=True,
++            league_code=league_code,
++        )
++        ctx.add_loaded(1)
++    except Exception as e:
++        ctx.errors.append(f"transfers BQ {league_code}: {e}")
+diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
+index c0f97d2..f640f8c 100644
+--- a/ingestion/api_football/orchestrator.py
++++ b/ingestion/api_football/orchestrator.py
+@@ -61,6 +61,7 @@ from .loads.competition_runner import (
+     run_cheap_phases,
+     run_poll_phases,
+     run_squads_for_competition,
++    run_transfers_for_competition,
+ )
+ from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
+ 
+@@ -159,6 +160,10 @@ def _load_api_football(request):
+         for result in results:
+             run_squads_for_competition(ctx, result)
+ 
++        # Phase 4: transfers batch per competition (dated affiliation moves)
++        for result in results:
++            run_transfers_for_competition(ctx, result)
++
+         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
+         if ctx.errors:
+             uniq = _dedupe_errors_preserve_order(ctx.errors)

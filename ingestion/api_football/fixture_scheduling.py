@@ -474,3 +474,26 @@ def players_response_for_team(
         ctx = error_context or f"players team_id={team_id}"
         append_api_errors(data, ctx, errors)
     return list(data.get("response") or [])
+
+
+def transfers_response_for_team(
+    headers: dict,
+    team_id: int,
+    errors: list[str] | None = None,
+    *,
+    error_context: str = "",
+) -> list:
+    """All /transfers for a team (every player who moved in/out). Not season-scoped —
+    one call returns the team's full transfer history. Fetching by team returns each
+    move twice (once per involved team); the base model dedups."""
+    max_page = _env_int("API_FOOTBALL_TRANSFERS_MAX_PAGE", 5)
+    data = fetch_merged_paged(
+        "/transfers",
+        headers,
+        {"team": team_id},
+        max_pages=max_page,
+    )
+    if errors is not None:
+        ctx = error_context or f"transfers team_id={team_id}"
+        append_api_errors(data, ctx, errors)
+    return list(data.get("response") or [])

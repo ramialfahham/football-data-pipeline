@@ -657,3 +657,42 @@ models:
       - name: source_code
         tests: [not_null]
       - name: prompt_version
+
+  - name: fct_transfer
+    description: >
+      Dated player transfers (moves) — one row per distinct move (player, team_out, team_in,
+      date) with the provider's raw type. The dated source of the player affiliation timeline
+      (a later PR derives valid_from/valid_to + chronological order). Reinstated 2026-06-14
+      (transfers chain rebuild; reverses #420). No relationship tests to dim_player/dim_team —
+      transfers legitimately reference clubs and players outside our covered competitions.
+      Grain: (player_sk, team_out_sk, team_in_sk, transfer_date).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "fact", "transfers"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - team_in_sk
+            - team_out_sk
+            - transfer_date
+      # every move has at least one known side (both-null is filtered in base); a single
+      # missing side (team_in_sk OR team_out_sk null) is legitimate provider behaviour
+      - dbt_utils.expression_is_true:
+          expression: "team_in_sk is not null or team_out_sk is not null"
+          name: fct_transfer_has_a_side
+    columns:
+      - name: transfer_sk
+        tests: [unique, not_null]
+      - name: player_sk
+        tests: [not_null]
+      - name: transfer_date
+        tests: [not_null]
+      - name: transfer_type
+        description: "Raw provider transfer type (N/A, Loan, Free, Transfer, fee, …); no canonical taxonomy."
+      - name: league_code
+        description: "Ingest provenance (the tracked league whose team pull surfaced the move), NOT a semantic partition — transfers are global player events; don't filter affiliation by it expecting completeness."
+        tests: [not_null]

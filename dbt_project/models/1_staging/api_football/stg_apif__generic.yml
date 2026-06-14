@@ -6,8 +6,9 @@ version: 2
 # No entity-grain deduplication, no aggregation/pivot, no cross-source unions/joins here —
 # all of that is business logic that belongs in base. See dbt_project/docs/layering.md §1_staging.
 # Test policy: not_null on grain columns; unique only where a single snapshot is already unique
-# at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) —
-# they may carry multiple ingest snapshots; entity dedup is in base.
+# at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) or on
+# transfers — they carry expected duplicates (multiple ingest snapshots, and for transfers the same
+# move fetched under both involved teams); entity dedup is in base.
 
 models:
   - name: stg_apif__fixtures_next
@@ -145,6 +146,19 @@ models:
       - name: fixture_id
         tests: [not_null]
       - name: team_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__transfers
+    description: >
+      One row per transfer move from $.response[].transfers_payload[].transfers in
+      raw_apif_transfers (GET /transfers by team). Latest ingestion snapshot per league_code,
+      then faithful 1:1 flatten. NO dedup here — by-team fetching returns each move twice
+      (once per involved team); entity dedup is in base_apif__transfers. player_id /
+      transfer_date may be null (filtered in base). Grain at staging: one raw transfer row.
+    columns:
+      - name: league_code
         tests: [not_null]
       - name: raw_ingested_at
         tests: [not_null]

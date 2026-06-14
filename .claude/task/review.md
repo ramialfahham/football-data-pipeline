@@ -1,62 +1,82 @@
-# Review — feat/skill-onboard-endpoint — 2026-06-14
+# Review — feat/transfers-chain — 2026-06-14
 
-> CPO-directed (escalations.log 2026-06-14, "go ahead"): a new guide/checklist skill
-> `.claude/skills/onboard-endpoint/SKILL.md` codifying the routine for evaluating + ingesting
-> a NEW API endpoint — check-if-ingested -> throwaway verification calls -> cost estimate ->
-> CPO cost-approval gate -> CPO history-depth -> build (raw -> staging -> base -> loads). A
-> single new markdown file; not a protected path. Frontmatter validated (parses).
+> PR-i of the player-data initiative (APPROVED plan + escalations.log 2026-06-14): rebuild the
+> retired transfers chain (reverses #420). Ingestion: `loads/transfers.py` pulls `/transfers`
+> by team (one call = all a team's moves) and appends to `RAW_APIF_TRANSFERS`, wired into the
+> orchestrator as Phase 4 after squads; `transfers_response_for_team` mirrors
+> `players_response_for_team`. dbt: `stg_apif__transfers` (latest-snapshot + 1:1 unnest) →
+> `base_apif__transfers` (dedup) → `fct_transfer` (dated-moves fact). `docs/data_contract.md`
+> un-retires transfers. The affiliation timeline + current-team derivation are a LATER PR.
+> Local validation: layer contract PASS, registry sync PASS, dbt parse PASS, sqlfluff clean,
+> py_compile clean.
 >
-> Review cycle: FIVE cold iterations (reviewers: scope-auditor [gate-required for .claude/skills]
-> + cto-reviewer [run voluntarily for the tooling change]). Findings caught and fixed across
-> iterations: (1) Step 3 now ASKS the CPO directly + forbids self-grant + cites the §2/§11
-> escalations-recording practice (scope-auditor F1/F2); (2) `set +x` now the first line of the
-> key-load block (cto); (3) Step 0 checks code AND a populated raw table + resolves the
-> configurable raw dataset from settings (cto + scope-auditor); (4) RapidAPI base URL +
-> `x-rapidapi-host` value named; "Path B" defined; (5) coverage wiring names the real
-> `ENDPOINT_REQUIRES_NONEMPTY`/`SHELL_KEY_TO_ENDPOINT` structures (cto); (6) a factual error
-> (claiming entity-keyed endpoints don't carry `league_code`) corrected — the data contract
-> requires `league_code` on all raw tables (cto). Iteration 5: both PASS against the hash below;
-> cto verified every named fact against settings.py / coverage.py / data_contract.md / squads.py.
-> Rejected (with reason): adding `.claude/skills/**` routing to review_routing.json — a protected
-> change, out of this task's scope (cto run voluntarily satisfies the contract). Residual
-> non-blocking notes: the curl+python heredoc quoting footgun (mitigated by an in-skill note),
-> and an explicit multi-day-quota-feasibility check (partially covered by "how the backfill
-> spreads across days").
+> Review cycle: FOUR cold iterations (scope-auditor + data-engineer-reviewer + analytics-engineer-
+> reviewer). Iter 1 all FAIL → fixes: data_contract.md doc-sync (un-retire transfers; added to
+> scope via amendment), deterministic dedup + `league_code` documented as ingest provenance,
+> staging grain-test waiver. Iter 2: scope-auditor PASS; data-eng FAIL (data_contract intro count
+> "seven"→"eight"; transfers freshness) + analytics FAIL (NULL surrogate/grain collision) → fixes:
+> count fixed, freshness added, base now filters both-team-null + `fct_transfer_has_a_side` test.
+> Iter 3 all FAIL on governance/test-policy interpretation → resolutions: the DEDUP RULE is now a
+> recorded CPO ruling (escalations.log 2026-06-14 feat/transfers-chain, "do it"; dedup lives in
+> BASE) and the contract amendment cites it; data_contract.md landing-zone prose now includes
+> transfers; the two §3 findings (staging warn-test; "redundant" fact tests) were REJECTED with
+> reason — staging omission-with-documented-waiver is the project pattern (fixture-detail models
+> + header waiver; a warn test on expected-duplicate staging is perpetual noise), and the
+> dual fact tests follow the documented `core.yml` fact-test policy (surrogate unique + natural-key
+> combination). Iter 4: all three PASS against the hash below. Standing (pre-existing project-wide
+> patterns, not new defects): partial-write-on-quota mirrors squads (transient — full re-fetch each
+> run); no `tests/fixtures/apif/` offline-parser-test precedent (validation = dbt build + DQ tests).
 
-diff_sha256: 410ef5ef8783e65297e5341275b3a105990401cbf8f5521cc7f3804b48099756
+diff_sha256: eb26721d4c4097b15064400eab961ceb31ae930b1a5f0102d5398a6e2b258e0c
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10 routing + auto-grant: Step 3/Step 4 route cost approval and history depth to the CPO and
-  forbid self-granting ("never infer or self-grant it"); recording an already-given approval in
-  escalations.log is the documented §2/§11 builder practice, not a new mechanism. No §10 decision
-  is embedded or presented as auto-grantable.
-- Scope + guards: the diff touches only the two scope_paths (the new SKILL.md + contract.md);
-  no protected guard (.claude/hooks, .claude/agents, settings.json, review_routing.json,
-  .github/workflows) is touched; the skill name follows the `onboard-*` convention (not a new
-  product-naming decision); no Appendix A pattern (A1 invented metrics — it forbids API
-  predictions/leaderboards; A3 new mechanism — a precedented single markdown guide; A5 — it
-  builds in dbt/raw/loads, not the export). Residual (non-blocking): cost step could require an
-  explicit one-day-fit / multi-day-spread feasibility statement before the CPO gate.
+- §10 authority trail: the dedup-rule choice (which records are "the same move") is now a RECORDED
+  CPO ruling (escalations.log 2026-06-14 feat/transfers-chain) and the contract's dedup amendment
+  cites it (no longer "data-cleaning latitude"); cost/cadence is within the recorded approval
+  (transfers runs as Phase 4 of the existing daily run, like squads — no new run/schedule); no
+  invented transfer-type taxonomy (raw string); affiliation-timeline/current-team logic is ABSENT
+  (reserved for a later PR). All changed files are within scope_paths (data_contract.md added via
+  a recorded amendment).
+- Appendix A + reinstatement accuracy: no new mechanism (mirrors the squads by-team loader pattern,
+  no UDF/hook — A3 clear); data_contract.md un-retire is accurate and complete (eight-table count,
+  table row, landing-zone prose, endpoints row, retired→reinstated note, plan-vs-product row);
+  league_code is documented as ingest provenance, not a semantic partition.
 
-## cto-reviewer
+## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Named-fact accuracy (verified against source): apisports base URL + `x-apisports-key`, RapidAPI
-  base URL + `x-rapidapi-key`/`x-rapidapi-host: api-football-v1.p.rapidapi.com` all match
-  settings.py (33-34, 86-90); `ENDPOINT_REQUIRES_NONEMPTY` + `SHELL_KEY_TO_ENDPOINT` exist in
-  coverage.py (56-72); the configurable raw dataset matches settings.py:31; the corrected
-  `league_code` statement matches data_contract.md (required on every raw table) + loads/squads.py
-  (24, 64 stamp it). No remaining factual error.
-- Key safety + cost gate: `set +x` is the first line of the key-load block and the key is only
-  ever a shell var passed as a header (no print); the cost/history decisions route to the CPO and
-  cannot be self-granted; the skill is a guide (no code, no auto-ingest) — no new mechanism (A3),
-  no guard touched. Residual (non-blocking): the curl+python heredoc quoting is a footgun,
-  mitigated by the in-skill note to avoid f-strings with escaped quotes.
+- Ingestion correctness vs the squads pattern (loads/transfers.py:31-58): SKIP env, quota-break,
+  per-team try/except, single append `load_json_to_bq(as_json_payload=True, append=True,
+  league_code=...)` after the loop creating the unified table; `transfers_response_for_team`
+  (fixture_scheduling.py) is by-team via fetch_merged_paged; orchestrator Phase 4 after squads uses
+  result.team_ids; no new run/schedule. Partial-write-on-quota is the pre-existing squads pattern
+  (transient — full re-fetch each run), not a new defect.
+- data_contract.md reinstatement completeness: all six touch-points verified on disk — intro count
+  "eight", RAW_APIF_TRANSFERS table row, landing-zone reshaped-payload prose ({team_id,
+  transfers_payload}), endpoints row, retired→reinstated note, plan-vs-product row; raw landing
+  follows RAW_APIF_{entity} + {league_code, payload, ingested_at}. The staging full-scan QUALIFY
+  (no date pre-filter) mirrors stg_apif__players exactly — pre-existing pattern, not introduced here.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- NULL-key dedup/surrogate correctness (base_apif__transfers.sql:19,31-33 + fct_transfer.sql:23-28
+  + core.yml/base.yml grain tests): single-side-null moves are legitimate and hash distinctly;
+  the both-team-null filter removes the only grain-collision case; BigQuery groups nulls in the
+  PARTITION BY and the unique_combination test, all consistent with the surrogate key. The
+  `fct_transfer_has_a_side` test guards the at-least-one-side invariant.
+- Layer + test-policy compliance: staging = latest-snapshot (partition by league_code) + 1:1 unnest
+  only (no dedup); base = dedup, view, reads stg; core = reads base, no json/unnest/union_all,
+  grain enforced, materialized table. Staging uniqueness-test omission matches the documented
+  header waiver + the four existing fixture-detail staging models (expected duplicates). The dual
+  fct_transfer uniqueness tests follow the core.yml header fact-test policy (surrogate unique +
+  natural-key combination) — not redundant by project standard. transfer_type kept raw (no A1).
 
 ## escalations
-(none — five cold iterations; the gate-required scope-auditor and the voluntary cto-reviewer
-both PASS against the locked hash. No reviewer raised a §10 question on this diff. Adding
-`.claude/skills/**` to review_routing.json was deliberately NOT done — it is a protected change
-out of this task's scope; running cto-reviewer voluntarily satisfies the contract.)
+(none — four cold iterations; all three routed reviewers PASS against the locked hash. The one §10
+question raised in review (the dedup-rule classification) was ruled by the CPO and recorded in
+escalations.log (2026-06-14 feat/transfers-chain, "do it"); the contract's dedup amendment cites it.
+No open ESCALATE verdict remains. The affiliation timeline + current-team derivation, and the
+canonical transfer-type taxonomy, remain reserved for later work.)

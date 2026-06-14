@@ -19,6 +19,7 @@ from .fixtures import fetch_merge_and_persist_fixtures
 from .catalog import fetch_catalog_persist_and_plan
 from .injuries import load_injuries
 from .squads import load_squad_players_batch
+from .transfers import load_transfers_batch
 from .standings import load_standings_if_enabled
 from .teams import load_teams_merge_and_extend_ids
 
@@ -114,5 +115,17 @@ def run_squads_for_competition(
         load_squad_players_batch(ctx, result.league_code, result.seasons_list, result.team_ids)
     except Exception as e:
         ctx.errors.append(f"league {result.league_code} squads: {e}")
+
+
+def run_transfers_for_competition(
+    ctx: PipelineContext,
+    result: CompetitionRunResult,
+) -> None:
+    """Run /transfers batch for one competition's teams after global fanout."""
+    try:
+        _ingestion_phase(result.league_code, "transfers batch")
+        load_transfers_batch(ctx, result.league_code, result.team_ids)
+    except Exception as e:
+        ctx.errors.append(f"league {result.league_code} transfers: {e}")
 
 

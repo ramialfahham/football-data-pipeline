@@ -61,6 +61,7 @@ from .loads.competition_runner import (
     run_cheap_phases,
     run_poll_phases,
     run_squads_for_competition,
+    run_transfers_for_competition,
 )
 from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
 
@@ -158,6 +159,10 @@ def _load_api_football(request):
         # Phase 3: squad /players batch per competition
         for result in results:
             run_squads_for_competition(ctx, result)
+
+        # Phase 4: transfers batch per competition (dated affiliation moves)
+        for result in results:
+            run_transfers_for_competition(ctx, result)
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:
