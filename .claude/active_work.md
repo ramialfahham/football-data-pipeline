@@ -4,12 +4,14 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-14 (Pilot started + player-data initiative launched). Shipped this
-session, all MERGED to main: Pilot PR1 #465 (GAP-15 team fixtures + GAP-19 consumption
-migration), the onboard-endpoint skill #466, the transfers ingestion chain #467, and its
-pagination fix #469. The agent-governance system (G1–G4) remains fully LIVE and UNCHANGED
-this session — see "The governance machinery" below. **Website blueprint (#391) is still
-PAUSED by CPO order.**_
+_Last updated: 2026-06-14 (session 2 — AI-collaboration tuning). Shipped + MERGED this
+session: **#471** — a `permissions.deny` backstop in `.claude/settings.json`, the repo's
+first custom slash command `/status` (read-only snapshot), and a governance EXTENSION making
+`.claude/commands/**` a PROTECTED + cto-routed + opus-guarded path (mirrors `.claude/agents/**`,
+incl. a `test_commands_dir_is_protected` test). The agent-governance system (G1–G4) is LIVE and
+was EXTENDED this session (the commands surface) — see "The governance machinery" below. Prior
+session (2026-06-14 s1) merged #465/#466/#467/#469. **Website blueprint (#391) is still PAUSED
+by CPO order.**_
 
 ## Standing authority (in force)
 - The 2026-06-13 standing grant covered the G4 **audit-cleanup backlog** (#409–#430). That
@@ -19,7 +21,19 @@ PAUSED by CPO order.**_
   PR; **CPO merges**. Stop-conditions ALWAYS hold: never merge, escalate §10 blinded, stop
   for cost/destructive.
 
-## This session — shipped (all MERGED to main)
+## This session (2026-06-14 s2) — shipped (MERGED to main)
+- **#471 (commit c1c4124) — AI-collaboration tuning.** (a) `.claude/settings.json`
+  `permissions.deny` backstop: `rm -rf` / `git clean` / `bq rm` / `gcloud projects delete` /
+  `git push -f` / `git commit --no-verify` / `.env` reads — a defense-in-depth layer UNDER
+  the hooks (CPO ruled `bq rm` KEEP DENIED; force-push blocks `-f` only, `--force-with-lease`
+  stays allowed for rebased-PR updates). (b) `.claude/commands/status.md` — first custom slash
+  command, READ-ONLY snapshot (branch / tree / open-PRs+CI / handover). (c) governance
+  EXTENSION: `.claude/commands/**` now PROTECTED (`task_contract_gate` PROTECTED_PREFIXES) +
+  cto-routed (`review_routing.json`) + opus-guarded (docs) + `test_commands_dir_is_protected`
+  — mirrors the `.claude/agents/**` precedent. Two §10 questions arose in review, both
+  CPO-ruled (escalations.log 2026-06-14: force-push pattern; commands-surface governance).
+
+## Prior session (2026-06-14 s1) — shipped (all MERGED to main)
 1. **Pilot PR1 — #465 (commit 4a83e5e)** — GAP-15 `mart_team_fixtures` (new view) +
    `mart_head_to_head` pair_key/is_canonical + `mart_momentum__player.top_player_rank` +
    `mart_player_profile` `*_rank` columns; `competition_types.csv` `display_group`. Moved
@@ -76,7 +90,12 @@ affiliation timeline (instead of an is_current_team flag on the season mapping).
 - **GAP-17** (season-rollup denominator alignment, F8/F9) remains FROZEN — do NOT act.
 - **layering.md mart-inventory** — add a `mart_team_fixtures` row (chip task_c530a020).
 
-## Process lessons locked this session (do not repeat)
+## Process lessons locked (do not repeat)
+- **Custom slash commands live in `.claude/commands/` — PROTECTED + cto-routed + opus-guarded
+  (#471).** Adding/editing one needs `protected_override` + the full review cycle + a protection
+  test (mirror `test_agents_dir_is_protected`). The settings `permissions.deny` is a backstop
+  UNDER the hooks, not the boundary; a glob deny can't carve `--force` from `--force-with-lease`,
+  so it blocks `git push -f` only.
 - **A GREEN build on EMPTY data masks a fetch bug.** The transfers chain built green while
   every `transfers_payload` was `[]`; only RUNNING the ingestion surfaced it. Inspect actual
   ingested ROWS before declaring an ingestion chain done.
@@ -101,12 +120,15 @@ affiliation timeline (instead of an is_current_team flag on the season mapping).
 2. **Remove now-unused secrets** `CURSOR_EXECUTOR_BRIDGE_URL` + `CURSOR_EXECUTOR_BRIDGE_TOKEN`
    (from #458, merged — nothing in the tree references them anymore).
 
-## The governance machinery (G1–G4 all LIVE — unchanged this session)
+## The governance machinery (G1–G4 all LIVE — EXTENDED this session: commands surface)
 - **Contract first**: every unit of work writes `.claude/task/contract.md` (objective,
   scope_paths allowlist, decisions_reserved, done_when) on a CLEAN tree BEFORE any code.
   `task_contract_gate.py` denies edits outside scope_paths and edits to PROTECTED paths
-  (`.claude/hooks/`, `.claude/agents/`, `.github/workflows/`, `.claude/settings.json`,
-  `.claude/review_routing.json`) without a `protected_override:` naming CPO authority.
+  (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.github/workflows/`,
+  `.claude/settings.json`, `.claude/review_routing.json`) without a `protected_override:`
+  naming CPO authority. **NEW (#471):** `.claude/settings.json` also carries a
+  `permissions.deny` backstop, and `.claude/commands/**` is protected + cto-routed +
+  opus-guarded (custom commands can embed shell).
 - **4-step review cycle** (Code Lock → cold Blinding → Cross-Examination → SHA-256 Lock) in
   `.claude/task/review.md`. Reviewers routed by `.claude/review_routing.json` (scope-auditor
   always; dbt → analytics-engineer; ingestion/data_contract/registry → data-engineer;
