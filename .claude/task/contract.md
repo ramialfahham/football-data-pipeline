@@ -1,81 +1,91 @@
-# Task contract — chore: settings deny-list + governed /status command (AI-collab tuning)
+# Task contract — feat: player-endpoint ingestion CODE (profiles + teams + squads) — PR-a1
 
-> CPO-directed tuning of the repo's AI-collaboration infrastructure, arising from assessing
-> `.claude/` against a best-practice post. Two user-facing changes — (1) a deterministic
-> `permissions.deny` backstop in `.claude/settings.json`; (2) the repo's first custom slash
-> command, `/status` (read-only snapshot) — plus the governance lock-down the CPO ruled must
-> precede shipping any command: make `.claude/commands/**` a PROTECTED + cto-routed + opus-
-> guarded path, mirroring the `.claude/agents/**` precedent. Touches PROTECTED paths
-> (settings.json, task_contract_gate.py, review_routing.json) → protected_override below.
-> See docs/working_agreement.md §2, §10; .claude/task/escalations.log 2026-06-14 (this branch).
+> Player-data initiative, PR-a (the plan's "PR-ii — player endpoints ingest"), sliced
+> finer per the CPO this session into PR-a (ingest) → PR-b (dim_player bio + appearance
+> fact) → PR-c (affiliation timeline). PR-a is itself split (CPO this session) into
+> **PR-a1 = ingestion CODE only** (this task) and PR-a2 = staging models, because the new
+> staging models would reference raw tables that do not exist until the loaders run — so
+> code lands first, a backfill creates + populates the raw tables (cost checkpoint then),
+> rows are INSPECTED, and only then do the staging models build green (honors this session's
+> transfers lesson: a green build on missing/empty source masks a fetch bug).
+> Touches NO protected paths and NO dbt models. Reviewers: scope-auditor + data-engineer.
+> See docs/working_agreement.md §2/§5/§10; .claude/task/escalations.log 2026-06-15 (this branch);
+> the approved plan C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md (§2/§4/§5/§8).
 
 objective: >
-  (1) Add a `permissions.deny` block to `.claude/settings.json` (filesystem / shared-prod /
-  git-history / secrets backstops), leaving the `hooks` block byte-identical. (2) Govern the
-  command surface BEFORE shipping a command: add `.claude/commands/` to the contract gate's
-  PROTECTED_PREFIXES, route `.claude/commands/**` to cto-reviewer, add it to the opus-on-guards
-  floor, and sync the protected/guard enumerations in working_agreement.md + agent_guardrails.md.
-  (3) Add the read-only `.claude/commands/status.md` slash command.
+  Build the ingestion CODE for three new API-Football player endpoints and wire them into the
+  orchestrator — NO dbt models, NO backfill execution in this PR:
+  (1) `/players/squads` per team (current squad + shirt number), per-competition like transfers,
+      landing into a new unified raw table `RAW_APIF_SQUADS`.
+  (2) `/players/profiles` per player (rich bio) and (3) `/players/teams` per player (career
+      team×seasons), run as a GLOBAL per-player phase over the current universe (players rostered
+      in season >= 2025, ~31.9k), gathered from `RAW_APIF_PLAYERS`, deterministic provenance
+      `league_code` = MIN(league_code) per player, SKIP-IF-ALREADY-INGESTED so the daily run stays
+      cheap (bio/career are static/slow), landing into `RAW_APIF_PLAYER_PROFILES` /
+      `RAW_APIF_PLAYER_TEAMS`. All three respect the ingest lock, the daily quota guard, and a
+      per-endpoint skip env var.
+  (4) Document the three new raw tables (Unified raw tables + Endpoints + Pagination + Plan-vs-product)
+      in docs/data_contract.md.
 
-refs: CPO in-conversation direction + two blinded rulings, 2026-06-14 (this branch's
-  escalations.log entry): Issue 1 force-push = "block only reckless -f"; Issue 2 command
-  surface = "lock down first, then add /status". Both rulings answer FAIL findings from the
-  iteration-1 blinded review (scope-auditor + cto-reviewer opus).
+refs: >
+  CPO cost-approval gate + scope/universe/axis rulings this session (AskUserQuestion, 2026-06-15):
+  scope = profiles + teams + squads (DROP /players/seasons); universe = current players season>=2025
+  (~31.9k); bio axis = per-player. Structural split (code-first → staging) = CPO this session.
+  All recorded in .claude/task/escalations.log 2026-06-15 (this branch). Builds on the approved
+  initiative plan (§2 endpoints, §4 raw table names, §5 cost, §8 PR breakdown).
 
 scope_paths:
-  - .claude/settings.json
-  - .claude/hooks/task_contract_gate.py
-  - .claude/review_routing.json
-  - .claude/commands/status.md
-  - docs/working_agreement.md
-  - docs/agent_guardrails.md
-  - tests/test_governance_hooks.py
+  - ingestion/api_football/fixture_scheduling.py
+  - ingestion/api_football/loads/player_squads.py
+  - ingestion/api_football/loads/player_profiles.py
+  - ingestion/api_football/loads/player_teams.py
+  - ingestion/api_football/loads/player_universe.py
+  - ingestion/api_football/loads/competition_runner.py
+  - ingestion/api_football/orchestrator.py
+  - docs/data_contract.md
   - .claude/task/contract.md
 
-protected_override: >
-  CPO (Rami) directed this work in-conversation (2026-06-14) and ruled both surfaced questions
-  (Issue 1 = block -f only; Issue 2 = lock down the command surface first). That ruling is the
-  authority to edit the protected guard machinery in this task: `.claude/settings.json`,
-  `.claude/hooks/task_contract_gate.py`, and `.claude/review_routing.json`. Recorded in
-  .claude/task/escalations.log (2026-06-14, this branch).
-
 decisions_taken: >
-  The deny-list is a defense-in-depth BACKSTOP (the active hooks remain the boundary). Issue 1
-  ruling: block `git push -f` only — `--force-with-lease` (needed to update a rebased PR),
-  long-form `--force`, and `git reset` stay allowed, because the glob matcher cannot carve
-  `--force` out of `--force-with-lease`. Other denies: `rm -rf` variants, `git clean` (protects
-  parked untracked work), `bq rm` + `gcloud projects delete` (shared prod; CPO ruled KEEP DENIED
-  — friction on rare legit drops is intentional), `git commit --no-verify`/`-n` (defense-in-depth
-  over the git-discipline hook), `.env`-family Read/Edit. Issue 2 ruling: `.claude/commands/**`
-  is treated like the `.claude/agents/**` precedent — PROTECTED (gate), cto-routed
-  (review_routing.json), and in the opus-on-guards floor — because command files can embed shell
-  (the same high-stakes class as hooks). The doc enumerations are synced so the written rule and
-  the code agree. `/status` is read-only (`allowed-tools` allowlists four read commands + reading
-  the handover) and forbidden from acting.
+  Raw table names (`RAW_APIF_SQUADS`, `RAW_APIF_PLAYER_PROFILES`, `RAW_APIF_PLAYER_TEAMS`) are
+  settled by the approved plan §4 and follow the RAW_APIF_{entity} convention; landing schema is
+  the standard `league_code STRING, payload JSON, ingested_at TIMESTAMP` via `load_json_to_bq(...,
+  as_json_payload=True, append=True, league_code=...)` (mirrors squads/transfers). HTTP helpers use
+  `fetch_merged_paged(..., paginate=False)` — all three reject `page=` / return one page for the
+  keyed forms (verified live 2026-06-15: squads team=157 total=1, profiles player=5 total=1, teams
+  player=5 total=1). The existing `loads/squads.py` (which fetches `/players` → `RAW_APIF_PLAYERS`)
+  is UNCHANGED; the new `/players/squads` loader is a distinct module `loads/player_squads.py`.
+  Per-player profiles+teams run as ONE global phase (not per-competition) because the axis is
+  per-player, not per-team; the universe is read from raw `RAW_APIF_PLAYERS` (raw→raw, no dbt
+  dependency). Provenance `league_code` = deterministic MIN per player (mirrors the transfers
+  ingest-provenance rule — league_code is provenance, not identity). SKIP-IF-ALREADY-INGESTED
+  (anti-join against the target table; full universe when the target does not yet exist) implements
+  the approved ongoing-cost model (~1.4–3.7k/day) — a static-bio refresh policy beyond first-seen is
+  NOT introduced here.
 
-decisions_reserved:
-  - If a reviewer finds a denied pattern that breaks an established legitimate workflow (beyond
-    the bq rm friction already CPO-accepted), STOP and surface it.
-  - Tidying the accreted allow-list in settings.local.json, and any broader ceremony-threshold
-    calibration, are explicitly OUT of scope (separate follow-ups).
+decisions_reserved: >
+  - Anything beyond raw landing (staging/base/core/marts, any derive/transform/dedup) is PR-a2+ —
+    not in this PR.
+  - If a reviewer finds the global per-player phase needs a CPO product/cadence ruling beyond the
+    skip-if-present default (e.g. a periodic forced bio/career refresh policy), STOP and surface
+    blinded — do not self-rule.
+  - Loader/module naming follows the approved plan + convention; a genuine naming ambiguity a
+    reviewer raises is a CPO call, not a builder default.
+  - The backfill DISPATCH that will populate these tables is a separate cost checkpoint AFTER this
+    PR merges — not taken here.
 
 done_when:
-  - `.claude/settings.json` parses (`python -m json.tool`); `permissions.deny` present; the
-    `hooks` block is unchanged vs main; the deny-list blocks `git push -f` but not
-    `--force-with-lease`/`--force`.
-  - `task_contract_gate.py` PROTECTED_PREFIXES includes `.claude/commands/`; `review_routing.json`
-    routes `.claude/commands/**` → cto-reviewer; both parse.
-  - working_agreement.md §2 + agent_guardrails.md list `.claude/commands/` among the protected /
-    opus-guard paths.
-  - tests/test_governance_hooks.py has `test_commands_dir_is_protected` (mirrors
-    `test_agents_dir_is_protected`); `python -m pytest tests/test_governance_hooks.py -q` passes.
-  - `.claude/commands/status.md` exists, read-only (no write/commit/push in allowed-tools).
-  - reviewers: scope-auditor (always) + cto-reviewer (settings/hooks/routing routing; run on OPUS
-    per opus-on-guards) — both PASS.
+  - Three loaders (`player_squads.py`, `player_profiles.py`, `player_teams.py`) + a universe
+    gatherer (`player_universe.py`) + three `*_response_for_*` helpers in `fixture_scheduling.py`;
+    each guarded by the quota flag + a per-endpoint `API_FOOTBALL_SKIP_*` env var.
+  - `orchestrator.py` wires `/players/squads` per competition (after the existing squads/transfers
+    phases) and a global profiles+teams phase; `competition_runner.py` adds the per-comp squads
+    wrapper (mirrors `run_transfers_for_competition`).
+  - NO files under `dbt_project/**` are touched (PR-a2); CI `ci-data-build` stays green because no
+    new dbt source is referenced.
+  - `docs/data_contract.md` lists the three new raw tables in: Unified raw tables, Endpoints and
+    raw tables, the Pagination note, and Plan-vs-product.
+  - `python -m py_compile` on every touched/added module passes; validate-local clean.
+  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/** + data_contract.md)
+    both PASS (≥2 named risks each); no FAIL; any ESCALATE has a recorded CPO ANSWER.
 
-amendments:
-  - 2026-06-14: + tests/test_governance_hooks.py to scope_paths. Authority: iteration-2
-    cto-reviewer FAIL — the `.claude/agents/**` precedent shipped WITH a protection test
-    (`test_agents_dir_is_protected`), so mirroring it "exactly" requires the same coverage for
-    `.claude/commands/`. Clean-tree amendment (the six code files stashed). content: add
-    `test_commands_dir_is_protected`; routing unchanged (tests/** already → cto-reviewer).
+amendments: []

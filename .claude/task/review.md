@@ -1,54 +1,56 @@
-# Review — chore/claude-deny-list-and-status-command — 2026-06-14
+# Review — feat/player-endpoints-ingest — 2026-06-15
 
-> CPO-directed AI-collaboration tuning: a `permissions.deny` backstop in `.claude/settings.json`
-> + the repo's first custom slash command `/status`, plus the governance lock-down the CPO ruled
-> must precede it (`.claude/commands/**` made PROTECTED + cto-routed + opus-guarded, mirroring the
-> `.claude/agents/**` precedent incl. its protection test). THREE cold iterations. Iter 1: both
-> FAIL — two §10 questions (force-push pattern; command surface as a new mechanism) raised blinded
-> and ruled by the CPO (escalations.log 2026-06-14). Iter 2: scope-auditor PASS, cto-reviewer FAIL
-> — the agents precedent shipped WITH a protection test; this lacked one. Fix: clean-tree amendment
-> adding `tests/test_governance_hooks.py` to scope + a `test_commands_dir_is_protected` test
-> (full suite 86 passed). Iter 3: both PASS against the hash below.
+> Machine-checked review artifact (G3). PR-a1: player-endpoint ingestion CODE
+> (profiles + teams + squads loaders + per-player universe + orchestrator wiring +
+> data_contract docs). No dbt models, no protected paths. Required reviewers per
+> review_routing.json for the staged paths (ingestion/** + docs/data_contract.md):
+> scope-auditor (always) + data-engineer-reviewer. Two iterations: iteration-1 returned
+> scope-auditor ESCALATE (global-phase = new mechanism?) and data-engineer FAIL (3
+> findings); iteration-2 (cold re-review on the fixed diff) returned both PASS.
 
-diff_sha256: 83993d18995107aef88d483eec6f8f09475c32af7e82f6617756035cb5fa9d8f
+diff_sha256: 3a92ae8755146bdc9abc96ec5cb12602714749dc5db991544acdb35e51247cd1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Unilateral protected-path editing: the diff touches three protected files
-  (`.claude/settings.json`, `.claude/hooks/task_contract_gate.py`, `.claude/review_routing.json`);
-  all are covered by the contract's `protected_override`, which cites the CPO direction + ruling
-  recorded in escalations.log (2026-06-14, both Q/A pairs). The gate still blocks any future
-  unprotected edit to these paths.
-- Deny-list glob over-blocking: the force-push deny blocks only `-f` (`Bash(git push -f *)`,
-  `Bash(git push -f)`), not `--force` or `--force-with-lease`, and `git reset` stays allowed —
-  exactly the Q1 CPO ruling; the rebased-PR update flow is not broken.
-- Scope + §10: every edited path is in `scope_paths` (incl. `tests/test_governance_hooks.py` via
-  the recorded clean-tree amendment) or artifact-exempt (escalations.log); both §10 rulings match
-  the implementation; no App A (A1–A5) pattern.
+- NEW-mechanism §10 check on the global per-player phase (Phase 5): applied the §11 premise
+  check against the full orchestrator — Phase 2 (`run_batch_fixture_fanout_and_persist`) is a
+  pre-existing global cross-competition phase, so the per-player global phase is a precedented
+  application of an existing pattern, AND it is the forced implementation of the CPO-approved
+  per-player bio axis (escalations.log R2). Premise "new mechanism" does not hold → not a §10
+  escalation; in scope.
+- Scope-boundary + decisions_reserved: all nine changed paths are within the contract's
+  scope_paths; no dbt models, no protected paths, no contract amendment; no derive/transform in
+  this PR; backfill DISPATCH not taken (reserved). Anti-patterns A1–A5 absent (no metrics, no
+  product fabrication, no rule over-extension, no consumption shortcut, no frontend logic).
 
-## cto-reviewer
+## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- New-test integrity: `test_commands_dir_is_protected` (tests/test_governance_hooks.py) is a
-  genuine assertion mirroring `test_agents_dir_is_protected` — same fixtures/helpers, drives the
-  real gate against `.claude/commands/status.md` with a no-override contract, asserts
-  `denied(out) and "PROTECTED" in out`; not a no-op or skipped; now in-scope and routed to cto.
-- Prefix over-match: adding `.claude/commands/` to PROTECTED_PREFIXES introduces no collision with
-  sibling `.claude/` subdirs (`skills/`, `task/`, `agents/`, `hooks/`); the override-in-scope branch
-  still permits this task's own `status.md` edit while denying it in ordinary tasks.
-- Re-confirmed: `hooks` block byte-identical to main (only `permissions` added); the
-  task_contract_gate change is confined to PROTECTED_PREFIXES + comment; 4-way commands consistency
-  (gate + routing + opus-floor in both docs + protected-list in both docs); `/status` read-only;
-  both JSON files parse with no trailing commas.
+- BQ JSON-extraction SQL in `player_universe.py` (`_query_universe`) verified against the
+  production `stg_apif__players.sql`: identical paths (`$.response[*]` team_block →
+  `$.players_payload[*]` player_el → `$.player.id`), latest-snapshot-per-league via
+  `qualify row_number()`, season>=min_season filter — no JSON-path mismatch / silent-gap risk.
+- Cost/quota safety: every loop honours `errors_quota._http_quota_exhausted` (league + item
+  level) and a per-endpoint `API_FOOTBALL_SKIP_*` env var; `append=True` only (no WRITE_TRUNCATE
+  on a data table); skip-if-present anti-join (`_existing_player_ids`, NotFound→empty on first
+  run) keeps ongoing runs cheap and lets the quota-guarded backfill resume — matches the approved
+  cost model.
+- Contested "CPO rule 2026-06-12 / sample-payload tests": independently verified it appears ONLY
+  in the data-engineer-reviewer's own brief, NOT in working_agreement.md or engineering_standards.md;
+  `tests/fixtures/apif/` is absent for every existing loader (incl. the transfers/squads precedents
+  this PR mirrors); #415 (F21) is the OPEN backlog item to create that framework — the gap
+  pre-exists and is #415's, not this PR's. New loaders are covered by `test_ingestion_loads_smoke.py`.
+- Empty-response guard + doc count: `player_squads.py` returns before the BQ write when the
+  response is empty (consistent with the global loaders' per-league `continue`, stricter than the
+  transfers precedent); both `eight`→`eleven` occurrences in data_contract.md corrected.
 
 ## escalations
-- question: Q1 — force-push deny pattern (a broad `--force` deny risks also blocking the safe
-  `--force-with-lease` needed to update a rebased PR; the glob matcher cannot carve them apart).
-  CPO ANSWER: Path 1 — block only reckless `-f` (`git push -f` / `git push -f *`); leave
-  `--force-with-lease`, long-form `--force`, and `git reset` allowed. (escalations.log 2026-06-14)
-- question: Q2 — `.claude/commands/**` governance (§10 NEW mechanism; `/status` is the repo's first
-  custom command and the surface can embed shell, uncovered by routing/protection).
-  CPO ANSWER: Path A — lock the surface down first (protected + cto-routed + opus-floor, mirroring
-  the `.claude/agents/**` precedent incl. its protection test), then ship `/status`.
-  (escalations.log 2026-06-14)
+(none — the iteration-1 scope-auditor ESCALATE was resolved within the cycle: the iteration-2
+scope-auditor proxy applied the §11 premise check and found the "new mechanism" premise false.)
+
+## non-blocking follow-up (carried to PR-a2)
+- data-engineer noted the per-table landing-payload shapes (`{player_id, profile_payload}` /
+  `{player_id, teams_payload}` / `{team_id, squad_payload}`) are not yet in the data_contract
+  landing-zone section that documents the other loaders' reshaped payloads. Belongs with PR-a2
+  (where the staging models parse those shapes); not added here to keep reviewed==committed.
