@@ -53,3 +53,17 @@ sources:
         freshness:
           warn_after: {count: 30, period: hour}
           error_after: {count: 54, period: hour}
+
+      # Player-data tables (PR-a): slow-moving (bio/career/squad), backfilled then refreshed
+      # rarely — no aggressive freshness thresholds (they would false-alarm between refreshes).
+      - name: raw_apif_squads
+        identifier: RAW_APIF_SQUADS
+        loaded_at_field: ingested_at
+
+      - name: raw_apif_player_profiles
+        identifier: RAW_APIF_PLAYER_PROFILES
+        loaded_at_field: ingested_at
+
+      - name: raw_apif_player_teams
+        identifier: RAW_APIF_PLAYER_TEAMS
+        loaded_at_field: ingested_at
