@@ -1,327 +1,702 @@
-diff --git a/.claude/commands/status.md b/.claude/commands/status.md
-new file mode 100644
-index 0000000..5c65657
---- /dev/null
-+++ b/.claude/commands/status.md
-@@ -0,0 +1,25 @@
-+---
-+description: Snapshot of where work stands — branch, tree, open PRs + CI, and the active handover.
-+allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(gh pr list *), Read(.claude/active_work.md)
-+---
-+
-+Give the user a fast, read-only situational snapshot. Be concise — short sections, no
-+preamble — and do NOT start any work.
-+
-+## Branch & working tree
-+- Branch: !`git branch --show-current`
-+- Uncommitted changes: !`git status --short`
-+- Recent commits: !`git log --oneline -5`
-+
-+## Open PRs + CI
-+!`gh pr list --state open --json number,title,headRefName,statusCheckRollup --jq '.[] | {pr: .number, branch: .headRefName, title, checks: [.statusCheckRollup[]? | (.conclusion // .status)]}'`
-+
-+Summarize each open PR as one line: `#<n> <title> [branch] — CI: <pass/fail/pending rollup>`.
-+
-+## Active handover
-+Read `.claude/active_work.md`. Report ONLY: the _Last updated_ line, the **NEXT** actions,
-+and any live **Do NOT** items. Do not reproduce the whole file.
-+
-+## Bottom line
-+Close with 2–3 plain-English lines: where things stand and the single most likely next
-+action. This command is reporting only — take no action.
-diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
-index 3339a02..d98791b 100644
---- a/.claude/hooks/task_contract_gate.py
-+++ b/.claude/hooks/task_contract_gate.py
-@@ -47,8 +47,11 @@ TASK_DIR_REL = ".claude/task/"
- # .claude/agents/ added per the CPO's recorded escalation answer (G3 review,
- # 2026-06-12): the reviewer definitions are governance artifacts like the
- # routing file — the builder must never be able to weaken its own adversary
--# inside an ordinary task contract.
--PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".github/workflows/")
-+# inside an ordinary task contract. .claude/commands/ added per the CPO ruling
-+# 2026-06-14 (this branch's escalations.log): custom slash commands can embed
-+# shell, so a command file is the same high-stakes class as a hook — never add
-+# one inside an ordinary task without protected_override + cto review.
-+PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
- PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
- 
- _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
-diff --git a/.claude/review_routing.json b/.claude/review_routing.json
-index b5703e3..5f2500a 100644
---- a/.claude/review_routing.json
-+++ b/.claude/review_routing.json
-@@ -20,7 +20,11 @@
-     "`.claude/agents/**` routes to cto-reviewer (CPO ruling 2026-06-12): a change",
-     "to a reviewer definition must be gate-required to get platform review, not",
-     "left to only the always-on scope-auditor. The opus-on-guards rule then",
--    "overrides that cto review to opus (see docs/working_agreement.md §2)."
-+    "overrides that cto review to opus (see docs/working_agreement.md §2).",
-+    "`.claude/commands/**` is PROTECTED + routed to cto-reviewer (CPO ruling",
-+    "2026-06-14): a custom slash command can embed shell, so a command file is",
-+    "governed like a hook — protected-path edit (needs protected_override) +",
-+    "platform review + opus floor."
-   ],
-   "always": ["scope-auditor"],
-   "paths": {
-@@ -31,6 +35,7 @@
-     "requirements*.txt": ["cto-reviewer"],
-     ".claude/hooks/**": ["cto-reviewer"],
-     ".claude/agents/**": ["cto-reviewer"],
-+    ".claude/commands/**": ["cto-reviewer"],
-     ".claude/settings.json": ["cto-reviewer"],
-     ".claude/review_routing.json": ["cto-reviewer"],
-     ".github/workflows/**": ["cto-reviewer"],
-diff --git a/.claude/settings.json b/.claude/settings.json
-index a6b046d..524ad00 100644
---- a/.claude/settings.json
-+++ b/.claude/settings.json
-@@ -1,4 +1,24 @@
- {
-+  "permissions": {
-+    "deny": [
-+      "Bash(rm -rf *)",
-+      "Bash(rm -fr *)",
-+      "Bash(rm -r -f *)",
-+      "Bash(git clean *)",
-+      "Bash(bq rm *)",
-+      "Bash(gcloud projects delete *)",
-+      "Bash(git push -f *)",
-+      "Bash(git push -f)",
-+      "Bash(git commit --no-verify *)",
-+      "Bash(git commit -n *)",
-+      "Read(.env)",
-+      "Read(.envrc)",
-+      "Read(**/*.secrets.env)",
-+      "Read(**/*.local.env)",
-+      "Edit(.env)",
-+      "Edit(.envrc)"
-+    ]
-+  },
-   "hooks": {
-     "PreToolUse": [
-       {
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e4b6565..9758b9d 100644
+index 9758b9d..4a21532 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,60 +1,81 @@
--# Task contract — fix: transfers ingest fetched empty (paginate=False)
-+# Task contract — chore: settings deny-list + governed /status command (AI-collab tuning)
+@@ -1,81 +1,91 @@
+-# Task contract — chore: settings deny-list + governed /status command (AI-collab tuning)
++# Task contract — feat: player-endpoint ingestion CODE (profiles + teams + squads) — PR-a1
  
--> Follow-up bugfix to PR-i (#467, merged). The dispatched pipeline run revealed that the
--> transfers chain produced 0 rows: every team's `transfers_payload` came back empty. Cause:
--> `transfers_response_for_team` uses `fetch_merged_paged` with default pagination, which sends
--> `page=1` — and `/transfers` rejects the `page` param (like `/teams` and `/standings`,
--> "The Page field do not exist.") and returns empty. The chain built GREEN on empty data,
--> masking it. Verified fix: a single `team=` call (no `page`) returns the team's full move list
--> (live curl `?team=157` → 289 results, paging total=1). See docs/data_contract.md §Pagination,
--> docs/working_agreement.md §2/§7.
-+> CPO-directed tuning of the repo's AI-collaboration infrastructure, arising from assessing
-+> `.claude/` against a best-practice post. Two user-facing changes — (1) a deterministic
-+> `permissions.deny` backstop in `.claude/settings.json`; (2) the repo's first custom slash
-+> command, `/status` (read-only snapshot) — plus the governance lock-down the CPO ruled must
-+> precede shipping any command: make `.claude/commands/**` a PROTECTED + cto-routed + opus-
-+> guarded path, mirroring the `.claude/agents/**` precedent. Touches PROTECTED paths
-+> (settings.json, task_contract_gate.py, review_routing.json) → protected_override below.
-+> See docs/working_agreement.md §2, §10; .claude/task/escalations.log 2026-06-14 (this branch).
+-> CPO-directed tuning of the repo's AI-collaboration infrastructure, arising from assessing
+-> `.claude/` against a best-practice post. Two user-facing changes — (1) a deterministic
+-> `permissions.deny` backstop in `.claude/settings.json`; (2) the repo's first custom slash
+-> command, `/status` (read-only snapshot) — plus the governance lock-down the CPO ruled must
+-> precede shipping any command: make `.claude/commands/**` a PROTECTED + cto-routed + opus-
+-> guarded path, mirroring the `.claude/agents/**` precedent. Touches PROTECTED paths
+-> (settings.json, task_contract_gate.py, review_routing.json) → protected_override below.
+-> See docs/working_agreement.md §2, §10; .claude/task/escalations.log 2026-06-14 (this branch).
++> Player-data initiative, PR-a (the plan's "PR-ii — player endpoints ingest"), sliced
++> finer per the CPO this session into PR-a (ingest) → PR-b (dim_player bio + appearance
++> fact) → PR-c (affiliation timeline). PR-a is itself split (CPO this session) into
++> **PR-a1 = ingestion CODE only** (this task) and PR-a2 = staging models, because the new
++> staging models would reference raw tables that do not exist until the loaders run — so
++> code lands first, a backfill creates + populates the raw tables (cost checkpoint then),
++> rows are INSPECTED, and only then do the staging models build green (honors this session's
++> transfers lesson: a green build on missing/empty source masks a fetch bug).
++> Touches NO protected paths and NO dbt models. Reviewers: scope-auditor + data-engineer.
++> See docs/working_agreement.md §2/§5/§10; .claude/task/escalations.log 2026-06-15 (this branch);
++> the approved plan C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md (§2/§4/§5/§8).
  
  objective: >
--  Switch `transfers_response_for_team` (ingestion/api_football/fixture_scheduling.py) from the
--  default paginated fetch to `paginate=False` (single `{"team": team_id}` call, no `page` param),
--  so /transfers returns real data instead of empty. Drop the now-unused
--  `API_FOOTBALL_TRANSFERS_MAX_PAGE` lookup. Ingestion-only; no dbt/model change (the chain on
--  main is correct — it was just fed empty raw data).
-+  (1) Add a `permissions.deny` block to `.claude/settings.json` (filesystem / shared-prod /
-+  git-history / secrets backstops), leaving the `hooks` block byte-identical. (2) Govern the
-+  command surface BEFORE shipping a command: add `.claude/commands/` to the contract gate's
-+  PROTECTED_PREFIXES, route `.claude/commands/**` to cto-reviewer, add it to the opus-on-guards
-+  floor, and sync the protected/guard enumerations in working_agreement.md + agent_guardrails.md.
-+  (3) Add the read-only `.claude/commands/status.md` slash command.
+-  (1) Add a `permissions.deny` block to `.claude/settings.json` (filesystem / shared-prod /
+-  git-history / secrets backstops), leaving the `hooks` block byte-identical. (2) Govern the
+-  command surface BEFORE shipping a command: add `.claude/commands/` to the contract gate's
+-  PROTECTED_PREFIXES, route `.claude/commands/**` to cto-reviewer, add it to the opus-on-guards
+-  floor, and sync the protected/guard enumerations in working_agreement.md + agent_guardrails.md.
+-  (3) Add the read-only `.claude/commands/status.md` slash command.
++  Build the ingestion CODE for three new API-Football player endpoints and wire them into the
++  orchestrator — NO dbt models, NO backfill execution in this PR:
++  (1) `/players/squads` per team (current squad + shirt number), per-competition like transfers,
++      landing into a new unified raw table `RAW_APIF_SQUADS`.
++  (2) `/players/profiles` per player (rich bio) and (3) `/players/teams` per player (career
++      team×seasons), run as a GLOBAL per-player phase over the current universe (players rostered
++      in season >= 2025, ~31.9k), gathered from `RAW_APIF_PLAYERS`, deterministic provenance
++      `league_code` = MIN(league_code) per player, SKIP-IF-ALREADY-INGESTED so the daily run stays
++      cheap (bio/career are static/slow), landing into `RAW_APIF_PLAYER_PROFILES` /
++      `RAW_APIF_PLAYER_TEAMS`. All three respect the ingest lock, the daily quota guard, and a
++      per-endpoint skip env var.
++  (4) Document the three new raw tables (Unified raw tables + Endpoints + Pagination + Plan-vs-product)
++      in docs/data_contract.md.
  
--refs: #467 (merged PR-i); the empty-data finding (dispatched run 27506078487 → RAW_APIF_TRANSFERS
--  team blocks all `transfers_payload: []`); verification curl `?team=157` → 289 (no page);
--  docs/data_contract.md §Pagination ("/teams, /standings reject page").
-+refs: CPO in-conversation direction + two blinded rulings, 2026-06-14 (this branch's
-+  escalations.log entry): Issue 1 force-push = "block only reckless -f"; Issue 2 command
-+  surface = "lock down first, then add /status". Both rulings answer FAIL findings from the
-+  iteration-1 blinded review (scope-auditor + cto-reviewer opus).
+-refs: CPO in-conversation direction + two blinded rulings, 2026-06-14 (this branch's
+-  escalations.log entry): Issue 1 force-push = "block only reckless -f"; Issue 2 command
+-  surface = "lock down first, then add /status". Both rulings answer FAIL findings from the
+-  iteration-1 blinded review (scope-auditor + cto-reviewer opus).
++refs: >
++  CPO cost-approval gate + scope/universe/axis rulings this session (AskUserQuestion, 2026-06-15):
++  scope = profiles + teams + squads (DROP /players/seasons); universe = current players season>=2025
++  (~31.9k); bio axis = per-player. Structural split (code-first → staging) = CPO this session.
++  All recorded in .claude/task/escalations.log 2026-06-15 (this branch). Builds on the approved
++  initiative plan (§2 endpoints, §4 raw table names, §5 cost, §8 PR breakdown).
  
  scope_paths:
--  - ingestion/api_football/fixture_scheduling.py
--  - docs/data_contract.md
-+  - .claude/settings.json
-+  - .claude/hooks/task_contract_gate.py
-+  - .claude/review_routing.json
-+  - .claude/commands/status.md
-+  - docs/working_agreement.md
-+  - docs/agent_guardrails.md
-+  - tests/test_governance_hooks.py
+-  - .claude/settings.json
+-  - .claude/hooks/task_contract_gate.py
+-  - .claude/review_routing.json
+-  - .claude/commands/status.md
+-  - docs/working_agreement.md
+-  - docs/agent_guardrails.md
+-  - tests/test_governance_hooks.py
++  - ingestion/api_football/fixture_scheduling.py
++  - ingestion/api_football/loads/player_squads.py
++  - ingestion/api_football/loads/player_profiles.py
++  - ingestion/api_football/loads/player_teams.py
++  - ingestion/api_football/loads/player_universe.py
++  - ingestion/api_football/loads/competition_runner.py
++  - ingestion/api_football/orchestrator.py
++  - docs/data_contract.md
    - .claude/task/contract.md
  
-+protected_override: >
-+  CPO (Rami) directed this work in-conversation (2026-06-14) and ruled both surfaced questions
-+  (Issue 1 = block -f only; Issue 2 = lock down the command surface first). That ruling is the
-+  authority to edit the protected guard machinery in this task: `.claude/settings.json`,
-+  `.claude/hooks/task_contract_gate.py`, and `.claude/review_routing.json`. Recorded in
-+  .claude/task/escalations.log (2026-06-14, this branch).
-+
+-protected_override: >
+-  CPO (Rami) directed this work in-conversation (2026-06-14) and ruled both surfaced questions
+-  (Issue 1 = block -f only; Issue 2 = lock down the command surface first). That ruling is the
+-  authority to edit the protected guard machinery in this task: `.claude/settings.json`,
+-  `.claude/hooks/task_contract_gate.py`, and `.claude/review_routing.json`. Recorded in
+-  .claude/task/escalations.log (2026-06-14, this branch).
+-
  decisions_taken: >
--  paginate=False for /transfers is a fetch-correctness fix, not a §10 decision. PROOF is empirical
--  (not an analogy): the live verification showed the paged call returns EMPTY while a single
--  un-paged `team=` call returns the team's full move list (Bayern team=157 → 289 moves, paging
--  total=1). Truncation risk is self-limiting — /transfers rejects the `page` param, so even if
--  paging.total were >1 there is no retrievable page 2; a single call is the only correct fetch
--  (see http_client.py paginate=False). This PR also DOCUMENTS /transfers in data_contract.md
--  §Pagination (it previously listed only /fixtures, /teams, /standings). The by-team axis, cost,
--  and dedup are unchanged (all CPO-approved in #467). The unused API_FOOTBALL_TRANSFERS_MAX_PAGE
--  env is removed.
-+  The deny-list is a defense-in-depth BACKSTOP (the active hooks remain the boundary). Issue 1
-+  ruling: block `git push -f` only — `--force-with-lease` (needed to update a rebased PR),
-+  long-form `--force`, and `git reset` stay allowed, because the glob matcher cannot carve
-+  `--force` out of `--force-with-lease`. Other denies: `rm -rf` variants, `git clean` (protects
-+  parked untracked work), `bq rm` + `gcloud projects delete` (shared prod; CPO ruled KEEP DENIED
-+  — friction on rare legit drops is intentional), `git commit --no-verify`/`-n` (defense-in-depth
-+  over the git-discipline hook), `.env`-family Read/Edit. Issue 2 ruling: `.claude/commands/**`
-+  is treated like the `.claude/agents/**` precedent — PROTECTED (gate), cto-routed
-+  (review_routing.json), and in the opus-on-guards floor — because command files can embed shell
-+  (the same high-stakes class as hooks). The doc enumerations are synced so the written rule and
-+  the code agree. `/status` is read-only (`allowed-tools` allowlists four read commands + reading
-+  the handover) and forbidden from acting.
+-  The deny-list is a defense-in-depth BACKSTOP (the active hooks remain the boundary). Issue 1
+-  ruling: block `git push -f` only — `--force-with-lease` (needed to update a rebased PR),
+-  long-form `--force`, and `git reset` stay allowed, because the glob matcher cannot carve
+-  `--force` out of `--force-with-lease`. Other denies: `rm -rf` variants, `git clean` (protects
+-  parked untracked work), `bq rm` + `gcloud projects delete` (shared prod; CPO ruled KEEP DENIED
+-  — friction on rare legit drops is intentional), `git commit --no-verify`/`-n` (defense-in-depth
+-  over the git-discipline hook), `.env`-family Read/Edit. Issue 2 ruling: `.claude/commands/**`
+-  is treated like the `.claude/agents/**` precedent — PROTECTED (gate), cto-routed
+-  (review_routing.json), and in the opus-on-guards floor — because command files can embed shell
+-  (the same high-stakes class as hooks). The doc enumerations are synced so the written rule and
+-  the code agree. `/status` is read-only (`allowed-tools` allowlists four read commands + reading
+-  the handover) and forbidden from acting.
++  Raw table names (`RAW_APIF_SQUADS`, `RAW_APIF_PLAYER_PROFILES`, `RAW_APIF_PLAYER_TEAMS`) are
++  settled by the approved plan §4 and follow the RAW_APIF_{entity} convention; landing schema is
++  the standard `league_code STRING, payload JSON, ingested_at TIMESTAMP` via `load_json_to_bq(...,
++  as_json_payload=True, append=True, league_code=...)` (mirrors squads/transfers). HTTP helpers use
++  `fetch_merged_paged(..., paginate=False)` — all three reject `page=` / return one page for the
++  keyed forms (verified live 2026-06-15: squads team=157 total=1, profiles player=5 total=1, teams
++  player=5 total=1). The existing `loads/squads.py` (which fetches `/players` → `RAW_APIF_PLAYERS`)
++  is UNCHANGED; the new `/players/squads` loader is a distinct module `loads/player_squads.py`.
++  Per-player profiles+teams run as ONE global phase (not per-competition) because the axis is
++  per-player, not per-team; the universe is read from raw `RAW_APIF_PLAYERS` (raw→raw, no dbt
++  dependency). Provenance `league_code` = deterministic MIN per player (mirrors the transfers
++  ingest-provenance rule — league_code is provenance, not identity). SKIP-IF-ALREADY-INGESTED
++  (anti-join against the target table; full universe when the target does not yet exist) implements
++  the approved ongoing-cost model (~1.4–3.7k/day) — a static-bio refresh policy beyond first-seen is
++  NOT introduced here.
  
- decisions_reserved:
--  - If a reviewer finds evidence that /transfers DOES paginate for very large teams (so a single
--    un-paged call would truncate), STOP and surface it — the verification (one page = 289, total=1)
--    indicates a single call suffices, but flag any contrary signal.
--  - Real-data validation (RAW_APIF_TRANSFERS populated + fct_transfer non-empty + DQ tests on real
--    moves) happens on the next full pipeline run after this merges (scheduled 04:00 or a dispatch),
--    NOT in this PR's CI — this PR's data-build builds the unchanged models against the (still
--    empty) table and passes as before.
-+  - If a reviewer finds a denied pattern that breaks an established legitimate workflow (beyond
-+    the bq rm friction already CPO-accepted), STOP and surface it.
-+  - Tidying the accreted allow-list in settings.local.json, and any broader ceremony-threshold
-+    calibration, are explicitly OUT of scope (separate follow-ups).
+-decisions_reserved:
+-  - If a reviewer finds a denied pattern that breaks an established legitimate workflow (beyond
+-    the bq rm friction already CPO-accepted), STOP and surface it.
+-  - Tidying the accreted allow-list in settings.local.json, and any broader ceremony-threshold
+-    calibration, are explicitly OUT of scope (separate follow-ups).
++decisions_reserved: >
++  - Anything beyond raw landing (staging/base/core/marts, any derive/transform/dedup) is PR-a2+ —
++    not in this PR.
++  - If a reviewer finds the global per-player phase needs a CPO product/cadence ruling beyond the
++    skip-if-present default (e.g. a periodic forced bio/career refresh policy), STOP and surface
++    blinded — do not self-rule.
++  - Loader/module naming follows the approved plan + convention; a genuine naming ambiguity a
++    reviewer raises is a CPO call, not a builder default.
++  - The backfill DISPATCH that will populate these tables is a separate cost checkpoint AFTER this
++    PR merges — not taken here.
  
  done_when:
--  - `transfers_response_for_team` calls `fetch_merged_paged(..., paginate=False)` with no `page`
--    param; `API_FOOTBALL_TRANSFERS_MAX_PAGE` removed; `python -m py_compile` clean.
--  - docs/data_contract.md §Pagination lists /transfers among the page-rejecting endpoints.
--  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/**) — PASS.
-+  - `.claude/settings.json` parses (`python -m json.tool`); `permissions.deny` present; the
-+    `hooks` block is unchanged vs main; the deny-list blocks `git push -f` but not
-+    `--force-with-lease`/`--force`.
-+  - `task_contract_gate.py` PROTECTED_PREFIXES includes `.claude/commands/`; `review_routing.json`
-+    routes `.claude/commands/**` → cto-reviewer; both parse.
-+  - working_agreement.md §2 + agent_guardrails.md list `.claude/commands/` among the protected /
-+    opus-guard paths.
-+  - tests/test_governance_hooks.py has `test_commands_dir_is_protected` (mirrors
-+    `test_agents_dir_is_protected`); `python -m pytest tests/test_governance_hooks.py -q` passes.
-+  - `.claude/commands/status.md` exists, read-only (no write/commit/push in allowed-tools).
-+  - reviewers: scope-auditor (always) + cto-reviewer (settings/hooks/routing routing; run on OPUS
-+    per opus-on-guards) — both PASS.
+-  - `.claude/settings.json` parses (`python -m json.tool`); `permissions.deny` present; the
+-    `hooks` block is unchanged vs main; the deny-list blocks `git push -f` but not
+-    `--force-with-lease`/`--force`.
+-  - `task_contract_gate.py` PROTECTED_PREFIXES includes `.claude/commands/`; `review_routing.json`
+-    routes `.claude/commands/**` → cto-reviewer; both parse.
+-  - working_agreement.md §2 + agent_guardrails.md list `.claude/commands/` among the protected /
+-    opus-guard paths.
+-  - tests/test_governance_hooks.py has `test_commands_dir_is_protected` (mirrors
+-    `test_agents_dir_is_protected`); `python -m pytest tests/test_governance_hooks.py -q` passes.
+-  - `.claude/commands/status.md` exists, read-only (no write/commit/push in allowed-tools).
+-  - reviewers: scope-auditor (always) + cto-reviewer (settings/hooks/routing routing; run on OPUS
+-    per opus-on-guards) — both PASS.
++  - Three loaders (`player_squads.py`, `player_profiles.py`, `player_teams.py`) + a universe
++    gatherer (`player_universe.py`) + three `*_response_for_*` helpers in `fixture_scheduling.py`;
++    each guarded by the quota flag + a per-endpoint `API_FOOTBALL_SKIP_*` env var.
++  - `orchestrator.py` wires `/players/squads` per competition (after the existing squads/transfers
++    phases) and a global profiles+teams phase; `competition_runner.py` adds the per-comp squads
++    wrapper (mirrors `run_transfers_for_competition`).
++  - NO files under `dbt_project/**` are touched (PR-a2); CI `ci-data-build` stays green because no
++    new dbt source is referenced.
++  - `docs/data_contract.md` lists the three new raw tables in: Unified raw tables, Endpoints and
++    raw tables, the Pagination note, and Plan-vs-product.
++  - `python -m py_compile` on every touched/added module passes; validate-local clean.
++  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion/** + data_contract.md)
++    both PASS (≥2 named risks each); no FAIL; any ESCALATE has a recorded CPO ANSWER.
  
- amendments:
--  - 2026-06-14: + docs/data_contract.md to scope_paths. Authority: required doc-sync (iteration-1
--    scope-auditor FAIL) — §Pagination listed only /fixtures/teams/standings as page-rejecting, not
--    /transfers; the fix rests on the empirical verification, and this PR documents /transfers there
--    rather than analogizing from a doc that omits it. Clean-tree amendment (code stashed). content:
--    add /transfers to data_contract.md §Pagination; reframe decisions_taken to lead with the
--    empirical proof + the self-limiting-truncation reasoning.
-+  - 2026-06-14: + tests/test_governance_hooks.py to scope_paths. Authority: iteration-2
-+    cto-reviewer FAIL — the `.claude/agents/**` precedent shipped WITH a protection test
-+    (`test_agents_dir_is_protected`), so mirroring it "exactly" requires the same coverage for
-+    `.claude/commands/`. Clean-tree amendment (the six code files stashed). content: add
-+    `test_commands_dir_is_protected`; routing unchanged (tests/** already → cto-reviewer).
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 9b09591..6211898 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -49,3 +49,11 @@
- 2026-06-14 feat/skill-onboard-endpoint — CPO directed creating the `onboard-endpoint` skill (conversation, "go ahead in the order you prefer"): codify the repeatable routine for bringing a NEW API endpoint online — check-if-already-ingested -> throwaway verification calls (masked .env key, cheap by-team/paginated axis) -> cost estimate vs the /status quota -> CPO cost-approval gate -> CPO history-depth -> build (RAW_APIF_{entity} -> staging -> base -> loads), each via the normal contract->review->PR. Guide/checklist only — no auto-ingest, no auto-cost-approval. Not a protected path (.claude/skills/); normal contract, reviewers scope-auditor + cto-reviewer. The player-data initiative decisions this skill will be used for are recorded in the APPROVED plan (C:\Users\Rami\.claude\plans\player_data_ingestion_plan.md §6 — transfers reinstated + cost approved by-team; full history of current players; pure mapping dim + new fct_player_team_season appearance fact + rebuilt fct_transfer -> int_player_affiliation_timeline; bio via paginated directory; cadence bio monthly / squads+transfers weekly-in-windows / games monthly) and will be cited by each player-data PR's contract when built.
+-amendments:
+-  - 2026-06-14: + tests/test_governance_hooks.py to scope_paths. Authority: iteration-2
+-    cto-reviewer FAIL — the `.claude/agents/**` precedent shipped WITH a protection test
+-    (`test_agents_dir_is_protected`), so mirroring it "exactly" requires the same coverage for
+-    `.claude/commands/`. Clean-tree amendment (the six code files stashed). content: add
+-    `test_commands_dir_is_protected`; routing unchanged (tests/** already → cto-reviewer).
++amendments: []
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 39be056..eb46b64 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -1,6 +1,6 @@
+ # Data contract: API-Football → BigQuery
  
- 2026-06-14 feat/transfers-chain — CPO ruling on the PR-i transfers DEDUP (raised by the iteration-3 scope-auditor: which records count as "the same move" is a data-modeling decision needing CPO authority, not builder self-classification). Builder presented the rule plainly; CPO ANSWER (conversation, 2026-06-14, "do it"): dedup to ONE ROW per (player, team_in, team_out, transfer_date) — removing the by-team cross-query duplicate (each move is fetched twice, once per involved club) and exact provider duplicates — WITHOUT fuzzy-merging near-duplicate-date records (the same move emitted a few days apart under different `type`s), since a date-window merge could wrongly fuse two genuine moves. Dedup lives in the BASE layer (base_apif__transfers; staging does NO dedup; core reads the deduped base). league_code is excluded from the dedup partition (a transfer is a global event, deduped across leagues; the surviving league_code is pinned deterministically as ingest provenance). Recorded so the PR-i contract's decisions_taken cites a locatable ruling.
+-Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eight raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
++Active competitions: see `docs/competition_registry.yml` for the full list. Each competition has an internal `league_code` used as the partition key through every layer. Raw BigQuery tables are named `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions share the same eleven raw tables, discriminated by a `league_code STRING` column. The registry of active competitions lives in `docs/competition_registry.yml`.
+ 
+ API references:
+ 
+@@ -30,7 +30,7 @@ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+ 
+ ## Unified raw tables
+ 
+-Eight tables serve the entire fleet of competitions. No per-competition raw tables exist.
++Eleven tables serve the entire fleet of competitions. No per-competition raw tables exist.
+ 
+ | Table | Write mode | Partition | Cluster | Merge key |
+ |-------|------------|-----------|---------|-----------|
+@@ -42,6 +42,9 @@ Eight tables serve the entire fleet of competitions. No per-competition raw tabl
+ | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_SQUADS` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_PLAYER_PROFILES` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_PLAYER_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+ 
+ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id`).
+ 
+@@ -129,12 +132,17 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
+ | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
+ | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
+ | Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
++| Player squads | `/players/squads` per team (current squad + shirt number) | `RAW_APIF_SQUADS` |
++| Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
++| Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
+ | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+ 
+ **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
+ 
+ **Reinstated 2026-06-14 (reverses #420):** `/transfers` → `RAW_APIF_TRANSFERS` is ingested again, pulled **by team** (one call returns all of that team's players' moves; an append-only full-history snapshot per run, deduped downstream — by-team fetching returns each move twice, once per involved team). It feeds `fct_transfer` (dated moves), the dated source of the player **affiliation timeline** — the ordering the dateless roster mapping and lagging match-recency cannot provide. (It was retired with #420 when nothing consumed it; reinstated by CPO decision once the affiliation-order requirement made transfer dates necessary. `transfer_type` is kept as the raw provider string — no canonical taxonomy.)
+ 
++**Added 2026-06-15 (player-data initiative, PR-a):** three player endpoints. `/players/squads` per team → `RAW_APIF_SQUADS` (present-day squad + shirt number; distinct from the `/players` roster pull that lands `RAW_APIF_PLAYERS`). `/players/profiles` per player → `RAW_APIF_PLAYER_PROFILES` (bio) and `/players/teams` per player → `RAW_APIF_PLAYER_TEAMS` (career team×seasons) run as a **global per-player phase** over the current universe (players rostered in season ≥ `API_FOOTBALL_PLAYER_UNIVERSE_MIN_SEASON`, default 2025), derived from `RAW_APIF_PLAYERS`. Each player is grouped under a deterministic provenance `league_code` (MIN over the leagues that surfaced them — provenance, not identity, as with transfers). Already-ingested players are skipped (bio/career are static/slow-moving), so the first run is the quota-guarded backfill and later runs fetch only newly-rostered players. CPO scope ruling (2026-06-15): profiles + teams + squads; `/players/seasons` was evaluated and **not** ingested (a bare list of years, redundant with `/players/teams`).
 +
-+2026-06-14 chore/claude-deny-list-and-status-command — CPO-directed AI-collaboration tuning (settings deny-list + the repo's first custom slash command, /status). Recorded so the contract's protected_override + decisions_taken cite a locatable ruling, and the two iteration-1 blinded-review FAIL findings are resolved §11.
-+  CPO DIRECTION (conversation, 2026-06-14): after assessing .claude/ against a best-practice post, "let's do the tunings / improvements that you suggest ... execute after my approval." CPO approved the drafted two changes; bq rm calibration ruled KEEP DENIED; PR bundling = one PR.
-+  Iteration-1 blinded review (scope-auditor + cto-reviewer opus) returned FAIL on two points; both were raised to the CPO blinded (>=2 paths, no recommendation), then the CPO chose plainly (AskUserQuestion, 2026-06-14):
-+  (Q1) FORCE-PUSH DENY PATTERN — the permission glob matcher cannot carve `--force` out of `--force-with-lease` (string-prefix collision), so a `--force` deny risks blocking the safe `--force-with-lease` needed to update a rebased PR. Paths: (1) block `-f` only; (2) block `--force` broadly, accepting it also blocks `--force-with-lease` (recurring override friction); (3) drop force-push from the deny-list.
-+      CPO ANSWER: Path 1 — block only reckless `-f` (`git push -f` and `git push -f *`); leave `--force-with-lease`, long-form `--force`, and `git reset` allowed.
-+  (Q2) `.claude/commands/**` GOVERNANCE (§10 NEW mechanism) — /status is the repo's first custom command; the surface can embed shell but routing/protection did not cover it, so future command files would get only the always-on scope-auditor. Paths: (A) govern the surface first (protect + route), then ship; (B) ship now, govern later; (C) don't add a command mechanism.
-+      CPO ANSWER: Path A — lock down first, then add /status. Implemented by mirroring the .claude/agents/** precedent exactly: .claude/commands/ added to task_contract_gate.py PROTECTED_PREFIXES; .claude/commands/** routed to cto-reviewer in review_routing.json + added to the opus-on-guards floor; protected/guard enumerations synced in working_agreement.md §2 + agent_guardrails.md.
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 80b24b3..2710b5d 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -51,7 +51,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
- | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
- | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
--| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
-+| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
- | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
+ ### /fixtures query style
  
-@@ -74,8 +74,9 @@ policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
- not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
- `model:` frontmatter): `scope-auditor` on **haiku**, the five specialists on
- **sonnet**. The pin is a floor — for diffs touching a guard path
--(`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
--`.claude/review_routing.json`, `.github/workflows/**`) the orchestrator spawns
-+(`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
-+`.claude/settings.json`, `.claude/review_routing.json`,
-+`.github/workflows/**`) the orchestrator spawns
- `cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
- guard bypasses are the costliest misses.
+ Default is `season` (`league` + `season` only). Alternative modes `from_to` and `next` exist for other use cases; `next` typically requires a paid plan. Fixture paging (`page=`) is only sent when `API_FOOTBALL_FIXTURE_USE_PAGE=1`, because many plans reject it.
+@@ -143,6 +151,8 @@ Default is `season` (`league` + `season` only). Alternative modes `from_to` and
  
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index 6b98951..6879b88 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -34,12 +34,14 @@ committed with the branch so it is PR-visible:
- Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
- - No contract → repo edits denied. Out-of-scope path → denied.
- - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
--  `.claude/settings.json`, `.claude/review_routing.json`,
-+  `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
-   `.github/workflows/`) are never editable except in a dedicated CPO-approved
-   governance task whose contract carries `protected_override`. The reviewer
-   definitions and routing are protected so the builder can never weaken its
-   own adversary inside an ordinary task (CPO ruling, G3 escalation
--  2026-06-12).
-+  2026-06-12); `.claude/commands/` is protected because custom slash commands
-+  can embed shell, so a command file is the same high-stakes class as a hook
-+  (CPO ruling 2026-06-14).
- - **File changes go through the Edit/Write tools only** — shell redirection,
-   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
-   check and the turn-end stop gate force reversion of anything that slips
-@@ -60,8 +62,9 @@ serialized four steps; the commit gate enforces them mechanically:
-    Reviewer models are pinned in each agent definition for economy:
-    `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
-    pinned model is a floor — when the staged diff touches a guard path
--   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/settings.json`,
--   `.claude/review_routing.json`, `.github/workflows/**`), the orchestrator
-+   (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
-+   `.claude/settings.json`, `.claude/review_routing.json`,
-+   `.github/workflows/**`), the orchestrator
-    spawns `cto-reviewer` with its model overridden to **opus**, because guard
-    bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
-    caught only at that depth). This is a procedural rule the orchestrator
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 76a2122..5604417 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -549,6 +549,14 @@ def test_agents_dir_is_protected(repo):
-     assert denied(out) and "PROTECTED" in out
+ `page=` is merged for `/players` when the API paginates. It is not sent on `/fixtures`, `/teams`, `/standings`, or `/transfers`, because those endpoints reject paging with `"The Page field do not exist."` and return empty when it is sent (a single `team=` call returns a team's full transfer history — verified). Opt in for `/fixtures` with `API_FOOTBALL_FIXTURE_USE_PAGE=1` only when the key is known to support it.
  
++The keyed player endpoints `/players/squads?team=`, `/players/profiles?player=`, and `/players/teams?player=` are also fetched un-paged (`paginate=False`): each keyed query returns a single page (verified 2026-06-15 — `paging.total=1`). (The page-keyed `/players/profiles` *directory* form does paginate, but we fetch bios per player, not via the directory.)
++
+ ### Coverage flags
  
-+def test_commands_dir_is_protected(repo):
-+    """Per the CPO ruling 2026-06-14: custom slash commands can embed shell, so a
-+    command file is protected like a hook/agent definition."""
-+    write_contract(repo)
-+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/commands/status.md"), repo)
-+    assert denied(out) and "PROTECTED" in out
+ `/leagues` exposes `coverage` flags per season. When a flag says the API does not provide a resource for that season (standings, per-fixture events, etc.), ingestion skips the corresponding calls instead of spending quota on guaranteed-empty responses. See the beginner's guide for envelope and flag behaviour.
+@@ -161,6 +171,7 @@ Mapping from a typical API-Football subscription list to what this repository in
+ | Line-ups | Yes — `GET /fixtures/lineups` (stored in `RAW_APIF_FIXTURE_DETAILS`) |
+ | Top scorers (+ assists / cards lists) | Derived downstream (from `fct_fixture_player_stats` and `fct_fixture_event`); the `/players/top*` endpoints are no longer ingested |
+ | Players & coaches | Yes — squad `/players` per club (`RAW_APIF_PLAYERS`) and a separate per-team coaches ingest via `GET /coachs` (`RAW_APIF_COACHES`) |
++| Player bio, squads, career | Yes — `/players/profiles` per player (`RAW_APIF_PLAYER_PROFILES`), `/players/squads` per team (`RAW_APIF_SQUADS`), `/players/teams` per player (`RAW_APIF_PLAYER_TEAMS`); see the player-data note above |
+ | Injuries | Yes — `GET /injuries` per league/season (`RAW_APIF_INJURIES`) |
+ | Player transfers | Yes — `/transfers` per team (`RAW_APIF_TRANSFERS`); dated moves feed `fct_transfer`, the affiliation-timeline source (reinstated 2026-06-14, see note above) |
+ | Pre-match / in-play odds | Not in this repo (no odds ingest) |
+diff --git a/ingestion/api_football/fixture_scheduling.py b/ingestion/api_football/fixture_scheduling.py
+index 1cb974e..cdc8860 100644
+--- a/ingestion/api_football/fixture_scheduling.py
++++ b/ingestion/api_football/fixture_scheduling.py
+@@ -500,3 +500,75 @@ def transfers_response_for_team(
+         ctx = error_context or f"transfers team_id={team_id}"
+         append_api_errors(data, ctx, errors)
+     return list(data.get("response") or [])
 +
 +
- def test_untracked_dir_files_in_scope_not_flagged(repo):
-     """-uall: files inside an untracked directory are matched individually."""
-     write_contract(repo, CONTRACT.replace(
++def squads_response_for_team(
++    headers: dict,
++    team_id: int,
++    errors: list[str] | None = None,
++    *,
++    error_context: str = "",
++) -> list:
++    """Current squad for a team from /players/squads (id, name, age, number, position, photo).
++
++    One call returns the whole squad. paginate=False: /players/squads is single-page for a
++    `team=` query (verified team=157 → paging.total=1). Distinct from `players_response_for_team`
++    (which pulls /players per team×season into RAW_APIF_PLAYERS); this is the cheaper current-squad
++    endpoint and carries the shirt number."""
++    data = fetch_merged_paged(
++        "/players/squads",
++        headers,
++        {"team": team_id},
++        paginate=False,
++    )
++    if errors is not None:
++        ctx = error_context or f"squads team_id={team_id}"
++        append_api_errors(data, ctx, errors)
++    return list(data.get("response") or [])
++
++
++def profiles_response_for_player(
++    headers: dict,
++    player_id: int,
++    errors: list[str] | None = None,
++    *,
++    error_context: str = "",
++) -> list:
++    """Bio for one player from /players/profiles?player= (name, DOB, birthplace, nationality,
++    height, weight, number, position, photo).
++
++    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1). The
++    page-keyed directory form is far thinner; the per-player form carries the full bio."""
++    data = fetch_merged_paged(
++        "/players/profiles",
++        headers,
++        {"player": player_id},
++        paginate=False,
++    )
++    if errors is not None:
++        ctx = error_context or f"profiles player_id={player_id}"
++        append_api_errors(data, ctx, errors)
++    return list(data.get("response") or [])
++
++
++def player_teams_response_for_player(
++    headers: dict,
++    player_id: int,
++    errors: list[str] | None = None,
++    *,
++    error_context: str = "",
++) -> list:
++    """Career club/national history for one player from /players/teams?player= — a list of
++    {team, seasons[]} entries.
++
++    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1)."""
++    data = fetch_merged_paged(
++        "/players/teams",
++        headers,
++        {"player": player_id},
++        paginate=False,
++    )
++    if errors is not None:
++        ctx = error_context or f"player_teams player_id={player_id}"
++        append_api_errors(data, ctx, errors)
++    return list(data.get("response") or [])
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index a60f93e..9fefa68 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -19,6 +19,7 @@ from .fixtures import fetch_merge_and_persist_fixtures
+ from .catalog import fetch_catalog_persist_and_plan
+ from .injuries import load_injuries
+ from .squads import load_squad_players_batch
++from .player_squads import load_player_squads_batch
+ from .transfers import load_transfers_batch
+ from .standings import load_standings_if_enabled
+ from .teams import load_teams_merge_and_extend_ids
+@@ -129,3 +130,15 @@ def run_transfers_for_competition(
+         ctx.errors.append(f"league {result.league_code} transfers: {e}")
+ 
+ 
++def run_player_squads_for_competition(
++    ctx: PipelineContext,
++    result: CompetitionRunResult,
++) -> None:
++    """Run /players/squads batch for one competition's teams after global fanout."""
++    try:
++        _ingestion_phase(result.league_code, "player_squads batch")
++        load_player_squads_batch(ctx, result.league_code, result.team_ids)
++    except Exception as e:
++        ctx.errors.append(f"league {result.league_code} player_squads: {e}")
++
++
+diff --git a/ingestion/api_football/loads/player_profiles.py b/ingestion/api_football/loads/player_profiles.py
+new file mode 100644
+index 0000000..5448634
+--- /dev/null
++++ b/ingestion/api_football/loads/player_profiles.py
+@@ -0,0 +1,68 @@
++"""Fetch /players/profiles per player → RAW_APIF_PLAYER_PROFILES (global per-player phase).
++
++Rich bio (name, DOB, birthplace, nationality, height, weight, number, position, photo), one
++call per player over the current universe (see loads/player_universe.py). Players are grouped
++by provenance league_code and landed one snapshot row per league, mirroring the team-keyed
++loaders. Already-ingested players are skipped (bio is static), so the daily run stays cheap;
++the first run is the backfill, bounded by the daily quota guard and resumed on later runs.
++"""
++
++from __future__ import annotations
++
++import os
++
++from .. import quota as errors_quota
++from ..bigquery import load_json_to_bq
++from ..settings import raw_table
++from ..fixture_scheduling import profiles_response_for_player
++from .context import PipelineContext
++from .player_universe import players_needing
++
++
++def load_player_profiles_global(ctx: PipelineContext) -> None:
++    if os.getenv("API_FOOTBALL_SKIP_PLAYER_PROFILES", "").strip().lower() in ("1", "true", "yes"):
++        ctx.errors.append(
++            "player_profiles: skipped (API_FOOTBALL_SKIP_PLAYER_PROFILES set — use on low-quota archive runs)"
++        )
++        return
++    try:
++        by_league = players_needing(ctx.client, "PLAYER_PROFILES")
++    except Exception as e:
++        ctx.errors.append(f"player_profiles universe: {e}")
++        return
++    for league_code in sorted(by_league):
++        if errors_quota._http_quota_exhausted:
++            break
++        profiles_payload = {"league_code": league_code, "response": []}
++        for player_id in by_league[league_code]:
++            if errors_quota._http_quota_exhausted:
++                break
++            try:
++                profile_rows = profiles_response_for_player(
++                    ctx.headers,
++                    player_id,
++                    ctx.errors,
++                    error_context=f"player_profiles {league_code} player_id={player_id}",
++                )
++                profiles_payload["response"].append(
++                    {
++                        "player_id": player_id,
++                        "profile_payload": profile_rows,
++                    }
++                )
++            except Exception as e:
++                ctx.errors.append(f"player_profiles {league_code} player {player_id}: {e}")
++        if not profiles_payload["response"]:
++            continue
++        try:
++            load_json_to_bq(
++                ctx.client,
++                raw_table("PLAYER_PROFILES"),
++                profiles_payload,
++                as_json_payload=True,
++                append=True,
++                league_code=league_code,
++            )
++            ctx.add_loaded(1)
++        except Exception as e:
++            ctx.errors.append(f"player_profiles BQ {league_code}: {e}")
+diff --git a/ingestion/api_football/loads/player_squads.py b/ingestion/api_football/loads/player_squads.py
+new file mode 100644
+index 0000000..fe6e553
+--- /dev/null
++++ b/ingestion/api_football/loads/player_squads.py
+@@ -0,0 +1,63 @@
++"""Fetch /players/squads per team (batched) → RAW_APIF_SQUADS.
++
++The current squad of each team (id, name, age, number, position, photo) in one call per
++team. Distinct from loads/squads.py, which pulls /players per team×season into
++RAW_APIF_PLAYERS (season roster + stats); this is the cheaper present-day squad endpoint and
++is the only one that carries the shirt number. Each run appends a fresh complete snapshot row
++per league. No cross-run merge with prior BQ data.
++"""
++
++from __future__ import annotations
++
++import os
++
++from .. import quota as errors_quota
++from ..bigquery import load_json_to_bq
++from ..settings import raw_table
++from ..fixture_scheduling import squads_response_for_team
++from .context import PipelineContext
++
++
++def load_player_squads_batch(
++    ctx: PipelineContext,
++    league_code: str,
++    team_ids: set[int],
++) -> None:
++    squads_payload = {"league_code": league_code, "response": []}
++    if os.getenv("API_FOOTBALL_SKIP_PLAYER_SQUADS", "").strip().lower() in ("1", "true", "yes"):
++        ctx.errors.append(
++            f"player_squads {league_code}: skipped (API_FOOTBALL_SKIP_PLAYER_SQUADS set — use on low-quota archive runs)"
++        )
++        return
++    for team_id in sorted(team_ids):
++        if errors_quota._http_quota_exhausted:
++            break
++        try:
++            squad_rows = squads_response_for_team(
++                ctx.headers,
++                team_id,
++                ctx.errors,
++                error_context=f"player_squads {league_code} team_id={team_id}",
++            )
++            squads_payload["response"].append(
++                {
++                    "team_id": team_id,
++                    "squad_payload": squad_rows,
++                }
++            )
++        except Exception as e:
++            ctx.errors.append(f"player_squads {league_code} team {team_id}: {e}")
++    if not squads_payload["response"]:
++        return
++    try:
++        load_json_to_bq(
++            ctx.client,
++            raw_table("SQUADS"),
++            squads_payload,
++            as_json_payload=True,
++            append=True,
++            league_code=league_code,
++        )
++        ctx.add_loaded(1)
++    except Exception as e:
++        ctx.errors.append(f"player_squads BQ {league_code}: {e}")
+diff --git a/ingestion/api_football/loads/player_teams.py b/ingestion/api_football/loads/player_teams.py
+new file mode 100644
+index 0000000..b6a46b0
+--- /dev/null
++++ b/ingestion/api_football/loads/player_teams.py
+@@ -0,0 +1,68 @@
++"""Fetch /players/teams per player → RAW_APIF_PLAYER_TEAMS (global per-player phase).
++
++Career club/national history per player ({team, seasons[]} list), one call per player over the
++current universe (see loads/player_universe.py). Players are grouped by provenance league_code
++and landed one snapshot row per league, mirroring the team-keyed loaders. Already-ingested
++players are skipped; the first run is the backfill, bounded by the daily quota guard and
++resumed on later runs.
++"""
++
++from __future__ import annotations
++
++import os
++
++from .. import quota as errors_quota
++from ..bigquery import load_json_to_bq
++from ..settings import raw_table
++from ..fixture_scheduling import player_teams_response_for_player
++from .context import PipelineContext
++from .player_universe import players_needing
++
++
++def load_player_teams_global(ctx: PipelineContext) -> None:
++    if os.getenv("API_FOOTBALL_SKIP_PLAYER_TEAMS", "").strip().lower() in ("1", "true", "yes"):
++        ctx.errors.append(
++            "player_teams: skipped (API_FOOTBALL_SKIP_PLAYER_TEAMS set — use on low-quota archive runs)"
++        )
++        return
++    try:
++        by_league = players_needing(ctx.client, "PLAYER_TEAMS")
++    except Exception as e:
++        ctx.errors.append(f"player_teams universe: {e}")
++        return
++    for league_code in sorted(by_league):
++        if errors_quota._http_quota_exhausted:
++            break
++        teams_payload = {"league_code": league_code, "response": []}
++        for player_id in by_league[league_code]:
++            if errors_quota._http_quota_exhausted:
++                break
++            try:
++                team_rows = player_teams_response_for_player(
++                    ctx.headers,
++                    player_id,
++                    ctx.errors,
++                    error_context=f"player_teams {league_code} player_id={player_id}",
++                )
++                teams_payload["response"].append(
++                    {
++                        "player_id": player_id,
++                        "teams_payload": team_rows,
++                    }
++                )
++            except Exception as e:
++                ctx.errors.append(f"player_teams {league_code} player {player_id}: {e}")
++        if not teams_payload["response"]:
++            continue
++        try:
++            load_json_to_bq(
++                ctx.client,
++                raw_table("PLAYER_TEAMS"),
++                teams_payload,
++                as_json_payload=True,
++                append=True,
++                league_code=league_code,
++            )
++            ctx.add_loaded(1)
++        except Exception as e:
++            ctx.errors.append(f"player_teams BQ {league_code}: {e}")
+diff --git a/ingestion/api_football/loads/player_universe.py b/ingestion/api_football/loads/player_universe.py
+new file mode 100644
+index 0000000..e99ac36
+--- /dev/null
++++ b/ingestion/api_football/loads/player_universe.py
+@@ -0,0 +1,103 @@
++"""Current-player universe for the global per-player pulls (profiles + teams).
++
++The per-player endpoints (/players/profiles, /players/teams) are keyed by player, not team,
++so they need the set of players we currently care about. That set is derived from the roster
++we already ingest — RAW_APIF_PLAYERS — entirely within the raw layer (no dbt dependency):
++distinct players rostered in season >= MIN_SEASON, each assigned a deterministic provenance
++league_code (MIN over the leagues that surfaced them — league_code is ingest provenance, not
++identity; mirrors the transfers rule).
++
++To keep the daily run cheap (bio/career are static/slow-moving) the universe is filtered to
++players NOT already present in the target raw table — first run fetches everyone (the backfill,
++quota-guarded across days), later runs fetch only newly-rostered players.
++"""
++
++from __future__ import annotations
++
++import os
++
++from google.cloud import bigquery
++from google.api_core.exceptions import NotFound
++
++from ..settings import DATASET_ID, GCP_PROJECT_ID, raw_table
++
++
++def _min_season() -> int:
++    raw = os.getenv("API_FOOTBALL_PLAYER_UNIVERSE_MIN_SEASON", "").strip()
++    if raw:
++        try:
++            return int(raw)
++        except ValueError:
++            pass
++    return 2025
++
++
++def _fq(entity: str) -> str:
++    return f"`{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table(entity)}`"
++
++
++def _query_universe(client: bigquery.Client, min_season: int) -> list[tuple[int, str]]:
++    """(player_id, provenance_league_code) for players rostered in season >= min_season."""
++    sql = f"""
++    with latest as (
++        select payload, league_code
++        from {_fq('PLAYERS')}
++        qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++    ),
++    players as (
++        select
++            latest.league_code,
++            safe_cast(json_value(team_block, '$.season') as int64) as season,
++            safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
++        from latest,
++            unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as team_block,
++            unnest(json_query_array(json_query(team_block, '$.players_payload'), '$')) as player_el
++    )
++    select player_id, min(league_code) as provenance_league_code
++    from players
++    where season >= @min_season and player_id is not null
++    group by player_id
++    """
++    job_config = bigquery.QueryJobConfig(
++        query_parameters=[bigquery.ScalarQueryParameter("min_season", "INT64", min_season)]
++    )
++    return [
++        (int(row["player_id"]), str(row["provenance_league_code"]))
++        for row in client.query(sql, job_config=job_config).result()
++    ]
++
++
++def _existing_player_ids(client: bigquery.Client, target_entity: str) -> set[int]:
++    """player_ids already landed in the target raw table (any snapshot). Empty if it does
++    not exist yet (first run)."""
++    sql = f"""
++    select distinct safe_cast(json_value(item, '$.player_id') as int64) as player_id
++    from {_fq(target_entity)},
++        unnest(json_query_array(json_query(payload, '$.response'), '$')) as item
++    where safe_cast(json_value(item, '$.player_id') as int64) is not null
++    """
++    try:
++        return {int(row["player_id"]) for row in client.query(sql).result()}
++    except NotFound:
++        return set()
++
++
++def players_needing(
++    client: bigquery.Client,
++    target_entity: str,
++    min_season: int | None = None,
++) -> dict[str, list[int]]:
++    """Players to fetch for `target_entity`, grouped by provenance league_code.
++
++    = current universe (rostered season >= min_season) minus players already in the target.
++    """
++    ms = _min_season() if min_season is None else min_season
++    already = _existing_player_ids(client, target_entity)
++    by_league: dict[str, list[int]] = {}
++    for player_id, league_code in _query_universe(client, ms):
++        if player_id in already:
++            continue
++        by_league.setdefault(league_code, []).append(player_id)
++    for league_code in by_league:
++        by_league[league_code].sort()
++    return by_league
+diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
+index f640f8c..4786ea0 100644
+--- a/ingestion/api_football/orchestrator.py
++++ b/ingestion/api_football/orchestrator.py
+@@ -61,8 +61,11 @@ from .loads.competition_runner import (
+     run_cheap_phases,
+     run_poll_phases,
+     run_squads_for_competition,
++    run_player_squads_for_competition,
+     run_transfers_for_competition,
+ )
++from .loads.player_profiles import load_player_profiles_global
++from .loads.player_teams import load_player_teams_global
+ from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
+ 
+ 
+@@ -160,10 +163,21 @@ def _load_api_football(request):
+         for result in results:
+             run_squads_for_competition(ctx, result)
+ 
++        # Phase 3b: /players/squads batch per competition (current squad + shirt number)
++        for result in results:
++            run_player_squads_for_competition(ctx, result)
++
+         # Phase 4: transfers batch per competition (dated affiliation moves)
+         for result in results:
+             run_transfers_for_competition(ctx, result)
+ 
++        # Phase 5: global per-player bio + career (profiles + teams) over the current
++        # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
++        # already-ingested players skipped). Quota-guarded — the first run is the backfill,
++        # resumed on later runs.
++        load_player_profiles_global(ctx)
++        load_player_teams_global(ctx)
++
+         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
+         if ctx.errors:
+             uniq = _dedupe_errors_preserve_order(ctx.errors)

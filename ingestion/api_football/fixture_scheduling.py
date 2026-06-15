@@ -500,3 +500,75 @@ def transfers_response_for_team(
         ctx = error_context or f"transfers team_id={team_id}"
         append_api_errors(data, ctx, errors)
     return list(data.get("response") or [])
+
+
+def squads_response_for_team(
+    headers: dict,
+    team_id: int,
+    errors: list[str] | None = None,
+    *,
+    error_context: str = "",
+) -> list:
+    """Current squad for a team from /players/squads (id, name, age, number, position, photo).
+
+    One call returns the whole squad. paginate=False: /players/squads is single-page for a
+    `team=` query (verified team=157 → paging.total=1). Distinct from `players_response_for_team`
+    (which pulls /players per team×season into RAW_APIF_PLAYERS); this is the cheaper current-squad
+    endpoint and carries the shirt number."""
+    data = fetch_merged_paged(
+        "/players/squads",
+        headers,
+        {"team": team_id},
+        paginate=False,
+    )
+    if errors is not None:
+        ctx = error_context or f"squads team_id={team_id}"
+        append_api_errors(data, ctx, errors)
+    return list(data.get("response") or [])
+
+
+def profiles_response_for_player(
+    headers: dict,
+    player_id: int,
+    errors: list[str] | None = None,
+    *,
+    error_context: str = "",
+) -> list:
+    """Bio for one player from /players/profiles?player= (name, DOB, birthplace, nationality,
+    height, weight, number, position, photo).
+
+    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1). The
+    page-keyed directory form is far thinner; the per-player form carries the full bio."""
+    data = fetch_merged_paged(
+        "/players/profiles",
+        headers,
+        {"player": player_id},
+        paginate=False,
+    )
+    if errors is not None:
+        ctx = error_context or f"profiles player_id={player_id}"
+        append_api_errors(data, ctx, errors)
+    return list(data.get("response") or [])
+
+
+def player_teams_response_for_player(
+    headers: dict,
+    player_id: int,
+    errors: list[str] | None = None,
+    *,
+    error_context: str = "",
+) -> list:
+    """Career club/national history for one player from /players/teams?player= — a list of
+    {team, seasons[]} entries.
+
+    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1)."""
+    data = fetch_merged_paged(
+        "/players/teams",
+        headers,
+        {"player": player_id},
+        paginate=False,
+    )
+    if errors is not None:
+        ctx = error_context or f"player_teams player_id={player_id}"
+        append_api_errors(data, ctx, errors)
+    return list(data.get("response") or [])

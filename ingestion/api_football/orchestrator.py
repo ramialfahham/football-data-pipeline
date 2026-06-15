@@ -61,8 +61,11 @@ from .loads.competition_runner import (
     run_cheap_phases,
     run_poll_phases,
     run_squads_for_competition,
+    run_player_squads_for_competition,
     run_transfers_for_competition,
 )
+from .loads.player_profiles import load_player_profiles_global
+from .loads.player_teams import load_player_teams_global
 from .loads.batch_fixtures import run_batch_fixture_fanout_and_persist
 
 
@@ -160,9 +163,20 @@ def _load_api_football(request):
         for result in results:
             run_squads_for_competition(ctx, result)
 
+        # Phase 3b: /players/squads batch per competition (current squad + shirt number)
+        for result in results:
+            run_player_squads_for_competition(ctx, result)
+
         # Phase 4: transfers batch per competition (dated affiliation moves)
         for result in results:
             run_transfers_for_competition(ctx, result)
+
+        # Phase 5: global per-player bio + career (profiles + teams) over the current
+        # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
+        # already-ingested players skipped). Quota-guarded — the first run is the backfill,
+        # resumed on later runs.
+        load_player_profiles_global(ctx)
+        load_player_teams_global(ctx)
 
         msg = f"Loaded {ctx.tables_loaded} API-Football tables."
         if ctx.errors:
