@@ -9,6 +9,16 @@ version: 2
 # at that grain. No unique tests on fixture_detail models (events, players, stats, lineups) or on
 # transfers — they carry expected duplicates (multiple ingest snapshots, and for transfers the same
 # move fetched under both involved teams); entity dedup is in base.
+#
+# INCREMENTAL-ACCUMULATION raw tables (RAW_APIF_PLAYER_PROFILES, RAW_APIF_PLAYER_TEAMS): their
+# loaders are skip-if-already-ingested (PR-a), so a run's snapshot holds only that run's NEW
+# players, NOT a complete snapshot. Their staging models therefore UNION ALL snapshots rather than
+# selecting the latest per league_code (which would silently drop players landed on earlier
+# backfill days). This is a faithful flatten (no dedup); base assembles current-per-player. The
+# "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables; squads
+# (re-fetched in full every run) follows it, profiles/teams do not. (check_layer_contract.py
+# permits omitting the snapshot select — it only forbids non-league_code partitions, distinct,
+# group by, aggregation and cross-domain joins.)
 
 models:
   - name: stg_apif__fixtures_next
@@ -159,6 +169,58 @@ models:
       transfer_date may be null (filtered in base). Grain at staging: one raw transfer row.
     columns:
       - name: league_code
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__squads
+    description: >
+      One row per player per team from GET /players/squads (current squad + shirt number).
+      Complete snapshot per run → latest ingestion snapshot selected per league_code, then
+      faithful flatten of response[].squad_payload[].players[]. Nominal grain (league_code,
+      team_id, player_id), but NO unique test — the provider occasionally lists a player twice
+      in a squad (a handful of exact duplicates at that grain in real data); faithful staging
+      keeps them and base dedups, exactly as the sibling complete-snapshot model stg_apif__players.
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: team_id
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__player_profiles
+    description: >
+      One row per player bio from GET /players/profiles. INCREMENTAL-accumulation source
+      (skip-if-present loader) → UNION ALL snapshots, faithful flatten of
+      response[].profile_payload[].player. NO dedup here — base assembles current-per-player.
+      Grain at staging: one raw profile row (player_id, raw_ingested_at). league_code is
+      ingest provenance (MIN per player), not identity.
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__player_teams
+    description: >
+      One row per player per team per season from GET /players/teams (career history).
+      INCREMENTAL-accumulation source → UNION ALL snapshots, faithful flatten of
+      response[].teams_payload[] then the seasons[] array. NO dedup here — base dedups.
+      Grain at staging: (player_id, team_id, season_year, raw_ingested_at). season_year is NOT
+      not_null-tested — the provider's seasons[] array carries occasional null/non-year entries
+      (~0.4% in real data) which faithful staging passes through and base filters, mirroring the
+      nullable keys in stg_apif__transfers. league_code is ingest provenance, not identity.
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: player_id
+        tests: [not_null]
+      - name: team_id
         tests: [not_null]
       - name: raw_ingested_at
         tests: [not_null]

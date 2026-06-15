@@ -62,12 +62,24 @@ Purpose: source-near cleanup with minimal transformation.
 
 A staging model does exactly two things, in this order:
 
-1. **Latest-snapshot selection.** The unified raw tables are append-only logs: each
-   ingestion run appends one complete snapshot row per `league_code` (all configured
-   seasons merged into that row). Selecting the newest snapshot per `league_code` —
-   `qualify row_number() over (partition by league_code order by ingested_at desc) = 1` —
-   is allowed. It is *snapshot selection across an append log*, not entity deduplication:
-   it picks one raw row before flattening and collapses nothing within it.
+1. **Snapshot selection.** The unified raw tables are append-only logs. How a model selects
+   from that log depends on how its loader lands data:
+   - **Complete-snapshot tables (the default).** Each run appends one *complete* snapshot row
+     per `league_code` (all configured seasons merged into that row). Select the newest
+     snapshot per `league_code` —
+     `qualify row_number() over (partition by league_code order by ingested_at desc) = 1`. It
+     is *snapshot selection across an append log*, not entity deduplication: it picks one raw
+     row before flattening and collapses nothing within it.
+   - **Incremental-accumulation tables.** A few loaders are *skip-if-already-ingested*: to stay
+     within the API budget they fetch only entities not already landed, so each run's snapshot
+     holds only that run's NEW entities, never a complete set (e.g. the per-player
+     `/players/profiles` and `/players/teams` pulls). These models must read **all** snapshots
+     (`select * from {{ source(...) }}` with no latest-snapshot qualify) — selecting the latest
+     snapshot would silently drop entities landed on earlier runs. It is still a faithful
+     flatten with no entity dedup; assembling current-per-entity is a base concern. A table is
+     incremental-accumulation **iff** its loader is skip-if-present, and that must be stated in
+     the model header and its `stg_apif__generic.yml` entry. (Recognized 2026-06-15 by CPO
+     ruling; the first such tables are `RAW_APIF_PLAYER_PROFILES` / `RAW_APIF_PLAYER_TEAMS`.)
 2. **Faithful 1:1 flatten.** Unnest that snapshot's JSON payload into one typed row per
    entity, rename to snake_case, and cast. Every entity present in the selected snapshot
    must appear exactly once in the output — nothing merged, aggregated, or dropped
@@ -78,7 +90,9 @@ the raw row; entity deduplication partitions on entity keys (player_id, fixture_
 team_id, …) after flattening — and that belongs in base, never staging.**
 
 Allowed:
-- Latest-snapshot selection per `league_code` (partition on `league_code` only).
+- Latest-snapshot selection per `league_code` (partition on `league_code` only) for
+  complete-snapshot tables; reading **all** snapshots (no qualify) for incremental-accumulation
+  tables (skip-if-present loaders — see step 1).
 - Source-to-model mapping (one staging model per raw source table).
 - Column renaming to consistent naming conventions (snake_case).
 - Safe type casting and lightweight normalization.

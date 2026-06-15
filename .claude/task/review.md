@@ -1,56 +1,52 @@
-# Review — feat/player-endpoints-ingest — 2026-06-15
+# Review — feat/player-endpoints-staging — 2026-06-15
 
-> Machine-checked review artifact (G3). PR-a1: player-endpoint ingestion CODE
-> (profiles + teams + squads loaders + per-player universe + orchestrator wiring +
-> data_contract docs). No dbt models, no protected paths. Required reviewers per
-> review_routing.json for the staged paths (ingestion/** + docs/data_contract.md):
-> scope-auditor (always) + data-engineer-reviewer. Two iterations: iteration-1 returned
-> scope-auditor ESCALATE (global-phase = new mechanism?) and data-engineer FAIL (3
-> findings); iteration-2 (cold re-review on the fixed diff) returned both PASS.
+> Machine-checked review artifact (G3). PR-a2: three generic staging models (squads,
+> player_profiles, player_teams) + source/test declarations + a CPO-ruled layering.md rule
+> addition (incremental-accumulation staging pattern). dbt-only; no protected paths. Required
+> reviewers per review_routing.json for the staged paths (dbt_project/**): scope-auditor (always)
+> + analytics-engineer-reviewer. Two iterations: iteration-1 returned analytics-engineer FAIL (two
+> test findings) + both reviewers ESCALATE (the §10 layer-contract question); iteration-2 (cold
+> re-review on the fixed diff, after the CPO ruled Path B) returned both PASS.
 
-diff_sha256: 3a92ae8755146bdc9abc96ec5cb12602714749dc5db991544acdb35e51247cd1
+diff_sha256: 6503b48ce5be7ad6f8fa358b1c19cfe9c2558ddf228ba6ea2c5e557887f2a4d8
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- NEW-mechanism §10 check on the global per-player phase (Phase 5): applied the §11 premise
-  check against the full orchestrator — Phase 2 (`run_batch_fixture_fanout_and_persist`) is a
-  pre-existing global cross-competition phase, so the per-player global phase is a precedented
-  application of an existing pattern, AND it is the forced implementation of the CPO-approved
-  per-player bio axis (escalations.log R2). Premise "new mechanism" does not hold → not a §10
-  escalation; in scope.
-- Scope-boundary + decisions_reserved: all nine changed paths are within the contract's
-  scope_paths; no dbt models, no protected paths, no contract amendment; no derive/transform in
-  this PR; backfill DISPATCH not taken (reserved). Anti-patterns A1–A5 absent (no metrics, no
-  product fabrication, no rule over-extension, no consumption shortcut, no frontend logic).
+- §10 resolution + scope: the incremental-accumulation deviation was escalated blinded and the
+  CPO ruled Path B (escalations.log E1, 2026-06-15) — recorded in layering.md §1_staging under
+  that authority, with the contract amended to add dbt_project/docs/layering.md to scope_paths
+  (ordinary amendment; layering.md is not protected → no protected_override). Verified this is a
+  recorded CPO ANSWER, not builder self-ruling; the layering.md edit codifies the ruled pattern
+  without over-reach (names it, gates it on skip-if-present loaders, does not invent new
+  mechanisms/cost gates).
+- Scope-boundary + decisions_reserved + A1–A5: all seven changed paths within the amended
+  scope_paths; staging-only (no base/core/marts, no ingestion, no protected paths); the reserved
+  layering.md clarification is now CPO-ruled; no anti-patterns.
 
-## data-engineer-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- BQ JSON-extraction SQL in `player_universe.py` (`_query_universe`) verified against the
-  production `stg_apif__players.sql`: identical paths (`$.response[*]` team_block →
-  `$.players_payload[*]` player_el → `$.player.id`), latest-snapshot-per-league via
-  `qualify row_number()`, season>=min_season filter — no JSON-path mismatch / silent-gap risk.
-- Cost/quota safety: every loop honours `errors_quota._http_quota_exhausted` (league + item
-  level) and a per-endpoint `API_FOOTBALL_SKIP_*` env var; `append=True` only (no WRITE_TRUNCATE
-  on a data table); skip-if-present anti-join (`_existing_player_ids`, NotFound→empty on first
-  run) keeps ongoing runs cheap and lets the quota-guarded backfill resume — matches the approved
-  cost model.
-- Contested "CPO rule 2026-06-12 / sample-payload tests": independently verified it appears ONLY
-  in the data-engineer-reviewer's own brief, NOT in working_agreement.md or engineering_standards.md;
-  `tests/fixtures/apif/` is absent for every existing loader (incl. the transfers/squads precedents
-  this PR mirrors); #415 (F21) is the OPEN backlog item to create that framework — the gap
-  pre-exists and is #415's, not this PR's. New loaders are covered by `test_ingestion_loads_smoke.py`.
-- Empty-response guard + doc count: `player_squads.py` returns before the BQ write when the
-  response is empty (consistent with the global loaders' per-league `continue`, stricter than the
-  transfers precedent); both `eight`→`eleven` occurrences in data_contract.md corrected.
+- Incremental-accumulation rule coherence: layering.md §1_staging now documents complete-snapshot
+  vs incremental-accumulation selection (step 1 + Allowed list); profiles/teams (skip-if-present)
+  read all snapshots, squads (complete-snapshot) uses latest-per-league — models conform, and the
+  CI check (check_layer_contract.py) permits omitting the qualify (it only forbids non-league_code
+  partitions / distinct / group by / non-unnest joins). Chain of authority complete (contract
+  amendment → escalations.log E1 → layering.md).
+- Test-omission legitimacy: verified against precedent + real data — stg_apif__players omits a
+  unique test on its roster grain and stg_apif__transfers documents nullable keys; squads has 10
+  real dupes at (league_code,team_id,player_id) and player_teams has 995 null season_year, so the
+  previously-requested unique/not_null tests would FAIL CI. Omitting them (faithful flatten, base
+  dedups/filters) matches the generic-yml "unique only where a single snapshot is already unique"
+  policy; the grain descriptions now document the dupes/nulls. JSON extraction + staging purity
+  (no dedup/aggregation/cross-domain join; only lateral unnest) confirmed.
 
 ## escalations
-(none — the iteration-1 scope-auditor ESCALATE was resolved within the cycle: the iteration-2
-scope-auditor proxy applied the §11 premise check and found the "new mechanism" premise false.)
-
-## non-blocking follow-up (carried to PR-a2)
-- data-engineer noted the per-table landing-payload shapes (`{player_id, profile_payload}` /
-  `{player_id, teams_payload}` / `{team_id, squad_payload}`) are not yet in the data_contract
-  landing-zone section that documents the other loaders' reshaped payloads. Belongs with PR-a2
-  (where the staging models parse those shapes); not added here to keep reviewed==committed.
+- question (E1, raised blinded by both reviewers, iteration 1): Does staging RAW_APIF_PLAYER_PROFILES
+  / RAW_APIF_PLAYER_TEAMS by UNION-ALL-snapshots (omitting layering.md's latest-snapshot step,
+  because their skip-if-present loaders make them incremental-accumulation tables) constitute a §10
+  layer-contract extension requiring CPO sign-off + a layering.md amendment (Path B), or is it a
+  documentation clarification within builder authority (Path A)?
+  CPO ANSWER: Path B (conversation, 2026-06-15; recorded escalations.log E1). Record the pattern as
+  a recognized rule in layering.md with sign-off; contract amended to bring layering.md into scope.
+  Resolved — layering.md updated accordingly; both reviewers PASS on the result.
