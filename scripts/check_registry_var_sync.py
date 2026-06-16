@@ -2,7 +2,8 @@
 
 Checks two things against docs/competition_registry.yml:
   1. ``active_competition_league_codes`` in dbt_project.yml == registry active/in_progress.
-  2. ``seeds/competition_registry.csv`` == registry league_code → competition_type.
+  2. ``seeds/competition_registry.csv`` == registry (league_code → competition_type,
+     parent_competition), and every parent_competition references a known league_code.
 
 Both are written by scripts/sync_dbt_vars.py; this script fails CI if either drifts.
 Singular tests under dbt_project/tests/ prove var ⊆ base rows. See
@@ -67,33 +68,60 @@ def _registry_missing_ingest_active() -> list[str]:
     return missing
 
 
-def _registry_league_type_pairs() -> set[tuple[str, str]]:
+def _registry_seed_triples() -> set[tuple[str, str, str]]:
     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     comps = data.get("competitions") or []
-    out: set[tuple[str, str]] = set()
+    out: set[tuple[str, str, str]] = set()
     for row in comps:
         if not isinstance(row, dict):
             continue
         code = row.get("league_code")
         ctype = row.get("competition_type")
         if code and ctype:
-            out.add((str(code), str(ctype)))
+            parent = row.get("parent_competition") or ""
+            out.add((str(code), str(ctype), str(parent)))
     return out
 
 
-def _seed_league_type_pairs() -> set[tuple[str, str]]:
+def _seed_triples() -> set[tuple[str, str, str]]:
     with REGISTRY_SEED_PATH.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         cols = reader.fieldnames or []
-        if "league_code" not in cols or "competition_type" not in cols:
-            raise KeyError(
-                "competition_registry.csv missing league_code/competition_type columns"
-            )
+        for required in ("league_code", "competition_type", "parent_competition"):
+            if required not in cols:
+                raise KeyError(
+                    f"competition_registry.csv missing required column '{required}'"
+                )
         return {
-            (r["league_code"].strip(), r["competition_type"].strip())
+            (
+                r["league_code"].strip(),
+                r["competition_type"].strip(),
+                (r.get("parent_competition") or "").strip(),
+            )
             for r in reader
             if r.get("league_code") and r.get("competition_type")
         }
+
+
+def _registry_dangling_parents() -> list[tuple[str, str]]:
+    """Return (league_code, parent_competition) where parent_competition is set but is not a
+    known league_code. A dangling parent link silently breaks parent-keyed joins (e.g. a
+    tournament resolving its qualifier competitions), so it must fail CI."""
+    data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
+    comps = data.get("competitions") or []
+    codes = {
+        str(r.get("league_code"))
+        for r in comps
+        if isinstance(r, dict) and r.get("league_code")
+    }
+    out: list[tuple[str, str]] = []
+    for row in comps:
+        if not isinstance(row, dict):
+            continue
+        parent = row.get("parent_competition")
+        if parent and str(parent) not in codes:
+            out.append((str(row.get("league_code", "<unknown>")), str(parent)))
+    return out
 
 
 def main() -> int:
@@ -101,8 +129,9 @@ def main() -> int:
         reg = _registry_active_codes()
         var = _dbt_var_codes()
         missing_flag = _registry_missing_ingest_active()
-        reg_pairs = _registry_league_type_pairs()
-        seed_pairs = _seed_league_type_pairs()
+        reg_triples = _registry_seed_triples()
+        seed_triples = _seed_triples()
+        dangling_parents = _registry_dangling_parents()
     except Exception as e:
         print(f"check_registry_var_sync: {e}", file=sys.stderr)
         return 1
@@ -143,9 +172,22 @@ def main() -> int:
             print(f"  in dbt_project.yml only: {only_var}", file=sys.stderr)
         return 1
 
-    if reg_pairs != seed_pairs:
-        only_reg = sorted(reg_pairs - seed_pairs)
-        only_seed = sorted(seed_pairs - reg_pairs)
+    if dangling_parents:
+        print(
+            "check_registry_var_sync: parent_competition references an unknown league_code "
+            "(dangling parent link):",
+            file=sys.stderr,
+        )
+        for code, parent in sorted(dangling_parents):
+            print(
+                f"  {code} → parent_competition '{parent}' (no such league_code)",
+                file=sys.stderr,
+            )
+        return 1
+
+    if reg_triples != seed_triples:
+        only_reg = sorted(reg_triples - seed_triples)
+        only_seed = sorted(seed_triples - reg_triples)
         print(
             "check_registry_var_sync: competition_registry.csv is out of sync with the "
             "registry. Run `python scripts/sync_dbt_vars.py`.",
@@ -159,7 +201,7 @@ def main() -> int:
 
     print(
         f"check_registry_var_sync: OK ({len(s_reg)} competitions; "
-        f"{len(seed_pairs)} registry-seed rows)."
+        f"{len(seed_triples)} registry-seed rows)."
     )
     return 0
 

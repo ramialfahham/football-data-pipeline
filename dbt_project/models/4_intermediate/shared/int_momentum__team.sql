@@ -1,23 +1,26 @@
 {{ config(materialized='table') }}
 
 {#
-  W1 last-5 momentum builder — team.
+  W1 momentum builder — team.
 
-  Aggregates raw totals over the last-5 window legs selected by
-  int_momentum_window__team (the selection was extracted there in #323 so this
-  aggregate and the drill-down list mart consume the same matches). No ratios —
-  those are computed in mart_momentum__team.
+  Aggregates raw totals over the window legs selected by int_momentum_window__team
+  (the selection was extracted there in #323 so this aggregate and the drill-down list
+  mart consume the same matches). The window is last-5 for most competitions and
+  cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
+  window_type carried from the selection says which, and games_in_window is the actual
+  count (1–5 for last_5, unbounded for tournament windows). No ratios — those are
+  computed in mart_momentum__team.
 
   Grain: (upcoming_fixture_sk, team_sk).
 
-  Scope: all competition types — club and national. W1 (last 5) is shown
-  alongside W2 for every fixture; both numbers are always presented together.
+  Scope: all competition types — club and national. W1 is shown alongside W2 for every
+  fixture; both numbers are always presented together.
 
   Returns no row when a team has no finished matches yet (before phase for a
   club domestic_league). The mart will emit nulls; #326 fills the gap.
 
   Player-derived columns (key_passes, tackles, …) inherit player-stat coverage
-  gaps: if none of the 5 legs have player data the column is NULL; if some do,
+  gaps: if none of the window legs have player data the column is NULL; if some do,
   the sum covers only those matches. games_with_player_stats tracks coverage.
 
   Coverage rule (same-window): a ratio's numerator and denominator must cover the
@@ -32,13 +35,14 @@ with window_legs as (
     select * from {{ ref('int_momentum_window__team') }}
 ),
 
--- Aggregate raw totals over the last 5 team-match legs
+-- Aggregate raw totals over the window legs
 team_agg as (
     select
         upcoming_fixture_sk,
         team_sk,
         season_api_year,
         entity_type,
+        window_type,
         count(*) as games_in_window,
         -- per-input coverage: stats are sparse in lower leagues, so each rate
         -- must divide over the games where its inputs actually exist
@@ -74,10 +78,11 @@ team_agg as (
         upcoming_fixture_sk,
         team_sk,
         season_api_year,
-        entity_type
+        entity_type,
+        window_type
 ),
 
--- Sum player-derived stats for the same 5 legs (inherits player-stat coverage gaps)
+-- Sum player-derived stats for the same window legs (inherits player-stat coverage gaps)
 player_derived as (
     select
         wl.upcoming_fixture_sk,
@@ -106,7 +111,7 @@ select
     ta.team_sk,
     ta.season_api_year,
     ta.entity_type,
-    'last_5' as window_type,
+    ta.window_type,
     ta.games_in_window,
     ta.games_with_team_stats,
     ta.games_with_sot_stats,

@@ -1,11 +1,13 @@
 {{ config(materialized='table') }}
 
 {#
-  W1 last-5 momentum mart — team.
+  W1 momentum mart — team.
 
-  Computes final displayed metrics from the raw sums in int_momentum__team.
-  All divisions live here — none in the builder. Returns NULL for any metric
-  whose denominator is zero (safe_divide).
+  Computes final displayed metrics from the raw sums in int_momentum__team. The window
+  is last-5 for most competitions and cumulative for tournament fixtures (window_type,
+  GAP-18); every rate divides over games_in_window or the matching coverage count, so it
+  is correct for any window size. All divisions live here — none in the builder. Returns
+  NULL for any metric whose denominator is zero (safe_divide).
 
   Grain: (upcoming_fixture_sk, team_sk).
 

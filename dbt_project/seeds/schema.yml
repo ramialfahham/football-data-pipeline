@@ -34,10 +34,11 @@ seeds:
 
   - name: competition_registry
     description: >
-      league_code → competition_type mapping, generated from docs/competition_registry.yml
-      by scripts/sync_dbt_vars.py (do not hand-edit). dbt models join on this to resolve a
-      competition's type, then look up entity_type via the competition_types seed. Kept in
-      lockstep with the registry by scripts/check_registry_var_sync.py.
+      league_code → (competition_type, parent_competition) mapping, generated from
+      docs/competition_registry.yml by scripts/sync_dbt_vars.py (do not hand-edit). dbt models
+      join on this to resolve a competition's type (then entity_type via the competition_types
+      seed) and its parent competition. Kept in lockstep with the registry — including the new
+      column and parent-link validity — by scripts/check_registry_var_sync.py.
     columns:
       - name: league_code
         description: "Internal competition code (matches docs/competition_registry.yml)."
@@ -51,6 +52,13 @@ seeds:
           - relationships:
               to: ref('competition_types')
               field: competition_type
+      - name: parent_competition
+        description: >
+          The league_code of this competition's parent, or empty when it has none. Links a
+          child to its parent: a qualifier → its tournament (e.g. WCQEU → WC), a domestic cup →
+          its league (e.g. DFBP → BL1). Lets the form-window selection resolve a tournament's
+          qualifier competitions generically (no hardcoded code lists). Validity (every
+          non-empty value is a known league_code) is enforced by check_registry_var_sync.py.
 
   - name: metric_catalogue
     description: >
