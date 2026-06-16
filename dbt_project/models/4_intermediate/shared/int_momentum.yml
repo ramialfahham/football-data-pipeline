@@ -25,12 +25,15 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
+        description: >
+          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
+          fixtures (GAP-18). Carried from int_momentum_window__team.
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5"]
+              values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
-        description: "Number of finished matches in the window (1–5)."
+        description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows."
         tests: [not_null]
       - name: games_with_team_stats
         description: "Count of window legs with team stats present (shots/passes/corners/saves). Denominator for per-match team-stat rates and finishing_efficiency."
@@ -43,10 +46,10 @@ models:
       - name: goals_against_in_save_games
         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
       - name: contributing_competitions
-        description: "Array of distinct league_codes from which the 5 legs were drawn."
+        description: "Array of distinct league_codes from which the window legs were drawn."
         tests: [not_null]
       - name: games_with_player_stats
-        description: "Count of the 5 legs that have a matching row in int_legs__team_from_players."
+        description: "Count of the window legs that have a matching row in int_legs__team_from_players."
 
   - name: int_momentum__player
     description: >

@@ -2,8 +2,10 @@
 
 {#
   W1 momentum-window list mart — team. The drill-down behind the momentum metrics
-  (#323): the same last-5 matches mart_momentum__team aggregates, exposed
+  (#323): the same window matches mart_momentum__team aggregates, exposed
   un-aggregated — one row per (upcoming fixture side, past match), newest first.
+  window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
+  selection; tournament windows are cumulative, so a side can have more than five rows.
 
   played_fixture_sk is the click-through key into mart_fixture_stats__team /
   mart_fixture_stats__player. has_team_stats / has_player_stats tell the app
@@ -56,7 +58,7 @@ select
     f.league_code,
     wl.entity_type,
     wl.season_api_year,
-    'last_5' as window_type,
+    wl.window_type,
     wl.recency_rank,
     wl.leg_fixture_sk as played_fixture_sk,
     wl.leg_league_code as played_league_code,

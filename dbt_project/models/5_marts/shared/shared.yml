@@ -64,10 +64,13 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
+        description: >
+          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
+          fixtures (GAP-18).
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5"]
+              values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
         tests: [not_null]
       - name: games_with_team_stats
@@ -125,7 +128,7 @@ models:
   - name: mart_momentum_window__team
     description: >
       W1 momentum-window list mart — team (#323). The drill-down behind the momentum
-      metrics: the same last-5 matches mart_momentum__team aggregates, exposed
+      metrics: the same window matches mart_momentum__team aggregates, exposed
       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
       is the click-through key into mart_fixture_stats__team / __player; has_team_stats
       and has_player_stats are derived from those detail marts (same-layer refs, the
@@ -147,10 +150,13 @@ models:
         description: "Partition key of the UPCOMING fixture — app slices by this. The past match's own competition is played_league_code."
         tests: [not_null]
       - name: window_type
+        description: >
+          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
+          fixtures (GAP-18). Tournament windows are cumulative, so a side can have >5 rows.
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5"]
+              values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: recency_rank
         description: "1 = most recent past match in the window."
         tests: [not_null]

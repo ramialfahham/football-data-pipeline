@@ -2,9 +2,10 @@
 
 Two artifacts are kept in lockstep with the registry:
   1. ``active_competition_league_codes`` in dbt_project.yml (active/in_progress codes).
-  2. ``seeds/competition_registry.csv`` — the league_code → competition_type mapping
-     that dbt models join on to resolve a competition's type (and, via the
-     competition_types seed, its club/national entity_type).
+  2. ``seeds/competition_registry.csv`` — the league_code → (competition_type,
+     parent_competition) mapping that dbt models join on to resolve a competition's type
+     (and, via the competition_types seed, its club/national entity_type) and its parent
+     competition (qualifier → tournament, domestic cup → league).
 
 Run this after updating docs/competition_registry.yml (adding/removing a competition or
 changing a competition_type). CI check_registry_var_sync.py fails if either is out of sync.
@@ -42,27 +43,31 @@ def _registry_active_codes() -> list[str]:
     return sorted(out)
 
 
-def _registry_league_type_rows() -> list[tuple[str, str]]:
-    """Return sorted (league_code, competition_type) for every competition with both set."""
+def _registry_seed_rows() -> list[tuple[str, str, str]]:
+    """Return sorted (league_code, competition_type, parent_competition) for every competition
+    with league_code and competition_type set. parent_competition is '' when not declared; it
+    links a child competition to its parent (qualifier → tournament, domestic cup → league) so
+    downstream models can resolve, e.g., a tournament's qualifier competitions."""
     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     comps = data.get("competitions") or []
-    out: list[tuple[str, str]] = []
+    out: list[tuple[str, str, str]] = []
     for row in comps:
         if not isinstance(row, dict):
             continue
         code = row.get("league_code")
         ctype = row.get("competition_type")
         if code and ctype:
-            out.append((str(code), str(ctype)))
+            parent = row.get("parent_competition") or ""
+            out.append((str(code), str(ctype), str(parent)))
     return sorted(set(out))
 
 
-def _render_registry_seed(rows: list[tuple[str, str]]) -> str:
-    body = "".join(f"{code},{ctype}\n" for code, ctype in rows)
-    return "league_code,competition_type\n" + body
+def _render_registry_seed(rows: list[tuple[str, str, str]]) -> str:
+    body = "".join(f"{code},{ctype},{parent}\n" for code, ctype, parent in rows)
+    return "league_code,competition_type,parent_competition\n" + body
 
 
-def _write_registry_seed(rows: list[tuple[str, str]]) -> bool:
+def _write_registry_seed(rows: list[tuple[str, str, str]]) -> bool:
     """Write seeds/competition_registry.csv. Returns True if the file changed."""
     new_text = _render_registry_seed(rows)
     if REGISTRY_SEED_PATH.exists() and REGISTRY_SEED_PATH.read_text(encoding="utf-8") == new_text:
@@ -123,16 +128,16 @@ def main() -> int:
         print(f"sync_dbt_vars: already in sync ({len(codes)} competitions: {codes})")
 
     try:
-        type_rows = _registry_league_type_rows()
+        seed_rows = _registry_seed_rows()
     except Exception as e:
         print(f"sync_dbt_vars: failed to read registry types — {e}", file=sys.stderr)
         return 1
 
-    seed_changed = _write_registry_seed(type_rows)
+    seed_changed = _write_registry_seed(seed_rows)
     if seed_changed:
-        print(f"sync_dbt_vars: wrote competition_registry.csv ({len(type_rows)} rows)")
+        print(f"sync_dbt_vars: wrote competition_registry.csv ({len(seed_rows)} rows)")
     else:
-        print(f"sync_dbt_vars: competition_registry.csv already in sync ({len(type_rows)} rows)")
+        print(f"sync_dbt_vars: competition_registry.csv already in sync ({len(seed_rows)} rows)")
     return 0
 
 

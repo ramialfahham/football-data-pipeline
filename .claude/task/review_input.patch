@@ -1,331 +1,1166 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0b18294..7b7a83c 100644
+index 7b7a83c..4d9ac03 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,79 +1,63 @@
--# Task contract — feat: squad capture for finished competitions (club + national, team-keyed)
-+# Task contract — feat: player-core PR-b (bio enrichment)
+@@ -1,63 +1,112 @@
+-# Task contract — feat: player-core PR-b (bio enrichment)
++# Task contract — feat: GAP-18 tournament form-window exception (W1, team)
  
--> Forward-looking fix for the squads watch-item (resolved this session as ingest-mode behaviour,
--> NOT a bug): finished/idle competitions run in `poll` mode, which skips every per-team phase,
--> so RAW_APIF_SQUADS (a new table) only ever held the currently in-season comps — recently-ended
--> comps (PL/PD/BL1/BL2 …) are absent. This adds a squad CATCH-UP for finished comps.
--> Ingestion CODE + TESTS only — NO dbt models, NO protected paths, and NO API spend in the PR
--> itself (the catch-up rides the daily run / a CPO-approved dispatch, like PR-a's code↔backfill
--> split). Reviewers: scope-auditor + data-engineer-reviewer.
-+> Player-data initiative, PR-b — reduced to BIO ONLY (CPO 2026-06-16). The player-season
-+> appearances rollup was found to already exist (duplicated in mart_player_season + mart_player_profile,
-+> plus an orphaned int_player_season__metrics, with DIVERGENT metric derivations); that consolidation
-+> is its own governed task (#480). This PR enriches the player ENTITY with bio from the 100%-backfilled
-+> profiles and surfaces it on the player-profile mart. Pure dbt (base + core + one mart); additive to
-+> the mart; no protected paths. Reviewers: scope-auditor + analytics-engineer-reviewer.
+-> Player-data initiative, PR-b — reduced to BIO ONLY (CPO 2026-06-16). The player-season
+-> appearances rollup was found to already exist (duplicated in mart_player_season + mart_player_profile,
+-> plus an orphaned int_player_season__metrics, with DIVERGENT metric derivations); that consolidation
+-> is its own governed task (#480). This PR enriches the player ENTITY with bio from the 100%-backfilled
+-> profiles and surfaces it on the player-profile mart. Pure dbt (base + core + one mart); additive to
+-> the mart; no protected paths. Reviewers: scope-auditor + analytics-engineer-reviewer.
++> GAP-18 (CPO-approved 2026-06-11, "schedule before WC"; CPO go-ahead 2026-06-16 — this conversation —
++> to change the live WC form numbers during the tournament). The shipped W1 momentum window
++> (int_momentum_window__team) hard-caps at recency_rank <= 5 for EVERY competition, so live World Cup
++> previews render a bare "last 5" — the matrix §4 tournament exception ("This tournament so far" /
++> "Qualifiers") is unimplemented. This task implements that exception generically by competition_type,
++> with a window_type descriptor, for the TEAM window. The parent→child link the qualifier window needs
++> is NOT in the warehouse yet (only in the YAML registry), so it is synced into the registry seed via
++> the existing single-source mechanism. Reviewers: scope-auditor + analytics-engineer + cto + data-engineer
++> + bi-analyst (per .claude/review_routing.json for the staged paths).
  
  objective: >
--  Capture a team's current squad (/players/squads) even when ALL its competitions have finished,
--  so RAW_APIF_SQUADS covers recently-ended comps, not only those in-season. A squad is a TEAM
--  property, so the catch-up is keyed by TEAM and deduped across competitions; it covers CLUB and
--  NATIONAL teams alike (validated on real rows: /players/squads returns full national call-ups —
--  WC 26.0 players/team, ACN 27.6, UNL 27.3 — i.e. selected-but-unused players the appearance fact
--  cannot give). The rule uses signals we already have per competition (still-playing? +
--  last-recorded season):
--    - In-season (full mode) -> squads captured every run (UNCHANGED, Phase 3b).
--    - Finished (poll / idle_complete) -> for that comp's teams, if we do NOT already have the
--      team's squad for its last-recorded season, capture it ONCE and stamp the snapshot with that
--      season.
--  Team lists for finished comps come from the latest-season fixtures already fetched in the poll
--  phase (NO extra API calls beyond the squad calls themselves). Dedup is by team: across all comps,
--  against teams captured in-season this run (active comps), and against squads already stored for
--  that season. No day-count window — season + still-playing fully decide it; daily runs catch each
--  comp within ~a day of its season ending.
-+  (a) base_apif__player_profiles (NEW base): current-per-player bio from stg_apif__player_profiles
-+      (union-all snapshots reduced to the latest row per player_id, mirroring base_apif__players).
-+      Identity-level only (no league/team/season). Grain: player_api_id.
-+  (b) dim_player (MODIFIED): join base_apif__player_profiles on player_api_id; ADD five bio columns —
-+      player_birth_place, player_birth_country, player_height, player_weight, player_position. The four
-+      OVERLAPPING descriptors (name, birth_date, nationality, photo) are refreshed from the richer
-+      profile via coalesce(profile, players) — they may CHANGE for players whose profile differs from
-+      the roster source (a deliberate data-quality preference, CPO-approved); no metric/numeric column
-+      exists on dim_player, so no number changes. EXCLUDE age (point-in-time) and squad_number
-+      (affiliation, not entity). dim_player stays a pure Type-1 entity; grain unchanged (player_sk).
-+  (c) mart_player_profile (MODIFIED): surface the five new bio columns from dim_player (the player
-+      page). ADDITIVE only — existing columns, metrics, grain, and row counts unchanged.
+-  (a) base_apif__player_profiles (NEW base): current-per-player bio from stg_apif__player_profiles
+-      (union-all snapshots reduced to the latest row per player_id, mirroring base_apif__players).
+-      Identity-level only (no league/team/season). Grain: player_api_id.
+-  (b) dim_player (MODIFIED): join base_apif__player_profiles on player_api_id; ADD five bio columns —
+-      player_birth_place, player_birth_country, player_height, player_weight, player_position. The four
+-      OVERLAPPING descriptors (name, birth_date, nationality, photo) are refreshed from the richer
+-      profile via coalesce(profile, players) — they may CHANGE for players whose profile differs from
+-      the roster source (a deliberate data-quality preference, CPO-approved); no metric/numeric column
+-      exists on dim_player, so no number changes. EXCLUDE age (point-in-time) and squad_number
+-      (affiliation, not entity). dim_player stays a pure Type-1 entity; grain unchanged (player_sk).
+-  (c) mart_player_profile (MODIFIED): surface the five new bio columns from dim_player (the player
+-      page). ADDITIVE only — existing columns, metrics, grain, and row counts unchanged.
++  Implement the matrix §4 W1 (live-form/momentum) tournament exception in the TEAM window, generic by
++  competition_type — no league_code hardcoding:
++  (a) Sync the parent link into the warehouse: scripts/sync_dbt_vars.py projects a third column
++      `parent_competition` from docs/competition_registry.yml into seeds/competition_registry.csv;
++      scripts/check_registry_var_sync.py validates the new column (triples) AND that every non-empty
++      parent_competition references a known league_code. Regenerate the seed by RUNNING the script
++      (it is generated, never hand-edited). Document the column in seeds/schema.yml.
++  (b) int_momentum_window__team (MODIFIED): for an upcoming fixture side whose competition_type is
++      world_championship or continental_championship, REPLACE the last-5 recency selection with —
++      tournament_to_date: the team's finished legs in THIS competition (leg_league_code = the fixture's
++      league_code) AND the fixture's season_api_year, before kickoff, cumulative (no 5-cap),
++      window_type='tournament_to_date'; if the team has zero such legs (its opener / pre-MD1) fall back to
++      qualifiers: finished legs in competitions whose registry parent_competition = the fixture's
++      league_code, before kickoff, cumulative, window_type='qualifiers'. All OTHER types keep the existing
++      last-5 recency selection (club season-capped, national uncapped), window_type='last_5'. Emit a
++      window_type column (constant per upcoming_fixture_sk+team_sk); keep recency_rank (1=most recent) for
++      drill-down ordering; OUTPUT SCHEMA = current columns + window_type only.
++  (c) int_momentum__team (MODIFIED): carry window_type from the window legs instead of the hardcoded
++      'last_5'. The aggregate is already a SUM over the window legs, so cumulative windows aggregate
++      correctly; games_in_window becomes the cumulative count (may exceed 5).
++  (d) mart_momentum_window__team (MODIFIED): carry window_type from the window legs instead of hardcoded
++      'last_5'; emit ALL in-window legs (the invariant test requires list rows = games_in_window, so NO
++      cap here — display truncation is a downstream/export concern, out of scope).
++  (e) mart_momentum__team (MODIFIED): window_type flows through from the aggregate; verify it is selected
++      (not re-hardcoded) and contributing_competitions stays correct.
++  (f) Schema + tests: int_momentum_window.yml / int_momentum.yml / shared.yml — add 'tournament_to_date'
++      and 'qualifiers' to window_type accepted_values ON THE TEAM PATH ONLY; relax the
++      "recency_rank between 1 and 5" guard to "between 1 and 5 OR window_type in (tournament_to_date,
++      qualifiers)"; fix descriptions that hardcode "1–5"/"last 5"/"the 5 legs" to the variable window;
++      add a NEW DQ test assert_tournament_form_window.sql (tournament-type fixtures with >=1 prior
++      same-edition leg => window_type='tournament_to_date' and games_in_window = that prior count, not
++      capped at 5; openers => 'qualifiers' or empty). The existing
++      assert_momentum_window_matches_momentum invariant must still pass.
++  (g) Docs: update docs/competitions/wc26.md (the "form is recency-based / dim reserved for GAP-18" note
++      is now implemented via the registry parent link) and mark GAP-18 implemented in
++      docs/wireframes/99_gaps_register.md.
  
  refs: >
--  Squads watch-item (handover 2026-06-15) resolved this session: poll-mode (idle_complete) comps
--  skip per-team phases, so the new RAW_APIF_SQUADS held only the 14 in-season comps. CPO rulings
--  2026-06-16: (1) key by team/club, dedup across comps; (2) national teams use the SAME
--  /players/squads membership source — the appearance fact (PR-b) is complementary, NOT a substitute
--  (it misses non-playing squad members). Historical per-edition membership parked as #477.
-+  CPO 2026-06-16 (this conversation). Player-season consolidation split out as #480. Sources:
-+  stg_apif__player_profiles (PR-a2, 100% backfilled), base_apif__players + dim_player (#448),
-+  mart_player_profile (#325). Player insights chain #153 -> #156.
+-  CPO 2026-06-16 (this conversation). Player-season consolidation split out as #480. Sources:
+-  stg_apif__player_profiles (PR-a2, 100% backfilled), base_apif__players + dim_player (#448),
+-  mart_player_profile (#325). Player insights chain #153 -> #156.
++  GAP-18 (docs/wireframes/99_gaps_register.md; metrics_display.md §4 + §5.3d; 01_fixture_page.md §5.3d;
++  metrics_context_model.md §4 national-team matrix; docs/competitions/wc26.md "WC form window rules").
++  CPO-approved 2026-06-11; CPO go-ahead 2026-06-16 (this conversation) to change live WC form numbers,
++  with window_type values 'tournament_to_date' + 'qualifiers' confirmed and existing 'season_to_date'
++  left untouched. Parent link source: docs/competition_registry.yml parent_competition (WCQ* -> WC).
  
  scope_paths:
--  - ingestion/api_football/orchestrator.py
--  - ingestion/api_football/loads/competition_runner.py
--  - ingestion/api_football/loads/player_squads.py
--  - docs/data_contract.md
--  - tests/test_player_squads_catchup.py
-+  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-+  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/models/3_core/dim_player.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+-  - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/models/3_core/dim_player.sql
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - scripts/sync_dbt_vars.py
++  - scripts/check_registry_var_sync.py
++  - dbt_project/seeds/competition_registry.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/dbt_project.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
++  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
+   - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_tournament_form_window.sql
++  - docs/competitions/wc26.md
++  - docs/wireframes/99_gaps_register.md
    - .claude/task/contract.md
  
  decisions_taken: >
--  CPO 2026-06-16: (1) squad capture/catch-up keyed by TEAM, deduped across all competitions —
--  capture a team while active anywhere, catch up a team idle everywhere. (2) /players/squads is the
--  squad-MEMBERSHIP source for BOTH club and national teams (validated: real national rosters incl.
--  non-players); the appearance fact (fct_player_team_season, PR-b) is a complementary playing-time
--  layer, never the roster. (3) No recency day-window — the per-comp signals (still-playing? +
--  last-recorded season) plus a season stamp decide capture; daily runs make it timely. (4) The
--  season is stamped on the squad snapshot so per-season dedup is exact and the raw row is
--  self-describing (additive payload key — existing stg_apif__squads response[] shape is unchanged).
-+  CPO 2026-06-16: ship BIO only now; player-season consolidation is its own task (#480). Five bio
-+  fields added to dim_player from the profiles base; profile-wins coalesce on the four overlapping
-+  descriptors (richer source preferred — may refresh some names/nationalities/photos; no metrics
-+  affected); exclude age + squad_number; dim_player stays pure Type-1; surface the bio on
-+  mart_player_profile additively (no changed metrics/grain/rows).
+-  CPO 2026-06-16: ship BIO only now; player-season consolidation is its own task (#480). Five bio
+-  fields added to dim_player from the profiles base; profile-wins coalesce on the four overlapping
+-  descriptors (richer source preferred — may refresh some names/nationalities/photos; no metrics
+-  affected); exclude age + squad_number; dim_player stays pure Type-1; surface the bio on
+-  mart_player_profile additively (no changed metrics/grain/rows).
++  CPO 2026-06-11 approved GAP-18 (implement the matrix tournament exception + phase descriptor, schedule
++  before WC). CPO 2026-06-16 (this conversation): rules are settled — opening-round (pre-MD1) form =
++  qualifier matches; from MD2 = cumulative tournament-to-date; never "last 5"; explicit go-ahead to change
++  the live WC form numbers now; window_type values 'tournament_to_date' + 'qualifiers'; existing
++  'season_to_date' key left UNTOUCHED (published key, separate decision). Mechanism: sync the registry's
++  existing parent_competition field into the registry seed (the sanctioned single-source path) and read it
++  in the window model — no separate Core parent-child dim (single consumer; avoids a premature
++  consumer-less model).
  
  decisions_reserved:
--  - Historical / per-edition squad membership (/players/squads is current-only) — PARKED as #477;
--    do NOT build here.
--  - National-team rosters/caps in the player CORE/MARTS layer (how they surface downstream) are
--    PR-b / PR-c, NOT this ingestion PR.
--  - Surfacing the new `season` field in stg_apif__squads is a downstream staging change — NOT in
--    this PR; flag for the analytics-engineer when staging next changes.
--  - Any §10-class question that surfaces (e.g. a NEW ingest mechanism beyond "catch up finished
--    comps", or reshaping the merged per-league landing) -> escalate BLINDED, do not self-rule.
-+  - base_apif__player_profiles current-per-player tiebreak (latest raw_ingested_at per player_id) —
-+    follow the base_apif__players precedent.
-+  - dim_player.player_position (general bio position) vs mart_player_profile's existing position_code
-+    (season modal position from match stats): keep BOTH, distinct meanings; do not merge/redefine.
-+  - The player-season consolidation + metric reconciliation is #480 — NOT here.
-+  - Any §10 question -> escalate in plain language; do not self-rule.
+-  - base_apif__player_profiles current-per-player tiebreak (latest raw_ingested_at per player_id) —
+-    follow the base_apif__players precedent.
+-  - dim_player.player_position (general bio position) vs mart_player_profile's existing position_code
+-    (season modal position from match stats): keep BOTH, distinct meanings; do not merge/redefine.
+-  - The player-season consolidation + metric reconciliation is #480 — NOT here.
+-  - Any §10 question -> escalate in plain language; do not self-rule.
++  - SCOPE — this PR covers world_championship + continental_championship (the types the GAP-18 display
++    entry names; the live-critical set). The matrix §4 ALSO gives `qualifying` a cumulative campaign window
++    while running — NOT implemented here (not time-critical; the display GAP-18 entry names only
++    championships). Filed as #483; do NOT silently extend or silently drop.
++  - PLAYER-side window — int_momentum__player selects last-5 inline (no shared player window model); GAP-18
++    names the TEAM model and the player top-strip is secondary. Player stays 'last_5' this PR; filed as
++    #484 (immediate follow-up). Do not self-extend scope.
++  - A new Core parent-child dim (the GAP-18 "Core dim" framing) — deferred; implemented via the seed.
++    If a reviewer/CPO deems the core dim mandatory, escalate rather than self-decide.
++  - Any other §10 question -> escalate in plain language; do not self-rule.
  
  done_when:
--  - National-squad data quality re-confirmed on real rows (DONE pre-contract: WC/ACN/UNL full
--    rosters at ~26-28 players/team).
--  - Pure team-selection function unit-tested (tests/test_player_squads_catchup.py): given
--    finished-comp team_ids, active team_ids, and already-captured (team, season), returns exactly
--    the teams to fetch — excludes active + already-have-for-season, dedupes across comps. No network.
--  - Squad snapshots carry the stamped season (both in-season Phase 3b and the catch-up); the
--    catch-up writes finished comps' not-yet-captured teams once; in-season Phase 3b behaviour
--    otherwise unchanged.
--  - docs/data_contract.md documents the catch-up + the season-stamped squads payload.
--  - validate-local clean (python lint + the ingestion pytest); dbt parse unaffected (no model edits).
--  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion) both PASS.
--  - POST-MERGE (separate, CPO cost decision — NOT in this PR): on the next dispatched/daily run,
--    RAW_APIF_SQUADS gains the finished club comps (PL/PD/BL1/BL2); verify read-only.
-+  - dbt parse clean; `dbt build --select base_apif__player_profiles dim_player mart_player_profile`
-+    succeeds on real BQ; dim_player unique on player_sk with the five bio columns populated for the
-+    backfilled universe (profiles ~= 31,920 distinct players); mart_player_profile EXISTING
-+    columns/grain/row-count UNCHANGED (additive bio columns only) — verify pre/post on the existing columns.
-+  - base.yml documents base_apif__player_profiles; core.yml documents dim_player's new columns;
-+    shared.yml documents mart_player_profile's new columns; sqlfluff lint passes on the changed models.
-+  - validate-local clean.
-+  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) both PASS.
+-  - dbt parse clean; `dbt build --select base_apif__player_profiles dim_player mart_player_profile`
+-    succeeds on real BQ; dim_player unique on player_sk with the five bio columns populated for the
+-    backfilled universe (profiles ~= 31,920 distinct players); mart_player_profile EXISTING
+-    columns/grain/row-count UNCHANGED (additive bio columns only) — verify pre/post on the existing columns.
+-  - base.yml documents base_apif__player_profiles; core.yml documents dim_player's new columns;
+-    shared.yml documents mart_player_profile's new columns; sqlfluff lint passes on the changed models.
+-  - validate-local clean.
+-  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) both PASS.
++  - `python scripts/sync_dbt_vars.py` regenerates competition_registry.csv with parent_competition;
++    `python scripts/check_registry_var_sync.py` and `python scripts/check_competition_type_seed.py` pass.
++  - dbt parse clean; sqlfluff lint passes on changed models; validate-local clean.
++  - Read-only BQ spot-check on live WC ('WC') upcoming fixtures confirms: sides whose team has >=1 prior
++    2026 WC leg show window_type='tournament_to_date' with games_in_window = that prior count (verified >5
++    where applicable, i.e. the 5-cap is gone); opener sides show 'qualifiers' over WCQ* legs (or empty when
++    no qualifier legs); non-tournament fixtures unchanged ('last_5', <=5 legs).
++  - ci-data-build (full BQ build + DQ tests) green: assert_momentum_window_matches_momentum still passes;
++    new assert_tournament_form_window passes; all window_type accepted_values updated so no test regresses.
++  - int_momentum_window.yml / int_momentum.yml / shared.yml + seeds/schema.yml document the new values/column.
++  - reviewers: scope-auditor + analytics-engineer-reviewer + cto-reviewer + data-engineer-reviewer +
++    bi-analyst-reviewer all PASS (>=2 named risks each), no FAIL, every ESCALATE has a recorded CPO ANSWER.
  
  amendments: (none)
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 9641379..16847b9 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -180,6 +180,21 @@ models:
-       - name: player_api_id
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 675d472..1e8149f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -25,12 +25,15 @@ models:
+           - accepted_values:
+               values: ["club", "national"]
+       - name: window_type
++        description: >
++          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
++          fixtures (GAP-18). Carried from int_momentum_window__team.
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["last_5"]
++              values: ["last_5", "tournament_to_date", "qualifiers"]
+       - name: games_in_window
+-        description: "Number of finished matches in the window (1–5)."
++        description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows."
          tests: [not_null]
+       - name: games_with_team_stats
+         description: "Count of window legs with team stats present (shots/passes/corners/saves). Denominator for per-match team-stat rates and finishing_efficiency."
+@@ -43,10 +46,10 @@ models:
+       - name: goals_against_in_save_games
+         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
+       - name: contributing_competitions
+-        description: "Array of distinct league_codes from which the 5 legs were drawn."
++        description: "Array of distinct league_codes from which the window legs were drawn."
+         tests: [not_null]
+       - name: games_with_player_stats
+-        description: "Count of the 5 legs that have a matching row in int_legs__team_from_players."
++        description: "Count of the window legs that have a matching row in int_legs__team_from_players."
  
-+  - name: base_apif__player_profiles
-+    description: >
-+      Current per-player bio from the rich /players/profiles source
-+      (stg_apif__player_profiles), reduced to the latest row per player_id.
-+      Identity-level only — no league_code/team/season. Enriches dim_player.
-+      Grain: player_api_id.
-+    config:
-+      tags: ["base", "api_football", "player_context"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [player_api_id]
-+    columns:
-+      - name: player_api_id
-+        tests: [not_null]
-+
-   - name: base_apif__fixture_events
+   - name: int_momentum__player
      description: >
-       Deduplicated fixture event rows from stg_apif__fixture_events. Keeps
-diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-new file mode 100644
-index 0000000..08e40bf
---- /dev/null
-+++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-@@ -0,0 +1,46 @@
-+-- Current per-player BIO from the rich /players/profiles source. stg_apif__player_profiles
-+-- union-all-accumulates snapshots (skip-if-present loader), so reduce to the latest row per
-+-- player_id. Identity-level only — no league_code/team/season (those live in the mapping/facts).
-+-- Feeds dim_player's bio enrichment 1:1. Grain: player_api_id.
-+with src as (
-+    select * from {{ ref('stg_apif__player_profiles') }}
-+    where player_id is not null
-+),
-+
-+renamed as (
-+    select
-+        player_name,
-+        player_firstname as player_first_name,
-+        player_lastname as player_last_name,
-+        birth_date as player_birth_date,
-+        birth_place as player_birth_place,
-+        birth_country as player_birth_country,
-+        nationality as player_nationality,
-+        height as player_height,
-+        weight as player_weight,
-+        position as player_position,
-+        player_photo_url,
-+        raw_ingested_at,
-+        safe_cast(player_id as int64) as player_api_id
-+    from src
-+)
-+
-+select
-+    player_api_id,
-+    player_name,
-+    player_first_name,
-+    player_last_name,
-+    player_birth_date,
-+    player_birth_place,
-+    player_birth_country,
-+    player_nationality,
-+    player_height,
-+    player_weight,
-+    player_position,
-+    player_photo_url,
-+    raw_ingested_at
-+from renamed
-+qualify row_number() over (
-+    partition by player_api_id
-+    order by raw_ingested_at desc
-+) = 1
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index eb75646..6953d44 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -194,10 +194,12 @@ models:
-   - name: dim_player
-     description: >
-       Canonical player dimension — a pure global entity. Grain: player_api_id (globally
--      unique in API-Football). Sourced 1:1 from base_apif__players (single global identity
--      dedup). Identity attributes only; a player is one entity across competitions, so this
--      carries NO league_code and NO team/season affiliation — "which team/season" lives in
--      dim_player_team_season_mapping (roster membership) and the facts (appearances).
-+      unique in API-Football). Identity from base_apif__players, enriched with bio from
-+      base_apif__player_profiles (the richer /players/profiles source preferred via coalesce
-+      for overlapping descriptors: name, birth_date, nationality, photo). Entity attributes
-+      only; a player is one entity across competitions, so this carries NO league_code and NO
-+      team/season affiliation — "which team/season" lives in dim_player_team_season_mapping
-+      (roster membership) and the facts (appearances).
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -224,6 +226,16 @@ models:
-         description: "Nationality string from API-Football."
-       - name: player_photo_url
-         description: "Player photo URL."
-+      - name: player_birth_place
-+        description: "Birth place (city), from /players/profiles."
-+      - name: player_birth_country
-+        description: "Birth country, from /players/profiles."
-+      - name: player_height
-+        description: "Height (e.g. '180 cm'), from /players/profiles."
-+      - name: player_weight
-+        description: "Weight (e.g. '75 kg'), from /players/profiles."
-+      - name: player_position
-+        description: "General/listed position, from /players/profiles."
-       - name: raw_ingested_at
-         description: "UTC timestamp of the raw row this dimension row was derived from."
- 
-diff --git a/dbt_project/models/3_core/dim_player.sql b/dbt_project/models/3_core/dim_player.sql
-index ad9abd0..5371d86 100644
---- a/dbt_project/models/3_core/dim_player.sql
-+++ b/dbt_project/models/3_core/dim_player.sql
-@@ -1,17 +1,31 @@
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum__team.sql b/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
+index 6a5c90d..75aeecb 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
+@@ -1,23 +1,26 @@
  {{ config(materialized='table') }}
  
--with import_base_apif__players as (
-+with players as (
-     select * from {{ ref('base_apif__players') }}
+ {#
+-  W1 last-5 momentum builder — team.
++  W1 momentum builder — team.
+ 
+-  Aggregates raw totals over the last-5 window legs selected by
+-  int_momentum_window__team (the selection was extracted there in #323 so this
+-  aggregate and the drill-down list mart consume the same matches). No ratios —
+-  those are computed in mart_momentum__team.
++  Aggregates raw totals over the window legs selected by int_momentum_window__team
++  (the selection was extracted there in #323 so this aggregate and the drill-down list
++  mart consume the same matches). The window is last-5 for most competitions and
++  cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
++  window_type carried from the selection says which, and games_in_window is the actual
++  count (1–5 for last_5, unbounded for tournament windows). No ratios — those are
++  computed in mart_momentum__team.
+ 
+   Grain: (upcoming_fixture_sk, team_sk).
+ 
+-  Scope: all competition types — club and national. W1 (last 5) is shown
+-  alongside W2 for every fixture; both numbers are always presented together.
++  Scope: all competition types — club and national. W1 is shown alongside W2 for every
++  fixture; both numbers are always presented together.
+ 
+   Returns no row when a team has no finished matches yet (before phase for a
+   club domestic_league). The mart will emit nulls; #326 fills the gap.
+ 
+   Player-derived columns (key_passes, tackles, …) inherit player-stat coverage
+-  gaps: if none of the 5 legs have player data the column is NULL; if some do,
++  gaps: if none of the window legs have player data the column is NULL; if some do,
+   the sum covers only those matches. games_with_player_stats tracks coverage.
+ 
+   Coverage rule (same-window): a ratio's numerator and denominator must cover the
+@@ -32,13 +35,14 @@ with window_legs as (
+     select * from {{ ref('int_momentum_window__team') }}
+ ),
+ 
+--- Aggregate raw totals over the last 5 team-match legs
++-- Aggregate raw totals over the window legs
+ team_agg as (
+     select
+         upcoming_fixture_sk,
+         team_sk,
+         season_api_year,
+         entity_type,
++        window_type,
+         count(*) as games_in_window,
+         -- per-input coverage: stats are sparse in lower leagues, so each rate
+         -- must divide over the games where its inputs actually exist
+@@ -74,10 +78,11 @@ team_agg as (
+         upcoming_fixture_sk,
+         team_sk,
+         season_api_year,
+-        entity_type
++        entity_type,
++        window_type
+ ),
+ 
+--- Sum player-derived stats for the same 5 legs (inherits player-stat coverage gaps)
++-- Sum player-derived stats for the same window legs (inherits player-stat coverage gaps)
+ player_derived as (
+     select
+         wl.upcoming_fixture_sk,
+@@ -106,7 +111,7 @@ select
+     ta.team_sk,
+     ta.season_api_year,
+     ta.entity_type,
+-    'last_5' as window_type,
++    ta.window_type,
+     ta.games_in_window,
+     ta.games_with_team_stats,
+     ta.games_with_sot_stats,
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index 2b2c123..6d4a713 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -3,18 +3,20 @@ version: 2
+ models:
+   - name: int_momentum_window__team
+     description: >
+-      W1 last-5 momentum-window selection — team. One row per (upcoming fixture side, window
+-      leg): the team's last 5 finished matches before the upcoming fixture, cross-
+-      competition within the same entity_type, season_api_year-capped for clubs and
+-      recency-only for national teams. Extracted from int_momentum__team (#323) so the
+-      momentum aggregate and the drill-down list mart consume the same selection.
++      W1 momentum-window selection — team. One row per (upcoming fixture side, window leg).
++      Default (window_type='last_5'): the team's last 5 finished matches before the upcoming
++      fixture, cross-competition within the same entity_type, season-capped for clubs and
++      recency-only for national teams. Tournament fixtures (GAP-18, matrix §4) instead use a
++      cumulative window — tournament_to_date (this tournament so far) or qualifiers (its
++      opener) — uncapped. Extracted from int_momentum__team (#323) so the momentum aggregate
++      and the drill-down list mart consume the same selection.
+       Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk, leg_fixture_sk]
+       - dbt_utils.expression_is_true:
+-          expression: "recency_rank between 1 and 5"
+-          name: momentum_window_team_recency_rank_in_range
++          expression: "recency_rank >= 1 and (recency_rank <= 5 or window_type in ('tournament_to_date', 'qualifiers'))"
++          name: momentum_window_team_recency_rank_capped_for_last_5
+     columns:
+       - name: upcoming_fixture_sk
+         tests: [not_null]
+@@ -23,8 +25,16 @@ models:
+       - name: leg_fixture_sk
+         description: "The past match this row describes; click-through key for the drill-down."
+         tests: [not_null]
++      - name: window_type
++        description: >
++          Which window this leg belongs to: last_5 (default) or tournament_to_date / qualifiers
++          for tournament fixtures (GAP-18). Constant per (upcoming_fixture_sk, team_sk).
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["last_5", "tournament_to_date", "qualifiers"]
+       - name: recency_rank
+-        description: "1 = most recent of the window legs."
++        description: "1 = most recent of the window legs (uncapped for tournament windows)."
+         tests: [not_null]
+       - name: entity_type
+         tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql b/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
+index fdc0ed8..a4c6fc5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
+@@ -1,24 +1,34 @@
+ {{ config(materialized='table') }}
+ 
+ {#
+-  W1 last-5 momentum-window selection — team.
++  W1 momentum-window selection — team.
+ 
+-  For each upcoming fixture side, selects the team's last 5 finished matches
+-  (cross-competition, same entity_type, kickoff before this fixture) and keeps
+-  them UN-aggregated — one row per window leg, with the leg's stats and
+-  descriptors. Extracted from int_momentum__team (#323) so the aggregate
+-  (momentum) and its drill-down list (mart_momentum_window__team) consume the same
+-  selection and cannot drift.
++  One row per (upcoming fixture side, window leg), kept UN-aggregated so the momentum aggregate
++  (int_momentum__team) and its drill-down list (mart_momentum_window__team) consume the same
++  selection and cannot drift (extracted in #323).
+ 
+-  Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
++  Default window (window_type='last_5'): the team's last 5 finished matches before the upcoming
++  fixture, cross-competition within the same entity_type. Season boundary (unchanged, #320):
++  - Club: season_api_year = the upcoming fixture's season (real calendar boundary).
++  - National: no season cap — recency alone is the boundary.
++
++  Tournament exception (GAP-18; matrix §4 in docs/metrics_context_model.md). For an upcoming
++  fixture whose competition_type is a tournament (world_championship / continental_championship)
++  the window is CUMULATIVE, not last-5, and is never capped at 5:
++  - window_type='tournament_to_date': every finished leg in THIS tournament (same league_code)
++    and this edition (season_api_year) before kickoff — used once the team has a tournament leg
++    (group-stage MD2 onward, including knockout).
++  - window_type='qualifiers': when the team has NO tournament leg yet (its opener / pre-MD1),
++    every finished leg in the tournament's qualifier competitions (registry parent_competition =
++    this league_code) before kickoff, no season cap (a qualifying campaign spans seasons).
++  A tournament side with neither tournament nor qualifier legs yields no rows (the mart renders
++  the empty-form state). `qualifying`-type previews keep last_5 here (#483); the player path
++  keeps last_5 (#484).
+ 
+-  Season boundary (unchanged from #320):
+-  - Club: season_api_year = upcoming fixture's season (real calendar boundary).
+-  - National: no season_api_year cap — qualifying campaigns and tournament
+-    cycles span multiple API seasons; recency alone is the correct boundary.
++  Returns no rows for a team with no finished matches yet (before phase for a club
++  domestic_league); #326's season-to-date fallback covers that gap.
+ 
+-  Returns no rows when a team has no finished matches yet (before phase for a
+-  club domestic_league); #326's season-to-date fallback covers that gap.
++  Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
+ #}
+ 
+ with upcoming as (
+@@ -65,9 +75,10 @@ upcoming_sides as (
+     select
+         fixture_sk as upcoming_fixture_sk,
+         home_team_sk as team_sk,
+-        league_code,
++        league_code as upcoming_league_code,
+         season_api_year,
+         kickoff_datetime,
++        competition_type,
+         entity_type
+     from upcoming_with_type
+ 
+@@ -76,22 +87,27 @@ upcoming_sides as (
+     select
+         fixture_sk as upcoming_fixture_sk,
+         away_team_sk as team_sk,
+-        league_code,
++        league_code as upcoming_league_code,
+         season_api_year,
+         kickoff_datetime,
++        competition_type,
+         entity_type
+     from upcoming_with_type
+ ),
+ 
+--- For each side, rank the team's recent legs (same entity_type + season, before kickoff)
+-ranked_legs as (
++-- Every candidate leg for a side: the team's finished matches (same entity_type) before
++-- kickoff, with the leg's own parent_competition resolved for the qualifier window.
++candidate_legs as (
+     select
+         s.upcoming_fixture_sk,
+         s.team_sk,
+         s.season_api_year,
+         s.entity_type,
++        s.upcoming_league_code,
+         l.fixture_sk as leg_fixture_sk,
+         l.league_code as leg_league_code,
++        legreg.parent_competition as leg_parent_competition,
++        l.season_api_year as leg_season_api_year,
+         l.kickoff_datetime as leg_kickoff_datetime,
+         l.round_name as leg_round_name,
+         l.home_away,
+@@ -108,25 +124,137 @@ ranked_legs as (
+         l.opponent_corner_kicks,
+         l.goalkeeper_saves,
+         l.opponent_shots_on_goal,
+-        row_number() over (
+-            partition by s.upcoming_fixture_sk, s.team_sk
+-            order by l.kickoff_datetime desc
+-        ) as recency_rank
++        -- Tournament types (matrix §4) use a cumulative within-tournament window. The
++        -- competition_type is the declared axis here (like entity_type), so we branch on it
++        -- once — never on a hardcoded league_code. coalesce keeps it total: an unresolved
++        -- type is treated as non-tournament (last_5), never dropped from both branches.
++        coalesce(
++            s.competition_type in ('world_championship', 'continental_championship'), false
++        ) as is_tournament
+     from upcoming_sides as s
+     inner join {{ ref('int_legs__team_match') }} as l
+         on
+             s.team_sk = l.team_sk
+             and s.entity_type = l.entity_type
+             and s.kickoff_datetime > l.kickoff_datetime
+-            -- Club: restrict to current season (seasons are real calendar boundaries).
+-            -- National: no season cap — a WC campaign spans multiple season_api_years
+-            -- (qualifiers 2024/25 + tournament 2026); recency alone is the boundary.
+-            and (
+-                s.entity_type = 'national'
+-                or s.season_api_year = l.season_api_year
+-            )
++    left join registry as legreg
++        on l.league_code = legreg.league_code
 +),
 +
-+profiles as (
-+    select * from {{ ref('base_apif__player_profiles') }}
++-- Tournament side, while running: legs played in THIS tournament edition so far.
++tournament_legs as (
++    select *
++    from candidate_legs
++    where
++        is_tournament
++        and leg_league_code = upcoming_league_code
++        and leg_season_api_year = season_api_year
++),
++
++sides_with_tournament_legs as (
++    select distinct
++        upcoming_fixture_sk,
++        team_sk
++    from tournament_legs
++),
++
++-- Tournament side at its opener (no tournament leg yet): the team's qualifier legs.
++qualifier_legs as (
++    select cl.*
++    from candidate_legs as cl
++    where
++        cl.is_tournament
++        and cl.leg_parent_competition = cl.upcoming_league_code
++        and not exists (
++            select 1
++            from sides_with_tournament_legs as t
++            where
++                t.upcoming_fixture_sk = cl.upcoming_fixture_sk
++                and t.team_sk = cl.team_sk
++        )
++),
++
++-- Every non-tournament side: the last-5 cross-competition window.
++last5_legs as (
++    select *
++    from candidate_legs
++    where
++        not is_tournament
++        and (
++            entity_type = 'national'
++            or season_api_year = leg_season_api_year
++        )
++),
++
++tournament_window as (
++    select
++        *,
++        'tournament_to_date' as window_type,
++        row_number() over (
++            partition by upcoming_fixture_sk, team_sk
++            order by leg_kickoff_datetime desc
++        ) as recency_rank
++    from tournament_legs
++),
++
++qualifier_window as (
++    select
++        *,
++        'qualifiers' as window_type,
++        row_number() over (
++            partition by upcoming_fixture_sk, team_sk
++            order by leg_kickoff_datetime desc
++        ) as recency_rank
++    from qualifier_legs
++),
++
++last5_window as (
++    select
++        *,
++        'last_5' as window_type,
++        row_number() over (
++            partition by upcoming_fixture_sk, team_sk
++            order by leg_kickoff_datetime desc
++        ) as recency_rank
++    from last5_legs
++),
++
++combined as (
++    -- The WHERE binds only to the last UNION branch (last5_window) in BigQuery: last_5 is
++    -- capped at 5, while tournament_window and qualifier_window are deliberately uncapped
++    -- (cumulative, GAP-18). Do NOT parenthesise or hoist this WHERE — that would silently
++    -- re-cap the tournament windows. assert_tournament_form_window guards the uncapped count.
++    select * from tournament_window
++    union all
++    select * from qualifier_window
++    union all
++    select * from last5_window
++    where recency_rank <= 5
  )
  
- select
--    cast(player_api_id as int64) as player_sk,
--    player_api_id,
--    player_name,
--    player_first_name,
--    player_last_name,
--    player_birth_date,
--    player_nationality,
--    player_photo_url,
--    raw_ingested_at
--from import_base_apif__players
-+    -- simple passthroughs first (sqlfluff ST06: simple targets before calculations)
-+    players.player_api_id,
-+    profiles.player_birth_place,
-+    profiles.player_birth_country,
-+    profiles.player_height,
-+    profiles.player_weight,
-+    profiles.player_position,
-+    players.raw_ingested_at,
-+    -- surrogate key + profile-wins descriptors (/players/profiles is the richer bio source;
-+    -- fall back to the identity source where absent)
-+    cast(players.player_api_id as int64) as player_sk,
-+    coalesce(profiles.player_name, players.player_name) as player_name,
-+    coalesce(profiles.player_first_name, players.player_first_name) as player_first_name,
-+    coalesce(profiles.player_last_name, players.player_last_name) as player_last_name,
-+    coalesce(profiles.player_birth_date, players.player_birth_date) as player_birth_date,
-+    coalesce(profiles.player_nationality, players.player_nationality) as player_nationality,
-+    coalesce(profiles.player_photo_url, players.player_photo_url) as player_photo_url
-+from players
-+left join profiles
-+    on players.player_api_id = profiles.player_api_id
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index 81fba60..0578909 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -153,6 +153,11 @@ select
-     p.player_last_name,
-     p.player_nationality,
-     p.player_birth_date,
-+    p.player_birth_place,
-+    p.player_birth_country,
-+    p.player_height,
-+    p.player_weight,
-+    p.player_position,
-     p.player_photo_url,
-     mp.position_code,
-     a.appearances,
+-select *
+-from ranked_legs
+-where recency_rank <= 5
++select
++    upcoming_fixture_sk,
++    team_sk,
++    season_api_year,
++    entity_type,
++    window_type,
++    leg_fixture_sk,
++    leg_league_code,
++    leg_kickoff_datetime,
++    leg_round_name,
++    home_away,
++    opponent_team_sk,
++    result,
++    goals_for,
++    goals_against,
++    shots_total,
++    shots_on_goal,
++    shots_inside_box,
++    passes_total,
++    passes_accurate,
++    corner_kicks,
++    opponent_corner_kicks,
++    goalkeeper_saves,
++    opponent_shots_on_goal,
++    recency_rank
++from combined
+diff --git a/dbt_project/models/5_marts/shared/mart_momentum__team.sql b/dbt_project/models/5_marts/shared/mart_momentum__team.sql
+index 63522cf..af4dca1 100644
+--- a/dbt_project/models/5_marts/shared/mart_momentum__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_momentum__team.sql
+@@ -1,11 +1,13 @@
+ {{ config(materialized='table') }}
+ 
+ {#
+-  W1 last-5 momentum mart — team.
++  W1 momentum mart — team.
+ 
+-  Computes final displayed metrics from the raw sums in int_momentum__team.
+-  All divisions live here — none in the builder. Returns NULL for any metric
+-  whose denominator is zero (safe_divide).
++  Computes final displayed metrics from the raw sums in int_momentum__team. The window
++  is last-5 for most competitions and cumulative for tournament fixtures (window_type,
++  GAP-18); every rate divides over games_in_window or the matching coverage count, so it
++  is correct for any window size. All divisions live here — none in the builder. Returns
++  NULL for any metric whose denominator is zero (safe_divide).
+ 
+   Grain: (upcoming_fixture_sk, team_sk).
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql b/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
+index 76722fc..d97607d 100644
+--- a/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
+@@ -2,8 +2,10 @@
+ 
+ {#
+   W1 momentum-window list mart — team. The drill-down behind the momentum metrics
+-  (#323): the same last-5 matches mart_momentum__team aggregates, exposed
++  (#323): the same window matches mart_momentum__team aggregates, exposed
+   un-aggregated — one row per (upcoming fixture side, past match), newest first.
++  window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
++  selection; tournament windows are cumulative, so a side can have more than five rows.
+ 
+   played_fixture_sk is the click-through key into mart_fixture_stats__team /
+   mart_fixture_stats__player. has_team_stats / has_player_stats tell the app
+@@ -56,7 +58,7 @@ select
+     f.league_code,
+     wl.entity_type,
+     wl.season_api_year,
+-    'last_5' as window_type,
++    wl.window_type,
+     wl.recency_rank,
+     wl.leg_fixture_sk as played_fixture_sk,
+     wl.leg_league_code as played_league_code,
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 3d04dfb..2b985b2 100644
+index 2b985b2..4ce58be 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -695,6 +695,16 @@ models:
+@@ -64,10 +64,13 @@ models:
+           - accepted_values:
+               values: ["club", "national"]
+       - name: window_type
++        description: >
++          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
++          fixtures (GAP-18).
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["last_5"]
++              values: ["last_5", "tournament_to_date", "qualifiers"]
+       - name: games_in_window
          tests: [not_null]
-       - name: position_code
-         description: "Most-frequent position that season (role badge). NULL when no fixture carried a position."
-+      - name: player_birth_place
-+        description: "Birth place (city), from dim_player bio."
-+      - name: player_birth_country
-+        description: "Birth country, from dim_player bio."
-+      - name: player_height
-+        description: "Height (e.g. '180 cm'), from dim_player bio."
-+      - name: player_weight
-+        description: "Weight (e.g. '75 kg'), from dim_player bio."
-+      - name: player_position
-+        description: "General/listed position from bio (distinct from position_code, the season modal)."
- 
-   - name: mart_player_match_log
+       - name: games_with_team_stats
+@@ -125,7 +128,7 @@ models:
+   - name: mart_momentum_window__team
      description: >
+       W1 momentum-window list mart — team (#323). The drill-down behind the momentum
+-      metrics: the same last-5 matches mart_momentum__team aggregates, exposed
++      metrics: the same window matches mart_momentum__team aggregates, exposed
+       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
+       is the click-through key into mart_fixture_stats__team / __player; has_team_stats
+       and has_player_stats are derived from those detail marts (same-layer refs, the
+@@ -147,10 +150,13 @@ models:
+         description: "Partition key of the UPCOMING fixture — app slices by this. The past match's own competition is played_league_code."
+         tests: [not_null]
+       - name: window_type
++        description: >
++          The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
++          fixtures (GAP-18). Tournament windows are cumulative, so a side can have >5 rows.
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["last_5"]
++              values: ["last_5", "tournament_to_date", "qualifiers"]
+       - name: recency_rank
+         description: "1 = most recent past match in the window."
+         tests: [not_null]
+diff --git a/dbt_project/seeds/competition_registry.csv b/dbt_project/seeds/competition_registry.csv
+index 1fb08c9..8454606 100644
+--- a/dbt_project/seeds/competition_registry.csv
++++ b/dbt_project/seeds/competition_registry.csv
+@@ -1,46 +1,46 @@
+-league_code,competition_type
+-ACN,continental_championship
+-AFCCL,continental_club
+-AFCON,continental_championship
+-APD,domestic_league
+-BL1,domestic_league
+-BL2,domestic_league
+-BSA,domestic_league
+-CAFCL,continental_club
+-CCCU,continental_club
+-CDF,domestic_cup
+-CDR,domestic_cup
+-CIT,domestic_cup
+-CNL,continental_championship
+-COAM,continental_championship
+-CWC,continental_club
+-DFBP,domestic_cup
+-ED,domestic_league
+-EURO,continental_championship
+-FAC,domestic_cup
+-GCUP,continental_championship
+-J1,domestic_league
+-KL1,domestic_league
+-L1,domestic_league
+-LIBER,continental_club
+-LMX,domestic_league
+-LP,domestic_league
+-MLS,domestic_league
+-PD,domestic_league
+-PL,domestic_league
+-SA,domestic_league
+-SPL,domestic_league
+-UCL,continental_club
+-UECL,continental_club
+-UEL,continental_club
+-UESC,continental_super_cup
+-UNL,continental_championship
+-VL,domestic_league
+-WC,world_championship
+-WCQAF,qualifying
+-WCQAS,qualifying
+-WCQCA,qualifying
+-WCQEU,qualifying
+-WCQIP,qualifying
+-WCQOC,qualifying
+-WCQSA,qualifying
++league_code,competition_type,parent_competition
++ACN,continental_championship,
++AFCCL,continental_club,
++AFCON,continental_championship,
++APD,domestic_league,
++BL1,domestic_league,
++BL2,domestic_league,
++BSA,domestic_league,
++CAFCL,continental_club,
++CCCU,continental_club,
++CDF,domestic_cup,L1
++CDR,domestic_cup,PD
++CIT,domestic_cup,SA
++CNL,continental_championship,
++COAM,continental_championship,
++CWC,continental_club,
++DFBP,domestic_cup,BL1
++ED,domestic_league,
++EURO,continental_championship,
++FAC,domestic_cup,PL
++GCUP,continental_championship,
++J1,domestic_league,
++KL1,domestic_league,
++L1,domestic_league,
++LIBER,continental_club,
++LMX,domestic_league,
++LP,domestic_league,
++MLS,domestic_league,
++PD,domestic_league,
++PL,domestic_league,
++SA,domestic_league,
++SPL,domestic_league,
++UCL,continental_club,
++UECL,continental_club,
++UEL,continental_club,
++UESC,continental_super_cup,
++UNL,continental_championship,
++VL,domestic_league,
++WC,world_championship,
++WCQAF,qualifying,WC
++WCQAS,qualifying,WC
++WCQCA,qualifying,WC
++WCQEU,qualifying,WC
++WCQIP,qualifying,WC
++WCQOC,qualifying,WC
++WCQSA,qualifying,WC
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 467d063..808f763 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -34,10 +34,11 @@ seeds:
+ 
+   - name: competition_registry
+     description: >
+-      league_code → competition_type mapping, generated from docs/competition_registry.yml
+-      by scripts/sync_dbt_vars.py (do not hand-edit). dbt models join on this to resolve a
+-      competition's type, then look up entity_type via the competition_types seed. Kept in
+-      lockstep with the registry by scripts/check_registry_var_sync.py.
++      league_code → (competition_type, parent_competition) mapping, generated from
++      docs/competition_registry.yml by scripts/sync_dbt_vars.py (do not hand-edit). dbt models
++      join on this to resolve a competition's type (then entity_type via the competition_types
++      seed) and its parent competition. Kept in lockstep with the registry — including the new
++      column and parent-link validity — by scripts/check_registry_var_sync.py.
+     columns:
+       - name: league_code
+         description: "Internal competition code (matches docs/competition_registry.yml)."
+@@ -51,6 +52,13 @@ seeds:
+           - relationships:
+               to: ref('competition_types')
+               field: competition_type
++      - name: parent_competition
++        description: >
++          The league_code of this competition's parent, or empty when it has none. Links a
++          child to its parent: a qualifier → its tournament (e.g. WCQEU → WC), a domestic cup →
++          its league (e.g. DFBP → BL1). Lets the form-window selection resolve a tournament's
++          qualifier competitions generically (no hardcoded code lists). Validity (every
++          non-empty value is a known league_code) is enforced by check_registry_var_sync.py.
+ 
+   - name: metric_catalogue
+     description: >
+diff --git a/dbt_project/tests/assert_tournament_form_window.sql b/dbt_project/tests/assert_tournament_form_window.sql
+new file mode 100644
+index 0000000..324fc4d
+--- /dev/null
++++ b/dbt_project/tests/assert_tournament_form_window.sql
+@@ -0,0 +1,110 @@
++-- GAP-18: the tournament form-window selection must be correct in two ways.
++--
++-- A. Provenance (per window leg, from the published drill-down list):
++--    1. Only tournament-type fixtures (world_championship / continental_championship) ever
++--       carry the tournament window_types — a non-tournament fixture must stay 'last_5'.
++--    2. 'tournament_to_date' legs are played in the tournament itself (played_league_code =
++--       the upcoming fixture's league_code).
++--    3. 'qualifiers' legs are played in a qualifier competition — one whose registry
++--       parent_competition is the upcoming fixture's tournament.
++--
++-- B. The window is uncapped (per side, from the aggregate): a 'tournament_to_date' side's
++--    games_in_window must equal the team's FULL count of prior same-edition tournament legs,
++--    recomputed independently from int_legs__team_match. This catches a re-introduced 5-cap
++--    or a wrong season filter — failures the list-vs-aggregate invariant
++--    (assert_momentum_window_matches_momentum) and the provenance checks above cannot see,
++--    because a uniform under-count keeps the list and aggregate consistent with each other.
++--
++-- Any returned row is a defect.
++
++with legs as (
++    select
++        upcoming_fixture_sk,
++        team_sk,
++        league_code as upcoming_league_code,
++        window_type,
++        played_league_code
++    from {{ ref('mart_momentum_window__team') }}
++),
++
++registry as (
++    select
++        league_code,
++        competition_type,
++        parent_competition
++    from {{ ref('competition_registry') }}
++),
++
++provenance_failures as (
++    select
++        l.upcoming_fixture_sk,
++        l.team_sk,
++        l.window_type,
++        'leg_wrong_competition' as failure
++    from legs as l
++    left join registry as up
++        on l.upcoming_league_code = up.league_code
++    left join registry as lp
++        on l.played_league_code = lp.league_code
++    where
++        (
++            l.window_type in ('tournament_to_date', 'qualifiers')
++            and up.competition_type
++            not in ('world_championship', 'continental_championship')
++        )
++        or (
++            l.window_type = 'tournament_to_date'
++            and l.played_league_code != l.upcoming_league_code
++        )
++        or (
++            l.window_type = 'qualifiers'
++            and coalesce(lp.parent_competition, '') != l.upcoming_league_code
++        )
++),
++
++tournament_sides as (
++    select
++        m.upcoming_fixture_sk,
++        m.team_sk,
++        m.league_code,
++        m.season_api_year,
++        m.games_in_window,
++        f.kickoff_datetime
++    from {{ ref('mart_momentum__team') }} as m
++    inner join {{ ref('fct_fixture') }} as f
++        on m.upcoming_fixture_sk = f.fixture_sk
++    where m.window_type = 'tournament_to_date'
++),
++
++expected_counts as (
++    select
++        ts.upcoming_fixture_sk,
++        ts.team_sk,
++        ts.games_in_window,
++        count(l.fixture_sk) as expected_legs
++    from tournament_sides as ts
++    left join {{ ref('int_legs__team_match') }} as l
++        on
++            ts.team_sk = l.team_sk
++            and ts.league_code = l.league_code
++            and ts.season_api_year = l.season_api_year
++            and ts.kickoff_datetime > l.kickoff_datetime
++    group by
++        ts.upcoming_fixture_sk,
++        ts.team_sk,
++        ts.games_in_window
++),
++
++count_failures as (
++    select
++        upcoming_fixture_sk,
++        team_sk,
++        'tournament_to_date' as window_type,
++        'games_in_window_not_full_cumulative' as failure
++    from expected_counts
++    where games_in_window != expected_legs
++)
++
++select * from provenance_failures
++union all
++select * from count_failures
+diff --git a/docs/competitions/wc26.md b/docs/competitions/wc26.md
+index 87d551b..48a280c 100644
+--- a/docs/competitions/wc26.md
++++ b/docs/competitions/wc26.md
+@@ -6,7 +6,7 @@ This document records WC-specific product/data behavior for the current pipeline
+ 
+ - Internal league code: `WC` (not `WC26`)
+ - API league id: `1`
+-- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`. Team form is recency-based (cross-competition last-N finished matches, `int_momentum_window__team`), so no explicit qualifier mapping is needed. The old `wc_supporting_league_codes` seed was retired; a Core parent-child dim is reserved for GAP-18.
++- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`, now synced into the `competition_registry` seed. Team form follows the tournament window (GAP-18, `int_momentum_window__team`): qualifier matches before the team's first WC match, then cumulative WC matches once the tournament is under way — not last-5. The old `wc_supporting_league_codes` seed was retired and replaced by the registry parent link, which the window model reads directly (no separate Core dim).
+ 
+ ## Match preview flow
+ 
+@@ -18,12 +18,15 @@ There is no separate pre-tournament page in the Pages app.
+ 
+ ## WC form window rules
+ 
+-For `mart_matchday_insights_wc`:
++Implemented generically by competition_type in `int_momentum_window__team` (GAP-18) and surfaced
++on the shared momentum marts (the per-type `mart_matchday_insights_wc` was retired in #321):
+ 
+-1. Group Stage Matchday 1 fixtures use qualifier form:
+-   - all finished matches for each team across configured WC supporting qualifier leagues
+-2. Group Stage Matchday 2 onward (including knockout) use tournament form:
+-   - all finished `league_code = 'WC'` matches before the fixture kickoff
++1. Group Stage Matchday 1 fixtures use qualifier form (`window_type = 'qualifiers'`):
++   - all finished matches for each team across its WC qualifier competitions
++     (registry `parent_competition = 'WC'`)
++2. Group Stage Matchday 2 onward (including knockout) use tournament form
++   (`window_type = 'tournament_to_date'`):
++   - all finished `league_code = 'WC'` matches this edition before the fixture kickoff
+    - cumulative (no five-game cap)
+ 
+ If a metric is missing in source stats, numeric outputs remain `null` and UI renders `"-"`.
+diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
+index a86fbf2..c646973 100644
+--- a/docs/wireframes/99_gaps_register.md
++++ b/docs/wireframes/99_gaps_register.md
+@@ -26,5 +26,5 @@
+ | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
+ | GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11) | — |
+ | GAP-17 | 02 team, MVP | mart | Pre-existing: the season rollup's original per-match rates divide by `season_games_played`, not stat-coverage counts (pre-coverage-rule convention) — understates rates where coverage < played. The five NEW season variants (GAP-13) already use coverage denominators | Align the old denominators with the coverage rule — **changes shipped MVP numbers**, so explicitly a CPO ruling; until then the two conventions coexist, documented in the rollup header | pending | — |
+-| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_momentum_window__team` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11) — schedule before WC | — |
++| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_momentum_window__team` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **mart layer landed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_momentum_window__team` via the registry parent link, world + continental championship; live match-preview form NUMBERS now cumulative-correct. Still open: the live WC form LABEL (immediate follow-up) and the v2 blueprint drill-down (`form_window[]` cap, separate `phase` column, #391). Deferred: qualifying-type #483, player strip #484 | — |
+ | GAP-19 | export (all screens) | mart + export | Consumption-layer audit (CPO ruling: ALL logic/transformation in dbt; the export may never compute): the merged export derives five things in Python — (1) leaderboard ranking + zero-exclusion, (2) top-player ranking (goals→assists→key passes), (3) nav taxonomy (`_GROUP_OF_TYPE` competition_type→group dict), (4) H2H canonical pair ordering, (5) **slugs** (published URL identity — must be byte-identical across any frontend) | Migrate each to dbt: rank columns on the player marts (`mart_top_scorers.scorer_rank` is the pattern), a leaderboards mart, `display_group` on the registry/seed, canonical pair key on `mart_head_to_head`, slug columns on the entity marts; export shrinks to selection | **approved** (CPO 2026-06-11) | — |
+diff --git a/scripts/check_registry_var_sync.py b/scripts/check_registry_var_sync.py
+index c06e33c..be61aff 100644
+--- a/scripts/check_registry_var_sync.py
++++ b/scripts/check_registry_var_sync.py
+@@ -2,7 +2,8 @@
+ 
+ Checks two things against docs/competition_registry.yml:
+   1. ``active_competition_league_codes`` in dbt_project.yml == registry active/in_progress.
+-  2. ``seeds/competition_registry.csv`` == registry league_code → competition_type.
++  2. ``seeds/competition_registry.csv`` == registry (league_code → competition_type,
++     parent_competition), and every parent_competition references a known league_code.
+ 
+ Both are written by scripts/sync_dbt_vars.py; this script fails CI if either drifts.
+ Singular tests under dbt_project/tests/ prove var ⊆ base rows. See
+@@ -67,42 +68,70 @@ def _registry_missing_ingest_active() -> list[str]:
+     return missing
+ 
+ 
+-def _registry_league_type_pairs() -> set[tuple[str, str]]:
++def _registry_seed_triples() -> set[tuple[str, str, str]]:
+     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
+     comps = data.get("competitions") or []
+-    out: set[tuple[str, str]] = set()
++    out: set[tuple[str, str, str]] = set()
+     for row in comps:
+         if not isinstance(row, dict):
+             continue
+         code = row.get("league_code")
+         ctype = row.get("competition_type")
+         if code and ctype:
+-            out.add((str(code), str(ctype)))
++            parent = row.get("parent_competition") or ""
++            out.add((str(code), str(ctype), str(parent)))
+     return out
+ 
+ 
+-def _seed_league_type_pairs() -> set[tuple[str, str]]:
++def _seed_triples() -> set[tuple[str, str, str]]:
+     with REGISTRY_SEED_PATH.open(encoding="utf-8", newline="") as f:
+         reader = csv.DictReader(f)
+         cols = reader.fieldnames or []
+-        if "league_code" not in cols or "competition_type" not in cols:
+-            raise KeyError(
+-                "competition_registry.csv missing league_code/competition_type columns"
+-            )
++        for required in ("league_code", "competition_type", "parent_competition"):
++            if required not in cols:
++                raise KeyError(
++                    f"competition_registry.csv missing required column '{required}'"
++                )
+         return {
+-            (r["league_code"].strip(), r["competition_type"].strip())
++            (
++                r["league_code"].strip(),
++                r["competition_type"].strip(),
++                (r.get("parent_competition") or "").strip(),
++            )
+             for r in reader
+             if r.get("league_code") and r.get("competition_type")
+         }
+ 
+ 
++def _registry_dangling_parents() -> list[tuple[str, str]]:
++    """Return (league_code, parent_competition) where parent_competition is set but is not a
++    known league_code. A dangling parent link silently breaks parent-keyed joins (e.g. a
++    tournament resolving its qualifier competitions), so it must fail CI."""
++    data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
++    comps = data.get("competitions") or []
++    codes = {
++        str(r.get("league_code"))
++        for r in comps
++        if isinstance(r, dict) and r.get("league_code")
++    }
++    out: list[tuple[str, str]] = []
++    for row in comps:
++        if not isinstance(row, dict):
++            continue
++        parent = row.get("parent_competition")
++        if parent and str(parent) not in codes:
++            out.append((str(row.get("league_code", "<unknown>")), str(parent)))
++    return out
++
++
+ def main() -> int:
+     try:
+         reg = _registry_active_codes()
+         var = _dbt_var_codes()
+         missing_flag = _registry_missing_ingest_active()
+-        reg_pairs = _registry_league_type_pairs()
+-        seed_pairs = _seed_league_type_pairs()
++        reg_triples = _registry_seed_triples()
++        seed_triples = _seed_triples()
++        dangling_parents = _registry_dangling_parents()
+     except Exception as e:
+         print(f"check_registry_var_sync: {e}", file=sys.stderr)
+         return 1
+@@ -143,9 +172,22 @@ def main() -> int:
+             print(f"  in dbt_project.yml only: {only_var}", file=sys.stderr)
+         return 1
+ 
+-    if reg_pairs != seed_pairs:
+-        only_reg = sorted(reg_pairs - seed_pairs)
+-        only_seed = sorted(seed_pairs - reg_pairs)
++    if dangling_parents:
++        print(
++            "check_registry_var_sync: parent_competition references an unknown league_code "
++            "(dangling parent link):",
++            file=sys.stderr,
++        )
++        for code, parent in sorted(dangling_parents):
++            print(
++                f"  {code} → parent_competition '{parent}' (no such league_code)",
++                file=sys.stderr,
++            )
++        return 1
++
++    if reg_triples != seed_triples:
++        only_reg = sorted(reg_triples - seed_triples)
++        only_seed = sorted(seed_triples - reg_triples)
+         print(
+             "check_registry_var_sync: competition_registry.csv is out of sync with the "
+             "registry. Run `python scripts/sync_dbt_vars.py`.",
+@@ -159,7 +201,7 @@ def main() -> int:
+ 
+     print(
+         f"check_registry_var_sync: OK ({len(s_reg)} competitions; "
+-        f"{len(seed_pairs)} registry-seed rows)."
++        f"{len(seed_triples)} registry-seed rows)."
+     )
+     return 0
+ 
+diff --git a/scripts/sync_dbt_vars.py b/scripts/sync_dbt_vars.py
+index 10c8684..5f4669c 100644
+--- a/scripts/sync_dbt_vars.py
++++ b/scripts/sync_dbt_vars.py
+@@ -2,9 +2,10 @@
+ 
+ Two artifacts are kept in lockstep with the registry:
+   1. ``active_competition_league_codes`` in dbt_project.yml (active/in_progress codes).
+-  2. ``seeds/competition_registry.csv`` — the league_code → competition_type mapping
+-     that dbt models join on to resolve a competition's type (and, via the
+-     competition_types seed, its club/national entity_type).
++  2. ``seeds/competition_registry.csv`` — the league_code → (competition_type,
++     parent_competition) mapping that dbt models join on to resolve a competition's type
++     (and, via the competition_types seed, its club/national entity_type) and its parent
++     competition (qualifier → tournament, domestic cup → league).
+ 
+ Run this after updating docs/competition_registry.yml (adding/removing a competition or
+ changing a competition_type). CI check_registry_var_sync.py fails if either is out of sync.
+@@ -42,27 +43,31 @@ def _registry_active_codes() -> list[str]:
+     return sorted(out)
+ 
+ 
+-def _registry_league_type_rows() -> list[tuple[str, str]]:
+-    """Return sorted (league_code, competition_type) for every competition with both set."""
++def _registry_seed_rows() -> list[tuple[str, str, str]]:
++    """Return sorted (league_code, competition_type, parent_competition) for every competition
++    with league_code and competition_type set. parent_competition is '' when not declared; it
++    links a child competition to its parent (qualifier → tournament, domestic cup → league) so
++    downstream models can resolve, e.g., a tournament's qualifier competitions."""
+     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
+     comps = data.get("competitions") or []
+-    out: list[tuple[str, str]] = []
++    out: list[tuple[str, str, str]] = []
+     for row in comps:
+         if not isinstance(row, dict):
+             continue
+         code = row.get("league_code")
+         ctype = row.get("competition_type")
+         if code and ctype:
+-            out.append((str(code), str(ctype)))
++            parent = row.get("parent_competition") or ""
++            out.append((str(code), str(ctype), str(parent)))
+     return sorted(set(out))
+ 
+ 
+-def _render_registry_seed(rows: list[tuple[str, str]]) -> str:
+-    body = "".join(f"{code},{ctype}\n" for code, ctype in rows)
+-    return "league_code,competition_type\n" + body
++def _render_registry_seed(rows: list[tuple[str, str, str]]) -> str:
++    body = "".join(f"{code},{ctype},{parent}\n" for code, ctype, parent in rows)
++    return "league_code,competition_type,parent_competition\n" + body
+ 
+ 
+-def _write_registry_seed(rows: list[tuple[str, str]]) -> bool:
++def _write_registry_seed(rows: list[tuple[str, str, str]]) -> bool:
+     """Write seeds/competition_registry.csv. Returns True if the file changed."""
+     new_text = _render_registry_seed(rows)
+     if REGISTRY_SEED_PATH.exists() and REGISTRY_SEED_PATH.read_text(encoding="utf-8") == new_text:
+@@ -123,16 +128,16 @@ def main() -> int:
+         print(f"sync_dbt_vars: already in sync ({len(codes)} competitions: {codes})")
+ 
+     try:
+-        type_rows = _registry_league_type_rows()
++        seed_rows = _registry_seed_rows()
+     except Exception as e:
+         print(f"sync_dbt_vars: failed to read registry types — {e}", file=sys.stderr)
+         return 1
+ 
+-    seed_changed = _write_registry_seed(type_rows)
++    seed_changed = _write_registry_seed(seed_rows)
+     if seed_changed:
+-        print(f"sync_dbt_vars: wrote competition_registry.csv ({len(type_rows)} rows)")
++        print(f"sync_dbt_vars: wrote competition_registry.csv ({len(seed_rows)} rows)")
+     else:
+-        print(f"sync_dbt_vars: competition_registry.csv already in sync ({len(type_rows)} rows)")
++        print(f"sync_dbt_vars: competition_registry.csv already in sync ({len(seed_rows)} rows)")
+     return 0
+ 
+ 
