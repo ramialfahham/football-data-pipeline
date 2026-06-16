@@ -1,480 +1,331 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 94b87b1..0b18294 100644
+index 0b18294..7b7a83c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,94 +1,79 @@
--# Task contract — feat: player-endpoint staging models (PR-a2)
-+# Task contract — feat: squad capture for finished competitions (club + national, team-keyed)
+@@ -1,79 +1,63 @@
+-# Task contract — feat: squad capture for finished competitions (club + national, team-keyed)
++# Task contract — feat: player-core PR-b (bio enrichment)
  
--> Player-data initiative, PR-a2 — the staging half of PR-a (PR-a1 = ingestion code, merged as
--> #473). Three generic staging models over the three new raw tables that PR-a1's loaders create
--> + a backfill populates: stg_apif__squads, stg_apif__player_profiles, stg_apif__player_teams,
--> plus their source declarations and generic-test entries. dbt-only; touches NO ingestion code,
--> NO protected paths. Reviewers: scope-auditor + analytics-engineer-reviewer.
-->
--> HOLD-TO-COMMIT: this PR's staging models reference raw tables that only exist once the backfill
--> dispatch (CPO-approved 2026-06-15, run 27532721705) creates them. Do NOT commit/open the PR until
--> those tables exist AND real rows have been inspected AND the staging SQL has been validated
--> against the real payloads (the transfers lesson — never green-build on assumed/empty data).
--> See the approved plan §4, escalations.log 2026-06-15 (PR-a rulings R1–R4), and the layering note
--> below.
-+> Forward-looking fix for the squads watch-item (resolved this session as ingest-mode behaviour,
-+> NOT a bug): finished/idle competitions run in `poll` mode, which skips every per-team phase,
-+> so RAW_APIF_SQUADS (a new table) only ever held the currently in-season comps — recently-ended
-+> comps (PL/PD/BL1/BL2 …) are absent. This adds a squad CATCH-UP for finished comps.
-+> Ingestion CODE + TESTS only — NO dbt models, NO protected paths, and NO API spend in the PR
-+> itself (the catch-up rides the daily run / a CPO-approved dispatch, like PR-a's code↔backfill
-+> split). Reviewers: scope-auditor + data-engineer-reviewer.
+-> Forward-looking fix for the squads watch-item (resolved this session as ingest-mode behaviour,
+-> NOT a bug): finished/idle competitions run in `poll` mode, which skips every per-team phase,
+-> so RAW_APIF_SQUADS (a new table) only ever held the currently in-season comps — recently-ended
+-> comps (PL/PD/BL1/BL2 …) are absent. This adds a squad CATCH-UP for finished comps.
+-> Ingestion CODE + TESTS only — NO dbt models, NO protected paths, and NO API spend in the PR
+-> itself (the catch-up rides the daily run / a CPO-approved dispatch, like PR-a's code↔backfill
+-> split). Reviewers: scope-auditor + data-engineer-reviewer.
++> Player-data initiative, PR-b — reduced to BIO ONLY (CPO 2026-06-16). The player-season
++> appearances rollup was found to already exist (duplicated in mart_player_season + mart_player_profile,
++> plus an orphaned int_player_season__metrics, with DIVERGENT metric derivations); that consolidation
++> is its own governed task (#480). This PR enriches the player ENTITY with bio from the 100%-backfilled
++> profiles and surfaces it on the player-profile mart. Pure dbt (base + core + one mart); additive to
++> the mart; no protected paths. Reviewers: scope-auditor + analytics-engineer-reviewer.
  
  objective: >
--  Add three generic staging models (raw cleanup / 1:1 flatten only — no business logic) plus their
--  source + test declarations:
--  (1) stg_apif__squads — from RAW_APIF_SQUADS (/players/squads per team). Complete snapshot per
--      run, so select the LATEST snapshot per league_code (like stg_apif__players), then flatten
--      response[].squad_payload[].players[] → one row per (league_code, team_id, player_id) with
--      shirt number / position / age / photo.
--  (2) stg_apif__player_profiles — from RAW_APIF_PLAYER_PROFILES (/players/profiles per player).
--      INCREMENTAL accumulation (skip-if-present loader: each snapshot holds only that run's new
--      players), so UNION ALL snapshots (NOT latest-per-league — that would drop earlier players),
--      flatten response[].profile_payload[].player → one row per raw profile record (grain carries
--      raw_ingested_at; no entity dedup — base/PR-b assembles current-per-player). Bio columns:
--      name, first/last, age, birth date/place/country, nationality, height, weight, number,
--      position, photo.
--  (3) stg_apif__player_teams — from RAW_APIF_PLAYER_TEAMS (/players/teams per player). INCREMENTAL
--      like profiles → UNION ALL snapshots, flatten response[].teams_payload[] then unnest seasons →
--      one row per (player_id, team_id, season_year, raw_ingested_at); no dedup.
--  (4) sources.yml: declare raw_apif_squads / raw_apif_player_profiles / raw_apif_player_teams (no
--      aggressive freshness — these are slow-moving). stg_apif__generic.yml: not_null on grain
--      columns; unique only where a single snapshot is unique at that grain (squads only).
-+  Capture a team's current squad (/players/squads) even when ALL its competitions have finished,
-+  so RAW_APIF_SQUADS covers recently-ended comps, not only those in-season. A squad is a TEAM
-+  property, so the catch-up is keyed by TEAM and deduped across competitions; it covers CLUB and
-+  NATIONAL teams alike (validated on real rows: /players/squads returns full national call-ups —
-+  WC 26.0 players/team, ACN 27.6, UNL 27.3 — i.e. selected-but-unused players the appearance fact
-+  cannot give). The rule uses signals we already have per competition (still-playing? +
-+  last-recorded season):
-+    - In-season (full mode) -> squads captured every run (UNCHANGED, Phase 3b).
-+    - Finished (poll / idle_complete) -> for that comp's teams, if we do NOT already have the
-+      team's squad for its last-recorded season, capture it ONCE and stamp the snapshot with that
-+      season.
-+  Team lists for finished comps come from the latest-season fixtures already fetched in the poll
-+  phase (NO extra API calls beyond the squad calls themselves). Dedup is by team: across all comps,
-+  against teams captured in-season this run (active comps), and against squads already stored for
-+  that season. No day-count window — season + still-playing fully decide it; daily runs catch each
-+  comp within ~a day of its season ending.
+-  Capture a team's current squad (/players/squads) even when ALL its competitions have finished,
+-  so RAW_APIF_SQUADS covers recently-ended comps, not only those in-season. A squad is a TEAM
+-  property, so the catch-up is keyed by TEAM and deduped across competitions; it covers CLUB and
+-  NATIONAL teams alike (validated on real rows: /players/squads returns full national call-ups —
+-  WC 26.0 players/team, ACN 27.6, UNL 27.3 — i.e. selected-but-unused players the appearance fact
+-  cannot give). The rule uses signals we already have per competition (still-playing? +
+-  last-recorded season):
+-    - In-season (full mode) -> squads captured every run (UNCHANGED, Phase 3b).
+-    - Finished (poll / idle_complete) -> for that comp's teams, if we do NOT already have the
+-      team's squad for its last-recorded season, capture it ONCE and stamp the snapshot with that
+-      season.
+-  Team lists for finished comps come from the latest-season fixtures already fetched in the poll
+-  phase (NO extra API calls beyond the squad calls themselves). Dedup is by team: across all comps,
+-  against teams captured in-season this run (active comps), and against squads already stored for
+-  that season. No day-count window — season + still-playing fully decide it; daily runs catch each
+-  comp within ~a day of its season ending.
++  (a) base_apif__player_profiles (NEW base): current-per-player bio from stg_apif__player_profiles
++      (union-all snapshots reduced to the latest row per player_id, mirroring base_apif__players).
++      Identity-level only (no league/team/season). Grain: player_api_id.
++  (b) dim_player (MODIFIED): join base_apif__player_profiles on player_api_id; ADD five bio columns —
++      player_birth_place, player_birth_country, player_height, player_weight, player_position. The four
++      OVERLAPPING descriptors (name, birth_date, nationality, photo) are refreshed from the richer
++      profile via coalesce(profile, players) — they may CHANGE for players whose profile differs from
++      the roster source (a deliberate data-quality preference, CPO-approved); no metric/numeric column
++      exists on dim_player, so no number changes. EXCLUDE age (point-in-time) and squad_number
++      (affiliation, not entity). dim_player stays a pure Type-1 entity; grain unchanged (player_sk).
++  (c) mart_player_profile (MODIFIED): surface the five new bio columns from dim_player (the player
++      page). ADDITIVE only — existing columns, metrics, grain, and row counts unchanged.
  
  refs: >
--  Approved plan §4 (staging models) + PR-a rulings R1–R4 (escalations.log 2026-06-15). PR-a1 (#473,
--  merged) created the loaders + landing payload shapes this staging flattens. Backfill dispatch
--  approved 2026-06-15 (run 27532721705).
-+  Squads watch-item (handover 2026-06-15) resolved this session: poll-mode (idle_complete) comps
-+  skip per-team phases, so the new RAW_APIF_SQUADS held only the 14 in-season comps. CPO rulings
-+  2026-06-16: (1) key by team/club, dedup across comps; (2) national teams use the SAME
-+  /players/squads membership source — the appearance fact (PR-b) is complementary, NOT a substitute
-+  (it misses non-playing squad members). Historical per-edition membership parked as #477.
+-  Squads watch-item (handover 2026-06-15) resolved this session: poll-mode (idle_complete) comps
+-  skip per-team phases, so the new RAW_APIF_SQUADS held only the 14 in-season comps. CPO rulings
+-  2026-06-16: (1) key by team/club, dedup across comps; (2) national teams use the SAME
+-  /players/squads membership source — the appearance fact (PR-b) is complementary, NOT a substitute
+-  (it misses non-playing squad members). Historical per-edition membership parked as #477.
++  CPO 2026-06-16 (this conversation). Player-season consolidation split out as #480. Sources:
++  stg_apif__player_profiles (PR-a2, 100% backfilled), base_apif__players + dim_player (#448),
++  mart_player_profile (#325). Player insights chain #153 -> #156.
  
  scope_paths:
--  - dbt_project/models/1_staging/api_football/sources.yml
--  - dbt_project/models/1_staging/api_football/stg_apif__squads.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__player_profiles.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__player_teams.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
--  - dbt_project/docs/layering.md
-+  - ingestion/api_football/orchestrator.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - ingestion/api_football/loads/player_squads.py
-+  - docs/data_contract.md
-+  - tests/test_player_squads_catchup.py
+-  - ingestion/api_football/orchestrator.py
+-  - ingestion/api_football/loads/competition_runner.py
+-  - ingestion/api_football/loads/player_squads.py
+-  - docs/data_contract.md
+-  - tests/test_player_squads_catchup.py
++  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/dim_player.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
    - .claude/task/contract.md
  
  decisions_taken: >
--  Staging follows the layer contract (1:1 flatten, NO entity dedup / aggregation / joins — base
--  does that). squads uses the standard latest-snapshot-per-league selection. profiles/teams UNION
--  ALL snapshots because their loaders are skip-if-present (incremental landing) — the first
--  incremental-accumulation raw tables in the repo; latest-per-league would silently drop players
--  landed on earlier backfill days. This is the only approach consistent with the merged,
--  CPO-approved cheap-ongoing loaders (the contract-clean alternative — re-fetch all players every
--  run — contradicts the approved cost model). Landing payload shapes are fixed by PR-a1's loaders:
--  response[]={team_id,squad_payload} / {player_id,profile_payload} / {player_id,teams_payload}.
-+  CPO 2026-06-16: (1) squad capture/catch-up keyed by TEAM, deduped across all competitions —
-+  capture a team while active anywhere, catch up a team idle everywhere. (2) /players/squads is the
-+  squad-MEMBERSHIP source for BOTH club and national teams (validated: real national rosters incl.
-+  non-players); the appearance fact (fct_player_team_season, PR-b) is a complementary playing-time
-+  layer, never the roster. (3) No recency day-window — the per-comp signals (still-playing? +
-+  last-recorded season) plus a season stamp decide capture; daily runs make it timely. (4) The
-+  season is stamped on the squad snapshot so per-season dedup is exact and the raw row is
-+  self-describing (additive payload key — existing stg_apif__squads response[] shape is unchanged).
+-  CPO 2026-06-16: (1) squad capture/catch-up keyed by TEAM, deduped across all competitions —
+-  capture a team while active anywhere, catch up a team idle everywhere. (2) /players/squads is the
+-  squad-MEMBERSHIP source for BOTH club and national teams (validated: real national rosters incl.
+-  non-players); the appearance fact (fct_player_team_season, PR-b) is a complementary playing-time
+-  layer, never the roster. (3) No recency day-window — the per-comp signals (still-playing? +
+-  last-recorded season) plus a season stamp decide capture; daily runs make it timely. (4) The
+-  season is stamped on the squad snapshot so per-season dedup is exact and the raw row is
+-  self-describing (additive payload key — existing stg_apif__squads response[] shape is unchanged).
++  CPO 2026-06-16: ship BIO only now; player-season consolidation is its own task (#480). Five bio
++  fields added to dim_player from the profiles base; profile-wins coalesce on the four overlapping
++  descriptors (richer source preferred — may refresh some names/nationalities/photos; no metrics
++  affected); exclude age + squad_number; dim_player stays pure Type-1; surface the bio on
++  mart_player_profile additively (no changed metrics/grain/rows).
  
--decisions_reserved: >
--  - The staging-contract CLARIFICATION that incremental-accumulation raw tables are staged by
--    union-all-snapshots (vs the documented latest-per-league rule) may warrant a note in
--    dbt_project/docs/layering.md / the stg_apif__generic.yml header. Whether that doc edit is a
--    §10 layer-contract extension needing CPO sign-off is flagged FOR the analytics-engineer +
--    scope-auditor review — not self-ruled here. layering.md is NOT edited in this draft; the
--    rationale is documented inline in the models + the generic-yml header pending that ruling.
--  - Anything beyond staging (base entity-dedup / current-per-player, core dim_player bio,
--    fct_player_team_season, the affiliation timeline) is PR-b / PR-c.
--  - If validation against the real backfilled payloads reveals a shape mismatch, fix the SQL — do
--    not reshape the raw landing (that is PR-a1, merged).
-+decisions_reserved:
-+  - Historical / per-edition squad membership (/players/squads is current-only) — PARKED as #477;
-+    do NOT build here.
-+  - National-team rosters/caps in the player CORE/MARTS layer (how they surface downstream) are
-+    PR-b / PR-c, NOT this ingestion PR.
-+  - Surfacing the new `season` field in stg_apif__squads is a downstream staging change — NOT in
-+    this PR; flag for the analytics-engineer when staging next changes.
-+  - Any §10-class question that surfaces (e.g. a NEW ingest mechanism beyond "catch up finished
-+    comps", or reshaping the merged per-league landing) -> escalate BLINDED, do not self-rule.
+ decisions_reserved:
+-  - Historical / per-edition squad membership (/players/squads is current-only) — PARKED as #477;
+-    do NOT build here.
+-  - National-team rosters/caps in the player CORE/MARTS layer (how they surface downstream) are
+-    PR-b / PR-c, NOT this ingestion PR.
+-  - Surfacing the new `season` field in stg_apif__squads is a downstream staging change — NOT in
+-    this PR; flag for the analytics-engineer when staging next changes.
+-  - Any §10-class question that surfaces (e.g. a NEW ingest mechanism beyond "catch up finished
+-    comps", or reshaping the merged per-league landing) -> escalate BLINDED, do not self-rule.
++  - base_apif__player_profiles current-per-player tiebreak (latest raw_ingested_at per player_id) —
++    follow the base_apif__players precedent.
++  - dim_player.player_position (general bio position) vs mart_player_profile's existing position_code
++    (season modal position from match stats): keep BOTH, distinct meanings; do not merge/redefine.
++  - The player-season consolidation + metric reconciliation is #480 — NOT here.
++  - Any §10 question -> escalate in plain language; do not self-rule.
  
  done_when:
--  - Three stg models compile (`dbt parse`) and, after the backfill, `dbt build --select` of the
--    three models succeeds and their grain holds on REAL rows (squads unique at (league_code,
--    team_id, player_id); profiles one row per player after base-dedup intent; teams unnested
--    seasons present).
--  - sources.yml declares the three raw tables; stg_apif__generic.yml has the three entries with
--    not_null grain tests (+ unique only where a single snapshot is unique).
--  - Real rows inspected in all three raw tables (non-empty payloads) BEFORE commit.
--  - validate-local clean; sqlfluff lint passes on the three models.
--  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) both PASS.
-+  - National-squad data quality re-confirmed on real rows (DONE pre-contract: WC/ACN/UNL full
-+    rosters at ~26-28 players/team).
-+  - Pure team-selection function unit-tested (tests/test_player_squads_catchup.py): given
-+    finished-comp team_ids, active team_ids, and already-captured (team, season), returns exactly
-+    the teams to fetch — excludes active + already-have-for-season, dedupes across comps. No network.
-+  - Squad snapshots carry the stamped season (both in-season Phase 3b and the catch-up); the
-+    catch-up writes finished comps' not-yet-captured teams once; in-season Phase 3b behaviour
-+    otherwise unchanged.
-+  - docs/data_contract.md documents the catch-up + the season-stamped squads payload.
-+  - validate-local clean (python lint + the ingestion pytest); dbt parse unaffected (no model edits).
-+  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion) both PASS.
-+  - POST-MERGE (separate, CPO cost decision — NOT in this PR): on the next dispatched/daily run,
-+    RAW_APIF_SQUADS gains the finished club comps (PL/PD/BL1/BL2); verify read-only.
+-  - National-squad data quality re-confirmed on real rows (DONE pre-contract: WC/ACN/UNL full
+-    rosters at ~26-28 players/team).
+-  - Pure team-selection function unit-tested (tests/test_player_squads_catchup.py): given
+-    finished-comp team_ids, active team_ids, and already-captured (team, season), returns exactly
+-    the teams to fetch — excludes active + already-have-for-season, dedupes across comps. No network.
+-  - Squad snapshots carry the stamped season (both in-season Phase 3b and the catch-up); the
+-    catch-up writes finished comps' not-yet-captured teams once; in-season Phase 3b behaviour
+-    otherwise unchanged.
+-  - docs/data_contract.md documents the catch-up + the season-stamped squads payload.
+-  - validate-local clean (python lint + the ingestion pytest); dbt parse unaffected (no model edits).
+-  - reviewers: scope-auditor (always) + data-engineer-reviewer (ingestion) both PASS.
+-  - POST-MERGE (separate, CPO cost decision — NOT in this PR): on the next dispatched/daily run,
+-    RAW_APIF_SQUADS gains the finished club comps (PL/PD/BL1/BL2); verify read-only.
++  - dbt parse clean; `dbt build --select base_apif__player_profiles dim_player mart_player_profile`
++    succeeds on real BQ; dim_player unique on player_sk with the five bio columns populated for the
++    backfilled universe (profiles ~= 31,920 distinct players); mart_player_profile EXISTING
++    columns/grain/row-count UNCHANGED (additive bio columns only) — verify pre/post on the existing columns.
++  - base.yml documents base_apif__player_profiles; core.yml documents dim_player's new columns;
++    shared.yml documents mart_player_profile's new columns; sqlfluff lint passes on the changed models.
++  - validate-local clean.
++  - reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) both PASS.
  
--amendments:
--  - 2026-06-15: + dbt_project/docs/layering.md to scope_paths. Authority: CPO ruling Path B
--    (escalations.log E1, 2026-06-15) — both cold reviewers escalated whether the incremental-
--    accumulation staging deviation is a §10 layer-contract extension; CPO chose Path B (record it
--    as a recognized pattern in the layering rulebook, with sign-off) over Path A (yml-note-only
--    clarification). layering.md is NOT a protected path, so this is an ordinary in-scope amendment
--    (no protected_override). Clean-tree amendment (the dbt changes were stashed, contract amended,
--    then unstashed). Also folds in the analytics-engineer test-finding fixes (grain descriptions
--    for squads/player_teams tightened to admit provider dupes / nullable seasons — verified in the
--    real data: 10 squad grain dupes, 995 null season_year; no failing unique/not_null tests added,
--    matching the stg_apif__players / transfers precedent).
-+amendments: (none)
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index eb46b64..450e98c 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -16,7 +16,7 @@ Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors
- | Column | Type | Notes |
- |--------|------|-------|
- | `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
--| `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (see the Landing-zone note above) |
-+| `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (squads also carries a `season` stamp; see the Landing-zone note above) |
- | `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
- | `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
+ amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 9641379..16847b9 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -180,6 +180,21 @@ models:
+       - name: player_api_id
+         tests: [not_null]
  
-@@ -96,6 +96,17 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
- 
- ---
- 
-+## Squad capture (in-season + finished-comp catch-up)
++  - name: base_apif__player_profiles
++    description: >
++      Current per-player bio from the rich /players/profiles source
++      (stg_apif__player_profiles), reduced to the latest row per player_id.
++      Identity-level only — no league_code/team/season. Enriches dim_player.
++      Grain: player_api_id.
++    config:
++      tags: ["base", "api_football", "player_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [player_api_id]
++    columns:
++      - name: player_api_id
++        tests: [not_null]
 +
-+`/players/squads` is the squad-**membership** source (the full current roster, including selected players with no minutes) for **clubs and national teams alike**. A squad is a property of the **team**, not the competition, so capture is keyed by team and deduped across competitions:
+   - name: base_apif__fixture_events
+     description: >
+       Deduplicated fixture event rows from stg_apif__fixture_events. Keeps
+diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+new file mode 100644
+index 0000000..08e40bf
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+@@ -0,0 +1,46 @@
++-- Current per-player BIO from the rich /players/profiles source. stg_apif__player_profiles
++-- union-all-accumulates snapshots (skip-if-present loader), so reduce to the latest row per
++-- player_id. Identity-level only — no league_code/team/season (those live in the mapping/facts).
++-- Feeds dim_player's bio enrichment 1:1. Grain: player_api_id.
++with src as (
++    select * from {{ ref('stg_apif__player_profiles') }}
++    where player_id is not null
++),
 +
-+1. **In-season (Phase 3b)** — competitions running full phases (`upcoming_fixtures`) capture their teams' squads every run.
-+2. **Finished-comp catch-up (Phase 3c)** — competitions that have finished (`poll` / `idle_complete`) skip the per-team phases, so their teams are caught up here: for each finished comp's teams, capture the squad once if the team is **not** active in any full-mode comp this run and **not** already stored for that comp's last-recorded season. Deduped across comps (a club in a finished league + a finished cup is fetched once). Team lists come from the latest-season fixtures already fetched in the poll phase — no extra fixture calls. The catch-up row is written **complete per competition**: if quota is exhausted mid-competition the partial is discarded and the whole comp re-captures next run, so `stg_apif__squads` (latest snapshot per `league_code`) never selects a partial finished-comp snapshot. (In-season Phase 3b re-fetches whole every run, so its partials self-heal.)
-+
-+Each snapshot is stamped with the team's last-recorded `season` (payload key `season`), so per-season coverage is exact and re-capture is avoided. The endpoint is current-only, so historical per-edition membership is **not** reconstructable from it (parked — see issue #477); the appearance fact (`fct_player_team_season`) is a complementary playing-time layer, never the roster.
-+
-+---
-+
- ## Data completeness
- 
- Data is complete when four conditions hold:
-@@ -132,7 +143,7 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
- | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
- | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
- | Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
--| Player squads | `/players/squads` per team (current squad + shirt number) | `RAW_APIF_SQUADS` |
-+| Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
- | Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
- | Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
- | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index 9fefa68..6451e3c 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -19,7 +19,11 @@ from .fixtures import fetch_merge_and_persist_fixtures
- from .catalog import fetch_catalog_persist_and_plan
- from .injuries import load_injuries
- from .squads import load_squad_players_batch
--from .player_squads import load_player_squads_batch
-+from .player_squads import (
-+    captured_team_seasons,
-+    load_player_squads_batch,
-+    select_squad_catchup_team_ids,
++renamed as (
++    select
++        player_name,
++        player_firstname as player_first_name,
++        player_lastname as player_last_name,
++        birth_date as player_birth_date,
++        birth_place as player_birth_place,
++        birth_country as player_birth_country,
++        nationality as player_nationality,
++        height as player_height,
++        weight as player_weight,
++        position as player_position,
++        player_photo_url,
++        raw_ingested_at,
++        safe_cast(player_id as int64) as player_api_id
++    from src
 +)
- from .transfers import load_transfers_batch
- from .standings import load_standings_if_enabled
- from .teams import load_teams_merge_and_extend_ids
-@@ -36,8 +40,13 @@ def run_poll_phases(
-     current_season: int | None = None,
-     history_seasons: int | None = None,
-     season_type: str = "split_year",
--) -> None:
--    """Idle competition: catalog + latest-season fixtures only (detect new season / matches)."""
-+) -> tuple[set[int], int | None] | None:
-+    """Idle competition: catalog + latest-season fixtures only (detect new season / matches).
 +
-+    Returns ``(team_ids, last_recorded_season)`` so the orchestrator can run the squad catch-up
-+    for finished competitions (the squad phases are otherwise full-mode only). None on
-+    unrecoverable error.
-+    """
-     try:
-         _ingestion_phase(league_code, "poll catalog (leagues + latest season plan)")
-         seasons_list, _reference_season, _cov = fetch_catalog_persist_and_plan(
-@@ -50,9 +59,14 @@ def run_poll_phases(
-             poll_mode=True,
-         )
-         _ingestion_phase(league_code, "poll fixtures (latest season only)")
--        fetch_merge_and_persist_fixtures(ctx, league_code, league_id, seasons_list)
-+        _fixtures_merged, team_ids, _fixture_ids = fetch_merge_and_persist_fixtures(
-+            ctx, league_code, league_id, seasons_list
-+        )
-+        last_season = max(seasons_list) if seasons_list else None
-+        return team_ids, last_season
-     except Exception as e:
-         ctx.errors.append(f"league {league_code} poll phases: {e}")
-+        return None
++select
++    player_api_id,
++    player_name,
++    player_first_name,
++    player_last_name,
++    player_birth_date,
++    player_birth_place,
++    player_birth_country,
++    player_nationality,
++    player_height,
++    player_weight,
++    player_position,
++    player_photo_url,
++    raw_ingested_at
++from renamed
++qualify row_number() over (
++    partition by player_api_id
++    order by raw_ingested_at desc
++) = 1
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index eb75646..6953d44 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -194,10 +194,12 @@ models:
+   - name: dim_player
+     description: >
+       Canonical player dimension — a pure global entity. Grain: player_api_id (globally
+-      unique in API-Football). Sourced 1:1 from base_apif__players (single global identity
+-      dedup). Identity attributes only; a player is one entity across competitions, so this
+-      carries NO league_code and NO team/season affiliation — "which team/season" lives in
+-      dim_player_team_season_mapping (roster membership) and the facts (appearances).
++      unique in API-Football). Identity from base_apif__players, enriched with bio from
++      base_apif__player_profiles (the richer /players/profiles source preferred via coalesce
++      for overlapping descriptors: name, birth_date, nationality, photo). Entity attributes
++      only; a player is one entity across competitions, so this carries NO league_code and NO
++      team/season affiliation — "which team/season" lives in dim_player_team_season_mapping
++      (roster membership) and the facts (appearances).
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -224,6 +226,16 @@ models:
+         description: "Nationality string from API-Football."
+       - name: player_photo_url
+         description: "Player photo URL."
++      - name: player_birth_place
++        description: "Birth place (city), from /players/profiles."
++      - name: player_birth_country
++        description: "Birth country, from /players/profiles."
++      - name: player_height
++        description: "Height (e.g. '180 cm'), from /players/profiles."
++      - name: player_weight
++        description: "Weight (e.g. '75 kg'), from /players/profiles."
++      - name: player_position
++        description: "General/listed position, from /players/profiles."
+       - name: raw_ingested_at
+         description: "UTC timestamp of the raw row this dimension row was derived from."
  
+diff --git a/dbt_project/models/3_core/dim_player.sql b/dbt_project/models/3_core/dim_player.sql
+index ad9abd0..5371d86 100644
+--- a/dbt_project/models/3_core/dim_player.sql
++++ b/dbt_project/models/3_core/dim_player.sql
+@@ -1,17 +1,31 @@
+ {{ config(materialized='table') }}
  
- def run_cheap_phases(
-@@ -137,8 +151,35 @@ def run_player_squads_for_competition(
-     """Run /players/squads batch for one competition's teams after global fanout."""
-     try:
-         _ingestion_phase(result.league_code, "player_squads batch")
--        load_player_squads_batch(ctx, result.league_code, result.team_ids)
-+        season = max(result.seasons_list) if result.seasons_list else None
-+        load_player_squads_batch(ctx, result.league_code, result.team_ids, season=season)
-     except Exception as e:
-         ctx.errors.append(f"league {result.league_code} player_squads: {e}")
- 
- 
-+def run_player_squads_catchup(
-+    ctx: PipelineContext,
-+    finished_comps: list[tuple[str, int, set[int]]],
-+    active_team_ids: set[int],
-+) -> None:
-+    """Squad catch-up for finished (poll-mode) competitions.
+-with import_base_apif__players as (
++with players as (
+     select * from {{ ref('base_apif__players') }}
++),
 +
-+    Captures /players/squads for teams whose competitions have all finished and that were not
-+    captured in-season — keyed by team, deduped across comps and against squads already stored
-+    for that season (club and national teams alike). Quota-guarded inside
-+    ``load_player_squads_batch``; any remainder resumes on the next run via the same dedup.
-+    """
-+    if not finished_comps:
-+        return
-+    already = captured_team_seasons(ctx)
-+    plan = select_squad_catchup_team_ids(finished_comps, active_team_ids, already)
-+    for league_code, season, team_ids in plan:
-+        try:
-+            _ingestion_phase(league_code, "player_squads catch-up (finished comp)")
-+            load_player_squads_batch(
-+                ctx, league_code, team_ids, season=season, require_complete=True
-+            )
-+        except Exception as e:
-+            ctx.errors.append(f"league {league_code} player_squads catch-up: {e}")
-+
-+
-diff --git a/ingestion/api_football/loads/player_squads.py b/ingestion/api_football/loads/player_squads.py
-index fe6e553..296bcdb 100644
---- a/ingestion/api_football/loads/player_squads.py
-+++ b/ingestion/api_football/loads/player_squads.py
-@@ -5,6 +5,13 @@ team. Distinct from loads/squads.py, which pulls /players per team×season into
- RAW_APIF_PLAYERS (season roster + stats); this is the cheaper present-day squad endpoint and
- is the only one that carries the shirt number. Each run appends a fresh complete snapshot row
- per league. No cross-run merge with prior BQ data.
-+
-+The snapshot is stamped with the team's last-recorded ``season`` so per-season coverage is exact
-+and the raw row is self-describing. Two capture paths feed this table:
-+- in-season (Phase 3b): full-mode comps capture every run;
-+- catch-up (Phase 3c): finished (poll-mode) comps whose teams are not already covered for that
-+  season — keyed by team, deduped across comps, club and national teams alike. See
-+  ``select_squad_catchup_team_ids`` / ``captured_team_seasons``.
- """
- 
- from __future__ import annotations
-@@ -13,7 +20,7 @@ import os
- 
- from .. import quota as errors_quota
- from ..bigquery import load_json_to_bq
--from ..settings import raw_table
-+from ..settings import DATASET_ID, GCP_PROJECT_ID, raw_table
- from ..fixture_scheduling import squads_response_for_team
- from .context import PipelineContext
- 
-@@ -22,15 +29,19 @@ def load_player_squads_batch(
-     ctx: PipelineContext,
-     league_code: str,
-     team_ids: set[int],
-+    season: int | None = None,
-+    require_complete: bool = False,
- ) -> None:
--    squads_payload = {"league_code": league_code, "response": []}
-+    squads_payload = {"league_code": league_code, "season": season, "response": []}
-     if os.getenv("API_FOOTBALL_SKIP_PLAYER_SQUADS", "").strip().lower() in ("1", "true", "yes"):
-         ctx.errors.append(
-             f"player_squads {league_code}: skipped (API_FOOTBALL_SKIP_PLAYER_SQUADS set — use on low-quota archive runs)"
-         )
-         return
-+    quota_cut = False
-     for team_id in sorted(team_ids):
-         if errors_quota._http_quota_exhausted:
-+            quota_cut = True
-             break
-         try:
-             squad_rows = squads_response_for_team(
-@@ -49,6 +60,17 @@ def load_player_squads_batch(
-             ctx.errors.append(f"player_squads {league_code} team {team_id}: {e}")
-     if not squads_payload["response"]:
-         return
-+    if require_complete and quota_cut:
-+        # The catch-up snapshot must be COMPLETE per competition. stg_apif__squads selects the
-+        # latest snapshot per league_code, and a finished comp is skip-if-present (never re-fetched
-+        # whole), so persisting a partial row here would silently drop the unwritten teams from
-+        # staging. Discard the partial; the whole comp re-captures on the next run once quota frees
-+        # up. (In-season Phase 3b passes require_complete=False — it re-fetches whole every run, so
-+        # its partials are healed by the next complete snapshot.)
-+        ctx.errors.append(
-+            f"player_squads {league_code}: quota cut the catch-up mid-comp; partial discarded, retries next run"
-+        )
-+        return
-     try:
-         load_json_to_bq(
-             ctx.client,
-@@ -61,3 +83,67 @@ def load_player_squads_batch(
-         ctx.add_loaded(1)
-     except Exception as e:
-         ctx.errors.append(f"player_squads BQ {league_code}: {e}")
-+
-+
-+def select_squad_catchup_team_ids(
-+    finished_comps: list[tuple[str, int, set[int]]],
-+    active_team_ids: set[int],
-+    already_captured: set[tuple[int, int]],
-+) -> list[tuple[str, int, set[int]]]:
-+    """Pure policy: which finished-comp teams still need a squad snapshot.
-+
-+    A squad is a team property, so capture each team once even if it appears in several
-+    finished competitions, and never if it is already covered:
-+    - skip teams active in any full-mode comp this run (captured in-season);
-+    - skip teams already stored for that season;
-+    - dedupe across comps (the first finished comp that owns a team wins).
-+
-+    ``finished_comps`` is an ordered list of ``(league_code, season, team_ids)``. Returns the
-+    same shape with only the team_ids still to fetch, dropping comps that need nothing.
-+    Deterministic — no I/O.
-+    """
-+    seen: set[int] = set()
-+    plan: list[tuple[str, int, set[int]]] = []
-+    for league_code, season, team_ids in finished_comps:
-+        to_fetch: set[int] = set()
-+        for team_id in sorted(team_ids):
-+            if team_id in active_team_ids:
-+                continue
-+            if team_id in seen:
-+                continue
-+            if (team_id, season) in already_captured:
-+                continue
-+            to_fetch.add(team_id)
-+            seen.add(team_id)
-+        if to_fetch:
-+            plan.append((league_code, season, to_fetch))
-+    return plan
-+
-+
-+def captured_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
-+    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_SQUADS (season-stamped rows).
-+
-+    Lets the catch-up skip teams whose squad we already hold for that season. Returns an empty
-+    set if the table does not exist yet or the read fails (then the catch-up captures everything,
-+    which is the safe direction — a duplicate snapshot, never a silent miss).
-+    """
-+    # Fully-qualified read: raw_table() returns the bare name; a raw client query
-+    # needs project.dataset (the write path qualifies internally). Matches _fq in
-+    # loads/player_universe.py / coverage.py.
-+    table = f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('SQUADS')}"
-+    sql = f"""
-+        SELECT DISTINCT
-+            SAFE_CAST(JSON_VALUE(team_block, '$.team_id') AS INT64) AS team_id,
-+            SAFE_CAST(JSON_VALUE(payload, '$.season') AS INT64) AS season
-+        FROM `{table}`,
-+            UNNEST(JSON_QUERY_ARRAY(JSON_QUERY(payload, '$.response'), '$')) AS team_block
-+        WHERE JSON_VALUE(payload, '$.season') IS NOT NULL
-+    """
-+    pairs: set[tuple[int, int]] = set()
-+    try:
-+        for row in ctx.client.query(sql).result():
-+            if row.team_id is not None and row.season is not None:
-+                pairs.add((int(row.team_id), int(row.season)))
-+    except Exception as e:
-+        ctx.errors.append(f"player_squads catch-up: captured-seasons read failed: {e}")
-+    return pairs
-diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
-index 4786ea0..047d07a 100644
---- a/ingestion/api_football/orchestrator.py
-+++ b/ingestion/api_football/orchestrator.py
-@@ -62,6 +62,7 @@ from .loads.competition_runner import (
-     run_poll_phases,
-     run_squads_for_competition,
-     run_player_squads_for_competition,
-+    run_player_squads_catchup,
-     run_transfers_for_competition,
++profiles as (
++    select * from {{ ref('base_apif__player_profiles') }}
  )
- from .loads.player_profiles import load_player_profiles_global
-@@ -124,6 +125,8 @@ def _load_api_football(request):
  
-         # Phase 1: full cheap phases or poll-only (catalog + latest-season fixtures).
-         results = []
-+        # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
-+        finished_comps: list[tuple[str, int, set[int]]] = []
-         for comp in selected:
-             ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp)
-             print(
-@@ -132,7 +135,7 @@ def _load_api_football(request):
-                 flush=True,
-             )
-             if ingest_mode == "poll":
--                run_poll_phases(
-+                poll_result = run_poll_phases(
-                     ctx,
-                     comp.league_code,
-                     comp.provider_league_id,
-@@ -140,6 +143,10 @@ def _load_api_football(request):
-                     history_seasons=comp.history_seasons,
-                     season_type=comp.season_type,
-                 )
-+                if poll_result is not None:
-+                    poll_team_ids, poll_season = poll_result
-+                    if poll_team_ids and poll_season is not None:
-+                        finished_comps.append((comp.league_code, poll_season, poll_team_ids))
-                 continue
-             result = run_cheap_phases(
-                 ctx,
-@@ -167,6 +174,14 @@ def _load_api_football(request):
-         for result in results:
-             run_player_squads_for_competition(ctx, result)
+ select
+-    cast(player_api_id as int64) as player_sk,
+-    player_api_id,
+-    player_name,
+-    player_first_name,
+-    player_last_name,
+-    player_birth_date,
+-    player_nationality,
+-    player_photo_url,
+-    raw_ingested_at
+-from import_base_apif__players
++    -- simple passthroughs first (sqlfluff ST06: simple targets before calculations)
++    players.player_api_id,
++    profiles.player_birth_place,
++    profiles.player_birth_country,
++    profiles.player_height,
++    profiles.player_weight,
++    profiles.player_position,
++    players.raw_ingested_at,
++    -- surrogate key + profile-wins descriptors (/players/profiles is the richer bio source;
++    -- fall back to the identity source where absent)
++    cast(players.player_api_id as int64) as player_sk,
++    coalesce(profiles.player_name, players.player_name) as player_name,
++    coalesce(profiles.player_first_name, players.player_first_name) as player_first_name,
++    coalesce(profiles.player_last_name, players.player_last_name) as player_last_name,
++    coalesce(profiles.player_birth_date, players.player_birth_date) as player_birth_date,
++    coalesce(profiles.player_nationality, players.player_nationality) as player_nationality,
++    coalesce(profiles.player_photo_url, players.player_photo_url) as player_photo_url
++from players
++left join profiles
++    on players.player_api_id = profiles.player_api_id
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 81fba60..0578909 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -153,6 +153,11 @@ select
+     p.player_last_name,
+     p.player_nationality,
+     p.player_birth_date,
++    p.player_birth_place,
++    p.player_birth_country,
++    p.player_height,
++    p.player_weight,
++    p.player_position,
+     p.player_photo_url,
+     mp.position_code,
+     a.appearances,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 3d04dfb..2b985b2 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -695,6 +695,16 @@ models:
+         tests: [not_null]
+       - name: position_code
+         description: "Most-frequent position that season (role badge). NULL when no fixture carried a position."
++      - name: player_birth_place
++        description: "Birth place (city), from dim_player bio."
++      - name: player_birth_country
++        description: "Birth country, from dim_player bio."
++      - name: player_height
++        description: "Height (e.g. '180 cm'), from dim_player bio."
++      - name: player_weight
++        description: "Weight (e.g. '75 kg'), from dim_player bio."
++      - name: player_position
++        description: "General/listed position from bio (distinct from position_code, the season modal)."
  
-+        # Phase 3c: /players/squads catch-up for finished (poll-mode) competitions — capture
-+        # squads for teams whose comps have all finished and were not captured in-season, keyed
-+        # by team and deduped across comps (club + national). Quota-guarded; rides the daily run.
-+        active_team_ids: set[int] = set()
-+        for result in results:
-+            active_team_ids.update(result.team_ids)
-+        run_player_squads_catchup(ctx, finished_comps, active_team_ids)
-+
-         # Phase 4: transfers batch per competition (dated affiliation moves)
-         for result in results:
-             run_transfers_for_competition(ctx, result)
+   - name: mart_player_match_log
+     description: >
