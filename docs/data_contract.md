@@ -16,7 +16,7 @@ Each API-Football endpoint returns a JSON envelope: `get`, `parameters`, `errors
 | Column | Type | Notes |
 |--------|------|-------|
 | `league_code` | `STRING` | Competition identifier — the cross-cutting key shared by every layer above staging |
-| `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (see the Landing-zone note above) |
+| `payload` | `JSON` | API-Football response data — merged into the envelope across calls, or reshaped to `{league_code, response: [...]}` for players/squads + coaches (squads also carries a `season` stamp; see the Landing-zone note above) |
 | `ingested_at` | `TIMESTAMP` | UTC timestamp of the ingest run |
 | `fixture_id` | `INT64` | Present only in `RAW_APIF_FIXTURE_DETAILS` — enables merge-on-write keyed on `(league_code, fixture_id)` |
 
@@ -96,6 +96,17 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
 
 ---
 
+## Squad capture (in-season + finished-comp catch-up)
+
+`/players/squads` is the squad-**membership** source (the full current roster, including selected players with no minutes) for **clubs and national teams alike**. A squad is a property of the **team**, not the competition, so capture is keyed by team and deduped across competitions:
+
+1. **In-season (Phase 3b)** — competitions running full phases (`upcoming_fixtures`) capture their teams' squads every run.
+2. **Finished-comp catch-up (Phase 3c)** — competitions that have finished (`poll` / `idle_complete`) skip the per-team phases, so their teams are caught up here: for each finished comp's teams, capture the squad once if the team is **not** active in any full-mode comp this run and **not** already stored for that comp's last-recorded season. Deduped across comps (a club in a finished league + a finished cup is fetched once). Team lists come from the latest-season fixtures already fetched in the poll phase — no extra fixture calls. The catch-up row is written **complete per competition**: if quota is exhausted mid-competition the partial is discarded and the whole comp re-captures next run, so `stg_apif__squads` (latest snapshot per `league_code`) never selects a partial finished-comp snapshot. (In-season Phase 3b re-fetches whole every run, so its partials self-heal.)
+
+Each snapshot is stamped with the team's last-recorded `season` (payload key `season`), so per-season coverage is exact and re-capture is avoided. The endpoint is current-only, so historical per-edition membership is **not** reconstructable from it (parked — see issue #477); the appearance fact (`fct_player_team_season`) is a complementary playing-time layer, never the roster.
+
+---
+
 ## Data completeness
 
 Data is complete when four conditions hold:
@@ -132,7 +143,7 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | Injuries | `/injuries` per league per season | `RAW_APIF_INJURIES` |
 | Coaches | `/coachs` per team | `RAW_APIF_COACHES` |
 | Transfers | `/transfers` per team (full move history) | `RAW_APIF_TRANSFERS` |
-| Player squads | `/players/squads` per team (current squad + shirt number) | `RAW_APIF_SQUADS` |
+| Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
 | Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
 | Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
 | Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
