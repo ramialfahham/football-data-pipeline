@@ -1,73 +1,51 @@
-# Review — feat/gap-18-tournament-form-window — 2026-06-16 (commit 1: mart layer)
+# Review — feat/gap-18-tournament-form-window — 2026-06-16 (commit 2: live label)
 
-> Commit 1 of a two-commit branch. The live form LABEL (`form_from_qualifiers` on
-> mart_matchday_insights) is commit 2, under its own contract on a clean tree.
-> Required reviewers (routing for the 15 staged paths): scope-auditor (always),
-> analytics-engineer (dbt), cto (scripts), data-engineer (registry seed),
-> bi-analyst (wireframes/gaps register). All PASS on this diff.
+> Commit 2: surfaces home/away_form_from_qualifiers on mart_matchday_insights (from window_type)
+> so the live formContextLabel UI switches the WC form label. Required reviewers (routing for the
+> 4 staged paths): scope-auditor (always), analytics-engineer (dbt), bi-analyst (wireframes).
+> Two §10 questions arose and were ruled by the CPO (2026-06-16, recorded below + escalations.log).
 
-diff_sha256: 5cff336089bc4b6e6d72d83c498978f1749f966fbdbe6b05c695af93e8b34f11
+diff_sha256: 1b52806a4329a11400be20e4d86256d4a4e28f605228388abc201789ea0edce9
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- UNION-branch WHERE scope: `where recency_rank <= 5` in int_momentum_window__team.sql binds only
-  to the last branch (last5_window) in BigQuery; tournament_window/qualifier_window stay uncapped
-  (cumulative). Load-bearing + fragile; the added comment warns against hoist/parenthesise, and
-  assert_tournament_form_window independently validates the uncapped count. Correct.
-- Parent-link dangling-reference validation: check_registry_var_sync.py `_registry_dangling_parents()`
-  rejects any non-empty parent_competition that is not a known league_code before the sync compare —
-  the only gate against a YAML typo silently emptying the qualifier window. Present and correct.
-- Scope containment: every diff hunk is within scope_paths; `dbt_project/dbt_project.yml` is a
-  legitimate (no-op this run) output of the contracted sync_dbt_vars.py; player window stays last_5
-  (#484), qualifying stays last_5 (#483); window_type values + untouched season_to_date match
-  decisions_taken; no new mechanism (registry seed via existing single-source sync).
+- Scope + additive: all 4 hunks within scope_paths; the two new columns are additive (existing
+  columns/grain/one-row-per-fixture/row-count unchanged); deferrals (#483/#484/#391) intact.
+- NULL-momentum boundary: coalesce(window_type='qualifiers', false) is total — a team with no
+  momentum row (LEFT JOIN null) yields false, matching not_null; semantic intent preserved.
+- Names pinned by the live UI (not a free choice); gaps-register "live preview fixed" now matches
+  the diff (the flag IS wired here).
 
 ## analytics-engineer-reviewer
-VERDICT: PASS
+VERDICT: ESCALATE
 risks_checked:
-- Count-oracle independence (assert_tournament_form_window section B): expected_legs is recomputed
-  from int_legs__team_match on (team_sk, league_code, season_api_year, kickoff) — mirrors tournament_legs
-  — so a re-introduced 5-cap or wrong season filter makes games_in_window != expected_legs and the
-  test fails. A genuine independent oracle; the list-vs-aggregate invariant alone could not catch a
-  uniform under-count. entity_type omission is safe (WC/continental are always national).
-- combined-CTE WHERE comment: the added comment correctly states BigQuery semantics (WHERE binds to
-  the final UNION branch only) and names the DQ test as the guard. No new defect from the comment.
-- (Prior round) season-cap relocation to last5_legs preserves the club season boundary; tournament
-  and qualifier branches intentionally uncapped/season-scoped per the matrix; player path untouched.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Guard still fails when the seed drifts on the NEW column: check_registry_var_sync.py emits 3-tuples
-  both sides; a parent added to the YAML but not synced (`sync_dbt_vars.py` not re-run) → triples differ
-  → return 1. Fail-closed on the new column, not just the old pair.
-- Dangling-parent rejection is independent of the seed and fires before the sync compare; a typo'd
-  parent in the YAML fails CI even with a byte-perfect seed. Sync (`_registry_seed_rows`) and check
-  (`_seed_triples`/`_registry_seed_triples`) use identical extraction; codegen is idempotent.
-- No new mechanism / boring tech: third CSV column via the existing single-source sync, not a new
-  Core dim; no requirements/workflow/secret/run-frequency change; model consumes the column via `select *`.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Seed fidelity vs registry: all 12 non-empty parent links (7× WCQ*→WC, CDF→L1, CDR→PD, CIT→SA,
-  DFBP→BL1, FAC→PL) in competition_registry.csv match docs/competition_registry.yml exactly; all 45
-  competitions with league_code+competition_type present; empty trailing comma for no-parent rows.
-- Sync/check lockstep: the check now requires the parent_competition column (KeyError if absent) and
-  validates triples + dangling parents; a future sync omitting the column fails CI. Single-source +
-  zero-file rules intact (registry YAML is the source; seed is generated).
+- Consumption-layer (A5): the export is SELECT * full-dict passthrough; the boolean derivation
+  lives in the mart, not the export — no A5 violation.
+- Additive + total: coalesce makes the columns boolean-non-null; not_null holds; grain unchanged.
+question: The two new boolean columns are named home/away_form_from_qualifiers (no is_/has_ prefix),
+  against the engineering_standards §1 boolean-naming convention — but the names are PINNED by the
+  existing live UI (formContextLabel reads these exact keys). Match the UI name (convention exception)
+  or rename + change the UI?
+CPO ANSWER: Match the UI name (CPO 2026-06-16, this conversation). The published UI contract pins the
+  field name; following is_/has_ would force a parallel live-UI edit. Documented as a CPO-approved
+  exception in the mart comment.
 
 ## bi-analyst-reviewer
-VERDICT: PASS
+VERDICT: ESCALATE
 risks_checked:
-- No overclaim: the GAP-18 gaps-register row says "mart layer landed" (not "implemented"), names the
-  live WC form LABEL as "immediate follow-up", and the 01_fixture_page.md §5.3d GAP-18 caveat remains
-  true (labels not yet derivable from the payload until commit 2). Numbers are now cumulative-correct;
-  honest framing (games_in_window is the true count, the cap was the dishonesty).
-- No silent drop of v2 work: form_window[] ≤5 cap and the separate `phase` column are explicitly
-  attributed to #391; #483/#484 filed in decisions_reserved. No locked display contract value (metric
-  table, i18n keys, labels) is altered in this diff.
+- Field-name match: the mart emits exactly home/away_form_from_qualifiers, the keys the live UI reads;
+  i18n keys (formContextWcQualifiers / formContextWcTournament) already exist in en/de/fi, unchanged.
+- No locked-contract change: no metric / i18n value / wireframe altered; v2 drill-down still under #391.
+question: The UI labels a fixture "all qualifying matches" only when BOTH sides' form_from_qualifiers is
+  true; a mixed-window fixture (one side pre-opener, one started) would read "all World Cup matches so
+  far" — wrong for the qualifier side. Is "live preview fixed" safe, or must the UI become per-side?
+CPO ANSWER: Proceed (CPO 2026-06-16). The mart surfaces one round per league, so under normal scheduling
+  both sides share the same window phase and the mixed case does not arise; the dependency is documented
+  in the mart comment. Per-side labels deferred (not needed today).
 
 ## escalations
-(none)
+- question: boolean column naming (UI-pinned home/away_form_from_qualifiers vs is_/has_ convention)
+  CPO ANSWER: match the UI name (CPO 2026-06-16) — published-UI-contract exception, documented in the mart.
+- question: mixed-window WC fixture labelling (UI both-sides AND check)
+  CPO ANSWER: proceed (CPO 2026-06-16) — one-round-per-league makes both sides agree; dependency documented.

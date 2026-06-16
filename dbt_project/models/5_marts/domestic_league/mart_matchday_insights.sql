@@ -171,7 +171,17 @@ select
     coalesce(mh.games_in_window, 0) as home_form_games_played,
     coalesce(mh.points_won, 0) as home_points_won_sum_form,
     coalesce(ma.games_in_window, 0) as away_form_games_played,
-    coalesce(ma.points_won, 0) as away_points_won_sum_form
+    coalesce(ma.points_won, 0) as away_points_won_sum_form,
+    -- WC form-context label flags (GAP-18): true when the side's W1 window is the qualifier
+    -- window (window_type='qualifiers'). The live formContextLabel UI reads these EXACT field
+    -- names to pick "all qualifying matches" vs "all World Cup matches so far" — the names are
+    -- pinned by the published UI contract, a CPO-approved exception to the is_/has_ boolean
+    -- convention (2026-06-16). coalesce keeps them boolean (never null) for the no-window case.
+    -- The mart surfaces one round per league (next_round), so under normal scheduling both sides
+    -- of a fixture share the same window phase and the UI's both-sides check is unambiguous (CPO
+    -- accepted this dependency over per-side labels, 2026-06-16).
+    coalesce(mh.window_type = 'qualifiers', false) as home_form_from_qualifiers,
+    coalesce(ma.window_type = 'qualifiers', false) as away_form_from_qualifiers
 from next_round_fixtures as f
 left join matchday_fixture_count as mfc
     on
