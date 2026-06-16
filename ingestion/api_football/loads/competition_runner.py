@@ -19,7 +19,11 @@ from .fixtures import fetch_merge_and_persist_fixtures
 from .catalog import fetch_catalog_persist_and_plan
 from .injuries import load_injuries
 from .squads import load_squad_players_batch
-from .player_squads import load_player_squads_batch
+from .player_squads import (
+    captured_team_seasons,
+    load_player_squads_batch,
+    select_squad_catchup_team_ids,
+)
 from .transfers import load_transfers_batch
 from .standings import load_standings_if_enabled
 from .teams import load_teams_merge_and_extend_ids
@@ -36,8 +40,13 @@ def run_poll_phases(
     current_season: int | None = None,
     history_seasons: int | None = None,
     season_type: str = "split_year",
-) -> None:
-    """Idle competition: catalog + latest-season fixtures only (detect new season / matches)."""
+) -> tuple[set[int], int | None] | None:
+    """Idle competition: catalog + latest-season fixtures only (detect new season / matches).
+
+    Returns ``(team_ids, last_recorded_season)`` so the orchestrator can run the squad catch-up
+    for finished competitions (the squad phases are otherwise full-mode only). None on
+    unrecoverable error.
+    """
     try:
         _ingestion_phase(league_code, "poll catalog (leagues + latest season plan)")
         seasons_list, _reference_season, _cov = fetch_catalog_persist_and_plan(
@@ -50,9 +59,14 @@ def run_poll_phases(
             poll_mode=True,
         )
         _ingestion_phase(league_code, "poll fixtures (latest season only)")
-        fetch_merge_and_persist_fixtures(ctx, league_code, league_id, seasons_list)
+        _fixtures_merged, team_ids, _fixture_ids = fetch_merge_and_persist_fixtures(
+            ctx, league_code, league_id, seasons_list
+        )
+        last_season = max(seasons_list) if seasons_list else None
+        return team_ids, last_season
     except Exception as e:
         ctx.errors.append(f"league {league_code} poll phases: {e}")
+        return None
 
 
 def run_cheap_phases(
@@ -137,8 +151,35 @@ def run_player_squads_for_competition(
     """Run /players/squads batch for one competition's teams after global fanout."""
     try:
         _ingestion_phase(result.league_code, "player_squads batch")
-        load_player_squads_batch(ctx, result.league_code, result.team_ids)
+        season = max(result.seasons_list) if result.seasons_list else None
+        load_player_squads_batch(ctx, result.league_code, result.team_ids, season=season)
     except Exception as e:
         ctx.errors.append(f"league {result.league_code} player_squads: {e}")
+
+
+def run_player_squads_catchup(
+    ctx: PipelineContext,
+    finished_comps: list[tuple[str, int, set[int]]],
+    active_team_ids: set[int],
+) -> None:
+    """Squad catch-up for finished (poll-mode) competitions.
+
+    Captures /players/squads for teams whose competitions have all finished and that were not
+    captured in-season — keyed by team, deduped across comps and against squads already stored
+    for that season (club and national teams alike). Quota-guarded inside
+    ``load_player_squads_batch``; any remainder resumes on the next run via the same dedup.
+    """
+    if not finished_comps:
+        return
+    already = captured_team_seasons(ctx)
+    plan = select_squad_catchup_team_ids(finished_comps, active_team_ids, already)
+    for league_code, season, team_ids in plan:
+        try:
+            _ingestion_phase(league_code, "player_squads catch-up (finished comp)")
+            load_player_squads_batch(
+                ctx, league_code, team_ids, season=season, require_complete=True
+            )
+        except Exception as e:
+            ctx.errors.append(f"league {league_code} player_squads catch-up: {e}")
 
 

@@ -62,6 +62,7 @@ from .loads.competition_runner import (
     run_poll_phases,
     run_squads_for_competition,
     run_player_squads_for_competition,
+    run_player_squads_catchup,
     run_transfers_for_competition,
 )
 from .loads.player_profiles import load_player_profiles_global
@@ -124,6 +125,8 @@ def _load_api_football(request):
 
         # Phase 1: full cheap phases or poll-only (catalog + latest-season fixtures).
         results = []
+        # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
+        finished_comps: list[tuple[str, int, set[int]]] = []
         for comp in selected:
             ingest_mode, ingest_reason = resolve_ingest_mode(ctx.client, comp)
             print(
@@ -132,7 +135,7 @@ def _load_api_football(request):
                 flush=True,
             )
             if ingest_mode == "poll":
-                run_poll_phases(
+                poll_result = run_poll_phases(
                     ctx,
                     comp.league_code,
                     comp.provider_league_id,
@@ -140,6 +143,10 @@ def _load_api_football(request):
                     history_seasons=comp.history_seasons,
                     season_type=comp.season_type,
                 )
+                if poll_result is not None:
+                    poll_team_ids, poll_season = poll_result
+                    if poll_team_ids and poll_season is not None:
+                        finished_comps.append((comp.league_code, poll_season, poll_team_ids))
                 continue
             result = run_cheap_phases(
                 ctx,
@@ -166,6 +173,14 @@ def _load_api_football(request):
         # Phase 3b: /players/squads batch per competition (current squad + shirt number)
         for result in results:
             run_player_squads_for_competition(ctx, result)
+
+        # Phase 3c: /players/squads catch-up for finished (poll-mode) competitions — capture
+        # squads for teams whose comps have all finished and were not captured in-season, keyed
+        # by team and deduped across comps (club + national). Quota-guarded; rides the daily run.
+        active_team_ids: set[int] = set()
+        for result in results:
+            active_team_ids.update(result.team_ids)
+        run_player_squads_catchup(ctx, finished_comps, active_team_ids)
 
         # Phase 4: transfers batch per competition (dated affiliation moves)
         for result in results:
