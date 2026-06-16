@@ -194,10 +194,12 @@ models:
   - name: dim_player
     description: >
       Canonical player dimension — a pure global entity. Grain: player_api_id (globally
-      unique in API-Football). Sourced 1:1 from base_apif__players (single global identity
-      dedup). Identity attributes only; a player is one entity across competitions, so this
-      carries NO league_code and NO team/season affiliation — "which team/season" lives in
-      dim_player_team_season_mapping (roster membership) and the facts (appearances).
+      unique in API-Football). Identity from base_apif__players, enriched with bio from
+      base_apif__player_profiles (the richer /players/profiles source preferred via coalesce
+      for overlapping descriptors: name, birth_date, nationality, photo). Entity attributes
+      only; a player is one entity across competitions, so this carries NO league_code and NO
+      team/season affiliation — "which team/season" lives in dim_player_team_season_mapping
+      (roster membership) and the facts (appearances).
     meta:
       owner: "data-platform"
       domain: "football"
@@ -224,6 +226,16 @@ models:
         description: "Nationality string from API-Football."
       - name: player_photo_url
         description: "Player photo URL."
+      - name: player_birth_place
+        description: "Birth place (city), from /players/profiles."
+      - name: player_birth_country
+        description: "Birth country, from /players/profiles."
+      - name: player_height
+        description: "Height (e.g. '180 cm'), from /players/profiles."
+      - name: player_weight
+        description: "Weight (e.g. '75 kg'), from /players/profiles."
+      - name: player_position
+        description: "General/listed position, from /players/profiles."
       - name: raw_ingested_at
         description: "UTC timestamp of the raw row this dimension row was derived from."
 

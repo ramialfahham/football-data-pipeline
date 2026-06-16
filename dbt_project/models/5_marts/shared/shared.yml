@@ -695,6 +695,16 @@ models:
         tests: [not_null]
       - name: position_code
         description: "Most-frequent position that season (role badge). NULL when no fixture carried a position."
+      - name: player_birth_place
+        description: "Birth place (city), from dim_player bio."
+      - name: player_birth_country
+        description: "Birth country, from dim_player bio."
+      - name: player_height
+        description: "Height (e.g. '180 cm'), from dim_player bio."
+      - name: player_weight
+        description: "Weight (e.g. '75 kg'), from dim_player bio."
+      - name: player_position
+        description: "General/listed position from bio (distinct from position_code, the season modal)."
 
   - name: mart_player_match_log
     description: >

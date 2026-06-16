@@ -1,68 +1,43 @@
-# Review — feat/squad-capture-finished-comps — 2026-06-16
+# Review — feat/player-core-bio-appearances — 2026-06-16
 
-diff_sha256: bb22215bf9dca1c246344877bcba12ca5a63147f9edbbf98a1ba7bf8c62313be
+diff_sha256: 379cc15f21a393f04ec900a41101ca0cf753068b15b14c8d8763855db63c488b
 
-Cold review over three rounds (scope-auditor + data-engineer-reviewer + cto-reviewer). The first
-two rounds surfaced two real defects, both fixed in code and re-verified:
-1. `captured_team_seasons` queried a bare/unqualified BigQuery table → it would error on every run,
-   the broad `except` would swallow it, and the per-season dedup would be silently inoperative
-   (re-fetching every finished comp daily). Fixed to a fully-qualified `project.dataset` reference
-   (matching `_fq` in player_universe.py), validated on real BigQuery (query executes; JSON paths
-   extract real team_ids), and locked by a regression test.
-2. The catch-up could persist a PARTIAL squad row on quota exhaustion, which `stg_apif__squads`
-   (latest snapshot per `league_code`) would silently truncate. Fixed: catch-up writes are atomic
-   per competition (`require_complete=True` discards a partial; the whole comp re-captures next run).
-Full test suite: 273 passed.
+PR-b reduced to BIO ONLY — the player-season appearance rollup already exists (duplicated across
+mart_player_season + mart_player_profile plus an orphaned int model with divergent metric
+derivations), so its consolidation was split into a governed task (#480). This PR adds
+base_apif__player_profiles, enriches dim_player with five bio fields (profile-wins coalesce on the
+four overlapping descriptors), and surfaces them additively on mart_player_profile. Local gates
+green: dbt parse, sqlfluff lint (ST06 column-order fixed), check_layer_contract. The full BQ build is
+deferred to ci-data-build (shared warehouse mid-rebuild from a concurrent CPO-approved dispatch).
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every edited path is inside the contract `scope_paths`; the `escalations.log` edit is a
-  `.claude/task/**` bookkeeping artifact (edit-gate-exempt, hash-excluded), not scope drift; no
-  staging/dbt file is touched (no scope creep beyond the ingestion-only contract).
-- The CPO authority for the catch-up (a new mechanism) is now traceable: `escalations.log` carries a
-  2026-06-16 entry recording the directives the contract's `decisions_taken` cite, plus the two
-  review-cycle §10 rulings — no §10 decision is taken silently.
+- All seven edited paths are within the contract scope_paths; no protected path touched; no
+  aggregation snuck into core (the appearance rollup is genuinely deferred to #480, not partly built
+  here); no §10 decision self-made — the profile-wins descriptor refresh is authorized in
+  decisions_taken + the 2026-06-16 escalations.log entry.
+- Coalesce(profile, players) on the four overlapping descriptors (name, birth_date, nationality,
+  photo) may refresh published descriptors — an authorized data-quality preference; no metric/numeric
+  column changes; done_when verifies the existing mart columns pre/post. Left-join sparsity (NULL bio
+  for players without a profile) is anticipated by done_when ("populated for the backfilled universe").
 
-## data-engineer-reviewer
-VERDICT: ESCALATE
-risks_checked:
-- The round-1 unqualified-table defect is fixed and verified (fully-qualified read; real-BQ
-  execution + JSON-path extraction confirmed); the round-2 partial-write / staging silent-loss is
-  fixed (atomic-per-comp catch-up write); no silent-loss path remains under the atomic design.
-- Quota/cost (no extra fixture calls; team lists reused from the poll phase), idempotency
-  (per-(team,season) dedup), and per-comp failure isolation re-confirmed safe.
-- Two residual findings are §10-class (a rule-classification call + a scope call); per decision
-  rights the builder did not self-rule — both were put to the CPO in plain language with options and
-  a recommendation, and answered:
-- question (Q1 — rule classification): Does the 2026-06-12 sample-fixtures rule (offline tests vs
-  committed `tests/fixtures/apif/` payloads) apply to this diff? It adds no new response-parsing —
-  `run_poll_phases` captures the `team_ids` that `fetch_merge_and_persist_fixtures` already returns
-  (`run_cheap_phases` destructures the same return), and `captured_team_seasons` extracts JSON in
-  BigQuery SQL (validated on real rows); the `tests/fixtures/apif/` harness does not exist (audit
-  F21, pre-existing debt).
-  CPO ANSWER: (2026-06-16) the rule does NOT apply here — proceed; do not block this change on
-  building the absent fixtures harness. (Recorded in escalations.log.)
-- question (Q2 — scope/design): Accept the in-scope atomic-discard for the catch-up's
-  quota-vs-completeness trade-off, or expand scope to make `stg_apif__squads` UNION ALL snapshots so
-  partials accumulate safely?
-  CPO ANSWER: (2026-06-16) ACCEPT the atomic discard (discard the partial, re-capture the whole comp
-  next run; logged + eventually completes — comps are ≤~100 teams vs 75k/day). The
-  `stg_apif__squads` UNION-ALL change is deferred to when squads staging is consumed downstream —
-  not this PR. (Recorded in escalations.log.)
-
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The new `captured_team_seasons` / `require_complete` tests genuinely exercise the discard-vs-write
-  branch and guard the qualified-table fix; monkeypatch targets the correct module objects;
-  deterministic (sorted team iteration); no network or BigQuery at import or run time.
-- `pytest tests/` passes under the CI gate with no new dependencies (`monkeypatch` and
-  `types.SimpleNamespace` are stdlib); re-run safety and fail-open behaviour confirmed. Two
-  non-blocking notes accepted: the pre-loop quota-exhaustion path logs nothing under
-  `require_complete`, and the in-season partial-write test asserts that a write occurred but not its
-  payload content.
+- Fan-out: dim_player left-joins base_apif__player_profiles on player_api_id; the base is tested
+  unique on player_api_id (base.yml), so the 1:1 join cannot multiply rows — dim_player.player_sk
+  [not_null, unique] grain holds. base_apif__player_profiles is a valid base model (reads stg via
+  ref, dedups to latest per player_id, inherits view materialization, grain tested).
+- Catalogue governance (A1): the five added columns are raw bio descriptors absent from
+  metric_catalogue — no metric created or redefined, no sign-off needed. mart_player_profile
+  additions are purely additive (grain (player_sk, season_sk), aggregation, and catalogue ratios all
+  unchanged).
+- Non-blocking notes (recorded, not fixed — to avoid needless re-review churn; flagged for
+  ci-data-build): (1) base safe_cast(player_id) is redundant (already int64 in stg) but matches the
+  base_apif__players defensive idiom; (2) dim_player.raw_ingested_at reflects the identity source,
+  not the profile, for enriched rows — an internal lineage column (not published on the mart),
+  semantics slightly loose.
 
 ## escalations
-See the data-engineer-reviewer section (Q1, Q2) — both CPO-answered 2026-06-16 and recorded in
-`.claude/task/escalations.log`.
+(none)

@@ -180,6 +180,21 @@ models:
       - name: player_api_id
         tests: [not_null]
 
+  - name: base_apif__player_profiles
+    description: >
+      Current per-player bio from the rich /players/profiles source
+      (stg_apif__player_profiles), reduced to the latest row per player_id.
+      Identity-level only — no league_code/team/season. Enriches dim_player.
+      Grain: player_api_id.
+    config:
+      tags: ["base", "api_football", "player_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_api_id]
+    columns:
+      - name: player_api_id
+        tests: [not_null]
+
   - name: base_apif__fixture_events
     description: >
       Deduplicated fixture event rows from stg_apif__fixture_events. Keeps
