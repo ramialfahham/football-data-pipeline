@@ -1,326 +1,246 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index cb289f4..32eecf8 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,72 +4,91 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-17 (dim_team entity/affiliation split). Shipped this session: verified GAP-18
--live on main (WC tournament/qualifier form correct); then the **dim_team entity/affiliation split —
--COMPLETE in two merged PRs**. **#488** (Phase 1: new `dim_team_competition_season_mapping`,
--fixtures-derived team↔competition↔season membership; the BL1/BL2 directory bug fixed at root) and
--**#489** (Phase 2: dropped `dim_team.league_code` → `dim_team` is a pure entity; repointed
--`mart_team_market_value`). Both merged, ci-data-build green; main at 8f5d88e. Governance G1–G4 LIVE.
--**Website blueprint #391 still PAUSED.**_
-+_Last updated: 2026-06-17 (player performance-surface spec). Shipped this session: a long CPO design
-+conversation that produced the **player performance-surface spec — merged as #491** (main at 4a1a348).
-+It resolves the deferred player season surface: a new **§8 in `docs/metrics_context_model.md`** plus a
-+supersession pointer in `docs/player_metrics_catalogue.md`. Docs only — no models changed; it is the
-+spec that **#480** and **#484** build against. Governance G1–G4 LIVE. **Website blueprint #391 still
-+PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge. Both dim_team PRs are merged; main is clean at 8f5d88e. `git fetch` + ff to
--  confirm. Then the CPO directs the next item (none auto-granted) — see NEXT.
-+- Nothing pending-merge. #491 is merged; main is clean at 4a1a348. `git fetch` + ff to confirm. Then
-+  the CPO directs the next item (none auto-granted) — see NEXT.
- 
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
- 
--## This session (2026-06-17) — dim_team entity/affiliation split
--1. **Verified GAP-18 live (read-only, no cost).** On main: `int_momentum_window__team` carries
--   window_type `tournament_to_date`/`qualifiers`; `mart_matchday_insights` carries
--   `home/away_form_from_qualifiers`. Live WC MD1 fixtures show cumulative qualifier windows (6–18 games,
--   not capped at 5), `form_from_qualifiers=true` for every opener team — the live label is right.
--2. **Root-caused the dim_team BL1/BL2 watch-item (read-only).** NOT an ingestion gap — raw HAS BL1/BL2
--   /teams. `dim_team.league_code` was a latest-ingest provenance stamp (one row per team, latest /teams
--   payload wins) → all 19 BL1 + 19 BL2 clubs present but stamped DFBP (German Cup ingested 06-16, after
--   the leagues' 06-10). Latent for every league (PL survived only by ingest timing). Live preview
--   unaffected (reads league_code from fixtures). **The prior handover's "feed never landed" guess was WRONG.**
--3. **CPO design session → fix = mirror the player entity/affiliation split.** Built in two phases:
--   - **Phase 1 (#488, MERGED):** `dim_team_competition_season_mapping` — keys-only core relationship
--     (mapping) dim, grain (team_sk, league_code, season_api_year), derived from FIXTURES (incl. scheduled),
--     grain enforced by GROUP BY. Membership source = fixtures (NOT the /teams roster) because a team
--     always plays what it enters (no never-played gap like a player). Bidirectional `fct_fixture`
--     consistency test + FK relationships. Validated: BL1/BL2 = 19/19; multi-comp clubs (Bayern/Dortmund)
--     now under BL1+DFBP+UCL+CWC.
--   - **Phase 2 (#489, MERGED):** dropped `dim_team.league_code` → `dim_team` is a pure entity (mirrors
--     `dim_player`); repointed the ONLY consumer (`mart_team_market_value`: WC set 23→48, output schema
--     preserved; mart unexported + empty so structural-only). core.yml + layering.md updated.
--4. **Governance ruling E1 (escalations.log 2026-06-17):** up-front CPO design approvals are LOGGED in
--   escalations.log alongside review-time rulings (not only in contract decisions_taken). Both PRs' design
--   + review rulings are recorded there.
-+## This session (2026-06-17) — player performance-surface spec (#491, MERGED)
-+A design conversation, not a build. Settled and recorded in **§8** (everything below is now spec, not
-+open):
-+1. **One aggregation, two windows.** The per-match player **leg** is the shared building block. Form and
-+   season are the SAME aggregation over a DIFFERENT set of legs — it never forks. Rules: sum counts; the
-+   four ratios (duels-won %, dribble-success %, pass-accuracy %, save %) are **weighted** (Σnum ÷ Σden,
-+   never an average of per-match %s); honest absence (only legs with provider stats count); zero
-+   denominator → `—` with counts shown. Display = **totals + the four weighted %s**, NOT per-match.
-+2. **What we show** = the nine CPO-locked player rows (`metrics_display.md`, 2026-06-11) + a NEW
-+   **appearance/playing-time context block**: two rows (apps·starts·subs; total min·avg-per-app) + last
-+   appearance in the window meta-line, **with the year** (`18 May 2026 vs Dortmund`). These are mart
-+   columns; the export only formats them.
-+3. **Season model** = ONE model, **per-club grain** (a transferred player → separate per-club line),
-+   within one competition, **this + last season side-by-side** (wide columns, not a second row). Full
-+   grain key `(player_sk, team_sk, league_code, season_sk)`. Replaces the three divergent rollups.
-+4. **Window matrix.** Club: the player's club form (last 5 across club comps; domestic = prev season
-+   before MD1, full after). **National = CONTEXT, not form** (strict club/national separation, never
-+   borrows club data): last ≤5 **national-team** appearances pooled across ALL NT comp types (friendlies
-+   once ingested), no season cap; **big tournament → cumulative ONLY** during & after; (future, when NT
-+   history ingested) career view grouped by NT comp type.
-+5. **Override** (CPO, logged): §8.5 supersedes the catalogue's "Form-window dispatch" (WC player form via
-+   the domestic club, qualifiers excluded). Reframe form→context dissolves its three (form-prediction)
-+   objections; football-analytics confirmed the football-correctness.
-+6. **No separate framing** — the existing locked window meta-line carries club-form vs national-context
-+   through its copy (final wording at i18n).
-+- **Review:** scope-auditor + analytics-engineer + football-analytics all PASS. Two analytics-engineer
-+  FAIL rounds were fixed at design altitude (surrogate key stated; NT selector forced into the
-+  intermediate layer with its national anchor; last-appearance declared a mart column not export logic;
-+  form_window_kind set shown derivable + final labels reserved to build) and re-reviewed clean.
- 
- ## NEXT (CPO directs — none auto-granted)
--- **Season-rollup enhancement** — point `mart_team_season` / `int_team_season` at the new mapping spine so
--  upcoming-only (pre-season) teams appear. DEFERRED from Phase 2 (it's a shipped-mart rows change; needs
--  its own validation). Small, well-scoped.
--- **#480** player-season consolidation — GOVERNED (reconcile divergent metric defs FIRST; changes shipped numbers).
-+- **#480** — build the ONE canonical per-club player-season model from §8 (applies the weighted
-+  aggregation; retires `mart_player_season` + the divergent rollups). **Changes shipped numbers** (e.g.
-+  pass accuracy → weighted) → its own validation; analytics-engineer + football-analytics on that PR.
-+- **#484** — build the national-team **context** window (a NEW national-anchored intermediate selector
-+  per §8.4 — not mart logic). **Changes shipped numbers** → its own validation.
-+- **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
-+  the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned). Small follow-up.
-+- **Season-rollup enhancement (TEAM)** — point `mart_team_season` / `int_team_season` at the mapping
-+  spine so pre-season teams appear. DEFERRED from the dim_team work; a shipped-mart rows change, own
-+  validation. (The player analog is now specced as #480.)
- - **#479** spare-budget backfill — DESIGN (per-comp history depth + budget ceiling).
--- **#483 / #484** — GAP-18 follow-ups (qualifying-type cumulative window; player-strip tournament form).
-+- **#483** — GAP-18 follow-up (qualifying-type cumulative window).
- - **Pilot PR2 (slugs)** — STILL BLOCKED on the two BLINDED §10 rulings E2/E3 (do NOT pre-decide).
- 
--## dim_team model (the shape after this session — use these)
--- **`dim_team`** = pure team ENTITY (one row per team_api_id; identity/venue only; **NO league_code**, no
--  affiliation). Mirrors `dim_player`.
-+## Player performance surface (the shape after this session — use these)
-+- **The spec is `docs/metrics_context_model.md` §8** + the supersession note in
-+  `docs/player_metrics_catalogue.md`. Definitions stay in the catalogue; locked display rows in
-+  `docs/wireframes/metrics_display.md`. Read §8 before any player-mart work.
-+- "Player season form / context" → §8 (one aggregation, per-club season model, club/national matrix),
-+  NOT the old three rollups. National player performance = **context** (NT appearances), never the
-+  domestic-club substitution (that catalogue rule is superseded).
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+new file mode 100644
+index 0000000..6979d45
+--- /dev/null
++++ b/docs/content_architecture.md
+@@ -0,0 +1,211 @@
++# Content architecture — blocks, tabs, navigation
 +
-+## dim_team model (still current — from the prior session)
-+- **`dim_team`** = pure team ENTITY (one row per team_api_id; identity/venue only; **NO league_code**).
- - **`dim_team_competition_season_mapping`** = team↔competition↔season membership (keys-only, fixtures-
--  derived, grain (team_sk, league_code, season_api_year)). Mirrors `dim_player_team_season_mapping`.
--- **"Teams in competition X, season Y" = the mapping (or fct_fixture), NEVER a dim_team column.** See
--  memory `project_team_model_redesign`.
-+  derived). "Teams in competition X, season Y" = the mapping (or fct_fixture), NEVER a dim_team column.
++> The modular content model for the website: how a few reusable **blocks** (each backed by one
++> mart) compose into **tabbed entity pages**, wired by a **navigation graph**, to produce a deep,
++> multi-language, programmatic-SEO site from a small set of moving parts. CPO-ruled across the
++> 2026-06-17 design conversation.
++>
++> This is the IA the wireframes *arrange* and the marts *feed*. It builds on:
++> - `docs/site_architecture.md` — the v2 site IA (fixtures-first home + browse, epic #361).
++> - `docs/metrics_context_model.md` §8 — the player performance surface + the shared window/aggregation model.
++> - `docs/player_metrics_catalogue.md` / `docs/wireframes/metrics_display.md` — metric definitions + the locked display contract.
++>
++> SPEC ONLY. Each build named here (the new marts, the backfill, coaches) is its own later PR with its
++> own review; number-changing builds get analytics-engineer + football-analytics sign-off then.
++
++---
++
++## 1. Principles
++
++1. **Three layers.** **Blocks** (reusable content units) → **tabs** (per-entity compositions) →
++   **navigation graph** (entity↔entity links). Nothing computes in a page — pages only *arrange* blocks.
++2. **One block = one mart**, parameterised by `league_code` / season / entity. Adding a competition,
++   team, player, or season is *more rows → more pages → zero new marts* (the zero-file rule, extended
++   to the site).
++3. **"Profile" is not a thing** — it's the **Overview tab**, a compact digest. Each entity page is a
++   set of tabs.
++4. **Languages are free.** Blocks are locale-independent data; labels resolve at build time from the
++   metric-catalogue i18n keys + entity names (`export_site_data.py` already works this way). N
++   languages = same data × label sets.
++5. **Density is built in.** Every block carries a *compact* and a *full* form; the placement picks
++   (compact on Overview/teasers/home-hooks, full on dedicated tabs). The compact rule differs by
++   subject, per the locked display contract: **team blocks = tier-1 rows only** ("tier = visibility
++   under constraint"); **player blocks have no tiers — they use per-surface rules** (e.g. the
++   fixture top-players strip ranks goals → assists → key passes). See
++   `docs/wireframes/metrics_display.md`.
++6. **Honest limits.** No xG (we substitute our own chance-quality metrics), no news source, no
++   transfers tab. We never fabricate; a block that has no data simply doesn't render.
++
++---
++
++## 2. Entity types (the programmatic-SEO templates)
++
++Five rich templates + two thin ones; everything else is rows.
++
++| Entity | Tier | Example URL | Page-count driver |
++|---|---|---|---|
++| **Competition** | rich | `/bundesliga/2025-26` | competitions × seasons |
++| **Team** | rich | `/bayern-munchen` (+ season) | teams (× seasons) |
++| **Player** | rich | `/harry-kane` (+ season) | players (× seasons) |
++| **Fixture** | rich | `/bayern-dortmund-2025-10-04` | fixtures |
++| **Matchday** | thin SEO | `/bundesliga/2025-26/spieltag-7` | competitions × rounds |
++| **Coach** | thin SEO | `/vincent-kompany` | coaches (API-Football provides them) |
++| Nation, Stadium | deferred | — | — |
++
++Teams + players + fixtures + competition-seasons + matchdays × **languages** = the thousands of
++indexable pages. Each is one template fed by `league_code`-keyed marts.
++
++---
++
++## 3. The block library (block ↔ mart)
++
++| Family | Block | Subject | Backing mart | Status |
++|---|---|---|---|---|
++| **Identity** | Team header | team | `dim_team` (+ standing chip, + coach) | ✓ |
++| | Player header | player | `dim_player` (+ current club) | ✓ |
++| | Competition header | comp | registry / dim | partial |
++| **Performance** | Form (recent) | team, player | `mart_momentum__{team,player}` (+ `_window` drill-down) | ✓ (player `_window` gap) |
++| | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ⚠ player |
++| | Season-over-season | team, player | YoY model | ✓ team / gap player |
++| | Vs-benchmark (bars vs league avg + percentile) | team, player | **NEW** `mart_competition_benchmarks` | ✗ |
++| | Single fixture | team, player | `mart_fixture_stats__{team,player}` | ✓ |
++| **Standings / rank** | League / group table | team | standings mart (#322) | ✓ |
++| | Standing-as-context | team | standings mart | ✓ |
++| | Leaderboards (scorers + the metric set) | player | **NEW** `mart_leaderboards` (generalise `mart_top_scorers`) | ⚠ partial |
++| **Schedule** | Upcoming / Results | team, player | match-list mart (filter) | ✓ |
++| | Matchday schedule | comp | fixtures by round (derive) | ~ |
++| **Listings** | Squad / roster | team→players | **NEW** `mart_roster` (from the team↔player mapping) | ✗ |
++| | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
++| | Player career (clubs + per-comp totals) | player | **NEW** `mart_player_career` (needs backfill) | ✗ |
++| **Matchup** | Match preview (two sides) | fixture | `mart_matchday_insights` | ✓ |
++| | Lineups / key players | fixture | fixture player stats / `mart_leaderboards` | ✓ |
++| | Head-to-head | fixture | — | deferred (low value, #323) |
++| **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` differentiator | ✓ team |
++| | Vs-own-history / YoY *(flagship)* | team (player v1.x) | YoY model | ✓ team |
++| | Opponent / schedule context *(flagship, v1.x)* | team, player | (uses the benchmark engine) | ✗ |
++| | Contribution-share *(bonus)* | player↔team | **NEW** mart-computed (share of team output; definition reserved to build) | ✗ |
++| | Streaks | team (player?) | `int_*_profile__streaks` | ✓ team |
++
++A block works for any competition and either subject because it's just a mart sliced by
++`league_code` / entity — so the same block appears on many tabs/pages, defined once.
++
++---
++
++## 4. Pages = tabbed compositions
++
++> This is the **proposed default arrangement** — the starting layout the wireframes refine. The tab
++> *set* per entity is settled; the exact block placement within each tab (and which compact blocks an
++> Overview shows) is a wireframe-time detail, not locked here.
++
++| Entity | Tabs → blocks |
++|---|---|
++| **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster) · **History** (past-season records, all-time, coach) |
++| **Player** | **Overview** (header + form + season highlights + position + next) · **Matches** (log → fixture) · **Stats** (season per-game + percentile-vs-peers + season-over-season) · **Career** (clubs + per-competition totals + caps) |
++| **Competition** | **Table** · **Fixtures** (by matchday) · **Scorers** (leaderboards) · **Teams** (directory) · **Seasons** (archive) · **Stats** (league-wide → benchmark) |
++| **Coach** | **Overview** (current club + clubs managed) |
++| **Fixture** | match preview + key players + (post-match) fixture stats + lineups |
++| **Home** | fixtures-first + browse entry points |
++
++---
++
++## 5. Navigation graph (what makes it a site)
++
++Every entity links to its neighbours — the "always one click to the related thing" feel.
++
++| From | Links to |
++|---|---|
++| Home (upcoming) | → Fixture |
++| Fixture | → each Team · → Players (lineups / leaderboards) · → Competition |
++| Team | → Competition (its table) · → Players (squad) · → its Fixtures · → Coach |
++| Player | → current Team · → Competition · → his Matches |
++| Competition | → Teams (directory) · → Fixtures · → Players (scorers) |
++| Coach | → current Team |
++
++This closed graph covers upcoming matches → team stats → clubs → players → their upcoming matches → …
++
++---
++
++## 6. Flagship reads (the differentiators)
++
++vs-benchmark / percentile is **table stakes** (kicker does bars-vs-average, fbref does
++percentile-vs-peers) — necessary **context**, the **engine**, not the headline. The flagship is a
++small set of *smart reads* the raw-number sites don't synthesise.
++
++1. **Deserved-vs-actual** *(v1)* — underlying play (chance dominance: shot share + danger-zone + shots
++   on target + finishing — our honest stand-in for xG) **vs** actual results (points captured + rank),
++   with the gap. *"Creating like a top-2 side but sitting 7th — likely to climb."* Built for teams
++   (`mart_team_profile.performance_vs_results_gap`); player analog (output vs underlying) is v1.x.
++2. **Vs-own-history (year-over-year)** *(v1)* — the entity vs itself over time, **aligned by matchday**.
++   *"22 points through MD10 vs 18 last year, shot share up 4 pts."* Built for teams
++   (`int_team_profile__yoy`, domestic leagues); player version is a backfill-enabled gap.
++3. **Opponent & schedule context** *(v1.x, the hardest)* — weight performance by opposition quality
++   (via the benchmark engine). Backward: *"the unbeaten run came against the bottom half."* Forward:
++   *"4 of the next 5 are top-six"* (fixture difficulty). This is the long-named "opponent-adjusted
++   form" — football-analytics owns the definition; ships after the simpler two.
++4. **Contribution-share** *(bonus)* — a player's share of the team's output (*"involved in 45% of
++   Bayern's goals"*). Cheap, narrative, bridges team↔player pages.
++
++The triad is a clean axis set: **vs your own play** · **vs your own past** · **vs your opponents**.
++"A few signature things done well," powered by the benchmark + backfill infrastructure.
++
++---
++
++## 7. New marts to build (each its own later PR)
++
++| New mart | Powers | Depends on |
++|---|---|---|
++| `mart_competition_benchmarks` (team + player) | Vs-benchmark block + the flagship reads' league context | a clean season aggregation (#480 + the season-record↔rollup unification) |
++| `mart_leaderboards` (generalise `mart_top_scorers`) | Leaderboards block + key players + top performers | season aggregation |
++| `mart_roster` | Squad block | team↔player mapping (exists) |
++| `mart_player_career` (+ a team-history equivalent) | Career & History tabs | the backfill |
++| `dim_coach` (+ Coach block/entity) | Coach block & page | coaches ingest |
++
++The percentile **scope** (competition-wide vs position-aware, the fbref way) is a v1.x build-time
++decision with football-analytics — reserved, not settled here.
++
++---
++
++## 8. Backfill (history depth) policy
++
++History is a per-competition number (`history_seasons` in the registry). Budget is not the binding
++constraint (a top-league decade ≈ ~12k calls; the daily API budget has spare headroom) — **value and
++data quality** are. Tiered, with a quality floor:
++
++| Competition type | Depth |
++|---|---|
++| Top domestic leagues (BL1, PL, PD, SA, L1…) | 10 seasons |
++| 2nd-tier / smaller leagues (BL2, ED, VL, MLS…) | 5 seasons |
++| Continental club (UCL…) | 10 seasons |
++| World / continental championships (WC, EURO, AFCON…) | last 4 editions |
++| Qualifiers | current + previous cycle |
++| Domestic cups | 5 seasons |
++
++- **Quality floor:** stop backfilling a competition once a season returns empty player-stats — don't
++  ingest empty seasons (wasted budget, thin pages). Record the *achieved* depth.
++- **Phased rollout:** start with the featured competitions, measure real call cost vs budget, extend.
++
++> Applying these depths to `docs/competition_registry.yml` (`history_seasons`) and *running* the
++> backfill is a **separate** registry change + cost-gated ingest task — not part of this doc.
++
++---
++
++## 9. Build sequence (dependency-ordered)
++
++1. **#480** — one canonical per-club player-season model (+ confirm the season-record↔rollup
++   unification, the team-side analog). The foundation; nothing clean builds on the divergent rollups.
++2. **Backfill** — set per-competition depth (§8), run it. Lights up History / Career, makes
++   season-over-season real everywhere, deepens benchmarks.
++3. **`mart_leaderboards` + `mart_roster`** — cheap, high navigability/SEO, no governance.
++4. **`mart_competition_benchmarks`** — the engine for the flagship reads (governance for percentile).
++5. **Coaches ingest + `dim_coach`**, **`mart_player_career`** / team history (on the backfill).
++
++---
++
++## 10. Out of scope / honest limits
++
++- **No xG** — the deserved-vs-actual flagship uses our chance-quality metrics, never a faked xG.
++- **No News, no Transfers tab** — no news source; no transfers UI surface.
++- **Career/History** depends on the backfill; thin until it runs.
++- **Coach / Stadium** blocks only where the provider data is clean.
++- **Naming consistency** (suffix `__team`/`__player` vs prefix `team_`/`player_`; `mart_team_fixtures`
++  vs `mart_player_match_log`) is a known inconsistency — a separate cleanup pass, noted not fixed here.
+diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
+index 0dc7b8f..ab728ab 100644
+--- a/docs/metrics_context_model.md
++++ b/docs/metrics_context_model.md
+@@ -204,6 +204,9 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
  
- ## Process lessons locked (do not repeat)
--- **Verify the handover's stated root cause before building on it.** The BL1/BL2 "feed never landed" guess
--  was wrong; read-only investigation found the real cause (provenance-stamp dedup). Map the system; don't
--  inherit a guess.
--- **A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate.** Phase 1's analytics-engineer
--  FAILs (near-circular test, grain-on-untested-assumption) were code fixes (bidirectional cross-model
--  test; GROUP BY-enforced grain), not CPO questions.
--- **Up-front CPO design approvals get logged** (E1) — escalations.log records them, not just contract.md.
--- Communication: compact + plain, lead with decisions + a bolded recommendation; no jargon in chat.
-+- **A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate.** This session the
-+  analytics-engineer FAILed twice on build-readiness gaps in a DESIGN spec (surrogate key, layer
-+  placement, mart columns, enum). Fix them **at design altitude** — state what's derivable, enforce
-+  existing layer rules, and RESERVE genuine build detail to the build PR — do NOT over-design a future
-+  PR inside the spec. If a reviewer keeps demanding build-level detail the contract scopes out, that
-+  altitude question is the CPO's call.
-+- **Read the existing docs before claiming a gap.** Early in the session I said "no clarity for players";
-+  reading `metrics_context_model.md` + `player_metrics_catalogue.md` showed live-form WAS specced and the
-+  real gap was only the season surface. Map the written design first.
-+- **Up-front CPO design approvals get logged**; communication compact + plain, lead with decisions + a
-+  bolded recommendation; no jargon in chat.
+ ## 8. Player performance surface (resolves the §7 deferral for players)
  
- ## The governance machinery (G1–G4 all LIVE — unchanged this session)
- - **Contract first**: every unit writes `.claude/task/contract.md` (objective, scope_paths allowlist,
-@@ -77,35 +96,38 @@ fixtures-derived team↔competition↔season membership; the BL1/BL2 directory b
-   outside scope_paths / to PROTECTED paths (`.claude/hooks|agents|commands/`, `.github/workflows/`,
-   `.claude/settings.json`, `.claude/review_routing.json`) without `protected_override`; and denies
-   contract (re)writes on a dirty tree. `.claude/task/**` freely editable; `.claude/active_work.md` is
--  NOT (needs scope_paths).
-+  NOT (needs scope_paths — as in this handover task).
- - **4-step review cycle** (Code Lock → cold Blinding → Cross-Examination → SHA-256 Lock) in
-   `.claude/task/review.md`. Reviewers routed by `.claude/review_routing.json` (scope-auditor always;
-   dbt → analytics-engineer; scripts/tests/CI/hooks/agents/commands → cto; ingestion/registry-seed →
--  data-engineer; wireframes/i18n → bi-analyst; metric_catalogue → +football-analytics). PASS needs ≥2
--  named risks; default FAIL. A reviewer FAIL on a §10 question → put it to the CPO in PLAIN language;
--  record in review.md (VERDICT: ESCALATE + `CPO ANSWER:` same section) + escalations.log.
-+  data-engineer; wireframes/i18n → bi-analyst; metric_catalogue → +football-analytics). Plain `docs/**`
-+  (e.g. metrics_context_model.md) routes ONLY to scope-auditor — the CPO can direct extra reviewers
-+  (this session: +analytics-engineer +football-analytics). PASS needs ≥2 named risks; default FAIL. A
-+  reviewer FAIL on a §10 question → put it to the CPO in PLAIN language; record in review.md (VERDICT:
-+  ESCALATE + `CPO ANSWER:`) + escalations.log.
- - **Commit gate** (`git_discipline.py`): `git commit` SOLE plain command; allowlisted flags only;
-   staged SHA-256 must equal review.md `diff_sha256` (`python .claude/hooks/git_discipline.py
-   --staged-hash`); required reviewers PASS, no FAIL, every ESCALATE has a CPO ANSWER. Artifact-only
--  commits (`.claude/task/**` except contract.md, `.claude/active_work.md`) are review-exempt.
-+  commits (`.claude/task/**` except contract.md, `.claude/active_work.md`) are review-exempt — but a
-+  commit that ALSO carries contract.md is never exempt (so this handover commit gets scope-auditor).
- - **CI backstop** `scripts/check_task_artifacts.py` re-binds review.md to the PR diff hash.
++> The site-wide content model that consumes this surface (blocks → tabs → navigation, the flagship
++> reads, and the new marts) is specified in [`content_architecture.md`](content_architecture.md).
++
+ Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
+ It fixes the one real gap: the player season rollup exists three ways today with divergent
+ numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 5583ab1..9d75a78 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -3,6 +3,10 @@
+ > The contract for epic #361. Every v2 workstream — templates (#368), export (#365),
+ > SEO (#369), i18n (#370), design (#366), migration (#377) — builds against this
+ > document. Change it only with CPO sign-off; downstream issues inherit changes.
++>
++> **Content model:** the reusable blocks → tabs → navigation structure these templates render is
++> specified in [`content_architecture.md`](content_architecture.md) — blocks (= marts), tab
++> compositions, the navigation graph, the flagship reads, and the new marts to build.
  
- ## Form-window model vocabulary (use these names)
--- **W1 live form / momentum:** `int_momentum_window__team` (selection) → `int_momentum__team`
--  (aggregate) → `mart_momentum__team` + `mart_momentum_window__team`. `window_type` values:
--  `last_5` (default), `tournament_to_date` + `qualifiers` (GAP-18, world+continental champ).
--  Player path `int_momentum__player`/`mart_momentum__player` stays `last_5` (#484).
--- **W2 season record:** `int_season_record__{team,player}` → `mart_season_record__{team,player}`;
--  values `season_to_date` (UNTOUCHED — published key) + `prev_season`.
--- Live WC label flag: `home/away_form_from_qualifiers` on `mart_matchday_insights` → the live
--  `formContextLabel` UI + `formContextWc*` i18n.
-+- **W1 live form / momentum:** `int_momentum_window__team` → `int_momentum__team` →
-+  `mart_momentum__team` + `mart_momentum_window__team`. `window_type`: `last_5` (default),
-+  `tournament_to_date` + `qualifiers` (GAP-18). Player path `int_momentum__player`/`mart_momentum__player`
-+  is still `last_5` — the player national/tournament context window is specced (§8.4) and built by #484.
-+- **W2 season record:** `int_season_record__{team,player}` → `mart_season_record__{team,player}`; values
-+  `season_to_date` (published key) + `prev_season`. The player season surface is now specced in §8 (#480).
-+- Live WC label flag: `home/away_form_from_qualifiers` on `mart_matchday_insights`.
+ ## 1. What v2 is
  
- ## Parked state (do not touch until directed)
- - v2 blueprint drill-down (`form_window[]` ≤5 cap, separate `phase` column) — under #391 (PAUSED).
- - Pilot PR2 slug rulings E2/E3 — BLINDED, do NOT pre-decide.
- - Team market-value automation (#476 + #418) — new external-LLM source, needs a CPO cost gate.
--  (`mart_team_market_value` is the placeholder mart — repointed in Phase 2 but still value-less + unexported.)
--- #477 historical/per-edition squad membership — needs a CPO cost gate.
-+  (`mart_team_market_value` is the placeholder mart — value-less + unexported.)
-+- #477 historical/per-edition squad membership — needs a CPO cost gate (also feeds §8.4's future NT
-+  history-by-type view and friendlies in the NT pool).
- 
- ## PENDING CPO ACTIONS (outside the tree — verify if done)
- 1. **Set `PROJECT_AUTOMATION_TOKEN`** to the fine-grained least-privilege scope (from #413).
-@@ -116,7 +138,7 @@ fixtures-derived team↔competition↔season membership; the BL1/BL2 directory b
- - **Never decide CPO-class questions** (§10); escalate in PLAIN language (§11). Don't over-read one model
-   and invent a §10; but DO escalate genuine layer/rule/scope/metric/naming questions.
- - Do not compute/derive facts in the frontend/export (layering.md §Consumption) — select/group/rename only.
--- Do not touch the live MVP UI logic without scope; do not change shipped numbers (GAP-17 parked).
-+- Do not touch the live MVP UI logic without scope; do not change shipped numbers without a directed PR.
- - File edits via Edit/Write tools only — never shell redirection/heredocs (A5). (Generated artifacts like
-   review_input.patch via `git diff >` are the exception — bookkeeping, hash-excluded.)
- - Branch from main; never commit to main; the post-commit hook auto-pushes + opens PRs.
-diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 8bd3f07..355a46c 100644
---- a/.claude/task/contract.md
-+++ b/.claude/task/contract.md
-@@ -1,86 +1,42 @@
--# Task contract — docs: player performance-surface spec (resolve the deferred player season surface)
-+# Task contract — chore: refresh the handover after #491 (player performance-surface spec)
- 
--> CPO-directed this conversation (2026-06-17). Writes the player performance-surface specification —
--> the resolution of the deferred player full-season surface in `docs/metrics_context_model.md` §7 —
--> recording the CPO decisions made across this conversation. DOCS ONLY: no model/SQL/seed/YAML/python
--> change. It specifies what the build PRs (#480 one canonical player-season model; #484 player
--> national/tournament context) construct against. The national-team rules OVERRIDE the catalogue's
--> domestic-substitution form-window dispatch — a deliberate CPO override (reframe: form → context);
--> football-analytics confirms the football-correctness. Reviewers: scope-auditor (always; routing-
--> required for these docs paths) + analytics-engineer-reviewer + football-analytics-expert-reviewer
--> (CPO-directed for the analytics-design + football-domain content).
-+> Bookkeeping task. Update `.claude/active_work.md` to record the merged player performance-surface
-+> spec (#491, merged → main 4a1a348) and reset NEXT to the build follow-ups (#480 / #484). No code,
-+> no docs-content change — handover only. `active_work.md` is artifact-only for commit purposes but
-+> not auto-editable, so it is added to scope_paths here (per the edit-gate scope rule). The commit
-+> also carries contract.md (this file) which is never review-exempt, so scope-auditor reviews.
- 
- objective: >
--  Write the player performance-surface spec into docs/metrics_context_model.md (new section) and point the
--  superseded catalogue section at it. Captures: the shared-aggregation principle (one aggregation, two
--  windows), per-club season grain, season-over-season side-by-side, the appearance/playing-time context
--  block, and the club/national window matrix with the national-team "context" reframe. No code.
-+  Rewrite .claude/active_work.md so a fresh session continues correctly: record this session
-+  (player performance-surface spec merged as #491), set FIRST/NEXT to the build follow-ups, and
-+  carry forward the durable standing sections (authority, governance machinery, parked state,
-+  pending CPO actions, do-NOTs, environment notes) unchanged.
- 
- refs: >
--  This conversation 2026-06-17. Resolves docs/metrics_context_model.md §7 (player full-season part). Build
--  follow-ups #480 (consolidate to one player-season model) and #484 (player national/tournament context).
-+  This conversation 2026-06-17. Player performance-surface spec PR #491 (merged, main 4a1a348),
-+  resolving docs/metrics_context_model.md §7 (player part) with a new §8. Build follow-ups #480 / #484.
- 
- scope_paths:
--  - docs/metrics_context_model.md
--  - docs/player_metrics_catalogue.md
-+  - .claude/active_work.md
-   - .claude/task/contract.md
-   - .claude/task/review.md
- 
- decisions_taken: >
--  CPO (this conversation, 2026-06-17), all explicitly ruled:
--  (1) Aggregation is ONE shared logic, applied to whichever window's match-set: sum the counts; the four
--      ratios (duels-won %, dribble-success %, pass-accuracy %, save %) are WEIGHTED (sum num / sum den),
--      never an average of per-match %s; honest absence (count only matches the provider gave stats for);
--      zero denominator -> "-" with the counts still shown. The per-match leg is the shared building block;
--      form and season differ ONLY in which legs are selected.
--  (2) What we show = the nine CPO-locked player rows (docs/wireframes/metrics_display.md, 2026-06-11) as
--      TOTALS + the four weighted %s (NOT per-match) + a NEW appearance/playing-time context block: two rows
--      (appearances . starts . subs; minutes total . avg-per-appearance) + last appearance in the window
--      meta-line, with the year (e.g. "18 May 2026 vs Dortmund").
--  (3) Season model: ONE model, per-club grain (a transferred player gets a separate per-club season line),
--      carrying this season + last season SIDE-BY-SIDE (a persistent comparison, not a pre-season-only
--      fallback); always within one competition (never cross-competition). Replaces the three divergent
--      player-season rollups that exist today.
--  (4) Window matrix. Club: a player's club form (last 5 across the club's competitions; domestic = previous
--      season before matchday 1, full season after). National: REFRAMED as CONTEXT, not form -- last <=5
--      national-team appearances pooled across ALL national-team competition types (friendlies included once
--      ingested), by recency, no season cap; during AND after a big tournament (world / continental
--      championship) show the cumulative tournament figures ONLY; (future, when NT history is ingested) a
--      career view grouped by NT competition type. Strict club/national separation: the national view never
--      borrows club data.
--  (5) This OVERRIDES the catalogue's "Form-window dispatch" (player WC form drawn from the domestic club,
--      qualifiers excluded). The reframe form -> context dissolves that section's three objections (all about
--      form-PREDICTION). Recorded as a CPO override; football-analytics confirms the football-correctness.
--  (6) No separate "context vs form" UI framing mechanism -- the existing locked window meta-line carries the
--      scope distinction through its copy (final wording at i18n).
-+  CPO directed "update the handover" this conversation (2026-06-17). Pure bookkeeping: no product,
-+  metric, naming, or layer decision is made or changed here — it records decisions already merged in
-+  #491 and re-points NEXT. The durable standing sections are preserved verbatim.
- 
- decisions_reserved:
--  - BUILD is out of scope. Spec only. #480 (consolidate to one player-season model) and #484 (player
--    national/tournament context) are separate PRs with their own validation (they change shipped numbers ->
--    metric defs are already weighted in the catalogue; analytics-engineer + football-analytics review there).
--  - The appearance/playing-time block + the "no-separate-framing" ruling are DISPLAY-contract additions; this
--    spec records the decision, but the formal amendment to the locked display contract
--    (docs/wireframes/metrics_display.md, bi-analyst-owned) is a follow-up -- NOT edited here.
--  - Friendlies in the NT pool, and NT history grouped by competition type, are COST-GATED ingest
--    dependencies (friendlies endpoint; NT history ~ #477) -- the rule is defined; the data lights up only
--    when those are CPO-approved.
--  - If football-analytics FAILs the national-context override on football-correctness grounds (distinct from
--    the CPO's product call), record it as ESCALATE + the CPO ruling already made this conversation as the
--    CPO ANSWER; do not silently re-decide.
--  - Any further §10 (a NEW mechanism, a grain change, a shipped-output change to a LIVE surface) -> escalate
--    in plain language, do not decide.
-+  - No new scope. The build PRs (#480 one canonical player-season model; #484 NT-context window) are
-+    CPO-directed and NOT started here. The display-contract amendment (appearance block +
-+    no-framing) to docs/wireframes/metrics_display.md stays a bi-analyst-owned follow-up.
-+  - If anything beyond active_work.md would need editing to "refresh the handover", STOP — that is no
-+    longer bookkeeping.
- 
- done_when:
--  - docs/metrics_context_model.md carries a new self-contained player performance-surface section (windows +
--    shared aggregation + per-club grain + season-over-season + appearance block + national-context reframe +
--    override note + #480/#484 build pointers); §7's player full-season item is marked resolved, pointing to
--    the new section.
--  - docs/player_metrics_catalogue.md "Form-window dispatch" section carries a SUPERSEDED-BY pointer to the new
--    section (its definitions/formulas stay canonical).
--  - Internal consistency: no remaining doc statement contradicts the override (the catalogue dispatch is
--    pointed, not silently left); all cross-references resolve.
--  - Docs-only: no model/SQL/seed/YAML/python touched, so NO dbt build / DQ run is required (and none is run).
--  - reviewers: scope-auditor (required) + analytics-engineer-reviewer + football-analytics-expert-reviewer
--    (CPO-directed) -- all PASS (>=2 named risks each), no FAIL, every ESCALATE has a recorded CPO ANSWER.
-+  - .claude/active_work.md reflects: #491 merged (main 4a1a348); FIRST = nothing pending-merge;
-+    NEXT = #480 / #484 (+ the carried-over open items); durable sections intact.
-+  - Commit is the handover commit on branch chore/handover-player-spec; post-commit opens the PR.
-+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
- 
- amendments: (none)

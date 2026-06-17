@@ -204,6 +204,9 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
 
 ## 8. Player performance surface (resolves the §7 deferral for players)
 
+> The site-wide content model that consumes this surface (blocks → tabs → navigation, the flagship
+> reads, and the new marts) is specified in [`content_architecture.md`](content_architecture.md).
+
 Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
 It fixes the one real gap: the player season rollup exists three ways today with divergent
 numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
