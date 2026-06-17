@@ -1,112 +1,65 @@
-# Task contract — feat: GAP-18 tournament form-window exception (W1, team)
+# Task contract — feat: GAP-18 live WC form LABEL (commit 2)
 
-> GAP-18 (CPO-approved 2026-06-11, "schedule before WC"; CPO go-ahead 2026-06-16 — this conversation —
-> to change the live WC form numbers during the tournament). The shipped W1 momentum window
-> (int_momentum_window__team) hard-caps at recency_rank <= 5 for EVERY competition, so live World Cup
-> previews render a bare "last 5" — the matrix §4 tournament exception ("This tournament so far" /
-> "Qualifiers") is unimplemented. This task implements that exception generically by competition_type,
-> with a window_type descriptor, for the TEAM window. The parent→child link the qualifier window needs
-> is NOT in the warehouse yet (only in the YAML registry), so it is synced into the registry seed via
-> the existing single-source mechanism. Reviewers: scope-auditor + analytics-engineer + cto + data-engineer
-> + bi-analyst (per .claude/review_routing.json for the staged paths).
+> Commit 2 of branch feat/gap-18-tournament-form-window (PR #485). Commit 1 landed the dbt mart
+> LAYER — WC form NUMBERS are now tournament/qualifier-cumulative (window_type). This commit wires the
+> live match-preview LABEL: the UI (site/match-preview/index.html `formContextLabel`) and i18n
+> (`formContextWcQualifiers` / `formContextWcTournament`, already present in en/de/fi) switch on a
+> boolean `form_from_qualifiers` flag that the retired `mart_matchday_insights_wc` used to provide and
+> the current preview mart does not. Without it the live WC preview shows correct cumulative numbers
+> but always the "all World Cup matches so far" label (wrong for qualifier-window teams). CPO approved
+> this widening (this conversation). Pure dbt: one mart + its schema + the gaps-register marking. The
+> live export (scripts/export_pages_data.py) is `SELECT *` passthrough writing full row dicts, so the
+> new columns reach the JSON with NO export change. Reviewers: scope-auditor + analytics-engineer + bi-analyst.
 
 objective: >
-  Implement the matrix §4 W1 (live-form/momentum) tournament exception in the TEAM window, generic by
-  competition_type — no league_code hardcoding:
-  (a) Sync the parent link into the warehouse: scripts/sync_dbt_vars.py projects a third column
-      `parent_competition` from docs/competition_registry.yml into seeds/competition_registry.csv;
-      scripts/check_registry_var_sync.py validates the new column (triples) AND that every non-empty
-      parent_competition references a known league_code. Regenerate the seed by RUNNING the script
-      (it is generated, never hand-edited). Document the column in seeds/schema.yml.
-  (b) int_momentum_window__team (MODIFIED): for an upcoming fixture side whose competition_type is
-      world_championship or continental_championship, REPLACE the last-5 recency selection with —
-      tournament_to_date: the team's finished legs in THIS competition (leg_league_code = the fixture's
-      league_code) AND the fixture's season_api_year, before kickoff, cumulative (no 5-cap),
-      window_type='tournament_to_date'; if the team has zero such legs (its opener / pre-MD1) fall back to
-      qualifiers: finished legs in competitions whose registry parent_competition = the fixture's
-      league_code, before kickoff, cumulative, window_type='qualifiers'. All OTHER types keep the existing
-      last-5 recency selection (club season-capped, national uncapped), window_type='last_5'. Emit a
-      window_type column (constant per upcoming_fixture_sk+team_sk); keep recency_rank (1=most recent) for
-      drill-down ordering; OUTPUT SCHEMA = current columns + window_type only.
-  (c) int_momentum__team (MODIFIED): carry window_type from the window legs instead of the hardcoded
-      'last_5'. The aggregate is already a SUM over the window legs, so cumulative windows aggregate
-      correctly; games_in_window becomes the cumulative count (may exceed 5).
-  (d) mart_momentum_window__team (MODIFIED): carry window_type from the window legs instead of hardcoded
-      'last_5'; emit ALL in-window legs (the invariant test requires list rows = games_in_window, so NO
-      cap here — display truncation is a downstream/export concern, out of scope).
-  (e) mart_momentum__team (MODIFIED): window_type flows through from the aggregate; verify it is selected
-      (not re-hardcoded) and contributing_competitions stays correct.
-  (f) Schema + tests: int_momentum_window.yml / int_momentum.yml / shared.yml — add 'tournament_to_date'
-      and 'qualifiers' to window_type accepted_values ON THE TEAM PATH ONLY; relax the
-      "recency_rank between 1 and 5" guard to "between 1 and 5 OR window_type in (tournament_to_date,
-      qualifiers)"; fix descriptions that hardcode "1–5"/"last 5"/"the 5 legs" to the variable window;
-      add a NEW DQ test assert_tournament_form_window.sql (tournament-type fixtures with >=1 prior
-      same-edition leg => window_type='tournament_to_date' and games_in_window = that prior count, not
-      capped at 5; openers => 'qualifiers' or empty). The existing
-      assert_momentum_window_matches_momentum invariant must still pass.
-  (g) Docs: update docs/competitions/wc26.md (the "form is recency-based / dim reserved for GAP-18" note
-      is now implemented via the registry parent link) and mark GAP-18 implemented in
-      docs/wireframes/99_gaps_register.md.
+  (a) mart_matchday_insights (MODIFIED): surface two boolean columns derived from the momentum mart's
+      window_type — home_form_from_qualifiers = coalesce(mh.window_type = 'qualifiers', false) and
+      away_form_from_qualifiers = coalesce(ma.window_type = 'qualifiers', false). Additive only (no
+      change to existing columns/grain/row-count). coalesce keeps them boolean (never null). The live
+      `formContextLabel` UI reads exactly these field names; the export passes them through unchanged.
+      Also de-stale the home/away_form_games_played descriptions ("last-5 window" → "form window;
+      last-5 normally, cumulative for tournament fixtures").
+  (b) domestic_league.yml (MODIFIED): document the two new boolean columns (not_null — coalesce makes
+      them total) and update the two games_played descriptions.
+  (c) 99_gaps_register.md (MODIFIED): update the GAP-18 row from "mart layer landed / label is the
+      immediate follow-up" to "live preview fixed (numbers + label)"; the v2 blueprint drill-down
+      (form_window[] cap, separate phase column) stays under #391.
 
 refs: >
-  GAP-18 (docs/wireframes/99_gaps_register.md; metrics_display.md §4 + §5.3d; 01_fixture_page.md §5.3d;
-  metrics_context_model.md §4 national-team matrix; docs/competitions/wc26.md "WC form window rules").
-  CPO-approved 2026-06-11; CPO go-ahead 2026-06-16 (this conversation) to change live WC form numbers,
-  with window_type values 'tournament_to_date' + 'qualifiers' confirmed and existing 'season_to_date'
-  left untouched. Parent link source: docs/competition_registry.yml parent_competition (WCQ* -> WC).
+  GAP-18 live-label completion. Commit 1 = PR #485 mart layer. UI: site/match-preview/index.html
+  formContextLabel() switches on home/away_form_from_qualifiers; i18n keys formContextWcQualifiers /
+  formContextWcTournament already exist (en/de/fi). Live export scripts/export_pages_data.py is
+  SELECT * → full-dict passthrough (no change needed). CPO approved widening 2026-06-16 (this conversation).
 
 scope_paths:
-  - scripts/sync_dbt_vars.py
-  - scripts/check_registry_var_sync.py
-  - dbt_project/seeds/competition_registry.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/dbt_project.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
-  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
-  - dbt_project/models/5_marts/shared/shared.yml
-  - dbt_project/tests/assert_tournament_form_window.sql
-  - docs/competitions/wc26.md
+  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
   - docs/wireframes/99_gaps_register.md
   - .claude/task/contract.md
 
 decisions_taken: >
-  CPO 2026-06-11 approved GAP-18 (implement the matrix tournament exception + phase descriptor, schedule
-  before WC). CPO 2026-06-16 (this conversation): rules are settled — opening-round (pre-MD1) form =
-  qualifier matches; from MD2 = cumulative tournament-to-date; never "last 5"; explicit go-ahead to change
-  the live WC form numbers now; window_type values 'tournament_to_date' + 'qualifiers'; existing
-  'season_to_date' key left UNTOUCHED (published key, separate decision). Mechanism: sync the registry's
-  existing parent_competition field into the registry seed (the sanctioned single-source path) and read it
-  in the window model — no separate Core parent-child dim (single consumer; avoids a premature
-  consumer-less model).
+  CPO 2026-06-16 (this conversation) approved widening the GAP-18 PR to wire the live WC form LABEL,
+  after the reviewers + investigation showed the mart-numbers change alone reaches the live preview but
+  leaves the label wrong (the live UI already has the labels + i18n; only the form_from_qualifiers flag
+  is missing). Derive the flag from the existing window_type ('qualifiers') in dbt (consumption-layer
+  contract: logic in dbt, the export only selects) — no export or UI/i18n change.
 
 decisions_reserved:
-  - SCOPE — this PR covers world_championship + continental_championship (the types the GAP-18 display
-    entry names; the live-critical set). The matrix §4 ALSO gives `qualifying` a cumulative campaign window
-    while running — NOT implemented here (not time-critical; the display GAP-18 entry names only
-    championships). Filed as #483; do NOT silently extend or silently drop.
-  - PLAYER-side window — int_momentum__player selects last-5 inline (no shared player window model); GAP-18
-    names the TEAM model and the player top-strip is secondary. Player stays 'last_5' this PR; filed as
-    #484 (immediate follow-up). Do not self-extend scope.
-  - A new Core parent-child dim (the GAP-18 "Core dim" framing) — deferred; implemented via the seed.
-    If a reviewer/CPO deems the core dim mandatory, escalate rather than self-decide.
-  - Any other §10 question -> escalate in plain language; do not self-rule.
+  - The boolean field NAMES (home_form_from_qualifiers / away_form_from_qualifiers) are FIXED by the
+    existing live UI (formContextLabel reads these exact keys) — match them, do not rename.
+  - v2 blueprint drill-down (form_window[] ≤5 cap, separate `phase` column) stays under #391 — out of scope.
+  - qualifying-type cumulative window #483, player strip #484 — still deferred.
+  - Any §10 question -> escalate in plain language.
 
 done_when:
-  - `python scripts/sync_dbt_vars.py` regenerates competition_registry.csv with parent_competition;
-    `python scripts/check_registry_var_sync.py` and `python scripts/check_competition_type_seed.py` pass.
-  - dbt parse clean; sqlfluff lint passes on changed models; validate-local clean.
-  - Read-only BQ spot-check on live WC ('WC') upcoming fixtures confirms: sides whose team has >=1 prior
-    2026 WC leg show window_type='tournament_to_date' with games_in_window = that prior count (verified >5
-    where applicable, i.e. the 5-cap is gone); opener sides show 'qualifiers' over WCQ* legs (or empty when
-    no qualifier legs); non-tournament fixtures unchanged ('last_5', <=5 legs).
-  - ci-data-build (full BQ build + DQ tests) green: assert_momentum_window_matches_momentum still passes;
-    new assert_tournament_form_window passes; all window_type accepted_values updated so no test regresses.
-  - int_momentum_window.yml / int_momentum.yml / shared.yml + seeds/schema.yml document the new values/column.
-  - reviewers: scope-auditor + analytics-engineer-reviewer + cto-reviewer + data-engineer-reviewer +
-    bi-analyst-reviewer all PASS (>=2 named risks each), no FAIL, every ESCALATE has a recorded CPO ANSWER.
+  - dbt parse clean; sqlfluff lint passes on mart_matchday_insights.sql; validate-local clean.
+  - mart_matchday_insights has home_form_from_qualifiers / away_form_from_qualifiers (boolean, never
+    null); domestic_league.yml documents them with not_null; existing columns/grain/row-count unchanged.
+  - Read-only BQ spot-check (or post-build): for live WC opener fixtures the flags are true; for MD2+
+    WC fixtures false; for non-tournament fixtures false.
+  - ci-data-build green (the mart builds + its tests pass); the live UI formContextLabel now switches
+    "all qualifying matches" vs "all World Cup matches so far" correctly (the export passes the new
+    columns through unchanged — SELECT *).
+  - reviewers: scope-auditor + analytics-engineer-reviewer + bi-analyst-reviewer all PASS.
 
 amendments: (none)

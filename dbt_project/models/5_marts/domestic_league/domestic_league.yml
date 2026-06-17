@@ -179,15 +179,24 @@ models:
       - name: away_league_rank
         description: "Away team's rank in its own competition+season table (mart_standings). Null for knockout rounds and for overlapping-table leagues (team in >1 section that season), or before standings exist."
       - name: home_form_games_played
-        description: "Home: finished matches in the W1 last-5 window (= games_in_window). 0 when none; never null."
+        description: "Home: finished matches in the W1 form window (= games_in_window; last-5 normally, cumulative for tournament fixtures). 0 when none; never null."
         tests: [not_null]
       - name: away_form_games_played
-        description: "Away: finished matches in the W1 last-5 window. 0 when none; never null."
+        description: "Away: finished matches in the W1 form window (last-5 normally, cumulative for tournament fixtures). 0 when none; never null."
         tests: [not_null]
       - name: home_points_won_sum_form
         description: "Home: league points (3/1/0) over the form window. UI shows points captured as pts/(3*games)."
       - name: away_points_won_sum_form
         description: "Away: league points over the form window."
+      - name: home_form_from_qualifiers
+        description: >
+          True when the home side's W1 form window is the qualifier window (window_type='qualifiers',
+          GAP-18) — the team's opener in a tournament. Drives the live formContextLabel ("all qualifying
+          matches" vs "all World Cup matches so far"). Never null (coalesce → false).
+        tests: [not_null]
+      - name: away_form_from_qualifiers
+        description: "Away: true when the side's W1 form window is the qualifier window (GAP-18). Never null."
+        tests: [not_null]
       - name: home_goals_per_match_recent
         description: "Home: goals scored per game (scoreline window)."
       - name: away_goals_per_match_recent
