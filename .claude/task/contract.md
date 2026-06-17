@@ -1,78 +1,85 @@
-# Task contract — docs: content architecture spec (blocks / tabs / navigation + flagships + new-mart map)
+# Task contract — feat: consolidate player-season aggregation (#480, narrow scope)
 
-> CPO-directed across this conversation (2026-06-17). Writes a NEW doc `docs/content_architecture.md`
-> capturing the modular content architecture we iterated: the 3-layer model (blocks=1 mart → tabs →
-> navigation graph), the entity-type templates, the block library + block↔mart map, the tabbed page
-> compositions, the flagship reads, the list of NEW marts to build, and the backfill depth policy.
-> Cross-linked from `site_architecture.md` (the v2 IA it extends) and `metrics_context_model.md` (the
-> §8 metrics foundation). DOCS ONLY — the engine spec every later build follows. No models, no
-> registry change, no ingest. Reviewers: scope-auditor (always) + analytics-engineer-reviewer
-> (block↔mart map, new marts, layer soundness) + bi-analyst-reviewer (the IA / wireframe organizing
-> principle + display contract) — CPO-directed.
+> CPO-directed this conversation (2026-06-17), NARROW scope chosen. Consolidates the three overlapping
+> player-season aggregations onto one shared intermediate model, applying the catalogue-correct
+> (weighted) pass-accuracy and removing the duplicated inline rollups. Builds on metrics_context_model.md
+> §8 (the player performance surface, merged #491). Read-only verification this session established the
+> blast radius: `mart_player_season` feeds ONLY `mart_top_scorers` (goals/assists/etc. — NOT pass
+> accuracy or rating); the export does not read `mart_player_season`. So its `pass_accuracy_avg_percent`
+> + `rating_avg` are currently UNCONSUMED — the avg→weighted fix is a latent-correctness change to an
+> unconsumed column, not a live/v2 surface change. `mart_player_profile` is already weighted, so it stays
+> byte-identical. Reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt). Numbers: no
+> consumed number changes; the weighted pass-accuracy already matches the catalogue + football-analytics's
+> spec-review sign-off.
 
 objective: >
-  Create docs/content_architecture.md as the modular IA + data-architecture spec; add cross-link
-  pointers in docs/site_architecture.md and docs/metrics_context_model.md. Records decisions already
-  taken this conversation; introduces no new ones. It is the spec the wireframes arrange and the
-  marts (existing + new) build against.
+  One shared player-season aggregation; both marts consume it; fix the divergent pass accuracy; remove
+  duplication. Keep today's grain (per player-competition-season). DEFER the per-club grain, this/last
+  side-by-side, and the appearance block (the full §8.3 model) to a follow-up.
+  (a) `dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql`
+      (MODIFIED, promoted from orphan to the canonical shared int): fix passes_accurate floor()->round()
+      (catalogue-correct, matches mart_player_profile); add `league_sk` + `season_sk` (from fct_fixture);
+      add the union of raw aggregates both marts need (starts, substitute_appearances, shots_total,
+      rating_avg, + the existing catalogue counts); match mart_player_profile's computations exactly
+      (coalesce(0) on counts; appearances = count(*); round-based passes_accurate) so the profile stays
+      byte-identical. Grain unchanged: (player_sk, league_code, season_api_year) + league_sk/season_sk.
+  (b) `dbt_project/models/5_marts/shared/mart_player_profile.sql` (MODIFIED): replace the inline `agg`
+      CTE with a select from `int_player_season__metrics`; KEEP the dim_player identity join, the
+      modal_position CTE, the leaderboard rank windows, and every output column + the surrogate key —
+      output byte-identical.
+  (c) `dbt_project/models/5_marts/shared/mart_player_season.sql` (MODIFIED): replace the inline `agg`
+      CTE with a select from `int_player_season__metrics` (+ dim_player identity); preserve the consumed
+      columns exactly (those mart_top_scorers reads); replace `pass_accuracy_avg_percent` (naive avg,
+      0-100, unconsumed) with the weighted catalogue `pass_accuracy_pct` (0-1, matches profile). Keep
+      rating_avg (unconsumed, preserved).
+  (d) schema yml + tests: update the int_player_season__metrics doc/tests (new columns, grain unique
+      test) and the mart yml entries for the changed mart_player_season column; keep the existing grain +
+      relationship tests.
 
 refs: >
-  This conversation 2026-06-17. Builds on docs/metrics_context_model.md §8 (player performance
-  surface, PR #491 merged) and docs/site_architecture.md (v2 IA, epic #361). Downstream builds:
-  #480 (player-season model), plus the new marts and the backfill listed in the doc.
+  #480. This conversation 2026-06-17 (narrow scope). Foundation = metrics_context_model.md §8 (#491).
+  Delta verified read-only: avg vs weighted pass accuracy diverges (mean 3.9pts, tail to 62pts); the
+  weighted value already lives in mart_player_profile.pass_accuracy_pct.
 
 scope_paths:
-  - docs/content_architecture.md
-  - docs/site_architecture.md
-  - docs/metrics_context_model.md
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+  - dbt_project/models/5_marts/shared/mart_player_season.sql
+  - dbt_project/models/5_marts/shared/shared.yml
   - .claude/task/contract.md
   - .claude/task/review.md
 
 decisions_taken: >
-  CPO (this conversation, 2026-06-17), all explicitly ruled and to be RECORDED (not re-decided):
-  (1) Three-layer model: BLOCKS (one block = one mart, sliced by league_code/season/entity) -> TABS
-      (per-entity compositions; "profile" is just the Overview tab) -> NAVIGATION GRAPH (entity<->entity
-      cross-links). Pages never compute; they arrange blocks. Density = compact/full via the tier rule.
-  (2) Entity types: Competition, Team, Player, Fixture (rich, full tabbed templates); Matchday, Coach
-      (thin SEO templates; Coach feasible — API-Football has coaches); Nation, Stadium deferred.
-  (3) The block library + block->mart map across families (Identity, Performance, Standings/rank,
-      Schedule, Listings, Matchup, Insight), with subject (team/player) and where-applicable rules.
-  (4) Flagship reads = a small signature set, NOT vs-benchmark (which is table stakes / the engine):
-      deserved-vs-actual (v1) + vs-own-history/YoY (v1); opponent & schedule context (v1.x, the
-      hardest, football-analytics-owned); contribution-share (cheap bonus). Benchmark mart is the
-      supporting engine that supplies league context.
-  (5) New marts to build (each its own later PR): mart_competition_benchmarks (team+player),
-      mart_leaderboards (generalize mart_top_scorers), mart_roster, mart_player_career (+ team
-      history), dim_coach (+ block).
-  (6) Backfill depth policy: tiered — top leagues 10 seasons / 2nd-tier + smaller 5 / continental club
-      10 / world+continental championships last 4 editions / qualifiers current+previous cycle / cups
-      5 — PLUS a data-quality floor (skip seasons with empty player-stats) and a phased rollout.
-  (7) Build order: #480 (one player-season model) -> backfill -> leaderboards/roster -> benchmark ->
-      coaches/career. The season record<->rollup unification is the team-side analog of #480.
+  CPO (this conversation, 2026-06-17): (1) NARROW scope — consolidate the three rollups to one shared
+  weighted int + fix mart_player_season's avg→weighted; DEFER per-club grain / side-by-side / appearance
+  block to a follow-up. (2) Canonical pass accuracy = the catalogue weighted ROUND definition (already in
+  mart_player_profile + the catalogue; football-analytics confirmed it in the §8 spec review). (3) Output
+  preservation: mart_player_profile byte-identical; mart_player_season preserves consumed columns;
+  mart_top_scorers unaffected. (4) The orphan int is PROMOTED (consumed by both marts), not deleted —
+  "retire the orphan" is satisfied by it no longer being orphaned.
 
 decisions_reserved:
-  - SPEC ONLY. Every build is a separate PR with its own review (and its own number-change sign-off):
-    #480, the new marts, coaches ingest, and the backfill execution.
-  - Applying the backfill depths to docs/competition_registry.yml (history_seasons) and RUNNING the
-    backfill = a separate registry change + cost-gated ingest task (data-engineer) — NOT here.
-  - Player-side flagship analogs (player deserved-vs-actual; position-aware percentile; the
-    opponent-adjustment definition) are v1.x and football-analytics-owned where football-domain.
-  - New metric mechanisms (benchmark/percentile, contribution-share) get metric_catalogue rows +
-    football-analytics sign-off at BUILD time, not in this doc.
-  - Naming-consistency cleanup (suffix __team/__player vs prefix team_/player_; mart_team_fixtures vs
-    mart_player_match_log) is a separate pass, only NOTED here.
-  - Any further §10 (a NEW mechanism, a grain change, a shipped-output change) -> escalate in plain
-    language; do not decide.
+  - DEFERRED to a follow-up (NOT here): per-club grain (transfers split), this/last side-by-side, the
+    appearance/playing-time block — i.e. the full §8.3 model. Keep today's grain.
+  - Do NOT move int_player_season__metrics to a new folder in this PR (folder cleanup is the separate
+    naming-consistency pass) — promote it in place.
+  - If reproducing mart_player_profile from the shared int yields ANY value drift (it must be
+    byte-identical), STOP and reconcile — do not ship a silent profile-number change.
+  - If a consumer of mart_player_season's pass_accuracy_avg_percent / rating_avg is found beyond
+    mart_top_scorers + the export (already checked: none), STOP and escalate before renaming.
+  - Any §10 (a shipped-output change to a CONSUMED surface, a grain change, a new mechanism) -> escalate.
 
 done_when:
-  - docs/content_architecture.md exists with: principles; entity types; block library + block->mart
-    map; tabbed page compositions; navigation graph; flagship reads; new-mart list; backfill policy;
-    build sequence; honest limits.
-  - docs/site_architecture.md and docs/metrics_context_model.md carry a cross-link pointer to it.
-  - Internal consistency: no new CPO decision beyond decisions_taken; everything traces to a decision
-    made this conversation; build/registry/ingest work is reserved, not performed.
-  - Docs-only — no model/SQL/seed/registry/python touched, so NO dbt build / ingest is run.
-  - reviewers: scope-auditor + analytics-engineer-reviewer + bi-analyst-reviewer all PASS (>=2 named
-    risks each), no FAIL, every ESCALATE has a recorded CPO ANSWER.
+  - dbt parse clean; sqlfluff lint passes; check_layer_contract green.
+  - int_player_season__metrics is consumed by BOTH marts; no inline player-season agg remains in either
+    mart; passes_accurate uses round() (not floor()).
+  - mart_player_profile output is byte-identical to main (verified by compiled-logic equivalence or a
+    read-only before/after compare on key columns incl. pass_accuracy_pct, goals, appearances, ranks).
+  - mart_player_season preserves the columns mart_top_scorers consumes; pass accuracy is now the weighted
+    pass_accuracy_pct; mart_top_scorers compiles unchanged.
+  - ci-data-build green (full BQ build + DQ tests), incl. the grain/relationship tests on all three models.
+  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each), no FAIL, every
+    ESCALATE has a recorded CPO ANSWER.
 
 amendments: (none)

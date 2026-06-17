@@ -1,49 +1,45 @@
-# Review — docs/content-architecture-spec — 2026-06-17
+# Review — feat/player-season-consolidation — 2026-06-17 (#480, narrow)
 
-> NEW `docs/content_architecture.md` (the modular IA + data-architecture spec: blocks → tabs →
-> navigation, flagship reads, new-mart map, backfill policy) + cross-link pointers in
-> `site_architecture.md` and `metrics_context_model.md`. DOCS-ONLY; every build reserved to later PRs.
-> Reviewers (CPO-directed for this data + IA content): scope-auditor + analytics-engineer-reviewer +
-> bi-analyst-reviewer. One round of FAILs fixed: the player tier carve-out (display-contract
-> contradiction), contribution-share "derive" → "mart-computed", percentile scope + per-tab block
-> placements re-framed as reserved/proposed, and "transfers retired" → "no transfers tab". All PASS.
+> Consolidates the three player-season aggregations onto one shared int
+> (`int_player_season__metrics`); `mart_player_profile` + `mart_player_season` now COMPOSE it,
+> inline aggregation removed. Profile byte-identical (faithful reproduction); season's pass accuracy
+> corrected naive-avg → catalogue-weighted (an UNCONSUMED column). floor()→round() fix. Today's grain
+> kept (per-club split deferred to §8.3). Reviewers: scope-auditor (always) + analytics-engineer (dbt).
+>
+> Re-spin: the first build failed CI on ONE test — the int's pass_accuracy_pct range test was written
+> column-level (dbt_utils.expression_is_true prepends the column → invalid SQL); moved to model-level
+> (the marts' working pattern). Everything else built green (PASS=580, incl. the (player_sk, season_sk)
+> grain-unique + relationship tests). The branch was then collapsed to one commit (it had carried a
+> rebase + a hash-rebind commit) so the staged diff == the PR diff == this hash. Both reviewers
+> re-passed on the corrected diff.
 
-diff_sha256: ed18c9ad9de5b572d29e329d7e7bcdcbd5f0f5a6d63d73f8fa0c6a10ae947cfd
+diff_sha256: 6a2eac942503c08763869230cefaba1096bcd71fcd23a6d9325373a2e2b47765
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Reserved items are not silently decided: position-aware percentile, the contribution-share
-  definition, and the exact per-tab block placements are all marked RESERVED / PROPOSED (not settled)
-  — verified against the contract's decisions_reserved; each doc section traces to a decisions_taken entry.
-- Scope + no stray edits: all hunks within scope_paths (the three docs + contract); the registry,
-  metric_catalogue seed, locked metrics_display.md, and all models are untouched; the backfill
-  registry change + ingest are explicitly deferred, not performed.
+- pass_accuracy_pct numerical equivalence: the int computes passes_accurate =
+  sum(round(passes_total*passes_accuracy_percent/100)) and passes_total = sum(coalesce(.,0)) — identical
+  to mart_player_profile's removed inline agg; both marts now read the same safe_divide ratio →
+  mart_player_profile byte-identical; only mart_player_season's (unconsumed) pass accuracy changes
+  avg→weighted. mart_top_scorers reads goals/assists/shots_on_target etc., not the changed column.
+- Grain uniqueness boundary (multi-competition player in one year): the new unique key (player_sk,
+  season_sk) is at least as selective as the old (league_code, season_api_year, player_sk) — season_sk
+  encodes one (league, season), so a player in two competitions yields two distinct rows; no collision.
+  Narrow scope held (no per-club grain / side-by-side / appearance block); no §10 silently decided.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Block↔mart map verified against real models: every "✓" block traces to an existing mart
-  (`mart_momentum__*`, `mart_fixture_stats__*`, `mart_season_record__*`, `mart_team_profile` incl.
-  `performance_vs_results_gap`, standings, mapping); the new marts (benchmarks, leaderboards, roster,
-  player_career, dim_coach) are realistic from data we have, with correct dependencies (benchmark →
-  clean season agg; career → backfill; dim_coach → `RAW_APIF_COACHES`, which exists).
-- Flagship reads map to real, computable metrics — deserved-vs-actual = the live
-  `performance_vs_results_gap` (our honest chance-quality stand-in, no faked xG); YoY = the live team
-  model; no fabricated metric. (Reviewed the initial diff; the subsequent fixes only clarified the
-  consumption-layer — contribution-share → "mart-computed" — plus reserved framing and the transfers
-  wording, all addressing points this review raised, so the PASS carries on the final diff.)
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Density/tier rule now correctly carves out players: Principle 5 states team blocks = tier-1 compact
-  but **player blocks have no tiers — per-surface rules** (citing the fixture top-players strip), which
-  matches the locked `metrics_display.md` ruling verbatim. The earlier contradiction is resolved.
-- Consumption-layer + metric governance respected: contribution-share is "mart-computed" (not
-  export-derived); benchmark/percentile/contribution-share definitions are deferred to build-time
-  catalogue + football-analytics; no new i18n string or display ruling is coined. The §4 tab
-  compositions are explicitly "proposed", so the wireframe binding rule is not breached by an IA doc.
+- The CI-fix is a pure test-contract relocation, not a logic change: model-level
+  dbt_utils.expression_is_true resolves pass_accuracy_pct as a column (the marts' valid pattern); the
+  prior column-level form prepended the column → invalid SQL. Fires on the int's (player_sk, season_sk)
+  grain — complete coverage; no value drift possible from the move.
+- passes_accurate null-propagation (round(passes_total*pct/100) drops a per-fixture row when either
+  input is null) is PRE-EXISTING — byte-identical to the removed mart_player_profile agg; the
+  consolidation introduces no new drift. Byte-identity of mart_player_profile, consumed-column
+  preservation in mart_player_season, layer compliance (int→core only; marts→int), and the
+  grain/range/relationship tests all verified.
 
 ## escalations
 (none)

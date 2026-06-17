@@ -63,27 +63,48 @@ models:
 
   - name: int_player_season__metrics
     description: >
-      Per (league_code, season_api_year, player_sk) full-season aggregate statistics over all
-      finished matches. Mirrors int_team_season__full_season_metrics at player grain.
-      Retained for the planned player profile / season-recap surface; its former
-      consumer int_matchday__fixture_player_insights was retired in #321.
-      team_sk is the player's last known club in that league/season (any_value ordered by kickoff desc).
-      Rates are null when denominator is zero; never coerced to 0.
-      Grain: (league_code, season_api_year, player_sk).
+      Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
+      player-season rollup consumed by BOTH mart_player_profile and mart_player_season (#480
+      consolidation; replaces the inline aggregation each mart duplicated). Atoms follow
+      docs/player_metrics_catalogue.md: passes_accurate = per-fixture ROUND(passes_total *
+      passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
+      nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
+      denominator is zero. team_sk = the player's last known club that competition-season.
+      Grain: (player_sk, season_sk) — today's grain (the per-club split is the deferred §8.3 follow-up).
     config:
       tags: ["intermediate", "football", "team_season", "player"]
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
-            - league_code
-            - season_api_year
             - player_sk
+            - season_sk
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+          name: int_player_season_pass_accuracy_pct_in_range
     columns:
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: season_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: league_code
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
-      - name: player_sk
+      - name: appearances
         tests: [not_null]
-      - name: matches_played
-        tests: [not_null]
+      - name: pass_accuracy_pct
+        description: "Weighted pass accuracy (accurate ÷ attempted); 0-1 or null. Range-tested at model level."
