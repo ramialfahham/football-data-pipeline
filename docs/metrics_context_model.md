@@ -191,10 +191,144 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
 ## 7. Deferred / out of scope here
 
 - **Full-season analysis surface** (the season-to-date mart + year-over-year-by-matchday
-  comparison for teams and players) — its own design discussion.
+  comparison) — its own design discussion. **The player half is now resolved in §8** (CPO,
+  2026-06-17); the team season surface is already built and stays its own discussion.
 - **Opponent-adjusted form** — the named next metric.
 - **Other surfaces** — standings, per-fixture stats, team profile, player profile — each
   its own mart and discussion.
 - **Friendlies** — taxonomy only; excluded from form windows when eventually ingested.
 - **Year-over-year-by-matchday** applies to **league formats**; cups/tournaments have a
   cumulative number but not matchday-aligned year-over-year.
+
+---
+
+## 8. Player performance surface (resolves the §7 deferral for players)
+
+Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
+It fixes the one real gap: the player season rollup exists three ways today with divergent
+numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
+in another) because each re-implements its own aggregation. Definitions stay in
+`docs/player_metrics_catalogue.md`; the locked display rows stay in
+`docs/wireframes/metrics_display.md`. Build follow-ups: **#480** (consolidate to one
+player-season model) and **#484** (player national / tournament context) — not built here.
+
+### 8.1 One aggregation, two windows (the core rule)
+
+There is **one** aggregation logic; the window is the only variable. The per-match player leg
+(one row per player per finished match, raw stats) is the shared building block. **Form** and
+**season** are the same aggregation over a *different set of legs* — the aggregation never forks.
+
+- **Counts** → sum over the window's legs.
+- **The four ratios** — duels-won %, dribble-success %, pass-accuracy %, save % → **weighted**:
+  `sum(numerator) / sum(denominator)`. **Never** an average of per-match percentages.
+- **Honest absence** — only legs the provider gave stats for count; `games_played` is that
+  appearance count, not team matches.
+- **Zero denominator** → render `—`, the counts still shown (`0 of 0 · —`).
+- **Display** is **totals + the four weighted %s** (per the locked rows), **not** per-match.
+  The single deliberate average is "avg minutes per appearance" in the context block (§8.2),
+  normalised by appearances.
+
+This is why the three models diverged — they each re-implemented the math. The build collapses
+them onto one shared aggregation step that both the form mart and the season mart call.
+
+**Selection is separate from aggregation** and may take several shapes — club last-5,
+within-competition season-to-date, and the national-team context window (§8.4) — but each feeds
+the *same* aggregation. Every selector lives in the **intermediate** layer (`layering.md`); a new
+window shape means a new intermediate selector, never selection logic pushed into a mart.
+
+### 8.2 What we show
+
+The nine CPO-locked player rows (`docs/wireframes/metrics_display.md`, 2026-06-11) — referenced,
+not restated — **plus** an appearance / playing-time **context block** (a proposed addition to
+that locked display contract; recorded here, to be formally amended there — bi-analyst-owned):
+
+| Row | Form (last 5) | Season | Aggregation |
+|-----|---------------|--------|-------------|
+| **Appearances** (apps · starts · subs) | `4 of 5 · 3 starts` | `26 · 22 starts · 4 sub` | count |
+| **Playing time** (total · avg per app) | `310 min · Ø 78` | `2,040 min · Ø 78` | sum; avg = total ÷ apps |
+
+Plus, in the **window meta-line**, the **last appearance with the year** (e.g.
+`18 May 2026 vs Dortmund`). The block is the sample-size / availability context that makes the
+season totals interpretable.
+
+All of these are **mart columns** — appearances, starts, subs, total minutes, avg-minutes-per-app,
+and `last_appearance_date` + `last_appearance_opponent` (the `max(kickoff)` pick and the opponent
+join happen **in the model**). The export and UI only **format** them; no derivation, ranking, or
+"latest" selection in the consumption layer (`layering.md`).
+
+### 8.3 Season model (what #480 builds)
+
+**One** player-season model, replacing the three divergent rollups.
+
+- **Grain:** per player **per club** per competition per season — a mid-season transfer yields a
+  **separate per-club line** (not pooled).
+- **Within one competition** always — never cross-competition (cumulative is the within-comp W2).
+- Carries **this season + previous season side-by-side** (a persistent comparison, not a
+  pre-season-only fallback) — as **parallel columns on the same per-club-season row** (wide; e.g. a
+  `_prev_season` set), **not** a second row, so the grain and key below are unchanged.
+- **Surrogate key covers the full grain** — `(player_sk, team_sk, league_code, season_sk)`. The
+  current rollups key on only `(player_sk, season_sk)`, which is **non-unique** under per-club grain
+  (a mid-season transfer collides). #480 replaces it with a full-grain key — mirroring the team
+  mapping's `team_competition_season_sk` — under a `unique` test on the grain. The key's name is set
+  in #480 (a naming call), but its **columns are fixed by the grain above**.
+
+### 8.4 Window matrix — which legs form each window
+
+**Club competitions** — a player's club form *is* his relevant form; no divergence from the team
+rule (§4):
+
+| Competition type | Before it starts | During | After |
+|---|---|---|---|
+| Domestic league | Previous season (this league) | Last 5 across the club's competitions | Full season |
+| Domestic cup · continental club · super cups · club qualifying | Last 5 across the club's competitions | Last 5 (super cups: single match) | Full edition / cup run |
+
+**National-team competitions** — reframed as **context, not form** (strict club/national
+separation: the national view never borrows club data):
+
+| State | What we show |
+|---|---|
+| Any NT match outside a big tournament (qualifiers, friendlies, warm-ups) **and** before a big tournament | Last **≤5 national-team appearances**, pooled across **all** NT competition types (friendlies included once ingested), by recency, **no season cap** |
+| **Big tournament** (world / continental championship) — **during & after** | **Cumulative** tournament figures **only** |
+| *(Future — when NT history is ingested)* | Career national-team record, **grouped by NT competition type** (WC · Euro · qualifiers · friendlies) |
+
+Symmetry: club fixture → last 5 across club comps; national fixture → last 5 across national
+comps. Big national tournaments are the cumulative exception (same shape as the team rule, §4).
+
+The distinct **window kinds** this matrix produces are: domestic previous-season · club last-5 ·
+domestic/club full-season · national-team context (≤5 NT appearances pooled) · big-tournament
+cumulative. #480/#484 set the final `form_window_kind` enum values in the catalogue from this list
+(replacing the superseded `wc_pre_via_domestic`); the **set is fixed by this matrix**, the labels
+are a build-time naming call.
+
+### 8.5 Override of the catalogue's form-window dispatch
+
+This **supersedes** the "Form-window dispatch" section of `docs/player_metrics_catalogue.md`
+(player WC form drawn from the **domestic club**, qualifiers excluded). That section treated
+national data as predictive **form** and rejected stale qualifiers in favour of the domestic
+club. Reframing the national surface as **context** (not a prediction of tournament form)
+dissolves its three objections (roster turnover, stale dates, weaker opposition — all
+form-prediction arguments), restores strict club/national separation, and removes the
+domestic-league-coverage "Not provided" exposure. **CPO override, 2026-06-17;** football-analytics
+confirms the football-correctness.
+
+### 8.6 Framing
+
+**No separate "context vs form" UI mechanism.** The existing locked **window meta-line** already
+declares scope per state and carries the distinction through its copy (club → "form";
+national → "appearances / record"). Final wording is set at i18n.
+
+### 8.7 Build follow-ups (not built here)
+
+- **#480** — consolidate the three player-season rollups onto the one model (§8.3) using the one
+  shared aggregation (§8.1). Changes shipped numbers (e.g. pass accuracy to the weighted,
+  catalogue-correct value) → analytics-engineer + football-analytics review on that PR.
+- **#484** — player national / tournament context per §8.4. Requires a **new intermediate
+  selector**: the NT-context window (cross-competition *within national*, no season cap, ≤5 by
+  recency) is a **third** selection shape that neither existing selector covers (last-5 momentum =
+  cross-comp this season; season-record = within-comp per season). It stays in the **intermediate**
+  layer — it must NOT be built inside a mart. The selector is **national-team-anchored**
+  (`entity_type = 'national'`, the national `team_sk`), distinct from the upcoming-fixture-anchored
+  momentum builder; its exact model name and grain are #484's design.
+- **Cost-gated data** — friendlies ingest (for the NT pool); national-team history (≈ #477, for
+  the grouped-by-type career view). The rules are defined; the data lights up only when ingest is
+  CPO-approved.
