@@ -1,382 +1,255 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3aa89fe..421e7c4 100644
+index 421e7c4..46d65a8 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,65 +1,88 @@
--# Task contract — feat: GAP-18 live WC form LABEL (commit 2)
-+# Task contract — feat: dim_team_competition_season_mapping (team↔competition↔season membership, Phase 1)
+@@ -1,88 +1,79 @@
+-# Task contract — feat: dim_team_competition_season_mapping (team↔competition↔season membership, Phase 1)
++# Task contract — feat: dim_team pure entity — drop the league_code stamp (Phase 2)
  
--> Commit 2 of branch feat/gap-18-tournament-form-window (PR #485). Commit 1 landed the dbt mart
--> LAYER — WC form NUMBERS are now tournament/qualifier-cumulative (window_type). This commit wires the
--> live match-preview LABEL: the UI (site/match-preview/index.html `formContextLabel`) and i18n
--> (`formContextWcQualifiers` / `formContextWcTournament`, already present in en/de/fi) switch on a
--> boolean `form_from_qualifiers` flag that the retired `mart_matchday_insights_wc` used to provide and
--> the current preview mart does not. Without it the live WC preview shows correct cumulative numbers
--> but always the "all World Cup matches so far" label (wrong for qualifier-window teams). CPO approved
--> this widening (this conversation). Pure dbt: one mart + its schema + the gaps-register marking. The
--> live export (scripts/export_pages_data.py) is `SELECT *` passthrough writing full row dicts, so the
--> new columns reach the JSON with NO export change. Reviewers: scope-auditor + analytics-engineer + bi-analyst.
-+> CPO-approved this conversation (2026-06-17). Root cause of the BL1/BL2 directory gap: `dim_team.league_code`
-+> is a LATEST-INGEST PROVENANCE stamp (one row per team, latest /teams payload wins), NOT a team↔competition
-+> affiliation. All 19 BL1 + 19 BL2 clubs are present in dim_team but stamped `DFBP` (German Cup /teams ingested
-+> 2026-06-16, after the leagues' 2026-06-10) — so a `league_code='BL1'` lookup returns nothing. NOT an ingestion
-+> gap (raw HAS BL1/BL2 /teams). Latent for every league; PL survived only by ingest timing. The live preview is
-+> unaffected (it reads league_code from fixtures, not the stamp).
-+>
-+> Fix shape (CPO-approved): mirror the player entity/affiliation split (dim_player + dim_player_team_season_mapping).
-+> This is **Phase 1** — add the new core mapping dim ONLY. Net-new, breaks nothing, makes "teams in competition X
-+> this season" correct for every league. **Phase 2** (drop dim_team.league_code + repoint mart_team_market_value +
-+> point the season-rollup at the spine) is a SEPARATE follow-up PR — NOT in this one.
-+> Reviewers: scope-auditor (always) + analytics-engineer-reviewer (all paths are dbt_project/**).
+-> CPO-approved this conversation (2026-06-17). Root cause of the BL1/BL2 directory gap: `dim_team.league_code`
+-> is a LATEST-INGEST PROVENANCE stamp (one row per team, latest /teams payload wins), NOT a team↔competition
+-> affiliation. All 19 BL1 + 19 BL2 clubs are present in dim_team but stamped `DFBP` (German Cup /teams ingested
+-> 2026-06-16, after the leagues' 2026-06-10) — so a `league_code='BL1'` lookup returns nothing. NOT an ingestion
+-> gap (raw HAS BL1/BL2 /teams). Latent for every league; PL survived only by ingest timing. The live preview is
+-> unaffected (it reads league_code from fixtures, not the stamp).
++> CPO-approved this conversation (2026-06-17), the follow-up to Phase 1 (PR #488, merged: the new
++> dim_team_competition_season_mapping membership dim). Phase 2 finishes the dim_team entity/affiliation
++> split: dim_team becomes a PURE ENTITY by dropping its `league_code` column — the latest-ingest
++> provenance stamp that was the root of the BL1/BL2 directory bug. Now that membership lives in
++> dim_team_competition_season_mapping (Phase 1), nothing legitimately needs the stamp. Mirrors the
++> player redesign (dim_player dropped league_code; affiliation is dim_player_team_season_mapping).
+ >
+-> Fix shape (CPO-approved): mirror the player entity/affiliation split (dim_player + dim_player_team_season_mapping).
+-> This is **Phase 1** — add the new core mapping dim ONLY. Net-new, breaks nothing, makes "teams in competition X
+-> this season" correct for every league. **Phase 2** (drop dim_team.league_code + repoint mart_team_market_value +
+-> point the season-rollup at the spine) is a SEPARATE follow-up PR — NOT in this one.
+-> Reviewers: scope-auditor (always) + analytics-engineer-reviewer (all paths are dbt_project/**).
++> Blast radius confirmed read-only: `mart_team_market_value` is the ONLY consumer that reads
++> dim_team.league_code (its `where league_code='WC'`); every other mart takes only team_sk/name/logo
++> from dim_team and gets league_code from fixtures/metrics. mart_team_market_value is NOT exported (no
++> scripts/site reference) and has 0 rows with an actual market value (its source — the parked market-
++> value automation #476/#418 — is empty), so the repoint is a structural correction with no live/shipped
++> impact. Reviewers: scope-auditor (always) + analytics-engineer-reviewer (all paths dbt_project/**).
  
  objective: >
--  (a) mart_matchday_insights (MODIFIED): surface two boolean columns derived from the momentum mart's
--      window_type — home_form_from_qualifiers = coalesce(mh.window_type = 'qualifiers', false) and
--      away_form_from_qualifiers = coalesce(ma.window_type = 'qualifiers', false). Additive only (no
--      change to existing columns/grain/row-count). coalesce keeps them boolean (never null). The live
--      `formContextLabel` UI reads exactly these field names; the export passes them through unchanged.
--      Also de-stale the home/away_form_games_played descriptions ("last-5 window" → "form window;
--      last-5 normally, cumulative for tournament fixtures").
--  (b) domestic_league.yml (MODIFIED): document the two new boolean columns (not_null — coalesce makes
--      them total) and update the two games_played descriptions.
--  (c) 99_gaps_register.md (MODIFIED): update the GAP-18 row from "mart layer landed / label is the
--      immediate follow-up" to "live preview fixed (numbers + label)"; the v2 blueprint drill-down
--      (form_window[] cap, separate phase column) stays under #391.
-+  Add a new core relationship (mapping) dimension `dim_team_competition_season_mapping` giving conformed
-+  team↔competition↔season membership, derived from FIXTURES (finished AND scheduled), keys-only, mirroring
-+  `dim_player_team_season_mapping`. Membership source = fixtures (NOT the /teams roster): a team that is in a
-+  competition always plays fixtures in it, so the schedule is a complete, timing-stable source — unlike players,
-+  where a never-played squad member forced a roster source. Scheduled (not-yet-played) fixtures are INCLUDED, so a
-+  team is a member from the moment its fixtures are published.
-+  (a) Model `dbt_project/models/3_core/dim_team_competition_season_mapping.sql` (NEW, table): read
-+      `base_apif__fixtures_next`; UNION DISTINCT home + away sides to one row per (team, league_code, season);
-+      filter NULL team ids (undetermined knockout fixtures). Columns (keys only — no measures, no team attributes):
-+      `team_competition_season_sk` (surrogate over team_sk+league_code+season_api_year), `team_sk`
-+      (cast team_id int64), `league_sk` (cast league_api_id int64), `season_sk`
-+      (generate_surrogate_key(league_api_id, season)), `league_code`, `season_api_year` (= season).
-+      Derive league_sk/season_sk the SAME way fct_fixture does (the fixtures base carries league_api_id) so keys
-+      conform to the fixtures fact by construction — DELIBERATELY differs from the player mapping (which used a
-+      nullable dim_competition_season lookup only because the roster lacked league_api_id); document this in the
-+      model header.
-+  (b) Schema `dbt_project/models/3_core/core.yml` (MODIFIED): add the model entry mirroring
-+      dim_player_team_season_mapping — description (relationship/mapping dim, grain, keys-only, "membership from
-+      fixtures, appearances live in fct_fixture"), tags [core, dimension], table-level
-+      dbt_utils.unique_combination_of_columns on (team_sk, league_code, season_api_year), and column tests:
-+      team_competition_season_sk [not_null, unique]; team_sk [not_null, relationships → dim_team];
-+      league_sk [not_null, relationships → dim_league]; season_sk [not_null, relationships → dim_competition_season];
-+      league_code [not_null]; season_api_year [not_null].
-+  (c) DQ test `dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql` (NEW): GENERIC, no
-+      league hardcoding — every (team_sk, league_code, season_api_year) appearing as home OR away in `fct_fixture`
-+      must have a row in the mapping; returns offending rows (expect zero). The BL1/BL2 regression guard, expressed
-+      competition-agnostically.
-+  (d) Docs `dbt_project/docs/layering.md` (MODIFIED): add `dim_team_competition_season_mapping` to the core
-+      dimension reference table (grain + source + "relationship (mapping) dim" note), beside the player mapping.
+-  Add a new core relationship (mapping) dimension `dim_team_competition_season_mapping` giving conformed
+-  team↔competition↔season membership, derived from FIXTURES (finished AND scheduled), keys-only, mirroring
+-  `dim_player_team_season_mapping`. Membership source = fixtures (NOT the /teams roster): a team that is in a
+-  competition always plays fixtures in it, so the schedule is a complete, timing-stable source — unlike players,
+-  where a never-played squad member forced a roster source. Scheduled (not-yet-played) fixtures are INCLUDED, so a
+-  team is a member from the moment its fixtures are published.
+-  (a) Model `dbt_project/models/3_core/dim_team_competition_season_mapping.sql` (NEW, table): read
+-      `base_apif__fixtures_next`; UNION DISTINCT home + away sides to one row per (team, league_code, season);
+-      filter NULL team ids (undetermined knockout fixtures). Columns (keys only — no measures, no team attributes):
+-      `team_competition_season_sk` (surrogate over team_sk+league_code+season_api_year), `team_sk`
+-      (cast team_id int64), `league_sk` (cast league_api_id int64), `season_sk`
+-      (generate_surrogate_key(league_api_id, season)), `league_code`, `season_api_year` (= season).
+-      Derive league_sk/season_sk the SAME way fct_fixture does (the fixtures base carries league_api_id) so keys
+-      conform to the fixtures fact by construction — DELIBERATELY differs from the player mapping (which used a
+-      nullable dim_competition_season lookup only because the roster lacked league_api_id); document this in the
+-      model header.
+-  (b) Schema `dbt_project/models/3_core/core.yml` (MODIFIED): add the model entry mirroring
+-      dim_player_team_season_mapping — description (relationship/mapping dim, grain, keys-only, "membership from
+-      fixtures, appearances live in fct_fixture"), tags [core, dimension], table-level
+-      dbt_utils.unique_combination_of_columns on (team_sk, league_code, season_api_year), and column tests:
+-      team_competition_season_sk [not_null, unique]; team_sk [not_null, relationships → dim_team];
+-      league_sk [not_null, relationships → dim_league]; season_sk [not_null, relationships → dim_competition_season];
+-      league_code [not_null]; season_api_year [not_null].
+-  (c) DQ test `dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql` (NEW): GENERIC, no
+-      league hardcoding — every (team_sk, league_code, season_api_year) appearing as home OR away in `fct_fixture`
+-      must have a row in the mapping; returns offending rows (expect zero). The BL1/BL2 regression guard, expressed
+-      competition-agnostically.
+-  (d) Docs `dbt_project/docs/layering.md` (MODIFIED): add `dim_team_competition_season_mapping` to the core
+-      dimension reference table (grain + source + "relationship (mapping) dim" note), beside the player mapping.
++  Make dim_team a pure team ENTITY by removing the league_code stamp, and repoint the one consumer.
++  (a) Model `dbt_project/models/3_core/dim_team.sql` (MODIFIED): remove the `league_code` column from the
++      SELECT. No other change — grain stays team_api_id; all identity/venue attributes unchanged. (Leave
++      base_apif__teams_global as-is; its league_code becomes an unused passenger — base cleanup is out of
++      scope.)
++  (b) Schema `dbt_project/models/3_core/core.yml` (MODIFIED): remove the `league_code` column entry (+ its
++      not_null test) from the dim_team block; update the dim_team description to mirror dim_player — "pure
++      entity (identity only); carries no competition/season affiliation — membership lives in
++      dim_team_competition_season_mapping, per-match facts in fct_fixture."
++  (c) Mart `dbt_project/models/5_marts/shared/mart_team_market_value.sql` (MODIFIED): replace the
++      `dim_team where league_code='WC'` filter with the WC team set from
++      `dim_team_competition_season_mapping` (select distinct team_sk where league_code='WC'), inner-joined
++      to dim_team for team_api_id/team_name/team_country. PRESERVE the output schema exactly (same columns
++      incl. a literal `'WC' as league_code`, same grain one-row-per-team_sk, left join to
++      int_team__market_value_latest for the value). This corrects the WC team set from the incomplete stamp
++      (23 teams) to the full WC field (48 teams); all values stay null (source empty), mart not exported.
++  (d) Docs `dbt_project/docs/layering.md` (MODIFIED): update the dim_team row of the dimension inventory to
++      the pure-entity note (no affiliation; membership in dim_team_competition_season_mapping), mirroring
++      the dim_player row.
  
  refs: >
--  GAP-18 live-label completion. Commit 1 = PR #485 mart layer. UI: site/match-preview/index.html
--  formContextLabel() switches on home/away_form_from_qualifiers; i18n keys formContextWcQualifiers /
--  formContextWcTournament already exist (en/de/fi). Live export scripts/export_pages_data.py is
--  SELECT * → full-dict passthrough (no change needed). CPO approved widening 2026-06-16 (this conversation).
-+  This conversation 2026-06-17 (root-cause investigation + CPO design sign-off). Mirrors the player model redesign
-+  (dim_player pure entity + dim_player_team_season_mapping; the "relationship (mapping) dimensions" clause in
-+  dbt_project/docs/layering.md). dim_team BL1/BL2 watch-item from the 2026-06-16 GAP-18 handover.
+-  This conversation 2026-06-17 (root-cause investigation + CPO design sign-off). Mirrors the player model redesign
+-  (dim_player pure entity + dim_player_team_season_mapping; the "relationship (mapping) dimensions" clause in
+-  dbt_project/docs/layering.md). dim_team BL1/BL2 watch-item from the 2026-06-16 GAP-18 handover.
++  This conversation 2026-06-17. Phase 2 of the dim_team entity/affiliation split; Phase 1 = PR #488
++  (dim_team_competition_season_mapping), merged to main (cf2a0be). Mirrors the player model redesign
++  (dim_player pure entity + dim_player_team_season_mapping). escalations.log 2026-06-17 (D6/D7).
  
  scope_paths:
--  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - docs/wireframes/99_gaps_register.md
-+  - dbt_project/models/3_core/dim_team_competition_season_mapping.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-+  - dbt_project/docs/layering.md
+-  - dbt_project/models/3_core/dim_team_competition_season_mapping.sql
++  - dbt_project/models/3_core/dim_team.sql
+   - dbt_project/models/3_core/core.yml
+-  - dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_team_market_value.sql
+   - dbt_project/docs/layering.md
    - .claude/task/contract.md
-+  - .claude/task/review.md
+   - .claude/task/review.md
  
  decisions_taken: >
--  CPO 2026-06-16 (this conversation) approved widening the GAP-18 PR to wire the live WC form LABEL,
--  after the reviewers + investigation showed the mart-numbers change alone reaches the live preview but
--  leaves the label wrong (the live UI already has the labels + i18n; only the form_from_qualifiers flag
--  is missing). Derive the flag from the existing window_type ('qualifiers') in dbt (consumption-layer
--  contract: logic in dbt, the export only selects) — no export or UI/i18n change.
-+  CPO (this conversation, 2026-06-17): (1) the fix mirrors the player entity/affiliation split — a new core mapping
-+  dim, NOT a band-aid stamp-priority tiebreak and NOT accept-and-document. (2) Name = dim_team_competition_season_mapping
-+  (mirrors the player _mapping suffix). (3) Membership source = FIXTURES, not the /teams roster (teams always play
-+  what they enter; no never-played gap). (4) INCLUDE upcoming/scheduled fixtures. (5) Explicit thin dim (not derived
-+  inline). (6) Two phases; THIS is Phase 1 (new dim only); Phase 2 (drop dim_team.league_code + repoint
-+  mart_team_market_value) is a separate PR. (7) Columns as in objective (a). (8) league_sk/season_sk derived from the
-+  base like fct_fixture (NOT the player mapping's nullable lookup) — fixtures carry league_api_id.
+-  CPO (this conversation, 2026-06-17): (1) the fix mirrors the player entity/affiliation split — a new core mapping
+-  dim, NOT a band-aid stamp-priority tiebreak and NOT accept-and-document. (2) Name = dim_team_competition_season_mapping
+-  (mirrors the player _mapping suffix). (3) Membership source = FIXTURES, not the /teams roster (teams always play
+-  what they enter; no never-played gap). (4) INCLUDE upcoming/scheduled fixtures. (5) Explicit thin dim (not derived
+-  inline). (6) Two phases; THIS is Phase 1 (new dim only); Phase 2 (drop dim_team.league_code + repoint
+-  mart_team_market_value) is a separate PR. (7) Columns as in objective (a). (8) league_sk/season_sk derived from the
+-  base like fct_fixture (NOT the player mapping's nullable lookup) — fixtures carry league_api_id.
++  CPO (this conversation, 2026-06-17): (1) DROP dim_team.league_code (the stamp), making dim_team a pure
++  entity — mirror dim_player; NOT keep-and-rename (renaming still forces the consumer repoint for no
++  benefit and leaves a misuse-able column). (2) Repoint mart_team_market_value off the stamp onto the
++  Phase-1 mapping dim, preserving its output schema. (3) Phase 2 = items (a)-(d) ONLY; the season-rollup
++  enhancement (point mart_team_season at the spine to surface pre-season teams) is DEFERRED to its own PR
++  (CPO: "keep Phase 2 to items 1-3"). (4) Leave base_apif__teams_global untouched (out of scope).
  
  decisions_reserved:
--  - The boolean field NAMES (home_form_from_qualifiers / away_form_from_qualifiers) are FIXED by the
--    existing live UI (formContextLabel reads these exact keys) — match them, do not rename.
--  - v2 blueprint drill-down (form_window[] ≤5 cap, separate `phase` column) stays under #391 — out of scope.
--  - qualifying-type cumulative window #483, player strip #484 — still deferred.
--  - Any §10 question -> escalate in plain language.
-+  - PHASE 2 — dropping `dim_team.league_code`, repointing `mart_team_market_value` (its `where league_code = 'WC'`),
-+    and pointing the season-rollup at the new spine. NOT this PR. Do NOT touch dim_team or any mart here.
-+  - No consumer repointing in Phase 1: the dim is net-new and nothing reads it yet. Do NOT refactor mart_team_season
-+    or any existing model to consume it in this PR.
-+  - Status handling: include ALL fixture statuses (any scheduled or played fixture = membership). If a reviewer argues
-+    a specific status must be excluded (e.g. cancelled), that is a §10 product call → escalate, do not self-decide.
-+  - Any other §10 (grain change, naming beyond the agreed name, a new mechanism) → escalate in plain language.
+-  - PHASE 2 — dropping `dim_team.league_code`, repointing `mart_team_market_value` (its `where league_code = 'WC'`),
+-    and pointing the season-rollup at the new spine. NOT this PR. Do NOT touch dim_team or any mart here.
+-  - No consumer repointing in Phase 1: the dim is net-new and nothing reads it yet. Do NOT refactor mart_team_season
+-    or any existing model to consume it in this PR.
+-  - Status handling: include ALL fixture statuses (any scheduled or played fixture = membership). If a reviewer argues
+-    a specific status must be excluded (e.g. cancelled), that is a §10 product call → escalate, do not self-decide.
+-  - Any other §10 (grain change, naming beyond the agreed name, a new mechanism) → escalate in plain language.
++  - The season-rollup enhancement (mart_team_season / int_team_season uses the mapping spine to include
++    upcoming-only teams) — DEFERRED, separate PR. Do NOT touch mart_team_season or the int_team_season
++    layer here.
++  - base_apif__teams_global league_code cleanup — out of scope (left as an unused passenger column).
++  - If a reviewer finds ANOTHER consumer of dim_team.league_code beyond mart_team_market_value, STOP and
++    escalate rather than silently widening the repoint.
++  - Any §10 (new mechanism, grain change, a shipped-output change to a LIVE mart) → escalate in plain language.
  
  done_when:
--  - dbt parse clean; sqlfluff lint passes on mart_matchday_insights.sql; validate-local clean.
--  - mart_matchday_insights has home_form_from_qualifiers / away_form_from_qualifiers (boolean, never
--    null); domestic_league.yml documents them with not_null; existing columns/grain/row-count unchanged.
--  - Read-only BQ spot-check (or post-build): for live WC opener fixtures the flags are true; for MD2+
--    WC fixtures false; for non-tournament fixtures false.
--  - ci-data-build green (the mart builds + its tests pass); the live UI formContextLabel now switches
--    "all qualifying matches" vs "all World Cup matches so far" correctly (the export passes the new
--    columns through unchanged — SELECT *).
--  - reviewers: scope-auditor + analytics-engineer-reviewer + bi-analyst-reviewer all PASS.
-+  - `dim_team_competition_season_mapping` builds (table); grain unique on (team_sk, league_code, season_api_year);
-+    team_sk/league_sk/season_sk relationships pass; the new completeness test passes (zero rows).
-+  - Read-only BQ spot-check confirms BL1 + BL2 are present in the mapping with their full team sets (the regression
-+    guard), and a multi-competition club (e.g. a Bundesliga side) shows multiple rows (BL1 + DFBP + any continental).
-+  - dbt parse clean; sqlfluff lint passes on the new SQL; validate-local clean.
-+  - core.yml documents the dim + columns + tests; layering.md reference table lists it.
-+  - reviewers: scope-auditor + analytics-engineer-reviewer both PASS (≥2 named risks each), no FAIL, every ESCALATE
-+    has a recorded CPO ANSWER.
+-  - `dim_team_competition_season_mapping` builds (table); grain unique on (team_sk, league_code, season_api_year);
+-    team_sk/league_sk/season_sk relationships pass; the new completeness test passes (zero rows).
+-  - Read-only BQ spot-check confirms BL1 + BL2 are present in the mapping with their full team sets (the regression
+-    guard), and a multi-competition club (e.g. a Bundesliga side) shows multiple rows (BL1 + DFBP + any continental).
+-  - dbt parse clean; sqlfluff lint passes on the new SQL; validate-local clean.
+-  - core.yml documents the dim + columns + tests; layering.md reference table lists it.
+-  - reviewers: scope-auditor + analytics-engineer-reviewer both PASS (≥2 named risks each), no FAIL, every ESCALATE
+-    has a recorded CPO ANSWER.
++  - dim_team builds without league_code; dbt parse clean; sqlfluff lint passes; check_layer_contract green.
++  - No dangling reference to dim_team.league_code anywhere (grep + dbt parse clean); mart_team_market_value
++    compiles against the new source.
++  - Read-only BQ spot-check (or compiled-logic check): dim_team has no league_code; mart_team_market_value
++    now yields the 48-team WC set (was 23), grain one-row-per-team, schema unchanged.
++  - core.yml + layering.md reflect dim_team as a pure entity (no league_code; affiliation note).
++  - ci-data-build green (the full BQ build + DQ tests, incl. dim_team's remaining tests and the mart).
++  - reviewers: scope-auditor + analytics-engineer-reviewer both PASS (>=2 named risks each), no FAIL, every
++    ESCALATE has a recorded CPO ANSWER.
  
  amendments: (none)
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 25b6700..cb43884 100644
+index cb43884..61d894b 100644
 --- a/dbt_project/docs/layering.md
 +++ b/dbt_project/docs/layering.md
-@@ -171,6 +171,7 @@ Canonical dimension inventory for this project:
- | `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
+@@ -168,7 +168,7 @@ Canonical dimension inventory for this project:
+ | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
+ | `dim_league` | league_api_id | `base_apif__league_entity` | One row per configured league; surrogate key is the API integer directly. |
+ | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
+-| `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
++| `dim_team` | team_api_id | `base_apif__teams_global` | Pure global entity (identity only); surrogate key is the API integer directly. Carries no competition/season affiliation — membership lives in `dim_team_competition_season_mapping`, per-match facts in `fct_fixture`. |
  | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
  | `dim_player_team_season_mapping` | (player_sk, team_sk, season_api_year, league_code) | `base_apif__player_team_season` | Relationship (mapping) dim, not an entity: rostered player↔team↔season membership incl. never-played squad members. Keys only, no descriptive attributes; many rows per player. |
-+| `dim_team_competition_season_mapping` | (team_sk, league_code, season_api_year) | `base_apif__fixtures_next` | Relationship (mapping) dim: team↔competition↔season membership derived from fixtures (finished + scheduled), so a team is a member from the moment its schedule is published. Keys only; many rows per team. Sourced from fixtures (not the `/teams` roster) because a team always plays the competitions it enters — no never-played gap like a player's, so no roster source is needed. |
- 
- All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
- 
+ | `dim_team_competition_season_mapping` | (team_sk, league_code, season_api_year) | `base_apif__fixtures_next` | Relationship (mapping) dim: team↔competition↔season membership derived from fixtures (finished + scheduled), so a team is a member from the moment its schedule is published. Keys only; many rows per team. Sourced from fixtures (not the `/teams` roster) because a team always plays the competitions it enters — no never-played gap like a player's, so no roster source is needed. |
 diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 6953d44..9b49889 100644
+index 9b49889..19242d5 100644
 --- a/dbt_project/models/3_core/core.yml
 +++ b/dbt_project/models/3_core/core.yml
-@@ -303,6 +303,65 @@ models:
-       - name: raw_ingested_at
-         description: "UTC timestamp of the raw row this membership row was derived from."
+@@ -150,7 +150,7 @@ models:
+         description: "UTC timestamp of the raw row this dimension row was derived from."
  
-+  - name: dim_team_competition_season_mapping
-+    description: >
-+      Relationship (mapping) dimension: team↔competition↔season membership, derived from
-+      fixtures. Grain: (team_sk, league_code, season_api_year) — one row per team per
-+      competition per season in which the team has at least one fixture (finished OR
-+      scheduled). An association across dimensions, not an entity dim and not a fact (no
-+      measures, no descriptive attributes — only participating keys). On its grain key it is
-+      a clean one-row-per-key lookup; joining on a single participating key (e.g. team_sk)
-+      resolves a many-to-many and returns many rows by design. Use this for "which teams are
-+      in competition X, season Y"; per-match facts live in fct_fixture. Membership comes from
-+      fixtures (not the /teams roster) because a team that is in a competition always plays
-+      it — scheduled fixtures are included, so membership exists from the moment the schedule
-+      is published. No raw_ingested_at: the association is distilled from many fixtures, not a
-+      single source row. See the "relationship (mapping) dimensions" clause in
-+      dbt_project/docs/layering.md.
-+    meta:
-+      owner: "data-platform"
-+      domain: "football"
-+      criticality: "medium"
-+    config:
-+      tags: ["core", "dimension"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns:
-+            - team_sk
-+            - league_code
-+            - season_api_year
-+    columns:
-+      - name: team_competition_season_sk
-+        description: "Surrogate key over (team_sk, league_code, season_api_year) — the relationship grain."
-+        tests: [not_null, unique]
-+      - name: team_sk
-+        description: "FK to dim_team (team_api_id cast to INT64)."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: league_sk
-+        description: "FK to dim_league (league_api_id cast to INT64), derived from the fixture like fct_fixture."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_league')
-+              field: league_sk
-+      - name: season_sk
-+        description: "FK to dim_competition_season, derived as generate_surrogate_key(league_api_id, season) — conforms to fct_fixture and dim_competition_season; every fixture (league, season) is covered, so non-null."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_competition_season')
-+              field: season_sk
-+      - name: league_code
-+        description: "Internal league code — the competition the team is a member of."
-+        tests: [not_null]
-+      - name: season_api_year
-+        description: "API-Football season year of the membership."
-+        tests: [not_null]
-+
-   - name: fct_fixture
-     description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
+   - name: dim_team
+-    description: "Canonical team dimension. Grain: team_api_id (globally unique in API-Football). Sourced from base_apif__teams_global (latest ingest per team across league rows). Venue attributes are from the winning row's /teams payload."
++    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest)."
      meta:
-diff --git a/dbt_project/models/3_core/dim_team_competition_season_mapping.sql b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
-new file mode 100644
-index 0000000..fbdcb07
---- /dev/null
-+++ b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
-@@ -0,0 +1,82 @@
-+{{ config(materialized='table') }}
+       owner: "data-platform"
+       domain: "football"
+@@ -161,9 +161,6 @@ models:
+       - name: team_sk
+         description: "Surrogate key: team_api_id cast to INT64 (globally unique in API-Football)."
+         tests: [not_null, unique]
+-      - name: league_code
+-        description: "Internal league code."
+-        tests: [not_null]
+       - name: team_api_id
+         description: "API-Football team id."
+         tests: [not_null]
+diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
+index 71eb421..7a69879 100644
+--- a/dbt_project/models/3_core/dim_team.sql
++++ b/dbt_project/models/3_core/dim_team.sql
+@@ -6,7 +6,6 @@ with import_base_apif__teams_global as (
+ 
+ select
+     cast(team_api_id as int64) as team_sk,
+-    league_code,
+     team_api_id,
+     team_name,
+     team_code,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_market_value.sql b/dbt_project/models/5_marts/shared/mart_team_market_value.sql
+index c6cfec2..6d475a8 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_market_value.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_market_value.sql
+@@ -3,27 +3,44 @@
+ {#
+   WC national teams: latest published-style squad market value estimate (EUR).
+   Grain: one row per team_sk. Canonical metric name: market_value_eur.
 +
-+{#
-+    Conformed team↔competition↔season membership. One row per team per competition per
-+    season in which the team has at least one fixture — finished OR scheduled. A
-+    relationship (mapping) dimension, not an entity dim and not a fact: no measures, no
-+    descriptive attributes — only the participating keys. Grain is one row per association
-+    occurrence, so joining on a single participating key (e.g. team_sk) resolves a
-+    many-to-many and returns many rows by design. See the "relationship (mapping)
-+    dimensions" clause in dbt_project/docs/layering.md.
-+
-+    Membership is derived from FIXTURES, not the /teams roster. Unlike a player (a squad
-+    member may never play, so membership must be asserted by the roster), a team that is in
-+    a competition always plays fixtures in it — so the fixture schedule is a complete,
-+    timing-stable source. Scheduled (not-yet-played) fixtures are INCLUDED, so a team is a
-+    member from the moment its fixtures are published. Use this to answer "which teams are
-+    in competition X, season Y"; per-match facts live in fct_fixture. (Known scope of the
-+    fixtures source: a team listed only in a standings table whose fixtures fall outside the
-+    ingested window is not a member here — see base_apif__teams; rare and out of scope for
-+    the membership question, which the CPO scoped to fixtures.)
-+
-+    Grain is enforced by the final GROUP BY on (league_code, season, team_sk), so it cannot
-+    split. league_api_id is 1:1 with league_code by registry design; max(league_api_id)
-+    collapses it to the single value per group, so league_sk/season_sk stay well-defined even
-+    if that registry invariant were ever violated (the group key never depends on it).
-+
-+    league_sk and season_sk are derived from the fixtures base exactly as fct_fixture and
-+    dim_competition_season derive them (the base carries league_api_id), so the keys conform
-+    to the fixtures fact and the season dim by construction. This deliberately differs from
-+    dim_player_team_season_mapping, which resolves them via a nullable dim_competition_season
-+    lookup ONLY because the roster source lacked league_api_id.
-+#}
-+
-+with fixtures as (
-+    select
-+        league_code,
-+        league_api_id,
-+        season,
-+        home_team_id,
-+        away_team_id
-+    from {{ ref('base_apif__fixtures_next') }}
-+),
-+
-+team_sides as (
-+    select
-+        league_code,
-+        league_api_id,
-+        season,
-+        home_team_id as team_id
-+    from fixtures
-+    union distinct
-+    select
-+        league_code,
-+        league_api_id,
-+        season,
-+        away_team_id as team_id
-+    from fixtures
-+),
-+
-+memberships as (
-+    select
-+        league_code,
-+        season,
-+        cast(team_id as int64) as team_sk,
-+        max(league_api_id) as league_api_id
-+    from team_sides
-+    where team_id is not null
-+    group by league_code, season, team_sk
-+)
-+
-+select
-+    {{ dbt_utils.generate_surrogate_key([
-+        'team_sk',
-+        'league_code',
-+        'season'
-+    ]) }} as team_competition_season_sk,
-+    team_sk,
-+    cast(league_api_id as int64) as league_sk,
-+    {{ dbt_utils.generate_surrogate_key(['league_api_id', 'season']) }} as season_sk,
-+    league_code,
-+    season as season_api_year
-+from memberships
-diff --git a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-new file mode 100644
-index 0000000..8bfb8be
---- /dev/null
-+++ b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-@@ -0,0 +1,64 @@
-+-- Consistency guard for dim_team_competition_season_mapping (CPO 2026-06-17, Phase 1).
-+-- The mapping must hold EXACTLY the team↔competition↔season set that the fixtures fact holds
-+-- — no missing members, no extras. A cross-model invariant between the core mapping and
-+-- fct_fixture (the canonical fixtures fact): it catches the membership logic drifting from
-+-- "every team with any fixture, finished OR scheduled, is a member" — e.g. a future status
-+-- filter that silently dropped scheduled fixtures, or a join that dropped rows. Competition-
-+-- agnostic: no league codes hardcoded, so it covers BL1/BL2 and every other league.
-+-- (The join-path regression — a member that does not resolve to a real team — is guarded
-+-- separately by the team_sk relationships test in core.yml.) Returns offending rows in
-+-- either direction; expect zero.
-+
-+with fixture_membership as (
-+    select distinct
-+        league_code,
-+        season_api_year,
-+        home_team_sk as team_sk
-+    from {{ ref('fct_fixture') }}
-+    where home_team_sk is not null
-+
-+    union distinct
-+
-+    select distinct
-+        league_code,
-+        season_api_year,
-+        away_team_sk as team_sk
-+    from {{ ref('fct_fixture') }}
-+    where away_team_sk is not null
-+),
-+
-+mapping as (
-+    select
-+        league_code,
-+        season_api_year,
-+        team_sk
++  The WC team set comes from dim_team_competition_season_mapping (the conformed
++  team↔competition↔season membership), NOT dim_team.league_code — that latest-ingest
++  provenance stamp was dropped when dim_team became a pure entity (Phase 2), and it
++  surfaced only an incomplete WC set anyway. dim_team supplies identity attributes only.
+ #}
+ 
+ with latest as (
+     select * from {{ ref('int_team__market_value_latest') }}
+ ),
+ 
+-dim_team as (
+-    select * from {{ ref('dim_team') }}
++wc_teams as (
++    select distinct team_sk
 +    from {{ ref('dim_team_competition_season_mapping') }}
-+)
+     where league_code = 'WC'
++),
 +
-+select
-+    'missing_from_mapping' as defect,
-+    fm.league_code,
-+    fm.season_api_year,
-+    fm.team_sk
-+from fixture_membership as fm
-+left join mapping as m
-+    on
-+        fm.league_code = m.league_code
-+        and fm.season_api_year = m.season_api_year
-+        and fm.team_sk = m.team_sk
-+where m.team_sk is null
-+
-+union all
-+
-+select
-+    'extra_in_mapping' as defect,
-+    m.league_code,
-+    m.season_api_year,
-+    m.team_sk
-+from mapping as m
-+left join fixture_membership as fm
-+    on
-+        m.league_code = fm.league_code
-+        and m.season_api_year = fm.season_api_year
-+        and m.team_sk = fm.team_sk
-+where fm.team_sk is null
++dim_team as (
++    select
++        team_sk,
++        team_api_id,
++        team_name,
++        team_country
++    from {{ ref('dim_team') }}
+ )
+ 
+ select
+-    d.team_sk,
++    w.team_sk,
+     d.team_api_id,
+-    d.league_code,
++    'WC' as league_code,
+     d.team_name,
+     d.team_country,
+     l.as_of_date,
+     l.market_value_eur,
+     l.source_code,
+     l.prompt_version
+-from dim_team as d
++from wc_teams as w
++inner join dim_team as d
++    on w.team_sk = d.team_sk
+ left join latest as l
+-    on d.team_sk = l.team_sk
++    on w.team_sk = l.team_sk

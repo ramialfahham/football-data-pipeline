@@ -150,7 +150,7 @@ models:
         description: "UTC timestamp of the raw row this dimension row was derived from."
 
   - name: dim_team
-    description: "Canonical team dimension. Grain: team_api_id (globally unique in API-Football). Sourced from base_apif__teams_global (latest ingest per team across league rows). Venue attributes are from the winning row's /teams payload."
+    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -161,9 +161,6 @@ models:
       - name: team_sk
         description: "Surrogate key: team_api_id cast to INT64 (globally unique in API-Football)."
         tests: [not_null, unique]
-      - name: league_code
-        description: "Internal league code."
-        tests: [not_null]
       - name: team_api_id
         description: "API-Football team id."
         tests: [not_null]

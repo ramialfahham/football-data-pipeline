@@ -6,7 +6,6 @@ with import_base_apif__teams_global as (
 
 select
     cast(team_api_id as int64) as team_sk,
-    league_code,
     team_api_id,
     team_name,
     team_code,
