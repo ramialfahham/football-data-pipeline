@@ -1,39 +1,55 @@
-# Review — feat/dim-team-pure-entity — 2026-06-17 (Phase 2: drop the dim_team stamp)
+# Review — docs/player-performance-surface-spec — 2026-06-17
 
-> Phase 2 of the dim_team entity/affiliation split (Phase 1 = PR #488, merged). Drops
-> dim_team.league_code (the provenance stamp) → dim_team is a pure entity; repoints the one
-> consumer (mart_team_market_value) onto the Phase-1 mapping dim. Required reviewers (routing
-> for the staged dbt_project/** paths): scope-auditor (always) + analytics-engineer-reviewer.
-> No §10 escalation: the only §10-adjacent point (the mart's WC set goes 23→48) was CPO-
-> pre-approved and is structural-only (mart unexported, value data empty).
+> Player performance-surface spec (docs only): new §8 in docs/metrics_context_model.md resolving
+> the §7 player deferral, + a supersession note in docs/player_metrics_catalogue.md. Reviewers:
+> scope-auditor (routing-required for these docs paths) + analytics-engineer-reviewer +
+> football-analytics-expert-reviewer (CPO-directed for the analytics-design + football-domain
+> content). Two analytics-engineer FAIL rounds were fixed (surrogate key stated; NT-context
+> selector forced to the intermediate layer with its anchor; last-appearance/minutes declared as
+> mart columns; form_window_kind set shown derivable + reserved to build) and re-reviewed clean.
+> football-analytics reviewed the national-context reframe, the override rationale, and the
+> weighted-ratio rule — all byte-unchanged by the subsequent fixes (which touched only grain
+> representation, layer placement, mart columns, and enum hygiene), so its PASS carries.
 
-diff_sha256: 63e90e9242cb773deefdf0ad54ed3b8bbc55c5b4983c251ae7873ec564759aa8
+diff_sha256: 9d06360b9e2fa4aa87fffd714746136d8e50333c500c50c61532a6065c7f8030
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- No undiscovered consumers: searched all dbt layers (staging→marts) + export scripts for
-  dim_team.league_code / where league_code='WC'; found zero outside the repointed mart, so the
-  decisions_reserved "stop if another consumer exists" trigger does not fire.
-- Scope + deferrals intact: the season-rollup enhancement and base_apif__teams_global are NOT
-  touched (both in decisions_reserved); all five staged hunks are within scope_paths.
-- §10 boundary on the mart: the 23→48 WC-set change is §10-adjacent but the contract records CPO
-  approval (decisions_taken item 2) and it is structural-only — mart not exported (no script ref),
-  value data empty; the existing shared.yml tests (unique team_sk, accepted_values ["WC"]) still hold.
+- NT-context selector (a third selection shape) is reserved to #484 — the spec prescribes the *what*
+  (cross-comp within national, no season cap, ≤5 by recency, national-team-anchored) but defers the
+  model name and grain; no unilateral new mechanism (A3) is introduced in this docs change.
+- The national-window override is a §10 rule reinterpretation — and it is recorded, not silently
+  taken: a dated CPO override in decisions_taken, the catalogue's Form-window dispatch marked
+  SUPERSEDED with a pointer to §8, football-analytics validation routed with an escalation fallback.
+- Scope: every hunk is within scope_paths (the two docs); the locked metrics_display.md and the
+  metric_catalogue seed are untouched; the appearance/playing-time display amendment is explicitly
+  reserved to a bi-analyst-owned follow-up, not made here.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- No dangling reference: all 19 dim_team consumers across 3_core/4_intermediate/5_marts checked —
-  every league_code they carry comes from a fact/intermediate CTE (fct_fixture, int_legs__team_match,
-  fct_standings, …), never the dim_team CTE; mart_team_market_value (the only prior reader) is fully
-  repointed. No surviving dim_team.league_code reference → the BQ build will not break.
-- No fan-out: wc_teams does select distinct team_sk before the 1:1 inner join to dim_team and the
-  1:1 left join to int_team__market_value_latest; grain one-row-per-team_sk preserved (the shared.yml
-  unique test on team_sk still passes).
-- Repoint correctness: output schema preserved (same columns/order incl. literal 'WC' as league_code);
-  the WC set is derived from the mapping (distinct team_sk, league_code='WC'); the core.yml dim_team
-  edits (removed league_code column/test, new description) and the layering.md note match the model.
+- Consumption-layer (A5): avg-minutes-per-appearance and the last-appearance pick are declared as
+  mart columns (`max(kickoff)` + opponent join in the model; export formats only) — no derivation,
+  ranking, or "latest" selection leaks into the export/UI.
+- Surrogate-key collision under per-club grain: the spec identifies that the existing
+  `(player_sk, season_sk)` key is non-unique when a player transfers mid-season, mandates the
+  full-grain key `(player_sk, team_sk, league_code, season_sk)` + a `unique` test, with the key
+  name reserved to #480 (a build-time naming call).
+- Layer + aggregation soundness: "one aggregation, two windows" over the per-match leg is consistent
+  with the existing momentum / season-record builders and the selection-vs-aggregation rule; the
+  weighted-ratio rule matches the catalogue (clarifies, does not redefine); the form_window_kind set
+  is shown derivable from the matrix with labels reserved to build.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Sparse national-team data (late call-ups / injury returns): the honest-absence rule + the
+  last-appearance meta-line surface `0 of N · —` truthfully, rather than substituting a domestic-club
+  proxy that answers a different question — the override is football-sound under the context framing.
+- Friendly-match opposition quality in the NT pool (once ingested): handled by the context-not-form
+  reframe, the no-opponent-exclusion principle, and opponent-context rows; the weighted-ratio
+  aggregation (`sum num / sum den`, never an average of per-match %s) is confirmed football-correct.
 
 ## escalations
 (none)

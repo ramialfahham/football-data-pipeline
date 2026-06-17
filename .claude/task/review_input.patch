@@ -1,255 +1,174 @@
-diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 421e7c4..46d65a8 100644
---- a/.claude/task/contract.md
-+++ b/.claude/task/contract.md
-@@ -1,88 +1,79 @@
--# Task contract — feat: dim_team_competition_season_mapping (team↔competition↔season membership, Phase 1)
-+# Task contract — feat: dim_team pure entity — drop the league_code stamp (Phase 2)
+diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
+index 787f38f..0dc7b8f 100644
+--- a/docs/metrics_context_model.md
++++ b/docs/metrics_context_model.md
+@@ -191,10 +191,144 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
+ ## 7. Deferred / out of scope here
  
--> CPO-approved this conversation (2026-06-17). Root cause of the BL1/BL2 directory gap: `dim_team.league_code`
--> is a LATEST-INGEST PROVENANCE stamp (one row per team, latest /teams payload wins), NOT a team↔competition
--> affiliation. All 19 BL1 + 19 BL2 clubs are present in dim_team but stamped `DFBP` (German Cup /teams ingested
--> 2026-06-16, after the leagues' 2026-06-10) — so a `league_code='BL1'` lookup returns nothing. NOT an ingestion
--> gap (raw HAS BL1/BL2 /teams). Latent for every league; PL survived only by ingest timing. The live preview is
--> unaffected (it reads league_code from fixtures, not the stamp).
-+> CPO-approved this conversation (2026-06-17), the follow-up to Phase 1 (PR #488, merged: the new
-+> dim_team_competition_season_mapping membership dim). Phase 2 finishes the dim_team entity/affiliation
-+> split: dim_team becomes a PURE ENTITY by dropping its `league_code` column — the latest-ingest
-+> provenance stamp that was the root of the BL1/BL2 directory bug. Now that membership lives in
-+> dim_team_competition_season_mapping (Phase 1), nothing legitimately needs the stamp. Mirrors the
-+> player redesign (dim_player dropped league_code; affiliation is dim_player_team_season_mapping).
- >
--> Fix shape (CPO-approved): mirror the player entity/affiliation split (dim_player + dim_player_team_season_mapping).
--> This is **Phase 1** — add the new core mapping dim ONLY. Net-new, breaks nothing, makes "teams in competition X
--> this season" correct for every league. **Phase 2** (drop dim_team.league_code + repoint mart_team_market_value +
--> point the season-rollup at the spine) is a SEPARATE follow-up PR — NOT in this one.
--> Reviewers: scope-auditor (always) + analytics-engineer-reviewer (all paths are dbt_project/**).
-+> Blast radius confirmed read-only: `mart_team_market_value` is the ONLY consumer that reads
-+> dim_team.league_code (its `where league_code='WC'`); every other mart takes only team_sk/name/logo
-+> from dim_team and gets league_code from fixtures/metrics. mart_team_market_value is NOT exported (no
-+> scripts/site reference) and has 0 rows with an actual market value (its source — the parked market-
-+> value automation #476/#418 — is empty), so the repoint is a structural correction with no live/shipped
-+> impact. Reviewers: scope-auditor (always) + analytics-engineer-reviewer (all paths dbt_project/**).
- 
- objective: >
--  Add a new core relationship (mapping) dimension `dim_team_competition_season_mapping` giving conformed
--  team↔competition↔season membership, derived from FIXTURES (finished AND scheduled), keys-only, mirroring
--  `dim_player_team_season_mapping`. Membership source = fixtures (NOT the /teams roster): a team that is in a
--  competition always plays fixtures in it, so the schedule is a complete, timing-stable source — unlike players,
--  where a never-played squad member forced a roster source. Scheduled (not-yet-played) fixtures are INCLUDED, so a
--  team is a member from the moment its fixtures are published.
--  (a) Model `dbt_project/models/3_core/dim_team_competition_season_mapping.sql` (NEW, table): read
--      `base_apif__fixtures_next`; UNION DISTINCT home + away sides to one row per (team, league_code, season);
--      filter NULL team ids (undetermined knockout fixtures). Columns (keys only — no measures, no team attributes):
--      `team_competition_season_sk` (surrogate over team_sk+league_code+season_api_year), `team_sk`
--      (cast team_id int64), `league_sk` (cast league_api_id int64), `season_sk`
--      (generate_surrogate_key(league_api_id, season)), `league_code`, `season_api_year` (= season).
--      Derive league_sk/season_sk the SAME way fct_fixture does (the fixtures base carries league_api_id) so keys
--      conform to the fixtures fact by construction — DELIBERATELY differs from the player mapping (which used a
--      nullable dim_competition_season lookup only because the roster lacked league_api_id); document this in the
--      model header.
--  (b) Schema `dbt_project/models/3_core/core.yml` (MODIFIED): add the model entry mirroring
--      dim_player_team_season_mapping — description (relationship/mapping dim, grain, keys-only, "membership from
--      fixtures, appearances live in fct_fixture"), tags [core, dimension], table-level
--      dbt_utils.unique_combination_of_columns on (team_sk, league_code, season_api_year), and column tests:
--      team_competition_season_sk [not_null, unique]; team_sk [not_null, relationships → dim_team];
--      league_sk [not_null, relationships → dim_league]; season_sk [not_null, relationships → dim_competition_season];
--      league_code [not_null]; season_api_year [not_null].
--  (c) DQ test `dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql` (NEW): GENERIC, no
--      league hardcoding — every (team_sk, league_code, season_api_year) appearing as home OR away in `fct_fixture`
--      must have a row in the mapping; returns offending rows (expect zero). The BL1/BL2 regression guard, expressed
--      competition-agnostically.
--  (d) Docs `dbt_project/docs/layering.md` (MODIFIED): add `dim_team_competition_season_mapping` to the core
--      dimension reference table (grain + source + "relationship (mapping) dim" note), beside the player mapping.
-+  Make dim_team a pure team ENTITY by removing the league_code stamp, and repoint the one consumer.
-+  (a) Model `dbt_project/models/3_core/dim_team.sql` (MODIFIED): remove the `league_code` column from the
-+      SELECT. No other change — grain stays team_api_id; all identity/venue attributes unchanged. (Leave
-+      base_apif__teams_global as-is; its league_code becomes an unused passenger — base cleanup is out of
-+      scope.)
-+  (b) Schema `dbt_project/models/3_core/core.yml` (MODIFIED): remove the `league_code` column entry (+ its
-+      not_null test) from the dim_team block; update the dim_team description to mirror dim_player — "pure
-+      entity (identity only); carries no competition/season affiliation — membership lives in
-+      dim_team_competition_season_mapping, per-match facts in fct_fixture."
-+  (c) Mart `dbt_project/models/5_marts/shared/mart_team_market_value.sql` (MODIFIED): replace the
-+      `dim_team where league_code='WC'` filter with the WC team set from
-+      `dim_team_competition_season_mapping` (select distinct team_sk where league_code='WC'), inner-joined
-+      to dim_team for team_api_id/team_name/team_country. PRESERVE the output schema exactly (same columns
-+      incl. a literal `'WC' as league_code`, same grain one-row-per-team_sk, left join to
-+      int_team__market_value_latest for the value). This corrects the WC team set from the incomplete stamp
-+      (23 teams) to the full WC field (48 teams); all values stay null (source empty), mart not exported.
-+  (d) Docs `dbt_project/docs/layering.md` (MODIFIED): update the dim_team row of the dimension inventory to
-+      the pure-entity note (no affiliation; membership in dim_team_competition_season_mapping), mirroring
-+      the dim_player row.
- 
- refs: >
--  This conversation 2026-06-17 (root-cause investigation + CPO design sign-off). Mirrors the player model redesign
--  (dim_player pure entity + dim_player_team_season_mapping; the "relationship (mapping) dimensions" clause in
--  dbt_project/docs/layering.md). dim_team BL1/BL2 watch-item from the 2026-06-16 GAP-18 handover.
-+  This conversation 2026-06-17. Phase 2 of the dim_team entity/affiliation split; Phase 1 = PR #488
-+  (dim_team_competition_season_mapping), merged to main (cf2a0be). Mirrors the player model redesign
-+  (dim_player pure entity + dim_player_team_season_mapping). escalations.log 2026-06-17 (D6/D7).
- 
- scope_paths:
--  - dbt_project/models/3_core/dim_team_competition_season_mapping.sql
-+  - dbt_project/models/3_core/dim_team.sql
-   - dbt_project/models/3_core/core.yml
--  - dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-+  - dbt_project/models/5_marts/shared/mart_team_market_value.sql
-   - dbt_project/docs/layering.md
-   - .claude/task/contract.md
-   - .claude/task/review.md
- 
- decisions_taken: >
--  CPO (this conversation, 2026-06-17): (1) the fix mirrors the player entity/affiliation split — a new core mapping
--  dim, NOT a band-aid stamp-priority tiebreak and NOT accept-and-document. (2) Name = dim_team_competition_season_mapping
--  (mirrors the player _mapping suffix). (3) Membership source = FIXTURES, not the /teams roster (teams always play
--  what they enter; no never-played gap). (4) INCLUDE upcoming/scheduled fixtures. (5) Explicit thin dim (not derived
--  inline). (6) Two phases; THIS is Phase 1 (new dim only); Phase 2 (drop dim_team.league_code + repoint
--  mart_team_market_value) is a separate PR. (7) Columns as in objective (a). (8) league_sk/season_sk derived from the
--  base like fct_fixture (NOT the player mapping's nullable lookup) — fixtures carry league_api_id.
-+  CPO (this conversation, 2026-06-17): (1) DROP dim_team.league_code (the stamp), making dim_team a pure
-+  entity — mirror dim_player; NOT keep-and-rename (renaming still forces the consumer repoint for no
-+  benefit and leaves a misuse-able column). (2) Repoint mart_team_market_value off the stamp onto the
-+  Phase-1 mapping dim, preserving its output schema. (3) Phase 2 = items (a)-(d) ONLY; the season-rollup
-+  enhancement (point mart_team_season at the spine to surface pre-season teams) is DEFERRED to its own PR
-+  (CPO: "keep Phase 2 to items 1-3"). (4) Leave base_apif__teams_global untouched (out of scope).
- 
- decisions_reserved:
--  - PHASE 2 — dropping `dim_team.league_code`, repointing `mart_team_market_value` (its `where league_code = 'WC'`),
--    and pointing the season-rollup at the new spine. NOT this PR. Do NOT touch dim_team or any mart here.
--  - No consumer repointing in Phase 1: the dim is net-new and nothing reads it yet. Do NOT refactor mart_team_season
--    or any existing model to consume it in this PR.
--  - Status handling: include ALL fixture statuses (any scheduled or played fixture = membership). If a reviewer argues
--    a specific status must be excluded (e.g. cancelled), that is a §10 product call → escalate, do not self-decide.
--  - Any other §10 (grain change, naming beyond the agreed name, a new mechanism) → escalate in plain language.
-+  - The season-rollup enhancement (mart_team_season / int_team_season uses the mapping spine to include
-+    upcoming-only teams) — DEFERRED, separate PR. Do NOT touch mart_team_season or the int_team_season
-+    layer here.
-+  - base_apif__teams_global league_code cleanup — out of scope (left as an unused passenger column).
-+  - If a reviewer finds ANOTHER consumer of dim_team.league_code beyond mart_team_market_value, STOP and
-+    escalate rather than silently widening the repoint.
-+  - Any §10 (new mechanism, grain change, a shipped-output change to a LIVE mart) → escalate in plain language.
- 
- done_when:
--  - `dim_team_competition_season_mapping` builds (table); grain unique on (team_sk, league_code, season_api_year);
--    team_sk/league_sk/season_sk relationships pass; the new completeness test passes (zero rows).
--  - Read-only BQ spot-check confirms BL1 + BL2 are present in the mapping with their full team sets (the regression
--    guard), and a multi-competition club (e.g. a Bundesliga side) shows multiple rows (BL1 + DFBP + any continental).
--  - dbt parse clean; sqlfluff lint passes on the new SQL; validate-local clean.
--  - core.yml documents the dim + columns + tests; layering.md reference table lists it.
--  - reviewers: scope-auditor + analytics-engineer-reviewer both PASS (≥2 named risks each), no FAIL, every ESCALATE
--    has a recorded CPO ANSWER.
-+  - dim_team builds without league_code; dbt parse clean; sqlfluff lint passes; check_layer_contract green.
-+  - No dangling reference to dim_team.league_code anywhere (grep + dbt parse clean); mart_team_market_value
-+    compiles against the new source.
-+  - Read-only BQ spot-check (or compiled-logic check): dim_team has no league_code; mart_team_market_value
-+    now yields the 48-team WC set (was 23), grain one-row-per-team, schema unchanged.
-+  - core.yml + layering.md reflect dim_team as a pure entity (no league_code; affiliation note).
-+  - ci-data-build green (the full BQ build + DQ tests, incl. dim_team's remaining tests and the mart).
-+  - reviewers: scope-auditor + analytics-engineer-reviewer both PASS (>=2 named risks each), no FAIL, every
-+    ESCALATE has a recorded CPO ANSWER.
- 
- amendments: (none)
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index cb43884..61d894b 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -168,7 +168,7 @@ Canonical dimension inventory for this project:
- | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
- | `dim_league` | league_api_id | `base_apif__league_entity` | One row per configured league; surrogate key is the API integer directly. |
- | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
--| `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
-+| `dim_team` | team_api_id | `base_apif__teams_global` | Pure global entity (identity only); surrogate key is the API integer directly. Carries no competition/season affiliation — membership lives in `dim_team_competition_season_mapping`, per-match facts in `fct_fixture`. |
- | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
- | `dim_player_team_season_mapping` | (player_sk, team_sk, season_api_year, league_code) | `base_apif__player_team_season` | Relationship (mapping) dim, not an entity: rostered player↔team↔season membership incl. never-played squad members. Keys only, no descriptive attributes; many rows per player. |
- | `dim_team_competition_season_mapping` | (team_sk, league_code, season_api_year) | `base_apif__fixtures_next` | Relationship (mapping) dim: team↔competition↔season membership derived from fixtures (finished + scheduled), so a team is a member from the moment its schedule is published. Keys only; many rows per team. Sourced from fixtures (not the `/teams` roster) because a team always plays the competitions it enters — no never-played gap like a player's, so no roster source is needed. |
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 9b49889..19242d5 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -150,7 +150,7 @@ models:
-         description: "UTC timestamp of the raw row this dimension row was derived from."
- 
-   - name: dim_team
--    description: "Canonical team dimension. Grain: team_api_id (globally unique in API-Football). Sourced from base_apif__teams_global (latest ingest per team across league rows). Venue attributes are from the winning row's /teams payload."
-+    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest)."
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -161,9 +161,6 @@ models:
-       - name: team_sk
-         description: "Surrogate key: team_api_id cast to INT64 (globally unique in API-Football)."
-         tests: [not_null, unique]
--      - name: league_code
--        description: "Internal league code."
--        tests: [not_null]
-       - name: team_api_id
-         description: "API-Football team id."
-         tests: [not_null]
-diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
-index 71eb421..7a69879 100644
---- a/dbt_project/models/3_core/dim_team.sql
-+++ b/dbt_project/models/3_core/dim_team.sql
-@@ -6,7 +6,6 @@ with import_base_apif__teams_global as (
- 
- select
-     cast(team_api_id as int64) as team_sk,
--    league_code,
-     team_api_id,
-     team_name,
-     team_code,
-diff --git a/dbt_project/models/5_marts/shared/mart_team_market_value.sql b/dbt_project/models/5_marts/shared/mart_team_market_value.sql
-index c6cfec2..6d475a8 100644
---- a/dbt_project/models/5_marts/shared/mart_team_market_value.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_market_value.sql
-@@ -3,27 +3,44 @@
- {#
-   WC national teams: latest published-style squad market value estimate (EUR).
-   Grain: one row per team_sk. Canonical metric name: market_value_eur.
+ - **Full-season analysis surface** (the season-to-date mart + year-over-year-by-matchday
+-  comparison for teams and players) — its own design discussion.
++  comparison) — its own design discussion. **The player half is now resolved in §8** (CPO,
++  2026-06-17); the team season surface is already built and stays its own discussion.
+ - **Opponent-adjusted form** — the named next metric.
+ - **Other surfaces** — standings, per-fixture stats, team profile, player profile — each
+   its own mart and discussion.
+ - **Friendlies** — taxonomy only; excluded from form windows when eventually ingested.
+ - **Year-over-year-by-matchday** applies to **league formats**; cups/tournaments have a
+   cumulative number but not matchday-aligned year-over-year.
 +
-+  The WC team set comes from dim_team_competition_season_mapping (the conformed
-+  team↔competition↔season membership), NOT dim_team.league_code — that latest-ingest
-+  provenance stamp was dropped when dim_team became a pure entity (Phase 2), and it
-+  surfaced only an incomplete WC set anyway. dim_team supplies identity attributes only.
- #}
- 
- with latest as (
-     select * from {{ ref('int_team__market_value_latest') }}
- ),
- 
--dim_team as (
--    select * from {{ ref('dim_team') }}
-+wc_teams as (
-+    select distinct team_sk
-+    from {{ ref('dim_team_competition_season_mapping') }}
-     where league_code = 'WC'
-+),
++---
 +
-+dim_team as (
-+    select
-+        team_sk,
-+        team_api_id,
-+        team_name,
-+        team_country
-+    from {{ ref('dim_team') }}
- )
++## 8. Player performance surface (resolves the §7 deferral for players)
++
++Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
++It fixes the one real gap: the player season rollup exists three ways today with divergent
++numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
++in another) because each re-implements its own aggregation. Definitions stay in
++`docs/player_metrics_catalogue.md`; the locked display rows stay in
++`docs/wireframes/metrics_display.md`. Build follow-ups: **#480** (consolidate to one
++player-season model) and **#484** (player national / tournament context) — not built here.
++
++### 8.1 One aggregation, two windows (the core rule)
++
++There is **one** aggregation logic; the window is the only variable. The per-match player leg
++(one row per player per finished match, raw stats) is the shared building block. **Form** and
++**season** are the same aggregation over a *different set of legs* — the aggregation never forks.
++
++- **Counts** → sum over the window's legs.
++- **The four ratios** — duels-won %, dribble-success %, pass-accuracy %, save % → **weighted**:
++  `sum(numerator) / sum(denominator)`. **Never** an average of per-match percentages.
++- **Honest absence** — only legs the provider gave stats for count; `games_played` is that
++  appearance count, not team matches.
++- **Zero denominator** → render `—`, the counts still shown (`0 of 0 · —`).
++- **Display** is **totals + the four weighted %s** (per the locked rows), **not** per-match.
++  The single deliberate average is "avg minutes per appearance" in the context block (§8.2),
++  normalised by appearances.
++
++This is why the three models diverged — they each re-implemented the math. The build collapses
++them onto one shared aggregation step that both the form mart and the season mart call.
++
++**Selection is separate from aggregation** and may take several shapes — club last-5,
++within-competition season-to-date, and the national-team context window (§8.4) — but each feeds
++the *same* aggregation. Every selector lives in the **intermediate** layer (`layering.md`); a new
++window shape means a new intermediate selector, never selection logic pushed into a mart.
++
++### 8.2 What we show
++
++The nine CPO-locked player rows (`docs/wireframes/metrics_display.md`, 2026-06-11) — referenced,
++not restated — **plus** an appearance / playing-time **context block** (a proposed addition to
++that locked display contract; recorded here, to be formally amended there — bi-analyst-owned):
++
++| Row | Form (last 5) | Season | Aggregation |
++|-----|---------------|--------|-------------|
++| **Appearances** (apps · starts · subs) | `4 of 5 · 3 starts` | `26 · 22 starts · 4 sub` | count |
++| **Playing time** (total · avg per app) | `310 min · Ø 78` | `2,040 min · Ø 78` | sum; avg = total ÷ apps |
++
++Plus, in the **window meta-line**, the **last appearance with the year** (e.g.
++`18 May 2026 vs Dortmund`). The block is the sample-size / availability context that makes the
++season totals interpretable.
++
++All of these are **mart columns** — appearances, starts, subs, total minutes, avg-minutes-per-app,
++and `last_appearance_date` + `last_appearance_opponent` (the `max(kickoff)` pick and the opponent
++join happen **in the model**). The export and UI only **format** them; no derivation, ranking, or
++"latest" selection in the consumption layer (`layering.md`).
++
++### 8.3 Season model (what #480 builds)
++
++**One** player-season model, replacing the three divergent rollups.
++
++- **Grain:** per player **per club** per competition per season — a mid-season transfer yields a
++  **separate per-club line** (not pooled).
++- **Within one competition** always — never cross-competition (cumulative is the within-comp W2).
++- Carries **this season + previous season side-by-side** (a persistent comparison, not a
++  pre-season-only fallback) — as **parallel columns on the same per-club-season row** (wide; e.g. a
++  `_prev_season` set), **not** a second row, so the grain and key below are unchanged.
++- **Surrogate key covers the full grain** — `(player_sk, team_sk, league_code, season_sk)`. The
++  current rollups key on only `(player_sk, season_sk)`, which is **non-unique** under per-club grain
++  (a mid-season transfer collides). #480 replaces it with a full-grain key — mirroring the team
++  mapping's `team_competition_season_sk` — under a `unique` test on the grain. The key's name is set
++  in #480 (a naming call), but its **columns are fixed by the grain above**.
++
++### 8.4 Window matrix — which legs form each window
++
++**Club competitions** — a player's club form *is* his relevant form; no divergence from the team
++rule (§4):
++
++| Competition type | Before it starts | During | After |
++|---|---|---|---|
++| Domestic league | Previous season (this league) | Last 5 across the club's competitions | Full season |
++| Domestic cup · continental club · super cups · club qualifying | Last 5 across the club's competitions | Last 5 (super cups: single match) | Full edition / cup run |
++
++**National-team competitions** — reframed as **context, not form** (strict club/national
++separation: the national view never borrows club data):
++
++| State | What we show |
++|---|---|
++| Any NT match outside a big tournament (qualifiers, friendlies, warm-ups) **and** before a big tournament | Last **≤5 national-team appearances**, pooled across **all** NT competition types (friendlies included once ingested), by recency, **no season cap** |
++| **Big tournament** (world / continental championship) — **during & after** | **Cumulative** tournament figures **only** |
++| *(Future — when NT history is ingested)* | Career national-team record, **grouped by NT competition type** (WC · Euro · qualifiers · friendlies) |
++
++Symmetry: club fixture → last 5 across club comps; national fixture → last 5 across national
++comps. Big national tournaments are the cumulative exception (same shape as the team rule, §4).
++
++The distinct **window kinds** this matrix produces are: domestic previous-season · club last-5 ·
++domestic/club full-season · national-team context (≤5 NT appearances pooled) · big-tournament
++cumulative. #480/#484 set the final `form_window_kind` enum values in the catalogue from this list
++(replacing the superseded `wc_pre_via_domestic`); the **set is fixed by this matrix**, the labels
++are a build-time naming call.
++
++### 8.5 Override of the catalogue's form-window dispatch
++
++This **supersedes** the "Form-window dispatch" section of `docs/player_metrics_catalogue.md`
++(player WC form drawn from the **domestic club**, qualifiers excluded). That section treated
++national data as predictive **form** and rejected stale qualifiers in favour of the domestic
++club. Reframing the national surface as **context** (not a prediction of tournament form)
++dissolves its three objections (roster turnover, stale dates, weaker opposition — all
++form-prediction arguments), restores strict club/national separation, and removes the
++domestic-league-coverage "Not provided" exposure. **CPO override, 2026-06-17;** football-analytics
++confirms the football-correctness.
++
++### 8.6 Framing
++
++**No separate "context vs form" UI mechanism.** The existing locked **window meta-line** already
++declares scope per state and carries the distinction through its copy (club → "form";
++national → "appearances / record"). Final wording is set at i18n.
++
++### 8.7 Build follow-ups (not built here)
++
++- **#480** — consolidate the three player-season rollups onto the one model (§8.3) using the one
++  shared aggregation (§8.1). Changes shipped numbers (e.g. pass accuracy to the weighted,
++  catalogue-correct value) → analytics-engineer + football-analytics review on that PR.
++- **#484** — player national / tournament context per §8.4. Requires a **new intermediate
++  selector**: the NT-context window (cross-competition *within national*, no season cap, ≤5 by
++  recency) is a **third** selection shape that neither existing selector covers (last-5 momentum =
++  cross-comp this season; season-record = within-comp per season). It stays in the **intermediate**
++  layer — it must NOT be built inside a mart. The selector is **national-team-anchored**
++  (`entity_type = 'national'`, the national `team_sk`), distinct from the upcoming-fixture-anchored
++  momentum builder; its exact model name and grain are #484's design.
++- **Cost-gated data** — friendlies ingest (for the NT pool); national-team history (≈ #477, for
++  the grouped-by-type career view). The rules are defined; the data lights up only when ingest is
++  CPO-approved.
+diff --git a/docs/player_metrics_catalogue.md b/docs/player_metrics_catalogue.md
+index 6e322e1..e9e8ae4 100644
+--- a/docs/player_metrics_catalogue.md
++++ b/docs/player_metrics_catalogue.md
+@@ -178,6 +178,19 @@ A player is **eligible for a leaderboard** when they have at least one finished
  
- select
--    d.team_sk,
-+    w.team_sk,
-     d.team_api_id,
--    d.league_code,
-+    'WC' as league_code,
-     d.team_name,
-     d.team_country,
-     l.as_of_date,
-     l.market_value_eur,
-     l.source_code,
-     l.prompt_version
--from dim_team as d
-+from wc_teams as w
-+inner join dim_team as d
-+    on w.team_sk = d.team_sk
- left join latest as l
--    on d.team_sk = l.team_sk
-+    on w.team_sk = l.team_sk
+ ## Form-window dispatch
+ 
++> **SUPERSEDED (CPO, 2026-06-17) by `docs/metrics_context_model.md` §8.** The national-team
++> rule below — drawing World Cup pre-tournament player form from the **domestic club** and
++> excluding qualifiers — is replaced. The national surface is reframed as **context, not form**:
++> the player's last ≤5 **national-team** appearances pooled across all NT competition types (no
++> club substitution), with cumulative figures during/after a big tournament. The club rules and
++> all atomic definitions/formulas above remain canonical. See §8.4–§8.5 for the current matrix
++> and the override rationale.
++>
++> Consequently the `form_window_kind` enum in the **Mart contract** section below is superseded:
++> `wc_pre_via_domestic` no longer applies; the national-team context-window kinds (per §8.4)
++> replace it. (The mart it described, `mart_matchday_player_insights`, was retired in #321 — this
++> is doc hygiene; the rebuilt mart's enum is set by the §8 spec when #480/#484 build.)
++
+ The window from which atoms are aggregated depends on the fixture context. The dispatch logic mirrors the existing team form-window dispatch where possible, but with one important divergence: for World Cup pre-tournament fixtures, player metrics draw from **domestic club data**, not qualifier data.
+ 
+ | Context | Source competition for player | Window | User-facing source copy |

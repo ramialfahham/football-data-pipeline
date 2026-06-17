@@ -178,6 +178,19 @@ A player is **eligible for a leaderboard** when they have at least one finished 
 
 ## Form-window dispatch
 
+> **SUPERSEDED (CPO, 2026-06-17) by `docs/metrics_context_model.md` §8.** The national-team
+> rule below — drawing World Cup pre-tournament player form from the **domestic club** and
+> excluding qualifiers — is replaced. The national surface is reframed as **context, not form**:
+> the player's last ≤5 **national-team** appearances pooled across all NT competition types (no
+> club substitution), with cumulative figures during/after a big tournament. The club rules and
+> all atomic definitions/formulas above remain canonical. See §8.4–§8.5 for the current matrix
+> and the override rationale.
+>
+> Consequently the `form_window_kind` enum in the **Mart contract** section below is superseded:
+> `wc_pre_via_domestic` no longer applies; the national-team context-window kinds (per §8.4)
+> replace it. (The mart it described, `mart_matchday_player_insights`, was retired in #321 — this
+> is doc hygiene; the rebuilt mart's enum is set by the §8 spec when #480/#484 build.)
+
 The window from which atoms are aggregated depends on the fixture context. The dispatch logic mirrors the existing team form-window dispatch where possible, but with one important divergence: for World Cup pre-tournament fixtures, player metrics draw from **domestic club data**, not qualifier data.
 
 | Context | Source competition for player | Window | User-facing source copy |
