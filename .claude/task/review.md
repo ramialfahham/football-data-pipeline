@@ -1,47 +1,39 @@
-# Review — feat/dim-team-competition-season-mapping — 2026-06-17 (Phase 1: team membership dim)
+# Review — feat/dim-team-pure-entity — 2026-06-17 (Phase 2: drop the dim_team stamp)
 
-> Phase 1 of the dim_team entity/affiliation split: NEW core relationship (mapping) dim
-> dim_team_competition_season_mapping (team↔competition↔season membership derived from
-> fixtures, incl. scheduled). Required reviewers (routing for the staged dbt_project/**
-> paths): scope-auditor (always) + analytics-engineer-reviewer. One §10 governance-
-> classification question arose in review and was ruled by the CPO (2026-06-17, recorded
-> below + escalations.log).
+> Phase 2 of the dim_team entity/affiliation split (Phase 1 = PR #488, merged). Drops
+> dim_team.league_code (the provenance stamp) → dim_team is a pure entity; repoints the one
+> consumer (mart_team_market_value) onto the Phase-1 mapping dim. Required reviewers (routing
+> for the staged dbt_project/** paths): scope-auditor (always) + analytics-engineer-reviewer.
+> No §10 escalation: the only §10-adjacent point (the mart's WC set goes 23→48) was CPO-
+> pre-approved and is structural-only (mart unexported, value data empty).
 
-diff_sha256: 4296c012ce74ca7db51b8de378f08eebb3b249d3367f0dcb4f319c7e76cf3e2f
+diff_sha256: 63e90e9242cb773deefdf0ad54ed3b8bbc55c5b4983c251ae7873ec564759aa8
 
 ## scope-auditor
-VERDICT: ESCALATE
+VERDICT: PASS
 risks_checked:
-- Scope: all five staged hunks are within the contract's scope_paths (the new model + test,
-  core.yml, layering.md, contract.md); no edit outside the allowlist.
-- Deferrals intact: Phase 2 (dropping dim_team.league_code, repointing mart_team_market_value,
-  refactoring mart_team_season) does NOT appear in the diff — net-new dim only, nothing repointed.
-- Docs match code: core.yml + layering.md describe the model as implemented (after the team_sk
-  SK-description fix); the contract.md change is a legitimate new-task contract (never review-exempt).
-question: The contract records today's design choices as "CPO-approved this conversation" but no
-  matching entry existed in escalations.log (the record of CPO rulings). Do up-front design
-  approvals need logging there too, or is the contract's decisions_taken the sufficient record?
-CPO ANSWER: Path A — LOG IT (CPO 2026-06-17, this conversation). Up-front CPO design approvals are
-  recorded in escalations.log alongside review-time rulings; the 2026-06-17 entry now captures the
-  D1–D7 design approvals + this E1 ruling.
+- No undiscovered consumers: searched all dbt layers (staging→marts) + export scripts for
+  dim_team.league_code / where league_code='WC'; found zero outside the repointed mart, so the
+  decisions_reserved "stop if another consumer exists" trigger does not fire.
+- Scope + deferrals intact: the season-rollup enhancement and base_apif__teams_global are NOT
+  touched (both in decisions_reserved); all five staged hunks are within scope_paths.
+- §10 boundary on the mart: the 23→48 WC-set change is §10-adjacent but the contract records CPO
+  approval (decisions_taken item 2) and it is structural-only — mart not exported (no script ref),
+  value data empty; the existing shared.yml tests (unique team_sk, accepted_values ["WC"]) still hold.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: the model refs only base_apif__fixtures_next (a 2_base view) — no stg_*/mart_*
-  ref, no raw JSON parsing, no union_all macro; the CI check_layer_contract rules for 3_core hold.
-- Grain uniqueness: UNION DISTINCT in team_sides + GROUP BY (league_code, season, team_sk) in
-  memberships enforces the declared grain BEFORE the surrogate; unique_combination_of_columns +
-  unique on the SK double-cover at build (grain is enforced, not assumed via the 1:1 invariant).
-- Key conformance: team_sk = cast(team_id int64), league_sk = cast(league_api_id int64),
-  season_sk = generate_surrogate_key(league_api_id, season) all match dim_team / dim_league /
-  dim_competition_season (and fct_fixture's identical season_sk derivation, whose relationships
-  test passes in prod) by value.
-- Consistency test is a genuine cross-model invariant (mapping vs fct_fixture, a separate model),
-  not a tautology; the join-path regression is covered by the team_sk→dim_team relationships test.
+- No dangling reference: all 19 dim_team consumers across 3_core/4_intermediate/5_marts checked —
+  every league_code they carry comes from a fact/intermediate CTE (fct_fixture, int_legs__team_match,
+  fct_standings, …), never the dim_team CTE; mart_team_market_value (the only prior reader) is fully
+  repointed. No surviving dim_team.league_code reference → the BQ build will not break.
+- No fan-out: wc_teams does select distinct team_sk before the 1:1 inner join to dim_team and the
+  1:1 left join to int_team__market_value_latest; grain one-row-per-team_sk preserved (the shared.yml
+  unique test on team_sk still passes).
+- Repoint correctness: output schema preserved (same columns/order incl. literal 'WC' as league_code);
+  the WC set is derived from the mapping (distinct team_sk, league_code='WC'); the core.yml dim_team
+  edits (removed league_code column/test, new description) and the layering.md note match the model.
 
 ## escalations
-- question: do up-front CPO design approvals (contract decisions_taken) need an escalations.log
-  entry, or is the contract sufficient?
-  CPO ANSWER: Path A — LOG IT (CPO 2026-06-17). Up-front approvals are logged alongside review-time
-  rulings; recorded in the 2026-06-17 escalations.log entry (D1–D7 design approvals + this ruling).
+(none)
