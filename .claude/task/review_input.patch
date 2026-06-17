@@ -1,246 +1,697 @@
-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
-new file mode 100644
-index 0000000..6979d45
---- /dev/null
-+++ b/docs/content_architecture.md
-@@ -0,0 +1,211 @@
-+# Content architecture — blocks, tabs, navigation
-+
-+> The modular content model for the website: how a few reusable **blocks** (each backed by one
-+> mart) compose into **tabbed entity pages**, wired by a **navigation graph**, to produce a deep,
-+> multi-language, programmatic-SEO site from a small set of moving parts. CPO-ruled across the
-+> 2026-06-17 design conversation.
-+>
-+> This is the IA the wireframes *arrange* and the marts *feed*. It builds on:
-+> - `docs/site_architecture.md` — the v2 site IA (fixtures-first home + browse, epic #361).
-+> - `docs/metrics_context_model.md` §8 — the player performance surface + the shared window/aggregation model.
-+> - `docs/player_metrics_catalogue.md` / `docs/wireframes/metrics_display.md` — metric definitions + the locked display contract.
-+>
-+> SPEC ONLY. Each build named here (the new marts, the backfill, coaches) is its own later PR with its
-+> own review; number-changing builds get analytics-engineer + football-analytics sign-off then.
-+
-+---
-+
-+## 1. Principles
-+
-+1. **Three layers.** **Blocks** (reusable content units) → **tabs** (per-entity compositions) →
-+   **navigation graph** (entity↔entity links). Nothing computes in a page — pages only *arrange* blocks.
-+2. **One block = one mart**, parameterised by `league_code` / season / entity. Adding a competition,
-+   team, player, or season is *more rows → more pages → zero new marts* (the zero-file rule, extended
-+   to the site).
-+3. **"Profile" is not a thing** — it's the **Overview tab**, a compact digest. Each entity page is a
-+   set of tabs.
-+4. **Languages are free.** Blocks are locale-independent data; labels resolve at build time from the
-+   metric-catalogue i18n keys + entity names (`export_site_data.py` already works this way). N
-+   languages = same data × label sets.
-+5. **Density is built in.** Every block carries a *compact* and a *full* form; the placement picks
-+   (compact on Overview/teasers/home-hooks, full on dedicated tabs). The compact rule differs by
-+   subject, per the locked display contract: **team blocks = tier-1 rows only** ("tier = visibility
-+   under constraint"); **player blocks have no tiers — they use per-surface rules** (e.g. the
-+   fixture top-players strip ranks goals → assists → key passes). See
-+   `docs/wireframes/metrics_display.md`.
-+6. **Honest limits.** No xG (we substitute our own chance-quality metrics), no news source, no
-+   transfers tab. We never fabricate; a block that has no data simply doesn't render.
-+
-+---
-+
-+## 2. Entity types (the programmatic-SEO templates)
-+
-+Five rich templates + two thin ones; everything else is rows.
-+
-+| Entity | Tier | Example URL | Page-count driver |
-+|---|---|---|---|
-+| **Competition** | rich | `/bundesliga/2025-26` | competitions × seasons |
-+| **Team** | rich | `/bayern-munchen` (+ season) | teams (× seasons) |
-+| **Player** | rich | `/harry-kane` (+ season) | players (× seasons) |
-+| **Fixture** | rich | `/bayern-dortmund-2025-10-04` | fixtures |
-+| **Matchday** | thin SEO | `/bundesliga/2025-26/spieltag-7` | competitions × rounds |
-+| **Coach** | thin SEO | `/vincent-kompany` | coaches (API-Football provides them) |
-+| Nation, Stadium | deferred | — | — |
-+
-+Teams + players + fixtures + competition-seasons + matchdays × **languages** = the thousands of
-+indexable pages. Each is one template fed by `league_code`-keyed marts.
-+
-+---
-+
-+## 3. The block library (block ↔ mart)
-+
-+| Family | Block | Subject | Backing mart | Status |
-+|---|---|---|---|---|
-+| **Identity** | Team header | team | `dim_team` (+ standing chip, + coach) | ✓ |
-+| | Player header | player | `dim_player` (+ current club) | ✓ |
-+| | Competition header | comp | registry / dim | partial |
-+| **Performance** | Form (recent) | team, player | `mart_momentum__{team,player}` (+ `_window` drill-down) | ✓ (player `_window` gap) |
-+| | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ⚠ player |
-+| | Season-over-season | team, player | YoY model | ✓ team / gap player |
-+| | Vs-benchmark (bars vs league avg + percentile) | team, player | **NEW** `mart_competition_benchmarks` | ✗ |
-+| | Single fixture | team, player | `mart_fixture_stats__{team,player}` | ✓ |
-+| **Standings / rank** | League / group table | team | standings mart (#322) | ✓ |
-+| | Standing-as-context | team | standings mart | ✓ |
-+| | Leaderboards (scorers + the metric set) | player | **NEW** `mart_leaderboards` (generalise `mart_top_scorers`) | ⚠ partial |
-+| **Schedule** | Upcoming / Results | team, player | match-list mart (filter) | ✓ |
-+| | Matchday schedule | comp | fixtures by round (derive) | ~ |
-+| **Listings** | Squad / roster | team→players | **NEW** `mart_roster` (from the team↔player mapping) | ✗ |
-+| | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
-+| | Player career (clubs + per-comp totals) | player | **NEW** `mart_player_career` (needs backfill) | ✗ |
-+| **Matchup** | Match preview (two sides) | fixture | `mart_matchday_insights` | ✓ |
-+| | Lineups / key players | fixture | fixture player stats / `mart_leaderboards` | ✓ |
-+| | Head-to-head | fixture | — | deferred (low value, #323) |
-+| **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` differentiator | ✓ team |
-+| | Vs-own-history / YoY *(flagship)* | team (player v1.x) | YoY model | ✓ team |
-+| | Opponent / schedule context *(flagship, v1.x)* | team, player | (uses the benchmark engine) | ✗ |
-+| | Contribution-share *(bonus)* | player↔team | **NEW** mart-computed (share of team output; definition reserved to build) | ✗ |
-+| | Streaks | team (player?) | `int_*_profile__streaks` | ✓ team |
-+
-+A block works for any competition and either subject because it's just a mart sliced by
-+`league_code` / entity — so the same block appears on many tabs/pages, defined once.
-+
-+---
-+
-+## 4. Pages = tabbed compositions
-+
-+> This is the **proposed default arrangement** — the starting layout the wireframes refine. The tab
-+> *set* per entity is settled; the exact block placement within each tab (and which compact blocks an
-+> Overview shows) is a wireframe-time detail, not locked here.
-+
-+| Entity | Tabs → blocks |
-+|---|---|
-+| **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster) · **History** (past-season records, all-time, coach) |
-+| **Player** | **Overview** (header + form + season highlights + position + next) · **Matches** (log → fixture) · **Stats** (season per-game + percentile-vs-peers + season-over-season) · **Career** (clubs + per-competition totals + caps) |
-+| **Competition** | **Table** · **Fixtures** (by matchday) · **Scorers** (leaderboards) · **Teams** (directory) · **Seasons** (archive) · **Stats** (league-wide → benchmark) |
-+| **Coach** | **Overview** (current club + clubs managed) |
-+| **Fixture** | match preview + key players + (post-match) fixture stats + lineups |
-+| **Home** | fixtures-first + browse entry points |
-+
-+---
-+
-+## 5. Navigation graph (what makes it a site)
-+
-+Every entity links to its neighbours — the "always one click to the related thing" feel.
-+
-+| From | Links to |
-+|---|---|
-+| Home (upcoming) | → Fixture |
-+| Fixture | → each Team · → Players (lineups / leaderboards) · → Competition |
-+| Team | → Competition (its table) · → Players (squad) · → its Fixtures · → Coach |
-+| Player | → current Team · → Competition · → his Matches |
-+| Competition | → Teams (directory) · → Fixtures · → Players (scorers) |
-+| Coach | → current Team |
-+
-+This closed graph covers upcoming matches → team stats → clubs → players → their upcoming matches → …
-+
-+---
-+
-+## 6. Flagship reads (the differentiators)
-+
-+vs-benchmark / percentile is **table stakes** (kicker does bars-vs-average, fbref does
-+percentile-vs-peers) — necessary **context**, the **engine**, not the headline. The flagship is a
-+small set of *smart reads* the raw-number sites don't synthesise.
-+
-+1. **Deserved-vs-actual** *(v1)* — underlying play (chance dominance: shot share + danger-zone + shots
-+   on target + finishing — our honest stand-in for xG) **vs** actual results (points captured + rank),
-+   with the gap. *"Creating like a top-2 side but sitting 7th — likely to climb."* Built for teams
-+   (`mart_team_profile.performance_vs_results_gap`); player analog (output vs underlying) is v1.x.
-+2. **Vs-own-history (year-over-year)** *(v1)* — the entity vs itself over time, **aligned by matchday**.
-+   *"22 points through MD10 vs 18 last year, shot share up 4 pts."* Built for teams
-+   (`int_team_profile__yoy`, domestic leagues); player version is a backfill-enabled gap.
-+3. **Opponent & schedule context** *(v1.x, the hardest)* — weight performance by opposition quality
-+   (via the benchmark engine). Backward: *"the unbeaten run came against the bottom half."* Forward:
-+   *"4 of the next 5 are top-six"* (fixture difficulty). This is the long-named "opponent-adjusted
-+   form" — football-analytics owns the definition; ships after the simpler two.
-+4. **Contribution-share** *(bonus)* — a player's share of the team's output (*"involved in 45% of
-+   Bayern's goals"*). Cheap, narrative, bridges team↔player pages.
-+
-+The triad is a clean axis set: **vs your own play** · **vs your own past** · **vs your opponents**.
-+"A few signature things done well," powered by the benchmark + backfill infrastructure.
-+
-+---
-+
-+## 7. New marts to build (each its own later PR)
-+
-+| New mart | Powers | Depends on |
-+|---|---|---|
-+| `mart_competition_benchmarks` (team + player) | Vs-benchmark block + the flagship reads' league context | a clean season aggregation (#480 + the season-record↔rollup unification) |
-+| `mart_leaderboards` (generalise `mart_top_scorers`) | Leaderboards block + key players + top performers | season aggregation |
-+| `mart_roster` | Squad block | team↔player mapping (exists) |
-+| `mart_player_career` (+ a team-history equivalent) | Career & History tabs | the backfill |
-+| `dim_coach` (+ Coach block/entity) | Coach block & page | coaches ingest |
-+
-+The percentile **scope** (competition-wide vs position-aware, the fbref way) is a v1.x build-time
-+decision with football-analytics — reserved, not settled here.
-+
-+---
-+
-+## 8. Backfill (history depth) policy
-+
-+History is a per-competition number (`history_seasons` in the registry). Budget is not the binding
-+constraint (a top-league decade ≈ ~12k calls; the daily API budget has spare headroom) — **value and
-+data quality** are. Tiered, with a quality floor:
-+
-+| Competition type | Depth |
-+|---|---|
-+| Top domestic leagues (BL1, PL, PD, SA, L1…) | 10 seasons |
-+| 2nd-tier / smaller leagues (BL2, ED, VL, MLS…) | 5 seasons |
-+| Continental club (UCL…) | 10 seasons |
-+| World / continental championships (WC, EURO, AFCON…) | last 4 editions |
-+| Qualifiers | current + previous cycle |
-+| Domestic cups | 5 seasons |
-+
-+- **Quality floor:** stop backfilling a competition once a season returns empty player-stats — don't
-+  ingest empty seasons (wasted budget, thin pages). Record the *achieved* depth.
-+- **Phased rollout:** start with the featured competitions, measure real call cost vs budget, extend.
-+
-+> Applying these depths to `docs/competition_registry.yml` (`history_seasons`) and *running* the
-+> backfill is a **separate** registry change + cost-gated ingest task — not part of this doc.
-+
-+---
-+
-+## 9. Build sequence (dependency-ordered)
-+
-+1. **#480** — one canonical per-club player-season model (+ confirm the season-record↔rollup
-+   unification, the team-side analog). The foundation; nothing clean builds on the divergent rollups.
-+2. **Backfill** — set per-competition depth (§8), run it. Lights up History / Career, makes
-+   season-over-season real everywhere, deepens benchmarks.
-+3. **`mart_leaderboards` + `mart_roster`** — cheap, high navigability/SEO, no governance.
-+4. **`mart_competition_benchmarks`** — the engine for the flagship reads (governance for percentile).
-+5. **Coaches ingest + `dim_coach`**, **`mart_player_career`** / team history (on the backfill).
-+
-+---
-+
-+## 10. Out of scope / honest limits
-+
-+- **No xG** — the deserved-vs-actual flagship uses our chance-quality metrics, never a faked xG.
-+- **No News, no Transfers tab** — no news source; no transfers UI surface.
-+- **Career/History** depends on the backfill; thin until it runs.
-+- **Coach / Stadium** blocks only where the provider data is clean.
-+- **Naming consistency** (suffix `__team`/`__player` vs prefix `team_`/`player_`; `mart_team_fixtures`
-+  vs `mart_player_match_log`) is a known inconsistency — a separate cleanup pass, noted not fixed here.
-diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
-index 0dc7b8f..ab728ab 100644
---- a/docs/metrics_context_model.md
-+++ b/docs/metrics_context_model.md
-@@ -204,6 +204,9 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index fa82307..17ba709 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -1,137 +1,158 @@
+ {{ config(materialized='table') }}
  
- ## 8. Player performance surface (resolves the §7 deferral for players)
+ {#
+-  Per (league_code, season_api_year, player_sk) aggregate statistics over all finished matches.
+-  Mirrors int_team_season__full_season_metrics at player grain.
+-  Grain: (league_code, season_api_year, player_sk).
++  Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
++  player-season rollup consumed by BOTH mart_player_profile and mart_player_season (#480
++  consolidation). Replaces the inline aggregation each mart previously duplicated.
  
-+> The site-wide content model that consumes this surface (blocks → tabs → navigation, the flagship
-+> reads, and the new marts) is specified in [`content_architecture.md`](content_architecture.md).
+-  Used by:
+-    - (none currently — former consumer int_matchday__fixture_player_insights was
+-      retired in #321; retained for the planned player profile / season-recap surface)
++  Grain: (player_sk, season_sk) — one row per player per competition-season (season_sk encodes the
++  competition). league_sk / league_code / season_api_year carried for downstream slicing. (The
++  per-club grain + this/last side-by-side are the deferred §8.3 follow-up; today's grain is kept.)
+ 
+-  Atom definitions follow docs/player_metrics_catalogue.md exactly.
+-  Rates are null when the denominator is zero; never coerced to 0.
++  Atoms follow docs/player_metrics_catalogue.md exactly:
++  - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
++    (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
++  - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
++    where statistics_players is off). rating_avg = mean rating over appearances (nulls ignored).
++  - rates are NULL when the denominator is zero (never coerced to 0).
+ #}
+ 
+-with import_fct_fixture_player_stats as (
++with player_stats as (
+     select * from {{ ref('fct_fixture_player_stats') }}
+ ),
+ 
+-import_fct_fixture as (
++finished as (
+     select
+         fixture_sk,
++        league_sk,
++        season_sk,
+         league_code,
+         season_api_year,
+-        status_short,
+         kickoff_datetime
+     from {{ ref('fct_fixture') }}
+     where status_short in ('FT', 'AET', 'PEN')
+ ),
+ 
+-player_finished_legs as (
++per_fixture as (
+     select
+-        fps.player_sk,
+-        fps.team_sk,
+-        fps.fixture_sk,
+-        fps.minutes_played,
+-        fps.goals_total,
+-        fps.goals_assists,
+-        fps.shots_on,
+-        fps.dribbles_success,
+-        fps.dribbles_attempts,
+-        fps.passes_total,
+-        fps.passes_accuracy_percent,
+-        fps.passes_key,
+-        fps.duels_total,
+-        fps.duels_won,
+-        fps.tackles_total,
+-        fps.tackles_interceptions,
+-        fps.tackles_blocks,
+-        fps.goals_saves,
+-        fps.goals_conceded,
+-        fps.cards_yellow,
+-        fps.cards_red,
++        s.player_sk,
++        s.team_sk,
++        f.league_sk,
++        f.season_sk,
+         f.league_code,
+         f.season_api_year,
+-        f.kickoff_datetime
+-    from import_fct_fixture_player_stats as fps
+-    inner join import_fct_fixture as f
+-        on fps.fixture_sk = f.fixture_sk
++        f.kickoff_datetime,
++        s.minutes_played,
++        s.is_starter,
++        s.is_substitute,
++        s.rating,
++        s.goals_total,
++        s.goals_assists,
++        s.goals_saves,
++        s.goals_conceded,
++        s.shots_total,
++        s.shots_on,
++        s.passes_total,
++        s.passes_key,
++        s.passes_accuracy_percent,
++        s.tackles_total,
++        s.tackles_interceptions,
++        s.tackles_blocks,
++        s.duels_total,
++        s.duels_won,
++        s.dribbles_attempts,
++        s.dribbles_success,
++        s.dribbles_past,
++        s.offsides,
++        s.cards_yellow,
++        s.cards_red,
++        s.penalty_won,
++        s.penalty_committed
++    from player_stats as s
++    inner join finished as f
++        on s.fixture_sk = f.fixture_sk
+ ),
+ 
+ aggregated as (
+     select
++        player_sk,
++        league_sk,
++        season_sk,
+         league_code,
+         season_api_year,
+-        player_sk,
+-        -- last known club team in this league/season for domestic-league resolution
+-        array_agg(team_sk ignore nulls order by kickoff_datetime desc limit 1)[safe_offset(0)] as team_sk,
+-        count(distinct fixture_sk) as matches_played,
+-        sum(coalesce(minutes_played, 0)) as minutes_played_total,
+-        -- Leaderboard 1: scorer points
+-        sum(goals_total) as goals,
+-        sum(goals_assists) as assists,
+-        -- Leaderboard 2: shots on target
+-        sum(shots_on) as shots_on,
+-        -- Leaderboard 3: successful dribbles
+-        sum(dribbles_success) as dribbles_success,
+-        sum(dribbles_attempts) as dribbles_attempts,
+-        -- Leaderboard 4: key passes
+-        sum(passes_key) as passes_key,
+-        -- Leaderboard 5: pass accuracy
+-        sum(passes_total) as passes_total,
+-        -- Accurate passes derived: floor(passes_total * accuracy_pct / 100) per fixture, then sum
++        -- last known club in this competition-season (latest by kickoff)
++        array_agg(team_sk ignore nulls order by kickoff_datetime desc limit 1)[
++            safe_offset(0)
++        ] as team_sk,
++        count(*) as appearances,
++        countif(is_starter) as starts,
++        countif(coalesce(is_substitute, false)) as substitute_appearances,
++        sum(coalesce(minutes_played, 0)) as minutes,
++        avg(rating) as rating_avg,
++        sum(coalesce(goals_total, 0)) as goals,
++        sum(coalesce(goals_assists, 0)) as assists,
++        sum(coalesce(shots_total, 0)) as shots_total,
++        sum(coalesce(shots_on, 0)) as shots_on_target,
++        sum(coalesce(passes_total, 0)) as passes_total,
++        sum(coalesce(passes_key, 0)) as passes_key,
+         sum(
+-            safe_cast(
+-                floor(coalesce(passes_total, 0) * coalesce(passes_accuracy_percent, 0) / 100.0)
+-                as int64
+-            )
++            cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)
+         ) as passes_accurate,
+-        -- Leaderboard 6: duels won
+-        sum(duels_total) as duels_total,
+-        sum(duels_won) as duels_won,
+-        -- Leaderboard 7: defensive actions
+-        sum(tackles_total) as tackles_total,
+-        sum(tackles_interceptions) as interceptions,
+-        sum(tackles_blocks) as blocks,
+-        -- Leaderboard 8: save percentage
+-        sum(goals_saves) as goals_saves,
+-        sum(goals_conceded) as goals_conceded,
+-        -- Leaderboard 9: cards
+-        sum(cards_yellow) as cards_yellow,
+-        sum(cards_red) as cards_red
+-    from player_finished_legs
+-    group by league_code, season_api_year, player_sk
++        sum(coalesce(tackles_total, 0)) as tackles_total,
++        sum(coalesce(tackles_interceptions, 0)) as tackles_interceptions,
++        sum(coalesce(tackles_blocks, 0)) as tackles_blocks,
++        sum(coalesce(duels_total, 0)) as duels_total,
++        sum(coalesce(duels_won, 0)) as duels_won,
++        sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
++        sum(coalesce(dribbles_success, 0)) as dribbles_success,
++        sum(coalesce(dribbles_past, 0)) as dribbles_past,
++        sum(coalesce(offsides, 0)) as offsides,
++        sum(coalesce(cards_yellow, 0)) as cards_yellow,
++        sum(coalesce(cards_red, 0)) as cards_red,
++        sum(coalesce(penalty_won, 0)) as penalty_won,
++        sum(coalesce(penalty_committed, 0)) as penalty_committed,
++        sum(coalesce(goals_saves, 0)) as goals_saves,
++        sum(coalesce(goals_conceded, 0)) as goals_conceded
++    from per_fixture
++    group by player_sk, league_sk, season_sk, league_code, season_api_year
+ )
+ 
+ select
+-    league_code,
+-    season_api_year,
+     player_sk,
+     team_sk,
+-    matches_played,
+-    minutes_played_total,
+-    -- Raw counts
++    league_sk,
++    season_sk,
++    league_code,
++    season_api_year,
++    appearances,
++    starts,
++    substitute_appearances,
++    minutes,
++    rating_avg,
+     goals,
+     assists,
+-    shots_on,
+-    dribbles_success,
+-    dribbles_attempts,
+-    passes_key,
++    shots_total,
++    shots_on_target,
+     passes_total,
+     passes_accurate,
++    passes_key,
++    tackles_total,
++    tackles_interceptions,
++    tackles_blocks,
+     duels_total,
+     duels_won,
+-    tackles_total,
+-    interceptions,
+-    blocks,
+-    goals_saves,
+-    goals_conceded,
++    dribbles_attempts,
++    dribbles_success,
++    dribbles_past,
++    offsides,
+     cards_yellow,
+     cards_red,
+-    -- Derived rates (null when denominator zero)
+-    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
++    penalty_won,
++    penalty_committed,
++    goals_saves,
++    goals_conceded,
+     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
+     safe_divide(duels_won, duels_total) as duels_won_pct,
++    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
+     safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct
+ from aggregated
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 65a3990..938b839 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -63,27 +63,48 @@ models:
+ 
+   - name: int_player_season__metrics
+     description: >
+-      Per (league_code, season_api_year, player_sk) full-season aggregate statistics over all
+-      finished matches. Mirrors int_team_season__full_season_metrics at player grain.
+-      Retained for the planned player profile / season-recap surface; its former
+-      consumer int_matchday__fixture_player_insights was retired in #321.
+-      team_sk is the player's last known club in that league/season (any_value ordered by kickoff desc).
+-      Rates are null when denominator is zero; never coerced to 0.
+-      Grain: (league_code, season_api_year, player_sk).
++      Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
++      player-season rollup consumed by BOTH mart_player_profile and mart_player_season (#480
++      consolidation; replaces the inline aggregation each mart duplicated). Atoms follow
++      docs/player_metrics_catalogue.md: passes_accurate = per-fixture ROUND(passes_total *
++      passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
++      nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
++      denominator is zero. team_sk = the player's last known club that competition-season.
++      Grain: (player_sk, season_sk) — today's grain (the per-club split is the deferred §8.3 follow-up).
+     config:
+       tags: ["intermediate", "football", "team_season", "player"]
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns:
+-            - league_code
+-            - season_api_year
+             - player_sk
++            - season_sk
++      - dbt_utils.expression_is_true:
++          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
++          name: int_player_season_pass_accuracy_pct_in_range
+     columns:
++      - name: player_sk
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: season_sk
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: league_sk
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: league_code
+         tests: [not_null]
+       - name: season_api_year
+         tests: [not_null]
+-      - name: player_sk
+-        tests: [not_null]
+-      - name: matches_played
++      - name: appearances
+         tests: [not_null]
++      - name: pass_accuracy_pct
++        description: "Weighted pass accuracy (accurate ÷ attempted); 0-1 or null. Range-tested at model level."
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 0578909..378f868 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -1,89 +1,52 @@
+ {{ config(materialized='table') }}
+ 
+ {#
+-  Player profile (#325). One row per (player, competition-season): the player's
+-  season profile a player page renders. Mirrors mart_team_profile.
++  Player profile (#325). One row per (player, competition-season): the player's season profile a
++  player page renders. Mirrors mart_team_profile.
+ 
+-  Metric governance (catalogue-only v1): every metric here is a row in the
+-  metric_catalogue seed (#327), computed by its catalogue formula — counts +
+-  the four catalogued player ratios. NO invented metrics (no per-90, no
+-  goal_conversion, no player shot_accuracy) — those are deferred to a catalogue
+-  extension approved by the CPO, driven by the new-UI design. Beyond the
+-  catalogue metrics, only raw descriptors are carried: appearances / starts /
+-  minutes, identity, and modal position. See feedback_metric_catalogue_governance.
++  #480 consolidation: the per-season aggregation now COMPOSES the shared
++  int_player_season__metrics (the single player-season rollup) instead of re-aggregating
++  fct_fixture_player_stats inline. Identity (dim_player), the modal season position, the leaderboard
++  ranks, and the GK full-triple (saves / shots_on_target_faced) are assembled here. Numbers are
++  unchanged — the shared int reproduces the catalogue (ROUND-weighted) computations this mart used.
+ 
+-  passes_accurate follows the catalogue definition exactly: per-fixture
+-  ROUND(passes_total × passes_accuracy_percent / 100) then summed (matches
+-  int_momentum__player / int_season_record__player; small rounding error).
++  Metric governance (catalogue-only v1): every metric is a metric_catalogue row computed by its
++  catalogue formula — counts + the four catalogued player ratios. NO invented metrics (no per-90, no
++  goal_conversion, no player shot_accuracy). Beyond the catalogue metrics, only raw descriptors are
++  carried: appearances / starts / minutes, identity, modal position.
+ 
+-  Grain: (player_sk, season_sk). A player active in two competitions in one
+-  season has one row per competition-season. Only finished matches with a
+-  player-stats row contribute (honest absence where statistics_players is off).
++  Grain: (player_sk, season_sk). A player active in two competitions in one season has one row per
++  competition-season. Only finished matches with a player-stats row contribute (honest absence).
+ #}
+ 
+-with fixtures as (
+-    select
+-        fixture_sk,
+-        league_sk,
+-        season_sk,
+-        season_api_year
+-    from {{ ref('fct_fixture') }}
+-    where status_short in ('FT', 'AET', 'PEN')
+-),
+-
+-stats as (
+-    select * from {{ ref('fct_fixture_player_stats') }}
++with season as (
++    select * from {{ ref('int_player_season__metrics') }}
+ ),
+ 
+ players as (
+     select * from {{ ref('dim_player') }}
+ ),
+ 
+-per_fixture as (
++-- Most-frequent position that season (role badge); nulls excluded.
++positions as (
+     select
+         s.player_sk,
+-        f.league_sk,
+         f.season_sk,
+-        s.league_code,
+-        f.season_api_year,
+-        s.position_code,
+-        s.minutes_played,
+-        s.is_starter,
+-        s.is_substitute,
+-        s.goals_total,
+-        s.goals_assists,
+-        s.goals_conceded,
+-        s.goals_saves,
+-        s.shots_on,
+-        s.passes_total,
+-        s.passes_key,
+-        s.passes_accuracy_percent,
+-        s.tackles_total,
+-        s.tackles_blocks,
+-        s.tackles_interceptions,
+-        s.duels_total,
+-        s.duels_won,
+-        s.dribbles_attempts,
+-        s.dribbles_success,
+-        s.dribbles_past,
+-        s.offsides,
+-        s.cards_yellow,
+-        s.cards_red,
+-        s.penalty_won,
+-        s.penalty_committed
+-    from stats as s
+-    inner join fixtures as f
++        s.position_code
++    from {{ ref('fct_fixture_player_stats') }} as s
++    inner join {{ ref('fct_fixture') }} as f
+         on s.fixture_sk = f.fixture_sk
++    where
++        f.status_short in ('FT', 'AET', 'PEN')
++        and s.position_code is not null
+ ),
+ 
+--- Most-frequent position that season (role badge); nulls excluded.
+ modal_position as (
+     select
+         player_sk,
+         season_sk,
+         position_code
+-    from per_fixture
+-    where position_code is not null
++    from positions
+     group by
+         player_sk,
+         season_sk,
+@@ -92,51 +55,6 @@ modal_position as (
+         partition by player_sk, season_sk
+         order by count(*) desc
+     ) = 1
+-),
+-
+-agg as (
+-    select
+-        player_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year,
+-        count(*) as appearances,
+-        countif(is_starter) as starts,
+-        countif(coalesce(is_substitute, false)) as substitute_appearances,
+-        sum(coalesce(minutes_played, 0)) as minutes,
+-        -- catalogue counts (window-agnostic metric_ids, computed over the season)
+-        sum(coalesce(goals_total, 0)) as goals,
+-        sum(coalesce(goals_assists, 0)) as assists,
+-        sum(coalesce(shots_on, 0)) as shots_on_target,
+-        sum(coalesce(passes_total, 0)) as passes_total,
+-        sum(coalesce(passes_key, 0)) as passes_key,
+-        sum(coalesce(tackles_total, 0)) as tackles_total,
+-        sum(coalesce(tackles_interceptions, 0)) as tackles_interceptions,
+-        sum(coalesce(tackles_blocks, 0)) as tackles_blocks,
+-        sum(coalesce(duels_total, 0)) as duels_total,
+-        sum(coalesce(duels_won, 0)) as duels_won,
+-        sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
+-        sum(coalesce(dribbles_success, 0)) as dribbles_success,
+-        sum(coalesce(dribbles_past, 0)) as dribbles_past,
+-        sum(coalesce(offsides, 0)) as offsides,
+-        sum(coalesce(cards_yellow, 0)) as cards_yellow,
+-        sum(coalesce(cards_red, 0)) as cards_red,
+-        sum(coalesce(penalty_won, 0)) as penalty_won,
+-        sum(coalesce(penalty_committed, 0)) as penalty_committed,
+-        -- passes_accurate: catalogue derivation (per-fixture round, then sum)
+-        sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64))
+-            as passes_accurate,
+-        -- save_pct inputs; surfaced as saves / shots_on_target_faced (GAP-12)
+-        sum(coalesce(goals_saves, 0)) as goals_saves,
+-        sum(coalesce(goals_conceded, 0)) as goals_conceded
+-    from per_fixture
+-    group by
+-        player_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year
+ )
+ 
+ select
+@@ -186,12 +104,12 @@ select
+     a.penalty_committed,
+     -- GK atomics (GAP-12): the save full-triple — saves of shots faced
+     a.goals_saves as saves,
+-    -- catalogue ratio metrics (computed by catalogue formula; null when denom 0)
+     a.goals_saves + a.goals_conceded as shots_on_target_faced,
+-    safe_divide(a.passes_accurate, a.passes_total) as pass_accuracy_pct,
+-    safe_divide(a.duels_won, a.duels_total) as duels_won_pct,
+-    safe_divide(a.dribbles_success, a.dribbles_attempts) as dribbles_success_pct,
+-    safe_divide(a.goals_saves, a.goals_saves + a.goals_conceded) as save_pct,
++    -- catalogue ratio metrics (catalogue formula; null when denom 0)
++    a.pass_accuracy_pct,
++    a.duels_won_pct,
++    a.dribbles_success_pct,
++    a.save_pct,
+     -- per-(league, season) leaderboard ranks (GAP-19.1): zero performers unranked
+     -- (null), DENSE_RANK so ties share a rank — the mart_top_scorers.scorer_rank
+     -- pattern. Selected by the export's player leaderboards (no Python ranking).
+@@ -207,7 +125,7 @@ select
+         partition by a.league_code, a.season_api_year
+         order by a.shots_on_target desc, a.goals desc, a.minutes asc
+     ) end as shots_on_target_rank
+-from agg as a
++from season as a
+ left join players as p
+     on a.player_sk = p.player_sk
+ left join modal_position as mp
+diff --git a/dbt_project/models/5_marts/shared/mart_player_season.sql b/dbt_project/models/5_marts/shared/mart_player_season.sql
+index 8887b72..6a68d7d 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_season.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_season.sql
+@@ -1,110 +1,50 @@
+ {{ config(materialized='table') }}
+ 
+ {#
+-    Per-player, per-season rollup. Joins fct_fixture_player_stats to fct_fixture
+-    to resolve the season_sk and filter to finished matches. A player who moves
+-    clubs mid-season produces a single row per season; team attribution for a
+-    specific fixture lives in fct_fixture_player_stats.
+-#}
++    Per-player, per-season rollup (the lighter season surface; feeds mart_top_scorers).
+ 
+-with fct_fixture as (
+-    select * from {{ ref('fct_fixture') }}
+-),
++    #480 consolidation: now COMPOSES the shared int_player_season__metrics instead of
++    re-aggregating fct_fixture_player_stats inline. Pass accuracy is now the catalogue-correct
++    WEIGHTED value (`pass_accuracy_pct` = accurate ÷ attempted) — the previous
++    `pass_accuracy_avg_percent` was a naive average of per-fixture percentages (wrong for low-volume
++    games) and was unconsumed; corrected here as part of the consolidation. rating_avg preserved.
+ 
+-fct_fixture_player_stats as (
+-    select * from {{ ref('fct_fixture_player_stats') }}
++    A player who moves clubs mid-season produces one row per competition-season (today's grain; the
++    per-club split is the deferred §8.3 follow-up). Grain: (player_sk, season_sk).
++#}
 +
- Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
- It fixes the one real gap: the player season rollup exists three ways today with divergent
- numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
-diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index 5583ab1..9d75a78 100644
---- a/docs/site_architecture.md
-+++ b/docs/site_architecture.md
-@@ -3,6 +3,10 @@
- > The contract for epic #361. Every v2 workstream — templates (#368), export (#365),
- > SEO (#369), i18n (#370), design (#366), migration (#377) — builds against this
- > document. Change it only with CPO sign-off; downstream issues inherit changes.
-+>
-+> **Content model:** the reusable blocks → tabs → navigation structure these templates render is
-+> specified in [`content_architecture.md`](content_architecture.md) — blocks (= marts), tab
-+> compositions, the navigation graph, the flagship reads, and the new marts to build.
++with season as (
++    select * from {{ ref('int_player_season__metrics') }}
+ ),
  
- ## 1. What v2 is
+ dim_player as (
+     select * from {{ ref('dim_player') }}
+-),
+-
+-finished as (
+-    select
+-        fixture_sk,
+-        league_sk,
+-        season_sk,
+-        season_api_year
+-    from fct_fixture
+-    where status_short in ('FT', 'AET', 'PEN')
+-),
+-
+-per_fixture as (
+-    select
+-        fps.player_sk,
+-        fps.league_code,
+-        f.league_sk,
+-        f.season_sk,
+-        f.season_api_year,
+-        fps.minutes_played,
+-        fps.is_starter,
+-        fps.is_substitute,
+-        fps.goals_total,
+-        fps.goals_assists,
+-        fps.shots_total,
+-        fps.shots_on,
+-        fps.passes_key,
+-        fps.passes_accuracy_percent,
+-        fps.cards_yellow,
+-        fps.cards_red,
+-        fps.rating
+-    from fct_fixture_player_stats as fps
+-    inner join finished as f on fps.fixture_sk = f.fixture_sk
+-),
+-
+-agg as (
+-    select
+-        player_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year,
+-        count(*) as appearances,
+-        countif(is_starter) as starts,
+-        countif(coalesce(is_substitute, false)) as substitute_appearances,
+-        sum(coalesce(minutes_played, 0)) as minutes,
+-        sum(coalesce(goals_total, 0)) as goals,
+-        sum(coalesce(goals_assists, 0)) as assists,
+-        sum(coalesce(shots_total, 0)) as shots,
+-        sum(coalesce(shots_on, 0)) as shots_on_target,
+-        sum(coalesce(passes_key, 0)) as key_passes,
+-        avg(passes_accuracy_percent) as pass_accuracy_avg_percent,
+-        avg(rating) as rating_avg,
+-        sum(coalesce(cards_yellow, 0)) as yellow_cards,
+-        sum(coalesce(cards_red, 0)) as red_cards
+-    from per_fixture
+-    group by
+-        player_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year
+ )
  
+ select
+-    {{ dbt_utils.generate_surrogate_key(['agg.player_sk', 'agg.season_sk']) }} as player_season_sk,
+-    agg.player_sk,
+-    agg.season_sk,
+-    agg.league_sk,
+-    agg.league_code,
+-    agg.season_api_year,
++    {{ dbt_utils.generate_surrogate_key(['s.player_sk', 's.season_sk']) }} as player_season_sk,
++    s.player_sk,
++    s.season_sk,
++    s.league_sk,
++    s.league_code,
++    s.season_api_year,
+     p.player_name,
+     p.player_first_name,
+     p.player_last_name,
+     p.player_nationality,
+     p.player_birth_date,
+-    agg.appearances,
+-    agg.starts,
+-    agg.substitute_appearances,
+-    agg.minutes,
+-    agg.goals,
+-    agg.assists,
+-    agg.shots,
+-    agg.shots_on_target,
+-    agg.key_passes,
+-    agg.pass_accuracy_avg_percent,
+-    agg.rating_avg,
+-    agg.yellow_cards,
+-    agg.red_cards
+-from agg
+-left join dim_player as p on agg.player_sk = p.player_sk
++    s.appearances,
++    s.starts,
++    s.substitute_appearances,
++    s.minutes,
++    s.goals,
++    s.assists,
++    s.shots_total as shots,
++    s.shots_on_target,
++    s.passes_key as key_passes,
++    s.rating_avg,
++    s.pass_accuracy_pct,
++    s.cards_yellow as yellow_cards,
++    s.cards_red as red_cards
++from season as s
++left join dim_player as p on s.player_sk = p.player_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 4ce58be..de7108a 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -571,7 +571,7 @@ models:
+         description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
+ 
+   - name: mart_player_season
+-    description: "Per-player, per-season rollup. Grain: (player_sk, season_sk). Aggregates come from fct_fixture_player_stats joined to fct_fixture filtered to finished matches. A player who transfers mid-season produces one row per season; per-fixture team attribution lives in the core fact."
++    description: "Per-player, per-season rollup (feeds mart_top_scorers). Grain: (player_sk, season_sk). Composes the shared int_player_season__metrics (#480) — no inline aggregation. pass_accuracy_pct is the catalogue-correct weighted value (replaced the former unweighted, unconsumed pass_accuracy_avg_percent). A player who transfers mid-season produces one row per competition-season (today's grain)."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -585,6 +585,9 @@ models:
+             - season_sk
+       - dbt_utils.expression_is_true:
+           expression: "starts + substitute_appearances <= appearances"
++      - dbt_utils.expression_is_true:
++          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
++          name: player_season_pass_accuracy_pct_in_range
+     columns:
+       - name: player_season_sk
+         description: "Surrogate key from (player_sk, season_sk)."
+@@ -633,8 +636,8 @@ models:
+       - name: shots
+       - name: shots_on_target
+       - name: key_passes
+-      - name: pass_accuracy_avg_percent
+-        description: "Average pass accuracy percent across fixtures (unweighted; a weighted version can be added later)."
++      - name: pass_accuracy_pct
++        description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
+       - name: rating_avg
+         description: "Average API-Football rating across fixtures (unweighted)."
+       - name: yellow_cards

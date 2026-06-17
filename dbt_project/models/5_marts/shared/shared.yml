@@ -571,7 +571,7 @@ models:
         description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
 
   - name: mart_player_season
-    description: "Per-player, per-season rollup. Grain: (player_sk, season_sk). Aggregates come from fct_fixture_player_stats joined to fct_fixture filtered to finished matches. A player who transfers mid-season produces one row per season; per-fixture team attribution lives in the core fact."
+    description: "Per-player, per-season rollup (feeds mart_top_scorers). Grain: (player_sk, season_sk). Composes the shared int_player_season__metrics (#480) — no inline aggregation. pass_accuracy_pct is the catalogue-correct weighted value (replaced the former unweighted, unconsumed pass_accuracy_avg_percent). A player who transfers mid-season produces one row per competition-season (today's grain)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -585,6 +585,9 @@ models:
             - season_sk
       - dbt_utils.expression_is_true:
           expression: "starts + substitute_appearances <= appearances"
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+          name: player_season_pass_accuracy_pct_in_range
     columns:
       - name: player_season_sk
         description: "Surrogate key from (player_sk, season_sk)."
@@ -633,8 +636,8 @@ models:
       - name: shots
       - name: shots_on_target
       - name: key_passes
-      - name: pass_accuracy_avg_percent
-        description: "Average pass accuracy percent across fixtures (unweighted; a weighted version can be added later)."
+      - name: pass_accuracy_pct
+        description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
       - name: rating_avg
         description: "Average API-Football rating across fixtures (unweighted)."
       - name: yellow_cards
