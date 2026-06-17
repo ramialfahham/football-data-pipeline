@@ -3,6 +3,10 @@
 > The contract for epic #361. Every v2 workstream — templates (#368), export (#365),
 > SEO (#369), i18n (#370), design (#366), migration (#377) — builds against this
 > document. Change it only with CPO sign-off; downstream issues inherit changes.
+>
+> **Content model:** the reusable blocks → tabs → navigation structure these templates render is
+> specified in [`content_architecture.md`](content_architecture.md) — blocks (= marts), tab
+> compositions, the navigation graph, the flagship reads, and the new marts to build.
 
 ## 1. What v2 is
 
