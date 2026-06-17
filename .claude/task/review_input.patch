@@ -1,230 +1,382 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4d9ac03..3aa89fe 100644
+index 3aa89fe..421e7c4 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,112 +1,65 @@
--# Task contract — feat: GAP-18 tournament form-window exception (W1, team)
-+# Task contract — feat: GAP-18 live WC form LABEL (commit 2)
+@@ -1,65 +1,88 @@
+-# Task contract — feat: GAP-18 live WC form LABEL (commit 2)
++# Task contract — feat: dim_team_competition_season_mapping (team↔competition↔season membership, Phase 1)
  
--> GAP-18 (CPO-approved 2026-06-11, "schedule before WC"; CPO go-ahead 2026-06-16 — this conversation —
--> to change the live WC form numbers during the tournament). The shipped W1 momentum window
--> (int_momentum_window__team) hard-caps at recency_rank <= 5 for EVERY competition, so live World Cup
--> previews render a bare "last 5" — the matrix §4 tournament exception ("This tournament so far" /
--> "Qualifiers") is unimplemented. This task implements that exception generically by competition_type,
--> with a window_type descriptor, for the TEAM window. The parent→child link the qualifier window needs
--> is NOT in the warehouse yet (only in the YAML registry), so it is synced into the registry seed via
--> the existing single-source mechanism. Reviewers: scope-auditor + analytics-engineer + cto + data-engineer
--> + bi-analyst (per .claude/review_routing.json for the staged paths).
-+> Commit 2 of branch feat/gap-18-tournament-form-window (PR #485). Commit 1 landed the dbt mart
-+> LAYER — WC form NUMBERS are now tournament/qualifier-cumulative (window_type). This commit wires the
-+> live match-preview LABEL: the UI (site/match-preview/index.html `formContextLabel`) and i18n
-+> (`formContextWcQualifiers` / `formContextWcTournament`, already present in en/de/fi) switch on a
-+> boolean `form_from_qualifiers` flag that the retired `mart_matchday_insights_wc` used to provide and
-+> the current preview mart does not. Without it the live WC preview shows correct cumulative numbers
-+> but always the "all World Cup matches so far" label (wrong for qualifier-window teams). CPO approved
-+> this widening (this conversation). Pure dbt: one mart + its schema + the gaps-register marking. The
-+> live export (scripts/export_pages_data.py) is `SELECT *` passthrough writing full row dicts, so the
-+> new columns reach the JSON with NO export change. Reviewers: scope-auditor + analytics-engineer + bi-analyst.
+-> Commit 2 of branch feat/gap-18-tournament-form-window (PR #485). Commit 1 landed the dbt mart
+-> LAYER — WC form NUMBERS are now tournament/qualifier-cumulative (window_type). This commit wires the
+-> live match-preview LABEL: the UI (site/match-preview/index.html `formContextLabel`) and i18n
+-> (`formContextWcQualifiers` / `formContextWcTournament`, already present in en/de/fi) switch on a
+-> boolean `form_from_qualifiers` flag that the retired `mart_matchday_insights_wc` used to provide and
+-> the current preview mart does not. Without it the live WC preview shows correct cumulative numbers
+-> but always the "all World Cup matches so far" label (wrong for qualifier-window teams). CPO approved
+-> this widening (this conversation). Pure dbt: one mart + its schema + the gaps-register marking. The
+-> live export (scripts/export_pages_data.py) is `SELECT *` passthrough writing full row dicts, so the
+-> new columns reach the JSON with NO export change. Reviewers: scope-auditor + analytics-engineer + bi-analyst.
++> CPO-approved this conversation (2026-06-17). Root cause of the BL1/BL2 directory gap: `dim_team.league_code`
++> is a LATEST-INGEST PROVENANCE stamp (one row per team, latest /teams payload wins), NOT a team↔competition
++> affiliation. All 19 BL1 + 19 BL2 clubs are present in dim_team but stamped `DFBP` (German Cup /teams ingested
++> 2026-06-16, after the leagues' 2026-06-10) — so a `league_code='BL1'` lookup returns nothing. NOT an ingestion
++> gap (raw HAS BL1/BL2 /teams). Latent for every league; PL survived only by ingest timing. The live preview is
++> unaffected (it reads league_code from fixtures, not the stamp).
++>
++> Fix shape (CPO-approved): mirror the player entity/affiliation split (dim_player + dim_player_team_season_mapping).
++> This is **Phase 1** — add the new core mapping dim ONLY. Net-new, breaks nothing, makes "teams in competition X
++> this season" correct for every league. **Phase 2** (drop dim_team.league_code + repoint mart_team_market_value +
++> point the season-rollup at the spine) is a SEPARATE follow-up PR — NOT in this one.
++> Reviewers: scope-auditor (always) + analytics-engineer-reviewer (all paths are dbt_project/**).
  
  objective: >
--  Implement the matrix §4 W1 (live-form/momentum) tournament exception in the TEAM window, generic by
--  competition_type — no league_code hardcoding:
--  (a) Sync the parent link into the warehouse: scripts/sync_dbt_vars.py projects a third column
--      `parent_competition` from docs/competition_registry.yml into seeds/competition_registry.csv;
--      scripts/check_registry_var_sync.py validates the new column (triples) AND that every non-empty
--      parent_competition references a known league_code. Regenerate the seed by RUNNING the script
--      (it is generated, never hand-edited). Document the column in seeds/schema.yml.
--  (b) int_momentum_window__team (MODIFIED): for an upcoming fixture side whose competition_type is
--      world_championship or continental_championship, REPLACE the last-5 recency selection with —
--      tournament_to_date: the team's finished legs in THIS competition (leg_league_code = the fixture's
--      league_code) AND the fixture's season_api_year, before kickoff, cumulative (no 5-cap),
--      window_type='tournament_to_date'; if the team has zero such legs (its opener / pre-MD1) fall back to
--      qualifiers: finished legs in competitions whose registry parent_competition = the fixture's
--      league_code, before kickoff, cumulative, window_type='qualifiers'. All OTHER types keep the existing
--      last-5 recency selection (club season-capped, national uncapped), window_type='last_5'. Emit a
--      window_type column (constant per upcoming_fixture_sk+team_sk); keep recency_rank (1=most recent) for
--      drill-down ordering; OUTPUT SCHEMA = current columns + window_type only.
--  (c) int_momentum__team (MODIFIED): carry window_type from the window legs instead of the hardcoded
--      'last_5'. The aggregate is already a SUM over the window legs, so cumulative windows aggregate
--      correctly; games_in_window becomes the cumulative count (may exceed 5).
--  (d) mart_momentum_window__team (MODIFIED): carry window_type from the window legs instead of hardcoded
--      'last_5'; emit ALL in-window legs (the invariant test requires list rows = games_in_window, so NO
--      cap here — display truncation is a downstream/export concern, out of scope).
--  (e) mart_momentum__team (MODIFIED): window_type flows through from the aggregate; verify it is selected
--      (not re-hardcoded) and contributing_competitions stays correct.
--  (f) Schema + tests: int_momentum_window.yml / int_momentum.yml / shared.yml — add 'tournament_to_date'
--      and 'qualifiers' to window_type accepted_values ON THE TEAM PATH ONLY; relax the
--      "recency_rank between 1 and 5" guard to "between 1 and 5 OR window_type in (tournament_to_date,
--      qualifiers)"; fix descriptions that hardcode "1–5"/"last 5"/"the 5 legs" to the variable window;
--      add a NEW DQ test assert_tournament_form_window.sql (tournament-type fixtures with >=1 prior
--      same-edition leg => window_type='tournament_to_date' and games_in_window = that prior count, not
--      capped at 5; openers => 'qualifiers' or empty). The existing
--      assert_momentum_window_matches_momentum invariant must still pass.
--  (g) Docs: update docs/competitions/wc26.md (the "form is recency-based / dim reserved for GAP-18" note
--      is now implemented via the registry parent link) and mark GAP-18 implemented in
--      docs/wireframes/99_gaps_register.md.
-+  (a) mart_matchday_insights (MODIFIED): surface two boolean columns derived from the momentum mart's
-+      window_type — home_form_from_qualifiers = coalesce(mh.window_type = 'qualifiers', false) and
-+      away_form_from_qualifiers = coalesce(ma.window_type = 'qualifiers', false). Additive only (no
-+      change to existing columns/grain/row-count). coalesce keeps them boolean (never null). The live
-+      `formContextLabel` UI reads exactly these field names; the export passes them through unchanged.
-+      Also de-stale the home/away_form_games_played descriptions ("last-5 window" → "form window;
-+      last-5 normally, cumulative for tournament fixtures").
-+  (b) domestic_league.yml (MODIFIED): document the two new boolean columns (not_null — coalesce makes
-+      them total) and update the two games_played descriptions.
-+  (c) 99_gaps_register.md (MODIFIED): update the GAP-18 row from "mart layer landed / label is the
-+      immediate follow-up" to "live preview fixed (numbers + label)"; the v2 blueprint drill-down
-+      (form_window[] cap, separate phase column) stays under #391.
+-  (a) mart_matchday_insights (MODIFIED): surface two boolean columns derived from the momentum mart's
+-      window_type — home_form_from_qualifiers = coalesce(mh.window_type = 'qualifiers', false) and
+-      away_form_from_qualifiers = coalesce(ma.window_type = 'qualifiers', false). Additive only (no
+-      change to existing columns/grain/row-count). coalesce keeps them boolean (never null). The live
+-      `formContextLabel` UI reads exactly these field names; the export passes them through unchanged.
+-      Also de-stale the home/away_form_games_played descriptions ("last-5 window" → "form window;
+-      last-5 normally, cumulative for tournament fixtures").
+-  (b) domestic_league.yml (MODIFIED): document the two new boolean columns (not_null — coalesce makes
+-      them total) and update the two games_played descriptions.
+-  (c) 99_gaps_register.md (MODIFIED): update the GAP-18 row from "mart layer landed / label is the
+-      immediate follow-up" to "live preview fixed (numbers + label)"; the v2 blueprint drill-down
+-      (form_window[] cap, separate phase column) stays under #391.
++  Add a new core relationship (mapping) dimension `dim_team_competition_season_mapping` giving conformed
++  team↔competition↔season membership, derived from FIXTURES (finished AND scheduled), keys-only, mirroring
++  `dim_player_team_season_mapping`. Membership source = fixtures (NOT the /teams roster): a team that is in a
++  competition always plays fixtures in it, so the schedule is a complete, timing-stable source — unlike players,
++  where a never-played squad member forced a roster source. Scheduled (not-yet-played) fixtures are INCLUDED, so a
++  team is a member from the moment its fixtures are published.
++  (a) Model `dbt_project/models/3_core/dim_team_competition_season_mapping.sql` (NEW, table): read
++      `base_apif__fixtures_next`; UNION DISTINCT home + away sides to one row per (team, league_code, season);
++      filter NULL team ids (undetermined knockout fixtures). Columns (keys only — no measures, no team attributes):
++      `team_competition_season_sk` (surrogate over team_sk+league_code+season_api_year), `team_sk`
++      (cast team_id int64), `league_sk` (cast league_api_id int64), `season_sk`
++      (generate_surrogate_key(league_api_id, season)), `league_code`, `season_api_year` (= season).
++      Derive league_sk/season_sk the SAME way fct_fixture does (the fixtures base carries league_api_id) so keys
++      conform to the fixtures fact by construction — DELIBERATELY differs from the player mapping (which used a
++      nullable dim_competition_season lookup only because the roster lacked league_api_id); document this in the
++      model header.
++  (b) Schema `dbt_project/models/3_core/core.yml` (MODIFIED): add the model entry mirroring
++      dim_player_team_season_mapping — description (relationship/mapping dim, grain, keys-only, "membership from
++      fixtures, appearances live in fct_fixture"), tags [core, dimension], table-level
++      dbt_utils.unique_combination_of_columns on (team_sk, league_code, season_api_year), and column tests:
++      team_competition_season_sk [not_null, unique]; team_sk [not_null, relationships → dim_team];
++      league_sk [not_null, relationships → dim_league]; season_sk [not_null, relationships → dim_competition_season];
++      league_code [not_null]; season_api_year [not_null].
++  (c) DQ test `dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql` (NEW): GENERIC, no
++      league hardcoding — every (team_sk, league_code, season_api_year) appearing as home OR away in `fct_fixture`
++      must have a row in the mapping; returns offending rows (expect zero). The BL1/BL2 regression guard, expressed
++      competition-agnostically.
++  (d) Docs `dbt_project/docs/layering.md` (MODIFIED): add `dim_team_competition_season_mapping` to the core
++      dimension reference table (grain + source + "relationship (mapping) dim" note), beside the player mapping.
  
  refs: >
--  GAP-18 (docs/wireframes/99_gaps_register.md; metrics_display.md §4 + §5.3d; 01_fixture_page.md §5.3d;
--  metrics_context_model.md §4 national-team matrix; docs/competitions/wc26.md "WC form window rules").
--  CPO-approved 2026-06-11; CPO go-ahead 2026-06-16 (this conversation) to change live WC form numbers,
--  with window_type values 'tournament_to_date' + 'qualifiers' confirmed and existing 'season_to_date'
--  left untouched. Parent link source: docs/competition_registry.yml parent_competition (WCQ* -> WC).
-+  GAP-18 live-label completion. Commit 1 = PR #485 mart layer. UI: site/match-preview/index.html
-+  formContextLabel() switches on home/away_form_from_qualifiers; i18n keys formContextWcQualifiers /
-+  formContextWcTournament already exist (en/de/fi). Live export scripts/export_pages_data.py is
-+  SELECT * → full-dict passthrough (no change needed). CPO approved widening 2026-06-16 (this conversation).
+-  GAP-18 live-label completion. Commit 1 = PR #485 mart layer. UI: site/match-preview/index.html
+-  formContextLabel() switches on home/away_form_from_qualifiers; i18n keys formContextWcQualifiers /
+-  formContextWcTournament already exist (en/de/fi). Live export scripts/export_pages_data.py is
+-  SELECT * → full-dict passthrough (no change needed). CPO approved widening 2026-06-16 (this conversation).
++  This conversation 2026-06-17 (root-cause investigation + CPO design sign-off). Mirrors the player model redesign
++  (dim_player pure entity + dim_player_team_season_mapping; the "relationship (mapping) dimensions" clause in
++  dbt_project/docs/layering.md). dim_team BL1/BL2 watch-item from the 2026-06-16 GAP-18 handover.
  
  scope_paths:
--  - scripts/sync_dbt_vars.py
--  - scripts/check_registry_var_sync.py
--  - dbt_project/seeds/competition_registry.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/dbt_project.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
--  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_tournament_form_window.sql
--  - docs/competitions/wc26.md
-+  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
-+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
-   - docs/wireframes/99_gaps_register.md
+-  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+-  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+-  - docs/wireframes/99_gaps_register.md
++  - dbt_project/models/3_core/dim_team_competition_season_mapping.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
++  - dbt_project/docs/layering.md
    - .claude/task/contract.md
++  - .claude/task/review.md
  
  decisions_taken: >
--  CPO 2026-06-11 approved GAP-18 (implement the matrix tournament exception + phase descriptor, schedule
--  before WC). CPO 2026-06-16 (this conversation): rules are settled — opening-round (pre-MD1) form =
--  qualifier matches; from MD2 = cumulative tournament-to-date; never "last 5"; explicit go-ahead to change
--  the live WC form numbers now; window_type values 'tournament_to_date' + 'qualifiers'; existing
--  'season_to_date' key left UNTOUCHED (published key, separate decision). Mechanism: sync the registry's
--  existing parent_competition field into the registry seed (the sanctioned single-source path) and read it
--  in the window model — no separate Core parent-child dim (single consumer; avoids a premature
--  consumer-less model).
-+  CPO 2026-06-16 (this conversation) approved widening the GAP-18 PR to wire the live WC form LABEL,
-+  after the reviewers + investigation showed the mart-numbers change alone reaches the live preview but
-+  leaves the label wrong (the live UI already has the labels + i18n; only the form_from_qualifiers flag
-+  is missing). Derive the flag from the existing window_type ('qualifiers') in dbt (consumption-layer
-+  contract: logic in dbt, the export only selects) — no export or UI/i18n change.
+-  CPO 2026-06-16 (this conversation) approved widening the GAP-18 PR to wire the live WC form LABEL,
+-  after the reviewers + investigation showed the mart-numbers change alone reaches the live preview but
+-  leaves the label wrong (the live UI already has the labels + i18n; only the form_from_qualifiers flag
+-  is missing). Derive the flag from the existing window_type ('qualifiers') in dbt (consumption-layer
+-  contract: logic in dbt, the export only selects) — no export or UI/i18n change.
++  CPO (this conversation, 2026-06-17): (1) the fix mirrors the player entity/affiliation split — a new core mapping
++  dim, NOT a band-aid stamp-priority tiebreak and NOT accept-and-document. (2) Name = dim_team_competition_season_mapping
++  (mirrors the player _mapping suffix). (3) Membership source = FIXTURES, not the /teams roster (teams always play
++  what they enter; no never-played gap). (4) INCLUDE upcoming/scheduled fixtures. (5) Explicit thin dim (not derived
++  inline). (6) Two phases; THIS is Phase 1 (new dim only); Phase 2 (drop dim_team.league_code + repoint
++  mart_team_market_value) is a separate PR. (7) Columns as in objective (a). (8) league_sk/season_sk derived from the
++  base like fct_fixture (NOT the player mapping's nullable lookup) — fixtures carry league_api_id.
  
  decisions_reserved:
--  - SCOPE — this PR covers world_championship + continental_championship (the types the GAP-18 display
--    entry names; the live-critical set). The matrix §4 ALSO gives `qualifying` a cumulative campaign window
--    while running — NOT implemented here (not time-critical; the display GAP-18 entry names only
--    championships). Filed as #483; do NOT silently extend or silently drop.
--  - PLAYER-side window — int_momentum__player selects last-5 inline (no shared player window model); GAP-18
--    names the TEAM model and the player top-strip is secondary. Player stays 'last_5' this PR; filed as
--    #484 (immediate follow-up). Do not self-extend scope.
--  - A new Core parent-child dim (the GAP-18 "Core dim" framing) — deferred; implemented via the seed.
--    If a reviewer/CPO deems the core dim mandatory, escalate rather than self-decide.
--  - Any other §10 question -> escalate in plain language; do not self-rule.
-+  - The boolean field NAMES (home_form_from_qualifiers / away_form_from_qualifiers) are FIXED by the
-+    existing live UI (formContextLabel reads these exact keys) — match them, do not rename.
-+  - v2 blueprint drill-down (form_window[] ≤5 cap, separate `phase` column) stays under #391 — out of scope.
-+  - qualifying-type cumulative window #483, player strip #484 — still deferred.
-+  - Any §10 question -> escalate in plain language.
+-  - The boolean field NAMES (home_form_from_qualifiers / away_form_from_qualifiers) are FIXED by the
+-    existing live UI (formContextLabel reads these exact keys) — match them, do not rename.
+-  - v2 blueprint drill-down (form_window[] ≤5 cap, separate `phase` column) stays under #391 — out of scope.
+-  - qualifying-type cumulative window #483, player strip #484 — still deferred.
+-  - Any §10 question -> escalate in plain language.
++  - PHASE 2 — dropping `dim_team.league_code`, repointing `mart_team_market_value` (its `where league_code = 'WC'`),
++    and pointing the season-rollup at the new spine. NOT this PR. Do NOT touch dim_team or any mart here.
++  - No consumer repointing in Phase 1: the dim is net-new and nothing reads it yet. Do NOT refactor mart_team_season
++    or any existing model to consume it in this PR.
++  - Status handling: include ALL fixture statuses (any scheduled or played fixture = membership). If a reviewer argues
++    a specific status must be excluded (e.g. cancelled), that is a §10 product call → escalate, do not self-decide.
++  - Any other §10 (grain change, naming beyond the agreed name, a new mechanism) → escalate in plain language.
  
  done_when:
--  - `python scripts/sync_dbt_vars.py` regenerates competition_registry.csv with parent_competition;
--    `python scripts/check_registry_var_sync.py` and `python scripts/check_competition_type_seed.py` pass.
--  - dbt parse clean; sqlfluff lint passes on changed models; validate-local clean.
--  - Read-only BQ spot-check on live WC ('WC') upcoming fixtures confirms: sides whose team has >=1 prior
--    2026 WC leg show window_type='tournament_to_date' with games_in_window = that prior count (verified >5
--    where applicable, i.e. the 5-cap is gone); opener sides show 'qualifiers' over WCQ* legs (or empty when
--    no qualifier legs); non-tournament fixtures unchanged ('last_5', <=5 legs).
--  - ci-data-build (full BQ build + DQ tests) green: assert_momentum_window_matches_momentum still passes;
--    new assert_tournament_form_window passes; all window_type accepted_values updated so no test regresses.
--  - int_momentum_window.yml / int_momentum.yml / shared.yml + seeds/schema.yml document the new values/column.
--  - reviewers: scope-auditor + analytics-engineer-reviewer + cto-reviewer + data-engineer-reviewer +
--    bi-analyst-reviewer all PASS (>=2 named risks each), no FAIL, every ESCALATE has a recorded CPO ANSWER.
-+  - dbt parse clean; sqlfluff lint passes on mart_matchday_insights.sql; validate-local clean.
-+  - mart_matchday_insights has home_form_from_qualifiers / away_form_from_qualifiers (boolean, never
-+    null); domestic_league.yml documents them with not_null; existing columns/grain/row-count unchanged.
-+  - Read-only BQ spot-check (or post-build): for live WC opener fixtures the flags are true; for MD2+
-+    WC fixtures false; for non-tournament fixtures false.
-+  - ci-data-build green (the mart builds + its tests pass); the live UI formContextLabel now switches
-+    "all qualifying matches" vs "all World Cup matches so far" correctly (the export passes the new
-+    columns through unchanged — SELECT *).
-+  - reviewers: scope-auditor + analytics-engineer-reviewer + bi-analyst-reviewer all PASS.
+-  - dbt parse clean; sqlfluff lint passes on mart_matchday_insights.sql; validate-local clean.
+-  - mart_matchday_insights has home_form_from_qualifiers / away_form_from_qualifiers (boolean, never
+-    null); domestic_league.yml documents them with not_null; existing columns/grain/row-count unchanged.
+-  - Read-only BQ spot-check (or post-build): for live WC opener fixtures the flags are true; for MD2+
+-    WC fixtures false; for non-tournament fixtures false.
+-  - ci-data-build green (the mart builds + its tests pass); the live UI formContextLabel now switches
+-    "all qualifying matches" vs "all World Cup matches so far" correctly (the export passes the new
+-    columns through unchanged — SELECT *).
+-  - reviewers: scope-auditor + analytics-engineer-reviewer + bi-analyst-reviewer all PASS.
++  - `dim_team_competition_season_mapping` builds (table); grain unique on (team_sk, league_code, season_api_year);
++    team_sk/league_sk/season_sk relationships pass; the new completeness test passes (zero rows).
++  - Read-only BQ spot-check confirms BL1 + BL2 are present in the mapping with their full team sets (the regression
++    guard), and a multi-competition club (e.g. a Bundesliga side) shows multiple rows (BL1 + DFBP + any continental).
++  - dbt parse clean; sqlfluff lint passes on the new SQL; validate-local clean.
++  - core.yml documents the dim + columns + tests; layering.md reference table lists it.
++  - reviewers: scope-auditor + analytics-engineer-reviewer both PASS (≥2 named risks each), no FAIL, every ESCALATE
++    has a recorded CPO ANSWER.
  
  amendments: (none)
-diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-index 68e3c26..29178fd 100644
---- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-@@ -179,15 +179,24 @@ models:
-       - name: away_league_rank
-         description: "Away team's rank in its own competition+season table (mart_standings). Null for knockout rounds and for overlapping-table leagues (team in >1 section that season), or before standings exist."
-       - name: home_form_games_played
--        description: "Home: finished matches in the W1 last-5 window (= games_in_window). 0 when none; never null."
-+        description: "Home: finished matches in the W1 form window (= games_in_window; last-5 normally, cumulative for tournament fixtures). 0 when none; never null."
-         tests: [not_null]
-       - name: away_form_games_played
--        description: "Away: finished matches in the W1 last-5 window. 0 when none; never null."
-+        description: "Away: finished matches in the W1 form window (last-5 normally, cumulative for tournament fixtures). 0 when none; never null."
-         tests: [not_null]
-       - name: home_points_won_sum_form
-         description: "Home: league points (3/1/0) over the form window. UI shows points captured as pts/(3*games)."
-       - name: away_points_won_sum_form
-         description: "Away: league points over the form window."
-+      - name: home_form_from_qualifiers
-+        description: >
-+          True when the home side's W1 form window is the qualifier window (window_type='qualifiers',
-+          GAP-18) — the team's opener in a tournament. Drives the live formContextLabel ("all qualifying
-+          matches" vs "all World Cup matches so far"). Never null (coalesce → false).
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 25b6700..cb43884 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -171,6 +171,7 @@ Canonical dimension inventory for this project:
+ | `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
+ | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
+ | `dim_player_team_season_mapping` | (player_sk, team_sk, season_api_year, league_code) | `base_apif__player_team_season` | Relationship (mapping) dim, not an entity: rostered player↔team↔season membership incl. never-played squad members. Keys only, no descriptive attributes; many rows per player. |
++| `dim_team_competition_season_mapping` | (team_sk, league_code, season_api_year) | `base_apif__fixtures_next` | Relationship (mapping) dim: team↔competition↔season membership derived from fixtures (finished + scheduled), so a team is a member from the moment its schedule is published. Keys only; many rows per team. Sourced from fixtures (not the `/teams` roster) because a team always plays the competitions it enters — no never-played gap like a player's, so no roster source is needed. |
+ 
+ All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
+ 
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 6953d44..9b49889 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -303,6 +303,65 @@ models:
+       - name: raw_ingested_at
+         description: "UTC timestamp of the raw row this membership row was derived from."
+ 
++  - name: dim_team_competition_season_mapping
++    description: >
++      Relationship (mapping) dimension: team↔competition↔season membership, derived from
++      fixtures. Grain: (team_sk, league_code, season_api_year) — one row per team per
++      competition per season in which the team has at least one fixture (finished OR
++      scheduled). An association across dimensions, not an entity dim and not a fact (no
++      measures, no descriptive attributes — only participating keys). On its grain key it is
++      a clean one-row-per-key lookup; joining on a single participating key (e.g. team_sk)
++      resolves a many-to-many and returns many rows by design. Use this for "which teams are
++      in competition X, season Y"; per-match facts live in fct_fixture. Membership comes from
++      fixtures (not the /teams roster) because a team that is in a competition always plays
++      it — scheduled fixtures are included, so membership exists from the moment the schedule
++      is published. No raw_ingested_at: the association is distilled from many fixtures, not a
++      single source row. See the "relationship (mapping) dimensions" clause in
++      dbt_project/docs/layering.md.
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["core", "dimension"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns:
++            - team_sk
++            - league_code
++            - season_api_year
++    columns:
++      - name: team_competition_season_sk
++        description: "Surrogate key over (team_sk, league_code, season_api_year) — the relationship grain."
++        tests: [not_null, unique]
++      - name: team_sk
++        description: "FK to dim_team (team_api_id cast to INT64)."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: league_sk
++        description: "FK to dim_league (league_api_id cast to INT64), derived from the fixture like fct_fixture."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
++      - name: season_sk
++        description: "FK to dim_competition_season, derived as generate_surrogate_key(league_api_id, season) — conforms to fct_fixture and dim_competition_season; every fixture (league, season) is covered, so non-null."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: league_code
++        description: "Internal league code — the competition the team is a member of."
 +        tests: [not_null]
-+      - name: away_form_from_qualifiers
-+        description: "Away: true when the side's W1 form window is the qualifier window (GAP-18). Never null."
++      - name: season_api_year
++        description: "API-Football season year of the membership."
 +        tests: [not_null]
-       - name: home_goals_per_match_recent
-         description: "Home: goals scored per game (scoreline window)."
-       - name: away_goals_per_match_recent
-diff --git a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
-index d270030..585f3c6 100644
---- a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
-+++ b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
-@@ -171,7 +171,17 @@ select
-     coalesce(mh.games_in_window, 0) as home_form_games_played,
-     coalesce(mh.points_won, 0) as home_points_won_sum_form,
-     coalesce(ma.games_in_window, 0) as away_form_games_played,
--    coalesce(ma.points_won, 0) as away_points_won_sum_form
-+    coalesce(ma.points_won, 0) as away_points_won_sum_form,
-+    -- WC form-context label flags (GAP-18): true when the side's W1 window is the qualifier
-+    -- window (window_type='qualifiers'). The live formContextLabel UI reads these EXACT field
-+    -- names to pick "all qualifying matches" vs "all World Cup matches so far" — the names are
-+    -- pinned by the published UI contract, a CPO-approved exception to the is_/has_ boolean
-+    -- convention (2026-06-16). coalesce keeps them boolean (never null) for the no-window case.
-+    -- The mart surfaces one round per league (next_round), so under normal scheduling both sides
-+    -- of a fixture share the same window phase and the UI's both-sides check is unambiguous (CPO
-+    -- accepted this dependency over per-side labels, 2026-06-16).
-+    coalesce(mh.window_type = 'qualifiers', false) as home_form_from_qualifiers,
-+    coalesce(ma.window_type = 'qualifiers', false) as away_form_from_qualifiers
- from next_round_fixtures as f
- left join matchday_fixture_count as mfc
-     on
-diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index c646973..d8458b9 100644
---- a/docs/wireframes/99_gaps_register.md
-+++ b/docs/wireframes/99_gaps_register.md
-@@ -26,5 +26,5 @@
- | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
- | GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11) | — |
- | GAP-17 | 02 team, MVP | mart | Pre-existing: the season rollup's original per-match rates divide by `season_games_played`, not stat-coverage counts (pre-coverage-rule convention) — understates rates where coverage < played. The five NEW season variants (GAP-13) already use coverage denominators | Align the old denominators with the coverage rule — **changes shipped MVP numbers**, so explicitly a CPO ruling; until then the two conventions coexist, documented in the rollup header | pending | — |
--| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_momentum_window__team` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **mart layer landed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_momentum_window__team` via the registry parent link, world + continental championship; live match-preview form NUMBERS now cumulative-correct. Still open: the live WC form LABEL (immediate follow-up) and the v2 blueprint drill-down (`form_window[]` cap, separate `phase` column, #391). Deferred: qualifying-type #483, player strip #484 | — |
-+| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_momentum_window__team` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **live preview fixed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_momentum_window__team` via the registry parent link, world + continental championship; live match-preview form NUMBERS are cumulative-correct AND the WC form LABEL now switches via `form_from_qualifiers` on `mart_matchday_insights` feeding the existing `formContextLabel` UI + `formContextWc*` i18n. The v2 blueprint drill-down (`form_window[]` cap, separate `phase` column) stays under #391. Deferred: qualifying-type #483, player strip #484 | — |
- | GAP-19 | export (all screens) | mart + export | Consumption-layer audit (CPO ruling: ALL logic/transformation in dbt; the export may never compute): the merged export derives five things in Python — (1) leaderboard ranking + zero-exclusion, (2) top-player ranking (goals→assists→key passes), (3) nav taxonomy (`_GROUP_OF_TYPE` competition_type→group dict), (4) H2H canonical pair ordering, (5) **slugs** (published URL identity — must be byte-identical across any frontend) | Migrate each to dbt: rank columns on the player marts (`mart_top_scorers.scorer_rank` is the pattern), a leaderboards mart, `display_group` on the registry/seed, canonical pair key on `mart_head_to_head`, slug columns on the entity marts; export shrinks to selection | **approved** (CPO 2026-06-11) | — |
++
+   - name: fct_fixture
+     description: "Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id). Measures are the final-time goals; half-time, extra-time, and penalty shoot-out splits are intentionally deferred. Status, round, and venue ship as degenerate attributes."
+     meta:
+diff --git a/dbt_project/models/3_core/dim_team_competition_season_mapping.sql b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
+new file mode 100644
+index 0000000..fbdcb07
+--- /dev/null
++++ b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
+@@ -0,0 +1,82 @@
++{{ config(materialized='table') }}
++
++{#
++    Conformed team↔competition↔season membership. One row per team per competition per
++    season in which the team has at least one fixture — finished OR scheduled. A
++    relationship (mapping) dimension, not an entity dim and not a fact: no measures, no
++    descriptive attributes — only the participating keys. Grain is one row per association
++    occurrence, so joining on a single participating key (e.g. team_sk) resolves a
++    many-to-many and returns many rows by design. See the "relationship (mapping)
++    dimensions" clause in dbt_project/docs/layering.md.
++
++    Membership is derived from FIXTURES, not the /teams roster. Unlike a player (a squad
++    member may never play, so membership must be asserted by the roster), a team that is in
++    a competition always plays fixtures in it — so the fixture schedule is a complete,
++    timing-stable source. Scheduled (not-yet-played) fixtures are INCLUDED, so a team is a
++    member from the moment its fixtures are published. Use this to answer "which teams are
++    in competition X, season Y"; per-match facts live in fct_fixture. (Known scope of the
++    fixtures source: a team listed only in a standings table whose fixtures fall outside the
++    ingested window is not a member here — see base_apif__teams; rare and out of scope for
++    the membership question, which the CPO scoped to fixtures.)
++
++    Grain is enforced by the final GROUP BY on (league_code, season, team_sk), so it cannot
++    split. league_api_id is 1:1 with league_code by registry design; max(league_api_id)
++    collapses it to the single value per group, so league_sk/season_sk stay well-defined even
++    if that registry invariant were ever violated (the group key never depends on it).
++
++    league_sk and season_sk are derived from the fixtures base exactly as fct_fixture and
++    dim_competition_season derive them (the base carries league_api_id), so the keys conform
++    to the fixtures fact and the season dim by construction. This deliberately differs from
++    dim_player_team_season_mapping, which resolves them via a nullable dim_competition_season
++    lookup ONLY because the roster source lacked league_api_id.
++#}
++
++with fixtures as (
++    select
++        league_code,
++        league_api_id,
++        season,
++        home_team_id,
++        away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++),
++
++team_sides as (
++    select
++        league_code,
++        league_api_id,
++        season,
++        home_team_id as team_id
++    from fixtures
++    union distinct
++    select
++        league_code,
++        league_api_id,
++        season,
++        away_team_id as team_id
++    from fixtures
++),
++
++memberships as (
++    select
++        league_code,
++        season,
++        cast(team_id as int64) as team_sk,
++        max(league_api_id) as league_api_id
++    from team_sides
++    where team_id is not null
++    group by league_code, season, team_sk
++)
++
++select
++    {{ dbt_utils.generate_surrogate_key([
++        'team_sk',
++        'league_code',
++        'season'
++    ]) }} as team_competition_season_sk,
++    team_sk,
++    cast(league_api_id as int64) as league_sk,
++    {{ dbt_utils.generate_surrogate_key(['league_api_id', 'season']) }} as season_sk,
++    league_code,
++    season as season_api_year
++from memberships
+diff --git a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
+new file mode 100644
+index 0000000..8bfb8be
+--- /dev/null
++++ b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
+@@ -0,0 +1,64 @@
++-- Consistency guard for dim_team_competition_season_mapping (CPO 2026-06-17, Phase 1).
++-- The mapping must hold EXACTLY the team↔competition↔season set that the fixtures fact holds
++-- — no missing members, no extras. A cross-model invariant between the core mapping and
++-- fct_fixture (the canonical fixtures fact): it catches the membership logic drifting from
++-- "every team with any fixture, finished OR scheduled, is a member" — e.g. a future status
++-- filter that silently dropped scheduled fixtures, or a join that dropped rows. Competition-
++-- agnostic: no league codes hardcoded, so it covers BL1/BL2 and every other league.
++-- (The join-path regression — a member that does not resolve to a real team — is guarded
++-- separately by the team_sk relationships test in core.yml.) Returns offending rows in
++-- either direction; expect zero.
++
++with fixture_membership as (
++    select distinct
++        league_code,
++        season_api_year,
++        home_team_sk as team_sk
++    from {{ ref('fct_fixture') }}
++    where home_team_sk is not null
++
++    union distinct
++
++    select distinct
++        league_code,
++        season_api_year,
++        away_team_sk as team_sk
++    from {{ ref('fct_fixture') }}
++    where away_team_sk is not null
++),
++
++mapping as (
++    select
++        league_code,
++        season_api_year,
++        team_sk
++    from {{ ref('dim_team_competition_season_mapping') }}
++)
++
++select
++    'missing_from_mapping' as defect,
++    fm.league_code,
++    fm.season_api_year,
++    fm.team_sk
++from fixture_membership as fm
++left join mapping as m
++    on
++        fm.league_code = m.league_code
++        and fm.season_api_year = m.season_api_year
++        and fm.team_sk = m.team_sk
++where m.team_sk is null
++
++union all
++
++select
++    'extra_in_mapping' as defect,
++    m.league_code,
++    m.season_api_year,
++    m.team_sk
++from mapping as m
++left join fixture_membership as fm
++    on
++        m.league_code = fm.league_code
++        and m.season_api_year = fm.season_api_year
++        and m.team_sk = fm.team_sk
++where fm.team_sk is null
