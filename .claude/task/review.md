@@ -1,51 +1,47 @@
-# Review — feat/gap-18-tournament-form-window — 2026-06-16 (commit 2: live label)
+# Review — feat/dim-team-competition-season-mapping — 2026-06-17 (Phase 1: team membership dim)
 
-> Commit 2: surfaces home/away_form_from_qualifiers on mart_matchday_insights (from window_type)
-> so the live formContextLabel UI switches the WC form label. Required reviewers (routing for the
-> 4 staged paths): scope-auditor (always), analytics-engineer (dbt), bi-analyst (wireframes).
-> Two §10 questions arose and were ruled by the CPO (2026-06-16, recorded below + escalations.log).
+> Phase 1 of the dim_team entity/affiliation split: NEW core relationship (mapping) dim
+> dim_team_competition_season_mapping (team↔competition↔season membership derived from
+> fixtures, incl. scheduled). Required reviewers (routing for the staged dbt_project/**
+> paths): scope-auditor (always) + analytics-engineer-reviewer. One §10 governance-
+> classification question arose in review and was ruled by the CPO (2026-06-17, recorded
+> below + escalations.log).
 
-diff_sha256: 1b52806a4329a11400be20e4d86256d4a4e28f605228388abc201789ea0edce9
+diff_sha256: 4296c012ce74ca7db51b8de378f08eebb3b249d3367f0dcb4f319c7e76cf3e2f
 
 ## scope-auditor
-VERDICT: PASS
+VERDICT: ESCALATE
 risks_checked:
-- Scope + additive: all 4 hunks within scope_paths; the two new columns are additive (existing
-  columns/grain/one-row-per-fixture/row-count unchanged); deferrals (#483/#484/#391) intact.
-- NULL-momentum boundary: coalesce(window_type='qualifiers', false) is total — a team with no
-  momentum row (LEFT JOIN null) yields false, matching not_null; semantic intent preserved.
-- Names pinned by the live UI (not a free choice); gaps-register "live preview fixed" now matches
-  the diff (the flag IS wired here).
+- Scope: all five staged hunks are within the contract's scope_paths (the new model + test,
+  core.yml, layering.md, contract.md); no edit outside the allowlist.
+- Deferrals intact: Phase 2 (dropping dim_team.league_code, repointing mart_team_market_value,
+  refactoring mart_team_season) does NOT appear in the diff — net-new dim only, nothing repointed.
+- Docs match code: core.yml + layering.md describe the model as implemented (after the team_sk
+  SK-description fix); the contract.md change is a legitimate new-task contract (never review-exempt).
+question: The contract records today's design choices as "CPO-approved this conversation" but no
+  matching entry existed in escalations.log (the record of CPO rulings). Do up-front design
+  approvals need logging there too, or is the contract's decisions_taken the sufficient record?
+CPO ANSWER: Path A — LOG IT (CPO 2026-06-17, this conversation). Up-front CPO design approvals are
+  recorded in escalations.log alongside review-time rulings; the 2026-06-17 entry now captures the
+  D1–D7 design approvals + this E1 ruling.
 
 ## analytics-engineer-reviewer
-VERDICT: ESCALATE
+VERDICT: PASS
 risks_checked:
-- Consumption-layer (A5): the export is SELECT * full-dict passthrough; the boolean derivation
-  lives in the mart, not the export — no A5 violation.
-- Additive + total: coalesce makes the columns boolean-non-null; not_null holds; grain unchanged.
-question: The two new boolean columns are named home/away_form_from_qualifiers (no is_/has_ prefix),
-  against the engineering_standards §1 boolean-naming convention — but the names are PINNED by the
-  existing live UI (formContextLabel reads these exact keys). Match the UI name (convention exception)
-  or rename + change the UI?
-CPO ANSWER: Match the UI name (CPO 2026-06-16, this conversation). The published UI contract pins the
-  field name; following is_/has_ would force a parallel live-UI edit. Documented as a CPO-approved
-  exception in the mart comment.
-
-## bi-analyst-reviewer
-VERDICT: ESCALATE
-risks_checked:
-- Field-name match: the mart emits exactly home/away_form_from_qualifiers, the keys the live UI reads;
-  i18n keys (formContextWcQualifiers / formContextWcTournament) already exist in en/de/fi, unchanged.
-- No locked-contract change: no metric / i18n value / wireframe altered; v2 drill-down still under #391.
-question: The UI labels a fixture "all qualifying matches" only when BOTH sides' form_from_qualifiers is
-  true; a mixed-window fixture (one side pre-opener, one started) would read "all World Cup matches so
-  far" — wrong for the qualifier side. Is "live preview fixed" safe, or must the UI become per-side?
-CPO ANSWER: Proceed (CPO 2026-06-16). The mart surfaces one round per league, so under normal scheduling
-  both sides share the same window phase and the mixed case does not arise; the dependency is documented
-  in the mart comment. Per-side labels deferred (not needed today).
+- Layer placement: the model refs only base_apif__fixtures_next (a 2_base view) — no stg_*/mart_*
+  ref, no raw JSON parsing, no union_all macro; the CI check_layer_contract rules for 3_core hold.
+- Grain uniqueness: UNION DISTINCT in team_sides + GROUP BY (league_code, season, team_sk) in
+  memberships enforces the declared grain BEFORE the surrogate; unique_combination_of_columns +
+  unique on the SK double-cover at build (grain is enforced, not assumed via the 1:1 invariant).
+- Key conformance: team_sk = cast(team_id int64), league_sk = cast(league_api_id int64),
+  season_sk = generate_surrogate_key(league_api_id, season) all match dim_team / dim_league /
+  dim_competition_season (and fct_fixture's identical season_sk derivation, whose relationships
+  test passes in prod) by value.
+- Consistency test is a genuine cross-model invariant (mapping vs fct_fixture, a separate model),
+  not a tautology; the join-path regression is covered by the team_sk→dim_team relationships test.
 
 ## escalations
-- question: boolean column naming (UI-pinned home/away_form_from_qualifiers vs is_/has_ convention)
-  CPO ANSWER: match the UI name (CPO 2026-06-16) — published-UI-contract exception, documented in the mart.
-- question: mixed-window WC fixture labelling (UI both-sides AND check)
-  CPO ANSWER: proceed (CPO 2026-06-16) — one-round-per-league makes both sides agree; dependency documented.
+- question: do up-front CPO design approvals (contract decisions_taken) need an escalations.log
+  entry, or is the contract sufficient?
+  CPO ANSWER: Path A — LOG IT (CPO 2026-06-17). Up-front approvals are logged alongside review-time
+  rulings; recorded in the 2026-06-17 escalations.log entry (D1–D7 design approvals + this ruling).

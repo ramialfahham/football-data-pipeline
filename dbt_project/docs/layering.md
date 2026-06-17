@@ -171,6 +171,7 @@ Canonical dimension inventory for this project:
 | `dim_team` | team_api_id | `base_apif__teams_global` | Globally scoped; surrogate key is the API integer directly (teams are unique across competitions). |
 | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
 | `dim_player_team_season_mapping` | (player_sk, team_sk, season_api_year, league_code) | `base_apif__player_team_season` | Relationship (mapping) dim, not an entity: rostered player↔team↔season membership incl. never-played squad members. Keys only, no descriptive attributes; many rows per player. |
+| `dim_team_competition_season_mapping` | (team_sk, league_code, season_api_year) | `base_apif__fixtures_next` | Relationship (mapping) dim: team↔competition↔season membership derived from fixtures (finished + scheduled), so a team is a member from the moment its schedule is published. Keys only; many rows per team. Sourced from fixtures (not the `/teams` roster) because a team always plays the competitions it enters — no never-played gap like a player's, so no roster source is needed. |
 
 All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
 
