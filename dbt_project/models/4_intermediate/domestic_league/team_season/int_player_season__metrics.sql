@@ -13,7 +13,7 @@
   - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
     (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
   - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
-    where statistics_players is off). rating_avg = mean rating over appearances (nulls ignored).
+    where statistics_players is off).
   - rates are NULL when the denominator is zero (never coerced to 0).
 #}
 
@@ -45,7 +45,6 @@ per_fixture as (
         s.minutes_played,
         s.is_starter,
         s.is_substitute,
-        s.rating,
         s.goals_total,
         s.goals_assists,
         s.goals_saves,
@@ -88,7 +87,6 @@ aggregated as (
         countif(is_starter) as starts,
         countif(coalesce(is_substitute, false)) as substitute_appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
-        avg(rating) as rating_avg,
         sum(coalesce(goals_total, 0)) as goals,
         sum(coalesce(goals_assists, 0)) as assists,
         sum(coalesce(shots_total, 0)) as shots_total,
@@ -128,7 +126,6 @@ select
     starts,
     substitute_appearances,
     minutes,
-    rating_avg,
     goals,
     assists,
     shots_total,

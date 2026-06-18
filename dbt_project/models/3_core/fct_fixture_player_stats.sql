@@ -38,7 +38,6 @@ select
     minutes_played,
     shirt_number,
     position_code,
-    rating,
     is_captain,
     is_substitute,
     coalesce(minutes_played, 0) > 0 and not coalesce(is_substitute, false) as is_starter,

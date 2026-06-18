@@ -1,190 +1,354 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index eee0d82..ba235d3 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,21 +4,37 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-17 (content architecture + player-season consolidation). A long CPO design arc
--this session, three merges: **#491** (player performance-surface spec, §8 of `metrics_context_model.md`),
--**#493** (`docs/content_architecture.md` — the modular site IA), and **#494/#480** (one canonical
--player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
-+_Last updated: 2026-06-18 (dbt MCP server — a CPO-directed tooling detour off a LinkedIn post). Merged
-+**#497**: a read-only dbt MCP server (`.mcp.json`, local-manifest lineage) + MCP config classified
-+PROTECTED command-class. main at dff05d7. The prior session's product work (#491 spec, #493 content
-+architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Governance G1–G4 LIVE.
-+**Website blueprint #391 still PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge. `git fetch` + ff to confirm (main 93a2957). Then the CPO directs the next item
--  (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** — it is the IA + data
--  spec everything below builds against.
-+- Nothing pending-merge. `git fetch` + ff to confirm (main dff05d7). The **dbt MCP server is LIVE** — it
-+  loads on session start, so this fresh session should have `mcp__dbt__get_lineage_dev` /
-+  `get_node_details_dev` (read-only local-manifest lineage; refresh with `dbt parse` if stale). Then the
-+  CPO directs the next item (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** —
-+  it is the IA + data spec everything below builds against.
- 
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
- 
--## This session (2026-06-17) — design arc → content architecture + #480
-+## This session (2026-06-18) — dbt MCP server (CPO-directed tooling detour)
-+- **#497 (MERGED) — read-only dbt MCP server + MCP-config protection.** Prompted by a LinkedIn post on dbt
-+  Labs "Wizard"; the one real gap it named for us was **edit-time lineage/impact analysis** (the rest —
-+  validation loop, skills — we already have, often stricter). `.mcp.json` runs `uvx --python 3.12.13
-+  dbt-mcp` with a read-only allowlist (`DBT_MCP_ENABLE_TOOLS=get_lineage_dev,get_node_details_dev,list,parse`)
-+  — **no warehouse tools, no dbt Cloud, dbt stays 1.7.19** (dbt-mcp shells out; no forced upgrade). The
-+  cto-reviewer caught a real bug pre-merge (the group-enable + allowlist combo leaked all 11 CLI tools incl.
-+  build/run/test) → fixed to allowlist-only, live-verified exactly 4 tools + dim_date lineage.
-+- **§10 ruling (2026-06-18):** `.mcp.json` / `.cursor/mcp.json` are **PROTECTED command-class** (they
-+  auto-launch a command each session, like `.claude/commands/`) — in `task_contract_gate.py` PROTECTED_FILES
-+  + routed to cto-reviewer (opus floor). No agent self-grants an MCP server in an ordinary task. Memory:
-+  [[project-dbt-mcp-server]]. `.cursor/mcp.json` path is protected but NOT created (Cursor config deferred).
-+
-+## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
- 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
-    two windows over the per-match leg; the 9 locked rows + an appearance/playing-time block; one per-club
-    season model; club/national window matrix with **national = context** (last-5 NT appearances pooled;
-@@ -134,6 +150,9 @@ player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website bluepr
-   review_input.patch via `git diff >` are the exception — bookkeeping, hash-excluded.)
- - Branch from main; never commit to main; the post-commit hook auto-pushes + opens PRs.
- - **Never merge a PR — the CPO merges.**
-+- **MCP config (`.mcp.json` / `.cursor/mcp.json`) is PROTECTED** — editing needs `protected_override` + cto
-+  review; keep the dbt server's tool allowlist READ-ONLY (never enable build/run/test — they hit BQ and
-+  bypass the cost guard).
- - **Never print the API key** — mask it. **Reading `.env` is deny-listed.**
- - **Bash only** for all commands (git, bq, gh, python) — never PowerShell.
- 
-@@ -145,3 +164,7 @@ player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website bluepr
- - **API budget (API-Football Ultra) = 75,000 calls/day, resets daily** — largely unused, so the backfill
-   (NEXT #1) is affordable. Pipeline runs once daily at 04:00 UTC (drifts ~07:45–10:30). Skip-if-present
-   loaders keep most runs cheap.
-+- **dbt MCP server (read-only lineage)** wired in `.mcp.json` — `uvx --python 3.12.13 dbt-mcp`, loads on
-+  session start. `uv` is installed (global Python311 Scripts) + Python 3.12.13 cached. Tools:
-+  `get_lineage_dev` / `get_node_details_dev` / `list` / `parse` (local manifest only — as fresh as the last
-+  `dbt parse`, which is offline/free; does NOT touch BigQuery or the API budget). MCP config is PROTECTED.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1514b88..e65f1b4 100644
+index e65f1b4..d4b168b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,87 +1,45 @@
--# Task contract — chore: classify MCP config as PROTECTED + wire read-only dbt MCP server
-+# Task contract — chore: refresh the handover after #497 (dbt MCP server) merged
+@@ -1,45 +1,60 @@
+-# Task contract — chore: refresh the handover after #497 (dbt MCP server) merged
++# Task contract — chore: remove the black-box player rating end-to-end
  
--> Governance + tooling. The CPO ruled this conversation (2026-06-18) that `.mcp.json` is a
--> PROTECTED command-class file (it auto-launches `uvx dbt-mcp` every session — same class as
--> `.claude/commands/`, ruled 2026-06-14) and chose Option 2: extend the guard list to cover MCP
--> config AND wire the server. This is a PROTECTED governance task — it edits the gate + routing
--> themselves, so the contract carries `protected_override`. Reviewers: cto-reviewer (guard +
--> tooling, opus floor) + scope-auditor (always).
-+> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this
-+> session's merge (#497 — read-only dbt MCP server + the MCP-config PROTECTED classification), update
-+> FIRST + main SHA (dff05d7), note the server is live on restart, and preserve the content-architecture
-+> roadmap + all durable standing sections unchanged. No code, no docs-content change. active_work.md is
-+> artifact-only for commits but NOT auto-editable, so it is in scope_paths. The commit also carries
-+> contract.md (never review-exempt) → scope-auditor reviews.
+-> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this
+-> session's merge (#497 — read-only dbt MCP server + the MCP-config PROTECTED classification), update
+-> FIRST + main SHA (dff05d7), note the server is live on restart, and preserve the content-architecture
+-> roadmap + all durable standing sections unchanged. No code, no docs-content change. active_work.md is
+-> artifact-only for commits but NOT auto-editable, so it is in scope_paths. The commit also carries
+-> contract.md (never review-exempt) → scope-auditor reviews.
++> CPO 2026-06-18: API-Football's per-player match `rating` is a vendor black box (opaque formula, can't be
++> formula-verified, variable coverage). Decision: we don't carry it at all. Remove it end-to-end —
++> ingestion → core fact → intermediate legs → the two marts that display it → the season aggregate
++> (`rating_avg`) → doc mentions. Precursor to the metric-layer Phase 1 PR: keeps that PR's review
++> boundaries clean and gives Phase 1 a rating-free base. Footprint is dbt + docs ONLY — verified by repo
++> grep: NO site/, scripts/, i18n, or test references.
  
  objective: >
--  (1) Classify MCP-server config as PROTECTED command-class: add `.mcp.json` and `.cursor/mcp.json`
--  to the task-contract gate's PROTECTED_FILES and route them to cto-reviewer, and document the rule
--  in the authoritative guardrail docs — so no agent can self-grant an MCP server in an ordinary task.
--  (2) Wire the read-only dbt MCP server via a committed `.mcp.json` (local-manifest lineage only:
--  get_lineage_dev / get_node_details_dev / list / parse — no warehouse-touching tools, no dbt Cloud).
-+  Rewrite the session-specific parts of .claude/active_work.md to record the 2026-06-18 dbt MCP server
-+  work (#497 merged, main dff05d7), reframe the prior content-architecture merges as the roadmap basis for
-+  NEXT (unchanged), note the MCP server is live on session restart + its read-only tools, and add the
-+  MCP-config PROTECTED rule to the Do-NOT + Environment sections. Carry all durable standing sections
-+  (Standing authority, NEXT, Carryovers, key specs, dim_team, process lessons, governance, form-window
-+  vocab, parked, pending CPO actions, Do-NOT) forward unchanged.
+-  Rewrite the session-specific parts of .claude/active_work.md to record the 2026-06-18 dbt MCP server
+-  work (#497 merged, main dff05d7), reframe the prior content-architecture merges as the roadmap basis for
+-  NEXT (unchanged), note the MCP server is live on session restart + its read-only tools, and add the
+-  MCP-config PROTECTED rule to the Do-NOT + Environment sections. Carry all durable standing sections
+-  (Standing authority, NEXT, Carryovers, key specs, dim_team, process lessons, governance, form-window
+-  vocab, parked, pending CPO actions, Do-NOT) forward unchanged.
++  Drop the player `rating` field and its season aggregate `rating_avg` from the whole dbt chain and the
++  docs that describe them, so nothing computes or surfaces the vendor rating. No behavioural change beyond
++  the field's removal; no other column added, removed, or renamed.
  
  refs: >
--  This conversation 2026-06-18. CPO ruling: Option 2 (PROTECTED). Probe facts: dbt-mcp shells out to
--  our dbt 1.7.19 (no dbt-core dep, no forced upgrade); dbt-artifacts-parser 0.13.2 parses our v11
--  manifest cleanly; dbt-mcp 1.20.4 needs Python >=3.12 (run via uv-managed interpreter; our venv stays
--  3.11.9). Precedent: `.claude/commands/**` protected (CPO ruling 2026-06-14).
-+  This conversation 2026-06-18. Merged #497 (dbt MCP server + MCP-config protection), main dff05d7.
-+  See memory project-dbt-mcp-server.
+-  This conversation 2026-06-18. Merged #497 (dbt MCP server + MCP-config protection), main dff05d7.
+-  See memory project-dbt-mcp-server.
++  This conversation 2026-06-18 (rating is a black box → remove entirely; precursor to metric-layer Phase 1).
++  Footprint confirmed via repo grep: dbt models + core.yml/shared.yml + 3 docs; NO site/, scripts/, i18n,
++  or tests references.
  
  scope_paths:
--  - .mcp.json
--  - .claude/hooks/task_contract_gate.py
--  - .claude/review_routing.json
--  - docs/working_agreement.md
--  - docs/agent_guardrails.md
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/3_core/fct_fixture_player_stats.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
++  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
++  - dbt_project/models/5_marts/shared/mart_player_season.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - docs/wireframes/03_player_profile.md
++  - docs/ui_design_brief.md
++  - docs/api_football_ingestion_blueprint.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
--protected_override: >
--  CPO ruling this conversation (2026-06-18): `.mcp.json` classified PROTECTED (command-class),
--  Option 2 chosen. This authorizes the in-scope edits to .claude/hooks/task_contract_gate.py and
--  .claude/review_routing.json (extending the guard list to cover MCP config). No other protected
--  path is touched — `.claude/settings.json` is deliberately NOT edited (see decisions_taken).
--
  decisions_taken: >
--  - CPO chose Option 2 (2026-06-18): MCP config is PROTECTED; extend guards + wire the read-only
--    server. The read-only env allowlist (DBT_MCP_ENABLE_TOOLS) is the safety mechanism — the server
--    never exposes build/run/test/show/clone, so the redundant `mcp__dbt__*` denylist in the PROTECTED
--    `.claude/settings.json` is NOT added (avoids a second, unnecessary protected edit; CPO concurred).
--  - Protect BOTH `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor) on the same command-class
--    rationale — protecting only the literal file would leave the Cursor entry point open and defeat
--    the ruling's stated goal ("no agent self-grants an MCP server unreviewed"). This implements the
--    objective fully, not by analogy. Narrow to only `.mcp.json` if the CPO intended the literal file.
-+  CPO directed the handover refresh this conversation (2026-06-18, "Let's do it now"). Pure bookkeeping:
-+  records the already-merged #497 + the 2026-06-18 §10 ruling (MCP config PROTECTED) and re-points FIRST.
-+  No new product/metric/naming/layer decision. Durable standing sections preserved verbatim.
+-  CPO directed the handover refresh this conversation (2026-06-18, "Let's do it now"). Pure bookkeeping:
+-  records the already-merged #497 + the 2026-06-18 §10 ruling (MCP config PROTECTED) and re-points FIRST.
+-  No new product/metric/naming/layer decision. Durable standing sections preserved verbatim.
++  CPO 2026-06-18: remove the API-Football player rating ENTIRELY (it is a black-box metric). Confirmed
++  product-wide, not just the season aggregate: the per-match rating shown in mart_player_match_log and
++  mart_fixture_stats__player goes too. Done as its own precursor PR before the metric-layer Phase 1 work
++  (1(a) binding-map; 2(rec) full_season_metrics) so the ingestion/display removal stays out of that PR.
  
  decisions_reserved:
--  - Warehouse-touching dbt tools (build/run/test/show/clone) and the dbt-Cloud Discovery / Semantic
--    Layer / SQL tool groups are OUT. Enabling any is a separate, cost-gated CPO decision.
--  - Column-level lineage (the Fusion/dbt-LSP server) is OUT — not wired here.
--  - Whether to also CREATE `.cursor/mcp.json` (give Cursor the server too) is deferred: this PR
--    PROTECTS that path but only creates the Claude Code `.mcp.json`. A Cursor config is a follow-up.
--  - dbt stays 1.7.19. If a future dbt-mcp drops manifest-v11 support, revisit then — not now.
--  - If wiring needs any file beyond scope_paths, STOP and escalate — do not widen scope silently.
-+  - No new scope. The NEXT items (the content-architecture build sequence) are unchanged + remain
-+    CPO-directed; this is not the place to add or re-decide them.
-+  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
+-  - No new scope. The NEXT items (the content-architecture build sequence) are unchanged + remain
+-    CPO-directed; this is not the place to add or re-decide them.
+-  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
++  - Touch ONLY rating / rating_avg. No other fields, no refactors, no metric_catalogue change (rating is
++    not catalogued). No metric-layer mechanism here (that is Phase 1).
++  - Removing a core-fact column changes downstream mart schemas — but ONLY the rating column; no other
++    output column may change. If any consumer beyond those listed surfaces rating, STOP and surface it.
  
  done_when:
--  - `.mcp.json` is valid JSON: launches `uvx --python 3.12.13 dbt-mcp` (EXACT patch pin — uv's
--    minor-version link needs Windows admin/developer-mode, unavailable here, so a bare `3.12` fails to
--    resolve while `3.12.13` resolves directly); env sets DBT_PROJECT_DIR, DBT_PATH (venv dbt.exe),
--    DBT_PROFILES_DIR as ABSOLUTE paths, intentionally machine-local (single-operator repo; parametrizing
--    is a deferred option); read-only allowlist is
--    `DBT_MCP_ENABLE_TOOLS="get_lineage_dev,get_node_details_dev,list,parse"` ONLY — NO
--    `DBT_MCP_ENABLE_DBT_CLI` (verification showed the group-enable + tool-allowlist combo exposes all 11
--    CLI tools incl. build/run/test/clone; the tool-allowlist ALONE exposes exactly the 4).
--  - task_contract_gate.py PROTECTED_FILES includes ".mcp.json" and ".cursor/mcp.json"; a gate self-test
--    confirms a write to `.mcp.json` is denied without protected_override and allowed with it.
--  - review_routing.json routes ".mcp.json" + ".cursor/mcp.json" -> cto-reviewer; _doc records the ruling.
--  - working_agreement.md §2 + BOTH agent_guardrails.md enumerations (the gate-table row at line 54 + the
--    opus-floor list at line 79) list MCP config among the protected paths.
--  - uv installed locally; `uvx --python 3.12.13 dbt-mcp` launches and exposes ONLY the 4 allowlisted
--    tools (live-verified: get_lineage_dev, get_node_details_dev, list, parse; zero warehouse tools;
--    get_lineage_dev returns real lineage for dim_date).
--  - review.md: cto-reviewer + scope-auditor VERDICT PASS (>=2 named risks each); no FAIL; any ESCALATE
--    has a CPO ANSWER. diff_sha256 matches the staged hash.
--  - Committed on chore/dbt-mcp-server; pushed with explicit refspec; PR opened. CPO merges.
--  - Post-merge (Rami, manual): restart Claude Code/Cursor to load the server; confirm get_lineage_dev
--    returns lineage against our manifest.
--
--amendments:
--  - 2026-06-18 (clean-tree, code stashed): done_when reconciled with the VERIFIED artifact after the
--    iteration-1 cto-reviewer FAIL. Authority: review-cycle finding (no scope change, no new §10 — the
--    build's live verification superseded the contract's planning-time config). Corrections: (1) env
--    allowlist = `DBT_MCP_ENABLE_TOOLS` ONLY (dropped `DBT_MCP_ENABLE_DBT_CLI=true`, which leaked all 11
--    CLI tools); (2) python pin 3.12 -> 3.12.13; (3) recorded the absolute DBT_* paths as intentionally
--    machine-local. Also fixed the missed edit the reviewer caught: docs/agent_guardrails.md line 54
--    (gate-table protected list) now includes the MCP paths, matching line 79 (opus floor).
-+  - .claude/active_work.md reflects: #497 merged (main dff05d7); FIRST = nothing pending-merge + the MCP
-+    server live on restart; the 2026-06-18 MCP session recorded; the content-architecture roadmap +
-+    flagship reads + backfill policy preserved as the NEXT basis; MCP-config PROTECTED rule in Do-NOT +
-+    Environment; all durable sections intact.
-+  - Commit on branch chore/handover-refresh-mcp; post-commit opens the PR.
-+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
-+
-+amendments: (none)
+-  - .claude/active_work.md reflects: #497 merged (main dff05d7); FIRST = nothing pending-merge + the MCP
+-    server live on restart; the 2026-06-18 MCP session recorded; the content-architecture roadmap +
+-    flagship reads + backfill policy preserved as the NEXT basis; MCP-config PROTECTED rule in Do-NOT +
+-    Environment; all durable sections intact.
+-  - Commit on branch chore/handover-refresh-mcp; post-commit opens the PR.
+-  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
++  - `rating` is gone from staging -> base -> fct_fixture_player_stats -> int_legs__player_match -> the two
++    fixture-grain marts; `rating_avg` gone from int_player_season__metrics + mart_player_season; the yml
++    docs (core.yml, shared.yml) and the 3 docs no longer describe either.
++  - No remaining whole-word `rating` reference in dbt_project/ or docs/ (excluding unrelated words).
++  - dbt parse + sqlfluff lint green (validate-local). No other column added/removed/renamed.
++  - reviewer: data-engineer PASS + analytics-engineer PASS + scope-auditor PASS (>=2 named risks each);
++    no FAIL; no ESCALATE.
++  - Branch chore/drop-player-rating; PR opened (CPO merges). Then resume metric-layer Phase 1 on the
++    rating-free base.
+ 
+ amendments: (none)
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+index ea904a4..f9ea5ef 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+@@ -39,7 +39,6 @@ flattened as (
+         safe_cast(json_value(stats_el, '$.games.minutes') as int64) as minutes_played,
+         safe_cast(json_value(stats_el, '$.games.number') as int64) as shirt_number,
+         json_value(stats_el, '$.games.position') as position_code,
+-        safe_cast(json_value(stats_el, '$.games.rating') as float64) as rating,
+         safe_cast(json_value(stats_el, '$.games.captain') as bool) as is_captain,
+         safe_cast(json_value(stats_el, '$.games.substitute') as bool) as is_substitute,
+         safe_cast(json_value(stats_el, '$.offsides') as int64) as offsides,
+@@ -89,7 +88,6 @@ select
+     minutes_played,
+     shirt_number,
+     position_code,
+-    rating,
+     is_captain,
+     is_substitute,
+     offsides,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index e26096e..96025de 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -7,7 +7,6 @@ with src as (
+         minutes_played,
+         shirt_number,
+         position_code,
+-        rating,
+         is_captain,
+         is_substitute,
+         offsides,
+@@ -59,7 +58,6 @@ select
+     minutes_played,
+     shirt_number,
+     position_code,
+-    rating,
+     is_captain,
+     is_substitute,
+     offsides,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 19242d5..4229293 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -608,7 +608,6 @@ models:
+       - name: shirt_number
+       - name: position_code
+         description: "Position as reported by the API (e.g. G, D, M, F). Degenerate attribute; kept free-form to track future codes."
+-      - name: rating
+       - name: is_captain
+       - name: is_substitute
+       - name: is_starter
+diff --git a/dbt_project/models/3_core/fct_fixture_player_stats.sql b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+index f17f4c2..4dbd931 100644
+--- a/dbt_project/models/3_core/fct_fixture_player_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+@@ -38,7 +38,6 @@ select
+     minutes_played,
+     shirt_number,
+     position_code,
+-    rating,
+     is_captain,
+     is_substitute,
+     coalesce(minutes_played, 0) > 0 and not coalesce(is_substitute, false) as is_starter,
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index 17ba709..49b853e 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -13,7 +13,7 @@
+   - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
+     (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
+   - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
+-    where statistics_players is off). rating_avg = mean rating over appearances (nulls ignored).
++    where statistics_players is off).
+   - rates are NULL when the denominator is zero (never coerced to 0).
+ #}
+ 
+@@ -45,7 +45,6 @@ per_fixture as (
+         s.minutes_played,
+         s.is_starter,
+         s.is_substitute,
+-        s.rating,
+         s.goals_total,
+         s.goals_assists,
+         s.goals_saves,
+@@ -88,7 +87,6 @@ aggregated as (
+         countif(is_starter) as starts,
+         countif(coalesce(is_substitute, false)) as substitute_appearances,
+         sum(coalesce(minutes_played, 0)) as minutes,
+-        avg(rating) as rating_avg,
+         sum(coalesce(goals_total, 0)) as goals,
+         sum(coalesce(goals_assists, 0)) as assists,
+         sum(coalesce(shots_total, 0)) as shots_total,
+@@ -128,7 +126,6 @@ select
+     starts,
+     substitute_appearances,
+     minutes,
+-    rating_avg,
+     goals,
+     assists,
+     shots_total,
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+index 4737bc6..a671549 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+@@ -53,7 +53,6 @@ select
+     reg.competition_type,
+     typ.entity_type,
+     ps.minutes_played,
+-    ps.rating,
+     ps.is_starter,
+     ps.is_substitute,
+     ps.position_code,
+diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql b/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+index 052888f..fc3e5b8 100644
+--- a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
++++ b/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+@@ -59,7 +59,6 @@ select
+     s.position_code,
+     s.shirt_number,
+     s.minutes_played,
+-    s.rating,
+     s.is_captain,
+     s.is_substitute,
+     s.is_starter,
+diff --git a/dbt_project/models/5_marts/shared/mart_player_match_log.sql b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+index d1b0e97..55a4900 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_match_log.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+@@ -65,7 +65,6 @@ joined as (
+         s.minutes_played,
+         s.is_starter,
+         s.is_substitute,
+-        s.rating,
+         s.goals_total,
+         s.goals_assists,
+         s.goals_conceded,
+@@ -117,7 +116,6 @@ select
+     j.minutes_played,
+     j.is_starter,
+     j.is_substitute,
+-    j.rating,
+     j.goals_total,
+     j.goals_assists,
+     j.goals_conceded,
+diff --git a/dbt_project/models/5_marts/shared/mart_player_season.sql b/dbt_project/models/5_marts/shared/mart_player_season.sql
+index 6a68d7d..496997d 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_season.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_season.sql
+@@ -7,7 +7,7 @@
+     re-aggregating fct_fixture_player_stats inline. Pass accuracy is now the catalogue-correct
+     WEIGHTED value (`pass_accuracy_pct` = accurate ÷ attempted) — the previous
+     `pass_accuracy_avg_percent` was a naive average of per-fixture percentages (wrong for low-volume
+-    games) and was unconsumed; corrected here as part of the consolidation. rating_avg preserved.
++    games) and was unconsumed; corrected here as part of the consolidation.
+ 
+     A player who moves clubs mid-season produces one row per competition-season (today's grain; the
+     per-club split is the deferred §8.3 follow-up). Grain: (player_sk, season_sk).
+@@ -42,7 +42,6 @@ select
+     s.shots_total as shots,
+     s.shots_on_target,
+     s.passes_key as key_passes,
+-    s.rating_avg,
+     s.pass_accuracy_pct,
+     s.cards_yellow as yellow_cards,
+     s.cards_red as red_cards
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index de7108a..edbc1d7 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -638,8 +638,6 @@ models:
+       - name: key_passes
+       - name: pass_accuracy_pct
+         description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
+-      - name: rating_avg
+-        description: "Average API-Football rating across fixtures (unweighted)."
+       - name: yellow_cards
+       - name: red_cards
+ 
+diff --git a/docs/api_football_ingestion_blueprint.md b/docs/api_football_ingestion_blueprint.md
+index e46a96f..b4a1b5b 100644
+--- a/docs/api_football_ingestion_blueprint.md
++++ b/docs/api_football_ingestion_blueprint.md
+@@ -75,7 +75,7 @@ response[i]
+     .team.id                       # int
+     .players[k].player.id          # int
+     .players[k].player.name        # str
+-    .players[k].statistics[0]      # object — per-player stats (rating, shots, etc.)
++    .players[k].statistics[0]      # object — per-player stats (shots, passes, etc.)
+ ```
+ 
+ **No `group` field exists in the `/fixtures` response.** Group assignment for
+diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
+index e122cb1..67fcb7c 100644
+--- a/docs/ui_design_brief.md
++++ b/docs/ui_design_brief.md
+@@ -94,7 +94,7 @@ Two complementary windows per team, always shown side by side:
+ - **Match detail (a clicked past match)**: full team stat lines both sides
+   (possession %, shots on/off/total/blocked/inside/outside box, fouls, corners,
+   offsides, cards, saves, passes total/accurate/%) + per-player stat lines both sides
+-  (minutes, shirt, position, rating, captain/sub, goals, assists, shots, passes, key
++  (minutes, shirt, position, captain/sub, goals, assists, shots, passes, key
+   passes, tackles, interceptions, blocks, duels, dribbles, fouls, cards, penalties).
+ - **Player insights (per team)**: top players over the form window — appearances,
+   minutes, goals, assists, shots on target, key passes, pass accuracy %, duels won %,
+@@ -152,7 +152,7 @@ shots on target, passes (total, accurate, key), pass accuracy %, tackles,
+ interceptions, blocks, duels (won/total, %), dribbles (success/attempts, %, dribbled
+ past), offsides, cards (Y/R), penalties (won/committed); GK: saves, conceded, save %.
+ **Match log**: per match — date, competition, opponent (crest), home/away, score,
+-W/D/L, minutes, rating, goals, assists, cards.
++W/D/L, minutes, goals, assists, cards.
+ Note: per-90 rates and "smart composite scores" are deliberately NOT available yet —
+ do not draw them.
+ 
+diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
+index f84e071..4b4a374 100644
+--- a/docs/wireframes/03_player_profile.md
++++ b/docs/wireframes/03_player_profile.md
+@@ -9,7 +9,7 @@
+ 
+ A player's season in one screen: who they are, what they produce, and the match
+ log behind the numbers. The **stop-scrolling moment** is the **match log** — the
+-per-match line (score, result, minutes, rating, goals) that turns a season
++per-match line (score, result, minutes, goals) that turns a season
+ aggregate into a story you can scroll. Aggregates are honest counts only — no
+ per-90, no composite ratings (locked).
+ 
+@@ -57,7 +57,7 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
+ ├────────────────────────────────────────────┤
+ │  MATCH LOG                                 │  (6) latest first
+ │  6 Dec  BL1  Gladbach [crest] H            │
+-│  ▸ W 3-1 · 90' · 8.1 · 1 G · 1 A           │
++│  ▸ W 3-1 · 90' · 1 G · 1 A                 │
+ │    …all matches with a stat line…          │
+ ├────────────────────────────────────────────┤
+ │  ▸Team profile ▸Bundesliga ▸Top scorers    │  (7) internal links
+@@ -114,7 +114,6 @@ GK block on keeper profiles = design call #366). Unbundled atomics
+ | Home/away | `is_home` | H/A badge |
+ | Score + result | `goals_for`, `goals_against`, `result` | team perspective; W/D/L chip |
+ | Minutes | `minutes_played` | `90'`; sub appearance flagged via `is_substitute` |
+-| Rating | `rating` | provider rating, 1 decimal; null → "-" |
+ | Goals / assists | `goals_total`, `goals_assists` | shown when > 0 |
+ | Cards | `cards_yellow`, `cards_red` | icons when > 0 |
+ | GK line | `goals_saves`, `goals_conceded` | replaces G/A for keepers |
+@@ -136,7 +135,6 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
+ | GK profile | `position = 'G'` | Save-percentage bundle renders; GK match-log line |
+ | Zero denominator | e.g. `duels_total = 0` | `0 of 0 · —` (counts shown, ratio undefined) |
+ | No stat line for a match | match absent from `match_log[]` | nothing fabricated — the log only contains matches with player stats (a COMMON state, brief §2: style it, don't hide it) |
+-| Null rating | `rating` null | "-" |
+ | Multi-competition season | several `seasons[]` rows per year | selector lists each; no blending |
+ | Thin page | no `mart_player_profile` row | page not generated |
+ 
+@@ -145,7 +143,7 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
+ - **Season selector**: swaps (4)+(5) and filters (6) in place (all data in the
+   payload). Default season server-rendered.
+ - Match-log row → matchstats page when available; opponent → team profile.
+-- No charts required at v1; sparkline of match ratings = design option (island).
++- No charts required at v1.
+ 
+ ## 8. SEO
+ 

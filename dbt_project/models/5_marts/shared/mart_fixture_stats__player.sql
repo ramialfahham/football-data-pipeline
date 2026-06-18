@@ -59,7 +59,6 @@ select
     s.position_code,
     s.shirt_number,
     s.minutes_played,
-    s.rating,
     s.is_captain,
     s.is_substitute,
     s.is_starter,

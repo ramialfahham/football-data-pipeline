@@ -94,7 +94,7 @@ Two complementary windows per team, always shown side by side:
 - **Match detail (a clicked past match)**: full team stat lines both sides
   (possession %, shots on/off/total/blocked/inside/outside box, fouls, corners,
   offsides, cards, saves, passes total/accurate/%) + per-player stat lines both sides
-  (minutes, shirt, position, rating, captain/sub, goals, assists, shots, passes, key
+  (minutes, shirt, position, captain/sub, goals, assists, shots, passes, key
   passes, tackles, interceptions, blocks, duels, dribbles, fouls, cards, penalties).
 - **Player insights (per team)**: top players over the form window — appearances,
   minutes, goals, assists, shots on target, key passes, pass accuracy %, duels won %,
@@ -152,7 +152,7 @@ shots on target, passes (total, accurate, key), pass accuracy %, tackles,
 interceptions, blocks, duels (won/total, %), dribbles (success/attempts, %, dribbled
 past), offsides, cards (Y/R), penalties (won/committed); GK: saves, conceded, save %.
 **Match log**: per match — date, competition, opponent (crest), home/away, score,
-W/D/L, minutes, rating, goals, assists, cards.
+W/D/L, minutes, goals, assists, cards.
 Note: per-90 rates and "smart composite scores" are deliberately NOT available yet —
 do not draw them.
 

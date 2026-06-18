@@ -9,7 +9,7 @@
 
 A player's season in one screen: who they are, what they produce, and the match
 log behind the numbers. The **stop-scrolling moment** is the **match log** — the
-per-match line (score, result, minutes, rating, goals) that turns a season
+per-match line (score, result, minutes, goals) that turns a season
 aggregate into a story you can scroll. Aggregates are honest counts only — no
 per-90, no composite ratings (locked).
 
@@ -57,7 +57,7 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
 ├────────────────────────────────────────────┤
 │  MATCH LOG                                 │  (6) latest first
 │  6 Dec  BL1  Gladbach [crest] H            │
-│  ▸ W 3-1 · 90' · 8.1 · 1 G · 1 A           │
+│  ▸ W 3-1 · 90' · 1 G · 1 A                 │
 │    …all matches with a stat line…          │
 ├────────────────────────────────────────────┤
 │  ▸Team profile ▸Bundesliga ▸Top scorers    │  (7) internal links
@@ -114,7 +114,6 @@ GK block on keeper profiles = design call #366). Unbundled atomics
 | Home/away | `is_home` | H/A badge |
 | Score + result | `goals_for`, `goals_against`, `result` | team perspective; W/D/L chip |
 | Minutes | `minutes_played` | `90'`; sub appearance flagged via `is_substitute` |
-| Rating | `rating` | provider rating, 1 decimal; null → "-" |
 | Goals / assists | `goals_total`, `goals_assists` | shown when > 0 |
 | Cards | `cards_yellow`, `cards_red` | icons when > 0 |
 | GK line | `goals_saves`, `goals_conceded` | replaces G/A for keepers |
@@ -136,7 +135,6 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
 | GK profile | `position = 'G'` | Save-percentage bundle renders; GK match-log line |
 | Zero denominator | e.g. `duels_total = 0` | `0 of 0 · —` (counts shown, ratio undefined) |
 | No stat line for a match | match absent from `match_log[]` | nothing fabricated — the log only contains matches with player stats (a COMMON state, brief §2: style it, don't hide it) |
-| Null rating | `rating` null | "-" |
 | Multi-competition season | several `seasons[]` rows per year | selector lists each; no blending |
 | Thin page | no `mart_player_profile` row | page not generated |
 
@@ -145,7 +143,7 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
 - **Season selector**: swaps (4)+(5) and filters (6) in place (all data in the
   payload). Default season server-rendered.
 - Match-log row → matchstats page when available; opponent → team profile.
-- No charts required at v1; sparkline of match ratings = design option (island).
+- No charts required at v1.
 
 ## 8. SEO
 
