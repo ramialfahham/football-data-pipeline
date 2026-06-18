@@ -1,242 +1,190 @@
-diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
-index d98791b..6cc540b 100644
---- a/.claude/hooks/task_contract_gate.py
-+++ b/.claude/hooks/task_contract_gate.py
-@@ -51,8 +51,20 @@ TASK_DIR_REL = ".claude/task/"
- # 2026-06-14 (this branch's escalations.log): custom slash commands can embed
- # shell, so a command file is the same high-stakes class as a hook — never add
- # one inside an ordinary task without protected_override + cto review.
-+# .mcp.json + .cursor/mcp.json added per the CPO ruling 2026-06-18 (this
-+# conversation): an MCP-server config auto-launches a command (`uvx dbt-mcp` …)
-+# every session — the same command-class as .claude/commands/, so it is
-+# guard-level. No agent may self-grant an MCP server inside an ordinary task;
-+# it needs protected_override + cto review. Both the Claude Code (.mcp.json)
-+# and Cursor (.cursor/mcp.json) entry points are covered; .claude/settings.json
-+# (which can also carry an mcpServers block) is already PROTECTED below.
- PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
--PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
-+PROTECTED_FILES = (
-+    ".claude/settings.json",
-+    ".claude/review_routing.json",
-+    ".mcp.json",
-+    ".cursor/mcp.json",
-+)
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index eee0d82..ba235d3 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,21 +4,37 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
  
- _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+-_Last updated: 2026-06-17 (content architecture + player-season consolidation). A long CPO design arc
+-this session, three merges: **#491** (player performance-surface spec, §8 of `metrics_context_model.md`),
+-**#493** (`docs/content_architecture.md` — the modular site IA), and **#494/#480** (one canonical
+-player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
++_Last updated: 2026-06-18 (dbt MCP server — a CPO-directed tooling detour off a LinkedIn post). Merged
++**#497**: a read-only dbt MCP server (`.mcp.json`, local-manifest lineage) + MCP config classified
++PROTECTED command-class. main at dff05d7. The prior session's product work (#491 spec, #493 content
++architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Governance G1–G4 LIVE.
++**Website blueprint #391 still PAUSED.**_
  
-diff --git a/.claude/review_routing.json b/.claude/review_routing.json
-index 5f2500a..b5125a6 100644
---- a/.claude/review_routing.json
-+++ b/.claude/review_routing.json
-@@ -24,7 +24,12 @@
-     "`.claude/commands/**` is PROTECTED + routed to cto-reviewer (CPO ruling",
-     "2026-06-14): a custom slash command can embed shell, so a command file is",
-     "governed like a hook — protected-path edit (needs protected_override) +",
--    "platform review + opus floor."
-+    "platform review + opus floor.",
-+    "`.mcp.json` + `.cursor/mcp.json` are PROTECTED + routed to cto-reviewer (CPO",
-+    "ruling 2026-06-18): an MCP-server config auto-launches a command every",
-+    "session — the same command-class as .claude/commands/. Protected-path edit",
-+    "(protected_override) + platform review + opus floor. .claude/settings.json",
-+    "(which can carry an mcpServers block) is already PROTECTED."
-   ],
-   "always": ["scope-auditor"],
-   "paths": {
-@@ -36,6 +41,8 @@
-     ".claude/hooks/**": ["cto-reviewer"],
-     ".claude/agents/**": ["cto-reviewer"],
-     ".claude/commands/**": ["cto-reviewer"],
-+    ".mcp.json": ["cto-reviewer"],
-+    ".cursor/mcp.json": ["cto-reviewer"],
-     ".claude/settings.json": ["cto-reviewer"],
-     ".claude/review_routing.json": ["cto-reviewer"],
-     ".github/workflows/**": ["cto-reviewer"],
+ ## FIRST next session (do this first)
+-- Nothing pending-merge. `git fetch` + ff to confirm (main 93a2957). Then the CPO directs the next item
+-  (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** — it is the IA + data
+-  spec everything below builds against.
++- Nothing pending-merge. `git fetch` + ff to confirm (main dff05d7). The **dbt MCP server is LIVE** — it
++  loads on session start, so this fresh session should have `mcp__dbt__get_lineage_dev` /
++  `get_node_details_dev` (read-only local-manifest lineage; refresh with `dbt parse` if stale). Then the
++  CPO directs the next item (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** —
++  it is the IA + data spec everything below builds against.
+ 
+ ## Standing authority (in force)
+ - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
+   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
+ 
+-## This session (2026-06-17) — design arc → content architecture + #480
++## This session (2026-06-18) — dbt MCP server (CPO-directed tooling detour)
++- **#497 (MERGED) — read-only dbt MCP server + MCP-config protection.** Prompted by a LinkedIn post on dbt
++  Labs "Wizard"; the one real gap it named for us was **edit-time lineage/impact analysis** (the rest —
++  validation loop, skills — we already have, often stricter). `.mcp.json` runs `uvx --python 3.12.13
++  dbt-mcp` with a read-only allowlist (`DBT_MCP_ENABLE_TOOLS=get_lineage_dev,get_node_details_dev,list,parse`)
++  — **no warehouse tools, no dbt Cloud, dbt stays 1.7.19** (dbt-mcp shells out; no forced upgrade). The
++  cto-reviewer caught a real bug pre-merge (the group-enable + allowlist combo leaked all 11 CLI tools incl.
++  build/run/test) → fixed to allowlist-only, live-verified exactly 4 tools + dim_date lineage.
++- **§10 ruling (2026-06-18):** `.mcp.json` / `.cursor/mcp.json` are **PROTECTED command-class** (they
++  auto-launch a command each session, like `.claude/commands/`) — in `task_contract_gate.py` PROTECTED_FILES
++  + routed to cto-reviewer (opus floor). No agent self-grants an MCP server in an ordinary task. Memory:
++  [[project-dbt-mcp-server]]. `.cursor/mcp.json` path is protected but NOT created (Cursor config deferred).
++
++## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
+ 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
+    two windows over the per-match leg; the 9 locked rows + an appearance/playing-time block; one per-club
+    season model; club/national window matrix with **national = context** (last-5 NT appearances pooled;
+@@ -134,6 +150,9 @@ player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website bluepr
+   review_input.patch via `git diff >` are the exception — bookkeeping, hash-excluded.)
+ - Branch from main; never commit to main; the post-commit hook auto-pushes + opens PRs.
+ - **Never merge a PR — the CPO merges.**
++- **MCP config (`.mcp.json` / `.cursor/mcp.json`) is PROTECTED** — editing needs `protected_override` + cto
++  review; keep the dbt server's tool allowlist READ-ONLY (never enable build/run/test — they hit BQ and
++  bypass the cost guard).
+ - **Never print the API key** — mask it. **Reading `.env` is deny-listed.**
+ - **Bash only** for all commands (git, bq, gh, python) — never PowerShell.
+ 
+@@ -145,3 +164,7 @@ player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website bluepr
+ - **API budget (API-Football Ultra) = 75,000 calls/day, resets daily** — largely unused, so the backfill
+   (NEXT #1) is affordable. Pipeline runs once daily at 04:00 UTC (drifts ~07:45–10:30). Skip-if-present
+   loaders keep most runs cheap.
++- **dbt MCP server (read-only lineage)** wired in `.mcp.json` — `uvx --python 3.12.13 dbt-mcp`, loads on
++  session start. `uv` is installed (global Python311 Scripts) + Python 3.12.13 cached. Tools:
++  `get_lineage_dev` / `get_node_details_dev` / `list` / `parse` (local manifest only — as fresh as the last
++  `dbt parse`, which is offline/free; does NOT touch BigQuery or the API budget). MCP config is PROTECTED.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 86be7e8..1514b88 100644
+index 1514b88..e65f1b4 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,43 +1,87 @@
--# Task contract — chore: refresh the handover after #493 (content architecture) + #494/#480 merged
-+# Task contract — chore: classify MCP config as PROTECTED + wire read-only dbt MCP server
+@@ -1,87 +1,45 @@
+-# Task contract — chore: classify MCP config as PROTECTED + wire read-only dbt MCP server
++# Task contract — chore: refresh the handover after #497 (dbt MCP server) merged
  
--> Bookkeeping. Update `.claude/active_work.md` to record the work merged since the last handover —
--> #493 (content_architecture.md, the modular IA) and #494/#480 (player-season consolidation) — and
--> re-point NEXT to the content-architecture build sequence. No code, no docs-content change.
--> `active_work.md` is artifact-only for commits but not auto-editable, so it is in scope_paths here.
--> The commit also carries contract.md (never review-exempt) → scope-auditor reviews.
-+> Governance + tooling. The CPO ruled this conversation (2026-06-18) that `.mcp.json` is a
-+> PROTECTED command-class file (it auto-launches `uvx dbt-mcp` every session — same class as
-+> `.claude/commands/`, ruled 2026-06-14) and chose Option 2: extend the guard list to cover MCP
-+> config AND wire the server. This is a PROTECTED governance task — it edits the gate + routing
-+> themselves, so the contract carries `protected_override`. Reviewers: cto-reviewer (guard +
-+> tooling, opus floor) + scope-auditor (always).
+-> Governance + tooling. The CPO ruled this conversation (2026-06-18) that `.mcp.json` is a
+-> PROTECTED command-class file (it auto-launches `uvx dbt-mcp` every session — same class as
+-> `.claude/commands/`, ruled 2026-06-14) and chose Option 2: extend the guard list to cover MCP
+-> config AND wire the server. This is a PROTECTED governance task — it edits the gate + routing
+-> themselves, so the contract carries `protected_override`. Reviewers: cto-reviewer (guard +
+-> tooling, opus floor) + scope-auditor (always).
++> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this
++> session's merge (#497 — read-only dbt MCP server + the MCP-config PROTECTED classification), update
++> FIRST + main SHA (dff05d7), note the server is live on restart, and preserve the content-architecture
++> roadmap + all durable standing sections unchanged. No code, no docs-content change. active_work.md is
++> artifact-only for commits but NOT auto-editable, so it is in scope_paths. The commit also carries
++> contract.md (never review-exempt) → scope-auditor reviews.
  
  objective: >
--  Rewrite .claude/active_work.md so a fresh session continues correctly: record this session's merges
--  (#491 spec, #493 content architecture, #494/#480 player-season consolidation), set FIRST/NEXT to the
--  content_architecture.md build sequence (backfill → leaderboards/roster → benchmark → coaches/career)
--  + the carryovers, and carry the durable standing sections forward unchanged.
-+  (1) Classify MCP-server config as PROTECTED command-class: add `.mcp.json` and `.cursor/mcp.json`
-+  to the task-contract gate's PROTECTED_FILES and route them to cto-reviewer, and document the rule
-+  in the authoritative guardrail docs — so no agent can self-grant an MCP server in an ordinary task.
-+  (2) Wire the read-only dbt MCP server via a committed `.mcp.json` (local-manifest lineage only:
-+  get_lineage_dev / get_node_details_dev / list / parse — no warehouse-touching tools, no dbt Cloud).
+-  (1) Classify MCP-server config as PROTECTED command-class: add `.mcp.json` and `.cursor/mcp.json`
+-  to the task-contract gate's PROTECTED_FILES and route them to cto-reviewer, and document the rule
+-  in the authoritative guardrail docs — so no agent can self-grant an MCP server in an ordinary task.
+-  (2) Wire the read-only dbt MCP server via a committed `.mcp.json` (local-manifest lineage only:
+-  get_lineage_dev / get_node_details_dev / list / parse — no warehouse-touching tools, no dbt Cloud).
++  Rewrite the session-specific parts of .claude/active_work.md to record the 2026-06-18 dbt MCP server
++  work (#497 merged, main dff05d7), reframe the prior content-architecture merges as the roadmap basis for
++  NEXT (unchanged), note the MCP server is live on session restart + its read-only tools, and add the
++  MCP-config PROTECTED rule to the Do-NOT + Environment sections. Carry all durable standing sections
++  (Standing authority, NEXT, Carryovers, key specs, dim_team, process lessons, governance, form-window
++  vocab, parked, pending CPO actions, Do-NOT) forward unchanged.
  
  refs: >
--  This conversation 2026-06-17. Merged: #491 (player perf-surface spec §8), #492 (handover), #493
--  (docs/content_architecture.md), #494/#480 (one canonical player-season model). main at 93a2957.
-+  This conversation 2026-06-18. CPO ruling: Option 2 (PROTECTED). Probe facts: dbt-mcp shells out to
-+  our dbt 1.7.19 (no dbt-core dep, no forced upgrade); dbt-artifacts-parser 0.13.2 parses our v11
-+  manifest cleanly; dbt-mcp 1.20.4 needs Python >=3.12 (run via uv-managed interpreter; our venv stays
-+  3.11.9). Precedent: `.claude/commands/**` protected (CPO ruling 2026-06-14).
+-  This conversation 2026-06-18. CPO ruling: Option 2 (PROTECTED). Probe facts: dbt-mcp shells out to
+-  our dbt 1.7.19 (no dbt-core dep, no forced upgrade); dbt-artifacts-parser 0.13.2 parses our v11
+-  manifest cleanly; dbt-mcp 1.20.4 needs Python >=3.12 (run via uv-managed interpreter; our venv stays
+-  3.11.9). Precedent: `.claude/commands/**` protected (CPO ruling 2026-06-14).
++  This conversation 2026-06-18. Merged #497 (dbt MCP server + MCP-config protection), main dff05d7.
++  See memory project-dbt-mcp-server.
  
  scope_paths:
--  - .claude/active_work.md
-+  - .mcp.json
-+  - .claude/hooks/task_contract_gate.py
-+  - .claude/review_routing.json
-+  - docs/working_agreement.md
-+  - docs/agent_guardrails.md
+-  - .mcp.json
+-  - .claude/hooks/task_contract_gate.py
+-  - .claude/review_routing.json
+-  - docs/working_agreement.md
+-  - docs/agent_guardrails.md
++  - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
-+protected_override: >
-+  CPO ruling this conversation (2026-06-18): `.mcp.json` classified PROTECTED (command-class),
-+  Option 2 chosen. This authorizes the in-scope edits to .claude/hooks/task_contract_gate.py and
-+  .claude/review_routing.json (extending the guard list to cover MCP config). No other protected
-+  path is touched — `.claude/settings.json` is deliberately NOT edited (see decisions_taken).
-+
+-protected_override: >
+-  CPO ruling this conversation (2026-06-18): `.mcp.json` classified PROTECTED (command-class),
+-  Option 2 chosen. This authorizes the in-scope edits to .claude/hooks/task_contract_gate.py and
+-  .claude/review_routing.json (extending the guard list to cover MCP config). No other protected
+-  path is touched — `.claude/settings.json` is deliberately NOT edited (see decisions_taken).
+-
  decisions_taken: >
--  CPO directed the handover refresh this conversation (2026-06-17). Pure bookkeeping: records
--  already-merged work + the CPO-locked design decisions (the content architecture, the flagship reads,
--  the backfill depth policy) and re-points NEXT. No new product/metric/naming/layer decision is made.
--  Durable standing sections preserved.
-+  - CPO chose Option 2 (2026-06-18): MCP config is PROTECTED; extend guards + wire the read-only
-+    server. The read-only env allowlist (DBT_MCP_ENABLE_TOOLS) is the safety mechanism — the server
-+    never exposes build/run/test/show/clone, so the redundant `mcp__dbt__*` denylist in the PROTECTED
-+    `.claude/settings.json` is NOT added (avoids a second, unnecessary protected edit; CPO concurred).
-+  - Protect BOTH `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor) on the same command-class
-+    rationale — protecting only the literal file would leave the Cursor entry point open and defeat
-+    the ruling's stated goal ("no agent self-grants an MCP server unreviewed"). This implements the
-+    objective fully, not by analogy. Narrow to only `.mcp.json` if the CPO intended the literal file.
+-  - CPO chose Option 2 (2026-06-18): MCP config is PROTECTED; extend guards + wire the read-only
+-    server. The read-only env allowlist (DBT_MCP_ENABLE_TOOLS) is the safety mechanism — the server
+-    never exposes build/run/test/show/clone, so the redundant `mcp__dbt__*` denylist in the PROTECTED
+-    `.claude/settings.json` is NOT added (avoids a second, unnecessary protected edit; CPO concurred).
+-  - Protect BOTH `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor) on the same command-class
+-    rationale — protecting only the literal file would leave the Cursor entry point open and defeat
+-    the ruling's stated goal ("no agent self-grants an MCP server unreviewed"). This implements the
+-    objective fully, not by analogy. Narrow to only `.mcp.json` if the CPO intended the literal file.
++  CPO directed the handover refresh this conversation (2026-06-18, "Let's do it now"). Pure bookkeeping:
++  records the already-merged #497 + the 2026-06-18 §10 ruling (MCP config PROTECTED) and re-points FIRST.
++  No new product/metric/naming/layer decision. Durable standing sections preserved verbatim.
  
  decisions_reserved:
--  - No new scope. Every NEXT item (backfill, the new marts, coaches ingest, #484) is its own
--    CPO-directed PR; the backfill EXECUTION (setting registry history_seasons + running it) is a
--    cost-gated ingest task.
--  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
-+  - Warehouse-touching dbt tools (build/run/test/show/clone) and the dbt-Cloud Discovery / Semantic
-+    Layer / SQL tool groups are OUT. Enabling any is a separate, cost-gated CPO decision.
-+  - Column-level lineage (the Fusion/dbt-LSP server) is OUT — not wired here.
-+  - Whether to also CREATE `.cursor/mcp.json` (give Cursor the server too) is deferred: this PR
-+    PROTECTS that path but only creates the Claude Code `.mcp.json`. A Cursor config is a follow-up.
-+  - dbt stays 1.7.19. If a future dbt-mcp drops manifest-v11 support, revisit then — not now.
-+  - If wiring needs any file beyond scope_paths, STOP and escalate — do not widen scope silently.
+-  - Warehouse-touching dbt tools (build/run/test/show/clone) and the dbt-Cloud Discovery / Semantic
+-    Layer / SQL tool groups are OUT. Enabling any is a separate, cost-gated CPO decision.
+-  - Column-level lineage (the Fusion/dbt-LSP server) is OUT — not wired here.
+-  - Whether to also CREATE `.cursor/mcp.json` (give Cursor the server too) is deferred: this PR
+-    PROTECTS that path but only creates the Claude Code `.mcp.json`. A Cursor config is a follow-up.
+-  - dbt stays 1.7.19. If a future dbt-mcp drops manifest-v11 support, revisit then — not now.
+-  - If wiring needs any file beyond scope_paths, STOP and escalate — do not widen scope silently.
++  - No new scope. The NEXT items (the content-architecture build sequence) are unchanged + remain
++    CPO-directed; this is not the place to add or re-decide them.
++  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
  
  done_when:
--  - .claude/active_work.md reflects: #491/#492/#493/#494 merged (main 93a2957); FIRST = nothing
--    pending-merge; NEXT = the content_architecture build sequence + carryovers; the flagship decisions
--    + backfill policy recorded; durable sections intact.
--  - Commit on branch chore/handover-480-content-arch; post-commit opens the PR.
--  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
-+  - `.mcp.json` is valid JSON: launches `uvx --python 3.12.13 dbt-mcp` (EXACT patch pin — uv's
-+    minor-version link needs Windows admin/developer-mode, unavailable here, so a bare `3.12` fails to
-+    resolve while `3.12.13` resolves directly); env sets DBT_PROJECT_DIR, DBT_PATH (venv dbt.exe),
-+    DBT_PROFILES_DIR as ABSOLUTE paths, intentionally machine-local (single-operator repo; parametrizing
-+    is a deferred option); read-only allowlist is
-+    `DBT_MCP_ENABLE_TOOLS="get_lineage_dev,get_node_details_dev,list,parse"` ONLY — NO
-+    `DBT_MCP_ENABLE_DBT_CLI` (verification showed the group-enable + tool-allowlist combo exposes all 11
-+    CLI tools incl. build/run/test/clone; the tool-allowlist ALONE exposes exactly the 4).
-+  - task_contract_gate.py PROTECTED_FILES includes ".mcp.json" and ".cursor/mcp.json"; a gate self-test
-+    confirms a write to `.mcp.json` is denied without protected_override and allowed with it.
-+  - review_routing.json routes ".mcp.json" + ".cursor/mcp.json" -> cto-reviewer; _doc records the ruling.
-+  - working_agreement.md §2 + BOTH agent_guardrails.md enumerations (the gate-table row at line 54 + the
-+    opus-floor list at line 79) list MCP config among the protected paths.
-+  - uv installed locally; `uvx --python 3.12.13 dbt-mcp` launches and exposes ONLY the 4 allowlisted
-+    tools (live-verified: get_lineage_dev, get_node_details_dev, list, parse; zero warehouse tools;
-+    get_lineage_dev returns real lineage for dim_date).
-+  - review.md: cto-reviewer + scope-auditor VERDICT PASS (>=2 named risks each); no FAIL; any ESCALATE
-+    has a CPO ANSWER. diff_sha256 matches the staged hash.
-+  - Committed on chore/dbt-mcp-server; pushed with explicit refspec; PR opened. CPO merges.
-+  - Post-merge (Rami, manual): restart Claude Code/Cursor to load the server; confirm get_lineage_dev
-+    returns lineage against our manifest.
- 
--amendments: (none)
-+amendments:
-+  - 2026-06-18 (clean-tree, code stashed): done_when reconciled with the VERIFIED artifact after the
-+    iteration-1 cto-reviewer FAIL. Authority: review-cycle finding (no scope change, no new §10 — the
-+    build's live verification superseded the contract's planning-time config). Corrections: (1) env
-+    allowlist = `DBT_MCP_ENABLE_TOOLS` ONLY (dropped `DBT_MCP_ENABLE_DBT_CLI=true`, which leaked all 11
-+    CLI tools); (2) python pin 3.12 -> 3.12.13; (3) recorded the absolute DBT_* paths as intentionally
-+    machine-local. Also fixed the missed edit the reviewer caught: docs/agent_guardrails.md line 54
-+    (gate-table protected list) now includes the MCP paths, matching line 79 (opus floor).
-diff --git a/.mcp.json b/.mcp.json
-new file mode 100644
-index 0000000..8dab347
---- /dev/null
-+++ b/.mcp.json
-@@ -0,0 +1,14 @@
-+{
-+  "mcpServers": {
-+    "dbt": {
-+      "command": "uvx",
-+      "args": ["--python", "3.12.13", "dbt-mcp"],
-+      "env": {
-+        "DBT_PROJECT_DIR": "D:/Projects/football-data-pipeline/dbt_project",
-+        "DBT_PATH": "D:/Projects/football-data-pipeline/.venv/Scripts/dbt.exe",
-+        "DBT_PROFILES_DIR": "C:/Users/Rami/.dbt",
-+        "DBT_MCP_ENABLE_TOOLS": "get_lineage_dev,get_node_details_dev,list,parse"
-+      }
-+    }
-+  }
-+}
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 2710b5d..f3ae678 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -51,7 +51,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
- | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
- | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
--| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
-+| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
- | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
- 
-@@ -76,6 +76,7 @@ not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
- **sonnet**. The pin is a floor — for diffs touching a guard path
- (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
- `.claude/settings.json`, `.claude/review_routing.json`,
-+`.mcp.json`, `.cursor/mcp.json`,
- `.github/workflows/**`) the orchestrator spawns
- `cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
- guard bypasses are the costliest misses.
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index 6879b88..ae420a2 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -35,13 +35,17 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
- - No contract → repo edits denied. Out-of-scope path → denied.
- - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
-   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
--  `.github/workflows/`) are never editable except in a dedicated CPO-approved
--  governance task whose contract carries `protected_override`. The reviewer
--  definitions and routing are protected so the builder can never weaken its
--  own adversary inside an ordinary task (CPO ruling, G3 escalation
--  2026-06-12); `.claude/commands/` is protected because custom slash commands
--  can embed shell, so a command file is the same high-stakes class as a hook
--  (CPO ruling 2026-06-14).
-+  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
-+  except in a dedicated CPO-approved governance task whose contract carries
-+  `protected_override`. The reviewer definitions and routing are protected so
-+  the builder can never weaken its own adversary inside an ordinary task (CPO
-+  ruling, G3 escalation 2026-06-12); `.claude/commands/` is protected because
-+  custom slash commands can embed shell, so a command file is the same
-+  high-stakes class as a hook (CPO ruling 2026-06-14); `.mcp.json` /
-+  `.cursor/mcp.json` (and any `mcpServers` block in `.claude/settings.json`)
-+  are protected because an MCP-server config auto-launches a command every
-+  session — the same command-class, so an agent can never self-grant an MCP
-+  server in an ordinary task (CPO ruling 2026-06-18).
- - **File changes go through the Edit/Write tools only** — shell redirection,
-   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
-   check and the turn-end stop gate force reversion of anything that slips
+-  - `.mcp.json` is valid JSON: launches `uvx --python 3.12.13 dbt-mcp` (EXACT patch pin — uv's
+-    minor-version link needs Windows admin/developer-mode, unavailable here, so a bare `3.12` fails to
+-    resolve while `3.12.13` resolves directly); env sets DBT_PROJECT_DIR, DBT_PATH (venv dbt.exe),
+-    DBT_PROFILES_DIR as ABSOLUTE paths, intentionally machine-local (single-operator repo; parametrizing
+-    is a deferred option); read-only allowlist is
+-    `DBT_MCP_ENABLE_TOOLS="get_lineage_dev,get_node_details_dev,list,parse"` ONLY — NO
+-    `DBT_MCP_ENABLE_DBT_CLI` (verification showed the group-enable + tool-allowlist combo exposes all 11
+-    CLI tools incl. build/run/test/clone; the tool-allowlist ALONE exposes exactly the 4).
+-  - task_contract_gate.py PROTECTED_FILES includes ".mcp.json" and ".cursor/mcp.json"; a gate self-test
+-    confirms a write to `.mcp.json` is denied without protected_override and allowed with it.
+-  - review_routing.json routes ".mcp.json" + ".cursor/mcp.json" -> cto-reviewer; _doc records the ruling.
+-  - working_agreement.md §2 + BOTH agent_guardrails.md enumerations (the gate-table row at line 54 + the
+-    opus-floor list at line 79) list MCP config among the protected paths.
+-  - uv installed locally; `uvx --python 3.12.13 dbt-mcp` launches and exposes ONLY the 4 allowlisted
+-    tools (live-verified: get_lineage_dev, get_node_details_dev, list, parse; zero warehouse tools;
+-    get_lineage_dev returns real lineage for dim_date).
+-  - review.md: cto-reviewer + scope-auditor VERDICT PASS (>=2 named risks each); no FAIL; any ESCALATE
+-    has a CPO ANSWER. diff_sha256 matches the staged hash.
+-  - Committed on chore/dbt-mcp-server; pushed with explicit refspec; PR opened. CPO merges.
+-  - Post-merge (Rami, manual): restart Claude Code/Cursor to load the server; confirm get_lineage_dev
+-    returns lineage against our manifest.
+-
+-amendments:
+-  - 2026-06-18 (clean-tree, code stashed): done_when reconciled with the VERIFIED artifact after the
+-    iteration-1 cto-reviewer FAIL. Authority: review-cycle finding (no scope change, no new §10 — the
+-    build's live verification superseded the contract's planning-time config). Corrections: (1) env
+-    allowlist = `DBT_MCP_ENABLE_TOOLS` ONLY (dropped `DBT_MCP_ENABLE_DBT_CLI=true`, which leaked all 11
+-    CLI tools); (2) python pin 3.12 -> 3.12.13; (3) recorded the absolute DBT_* paths as intentionally
+-    machine-local. Also fixed the missed edit the reviewer caught: docs/agent_guardrails.md line 54
+-    (gate-table protected list) now includes the MCP paths, matching line 79 (opus floor).
++  - .claude/active_work.md reflects: #497 merged (main dff05d7); FIRST = nothing pending-merge + the MCP
++    server live on restart; the 2026-06-18 MCP session recorded; the content-architecture roadmap +
++    flagship reads + backfill policy preserved as the NEXT basis; MCP-config PROTECTED rule in Do-NOT +
++    Environment; all durable sections intact.
++  - Commit on branch chore/handover-refresh-mcp; post-commit opens the PR.
++  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
++
++amendments: (none)
