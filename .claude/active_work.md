@@ -4,21 +4,37 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-17 (content architecture + player-season consolidation). A long CPO design arc
-this session, three merges: **#491** (player performance-surface spec, §8 of `metrics_context_model.md`),
-**#493** (`docs/content_architecture.md` — the modular site IA), and **#494/#480** (one canonical
-player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-18 (dbt MCP server — a CPO-directed tooling detour off a LinkedIn post). Merged
+**#497**: a read-only dbt MCP server (`.mcp.json`, local-manifest lineage) + MCP config classified
+PROTECTED command-class. main at dff05d7. The prior session's product work (#491 spec, #493 content
+architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Governance G1–G4 LIVE.
+**Website blueprint #391 still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge. `git fetch` + ff to confirm (main 93a2957). Then the CPO directs the next item
-  (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** — it is the IA + data
-  spec everything below builds against.
+- Nothing pending-merge. `git fetch` + ff to confirm (main dff05d7). The **dbt MCP server is LIVE** — it
+  loads on session start, so this fresh session should have `mcp__dbt__get_lineage_dev` /
+  `get_node_details_dev` (read-only local-manifest lineage; refresh with `dbt parse` if stale). Then the
+  CPO directs the next item (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** —
+  it is the IA + data spec everything below builds against.
 
 ## Standing authority (in force)
 - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
 
-## This session (2026-06-17) — design arc → content architecture + #480
+## This session (2026-06-18) — dbt MCP server (CPO-directed tooling detour)
+- **#497 (MERGED) — read-only dbt MCP server + MCP-config protection.** Prompted by a LinkedIn post on dbt
+  Labs "Wizard"; the one real gap it named for us was **edit-time lineage/impact analysis** (the rest —
+  validation loop, skills — we already have, often stricter). `.mcp.json` runs `uvx --python 3.12.13
+  dbt-mcp` with a read-only allowlist (`DBT_MCP_ENABLE_TOOLS=get_lineage_dev,get_node_details_dev,list,parse`)
+  — **no warehouse tools, no dbt Cloud, dbt stays 1.7.19** (dbt-mcp shells out; no forced upgrade). The
+  cto-reviewer caught a real bug pre-merge (the group-enable + allowlist combo leaked all 11 CLI tools incl.
+  build/run/test) → fixed to allowlist-only, live-verified exactly 4 tools + dim_date lineage.
+- **§10 ruling (2026-06-18):** `.mcp.json` / `.cursor/mcp.json` are **PROTECTED command-class** (they
+  auto-launch a command each session, like `.claude/commands/`) — in `task_contract_gate.py` PROTECTED_FILES
+  + routed to cto-reviewer (opus floor). No agent self-grants an MCP server in an ordinary task. Memory:
+  [[project-dbt-mcp-server]]. `.cursor/mcp.json` path is protected but NOT created (Cursor config deferred).
+
+## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
    two windows over the per-match leg; the 9 locked rows + an appearance/playing-time block; one per-club
    season model; club/national window matrix with **national = context** (last-5 NT appearances pooled;
@@ -134,6 +150,9 @@ player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website bluepr
   review_input.patch via `git diff >` are the exception — bookkeeping, hash-excluded.)
 - Branch from main; never commit to main; the post-commit hook auto-pushes + opens PRs.
 - **Never merge a PR — the CPO merges.**
+- **MCP config (`.mcp.json` / `.cursor/mcp.json`) is PROTECTED** — editing needs `protected_override` + cto
+  review; keep the dbt server's tool allowlist READ-ONLY (never enable build/run/test — they hit BQ and
+  bypass the cost guard).
 - **Never print the API key** — mask it. **Reading `.env` is deny-listed.**
 - **Bash only** for all commands (git, bq, gh, python) — never PowerShell.
 
@@ -145,3 +164,7 @@ player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website bluepr
 - **API budget (API-Football Ultra) = 75,000 calls/day, resets daily** — largely unused, so the backfill
   (NEXT #1) is affordable. Pipeline runs once daily at 04:00 UTC (drifts ~07:45–10:30). Skip-if-present
   loaders keep most runs cheap.
+- **dbt MCP server (read-only lineage)** wired in `.mcp.json` — `uvx --python 3.12.13 dbt-mcp`, loads on
+  session start. `uv` is installed (global Python311 Scripts) + Python 3.12.13 cached. Tools:
+  `get_lineage_dev` / `get_node_details_dev` / `list` / `parse` (local manifest only — as fresh as the last
+  `dbt parse`, which is offline/free; does NOT touch BigQuery or the API budget). MCP config is PROTECTED.
