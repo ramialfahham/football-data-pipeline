@@ -45,6 +45,9 @@ models:
             - league_code
             - season_api_year
             - team_sk
+      - dbt_utils.expression_is_true:
+          expression: "(shot_accuracy_season is null or shot_accuracy_season between 0 and 1) and (danger_zone_ratio_season is null or danger_zone_ratio_season between 0 and 1) and (pass_accuracy_season is null or pass_accuracy_season between 0 and 1) and (duels_won_pct_season is null or duels_won_pct_season between 0 and 1) and (save_ratio_season is null or save_ratio_season between 0 and 1) and (shot_share_season is null or shot_share_season between 0 and 1) and (points_capture_season is null or points_capture_season between 0 and 1)"
+          name: int_team_season_ratios_in_range
     columns:
       - name: team_season_sk
         tests: [not_null]
@@ -81,6 +84,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
           name: int_player_season_pass_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1)"
+          name: int_player_season_ratios_in_range
     columns:
       - name: player_sk
         tests:

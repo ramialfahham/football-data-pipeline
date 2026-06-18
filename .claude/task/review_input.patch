@@ -1,354 +1,275 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e65f1b4..d4b168b 100644
+index d4b168b..31acedc 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,45 +1,60 @@
--# Task contract — chore: refresh the handover after #497 (dbt MCP server) merged
-+# Task contract — chore: remove the black-box player rating end-to-end
+@@ -1,60 +1,62 @@
+-# Task contract — chore: remove the black-box player rating end-to-end
++# Task contract — feat: metric layer (Phase 1) — catalogue completeness + drift guard
  
--> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this
--> session's merge (#497 — read-only dbt MCP server + the MCP-config PROTECTED classification), update
--> FIRST + main SHA (dff05d7), note the server is live on restart, and preserve the content-architecture
--> roadmap + all durable standing sections unchanged. No code, no docs-content change. active_work.md is
--> artifact-only for commits but NOT auto-editable, so it is in scope_paths. The commit also carries
--> contract.md (never review-exempt) → scope-auditor reviews.
-+> CPO 2026-06-18: API-Football's per-player match `rating` is a vendor black box (opaque formula, can't be
-+> formula-verified, variable coverage). Decision: we don't carry it at all. Remove it end-to-end —
-+> ingestion → core fact → intermediate legs → the two marts that display it → the season aggregate
-+> (`rating_avg`) → doc mentions. Precursor to the metric-layer Phase 1 PR: keeps that PR's review
-+> boundaries clean and gives Phase 1 a rating-free base. Footprint is dbt + docs ONLY — verified by repo
-+> grep: NO site/, scripts/, i18n, or test references.
+-> CPO 2026-06-18: API-Football's per-player match `rating` is a vendor black box (opaque formula, can't be
+-> formula-verified, variable coverage). Decision: we don't carry it at all. Remove it end-to-end —
+-> ingestion → core fact → intermediate legs → the two marts that display it → the season aggregate
+-> (`rating_avg`) → doc mentions. Precursor to the metric-layer Phase 1 PR: keeps that PR's review
+-> boundaries clean and gives Phase 1 a rating-free base. Footprint is dbt + docs ONLY — verified by repo
+-> grep: NO site/, scripts/, i18n, or test references.
++> The metric layer, done the dbt-idiomatic way. The season MODELS are the single source of truth for each
++> metric (already so — #480 for player-season; team-season consolidation tracked in #500). This task just
++> (a) makes the catalogue COMPLETE — every metric the two season models already compute is registered —
++> and (b) adds ONE drift guard: a test that fails if a model computes a metric not in the catalogue, plus
++> standard range tests. NO bespoke conformance engine, NO binding-map, NO metric_kind column — those were
++> over-built (re-deriving every metric to check the model) and have been reverted; they bought nothing over
++> #480's single source + a drift test. CPO-directed, 2026-06-18.
  
  objective: >
--  Rewrite the session-specific parts of .claude/active_work.md to record the 2026-06-18 dbt MCP server
--  work (#497 merged, main dff05d7), reframe the prior content-architecture merges as the roadmap basis for
--  NEXT (unchanged), note the MCP server is live on session restart + its read-only tools, and add the
--  MCP-config PROTECTED rule to the Do-NOT + Environment sections. Carry all durable standing sections
--  (Standing authority, NEXT, Carryovers, key specs, dim_team, process lessons, governance, form-window
--  vocab, parked, pending CPO actions, Do-NOT) forward unchanged.
-+  Drop the player `rating` field and its season aggregate `rating_avg` from the whole dbt chain and the
-+  docs that describe them, so nothing computes or surfaces the vendor rating. No behavioural change beyond
-+  the field's removal; no other column added, removed, or renamed.
+-  Drop the player `rating` field and its season aggregate `rating_avg` from the whole dbt chain and the
+-  docs that describe them, so nothing computes or surfaces the vendor rating. No behavioural change beyond
+-  the field's removal; no other column added, removed, or renamed.
++  (1) Add the 4 catalogue rows for metrics the season models ALREADY compute but that are not registered:
++  shot_share + points_capture (int_team_season__full_season_metrics), shots_total + goals_conceded
++  (int_player_season__metrics). (2) Add a drift-guard test: for each canonical season model, every
++  metric-bearing column — excluding keys, coverage counts, *_sum_season intermediates, and the playing-time
++  facts (appearances/starts/subs/minutes) — maps to a metric_catalogue metric_id; fails on any uncatalogued
++  metric. Normalisation: strip the team `_season` suffix; map the one `goals_saves`->`saves` quirk (NOT a
++  binding-map — two rules). (3) Range tests (0-1) on the ratio metrics. (4) docs/metric_layer.md describing
++  the layer: model = single source; catalogue = registry/docs; drift test = guard; standard dbt tests =
++  correctness. NO model SQL changes.
  
  refs: >
--  This conversation 2026-06-18. Merged #497 (dbt MCP server + MCP-config protection), main dff05d7.
--  See memory project-dbt-mcp-server.
-+  This conversation 2026-06-18 (rating is a black box → remove entirely; precursor to metric-layer Phase 1).
-+  Footprint confirmed via repo grep: dbt models + core.yml/shared.yml + 3 docs; NO site/, scripts/, i18n,
-+  or tests references.
+-  This conversation 2026-06-18 (rating is a black box → remove entirely; precursor to metric-layer Phase 1).
+-  Footprint confirmed via repo grep: dbt models + core.yml/shared.yml + 3 docs; NO site/, scripts/, i18n,
+-  or tests references.
++  This conversation 2026-06-18. Metric layer = model-as-single-source (#480) + catalogue-as-registry + a
++  drift guard, NOT a recompute engine (reverted after the CPO flagged it as over-built). Naming + team-season
++  model consolidation = #500. Season-grain completeness beyond the 4 orphans (e.g. clean_sheets at season
++  grain) is a separate concern, not this task.
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/models/3_core/fct_fixture_player_stats.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
-+  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
-+  - dbt_project/models/5_marts/shared/mart_player_season.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - docs/wireframes/03_player_profile.md
-+  - docs/ui_design_brief.md
-+  - docs/api_football_ingestion_blueprint.md
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+-  - dbt_project/models/3_core/fct_fixture_player_stats.sql
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
+-  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+-  - dbt_project/models/5_marts/shared/mart_player_season.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - docs/wireframes/03_player_profile.md
+-  - docs/ui_design_brief.md
+-  - docs/api_football_ingestion_blueprint.md
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/macros/
++  - dbt_project/tests/
++  - docs/metric_layer.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
  decisions_taken: >
--  CPO directed the handover refresh this conversation (2026-06-18, "Let's do it now"). Pure bookkeeping:
--  records the already-merged #497 + the 2026-06-18 §10 ruling (MCP config PROTECTED) and re-points FIRST.
--  No new product/metric/naming/layer decision. Durable standing sections preserved verbatim.
-+  CPO 2026-06-18: remove the API-Football player rating ENTIRELY (it is a black-box metric). Confirmed
-+  product-wide, not just the season aggregate: the per-match rating shown in mart_player_match_log and
-+  mart_fixture_stats__player goes too. Done as its own precursor PR before the metric-layer Phase 1 work
-+  (1(a) binding-map; 2(rec) full_season_metrics) so the ingestion/display removal stays out of that PR.
+-  CPO 2026-06-18: remove the API-Football player rating ENTIRELY (it is a black-box metric). Confirmed
+-  product-wide, not just the season aggregate: the per-match rating shown in mart_player_match_log and
+-  mart_fixture_stats__player goes too. Done as its own precursor PR before the metric-layer Phase 1 work
+-  (1(a) binding-map; 2(rec) full_season_metrics) so the ingestion/display removal stays out of that PR.
++  CPO 2026-06-18: build the metric layer the dbt-idiomatic way — model = single source (#480/#500),
++  catalogue = registry/docs, ONE drift-guard test (no uncatalogued metric), standard dbt tests for
++  correctness. The bespoke conformance engine (binding-map seed, metric_kind, context flag, recompute-from-
++  legs test) was over-built and is reverted. league_rank/points_won stay plain catalogue rows (they are the
++  UI glossary's source too). The drift test handles the goals_saves<->saves quirk + the _season suffix via
++  small normalisation, not a binding-map.
  
  decisions_reserved:
--  - No new scope. The NEXT items (the content-architecture build sequence) are unchanged + remain
--    CPO-directed; this is not the place to add or re-decide them.
--  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
-+  - Touch ONLY rating / rating_avg. No other fields, no refactors, no metric_catalogue change (rating is
-+    not catalogued). No metric-layer mechanism here (that is Phase 1).
-+  - Removing a core-fact column changes downstream mart schemas — but ONLY the rating column; no other
-+    output column may change. If any consumer beyond those listed surfaces rating, STOP and surface it.
+-  - Touch ONLY rating / rating_avg. No other fields, no refactors, no metric_catalogue change (rating is
+-    not catalogued). No metric-layer mechanism here (that is Phase 1).
+-  - Removing a core-fact column changes downstream mart schemas — but ONLY the rating column; no other
+-    output column may change. If any consumer beyond those listed surfaces rating, STOP and surface it.
++  - No recompute/conformance engine; no binding-map; no metric_kind column; no context flag.
++  - No model SQL changes — the models already compute these metrics; this task only catalogues + tests.
++  - Season-grain completeness beyond the 4 orphans (clean_sheets / per-match T-I-B / dribbles% at season
++    grain) is a SEPARATE task, not bundled here.
++  - Naming consistency + team-season model consolidation = #500 (not here).
  
  done_when:
--  - .claude/active_work.md reflects: #497 merged (main dff05d7); FIRST = nothing pending-merge + the MCP
--    server live on restart; the 2026-06-18 MCP session recorded; the content-architecture roadmap +
--    flagship reads + backfill policy preserved as the NEXT basis; MCP-config PROTECTED rule in Do-NOT +
--    Environment; all durable sections intact.
--  - Commit on branch chore/handover-refresh-mcp; post-commit opens the PR.
--  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
-+  - `rating` is gone from staging -> base -> fct_fixture_player_stats -> int_legs__player_match -> the two
-+    fixture-grain marts; `rating_avg` gone from int_player_season__metrics + mart_player_season; the yml
-+    docs (core.yml, shared.yml) and the 3 docs no longer describe either.
-+  - No remaining whole-word `rating` reference in dbt_project/ or docs/ (excluding unrelated words).
-+  - dbt parse + sqlfluff lint green (validate-local). No other column added/removed/renamed.
-+  - reviewer: data-engineer PASS + analytics-engineer PASS + scope-auditor PASS (>=2 named risks each);
-+    no FAIL; no ESCALATE.
-+  - Branch chore/drop-player-rating; PR opened (CPO merges). Then resume metric-layer Phase 1 on the
-+    rating-free base.
+-  - `rating` is gone from staging -> base -> fct_fixture_player_stats -> int_legs__player_match -> the two
+-    fixture-grain marts; `rating_avg` gone from int_player_season__metrics + mart_player_season; the yml
+-    docs (core.yml, shared.yml) and the 3 docs no longer describe either.
+-  - No remaining whole-word `rating` reference in dbt_project/ or docs/ (excluding unrelated words).
+-  - dbt parse + sqlfluff lint green (validate-local). No other column added/removed/renamed.
+-  - reviewer: data-engineer PASS + analytics-engineer PASS + scope-auditor PASS (>=2 named risks each);
+-    no FAIL; no ESCALATE.
+-  - Branch chore/drop-player-rating; PR opened (CPO merges). Then resume metric-layer Phase 1 on the
+-    rating-free base.
++  - metric_catalogue has the 4 orphan rows (shot_share, points_capture, shots_total, goals_conceded).
++  - The drift test passes now and WOULD FAIL if a season model gained an uncatalogued metric column.
++  - The ratio metrics have 0-1 range tests.
++  - docs/metric_layer.md documents the (simple) mechanism.
++  - validate-local green; ci-data-build green on the PR.
++  - reviewer (per .claude/review_routing.json): analytics-engineer-reviewer + football-analytics-expert-reviewer
++    (metric_catalogue.csv) + scope-auditor PASS (>=2 named risks each); no FAIL; no ESCALATE.
++  - Branch feat/metric-layer-phase1; PR opened (CPO merges).
  
  amendments: (none)
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-index ea904a4..f9ea5ef 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-@@ -39,7 +39,6 @@ flattened as (
-         safe_cast(json_value(stats_el, '$.games.minutes') as int64) as minutes_played,
-         safe_cast(json_value(stats_el, '$.games.number') as int64) as shirt_number,
-         json_value(stats_el, '$.games.position') as position_code,
--        safe_cast(json_value(stats_el, '$.games.rating') as float64) as rating,
-         safe_cast(json_value(stats_el, '$.games.captain') as bool) as is_captain,
-         safe_cast(json_value(stats_el, '$.games.substitute') as bool) as is_substitute,
-         safe_cast(json_value(stats_el, '$.offsides') as int64) as offsides,
-@@ -89,7 +88,6 @@ select
-     minutes_played,
-     shirt_number,
-     position_code,
--    rating,
-     is_captain,
-     is_substitute,
-     offsides,
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index e26096e..96025de 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -7,7 +7,6 @@ with src as (
-         minutes_played,
-         shirt_number,
-         position_code,
--        rating,
-         is_captain,
-         is_substitute,
-         offsides,
-@@ -59,7 +58,6 @@ select
-     minutes_played,
-     shirt_number,
-     position_code,
--    rating,
-     is_captain,
-     is_substitute,
-     offsides,
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 19242d5..4229293 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -608,7 +608,6 @@ models:
-       - name: shirt_number
-       - name: position_code
-         description: "Position as reported by the API (e.g. G, D, M, F). Degenerate attribute; kept free-form to track future codes."
--      - name: rating
-       - name: is_captain
-       - name: is_substitute
-       - name: is_starter
-diff --git a/dbt_project/models/3_core/fct_fixture_player_stats.sql b/dbt_project/models/3_core/fct_fixture_player_stats.sql
-index f17f4c2..4dbd931 100644
---- a/dbt_project/models/3_core/fct_fixture_player_stats.sql
-+++ b/dbt_project/models/3_core/fct_fixture_player_stats.sql
-@@ -38,7 +38,6 @@ select
-     minutes_played,
-     shirt_number,
-     position_code,
--    rating,
-     is_captain,
-     is_substitute,
-     coalesce(minutes_played, 0) > 0 and not coalesce(is_substitute, false) as is_starter,
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index 17ba709..49b853e 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-@@ -13,7 +13,7 @@
-   - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
-     (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
-   - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
--    where statistics_players is off). rating_avg = mean rating over appearances (nulls ignored).
-+    where statistics_players is off).
-   - rates are NULL when the denominator is zero (never coerced to 0).
- #}
- 
-@@ -45,7 +45,6 @@ per_fixture as (
-         s.minutes_played,
-         s.is_starter,
-         s.is_substitute,
--        s.rating,
-         s.goals_total,
-         s.goals_assists,
-         s.goals_saves,
-@@ -88,7 +87,6 @@ aggregated as (
-         countif(is_starter) as starts,
-         countif(coalesce(is_substitute, false)) as substitute_appearances,
-         sum(coalesce(minutes_played, 0)) as minutes,
--        avg(rating) as rating_avg,
-         sum(coalesce(goals_total, 0)) as goals,
-         sum(coalesce(goals_assists, 0)) as assists,
-         sum(coalesce(shots_total, 0)) as shots_total,
-@@ -128,7 +126,6 @@ select
-     starts,
-     substitute_appearances,
-     minutes,
--    rating_avg,
-     goals,
-     assists,
-     shots_total,
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-index 4737bc6..a671549 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-@@ -53,7 +53,6 @@ select
-     reg.competition_type,
-     typ.entity_type,
-     ps.minutes_played,
--    ps.rating,
-     ps.is_starter,
-     ps.is_substitute,
-     ps.position_code,
-diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql b/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
-index 052888f..fc3e5b8 100644
---- a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
-+++ b/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
-@@ -59,7 +59,6 @@ select
-     s.position_code,
-     s.shirt_number,
-     s.minutes_played,
--    s.rating,
-     s.is_captain,
-     s.is_substitute,
-     s.is_starter,
-diff --git a/dbt_project/models/5_marts/shared/mart_player_match_log.sql b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
-index d1b0e97..55a4900 100644
---- a/dbt_project/models/5_marts/shared/mart_player_match_log.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
-@@ -65,7 +65,6 @@ joined as (
-         s.minutes_played,
-         s.is_starter,
-         s.is_substitute,
--        s.rating,
-         s.goals_total,
-         s.goals_assists,
-         s.goals_conceded,
-@@ -117,7 +116,6 @@ select
-     j.minutes_played,
-     j.is_starter,
-     j.is_substitute,
--    j.rating,
-     j.goals_total,
-     j.goals_assists,
-     j.goals_conceded,
-diff --git a/dbt_project/models/5_marts/shared/mart_player_season.sql b/dbt_project/models/5_marts/shared/mart_player_season.sql
-index 6a68d7d..496997d 100644
---- a/dbt_project/models/5_marts/shared/mart_player_season.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_season.sql
-@@ -7,7 +7,7 @@
-     re-aggregating fct_fixture_player_stats inline. Pass accuracy is now the catalogue-correct
-     WEIGHTED value (`pass_accuracy_pct` = accurate ÷ attempted) — the previous
-     `pass_accuracy_avg_percent` was a naive average of per-fixture percentages (wrong for low-volume
--    games) and was unconsumed; corrected here as part of the consolidation. rating_avg preserved.
-+    games) and was unconsumed; corrected here as part of the consolidation.
- 
-     A player who moves clubs mid-season produces one row per competition-season (today's grain; the
-     per-club split is the deferred §8.3 follow-up). Grain: (player_sk, season_sk).
-@@ -42,7 +42,6 @@ select
-     s.shots_total as shots,
-     s.shots_on_target,
-     s.passes_key as key_passes,
--    s.rating_avg,
-     s.pass_accuracy_pct,
-     s.cards_yellow as yellow_cards,
-     s.cards_red as red_cards
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index de7108a..edbc1d7 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -638,8 +638,6 @@ models:
-       - name: key_passes
-       - name: pass_accuracy_pct
-         description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
--      - name: rating_avg
--        description: "Average API-Football rating across fixtures (unweighted)."
-       - name: yellow_cards
-       - name: red_cards
- 
-diff --git a/docs/api_football_ingestion_blueprint.md b/docs/api_football_ingestion_blueprint.md
-index e46a96f..b4a1b5b 100644
---- a/docs/api_football_ingestion_blueprint.md
-+++ b/docs/api_football_ingestion_blueprint.md
-@@ -75,7 +75,7 @@ response[i]
-     .team.id                       # int
-     .players[k].player.id          # int
-     .players[k].player.name        # str
--    .players[k].statistics[0]      # object — per-player stats (rating, shots, etc.)
-+    .players[k].statistics[0]      # object — per-player stats (shots, passes, etc.)
- ```
- 
- **No `group` field exists in the `/fixtures` response.** Group assignment for
-diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
-index e122cb1..67fcb7c 100644
---- a/docs/ui_design_brief.md
-+++ b/docs/ui_design_brief.md
-@@ -94,7 +94,7 @@ Two complementary windows per team, always shown side by side:
- - **Match detail (a clicked past match)**: full team stat lines both sides
-   (possession %, shots on/off/total/blocked/inside/outside box, fouls, corners,
-   offsides, cards, saves, passes total/accurate/%) + per-player stat lines both sides
--  (minutes, shirt, position, rating, captain/sub, goals, assists, shots, passes, key
-+  (minutes, shirt, position, captain/sub, goals, assists, shots, passes, key
-   passes, tackles, interceptions, blocks, duels, dribbles, fouls, cards, penalties).
- - **Player insights (per team)**: top players over the form window — appearances,
-   minutes, goals, assists, shots on target, key passes, pass accuracy %, duels won %,
-@@ -152,7 +152,7 @@ shots on target, passes (total, accurate, key), pass accuracy %, tackles,
- interceptions, blocks, duels (won/total, %), dribbles (success/attempts, %, dribbled
- past), offsides, cards (Y/R), penalties (won/committed); GK: saves, conceded, save %.
- **Match log**: per match — date, competition, opponent (crest), home/away, score,
--W/D/L, minutes, rating, goals, assists, cards.
-+W/D/L, minutes, goals, assists, cards.
- Note: per-90 rates and "smart composite scores" are deliberately NOT available yet —
- do not draw them.
- 
-diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
-index f84e071..4b4a374 100644
---- a/docs/wireframes/03_player_profile.md
-+++ b/docs/wireframes/03_player_profile.md
-@@ -9,7 +9,7 @@
- 
- A player's season in one screen: who they are, what they produce, and the match
- log behind the numbers. The **stop-scrolling moment** is the **match log** — the
--per-match line (score, result, minutes, rating, goals) that turns a season
-+per-match line (score, result, minutes, goals) that turns a season
- aggregate into a story you can scroll. Aggregates are honest counts only — no
- per-90, no composite ratings (locked).
- 
-@@ -57,7 +57,7 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
- ├────────────────────────────────────────────┤
- │  MATCH LOG                                 │  (6) latest first
- │  6 Dec  BL1  Gladbach [crest] H            │
--│  ▸ W 3-1 · 90' · 8.1 · 1 G · 1 A           │
-+│  ▸ W 3-1 · 90' · 1 G · 1 A                 │
- │    …all matches with a stat line…          │
- ├────────────────────────────────────────────┤
- │  ▸Team profile ▸Bundesliga ▸Top scorers    │  (7) internal links
-@@ -114,7 +114,6 @@ GK block on keeper profiles = design call #366). Unbundled atomics
- | Home/away | `is_home` | H/A badge |
- | Score + result | `goals_for`, `goals_against`, `result` | team perspective; W/D/L chip |
- | Minutes | `minutes_played` | `90'`; sub appearance flagged via `is_substitute` |
--| Rating | `rating` | provider rating, 1 decimal; null → "-" |
- | Goals / assists | `goals_total`, `goals_assists` | shown when > 0 |
- | Cards | `cards_yellow`, `cards_red` | icons when > 0 |
- | GK line | `goals_saves`, `goals_conceded` | replaces G/A for keepers |
-@@ -136,7 +135,6 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
- | GK profile | `position = 'G'` | Save-percentage bundle renders; GK match-log line |
- | Zero denominator | e.g. `duels_total = 0` | `0 of 0 · —` (counts shown, ratio undefined) |
- | No stat line for a match | match absent from `match_log[]` | nothing fabricated — the log only contains matches with player stats (a COMMON state, brief §2: style it, don't hide it) |
--| Null rating | `rating` null | "-" |
- | Multi-competition season | several `seasons[]` rows per year | selector lists each; no blending |
- | Thin page | no `mart_player_profile` row | page not generated |
- 
-@@ -145,7 +143,7 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
- - **Season selector**: swaps (4)+(5) and filters (6) in place (all data in the
-   payload). Default season server-rendered.
- - Match-log row → matchstats page when available; opponent → team profile.
--- No charts required at v1; sparkline of match ratings = design option (island).
-+- No charts required at v1.
- 
- ## 8. SEO
- 
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 938b839..9596306 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -45,6 +45,9 @@ models:
+             - league_code
+             - season_api_year
+             - team_sk
++      - dbt_utils.expression_is_true:
++          expression: "(shot_accuracy_season is null or shot_accuracy_season between 0 and 1) and (danger_zone_ratio_season is null or danger_zone_ratio_season between 0 and 1) and (pass_accuracy_season is null or pass_accuracy_season between 0 and 1) and (duels_won_pct_season is null or duels_won_pct_season between 0 and 1) and (save_ratio_season is null or save_ratio_season between 0 and 1) and (shot_share_season is null or shot_share_season between 0 and 1) and (points_capture_season is null or points_capture_season between 0 and 1)"
++          name: int_team_season_ratios_in_range
+     columns:
+       - name: team_season_sk
+         tests: [not_null]
+@@ -81,6 +84,9 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+           name: int_player_season_pass_accuracy_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1)"
++          name: int_player_season_ratios_in_range
+     columns:
+       - name: player_sk
+         tests:
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index bd28957..eaf0107 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -47,3 +47,7 @@ penalty_committed,player,playerMetrics.penalties.committed,Penalties committed i
+ saves,player,playerMetrics.savePct.saves,Saves made in the form window.,goals_saves,,false,integer,goalkeeping,,1
+ shots_on_target_faced,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,goals_saves + goals_conceded,,false,integer,goalkeeping,,1
+ save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1
++shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,shots_total,,false,integer,shooting,,
++goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,
++shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,
++points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,
+diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+new file mode 100644
+index 0000000..babba8d
+--- /dev/null
++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+@@ -0,0 +1,72 @@
++{#
++  Drift guard (metric layer, Phase 1). For each canonical SEASON model, every metric-bearing
++  column must be registered in metric_catalogue. The test FAILS (returns rows) if a model
++  computes a metric that is not catalogued — i.e. a new metric crept in without being added to
++  the layer. This is the no-drift guarantee: the model is the single source, the catalogue is
++  the registry, and they cannot silently diverge.
++
++  Non-metric columns are excluded: surrogate / foreign keys (*_sk), the coverage counts, the
++  *_sum_season raw intermediates, and the playing-time facts (appearances / starts / subs /
++  minutes) which are dimensions, not metrics.
++
++  Naming is normalised to the catalogue's metric_id: the team season model carries a `_season`
++  suffix, and `goals_saves` is the model column for catalogue `saves`. Those two normalisations
++  exist only until #500 aligns the model column names; they are deliberately NOT a binding-map.
++#}
++
++-- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
++-- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
++-- depends_on: {{ ref('int_player_season__metrics') }}
++-- depends_on: {{ ref('int_team_season__full_season_metrics') }}
++
++{% set models = [
++    ('int_player_season__metrics', 'player'),
++    ('int_team_season__full_season_metrics', 'team')
++] %}
++
++{% set exempt = [
++    'team_sk', 'player_sk', 'league_sk', 'season_sk', 'league_code', 'season_api_year',
++    'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
++    'player_stat_coverage_season_games', 'appearances', 'starts', 'substitute_appearances', 'minutes'
++] %}
++
++{% set rows = [] %}
++{% if execute %}
++    {% for model_name, entity in models %}
++        {% for col in adapter.get_columns_in_relation(ref(model_name)) %}
++            {% set name = col.name | lower %}
++            {% if name not in exempt and not name.endswith('_sum_season') and not name.endswith('_sk') %}
++                {% set norm = name[:-7] if name.endswith('_season') else name %}
++                {% set norm = 'saves' if norm == 'goals_saves' else norm %}
++                {% do rows.append(
++                    "select '" ~ entity ~ "' as entity, '" ~ name ~ "' as model_column, '" ~ norm ~ "' as metric_id"
++                ) %}
++            {% endif %}
++        {% endfor %}
++    {% endfor %}
++{% endif %}
++
++with catalogue as (
++    select entity, metric_id from {{ ref('metric_catalogue') }}
++),
++
++model_metric_columns as (
++    {% if rows %}
++    {{ rows | join('\n    union all\n    ') }}
++    {% else %}
++    select
++        cast(null as string) as entity,
++        cast(null as string) as model_column,
++        cast(null as string) as metric_id
++    where 1 = 0
++    {% endif %}
++)
++
++select
++    m.entity,
++    m.model_column,
++    m.metric_id
++from model_metric_columns as m
++left join catalogue as c
++    on m.entity = c.entity and m.metric_id = c.metric_id
++where c.metric_id is null
+diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+new file mode 100644
+index 0000000..6d0fd67
+--- /dev/null
++++ b/docs/metric_layer.md
+@@ -0,0 +1,45 @@
++# Metric layer
++
++> How the platform keeps its metrics consistent — the dbt-idiomatic way. Short by design.
++
++## The three parts
++
++1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
++   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__full_season_metrics`
++   for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
++   *implementation* drift — the same metric computed three different ways.
++2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
++   of every metric: `metric_id`, label (i18n key), definition, formula (numerator / denominator), display
++   format, and grouping. The UI glossary (`metrics.json`) is built from it. It documents; it does not compute.
++3. **Tests verify and guard.**
++   - **No-drift guard** — `tests/assert_no_uncatalogued_season_metric.sql`: every metric-bearing column in a
++     canonical season model must be a `metric_catalogue` row, so a computed metric can't be added without
++     registering it (CI fails otherwise). Keys, coverage counts, `*_sum_season` intermediates and the
++     playing-time facts are excluded; the `_season` suffix and the `goals_saves`→`saves` quirk are normalised
++     (pending #500's name alignment).
++   - **Correctness** — standard dbt tests on the models: ratios in 0–1 (per-match rates and
++     finishing-efficiency are uncapped), not-null + relationships on keys, unique on the grain.
++
++## What it is NOT
++
++There is no bespoke "metric engine": no binding-map, no `metric_kind` taxonomy, no test that re-derives a
++metric from the raw legs to cross-check the model. The model computes it once; the catalogue documents it;
++the drift test stops uncatalogued metrics creeping in. That is the whole mechanism.
++
++## Adding a metric
++
++1. Add the computation to the canonical model (one place).
++2. Add the `metric_catalogue` row (id, label, definition, format, group).
++3. The drift test passes once both exist; add a 0–1 range test if it is a ratio.
++
++## Non-metrics
++
++`league_rank` (a standings lookup) and `points_won` (a window-header tally) are catalogue rows for the
++glossary but are not computed metrics; they are not in the canonical season models, so the drift guard does
++not involve them. Playing-time facts (appearances, minutes, starts, subs) are dimensions, not metrics, and
++are excluded from the guard.
++
++## Scope / follow-ups
++
++- Phase 1 covers the two **season** grains. The form-window grains are a later phase (same pattern).
++- Model / column naming consistency + the team-season model consolidation: **#500**.
