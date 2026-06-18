@@ -1,367 +1,242 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 32eecf8..eee0d82 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,73 +4,70 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index d98791b..6cc540b 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -51,8 +51,20 @@ TASK_DIR_REL = ".claude/task/"
+ # 2026-06-14 (this branch's escalations.log): custom slash commands can embed
+ # shell, so a command file is the same high-stakes class as a hook — never add
+ # one inside an ordinary task without protected_override + cto review.
++# .mcp.json + .cursor/mcp.json added per the CPO ruling 2026-06-18 (this
++# conversation): an MCP-server config auto-launches a command (`uvx dbt-mcp` …)
++# every session — the same command-class as .claude/commands/, so it is
++# guard-level. No agent may self-grant an MCP server inside an ordinary task;
++# it needs protected_override + cto review. Both the Claude Code (.mcp.json)
++# and Cursor (.cursor/mcp.json) entry points are covered; .claude/settings.json
++# (which can also carry an mcpServers block) is already PROTECTED below.
+ PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
+-PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
++PROTECTED_FILES = (
++    ".claude/settings.json",
++    ".claude/review_routing.json",
++    ".mcp.json",
++    ".cursor/mcp.json",
++)
  
--_Last updated: 2026-06-17 (player performance-surface spec). Shipped this session: a long CPO design
--conversation that produced the **player performance-surface spec — merged as #491** (main at 4a1a348).
--It resolves the deferred player season surface: a new **§8 in `docs/metrics_context_model.md`** plus a
--supersession pointer in `docs/player_metrics_catalogue.md`. Docs only — no models changed; it is the
--spec that **#480** and **#484** build against. Governance G1–G4 LIVE. **Website blueprint #391 still
--PAUSED.**_
-+_Last updated: 2026-06-17 (content architecture + player-season consolidation). A long CPO design arc
-+this session, three merges: **#491** (player performance-surface spec, §8 of `metrics_context_model.md`),
-+**#493** (`docs/content_architecture.md` — the modular site IA), and **#494/#480** (one canonical
-+player-season model). main at 93a2957. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
+ _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
  
- ## FIRST next session (do this first)
--- Nothing pending-merge. #491 is merged; main is clean at 4a1a348. `git fetch` + ff to confirm. Then
--  the CPO directs the next item (none auto-granted) — see NEXT.
-+- Nothing pending-merge. `git fetch` + ff to confirm (main 93a2957). Then the CPO directs the next item
-+  (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** — it is the IA + data
-+  spec everything below builds against.
- 
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
- 
--## This session (2026-06-17) — player performance-surface spec (#491, MERGED)
--A design conversation, not a build. Settled and recorded in **§8** (everything below is now spec, not
--open):
--1. **One aggregation, two windows.** The per-match player **leg** is the shared building block. Form and
--   season are the SAME aggregation over a DIFFERENT set of legs — it never forks. Rules: sum counts; the
--   four ratios (duels-won %, dribble-success %, pass-accuracy %, save %) are **weighted** (Σnum ÷ Σden,
--   never an average of per-match %s); honest absence (only legs with provider stats count); zero
--   denominator → `—` with counts shown. Display = **totals + the four weighted %s**, NOT per-match.
--2. **What we show** = the nine CPO-locked player rows (`metrics_display.md`, 2026-06-11) + a NEW
--   **appearance/playing-time context block**: two rows (apps·starts·subs; total min·avg-per-app) + last
--   appearance in the window meta-line, **with the year** (`18 May 2026 vs Dortmund`). These are mart
--   columns; the export only formats them.
--3. **Season model** = ONE model, **per-club grain** (a transferred player → separate per-club line),
--   within one competition, **this + last season side-by-side** (wide columns, not a second row). Full
--   grain key `(player_sk, team_sk, league_code, season_sk)`. Replaces the three divergent rollups.
--4. **Window matrix.** Club: the player's club form (last 5 across club comps; domestic = prev season
--   before MD1, full after). **National = CONTEXT, not form** (strict club/national separation, never
--   borrows club data): last ≤5 **national-team** appearances pooled across ALL NT comp types (friendlies
--   once ingested), no season cap; **big tournament → cumulative ONLY** during & after; (future, when NT
--   history ingested) career view grouped by NT comp type.
--5. **Override** (CPO, logged): §8.5 supersedes the catalogue's "Form-window dispatch" (WC player form via
--   the domestic club, qualifiers excluded). Reframe form→context dissolves its three (form-prediction)
--   objections; football-analytics confirmed the football-correctness.
--6. **No separate framing** — the existing locked window meta-line carries club-form vs national-context
--   through its copy (final wording at i18n).
--- **Review:** scope-auditor + analytics-engineer + football-analytics all PASS. Two analytics-engineer
--  FAIL rounds were fixed at design altitude (surrogate key stated; NT selector forced into the
--  intermediate layer with its national anchor; last-appearance declared a mart column not export logic;
--  form_window_kind set shown derivable + final labels reserved to build) and re-reviewed clean.
--
--## NEXT (CPO directs — none auto-granted)
--- **#480** — build the ONE canonical per-club player-season model from §8 (applies the weighted
--  aggregation; retires `mart_player_season` + the divergent rollups). **Changes shipped numbers** (e.g.
--  pass accuracy → weighted) → its own validation; analytics-engineer + football-analytics on that PR.
--- **#484** — build the national-team **context** window (a NEW national-anchored intermediate selector
--  per §8.4 — not mart logic). **Changes shipped numbers** → its own validation.
-+## This session (2026-06-17) — design arc → content architecture + #480
-+1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
-+   two windows over the per-match leg; the 9 locked rows + an appearance/playing-time block; one per-club
-+   season model; club/national window matrix with **national = context** (last-5 NT appearances pooled;
-+   big-tournament cumulative); overrides the catalogue's domestic-substitution dispatch.
-+2. **#493 (MERGED) — `docs/content_architecture.md`**, the modular IA: **blocks (1 block = 1 mart) → tabbed
-+   entity pages → navigation graph.** Entity types (Competition, Team, Player, Fixture rich; Matchday,
-+   Coach thin). Block library + block↔mart map. Flagship reads (below). New-mart list + the backfill
-+   policy. Cross-linked from `site_architecture.md` + `metrics_context_model.md` §8.
-+3. **#494/#480 (MERGED) — player-season consolidation.** One shared `int_player_season__metrics`; both
-+   `mart_player_profile` (byte-identical) and `mart_player_season` compose it; the orphan's logic promoted;
-+   `mart_player_season` pass accuracy corrected naive-avg → **weighted** (was unconsumed). Kept today's
-+   grain; the per-club split + side-by-side + appearance block are the deferred §8.3 follow-up.
-+4. **Flagship reads (CPO-LOCKED):** **deserved-vs-actual** + **vs-own-history (YoY)** = v1; **opponent /
-+   schedule context** = v1.x (hardest, football-analytics-owned); **contribution-share** = bonus.
-+   **Vs-benchmark/percentile = the supporting ENGINE, not a flagship** (it's table stakes — kicker/fbref
-+   both do it). No xG — deserved-vs-actual uses our chance-quality metrics.
-+5. **Backfill depth policy (CPO-agreed):** tiered — top leagues 10 seasons / 2nd-tier + smaller 5 /
-+   continental club 10 / world+continental championships last 4 editions / qualifiers current+previous
-+   cycle / cups 5 — + a data-quality floor (skip empty-player-stat seasons) + phased rollout.
-+
-+## NEXT — the content_architecture build sequence (CPO directs; none auto-granted)
-+1. **Backfill** — set per-competition `history_seasons` in `docs/competition_registry.yml` (the agreed
-+   tiered policy) + run it. Cost-gated ingest (data-engineer); uses spare API budget + BQ. Lights up
-+   History/Career, makes season-over-season real, deepens benchmarks. (This is #479's territory.)
-+2. **`mart_leaderboards`** (generalise `mart_top_scorers` to any catalogue metric) + **`mart_roster`**
-+   (from the team↔player mapping) — cheap, high navigability/SEO, no governance.
-+3. **`mart_competition_benchmarks`** (team+player) — the flagship engine; UNBLOCKED now (#480 gave a clean
-+   season aggregation). Percentile def → metric_catalogue + football-analytics (position-aware = v1.x).
-+4. **Coaches ingest + `dim_coach`**; **`mart_player_career`** (on the backfill) for the Career/History tabs.
-+
-+### Carryovers (also open, CPO directs)
-+- **#484** — player national/tournament **context** window (a NEW national-anchored intermediate selector
-+  per §8.4 — NOT mart logic). Changes shipped numbers → own validation.
-+- **Team season-record ↔ rollup unification** — the team-side analog of #480 (the season record's final
-+  row == the rollup; they're one aggregation). Latent consolidation.
-+- **Team season-rollup enhancement** — point `mart_team_season`/`int_team_season` at the mapping spine so
-+  pre-season teams appear (deferred from the dim_team work).
- - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
--  the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned). Small follow-up.
--- **Season-rollup enhancement (TEAM)** — point `mart_team_season` / `int_team_season` at the mapping
--  spine so pre-season teams appear. DEFERRED from the dim_team work; a shipped-mart rows change, own
--  validation. (The player analog is now specced as #480.)
--- **#479** spare-budget backfill — DESIGN (per-comp history depth + budget ceiling).
--- **#483** — GAP-18 follow-up (qualifying-type cumulative window).
-+  the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned).
-+- **#483** — qualifying-type cumulative window (GAP-18 follow-up).
- - **Pilot PR2 (slugs)** — STILL BLOCKED on the two BLINDED §10 rulings E2/E3 (do NOT pre-decide).
- 
--## Player performance surface (the shape after this session — use these)
--- **The spec is `docs/metrics_context_model.md` §8** + the supersession note in
--  `docs/player_metrics_catalogue.md`. Definitions stay in the catalogue; locked display rows in
--  `docs/wireframes/metrics_display.md`. Read §8 before any player-mart work.
--- "Player season form / context" → §8 (one aggregation, per-club season model, club/national matrix),
--  NOT the old three rollups. National player performance = **context** (NT appearances), never the
--  domestic-club substitution (that catalogue rule is superseded).
-+## Key specs to read before building (the source of truth)
-+- **`docs/content_architecture.md`** — blocks/tabs/navigation, entity types, block↔mart map, flagship
-+  reads, new-mart list, backfill policy. The engine spec.
-+- **`docs/metrics_context_model.md` §8** — the player performance surface (windows + aggregation).
-+- `docs/player_metrics_catalogue.md` + `docs/wireframes/metrics_display.md` — metric defs + locked display.
-+- Player season agg is now ONE model: `int_player_season__metrics` → `mart_player_profile` +
-+  `mart_player_season`. Do NOT re-introduce inline player-season aggregation.
- 
- ## dim_team model (still current — from the prior session)
- - **`dim_team`** = pure team ENTITY (one row per team_api_id; identity/venue only; **NO league_code**).
-@@ -78,56 +75,50 @@ open):
-   derived). "Teams in competition X, season Y" = the mapping (or fct_fixture), NEVER a dim_team column.
- 
- ## Process lessons locked (do not repeat)
--- **A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate.** This session the
--  analytics-engineer FAILed twice on build-readiness gaps in a DESIGN spec (surrogate key, layer
--  placement, mart columns, enum). Fix them **at design altitude** — state what's derivable, enforce
--  existing layer rules, and RESERVE genuine build detail to the build PR — do NOT over-design a future
--  PR inside the spec. If a reviewer keeps demanding build-level detail the contract scopes out, that
--  altitude question is the CPO's call.
--- **Read the existing docs before claiming a gap.** Early in the session I said "no clarity for players";
--  reading `metrics_context_model.md` + `player_metrics_catalogue.md` showed live-form WAS specced and the
--  real gap was only the season surface. Map the written design first.
--- **Up-front CPO design approvals get logged**; communication compact + plain, lead with decisions + a
--  bolded recommendation; no jargon in chat.
--
--## The governance machinery (G1–G4 all LIVE — unchanged this session)
--- **Contract first**: every unit writes `.claude/task/contract.md` (objective, scope_paths allowlist,
--  decisions_reserved, done_when) on a CLEAN tree BEFORE code. `task_contract_gate.py` denies edits
--  outside scope_paths / to PROTECTED paths (`.claude/hooks|agents|commands/`, `.github/workflows/`,
--  `.claude/settings.json`, `.claude/review_routing.json`) without `protected_override`; and denies
--  contract (re)writes on a dirty tree. `.claude/task/**` freely editable; `.claude/active_work.md` is
--  NOT (needs scope_paths — as in this handover task).
--- **4-step review cycle** (Code Lock → cold Blinding → Cross-Examination → SHA-256 Lock) in
--  `.claude/task/review.md`. Reviewers routed by `.claude/review_routing.json` (scope-auditor always;
--  dbt → analytics-engineer; scripts/tests/CI/hooks/agents/commands → cto; ingestion/registry-seed →
--  data-engineer; wireframes/i18n → bi-analyst; metric_catalogue → +football-analytics). Plain `docs/**`
--  (e.g. metrics_context_model.md) routes ONLY to scope-auditor — the CPO can direct extra reviewers
--  (this session: +analytics-engineer +football-analytics). PASS needs ≥2 named risks; default FAIL. A
--  reviewer FAIL on a §10 question → put it to the CPO in PLAIN language; record in review.md (VERDICT:
--  ESCALATE + `CPO ANSWER:`) + escalations.log.
--- **Commit gate** (`git_discipline.py`): `git commit` SOLE plain command; allowlisted flags only;
--  staged SHA-256 must equal review.md `diff_sha256` (`python .claude/hooks/git_discipline.py
--  --staged-hash`); required reviewers PASS, no FAIL, every ESCALATE has a CPO ANSWER. Artifact-only
--  commits (`.claude/task/**` except contract.md, `.claude/active_work.md`) are review-exempt — but a
--  commit that ALSO carries contract.md is never exempt (so this handover commit gets scope-auditor).
--- **CI backstop** `scripts/check_task_artifacts.py` re-binds review.md to the PR diff hash.
-+- **Design-spec review altitude** ([[feedback-design-spec-altitude]] in memory): on a reviewer FAIL of a
-+  DESIGN spec, fix design-level gaps + RESERVE genuine build detail to the build PR; don't over-design a
-+  future PR or chase the build-readiness treadmill.
-+- **Sibling-PR rebase recovery** ([[feedback-sibling-pr-rebase-rebind]] in memory): when a sibling PR
-+  merges first, the `.claude/task/*` scratch files conflict (every task rewrites them) — rebase keeps the
-+  CODE clean; but contract.md is HASHED, so its diff-base shift moves the review hash → rebind review.md
-+  to the recomputed value (artifact-only commit); and **collapse a multi-commit branch to ONE commit**
-+  (`git reset --soft origin/main` → re-stage → commit once) so the staged hash == the PR diff the gate
-+  expects. Force-push the feature branch with `--force-with-lease`.
-+- A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate. Read the existing docs before
-+  claiming a gap. Communication: compact + plain, lead with decisions + a bolded recommendation.
-+
-+## The governance machinery (G1–G4 all LIVE — unchanged)
-+- **Contract first**: every unit writes `.claude/task/contract.md` (objective, scope_paths, decisions,
-+  done_when) on a CLEAN tree BEFORE code. `task_contract_gate.py` denies edits outside scope_paths / to
-+  PROTECTED paths without `protected_override`; denies contract (re)writes on a dirty tree. `.claude/task/**`
-+  freely editable; `.claude/active_work.md` is NOT (needs scope_paths — as in this handover task).
-+- **4-step review cycle** (Code Lock → cold Blinding → Cross-Examination → SHA-256 Lock) in `review.md`.
-+  Reviewers routed by `.claude/review_routing.json` (scope-auditor always; dbt → analytics-engineer;
-+  scripts/tests/CI/hooks/agents/commands → cto; ingestion/registry-seed → data-engineer; wireframes/i18n →
-+  bi-analyst; metric_catalogue → +football-analytics). Plain `docs/**` routes ONLY to scope-auditor — the
-+  CPO can direct extra reviewers (this session: +analytics-engineer, +bi-analyst on the IA doc). PASS needs
-+  ≥2 named risks; default FAIL. Reviewer FAIL on a §10 → put to CPO in PLAIN language (review.md + log).
-+- **Commit gate** (`git_discipline.py`): `git commit` SOLE plain command; allowlisted flags only
-+  (message/quiet/verbose/sign — NOT --amend); staged SHA-256 must equal review.md `diff_sha256`
-+  (`python .claude/hooks/git_discipline.py --staged-hash`); required reviewers PASS, no FAIL, every
-+  ESCALATE has a CPO ANSWER. Artifact-only commits (`.claude/task/**` except contract.md, `active_work.md`)
-+  are review-exempt — but a commit that ALSO carries contract.md is never exempt. The gate assumes ONE
-+  substantive commit per PR (staged == PR diff); collapse multi-commit branches before committing.
-+- **CI backstop** `scripts/check_task_artifacts.py --base origin/main` re-binds review.md to the PR diff.
- 
- ## Form-window model vocabulary (use these names)
--- **W1 live form / momentum:** `int_momentum_window__team` → `int_momentum__team` →
--  `mart_momentum__team` + `mart_momentum_window__team`. `window_type`: `last_5` (default),
--  `tournament_to_date` + `qualifiers` (GAP-18). Player path `int_momentum__player`/`mart_momentum__player`
--  is still `last_5` — the player national/tournament context window is specced (§8.4) and built by #484.
--- **W2 season record:** `int_season_record__{team,player}` → `mart_season_record__{team,player}`; values
--  `season_to_date` (published key) + `prev_season`. The player season surface is now specced in §8 (#480).
--- Live WC label flag: `home/away_form_from_qualifiers` on `mart_matchday_insights`.
-+- **W1 live form / momentum:** `int_momentum_window__team` → `int_momentum__team` → `mart_momentum__team`
-+  (+ `mart_momentum_window__team` drill-down). window_type: `last_5` / `tournament_to_date` / `qualifiers`.
-+  Player path `int_momentum__player`/`mart_momentum__player` is still `last_5`; player NT/tournament context
-+  window is specced (§8.4) and built by #484.
-+- **W2 season record:** `int_season_record__{team,player}` → `mart_season_record__{team,player}`
-+  (`season_to_date` + `prev_season`). **Player full-season agg is now `int_player_season__metrics`** (#480).
- 
- ## Parked state (do not touch until directed)
--- v2 blueprint drill-down (`form_window[]` ≤5 cap, separate `phase` column) — under #391 (PAUSED).
-+- v2 blueprint drill-down — under #391 (PAUSED).
- - Pilot PR2 slug rulings E2/E3 — BLINDED, do NOT pre-decide.
--- Team market-value automation (#476 + #418) — new external-LLM source, needs a CPO cost gate.
--  (`mart_team_market_value` is the placeholder mart — value-less + unexported.)
--- #477 historical/per-edition squad membership — needs a CPO cost gate (also feeds §8.4's future NT
--  history-by-type view and friendlies in the NT pool).
-+- Team market-value automation (#476 + #418) — new external-LLM source, CPO cost gate.
-+- #477 historical/per-edition squad membership — overlaps the backfill (NEXT #1) + the Career/History tabs.
- 
- ## PENDING CPO ACTIONS (outside the tree — verify if done)
- 1. **Set `PROJECT_AUTOMATION_TOKEN`** to the fine-grained least-privilege scope (from #413).
-@@ -138,7 +129,7 @@ open):
- - **Never decide CPO-class questions** (§10); escalate in PLAIN language (§11). Don't over-read one model
-   and invent a §10; but DO escalate genuine layer/rule/scope/metric/naming questions.
- - Do not compute/derive facts in the frontend/export (layering.md §Consumption) — select/group/rename only.
--- Do not touch the live MVP UI logic without scope; do not change shipped numbers without a directed PR.
-+- Do not change shipped numbers without a directed PR + before/after deltas + reviewer sign-off.
- - File edits via Edit/Write tools only — never shell redirection/heredocs (A5). (Generated artifacts like
-   review_input.patch via `git diff >` are the exception — bookkeeping, hash-excluded.)
- - Branch from main; never commit to main; the post-commit hook auto-pushes + opens PRs.
-@@ -148,7 +139,9 @@ open):
- 
- ## Environment notes
- - dbt/sqlfluff from project `.venv` (`.venv/Scripts/dbt`, `.venv/Scripts/sqlfluff`) — the GLOBAL dbt is
--  broken. BQ is a SHARED single environment (CI rebuilds from whichever branch built last; concurrent
--  builds contend). dbt build uses BQ query bytes, NOT the API budget.
--- **API budget (API-Football Ultra) = 75,000 calls/day, resets daily.** Pipeline runs once daily at
--  04:00 UTC (empirically drifts to ~07:45–10:30 UTC). Skip-if-present loaders keep most runs cheap.
-+  broken. Run dbt with `--project-dir dbt_project --profiles-dir "$HOME/.dbt"` to avoid cd prompts. BQ is a
-+  SHARED single environment (CI rebuilds from whichever branch built last; a local `dbt build` clobbers the
-+  shared marts — rely on ci-data-build on the PR). dbt build uses BQ query bytes, NOT the API budget.
-+- **API budget (API-Football Ultra) = 75,000 calls/day, resets daily** — largely unused, so the backfill
-+  (NEXT #1) is affordable. Pipeline runs once daily at 04:00 UTC (drifts ~07:45–10:30). Skip-if-present
-+  loaders keep most runs cheap.
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index 5f2500a..b5125a6 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -24,7 +24,12 @@
+     "`.claude/commands/**` is PROTECTED + routed to cto-reviewer (CPO ruling",
+     "2026-06-14): a custom slash command can embed shell, so a command file is",
+     "governed like a hook — protected-path edit (needs protected_override) +",
+-    "platform review + opus floor."
++    "platform review + opus floor.",
++    "`.mcp.json` + `.cursor/mcp.json` are PROTECTED + routed to cto-reviewer (CPO",
++    "ruling 2026-06-18): an MCP-server config auto-launches a command every",
++    "session — the same command-class as .claude/commands/. Protected-path edit",
++    "(protected_override) + platform review + opus floor. .claude/settings.json",
++    "(which can carry an mcpServers block) is already PROTECTED."
+   ],
+   "always": ["scope-auditor"],
+   "paths": {
+@@ -36,6 +41,8 @@
+     ".claude/hooks/**": ["cto-reviewer"],
+     ".claude/agents/**": ["cto-reviewer"],
+     ".claude/commands/**": ["cto-reviewer"],
++    ".mcp.json": ["cto-reviewer"],
++    ".cursor/mcp.json": ["cto-reviewer"],
+     ".claude/settings.json": ["cto-reviewer"],
+     ".claude/review_routing.json": ["cto-reviewer"],
+     ".github/workflows/**": ["cto-reviewer"],
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index cbe2c6c..86be7e8 100644
+index 86be7e8..1514b88 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,85 +1,43 @@
--# Task contract — feat: consolidate player-season aggregation (#480, narrow scope)
-+# Task contract — chore: refresh the handover after #493 (content architecture) + #494/#480 merged
+@@ -1,43 +1,87 @@
+-# Task contract — chore: refresh the handover after #493 (content architecture) + #494/#480 merged
++# Task contract — chore: classify MCP config as PROTECTED + wire read-only dbt MCP server
  
--> CPO-directed this conversation (2026-06-17), NARROW scope chosen. Consolidates the three overlapping
--> player-season aggregations onto one shared intermediate model, applying the catalogue-correct
--> (weighted) pass-accuracy and removing the duplicated inline rollups. Builds on metrics_context_model.md
--> §8 (the player performance surface, merged #491). Read-only verification this session established the
--> blast radius: `mart_player_season` feeds ONLY `mart_top_scorers` (goals/assists/etc. — NOT pass
--> accuracy or rating); the export does not read `mart_player_season`. So its `pass_accuracy_avg_percent`
--> + `rating_avg` are currently UNCONSUMED — the avg→weighted fix is a latent-correctness change to an
--> unconsumed column, not a live/v2 surface change. `mart_player_profile` is already weighted, so it stays
--> byte-identical. Reviewers: scope-auditor (always) + analytics-engineer-reviewer (dbt). Numbers: no
--> consumed number changes; the weighted pass-accuracy already matches the catalogue + football-analytics's
--> spec-review sign-off.
-+> Bookkeeping. Update `.claude/active_work.md` to record the work merged since the last handover —
-+> #493 (content_architecture.md, the modular IA) and #494/#480 (player-season consolidation) — and
-+> re-point NEXT to the content-architecture build sequence. No code, no docs-content change.
-+> `active_work.md` is artifact-only for commits but not auto-editable, so it is in scope_paths here.
-+> The commit also carries contract.md (never review-exempt) → scope-auditor reviews.
+-> Bookkeeping. Update `.claude/active_work.md` to record the work merged since the last handover —
+-> #493 (content_architecture.md, the modular IA) and #494/#480 (player-season consolidation) — and
+-> re-point NEXT to the content-architecture build sequence. No code, no docs-content change.
+-> `active_work.md` is artifact-only for commits but not auto-editable, so it is in scope_paths here.
+-> The commit also carries contract.md (never review-exempt) → scope-auditor reviews.
++> Governance + tooling. The CPO ruled this conversation (2026-06-18) that `.mcp.json` is a
++> PROTECTED command-class file (it auto-launches `uvx dbt-mcp` every session — same class as
++> `.claude/commands/`, ruled 2026-06-14) and chose Option 2: extend the guard list to cover MCP
++> config AND wire the server. This is a PROTECTED governance task — it edits the gate + routing
++> themselves, so the contract carries `protected_override`. Reviewers: cto-reviewer (guard +
++> tooling, opus floor) + scope-auditor (always).
  
  objective: >
--  One shared player-season aggregation; both marts consume it; fix the divergent pass accuracy; remove
--  duplication. Keep today's grain (per player-competition-season). DEFER the per-club grain, this/last
--  side-by-side, and the appearance block (the full §8.3 model) to a follow-up.
--  (a) `dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql`
--      (MODIFIED, promoted from orphan to the canonical shared int): fix passes_accurate floor()->round()
--      (catalogue-correct, matches mart_player_profile); add `league_sk` + `season_sk` (from fct_fixture);
--      add the union of raw aggregates both marts need (starts, substitute_appearances, shots_total,
--      rating_avg, + the existing catalogue counts); match mart_player_profile's computations exactly
--      (coalesce(0) on counts; appearances = count(*); round-based passes_accurate) so the profile stays
--      byte-identical. Grain unchanged: (player_sk, league_code, season_api_year) + league_sk/season_sk.
--  (b) `dbt_project/models/5_marts/shared/mart_player_profile.sql` (MODIFIED): replace the inline `agg`
--      CTE with a select from `int_player_season__metrics`; KEEP the dim_player identity join, the
--      modal_position CTE, the leaderboard rank windows, and every output column + the surrogate key —
--      output byte-identical.
--  (c) `dbt_project/models/5_marts/shared/mart_player_season.sql` (MODIFIED): replace the inline `agg`
--      CTE with a select from `int_player_season__metrics` (+ dim_player identity); preserve the consumed
--      columns exactly (those mart_top_scorers reads); replace `pass_accuracy_avg_percent` (naive avg,
--      0-100, unconsumed) with the weighted catalogue `pass_accuracy_pct` (0-1, matches profile). Keep
--      rating_avg (unconsumed, preserved).
--  (d) schema yml + tests: update the int_player_season__metrics doc/tests (new columns, grain unique
--      test) and the mart yml entries for the changed mart_player_season column; keep the existing grain +
--      relationship tests.
-+  Rewrite .claude/active_work.md so a fresh session continues correctly: record this session's merges
-+  (#491 spec, #493 content architecture, #494/#480 player-season consolidation), set FIRST/NEXT to the
-+  content_architecture.md build sequence (backfill → leaderboards/roster → benchmark → coaches/career)
-+  + the carryovers, and carry the durable standing sections forward unchanged.
+-  Rewrite .claude/active_work.md so a fresh session continues correctly: record this session's merges
+-  (#491 spec, #493 content architecture, #494/#480 player-season consolidation), set FIRST/NEXT to the
+-  content_architecture.md build sequence (backfill → leaderboards/roster → benchmark → coaches/career)
+-  + the carryovers, and carry the durable standing sections forward unchanged.
++  (1) Classify MCP-server config as PROTECTED command-class: add `.mcp.json` and `.cursor/mcp.json`
++  to the task-contract gate's PROTECTED_FILES and route them to cto-reviewer, and document the rule
++  in the authoritative guardrail docs — so no agent can self-grant an MCP server in an ordinary task.
++  (2) Wire the read-only dbt MCP server via a committed `.mcp.json` (local-manifest lineage only:
++  get_lineage_dev / get_node_details_dev / list / parse — no warehouse-touching tools, no dbt Cloud).
  
  refs: >
--  #480. This conversation 2026-06-17 (narrow scope). Foundation = metrics_context_model.md §8 (#491).
--  Delta verified read-only: avg vs weighted pass accuracy diverges (mean 3.9pts, tail to 62pts); the
--  weighted value already lives in mart_player_profile.pass_accuracy_pct.
-+  This conversation 2026-06-17. Merged: #491 (player perf-surface spec §8), #492 (handover), #493
-+  (docs/content_architecture.md), #494/#480 (one canonical player-season model). main at 93a2957.
+-  This conversation 2026-06-17. Merged: #491 (player perf-surface spec §8), #492 (handover), #493
+-  (docs/content_architecture.md), #494/#480 (one canonical player-season model). main at 93a2957.
++  This conversation 2026-06-18. CPO ruling: Option 2 (PROTECTED). Probe facts: dbt-mcp shells out to
++  our dbt 1.7.19 (no dbt-core dep, no forced upgrade); dbt-artifacts-parser 0.13.2 parses our v11
++  manifest cleanly; dbt-mcp 1.20.4 needs Python >=3.12 (run via uv-managed interpreter; our venv stays
++  3.11.9). Precedent: `.claude/commands/**` protected (CPO ruling 2026-06-14).
  
  scope_paths:
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
--  - dbt_project/models/5_marts/shared/mart_player_season.sql
--  - dbt_project/models/5_marts/shared/shared.yml
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - .mcp.json
++  - .claude/hooks/task_contract_gate.py
++  - .claude/review_routing.json
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
++protected_override: >
++  CPO ruling this conversation (2026-06-18): `.mcp.json` classified PROTECTED (command-class),
++  Option 2 chosen. This authorizes the in-scope edits to .claude/hooks/task_contract_gate.py and
++  .claude/review_routing.json (extending the guard list to cover MCP config). No other protected
++  path is touched — `.claude/settings.json` is deliberately NOT edited (see decisions_taken).
++
  decisions_taken: >
--  CPO (this conversation, 2026-06-17): (1) NARROW scope — consolidate the three rollups to one shared
--  weighted int + fix mart_player_season's avg→weighted; DEFER per-club grain / side-by-side / appearance
--  block to a follow-up. (2) Canonical pass accuracy = the catalogue weighted ROUND definition (already in
--  mart_player_profile + the catalogue; football-analytics confirmed it in the §8 spec review). (3) Output
--  preservation: mart_player_profile byte-identical; mart_player_season preserves consumed columns;
--  mart_top_scorers unaffected. (4) The orphan int is PROMOTED (consumed by both marts), not deleted —
--  "retire the orphan" is satisfied by it no longer being orphaned.
-+  CPO directed the handover refresh this conversation (2026-06-17). Pure bookkeeping: records
-+  already-merged work + the CPO-locked design decisions (the content architecture, the flagship reads,
-+  the backfill depth policy) and re-points NEXT. No new product/metric/naming/layer decision is made.
-+  Durable standing sections preserved.
+-  CPO directed the handover refresh this conversation (2026-06-17). Pure bookkeeping: records
+-  already-merged work + the CPO-locked design decisions (the content architecture, the flagship reads,
+-  the backfill depth policy) and re-points NEXT. No new product/metric/naming/layer decision is made.
+-  Durable standing sections preserved.
++  - CPO chose Option 2 (2026-06-18): MCP config is PROTECTED; extend guards + wire the read-only
++    server. The read-only env allowlist (DBT_MCP_ENABLE_TOOLS) is the safety mechanism — the server
++    never exposes build/run/test/show/clone, so the redundant `mcp__dbt__*` denylist in the PROTECTED
++    `.claude/settings.json` is NOT added (avoids a second, unnecessary protected edit; CPO concurred).
++  - Protect BOTH `.mcp.json` (Claude Code) and `.cursor/mcp.json` (Cursor) on the same command-class
++    rationale — protecting only the literal file would leave the Cursor entry point open and defeat
++    the ruling's stated goal ("no agent self-grants an MCP server unreviewed"). This implements the
++    objective fully, not by analogy. Narrow to only `.mcp.json` if the CPO intended the literal file.
  
  decisions_reserved:
--  - DEFERRED to a follow-up (NOT here): per-club grain (transfers split), this/last side-by-side, the
--    appearance/playing-time block — i.e. the full §8.3 model. Keep today's grain.
--  - Do NOT move int_player_season__metrics to a new folder in this PR (folder cleanup is the separate
--    naming-consistency pass) — promote it in place.
--  - If reproducing mart_player_profile from the shared int yields ANY value drift (it must be
--    byte-identical), STOP and reconcile — do not ship a silent profile-number change.
--  - If a consumer of mart_player_season's pass_accuracy_avg_percent / rating_avg is found beyond
--    mart_top_scorers + the export (already checked: none), STOP and escalate before renaming.
--  - Any §10 (a shipped-output change to a CONSUMED surface, a grain change, a new mechanism) -> escalate.
-+  - No new scope. Every NEXT item (backfill, the new marts, coaches ingest, #484) is its own
-+    CPO-directed PR; the backfill EXECUTION (setting registry history_seasons + running it) is a
-+    cost-gated ingest task.
-+  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
+-  - No new scope. Every NEXT item (backfill, the new marts, coaches ingest, #484) is its own
+-    CPO-directed PR; the backfill EXECUTION (setting registry history_seasons + running it) is a
+-    cost-gated ingest task.
+-  - If anything beyond active_work.md needs editing to refresh the handover, STOP — not bookkeeping.
++  - Warehouse-touching dbt tools (build/run/test/show/clone) and the dbt-Cloud Discovery / Semantic
++    Layer / SQL tool groups are OUT. Enabling any is a separate, cost-gated CPO decision.
++  - Column-level lineage (the Fusion/dbt-LSP server) is OUT — not wired here.
++  - Whether to also CREATE `.cursor/mcp.json` (give Cursor the server too) is deferred: this PR
++    PROTECTS that path but only creates the Claude Code `.mcp.json`. A Cursor config is a follow-up.
++  - dbt stays 1.7.19. If a future dbt-mcp drops manifest-v11 support, revisit then — not now.
++  - If wiring needs any file beyond scope_paths, STOP and escalate — do not widen scope silently.
  
  done_when:
--  - dbt parse clean; sqlfluff lint passes; check_layer_contract green.
--  - int_player_season__metrics is consumed by BOTH marts; no inline player-season agg remains in either
--    mart; passes_accurate uses round() (not floor()).
--  - mart_player_profile output is byte-identical to main (verified by compiled-logic equivalence or a
--    read-only before/after compare on key columns incl. pass_accuracy_pct, goals, appearances, ranks).
--  - mart_player_season preserves the columns mart_top_scorers consumes; pass accuracy is now the weighted
--    pass_accuracy_pct; mart_top_scorers compiles unchanged.
--  - ci-data-build green (full BQ build + DQ tests), incl. the grain/relationship tests on all three models.
--  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each), no FAIL, every
--    ESCALATE has a recorded CPO ANSWER.
-+  - .claude/active_work.md reflects: #491/#492/#493/#494 merged (main 93a2957); FIRST = nothing
-+    pending-merge; NEXT = the content_architecture build sequence + carryovers; the flagship decisions
-+    + backfill policy recorded; durable sections intact.
-+  - Commit on branch chore/handover-480-content-arch; post-commit opens the PR.
-+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
+-  - .claude/active_work.md reflects: #491/#492/#493/#494 merged (main 93a2957); FIRST = nothing
+-    pending-merge; NEXT = the content_architecture build sequence + carryovers; the flagship decisions
+-    + backfill policy recorded; durable sections intact.
+-  - Commit on branch chore/handover-480-content-arch; post-commit opens the PR.
+-  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
++  - `.mcp.json` is valid JSON: launches `uvx --python 3.12.13 dbt-mcp` (EXACT patch pin — uv's
++    minor-version link needs Windows admin/developer-mode, unavailable here, so a bare `3.12` fails to
++    resolve while `3.12.13` resolves directly); env sets DBT_PROJECT_DIR, DBT_PATH (venv dbt.exe),
++    DBT_PROFILES_DIR as ABSOLUTE paths, intentionally machine-local (single-operator repo; parametrizing
++    is a deferred option); read-only allowlist is
++    `DBT_MCP_ENABLE_TOOLS="get_lineage_dev,get_node_details_dev,list,parse"` ONLY — NO
++    `DBT_MCP_ENABLE_DBT_CLI` (verification showed the group-enable + tool-allowlist combo exposes all 11
++    CLI tools incl. build/run/test/clone; the tool-allowlist ALONE exposes exactly the 4).
++  - task_contract_gate.py PROTECTED_FILES includes ".mcp.json" and ".cursor/mcp.json"; a gate self-test
++    confirms a write to `.mcp.json` is denied without protected_override and allowed with it.
++  - review_routing.json routes ".mcp.json" + ".cursor/mcp.json" -> cto-reviewer; _doc records the ruling.
++  - working_agreement.md §2 + BOTH agent_guardrails.md enumerations (the gate-table row at line 54 + the
++    opus-floor list at line 79) list MCP config among the protected paths.
++  - uv installed locally; `uvx --python 3.12.13 dbt-mcp` launches and exposes ONLY the 4 allowlisted
++    tools (live-verified: get_lineage_dev, get_node_details_dev, list, parse; zero warehouse tools;
++    get_lineage_dev returns real lineage for dim_date).
++  - review.md: cto-reviewer + scope-auditor VERDICT PASS (>=2 named risks each); no FAIL; any ESCALATE
++    has a CPO ANSWER. diff_sha256 matches the staged hash.
++  - Committed on chore/dbt-mcp-server; pushed with explicit refspec; PR opened. CPO merges.
++  - Post-merge (Rami, manual): restart Claude Code/Cursor to load the server; confirm get_lineage_dev
++    returns lineage against our manifest.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-06-18 (clean-tree, code stashed): done_when reconciled with the VERIFIED artifact after the
++    iteration-1 cto-reviewer FAIL. Authority: review-cycle finding (no scope change, no new §10 — the
++    build's live verification superseded the contract's planning-time config). Corrections: (1) env
++    allowlist = `DBT_MCP_ENABLE_TOOLS` ONLY (dropped `DBT_MCP_ENABLE_DBT_CLI=true`, which leaked all 11
++    CLI tools); (2) python pin 3.12 -> 3.12.13; (3) recorded the absolute DBT_* paths as intentionally
++    machine-local. Also fixed the missed edit the reviewer caught: docs/agent_guardrails.md line 54
++    (gate-table protected list) now includes the MCP paths, matching line 79 (opus floor).
+diff --git a/.mcp.json b/.mcp.json
+new file mode 100644
+index 0000000..8dab347
+--- /dev/null
++++ b/.mcp.json
+@@ -0,0 +1,14 @@
++{
++  "mcpServers": {
++    "dbt": {
++      "command": "uvx",
++      "args": ["--python", "3.12.13", "dbt-mcp"],
++      "env": {
++        "DBT_PROJECT_DIR": "D:/Projects/football-data-pipeline/dbt_project",
++        "DBT_PATH": "D:/Projects/football-data-pipeline/.venv/Scripts/dbt.exe",
++        "DBT_PROFILES_DIR": "C:/Users/Rami/.dbt",
++        "DBT_MCP_ENABLE_TOOLS": "get_lineage_dev,get_node_details_dev,list,parse"
++      }
++    }
++  }
++}
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 2710b5d..f3ae678 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -51,7 +51,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
+ 
+@@ -76,6 +76,7 @@ not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
+ **sonnet**. The pin is a floor — for diffs touching a guard path
+ (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+ `.claude/settings.json`, `.claude/review_routing.json`,
++`.mcp.json`, `.cursor/mcp.json`,
+ `.github/workflows/**`) the orchestrator spawns
+ `cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
+ guard bypasses are the costliest misses.
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 6879b88..ae420a2 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -35,13 +35,17 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+ - No contract → repo edits denied. Out-of-scope path → denied.
+ - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
+   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
+-  `.github/workflows/`) are never editable except in a dedicated CPO-approved
+-  governance task whose contract carries `protected_override`. The reviewer
+-  definitions and routing are protected so the builder can never weaken its
+-  own adversary inside an ordinary task (CPO ruling, G3 escalation
+-  2026-06-12); `.claude/commands/` is protected because custom slash commands
+-  can embed shell, so a command file is the same high-stakes class as a hook
+-  (CPO ruling 2026-06-14).
++  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
++  except in a dedicated CPO-approved governance task whose contract carries
++  `protected_override`. The reviewer definitions and routing are protected so
++  the builder can never weaken its own adversary inside an ordinary task (CPO
++  ruling, G3 escalation 2026-06-12); `.claude/commands/` is protected because
++  custom slash commands can embed shell, so a command file is the same
++  high-stakes class as a hook (CPO ruling 2026-06-14); `.mcp.json` /
++  `.cursor/mcp.json` (and any `mcpServers` block in `.claude/settings.json`)
++  are protected because an MCP-server config auto-launches a command every
++  session — the same command-class, so an agent can never self-grant an MCP
++  server in an ordinary task (CPO ruling 2026-06-18).
+ - **File changes go through the Edit/Write tools only** — shell redirection,
+   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
+   check and the turn-end stop gate force reversion of anything that slips

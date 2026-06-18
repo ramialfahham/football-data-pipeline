@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "dbt": {
+      "command": "uvx",
+      "args": ["--python", "3.12.13", "dbt-mcp"],
+      "env": {
+        "DBT_PROJECT_DIR": "D:/Projects/football-data-pipeline/dbt_project",
+        "DBT_PATH": "D:/Projects/football-data-pipeline/.venv/Scripts/dbt.exe",
+        "DBT_PROFILES_DIR": "C:/Users/Rami/.dbt",
+        "DBT_MCP_ENABLE_TOOLS": "get_lineage_dev,get_node_details_dev,list,parse"
+      }
+    }
+  }
+}
