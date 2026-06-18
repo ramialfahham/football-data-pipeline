@@ -4,35 +4,45 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-18 (dbt MCP server — a CPO-directed tooling detour off a LinkedIn post). Merged
-**#497**: a read-only dbt MCP server (`.mcp.json`, local-manifest lineage) + MCP config classified
-PROTECTED command-class. main at dff05d7. The prior session's product work (#491 spec, #493 content
-architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Governance G1–G4 LIVE.
-**Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-18 (metric layer Phase 1 + a black-box-rating removal). Merged **#499** (dropped the
+API-Football player `rating` end-to-end — a vendor black box) then **#501** (metric layer Phase 1). main at
+4353e41. Opened **#500** (team-season model naming + consolidation). The product roadmap below
+(#491/#493/#494/#480) is UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge. `git fetch` + ff to confirm (main dff05d7). The **dbt MCP server is LIVE** — it
-  loads on session start, so this fresh session should have `mcp__dbt__get_lineage_dev` /
-  `get_node_details_dev` (read-only local-manifest lineage; refresh with `dbt parse` if stale). Then the
-  CPO directs the next item (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** —
-  it is the IA + data spec everything below builds against.
+- Nothing pending-merge. `git fetch` + ff to confirm (main 4353e41). Then the CPO directs the next item
+  (none auto-granted) — see NEXT; the immediate pick is **task A: `mart_leaderboards` + `mart_roster`**
+  (NEXT #2), now unblocked on the metric-layer foundation (#501). **Read `docs/content_architecture.md`**
+  (the IA + data spec) **and `docs/metric_layer.md`** (the metric layer) **first.**
+- The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
+  cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
+  the local manifest meanwhile). See [[project-dbt-mcp-server]].
 
 ## Standing authority (in force)
 - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
 
-## This session (2026-06-18) — dbt MCP server (CPO-directed tooling detour)
-- **#497 (MERGED) — read-only dbt MCP server + MCP-config protection.** Prompted by a LinkedIn post on dbt
-  Labs "Wizard"; the one real gap it named for us was **edit-time lineage/impact analysis** (the rest —
-  validation loop, skills — we already have, often stricter). `.mcp.json` runs `uvx --python 3.12.13
-  dbt-mcp` with a read-only allowlist (`DBT_MCP_ENABLE_TOOLS=get_lineage_dev,get_node_details_dev,list,parse`)
-  — **no warehouse tools, no dbt Cloud, dbt stays 1.7.19** (dbt-mcp shells out; no forced upgrade). The
-  cto-reviewer caught a real bug pre-merge (the group-enable + allowlist combo leaked all 11 CLI tools incl.
-  build/run/test) → fixed to allowlist-only, live-verified exactly 4 tools + dim_date lineage.
-- **§10 ruling (2026-06-18):** `.mcp.json` / `.cursor/mcp.json` are **PROTECTED command-class** (they
-  auto-launch a command each session, like `.claude/commands/`) — in `task_contract_gate.py` PROTECTED_FILES
-  + routed to cto-reviewer (opus floor). No agent self-grants an MCP server in an ordinary task. Memory:
-  [[project-dbt-mcp-server]]. `.cursor/mcp.json` path is protected but NOT created (Cursor config deferred).
+## This session (2026-06-18) — metric layer Phase 1 (+ a rating-removal precursor)
+- **#499 (MERGED) — dropped the black-box player `rating` end-to-end.** API-Football's per-player match
+  `rating` is a vendor black box (opaque formula, unverifiable, variable coverage) → removed from staging →
+  base → `fct_fixture_player_stats` → `int_legs__player_match` → the two fixture-grain marts, plus the season
+  aggregate `rating_avg`, plus the doc/wireframe mentions. A focused precursor so the metric layer built on a
+  rating-free base.
+- **#501 (MERGED) — metric layer Phase 1, the dbt-idiomatic way.** NOT an engine: the **model is the single
+  source** (#480 player-season; team via #500), the **catalogue is the registry/glossary**, and **one drift
+  test** (`tests/assert_no_uncatalogued_season_metric.sql`) FAILS if a season model computes a metric not in
+  `metric_catalogue`. Added the 4 rows for metrics the models already compute (`shots_total`,
+  `goals_conceded`, `shot_share`, `points_capture`), ratio range tests, and `docs/metric_layer.md`.
+- **Over-build reverted (lesson).** Mid-session I built a bespoke conformance engine — a binding-map seed, a
+  `metric_kind` taxonomy, a `context` flag, and a test re-deriving every metric from the legs — which bought
+  nothing over #480's single source + a one-line drift test. The CPO flagged it; reverted to the simple
+  version above. Lesson: **size the solution to the need; check what a mechanism buys before building it.**
+  Memory: [[feedback-no-hacky-solutions]].
+- **#500 (OPEN)** — team-season model naming + consolidation (the team analog of #480; the
+  `int_team_season__full_season_metrics` → `int_team_season__metrics` rename rides with collapsing the split
+  team-season models). Memory: [[project-season-model-naming-parked]].
+- **Non-blocking follow-up:** the 4 new metrics' i18n labels (not in `site/i18n` yet; they are not displayed
+  rows; add when surfaced).
 
 ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
@@ -68,8 +78,9 @@ architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Gover
 ### Carryovers (also open, CPO directs)
 - **#484** — player national/tournament **context** window (a NEW national-anchored intermediate selector
   per §8.4 — NOT mart logic). Changes shipped numbers → own validation.
-- **Team season-record ↔ rollup unification** — the team-side analog of #480 (the season record's final
-  row == the rollup; they're one aggregation). Latent consolidation.
+- **Team season-record ↔ rollup unification + naming (#500)** — the team-side analog of #480 (the season
+  record's final row == the rollup; they're one aggregation), bundled with the model-naming fix
+  (`int_team_season__full_season_metrics` → `int_team_season__metrics`). Now tracked as **#500**.
 - **Team season-rollup enhancement** — point `mart_team_season`/`int_team_season` at the mapping spine so
   pre-season teams appear (deferred from the dim_team work).
 - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
@@ -102,6 +113,9 @@ architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Gover
   expects. Force-push the feature branch with `--force-with-lease`.
 - A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate. Read the existing docs before
   claiming a gap. Communication: compact + plain, lead with decisions + a bolded recommendation.
+- **Size the solution to the need** ([[feedback-no-hacky-solutions]]): don't over-build (this session's
+  reverted metric-layer conformance engine) and don't hack (a flag-to-ignore instead of the principled fix).
+  Before building any mechanism, ask what it buys over the simplest thing + what is already solved.
 
 ## The governance machinery (G1–G4 all LIVE — unchanged)
 - **Contract first**: every unit writes `.claude/task/contract.md` (objective, scope_paths, decisions,
