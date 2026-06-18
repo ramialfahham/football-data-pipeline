@@ -7,7 +7,7 @@
     re-aggregating fct_fixture_player_stats inline. Pass accuracy is now the catalogue-correct
     WEIGHTED value (`pass_accuracy_pct` = accurate ÷ attempted) — the previous
     `pass_accuracy_avg_percent` was a naive average of per-fixture percentages (wrong for low-volume
-    games) and was unconsumed; corrected here as part of the consolidation. rating_avg preserved.
+    games) and was unconsumed; corrected here as part of the consolidation.
 
     A player who moves clubs mid-season produces one row per competition-season (today's grain; the
     per-club split is the deferred §8.3 follow-up). Grain: (player_sk, season_sk).
@@ -42,7 +42,6 @@ select
     s.shots_total as shots,
     s.shots_on_target,
     s.passes_key as key_passes,
-    s.rating_avg,
     s.pass_accuracy_pct,
     s.cards_yellow as yellow_cards,
     s.cards_red as red_cards

@@ -53,7 +53,6 @@ select
     reg.competition_type,
     typ.entity_type,
     ps.minutes_played,
-    ps.rating,
     ps.is_starter,
     ps.is_substitute,
     ps.position_code,

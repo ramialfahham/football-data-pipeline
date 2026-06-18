@@ -75,7 +75,7 @@ response[i]
     .team.id                       # int
     .players[k].player.id          # int
     .players[k].player.name        # str
-    .players[k].statistics[0]      # object — per-player stats (rating, shots, etc.)
+    .players[k].statistics[0]      # object — per-player stats (shots, passes, etc.)
 ```
 
 **No `group` field exists in the `/fixtures` response.** Group assignment for

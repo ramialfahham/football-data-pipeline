@@ -638,8 +638,6 @@ models:
       - name: key_passes
       - name: pass_accuracy_pct
         description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
-      - name: rating_avg
-        description: "Average API-Football rating across fixtures (unweighted)."
       - name: yellow_cards
       - name: red_cards
 
