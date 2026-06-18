@@ -35,13 +35,17 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - No contract → repo edits denied. Out-of-scope path → denied.
 - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
-  `.github/workflows/`) are never editable except in a dedicated CPO-approved
-  governance task whose contract carries `protected_override`. The reviewer
-  definitions and routing are protected so the builder can never weaken its
-  own adversary inside an ordinary task (CPO ruling, G3 escalation
-  2026-06-12); `.claude/commands/` is protected because custom slash commands
-  can embed shell, so a command file is the same high-stakes class as a hook
-  (CPO ruling 2026-06-14).
+  `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
+  except in a dedicated CPO-approved governance task whose contract carries
+  `protected_override`. The reviewer definitions and routing are protected so
+  the builder can never weaken its own adversary inside an ordinary task (CPO
+  ruling, G3 escalation 2026-06-12); `.claude/commands/` is protected because
+  custom slash commands can embed shell, so a command file is the same
+  high-stakes class as a hook (CPO ruling 2026-06-14); `.mcp.json` /
+  `.cursor/mcp.json` (and any `mcpServers` block in `.claude/settings.json`)
+  are protected because an MCP-server config auto-launches a command every
+  session — the same command-class, so an agent can never self-grant an MCP
+  server in an ordinary task (CPO ruling 2026-06-18).
 - **File changes go through the Edit/Write tools only** — shell redirection,
   `sed -i`, `tee`, and script heredocs are denied for repo files; a post-command
   check and the turn-end stop gate force reversion of anything that slips

@@ -51,8 +51,20 @@ TASK_DIR_REL = ".claude/task/"
 # 2026-06-14 (this branch's escalations.log): custom slash commands can embed
 # shell, so a command file is the same high-stakes class as a hook — never add
 # one inside an ordinary task without protected_override + cto review.
+# .mcp.json + .cursor/mcp.json added per the CPO ruling 2026-06-18 (this
+# conversation): an MCP-server config auto-launches a command (`uvx dbt-mcp` …)
+# every session — the same command-class as .claude/commands/, so it is
+# guard-level. No agent may self-grant an MCP server inside an ordinary task;
+# it needs protected_override + cto review. Both the Claude Code (.mcp.json)
+# and Cursor (.cursor/mcp.json) entry points are covered; .claude/settings.json
+# (which can also carry an mcpServers block) is already PROTECTED below.
 PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
-PROTECTED_FILES = (".claude/settings.json", ".claude/review_routing.json")
+PROTECTED_FILES = (
+    ".claude/settings.json",
+    ".claude/review_routing.json",
+    ".mcp.json",
+    ".cursor/mcp.json",
+)
 
 _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 

@@ -24,7 +24,12 @@
     "`.claude/commands/**` is PROTECTED + routed to cto-reviewer (CPO ruling",
     "2026-06-14): a custom slash command can embed shell, so a command file is",
     "governed like a hook — protected-path edit (needs protected_override) +",
-    "platform review + opus floor."
+    "platform review + opus floor.",
+    "`.mcp.json` + `.cursor/mcp.json` are PROTECTED + routed to cto-reviewer (CPO",
+    "ruling 2026-06-18): an MCP-server config auto-launches a command every",
+    "session — the same command-class as .claude/commands/. Protected-path edit",
+    "(protected_override) + platform review + opus floor. .claude/settings.json",
+    "(which can carry an mcpServers block) is already PROTECTED."
   ],
   "always": ["scope-auditor"],
   "paths": {
@@ -36,6 +41,8 @@
     ".claude/hooks/**": ["cto-reviewer"],
     ".claude/agents/**": ["cto-reviewer"],
     ".claude/commands/**": ["cto-reviewer"],
+    ".mcp.json": ["cto-reviewer"],
+    ".cursor/mcp.json": ["cto-reviewer"],
     ".claude/settings.json": ["cto-reviewer"],
     ".claude/review_routing.json": ["cto-reviewer"],
     ".github/workflows/**": ["cto-reviewer"],
