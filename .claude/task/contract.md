@@ -1,62 +1,47 @@
-# Task contract — feat: metric layer (Phase 1) — catalogue completeness + drift guard
+# Task contract — chore: refresh the handover after #499 + #501 merged
 
-> The metric layer, done the dbt-idiomatic way. The season MODELS are the single source of truth for each
-> metric (already so — #480 for player-season; team-season consolidation tracked in #500). This task just
-> (a) makes the catalogue COMPLETE — every metric the two season models already compute is registered —
-> and (b) adds ONE drift guard: a test that fails if a model computes a metric not in the catalogue, plus
-> standard range tests. NO bespoke conformance engine, NO binding-map, NO metric_kind column — those were
-> over-built (re-deriving every metric to check the model) and have been reverted; they bought nothing over
-> #480's single source + a drift test. CPO-directed, 2026-06-18.
+> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this session's
+> merges (#499 rating removal, #501 metric layer Phase 1), the metric-layer outcome + the over-build lesson,
+> the new follow-up #500, and re-point NEXT to task A (leaderboards + roster). Preserve all durable standing
+> sections verbatim. No code, no docs-content change. active_work.md is artifact-only for commits but NOT
+> auto-editable, so it is in scope_paths. The commit also carries contract.md (never review-exempt) →
+> scope-auditor reviews.
 
 objective: >
-  (1) Add the 4 catalogue rows for metrics the season models ALREADY compute but that are not registered:
-  shot_share + points_capture (int_team_season__full_season_metrics), shots_total + goals_conceded
-  (int_player_season__metrics). (2) Add a drift-guard test: for each canonical season model, every
-  metric-bearing column — excluding keys, coverage counts, *_sum_season intermediates, and the playing-time
-  facts (appearances/starts/subs/minutes) — maps to a metric_catalogue metric_id; fails on any uncatalogued
-  metric. Normalisation: strip the team `_season` suffix; map the one `goals_saves`->`saves` quirk (NOT a
-  binding-map — two rules). (3) Range tests (0-1) on the ratio metrics. (4) docs/metric_layer.md describing
-  the layer: model = single source; catalogue = registry/docs; drift test = guard; standard dbt tests =
-  correctness. NO model SQL changes.
+  Update the session-specific parts of .claude/active_work.md: the Last-updated line (main 4353e41; #499 +
+  #501 merged; #500 opened), FIRST (nothing pending; NEXT = task A on the metric-layer foundation; dbt MCP
+  cold-start note), the This-session section (replace the MCP-server session with metric-layer Phase 1 + the
+  rating-removal precursor + the over-build lesson), the team-consolidation carryover (now #500), and add the
+  size-the-solution process lesson. Carry ALL durable sections (Standing authority, Product roadmap, NEXT,
+  other Carryovers, Key specs, dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT,
+  Environment) forward UNCHANGED + verbatim.
 
 refs: >
-  This conversation 2026-06-18. Metric layer = model-as-single-source (#480) + catalogue-as-registry + a
-  drift guard, NOT a recompute engine (reverted after the CPO flagged it as over-built). Naming + team-season
-  model consolidation = #500. Season-grain completeness beyond the 4 orphans (e.g. clean_sheets at season
-  grain) is a separate concern, not this task.
+  This conversation 2026-06-18. Merged #499 (rating removal) + #501 (metric layer Phase 1), main 4353e41.
+  Opened #500 (team-season naming + consolidation). Memory: [[feedback-no-hacky-solutions]],
+  [[project-season-model-naming-parked]].
 
 scope_paths:
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/macros/
-  - dbt_project/tests/
-  - docs/metric_layer.md
+  - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
 
 decisions_taken: >
-  CPO 2026-06-18: build the metric layer the dbt-idiomatic way — model = single source (#480/#500),
-  catalogue = registry/docs, ONE drift-guard test (no uncatalogued metric), standard dbt tests for
-  correctness. The bespoke conformance engine (binding-map seed, metric_kind, context flag, recompute-from-
-  legs test) was over-built and is reverted. league_rank/points_won stay plain catalogue rows (they are the
-  UI glossary's source too). The drift test handles the goals_saves<->saves quirk + the _season suffix via
-  small normalisation, not a binding-map.
+  CPO directed the handover refresh this conversation (2026-06-18, "do it"). Pure bookkeeping: records the
+  already-merged #499 + #501, the metric-layer outcome (model + catalogue + drift test, NOT an engine) + the
+  reverted over-build lesson, the new #500, and re-points NEXT to task A. No new product / metric / naming /
+  layer decision. Durable standing sections preserved verbatim.
 
 decisions_reserved:
-  - No recompute/conformance engine; no binding-map; no metric_kind column; no context flag.
-  - No model SQL changes — the models already compute these metrics; this task only catalogues + tests.
-  - Season-grain completeness beyond the 4 orphans (clean_sheets / per-match T-I-B / dribbles% at season
-    grain) is a SEPARATE task, not bundled here.
-  - Naming consistency + team-season model consolidation = #500 (not here).
+  - No new scope. The NEXT items (task A + the content-architecture sequence) are unchanged and remain
+    CPO-directed; this is not the place to add or re-decide them.
+  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
 
 done_when:
-  - metric_catalogue has the 4 orphan rows (shot_share, points_capture, shots_total, goals_conceded).
-  - The drift test passes now and WOULD FAIL if a season model gained an uncatalogued metric column.
-  - The ratio metrics have 0-1 range tests.
-  - docs/metric_layer.md documents the (simple) mechanism.
-  - validate-local green; ci-data-build green on the PR.
-  - reviewer (per .claude/review_routing.json): analytics-engineer-reviewer + football-analytics-expert-reviewer
-    (metric_catalogue.csv) + scope-auditor PASS (>=2 named risks each); no FAIL; no ESCALATE.
-  - Branch feat/metric-layer-phase1; PR opened (CPO merges).
+  - .claude/active_work.md reflects: #499 + #501 merged (main 4353e41); #500 opened; FIRST = nothing pending +
+    NEXT = task A; the metric-layer Phase 1 session + the over-build lesson recorded; all durable sections
+    intact and verbatim.
+  - Commit on branch chore/handover-refresh-metric-layer; post-commit opens the PR.
+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
 
 amendments: (none)
