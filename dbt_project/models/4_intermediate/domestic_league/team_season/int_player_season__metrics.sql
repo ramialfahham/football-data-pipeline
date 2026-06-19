@@ -148,6 +148,10 @@ select
     penalty_committed,
     goals_saves,
     goals_conceded,
+    -- count composites (leaderboard sort keys; sums of the atoms above) — metric_catalogue rows
+    goals + assists as scorer_points,
+    tackles_total + tackles_interceptions + tackles_blocks as defensive_actions,
+    cards_yellow + cards_red as cards_total,
     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
     safe_divide(duels_won, duels_total) as duels_won_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
