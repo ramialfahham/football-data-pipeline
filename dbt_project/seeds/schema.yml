@@ -64,8 +64,9 @@ seeds:
     description: >
       Single source of truth for every metric the platform computes. One row per metric
       per entity. Captures the formula (numerator / denominator), entity type (team/player),
-      i18n key, display format, and the display dimensions (group, tier, order) ruled in
-      docs/wireframes/metrics_display.md. Formulas reference raw totals from int_legs__*
+      i18n key, display format, the display dimensions (group, tier, order) ruled in
+      docs/wireframes/metrics_display.md, and the performance semantic (direction + interpretation).
+      Formulas reference raw totals from int_legs__*
       building-block legs; the mart applies the window context and computes the final
       values. Window-agnostic: metric IDs carry no window suffix. Part of epic #317;
       display columns added for #391 (GAP-09).
@@ -131,6 +132,22 @@ seeds:
           Position within the metric_group. Team: row order. Player: the bundle's
           position within its group (atomics of one bundle share the value). Null for
           unrendered metrics; full row order lives in docs/wireframes/metrics_display.md.
+      - name: direction
+        description: >
+          Performance semantic (the richer successor to lower_is_better): higher_better,
+          lower_better, or neutral (a descriptive/style metric with no inherent good-or-bad).
+          Orients the competition benchmark and seeds website auto-interpretation. Populated for
+          team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x)
+          and for dribbles_success_pct,team (retiring — #510). lower_is_better is retained until
+          the full migration.
+        tests:
+          - accepted_values:
+              values: ["higher_better", "lower_better", "neutral"]
+      - name: interpretation
+        description: >
+          Short plain-English meaning of the metric — what it captures and what a notably high
+          value signals — the seed of website auto-narrative. Populated for team metrics; null for
+          player metrics (v1.x) and dribbles_success_pct,team (#510).
 
   - name: metric_definitions
     description: >
