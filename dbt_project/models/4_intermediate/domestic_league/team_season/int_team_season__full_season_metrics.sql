@@ -75,7 +75,8 @@ aggregated_season as (
         sum(interceptions) as interceptions_sum_season,
         sum(blocks) as blocks_sum_season,
         sum(duels_total) as duels_total_sum_season,
-        sum(duels_won) as duels_won_sum_season
+        sum(duels_won) as duels_won_sum_season,
+        countif(goals_against = 0) as clean_sheets_count_season
     from joined
     group by league_code, season_api_year, team_sk
 )
@@ -140,5 +141,12 @@ select
     safe_divide(
         tackles_sum_season + interceptions_sum_season + blocks_sum_season,
         player_stat_coverage_season_games
-    ) as defensive_actions_per_match_season
+    ) as defensive_actions_per_match_season,
+    -- GAP-13 follow-on (benchmark): the catalogued team metrics the season model still lacked.
+    -- clean_sheets is benchmarked as a RATE (the "x/y" count display lives on mart_team_season).
+    safe_divide(clean_sheets_count_season, season_games_played) as clean_sheets_season,
+    safe_divide(tackles_sum_season, player_stat_coverage_season_games) as tackles_per_match_season,
+    safe_divide(interceptions_sum_season, player_stat_coverage_season_games)
+        as interceptions_per_match_season,
+    safe_divide(blocks_sum_season, player_stat_coverage_season_games) as blocks_per_match_season
 from aggregated_season

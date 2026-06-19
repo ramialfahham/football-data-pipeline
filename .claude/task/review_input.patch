@@ -1,257 +1,495 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 32304d2..802d941 100644
+index 802d941..664c76e 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,48 +1,63 @@
--# Task contract — chore: refresh the handover after Task A (#503 + #507 + #508 merged)
-+# Task contract — feat: metric direction + interpretation semantics (benchmark precursor, PR-a)
+@@ -1,63 +1,62 @@
+-# Task contract — feat: metric direction + interpretation semantics (benchmark precursor, PR-a)
++# Task contract — feat: mart_competition_benchmarks__team (the benchmark engine, PR-b)
  
--> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this session's
--> merges (mart_roster #503, the leaderboard composites #507, mart_leaderboards + full consolidation #508 —
--> Task A COMPLETE), the issues filed (#504 metric_definitions cleanup, #505 docs audit, #506 deferred rate
--> boards), the doc-clutter feedback, and re-point NEXT (Task A done → the remaining content-architecture
--> items). Preserve all durable standing sections verbatim. No code. active_work.md is artifact-only for
--> commits but NOT auto-editable, so it is in scope_paths. The commit also carries contract.md (never
--> review-exempt) → scope-auditor reviews.
-+> PR-a of the team competition-benchmark build (CPO-directed 2026-06-19). The semantic precursor:
-+> give every TEAM metric a `direction` (higher_better / lower_better / neutral) and a short
-+> `interpretation`, so the data carries meaning — orienting the benchmark and powering future
-+> auto-narrative. Catalogue-only; no models, no benchmark mart (that is PR-b). Precursor pattern
-+> (like #507 → #508).
+-> PR-a of the team competition-benchmark build (CPO-directed 2026-06-19). The semantic precursor:
+-> give every TEAM metric a `direction` (higher_better / lower_better / neutral) and a short
+-> `interpretation`, so the data carries meaning — orienting the benchmark and powering future
+-> auto-narrative. Catalogue-only; no models, no benchmark mart (that is PR-b). Precursor pattern
+-> (like #507 → #508).
++> PR-b of the team competition-benchmark build (CPO-directed 2026-06-19). Build the team-vs-league
++> benchmark over the 20 team season metrics: median-led, rank-of-N (no percentile), neutral/positional
++> (the catalogue's direction is joined at display). Builds on PR-a's direction/interpretation (#511).
++> CPO chose benchmark-first; the #500 team-season rename/consolidation comes later (the 4 metric
++> additions here are additive and survive that rename).
  
  objective: >
--  Update the session-specific parts of .claude/active_work.md: the Last-updated line (main 279dcff; #503 +
--  #507 + #508 merged = Task A complete; #504/#505/#506 filed), FIRST (nothing pending; NEXT re-pointed), the
--  This-session section (replace the 2026-06-18 metric-layer session with the 2026-06-19 Task A session + the
--  doc-clutter lesson), NEXT #2 marked DONE, the #506 carryover, the retired-mart_player_season reference in
--  Key specs corrected to mart_leaderboards, and the doc-clutter process lesson. Carry ALL durable sections
--  (Standing authority, Product roadmap, the other NEXT items + Carryovers, dim_team, governance, form-window
--  vocab, parked, pending CPO actions, Do-NOT, Environment) forward UNCHANGED + verbatim.
--
--refs: >
--  This conversation 2026-06-19. Merged #503 (mart_roster) + #507 (composites) + #508 (mart_leaderboards +
--  consolidation); main 279dcff. Filed #504/#505/#506. Memory: [[project-leaderboards-roster-design]],
--  [[feedback-doc-clutter-discipline]].
-+  Add two columns to metric_catalogue.csv — `direction` (enum: higher_better / lower_better / neutral)
-+  and `interpretation` (short meaning string) — and populate them for ALL team metrics per the
-+  CPO-agreed classification. `direction` is the richer successor to the binary `lower_is_better` (which
-+  is RETAINED for now; full migration + player rows are v1.x). Drop NO rows. Player-metric direction +
-+  interpretation are deferred to the player benchmark (v1.x), so player rows leave the two new fields
-+  empty.
-+
-+refs: team competition-benchmark design (this conversation); deserved-vs-actual (content_architecture §6); metrics_display.md (team display contract); PR-b = the benchmark mart.
+-  Add two columns to metric_catalogue.csv — `direction` (enum: higher_better / lower_better / neutral)
+-  and `interpretation` (short meaning string) — and populate them for ALL team metrics per the
+-  CPO-agreed classification. `direction` is the richer successor to the binary `lower_is_better` (which
+-  is RETAINED for now; full migration + player rows are v1.x). Drop NO rows. Player-metric direction +
+-  interpretation are deferred to the player benchmark (v1.x), so player rows leave the two new fields
+-  empty.
++  Add the team competition benchmark. (1) Extend int_team_season__full_season_metrics with the 4 metrics
++  it lacks (clean_sheets rate, tackles/interceptions/blocks per match — their sums already exist there).
++  (2) int_competition_benchmarks__team: per (league_code, season, metric_key) league distribution over the
++  20 benchmark metrics (league_median, league_mean, p25, p75, team_count), over teams with >= 3 games.
++  (3) mart_competition_benchmarks__team: LONG, one row per (team_sk, season_sk, metric_key) — value,
++  league_median/mean/p25/p75, rank (k of N), vs_median_delta. Direction-agnostic (positional). A macro
++  holds the 20-metric list shared by the intermediate + mart.
+ 
+-refs: team competition-benchmark design (this conversation); deserved-vs-actual (content_architecture §6); metrics_display.md (team display contract); PR-b = the benchmark mart.
++refs: team competition-benchmark design (this conversation); PR-a = #511 (direction/interpretation); shot_share/points_capture reserved to deserved-vs-actual; #500 = the later team-season rename/consolidation.
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/seeds/schema.yml
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/seeds/schema.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/macros/team_benchmark_metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/docs/layering.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
  decisions_taken: >
--  CPO directed the handover refresh this conversation (2026-06-19, "yes, refresh"). Pure bookkeeping:
--  records the already-merged Task A (#503/#507/#508), the filed issues (#504/#505/#506), and re-points NEXT.
--  No new product / metric / naming / layer decision. Durable standing sections preserved verbatim.
-+  CPO-directed (2026-06-19): benchmark team-first; classify ALL team metrics with direction +
-+  interpretation (decouples "what we have" from "what we show"). The agreed team classification:
-+  higher_better = goals_per_match, clean_sheets, shots_per_match, shot_accuracy, danger_zone_ratio,
-+  shots_on_target_per_match, finishing_efficiency, duels_won_pct, pass_accuracy, key_passes_per_match,
-+  save_ratio, shot_share, points_capture, points_won; lower_better =
-+  goals_against_per_match, league_rank; neutral = duels_per_match, defensive_actions_per_match,
-+  tackles_per_match, interceptions_per_match, blocks_per_match, passes_per_match, corner_kicks_per_match,
-+  corners_conceded_per_match. The corners pair was RECLASSIFIED to neutral (overrides the old
-+  lower_is_better=true on corners_conceded — weak signal). interpretations per the agreed meanings
-+  (defensive_actions reworded: "deep block OR aggressive press"). `direction` supersedes
-+  `lower_is_better` where they differ (corners). dribbles_success_pct,team is NOT classified here (its
-+  two new fields stay empty) — it is a PLAYER metric ruled dropped team-side (2026-06-11) with no
-+  conventional team meaning; slated for full retirement (catalogue row + the leftover
-+  mart_momentum__team computation) in #510. Corrected from an earlier mis-call to keep it. No deletion in PR-a.
+-  CPO-directed (2026-06-19): benchmark team-first; classify ALL team metrics with direction +
+-  interpretation (decouples "what we have" from "what we show"). The agreed team classification:
+-  higher_better = goals_per_match, clean_sheets, shots_per_match, shot_accuracy, danger_zone_ratio,
+-  shots_on_target_per_match, finishing_efficiency, duels_won_pct, pass_accuracy, key_passes_per_match,
+-  save_ratio, shot_share, points_capture, points_won; lower_better =
+-  goals_against_per_match, league_rank; neutral = duels_per_match, defensive_actions_per_match,
+-  tackles_per_match, interceptions_per_match, blocks_per_match, passes_per_match, corner_kicks_per_match,
+-  corners_conceded_per_match. The corners pair was RECLASSIFIED to neutral (overrides the old
+-  lower_is_better=true on corners_conceded — weak signal). interpretations per the agreed meanings
+-  (defensive_actions reworded: "deep block OR aggressive press"). `direction` supersedes
+-  `lower_is_better` where they differ (corners). dribbles_success_pct,team is NOT classified here (its
+-  two new fields stay empty) — it is a PLAYER metric ruled dropped team-side (2026-06-11) with no
+-  conventional team meaning; slated for full retirement (catalogue row + the leftover
+-  mart_momentum__team computation) in #510. Corrected from an earlier mis-call to keep it. No deletion in PR-a.
++  CPO-directed (2026-06-19): team benchmark over the 20 metrics (the locked display set minus the
++  deserved-vs-actual inputs shot_share/points_capture, the non-metrics league_rank/points_won, and the
++  retiring dribbles). Median-led + rank-of-N (NOT percentile — counter-intuitive at N~18); neutral by
++  default (the mart carries no direction — that lives in the catalogue, joined at display); rank = RANK
++  over value desc within (league, season, metric_key), stated as k of team_count. >= 3 games floor to
++  enter the distribution (avoids a 1-game team's fluky rate skewing the median; my recommendation, kept
++  on "go ahead"). clean_sheets is benchmarked as the RATE (clean-sheet games / games) — the comparable
++  scalar (the "x/y" count display stays on mart_team_season). Mart-only, NO export wiring (the
++  vs-benchmark block is in PAUSED #391, same as mart_roster). Benchmark-first; #500 rename later.
  
  decisions_reserved:
--  - No new scope. The NEXT items (the remaining content-architecture sequence) are unchanged and remain
--    CPO-directed; this is not the place to add or re-decide them.
--  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
-+  - Player-metric direction + interpretation = v1.x (the player benchmark) — player rows' two new fields
-+    stay empty here; do NOT mechanically guess them.
-+  - Team dribbles_success_pct full retirement (catalogue row + the leftover mart_momentum__team
-+    computation/test) = #510, done AFTERWARDS. Leave its row + two new fields untouched here.
-+  - Retiring `lower_is_better` entirely = a v1.x cleanup once all rows are on `direction` and consumers
-+    migrate. Keep it now.
-+  - The benchmark mart (`mart_competition_benchmarks__team`) + the 4 season-model metric additions
-+    (clean_sheets rate + tackles/interceptions/blocks per match) = PR-b. Nothing here.
-+  - If a catalogue consumer reads `lower_is_better` positionally and a new column would break it, STOP —
-+    but the export uses csv.DictReader (reads by name), so new columns are safe.
+-  - Player-metric direction + interpretation = v1.x (the player benchmark) — player rows' two new fields
+-    stay empty here; do NOT mechanically guess them.
+-  - Team dribbles_success_pct full retirement (catalogue row + the leftover mart_momentum__team
+-    computation/test) = #510, done AFTERWARDS. Leave its row + two new fields untouched here.
+-  - Retiring `lower_is_better` entirely = a v1.x cleanup once all rows are on `direction` and consumers
+-    migrate. Keep it now.
+-  - The benchmark mart (`mart_competition_benchmarks__team`) + the 4 season-model metric additions
+-    (clean_sheets rate + tackles/interceptions/blocks per match) = PR-b. Nothing here.
+-  - If a catalogue consumer reads `lower_is_better` positionally and a new column would break it, STOP —
+-    but the export uses csv.DictReader (reads by name), so new columns are safe.
++  - Player benchmark + percentile-vs-peers = v1.x (a separate build).
++  - The opponent/schedule-context flagship (which weights opponents via this engine) = v1.x.
++  - #500 team-season rename/consolidation = a separate later PR; do NOT rename int_team_season__full_season_metrics here.
++  - If the >= 3 floor proves wrong at review, it is a one-line change — flag, do not block.
++  - No new metric definitions; the 4 added int columns are already catalogued team metrics (drift-clean).
  
  done_when:
--  - .claude/active_work.md reflects: #503 + #507 + #508 merged (Task A complete; main 279dcff);
--    #504/#505/#506 filed; FIRST = nothing pending + NEXT re-pointed; the Task A session + the doc-clutter
--    lesson recorded; the retired mart_player_season reference in Key specs corrected to mart_leaderboards;
--    all durable sections intact + verbatim.
--  - Commit on branch chore/handover-refresh-task-a; post-commit opens the PR.
--  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
-+  - metric_catalogue.csv has `direction` + `interpretation` columns; every STAYING team row populated
-+    (direction ∈ {higher_better, lower_better, neutral}; interpretation non-empty); dribbles_success_pct,team
-+    + all player rows' two new fields empty; NO row deleted; `lower_is_better` retained.
-+  - seeds/schema.yml documents both new columns; `direction` accepted_values [higher_better, lower_better,
-+    neutral] (null allowed for the not-yet-classified player rows); seed still loads.
-+  - `dbt parse` clean; the metric_catalogue seed tests (incl. assert_metric_catalogue_unique_by_entity)
-+    still pass; no CSV field-count break (quote any interpretation containing a comma).
-+  - reviewers: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS.
+-  - metric_catalogue.csv has `direction` + `interpretation` columns; every STAYING team row populated
+-    (direction ∈ {higher_better, lower_better, neutral}; interpretation non-empty); dribbles_success_pct,team
+-    + all player rows' two new fields empty; NO row deleted; `lower_is_better` retained.
+-  - seeds/schema.yml documents both new columns; `direction` accepted_values [higher_better, lower_better,
+-    neutral] (null allowed for the not-yet-classified player rows); seed still loads.
+-  - `dbt parse` clean; the metric_catalogue seed tests (incl. assert_metric_catalogue_unique_by_entity)
+-    still pass; no CSV field-count break (quote any interpretation containing a comma).
+-  - reviewers: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS.
++  - int_team_season__full_season_metrics computes clean_sheets (rate), tackles/interceptions/blocks per
++    match; the no-drift guard still passes (all 4 are catalogued team metric_ids); int_team_season.yml
++    documents them (clean_sheets joins the 0-1 ratio range test).
++  - int_competition_benchmarks__team grain (league_code, season_api_year, metric_key); metric_key
++    accepted_values = the 20 ids; team_count >= 1; median/p25/p75 present.
++  - mart_competition_benchmarks__team grain (team_sk, season_sk, metric_key); rank between 1 and
++    team_count; relationships team_sk -> dim_team, season_sk -> dim_competition_season; metric_key
++    accepted_values = the 20 ids; vs_median_delta = value - league_median.
++  - dbt parse clean; sqlfluff lint passes on the new SQL; layering.md lists both new models.
++  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (>=2 risks each); no FAIL; no ESCALATE.
  
  amendments: (none)
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index 5b88236..a568692 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -1,56 +1,56 @@
--metric_id,entity,label_i18n_key,description,numerator,denominator,lower_is_better,format,metric_group,importance_tier,group_display_order
--league_rank,team,metrics.league_rank.label,Current league standing. Sourced from standings snapshot; not derived from match legs.,,,true,integer,,,
--points_won,team,metrics.points_won.label,"Total points earned in the form window: 3 per win, 1 per draw, 0 per loss.",3 if W / 1 if D / 0 if L,,false,points_fraction,,,
--goals_per_match,team,metrics.goals_per_match.label,Average goals scored per match in the form window.,goals_for,games,false,decimal_1,goals,1,1
--goals_against_per_match,team,metrics.goals_against_per_match.label,Average goals conceded per match in the form window.,goals_against,games,true,decimal_1,goals,1,2
--clean_sheets,team,metrics.clean_sheets.label,"Matches with zero goals conceded in the window, shown as a count of games played (e.g. 3/5).",count of matches with goals_against = 0,games,false,count_fraction,goals,2,3
--shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempted per match with available team stats in the window. Includes on-target, off-target and blocked shots.",shots_total,games,false,decimal_1,shooting,2,1
--shot_accuracy,team,metrics.shot_accuracy.label,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,shots_on_goal,shots_total,false,percent,shooting,,
--danger_zone_ratio,team,metrics.danger_zone_ratio.label,Share of shots taken from inside the penalty area. Null when shots_total is zero.,shots_inside_box,shots_total,false,percent,shooting,2,2
--shots_on_target_per_match,team,metrics.shots_on_target_per_match.label,Average shots on target per match with available shots-on-target stats in the window (its own coverage count — same-window rule).,shots_on_goal,games,false,decimal_1,shooting,1,3
--finishing_efficiency,team,metrics.finishing_efficiency.label,"Goals per shot on target, over matches with shot stats available (numerator and denominator share the window). Can exceed 100% when a goal is not counted as a shot on target (penalties, own goals in the team's favour) — shown uncapped. Null when shots_on_goal is zero.",goals_for,shots_on_goal,false,percent,shooting,1,4
--duels_per_match,team,metrics.duels_per_match.label,"Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.",duels_total,games,false,decimal_0,duels,2,1
--duels_won_pct,team,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,duels_won,duels_total,false,percent,duels,2,2
--dribbles_success_pct,team,metrics.dribbles_success_pct.label,Dribble success rate in the form window. Null when dribbles_attempts is zero. Aggregated from player stats.,dribbles_success,dribbles_attempts,false,percent,duels,,
--defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,"Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.",tackles + interceptions + blocks,games,false,decimal_1,defending,2,1
--tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,tackles,games,false,decimal_1,defending,,
--interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,interceptions,games,false,decimal_1,defending,,
--blocks_per_match,team,metrics.blocks_per_match.label,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,blocks,games,false,decimal_1,defending,,
--passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,passes_total,games,false,decimal_0,passing,3,1
--pass_accuracy,team,metrics.pass_accuracy.label,Share of passes successfully completed. Null when passes_total is zero.,passes_accurate,passes_total,false,percent,passing,2,2
--key_passes_per_match,team,metrics.key_passes_per_match.label,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,key_passes,games,false,decimal_1,passing,2,3
--corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,corner_kicks,games,false,decimal_1,set_pieces,3,1
--corners_conceded_per_match,team,metrics.corners_conceded_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,opponent_corner_kicks,games,true,decimal_1,set_pieces,3,2
--save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,goalkeeper_saves,goalkeeper_saves + goals_against,false,percent,goalkeeping,2,1
--goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,goals_total,,false,integer,goals,,1
--assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,goals_assists,,false,integer,goals,,1
--penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.,penalty_won,,false,integer,goals,,
--shots_on_target,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window.,shots_on,,false,integer,shooting,,1
--duels_won,player,playerMetrics.duels.won,Duels won in the form window. A duel is any 1v1 physical contest (ground and aerial pooled).,duels_won,,false,integer,duels,,1
--duels_total,player,playerMetrics.duels.total,Total duels contested in the form window.,duels_total,,false,integer,duels,,1
--duels_won_pct,player,playerMetrics.duels.label,Duel win rate. Null when duels_total is zero.,duels_won,duels_total,false,percent,duels,,1
--dribbles_success,player,playerMetrics.dribbles.success,Successful dribbles in the form window.,dribbles_success,,false,integer,duels,,2
--dribbles_attempts,player,playerMetrics.dribbles.attempts,Dribble attempts in the form window.,dribbles_attempts,,false,integer,duels,,2
--dribbles_success_pct,player,playerMetrics.dribbles.successPct,Dribble success rate. Null when dribbles_attempts is zero.,dribbles_success,dribbles_attempts,false,percent,duels,,2
--tackles_total,player,playerMetrics.defensiveActions.tackles,Tackles made in the form window.,tackles_total,,false,integer,defending,,1
--tackles_interceptions,player,playerMetrics.defensiveActions.interceptions,Interceptions in the form window.,tackles_interceptions,,false,integer,defending,,1
--tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the form window.,tackles_blocks,,false,integer,defending,,1
--dribbles_past,player,playerMetrics.dribbles.past,Times dribbled past by an opponent in the form window.,dribbles_past,,true,integer,defending,,
--passes_accurate,player,playerMetrics.passAccuracy.accurate,"Accurate passes in the form window. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.",passes_total × passes_accuracy_percent / 100,,false,integer,passing,,1
--passes_total,player,playerMetrics.passAccuracy.total,Total passes attempted in the form window.,passes_total,,false,integer,passing,,1
--pass_accuracy_pct,player,playerMetrics.passAccuracy.label,Pass completion rate. Null when passes_total is zero.,passes_accurate (derived),passes_total,false,percent,passing,,1
--passes_key,player,playerMetrics.keyPasses.label,"Key passes in the form window. API definition: a pass leading directly to a shot.",passes_key,,false,integer,passing,,2
--cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,cards_yellow,,false,integer,discipline,,1
--cards_red,player,playerMetrics.cards.red,Red cards in the form window.,cards_red,,false,integer,discipline,,1
--offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.,offsides,,true,integer,discipline,,
--penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,penalty_committed,,true,integer,discipline,,
--saves,player,playerMetrics.savePct.saves,Saves made in the form window.,goals_saves,,false,integer,goalkeeping,,1
--shots_on_target_faced,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,goals_saves + goals_conceded,,false,integer,goalkeeping,,1
--save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1
--shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,shots_total,,false,integer,shooting,,
--goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,
--shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,
--points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,
--scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,goals + assists,,false,integer,goals,,
--defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,tackles + interceptions + blocks,,false,integer,defending,,
--cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",cards_yellow + cards_red,,false,integer,discipline,,
-+metric_id,entity,label_i18n_key,description,numerator,denominator,lower_is_better,format,metric_group,importance_tier,group_display_order,direction,interpretation
-+league_rank,team,metrics.league_rank.label,Current league standing. Sourced from standings snapshot; not derived from match legs.,,,true,integer,,,,lower_better,League position - 1 = top of the table
-+points_won,team,metrics.points_won.label,"Total points earned in the form window: 3 per win, 1 per draw, 0 per loss.",3 if W / 1 if D / 0 if L,,false,points_fraction,,,,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss)
-+goals_per_match,team,metrics.goals_per_match.label,Average goals scored per match in the form window.,goals_for,games,false,decimal_1,goals,1,1,higher_better,Attacking output - goals scored per game; high = a potent attack
-+goals_against_per_match,team,metrics.goals_against_per_match.label,Average goals conceded per match in the form window.,goals_against,games,true,decimal_1,goals,1,2,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence
-+clean_sheets,team,metrics.clean_sheets.label,"Matches with zero goals conceded in the window, shown as a count of games played (e.g. 3/5).",count of matches with goals_against = 0,games,false,count_fraction,goals,2,3,higher_better,Shut-out rate - games conceding zero; high = reliable at the back
-+shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempted per match with available team stats in the window. Includes on-target, off-target and blocked shots.",shots_total,games,false,decimal_1,shooting,2,1,higher_better,Shot volume - attacking attempts per game; high-volume but not necessarily high-quality
-+shot_accuracy,team,metrics.shot_accuracy.label,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,shots_on_goal,shots_total,false,percent,shooting,,,higher_better,Striking precision - share of shots on target
-+danger_zone_ratio,team,metrics.danger_zone_ratio.label,Share of shots taken from inside the penalty area. Null when shots_total is zero.,shots_inside_box,shots_total,false,percent,shooting,2,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
-+shots_on_target_per_match,team,metrics.shots_on_target_per_match.label,Average shots on target per match with available shots-on-target stats in the window (its own coverage count — same-window rule).,shots_on_goal,games,false,decimal_1,shooting,1,3,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
-+finishing_efficiency,team,metrics.finishing_efficiency.label,"Goals per shot on target, over matches with shot stats available (numerator and denominator share the window). Can exceed 100% when a goal is not counted as a shot on target (penalties, own goals in the team's favour) — shown uncapped. Null when shots_on_goal is zero.",goals_for,shots_on_goal,false,percent,shooting,1,4,higher_better,Clinical finishing - goals per shot on target; high = ruthless
-+duels_per_match,team,metrics.duels_per_match.label,"Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.",duels_total,games,false,decimal_0,duels,2,1,neutral,Duel engagement - physical contests per game; a combative/contested style
-+duels_won_pct,team,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,duels_won,duels_total,false,percent,duels,2,2,higher_better,Duel success - share of duels won; high = wins the physical battle
-+dribbles_success_pct,team,metrics.dribbles_success_pct.label,Dribble success rate in the form window. Null when dribbles_attempts is zero. Aggregated from player stats.,dribbles_success,dribbles_attempts,false,percent,duels,,,,
-+defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,"Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.",tackles + interceptions + blocks,games,false,decimal_1,defending,2,1,neutral,Defensive workload - tackles + interceptions + blocks per game; high = a deep block or an aggressive press
-+tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,tackles,games,false,decimal_1,defending,,,neutral,Tackling volume - ball-winning challenges per game
-+interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,interceptions,games,false,decimal_1,defending,,,neutral,Interception volume - reading and cutting out passes
-+blocks_per_match,team,metrics.blocks_per_match.label,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,blocks,games,false,decimal_1,defending,,,neutral,Block volume - bodies in front of shots
-+passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,passes_total,games,false,decimal_0,passing,3,1,neutral,Possession volume - high = possession-based style; low = direct
-+pass_accuracy,team,metrics.pass_accuracy.label,Share of passes successfully completed. Null when passes_total is zero.,passes_accurate,passes_total,false,percent,passing,2,2,higher_better,Passing security - completion rate; high = keeps the ball well
-+key_passes_per_match,team,metrics.key_passes_per_match.label,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,key_passes,games,false,decimal_1,passing,2,3,higher_better,Creativity - passes leading to a shot; high = creates chances
-+corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,corner_kicks,games,false,decimal_1,set_pieces,3,1,neutral,Corner volume won - sustained attacking pressure (a weak proxy)
-+corners_conceded_per_match,team,metrics.corners_conceded_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,opponent_corner_kicks,games,true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
-+save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,goalkeeper_saves,goalkeeper_saves + goals_against,false,percent,goalkeeping,2,1,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
-+goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,goals_total,,false,integer,goals,,1,,
-+assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,goals_assists,,false,integer,goals,,1,,
-+penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.,penalty_won,,false,integer,goals,,,,
-+shots_on_target,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window.,shots_on,,false,integer,shooting,,1,,
-+duels_won,player,playerMetrics.duels.won,Duels won in the form window. A duel is any 1v1 physical contest (ground and aerial pooled).,duels_won,,false,integer,duels,,1,,
-+duels_total,player,playerMetrics.duels.total,Total duels contested in the form window.,duels_total,,false,integer,duels,,1,,
-+duels_won_pct,player,playerMetrics.duels.label,Duel win rate. Null when duels_total is zero.,duels_won,duels_total,false,percent,duels,,1,,
-+dribbles_success,player,playerMetrics.dribbles.success,Successful dribbles in the form window.,dribbles_success,,false,integer,duels,,2,,
-+dribbles_attempts,player,playerMetrics.dribbles.attempts,Dribble attempts in the form window.,dribbles_attempts,,false,integer,duels,,2,,
-+dribbles_success_pct,player,playerMetrics.dribbles.successPct,Dribble success rate. Null when dribbles_attempts is zero.,dribbles_success,dribbles_attempts,false,percent,duels,,2,,
-+tackles_total,player,playerMetrics.defensiveActions.tackles,Tackles made in the form window.,tackles_total,,false,integer,defending,,1,,
-+tackles_interceptions,player,playerMetrics.defensiveActions.interceptions,Interceptions in the form window.,tackles_interceptions,,false,integer,defending,,1,,
-+tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the form window.,tackles_blocks,,false,integer,defending,,1,,
-+dribbles_past,player,playerMetrics.dribbles.past,Times dribbled past by an opponent in the form window.,dribbles_past,,true,integer,defending,,,,
-+passes_accurate,player,playerMetrics.passAccuracy.accurate,"Accurate passes in the form window. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.",passes_total × passes_accuracy_percent / 100,,false,integer,passing,,1,,
-+passes_total,player,playerMetrics.passAccuracy.total,Total passes attempted in the form window.,passes_total,,false,integer,passing,,1,,
-+pass_accuracy_pct,player,playerMetrics.passAccuracy.label,Pass completion rate. Null when passes_total is zero.,passes_accurate (derived),passes_total,false,percent,passing,,1,,
-+passes_key,player,playerMetrics.keyPasses.label,"Key passes in the form window. API definition: a pass leading directly to a shot.",passes_key,,false,integer,passing,,2,,
-+cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,cards_yellow,,false,integer,discipline,,1,,
-+cards_red,player,playerMetrics.cards.red,Red cards in the form window.,cards_red,,false,integer,discipline,,1,,
-+offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.,offsides,,true,integer,discipline,,,,
-+penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,penalty_committed,,true,integer,discipline,,,,
-+saves,player,playerMetrics.savePct.saves,Saves made in the form window.,goals_saves,,false,integer,goalkeeping,,1,,
-+shots_on_target_faced,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,goals_saves + goals_conceded,,false,integer,goalkeeping,,1,,
-+save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1,,
-+shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,shots_total,,false,integer,shooting,,,,
-+goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,,,
-+shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
-+points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
-+scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,goals + assists,,false,integer,goals,,,,
-+defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,tackles + interceptions + blocks,,false,integer,defending,,,,
-+cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",cards_yellow + cards_red,,false,integer,discipline,,,,
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 808f763..c1ef557 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -64,8 +64,9 @@ seeds:
-     description: >
-       Single source of truth for every metric the platform computes. One row per metric
-       per entity. Captures the formula (numerator / denominator), entity type (team/player),
--      i18n key, display format, and the display dimensions (group, tier, order) ruled in
--      docs/wireframes/metrics_display.md. Formulas reference raw totals from int_legs__*
-+      i18n key, display format, the display dimensions (group, tier, order) ruled in
-+      docs/wireframes/metrics_display.md, and the performance semantic (direction + interpretation).
-+      Formulas reference raw totals from int_legs__*
-       building-block legs; the mart applies the window context and computes the final
-       values. Window-agnostic: metric IDs carry no window suffix. Part of epic #317;
-       display columns added for #391 (GAP-09).
-@@ -131,6 +132,22 @@ seeds:
-           Position within the metric_group. Team: row order. Player: the bundle's
-           position within its group (atomics of one bundle share the value). Null for
-           unrendered metrics; full row order lives in docs/wireframes/metrics_display.md.
-+      - name: direction
-+        description: >
-+          Performance semantic (the richer successor to lower_is_better): higher_better,
-+          lower_better, or neutral (a descriptive/style metric with no inherent good-or-bad).
-+          Orients the competition benchmark and seeds website auto-interpretation. Populated for
-+          team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x)
-+          and for dribbles_success_pct,team (retiring — #510). lower_is_better is retained until
-+          the full migration.
-+        tests:
-+          - accepted_values:
-+              values: ["higher_better", "lower_better", "neutral"]
-+      - name: interpretation
-+        description: >
-+          Short plain-English meaning of the metric — what it captures and what a notably high
-+          value signals — the seed of website auto-narrative. Populated for team metrics; null for
-+          player metrics (v1.x) and dribbles_success_pct,team (#510).
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 6aefb22..8265b9f 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -278,6 +278,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
+ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
++| `mart_competition_benchmarks__team` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_competition_benchmarks__team` (the per-metric league distribution). Direction-agnostic (positional). |
  
-   - name: metric_definitions
-     description: >
+ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+ 
+diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
+new file mode 100644
+index 0000000..1ab8398
+--- /dev/null
++++ b/dbt_project/macros/team_benchmark_metrics.sql
+@@ -0,0 +1,33 @@
++{% macro team_benchmark_metrics() %}
++{#
++  The 20 team season metrics the competition benchmark covers, as (metric_key, season_column) pairs.
++  metric_key is the metric_catalogue id; season_column is the column in
++  int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
++  distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
++  points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
++  (non-metrics), and dribbles_success_pct (retiring team-side, #510).
++#}
++    {% set metrics = [
++        ('goals_per_match', 'goals_per_match_season'),
++        ('goals_against_per_match', 'goals_against_per_match_season'),
++        ('clean_sheets', 'clean_sheets_season'),
++        ('shots_per_match', 'shots_per_match_season'),
++        ('shot_accuracy', 'shot_accuracy_season'),
++        ('danger_zone_ratio', 'danger_zone_ratio_season'),
++        ('shots_on_target_per_match', 'shots_on_target_per_match_season'),
++        ('finishing_efficiency', 'finishing_efficiency_season'),
++        ('duels_per_match', 'duels_per_match_season'),
++        ('duels_won_pct', 'duels_won_pct_season'),
++        ('defensive_actions_per_match', 'defensive_actions_per_match_season'),
++        ('tackles_per_match', 'tackles_per_match_season'),
++        ('interceptions_per_match', 'interceptions_per_match_season'),
++        ('blocks_per_match', 'blocks_per_match_season'),
++        ('passes_per_match', 'passes_per_match_season'),
++        ('pass_accuracy', 'pass_accuracy_season'),
++        ('key_passes_per_match', 'key_passes_per_match_season'),
++        ('corner_kicks_per_match', 'corner_kicks_per_match_season'),
++        ('corners_conceded_per_match', 'corners_conceded_per_match_season'),
++        ('save_ratio', 'save_ratio_season')
++    ] %}
++    {{ return(metrics) }}
++{% endmacro %}
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index eea300e..630ad06 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -46,7 +46,7 @@ models:
+             - season_api_year
+             - team_sk
+       - dbt_utils.expression_is_true:
+-          expression: "(shot_accuracy_season is null or shot_accuracy_season between 0 and 1) and (danger_zone_ratio_season is null or danger_zone_ratio_season between 0 and 1) and (pass_accuracy_season is null or pass_accuracy_season between 0 and 1) and (duels_won_pct_season is null or duels_won_pct_season between 0 and 1) and (save_ratio_season is null or save_ratio_season between 0 and 1) and (shot_share_season is null or shot_share_season between 0 and 1) and (points_capture_season is null or points_capture_season between 0 and 1)"
++          expression: "(shot_accuracy_season is null or shot_accuracy_season between 0 and 1) and (danger_zone_ratio_season is null or danger_zone_ratio_season between 0 and 1) and (pass_accuracy_season is null or pass_accuracy_season between 0 and 1) and (duels_won_pct_season is null or duels_won_pct_season between 0 and 1) and (save_ratio_season is null or save_ratio_season between 0 and 1) and (shot_share_season is null or shot_share_season between 0 and 1) and (points_capture_season is null or points_capture_season between 0 and 1) and (clean_sheets_season is null or clean_sheets_season between 0 and 1)"
+           name: int_team_season_ratios_in_range
+     columns:
+       - name: team_season_sk
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+index 6a3f32a..eb8882a 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+@@ -75,7 +75,8 @@ aggregated_season as (
+         sum(interceptions) as interceptions_sum_season,
+         sum(blocks) as blocks_sum_season,
+         sum(duels_total) as duels_total_sum_season,
+-        sum(duels_won) as duels_won_sum_season
++        sum(duels_won) as duels_won_sum_season,
++        countif(goals_against = 0) as clean_sheets_count_season
+     from joined
+     group by league_code, season_api_year, team_sk
+ )
+@@ -140,5 +141,12 @@ select
+     safe_divide(
+         tackles_sum_season + interceptions_sum_season + blocks_sum_season,
+         player_stat_coverage_season_games
+-    ) as defensive_actions_per_match_season
++    ) as defensive_actions_per_match_season,
++    -- GAP-13 follow-on (benchmark): the catalogued team metrics the season model still lacked.
++    -- clean_sheets is benchmarked as a RATE (the "x/y" count display lives on mart_team_season).
++    safe_divide(clean_sheets_count_season, season_games_played) as clean_sheets_season,
++    safe_divide(tackles_sum_season, player_stat_coverage_season_games) as tackles_per_match_season,
++    safe_divide(interceptions_sum_season, player_stat_coverage_season_games)
++        as interceptions_per_match_season,
++    safe_divide(blocks_sum_season, player_stat_coverage_season_games) as blocks_per_match_season
+ from aggregated_season
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+new file mode 100644
+index 0000000..8f3b938
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -0,0 +1,37 @@
++version: 2
++
++models:
++  - name: int_competition_benchmarks__team
++    description: >
++      Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
++      distribution (median / mean / p25 / p75 / team_count) of the 20 team season metrics, over teams
++      with >= 3 finished games. Median-led (robust to a dominant team). mart_competition_benchmarks__team
++      ranks each team against this. The 20-metric set is the team_benchmark_metrics() macro.
++      Grain: (league_code, season_api_year, metric_key).
++    config:
++      tags: ["intermediate", "football", "benchmark"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, metric_key]
++    columns:
++      - name: league_code
++        tests: [not_null]
++      - name: season_api_year
++        tests: [not_null]
++      - name: metric_key
++        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_target_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
++      - name: team_count
++        description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
++        tests: [not_null]
++      - name: league_median
++        description: "Median team value (robust central tendency; the headline 'typical team')."
++      - name: league_mean
++        description: "Mean team value (the 'league average'; carried but skew-sensitive)."
++      - name: league_p25
++        description: "25th-percentile team value (the distribution spread)."
++      - name: league_p75
++        description: "75th-percentile team value (the distribution spread)."
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+new file mode 100644
+index 0000000..e9d8add
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+@@ -0,0 +1,48 @@
++{{ config(materialized='table') }}
++
++{#
++  Competition benchmark engine (team). Per (league_code, season_api_year, metric_key): the league
++  distribution of each of the 20 team season metrics, so a team's value can be read against its peers.
++  Median-led (robust to a dominant team) with the p25/p75 spread; the mean is carried for the
++  "vs league average" read but is skew-sensitive. team_count is N for the rank-of-N display.
++
++  Only teams with >= 3 finished games enter the distribution, so a 1-game team's fluky per-match rate
++  cannot skew the median/percentiles. Metrics with no value for a team (e.g. player-stat coverage gaps)
++  are excluded per metric (metric_value is null -> not counted).
++
++  Window: season-to-date (W2), from int_team_season__full_season_metrics. The 20-metric list lives in
++  the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
++  Grain: (league_code, season_api_year, metric_key).
++#}
++
++with season as (
++    select * from {{ ref('int_team_season__full_season_metrics') }}
++    where season_games_played >= 3
++),
++
++unpivoted as (
++    {% for metric_key, col in team_benchmark_metrics() %}
++    select
++        league_code,
++        season_api_year,
++        '{{ metric_key }}' as metric_key,
++        {{ col }} as metric_value
++    from season
++    {% if not loop.last %}
++    union all
++    {% endif %}
++    {% endfor %}
++)
++
++select
++    league_code,
++    season_api_year,
++    metric_key,
++    count(metric_value) as team_count,
++    avg(metric_value) as league_mean,
++    approx_quantiles(metric_value, 4)[offset(1)] as league_p25,
++    approx_quantiles(metric_value, 4)[offset(2)] as league_median,
++    approx_quantiles(metric_value, 4)[offset(3)] as league_p75
++from unpivoted
++where metric_value is not null
++group by league_code, season_api_year, metric_key
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+new file mode 100644
+index 0000000..718f44d
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+@@ -0,0 +1,97 @@
++{{ config(materialized='view') }}
++
++{#
++  Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
++  LONG: one row per (team, season, metric_key) over the 20 team season metrics. Each row places the team
++  against its league that season: the team's metric_value, the league median (+ mean) and p25/p75 spread,
++  the team's rank (k of team_count), and metric_value - median.
++
++  DIRECTION-AGNOSTIC by design: the mart reports position, not a verdict. rank is by metric_value DESC
++  within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
++  reading is supplied at display from the catalogue's `direction` (joined there), since most football
++  metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
++  int_team_season__full_season_metrics + the int_competition_benchmarks__team engine (the shared
++  team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
++
++  Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
++  Grain: (team_sk, season_sk, metric_key).
++#}
++
++with season as (
++    select * from {{ ref('int_team_season__full_season_metrics') }}
++    where season_games_played >= 3
++),
++
++teams as (
++    select
++        team_sk,
++        team_name,
++        team_logo_url
++    from {{ ref('dim_team') }}
++),
++
++benchmarks as (
++    select * from {{ ref('int_competition_benchmarks__team') }}
++),
++
++unpivoted as (
++    {% for metric_key, col in team_benchmark_metrics() %}
++    select
++        team_sk,
++        season_sk,
++        league_sk,
++        league_code,
++        season_api_year,
++        '{{ metric_key }}' as metric_key,
++        {{ col }} as metric_value
++    from season
++    {% if not loop.last %}
++    union all
++    {% endif %}
++    {% endfor %}
++),
++
++ranked as (
++    select
++        u.team_sk,
++        u.season_sk,
++        u.league_sk,
++        u.league_code,
++        u.season_api_year,
++        u.metric_key,
++        u.metric_value,
++        rank() over (
++            partition by u.league_code, u.season_api_year, u.metric_key
++            order by u.metric_value desc
++        ) as rank
++    from unpivoted as u
++    where u.metric_value is not null
++)
++
++select
++    {{ dbt_utils.generate_surrogate_key(['r.team_sk', 'r.season_sk', 'r.metric_key']) }}
++        as team_benchmark_sk,
++    r.team_sk,
++    r.season_sk,
++    r.league_sk,
++    r.league_code,
++    r.season_api_year,
++    r.metric_key,
++    t.team_name,
++    t.team_logo_url,
++    r.metric_value,
++    b.league_mean,
++    b.league_median,
++    b.league_p25,
++    b.league_p75,
++    b.team_count,
++    r.rank,
++    r.metric_value - b.league_median as vs_median_delta
++from ranked as r
++inner join benchmarks as b
++    on
++        r.league_code = b.league_code
++        and r.season_api_year = b.season_api_year
++        and r.metric_key = b.metric_key
++left join teams as t
++    on r.team_sk = t.team_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 2f36d87..4411c1f 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -996,3 +996,84 @@ models:
+       - name: player_photo_url
+         description: "Player photo URL from dim_player; nullable."
+ 
++  - name: mart_competition_benchmarks__team
++    description: >
++      Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
++      (team, season, metric_key) over the 20 team season metrics. Places each team against its league that
++      season: value, league_median (+ mean), p25/p75 spread, rank (k of team_count), value - median.
++      DIRECTION-AGNOSTIC (positional) — rank is by value desc within (league_code, season_api_year,
++      metric_key); the good/bad reading is supplied at display from the catalogue's direction. Median-led,
++      rank not percentile (honest at N~18). Season-to-date (W2); teams with >= 3 games. View. Player
++      benchmark + percentile = v1.x. Grain: (team_sk, season_sk, metric_key).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "benchmark"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, season_sk, metric_key]
++      - dbt_utils.expression_is_true:
++          expression: "rank between 1 and team_count"
++          name: mart_competition_benchmarks_team_rank_in_range
++    columns:
++      - name: team_benchmark_sk
++        description: "Surrogate from (team_sk, season_sk, metric_key)."
++        tests: [not_null, unique]
++      - name: team_sk
++        description: "FK to dim_team."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: season_sk
++        description: "FK to dim_competition_season."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: league_sk
++        description: "FK to dim_league."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
++      - name: league_code
++        description: "Partition key — app slices by this to retrieve a competition's benchmarks."
++        tests: [not_null]
++      - name: season_api_year
++        tests: [not_null]
++      - name: metric_key
++        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_target_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
++      - name: metric_value
++        description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
++        tests: [not_null]
++      - name: league_mean
++        description: "Mean team value this league-season (the 'league average'; skew-sensitive)."
++      - name: league_median
++        description: "Median team value this league-season (the typical team — the headline reference)."
++      - name: league_p25
++        description: "25th-percentile team value (distribution spread)."
++      - name: league_p75
++        description: "75th-percentile team value (distribution spread)."
++      - name: team_count
++        description: "N — teams ranked for this metric this league-season."
++        tests: [not_null]
++      - name: rank
++        description: "Rank by value desc (1 = highest), k of team_count. Positional — orient with the catalogue direction at display."
++        tests: [not_null]
++      - name: vs_median_delta
++        description: "value - league_median."
++      - name: team_name
++        description: "Denormalised from dim_team."
++      - name: team_logo_url
++        description: "Denormalised from dim_team; nullable."
++

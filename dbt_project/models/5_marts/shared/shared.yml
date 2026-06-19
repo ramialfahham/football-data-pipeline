@@ -996,3 +996,84 @@ models:
       - name: player_photo_url
         description: "Player photo URL from dim_player; nullable."
 
+  - name: mart_competition_benchmarks__team
+    description: >
+      Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
+      (team, season, metric_key) over the 20 team season metrics. Places each team against its league that
+      season: value, league_median (+ mean), p25/p75 spread, rank (k of team_count), value - median.
+      DIRECTION-AGNOSTIC (positional) — rank is by value desc within (league_code, season_api_year,
+      metric_key); the good/bad reading is supplied at display from the catalogue's direction. Median-led,
+      rank not percentile (honest at N~18). Season-to-date (W2); teams with >= 3 games. View. Player
+      benchmark + percentile = v1.x. Grain: (team_sk, season_sk, metric_key).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "benchmark"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_sk, metric_key]
+      - dbt_utils.expression_is_true:
+          expression: "rank between 1 and team_count"
+          name: mart_competition_benchmarks_team_rank_in_range
+    columns:
+      - name: team_benchmark_sk
+        description: "Surrogate from (team_sk, season_sk, metric_key)."
+        tests: [not_null, unique]
+      - name: team_sk
+        description: "FK to dim_team."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        description: "FK to dim_competition_season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        description: "FK to dim_league."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        description: "Partition key — app slices by this to retrieve a competition's benchmarks."
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: metric_key
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_target_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
+      - name: metric_value
+        description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
+        tests: [not_null]
+      - name: league_mean
+        description: "Mean team value this league-season (the 'league average'; skew-sensitive)."
+      - name: league_median
+        description: "Median team value this league-season (the typical team — the headline reference)."
+      - name: league_p25
+        description: "25th-percentile team value (distribution spread)."
+      - name: league_p75
+        description: "75th-percentile team value (distribution spread)."
+      - name: team_count
+        description: "N — teams ranked for this metric this league-season."
+        tests: [not_null]
+      - name: rank
+        description: "Rank by value desc (1 = highest), k of team_count. Positional — orient with the catalogue direction at display."
+        tests: [not_null]
+      - name: vs_median_delta
+        description: "value - league_median."
+      - name: team_name
+        description: "Denormalised from dim_team."
+      - name: team_logo_url
+        description: "Denormalised from dim_team; nullable."
+

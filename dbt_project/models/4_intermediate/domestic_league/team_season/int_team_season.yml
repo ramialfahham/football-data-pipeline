@@ -46,7 +46,7 @@ models:
             - season_api_year
             - team_sk
       - dbt_utils.expression_is_true:
-          expression: "(shot_accuracy_season is null or shot_accuracy_season between 0 and 1) and (danger_zone_ratio_season is null or danger_zone_ratio_season between 0 and 1) and (pass_accuracy_season is null or pass_accuracy_season between 0 and 1) and (duels_won_pct_season is null or duels_won_pct_season between 0 and 1) and (save_ratio_season is null or save_ratio_season between 0 and 1) and (shot_share_season is null or shot_share_season between 0 and 1) and (points_capture_season is null or points_capture_season between 0 and 1)"
+          expression: "(shot_accuracy_season is null or shot_accuracy_season between 0 and 1) and (danger_zone_ratio_season is null or danger_zone_ratio_season between 0 and 1) and (pass_accuracy_season is null or pass_accuracy_season between 0 and 1) and (duels_won_pct_season is null or duels_won_pct_season between 0 and 1) and (save_ratio_season is null or save_ratio_season between 0 and 1) and (shot_share_season is null or shot_share_season between 0 and 1) and (points_capture_season is null or points_capture_season between 0 and 1) and (clean_sheets_season is null or clean_sheets_season between 0 and 1)"
           name: int_team_season_ratios_in_range
     columns:
       - name: team_season_sk

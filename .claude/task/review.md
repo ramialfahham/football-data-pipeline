@@ -1,32 +1,27 @@
-# Review — feat/metric-direction-semantics — 2026-06-19
+# Review — feat/mart-competition-benchmarks — 2026-06-19
 
-> PR-a of the team competition-benchmark build: add `direction` (higher_better / lower_better / neutral)
-> + `interpretation` columns to metric_catalogue, classify the 24 team metrics, document them in
-> seeds/schema.yml. The semantic precursor to mart_competition_benchmarks__team (PR-b). dribbles_success_pct,team
-> left unclassified (retiring → #510); player metrics deferred (v1.x); lower_is_better retained.
-> Required reviewers for the staged paths (metric_catalogue.csv → analytics-engineer + football-analytics;
-> dbt_project/** → analytics-engineer; always → scope-auditor) — all PASS.
+> PR-b of the team competition-benchmark build: the benchmark engine + mart. Extends
+> int_team_season__full_season_metrics with 4 catalogued metrics (clean_sheets rate +
+> tackles/interceptions/blocks per match); adds int_competition_benchmarks__team (per-metric league
+> distribution) + mart_competition_benchmarks__team (LONG: value · median/mean/p25/p75 · rank k-of-N ·
+> vs-median), over the 20 team metrics, season-to-date, teams with >= 3 games. Median-led, rank not
+> percentile, direction-agnostic (catalogue direction joined at display). Mart-only, no export wiring;
+> benchmark-first (#500 rename deferred). Required reviewers (dbt_project/** + always): scope-auditor +
+> analytics-engineer-reviewer — both PASS.
 
-diff_sha256: f2b049d2f3f7aa7fac5964037b37d56a8a4308e92896394ea3e4f64862353234
+diff_sha256: f66f0d79fdadd9a021634486bccda819a09810afae4a2401e638451514eeae7d
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Catalogue positional-reader fragility: two new columns appended after group_display_order; a consumer using positional indexing would misread. Control held — the export uses csv.DictReader (by name, confirmed line 667), dbt seed/parse validates the columns, no row added/deleted, lower_is_better retained at its original position.
-- Scope + no silent §10: all three files within scope_paths (no model/mart/export touched); the team classification (14 higher_better / 2 lower_better / 8 neutral) matches the CPO-agreed list quoted verbatim in the contract, incl. the corners→neutral reclassification and shots_per_match=higher_better; player rows empty (v1.x) and dribbles_success_pct,team untouched (#510) — deferred scope kept out, benchmark mart reserved to PR-b.
+- Scope containment + no silent §10: every edit is within scope_paths (no export/script touched); the 20-metric set, median+rank-not-percentile, direction-agnostic, >=3 floor, clean_sheets-as-rate, benchmark-first were all worked out + CPO-agreed this conversation and the diff matches them; no new metric definition (the 4 added int columns are already-catalogued team metric_ids); the benchmark is transparent stats (median/mean/percentiles/rank), NOT a fabricated composite index (no Appendix-A invented score).
+- Benchmark-first / #500 honored + deferred scope kept out: int_team_season__full_season_metrics is EXTENDED additively but NOT renamed (no #500 consolidation pulled in); shot_share/points_capture are not benchmarked (reserved to deserved-vs-actual), dribbles excluded (#510), player benchmark + percentile + opponent-context reserved to v1.x. The >=3 floor is a CPO-reserved "flag-don't-block" check — verified consistent in the engine + the mart.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- accepted_values null-tolerance on direction: dbt's built-in accepted_values skips nulls, and direction carries no not_null, so the 31 player rows + dribbles_success_pct,team (empty direction) pass without a null guard — correct dbt behaviour, no test break. CSV integrity confirmed (all 56 lines = 13 fields; quoted comma-bearing descriptions intact; no row added/deleted; existing columns unshifted).
-- corners_conceded_per_match lower_is_better/direction divergence: the row keeps lower_is_better=true alongside direction=neutral (the CPO reclassification); neither column constrains the other so no seed test fails; the divergence is intentional/documented (direction supersedes; lower_is_better retained for back-compat) and both flow independently via csv.DictReader by name. assert_metric_catalogue_unique_by_entity + the no-drift guard unaffected.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- shots_per_match = higher_better could read as a quality signal in isolation; mitigated — the interpretation says "high-volume but not necessarily high-quality" and the display funnel pairs it with danger_zone_ratio + shots_on_target; classification honest and contextualised.
-- defensive_actions/tackles/interceptions/blocks/duels/passes classified neutral rather than higher_better is football-correct: high counts arise from opposite tactical shapes (deep block under pressure vs aggressive press / possession vs direct style), so a higher_better label would mislead; the interpretations describe the count without asserting good/bad, and defensive_actions explicitly names the "deep block OR aggressive press" ambiguity.
-- corners_conceded reclassification from lower_better to neutral is sound (corner-to-goal conversion ~2-3% = low-information event); shot_share / points_capture remain transparent ratio formulas with no fabricated index; no new metric definitions added — only semantic metadata on existing rows.
+- Fan-out on clean_sheets_count_season: int_legs__team_match and int_legs__team_from_players are both grain (fixture_sk, team_sk), so the LEFT JOIN is 1:1 — countif(goals_against = 0) is an exact clean-sheet count with no inflation; clean_sheets_season = count / season_games_played is bounded 0-1 (now in the ratio range test) over the same game set; tackles/interceptions/blocks per match divide the existing sums by player_stat_coverage_season_games (the same-window rule). All 4 are catalogued team metric_ids — the no-drift guard still passes.
+- Rank/distribution population symmetry + the rank test: the engine and mart both apply season_games_played >= 3 then filter metric_value is not null; the mart's inner join on (league_code, season_api_year, metric_key) restricts rank rows to the distribution population, so rank ∈ [1, team_count] (BigQuery RANK()'s max equals N even with ties) — the rank between 1 and team_count test is sound. approx_quantiles(metric_value, 4) is exact at N~18; count(metric_value) skips nulls so team_count matches the ranked set. Grains unique; metric_value renamed off the reserved word; SELECT columns == documented shared.yml columns; view materialization correct.
 
 ## escalations
 (none)
