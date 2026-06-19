@@ -1,63 +1,62 @@
-# Task contract — feat: metric direction + interpretation semantics (benchmark precursor, PR-a)
+# Task contract — feat: mart_competition_benchmarks__team (the benchmark engine, PR-b)
 
-> PR-a of the team competition-benchmark build (CPO-directed 2026-06-19). The semantic precursor:
-> give every TEAM metric a `direction` (higher_better / lower_better / neutral) and a short
-> `interpretation`, so the data carries meaning — orienting the benchmark and powering future
-> auto-narrative. Catalogue-only; no models, no benchmark mart (that is PR-b). Precursor pattern
-> (like #507 → #508).
+> PR-b of the team competition-benchmark build (CPO-directed 2026-06-19). Build the team-vs-league
+> benchmark over the 20 team season metrics: median-led, rank-of-N (no percentile), neutral/positional
+> (the catalogue's direction is joined at display). Builds on PR-a's direction/interpretation (#511).
+> CPO chose benchmark-first; the #500 team-season rename/consolidation comes later (the 4 metric
+> additions here are additive and survive that rename).
 
 objective: >
-  Add two columns to metric_catalogue.csv — `direction` (enum: higher_better / lower_better / neutral)
-  and `interpretation` (short meaning string) — and populate them for ALL team metrics per the
-  CPO-agreed classification. `direction` is the richer successor to the binary `lower_is_better` (which
-  is RETAINED for now; full migration + player rows are v1.x). Drop NO rows. Player-metric direction +
-  interpretation are deferred to the player benchmark (v1.x), so player rows leave the two new fields
-  empty.
+  Add the team competition benchmark. (1) Extend int_team_season__full_season_metrics with the 4 metrics
+  it lacks (clean_sheets rate, tackles/interceptions/blocks per match — their sums already exist there).
+  (2) int_competition_benchmarks__team: per (league_code, season, metric_key) league distribution over the
+  20 benchmark metrics (league_median, league_mean, p25, p75, team_count), over teams with >= 3 games.
+  (3) mart_competition_benchmarks__team: LONG, one row per (team_sk, season_sk, metric_key) — value,
+  league_median/mean/p25/p75, rank (k of N), vs_median_delta. Direction-agnostic (positional). A macro
+  holds the 20-metric list shared by the intermediate + mart.
 
-refs: team competition-benchmark design (this conversation); deserved-vs-actual (content_architecture §6); metrics_display.md (team display contract); PR-b = the benchmark mart.
+refs: team competition-benchmark design (this conversation); PR-a = #511 (direction/interpretation); shot_share/points_capture reserved to deserved-vs-actual; #500 = the later team-season rename/consolidation.
 
 scope_paths:
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/seeds/schema.yml
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/macros/team_benchmark_metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/docs/layering.md
   - .claude/task/contract.md
   - .claude/task/review.md
 
 decisions_taken: >
-  CPO-directed (2026-06-19): benchmark team-first; classify ALL team metrics with direction +
-  interpretation (decouples "what we have" from "what we show"). The agreed team classification:
-  higher_better = goals_per_match, clean_sheets, shots_per_match, shot_accuracy, danger_zone_ratio,
-  shots_on_target_per_match, finishing_efficiency, duels_won_pct, pass_accuracy, key_passes_per_match,
-  save_ratio, shot_share, points_capture, points_won; lower_better =
-  goals_against_per_match, league_rank; neutral = duels_per_match, defensive_actions_per_match,
-  tackles_per_match, interceptions_per_match, blocks_per_match, passes_per_match, corner_kicks_per_match,
-  corners_conceded_per_match. The corners pair was RECLASSIFIED to neutral (overrides the old
-  lower_is_better=true on corners_conceded — weak signal). interpretations per the agreed meanings
-  (defensive_actions reworded: "deep block OR aggressive press"). `direction` supersedes
-  `lower_is_better` where they differ (corners). dribbles_success_pct,team is NOT classified here (its
-  two new fields stay empty) — it is a PLAYER metric ruled dropped team-side (2026-06-11) with no
-  conventional team meaning; slated for full retirement (catalogue row + the leftover
-  mart_momentum__team computation) in #510. Corrected from an earlier mis-call to keep it. No deletion in PR-a.
+  CPO-directed (2026-06-19): team benchmark over the 20 metrics (the locked display set minus the
+  deserved-vs-actual inputs shot_share/points_capture, the non-metrics league_rank/points_won, and the
+  retiring dribbles). Median-led + rank-of-N (NOT percentile — counter-intuitive at N~18); neutral by
+  default (the mart carries no direction — that lives in the catalogue, joined at display); rank = RANK
+  over value desc within (league, season, metric_key), stated as k of team_count. >= 3 games floor to
+  enter the distribution (avoids a 1-game team's fluky rate skewing the median; my recommendation, kept
+  on "go ahead"). clean_sheets is benchmarked as the RATE (clean-sheet games / games) — the comparable
+  scalar (the "x/y" count display stays on mart_team_season). Mart-only, NO export wiring (the
+  vs-benchmark block is in PAUSED #391, same as mart_roster). Benchmark-first; #500 rename later.
 
 decisions_reserved:
-  - Player-metric direction + interpretation = v1.x (the player benchmark) — player rows' two new fields
-    stay empty here; do NOT mechanically guess them.
-  - Team dribbles_success_pct full retirement (catalogue row + the leftover mart_momentum__team
-    computation/test) = #510, done AFTERWARDS. Leave its row + two new fields untouched here.
-  - Retiring `lower_is_better` entirely = a v1.x cleanup once all rows are on `direction` and consumers
-    migrate. Keep it now.
-  - The benchmark mart (`mart_competition_benchmarks__team`) + the 4 season-model metric additions
-    (clean_sheets rate + tackles/interceptions/blocks per match) = PR-b. Nothing here.
-  - If a catalogue consumer reads `lower_is_better` positionally and a new column would break it, STOP —
-    but the export uses csv.DictReader (reads by name), so new columns are safe.
+  - Player benchmark + percentile-vs-peers = v1.x (a separate build).
+  - The opponent/schedule-context flagship (which weights opponents via this engine) = v1.x.
+  - #500 team-season rename/consolidation = a separate later PR; do NOT rename int_team_season__full_season_metrics here.
+  - If the >= 3 floor proves wrong at review, it is a one-line change — flag, do not block.
+  - No new metric definitions; the 4 added int columns are already catalogued team metrics (drift-clean).
 
 done_when:
-  - metric_catalogue.csv has `direction` + `interpretation` columns; every STAYING team row populated
-    (direction ∈ {higher_better, lower_better, neutral}; interpretation non-empty); dribbles_success_pct,team
-    + all player rows' two new fields empty; NO row deleted; `lower_is_better` retained.
-  - seeds/schema.yml documents both new columns; `direction` accepted_values [higher_better, lower_better,
-    neutral] (null allowed for the not-yet-classified player rows); seed still loads.
-  - `dbt parse` clean; the metric_catalogue seed tests (incl. assert_metric_catalogue_unique_by_entity)
-    still pass; no CSV field-count break (quote any interpretation containing a comma).
-  - reviewers: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS.
+  - int_team_season__full_season_metrics computes clean_sheets (rate), tackles/interceptions/blocks per
+    match; the no-drift guard still passes (all 4 are catalogued team metric_ids); int_team_season.yml
+    documents them (clean_sheets joins the 0-1 ratio range test).
+  - int_competition_benchmarks__team grain (league_code, season_api_year, metric_key); metric_key
+    accepted_values = the 20 ids; team_count >= 1; median/p25/p75 present.
+  - mart_competition_benchmarks__team grain (team_sk, season_sk, metric_key); rank between 1 and
+    team_count; relationships team_sk -> dim_team, season_sk -> dim_competition_season; metric_key
+    accepted_values = the 20 ids; vs_median_delta = value - league_median.
+  - dbt parse clean; sqlfluff lint passes on the new SQL; layering.md lists both new models.
+  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (>=2 risks each); no FAIL; no ESCALATE.
 
 amendments: (none)

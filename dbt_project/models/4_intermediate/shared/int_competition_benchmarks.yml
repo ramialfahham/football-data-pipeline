@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: int_competition_benchmarks__team
+    description: >
+      Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
+      distribution (median / mean / p25 / p75 / team_count) of the 20 team season metrics, over teams
+      with >= 3 finished games. Median-led (robust to a dominant team). mart_competition_benchmarks__team
+      ranks each team against this. The 20-metric set is the team_benchmark_metrics() macro.
+      Grain: (league_code, season_api_year, metric_key).
+    config:
+      tags: ["intermediate", "football", "benchmark"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, metric_key]
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: metric_key
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_target_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
+      - name: team_count
+        description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
+        tests: [not_null]
+      - name: league_median
+        description: "Median team value (robust central tendency; the headline 'typical team')."
+      - name: league_mean
+        description: "Mean team value (the 'league average'; carried but skew-sensitive)."
+      - name: league_p25
+        description: "25th-percentile team value (the distribution spread)."
+      - name: league_p75
+        description: "75th-percentile team value (the distribution spread)."
