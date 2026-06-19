@@ -1,27 +1,18 @@
-# Review — feat/mart-competition-benchmarks — 2026-06-19
+# Review — chore/handover-refresh-benchmarks — 2026-06-19
 
-> PR-b of the team competition-benchmark build: the benchmark engine + mart. Extends
-> int_team_season__full_season_metrics with 4 catalogued metrics (clean_sheets rate +
-> tackles/interceptions/blocks per match); adds int_competition_benchmarks__team (per-metric league
-> distribution) + mart_competition_benchmarks__team (LONG: value · median/mean/p25/p75 · rank k-of-N ·
-> vs-median), over the 20 team metrics, season-to-date, teams with >= 3 games. Median-led, rank not
-> percentile, direction-agnostic (catalogue direction joined at display). Mart-only, no export wiring;
-> benchmark-first (#500 rename deferred). Required reviewers (dbt_project/** + always): scope-auditor +
-> analytics-engineer-reviewer — both PASS.
+> Handover bookkeeping: refresh .claude/active_work.md after #511 (metric direction/interpretation
+> semantic) + #512 (mart_competition_benchmarks__team) merged. Records the merges, the filed #510, the
+> benchmark design + v1.x follow-ups, and re-points NEXT (team benchmark DONE; player + opponent-context =
+> v1.x); all durable standing sections preserved verbatim. Artifact + contract commit → scope-auditor (the
+> only routing-required reviewer). active_work.md is hash-excluded, so diff_sha256 covers contract.md only.
 
-diff_sha256: f66f0d79fdadd9a021634486bccda819a09810afae4a2401e638451514eeae7d
+diff_sha256: fa23df0edf5185d16386674dc9d1961841f4f913162e2051671b7f1e5e79250c
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope containment + no silent §10: every edit is within scope_paths (no export/script touched); the 20-metric set, median+rank-not-percentile, direction-agnostic, >=3 floor, clean_sheets-as-rate, benchmark-first were all worked out + CPO-agreed this conversation and the diff matches them; no new metric definition (the 4 added int columns are already-catalogued team metric_ids); the benchmark is transparent stats (median/mean/percentiles/rank), NOT a fabricated composite index (no Appendix-A invented score).
-- Benchmark-first / #500 honored + deferred scope kept out: int_team_season__full_season_metrics is EXTENDED additively but NOT renamed (no #500 consolidation pulled in); shot_share/points_capture are not benchmarked (reserved to deserved-vs-actual), dribbles excluded (#510), player benchmark + percentile + opponent-context reserved to v1.x. The >=3 floor is a CPO-reserved "flag-don't-block" check — verified consistent in the engine + the mart.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Fan-out on clean_sheets_count_season: int_legs__team_match and int_legs__team_from_players are both grain (fixture_sk, team_sk), so the LEFT JOIN is 1:1 — countif(goals_against = 0) is an exact clean-sheet count with no inflation; clean_sheets_season = count / season_games_played is bounded 0-1 (now in the ratio range test) over the same game set; tackles/interceptions/blocks per match divide the existing sums by player_stat_coverage_season_games (the same-window rule). All 4 are catalogued team metric_ids — the no-drift guard still passes.
-- Rank/distribution population symmetry + the rank test: the engine and mart both apply season_games_played >= 3 then filter metric_value is not null; the mart's inner join on (league_code, season_api_year, metric_key) restricts rank rows to the distribution population, so rank ∈ [1, team_count] (BigQuery RANK()'s max equals N even with ties) — the rank between 1 and team_count test is sound. approx_quantiles(metric_value, 4) is exact at N~18; count(metric_value) skips nulls so team_count matches the ranked set. Grains unique; metric_value renamed off the reserved word; SELECT columns == documented shared.yml columns; view materialization correct.
+- Durable-section preservation: verified all standing sections remain verbatim — Standing authority, Product roadmap (#491/#493/#494/#480), the other NEXT items (backfill #1, coaches #4) + the other Carryovers (#484, #500, season-rollup, display-contract, #483, #506, Pilot PR2), dim_team, governance machinery, form-window vocabulary, parked state, pending CPO actions, Do-NOT, Environment. Only the session-specific sections changed (Last-updated, FIRST, This-session, NEXT #3 closure, the #500 note + the new #510 carryover). No silent reorder/drop/relabel; only active_work.md + contract.md touched.
+- No silent §10 decision: every change records an already-merged PR (#511/#512), the already-filed #510, or a design ruling from the just-merged work; the v1.x deferrals (player benchmark, opponent-context) re-decide nothing; Appendix-A audit (A1-A5) found no hidden metric definition, fabricated agreement, rule extension, consumption shortcut, or frontend logic.
 
 ## escalations
 (none)

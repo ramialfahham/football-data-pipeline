@@ -4,19 +4,19 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-19 (Task A: roster + leaderboards v1 — COMPLETE). Merged **#503** (mart_roster), **#507**
-(player-season composites scorer_points/defensive_actions/cards_total), **#508** (mart_leaderboards — 9 count
-boards, LONG — + full consolidation: retired mart_top_scorers + mart_player_season, dropped mart_player_profile's
-rank cols, repointed both export paths). main at 279dcff. Filed **#504** (retire legacy metric_definitions.csv at
-#377), **#505** (docs audit/consolidation), **#506** (deferred leaderboard rate boards + floor). **#500** still
-OPEN. Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-19 (TEAM competition benchmark built). Merged **#511** (metric direction + interpretation
+catalogue semantic) then **#512** (mart_competition_benchmarks__team — the team-vs-league benchmark engine). main
+at b8de817. Filed **#510** (retire leftover team dribbles_success_pct). Earlier this day: Task A (roster +
+leaderboards v1) shipped as #503/#507/#508 + handover #509; filed #504/#505/#506. **#500** + **#510** OPEN.
+Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge. `git fetch` + ff to confirm (main 279dcff). **Task A is DONE** (roster + leaderboards
-  v1). The CPO directs the next item (none auto-granted) — see NEXT; the open content-architecture picks are
-  **the backfill** (NEXT #1), **`mart_competition_benchmarks`** (NEXT #3, the flagship engine, unblocked), and
-  **coaches + `mart_player_career`** (NEXT #4). The deferred leaderboard rate boards are **#506**. **Read
-  `docs/content_architecture.md`** (the IA + data spec) first.
+- Nothing pending-merge. `git fetch` + ff to confirm (main b8de817). **Task A + the TEAM benchmark are DONE.**
+  The CPO directs the next item (none auto-granted) — see NEXT. Open content-architecture picks: **the backfill**
+  (NEXT #1), **coaches + `mart_player_career`** (NEXT #4). Benchmark **v1.x** follow-ups: the **player benchmark**
+  (per-90 + position-aware + percentile) and the **opponent/schedule-context** flagship. Open carryovers: **#500**
+  (team-season rename), **#510** (team dribbles), **#506** (leaderboard rate boards). **Read
+  `docs/content_architecture.md`** first. Benchmark design: [[project-competition-benchmarks-design]].
 - The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
   cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
   the local manifest meanwhile). See [[project-dbt-mcp-server]].
@@ -25,30 +25,30 @@ OPEN. Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. 
 - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
 
-## This session (2026-06-19) — Task A: roster + leaderboards v1 (COMPLETE)
-- **#503 (MERGED) — `mart_roster`.** Identity-only club squad list, grain (team_sk, league_code,
-  season_api_year, player_sk) from `dim_player_team_season_mapping` ⋈ `dim_player`, club-scoped via
-  `competition_registry → competition_types (entity_type='club')`. Identity only (no per-club stats — deferred
-  #480 §8.3); view; **mart-only, no export wiring** (the Squad-block consumer is in PAUSED #391). Review caught
-  a silent-drop (an unregistered league_code dropped by the club filter) → added a `relationships` test
-  mapping.league_code → competition_registry in core.yml (verified 0 unregistered codes live).
-- **#507 (MERGED) — 3 player-season COUNT composites** in `int_player_season__metrics` + `metric_catalogue`:
-  `scorer_points` (goals+assists), `defensive_actions` (T+I+B), `cards_total` (Y+R) — the count-board sort keys.
-  Football-analytics caught the 2nd-yellow double-count → CPO ruled keep `yellow+red` ("total cards shown") +
-  DISCLOSE it in the description (catalogue descriptions are window-agnostic by design).
-- **#508 (MERGED) — `mart_leaderboards` + full consolidation.** LONG mart (one row per player×board),
-  season-to-date via `int_player_season__metrics`, **9 COUNT boards**, top-10 per (league_code, season,
-  metric_key), DENSE_RANK ties share. Retired `mart_top_scorers` + orphaned `mart_player_season`; dropped the 3
-  rank cols from `mart_player_profile`; repointed BOTH export paths. analytics-engineer caught the 3 composites
-  being dropped from the final SELECT → re-added + documented (SELECT must == documented shared.yml columns).
-- **Key leaderboard decisions:** season-to-date (NOT last-5); LONG; top-10 stored (UI slices); **no floor for
-  count boards** (CPO challenged — only RATE boards get gamed by low-volume outliers). The **5 RATE boards +
-  finishing_efficiency + the per-denominator floor are DEFERRED → #506.** Memory: [[project-leaderboards-roster-design]].
-- **Doc-clutter feedback (Rami).** Flagged over-production of `.md` docs (clutter > clarity). Default to NOT
-  creating a new doc; fold into the authoritative one or keep it in the PR/issue. **#505** tracks the docs/ audit.
-  Memory: [[feedback-doc-clutter-discipline]].
-- **#500 still OPEN** — team-season model naming + consolidation (the team analog of #480). Memory:
-  [[project-season-model-naming-parked]].
+## This session (2026-06-19, pm) — the TEAM competition benchmark
+- **#511 (MERGED) — metric `direction` + `interpretation` catalogue semantic.** Two new metric_catalogue columns
+  (richer than the retained binary `lower_is_better`): `direction` = higher_better / lower_better / **neutral**
+  (descriptive/style = no verdict — most football metrics are style not quality); `interpretation` = a short
+  meaning string (the seed of website auto-narrative). Classified all 24 team metrics (14 higher / 2 lower / 8
+  neutral). Player metrics deferred (v1.x). football-analytics confirmed neutral-for-volume + corners→neutral.
+- **#512 (MERGED) — `mart_competition_benchmarks__team`** (the vs-benchmark engine). **20 team metrics**,
+  season-to-date, LONG (team × metric): value · league_median (+ mean) · p25/p75 · **rank (k of N)** ·
+  vs_median_delta. `int_competition_benchmarks__team` = the distribution engine; a macro holds the shared
+  20-metric list; ≥3-games floor. Added 4 catalogued metrics to `int_team_season__full_season_metrics`
+  (clean_sheets rate + tackles/interceptions/blocks per match).
+- **Design rulings (CPO, don't re-litigate):** **median-led not mean** (mean skewed by a dominant team);
+  **rank-of-N not percentile** (counter-intuitive at N~18; percentile-vs-peers is a PLAYER thing → v1.x);
+  **direction-agnostic mart** (positional — `direction` joined at display); the 20 = the locked display set minus
+  shot_share/points_capture (deserved-vs-actual inputs, structurally-fixed means), league_rank/points_won
+  (non-metrics), dribbles (#510). Mart-only, no export wiring (#391 paused). Memory:
+  [[project-competition-benchmarks-design]].
+- **Benchmark-first ruling:** built on the current `int_team_season__full_season_metrics` (the 4 additions are
+  additive); **#500** team-season rename/consolidation deferred (it updates the benchmark refs when it lands).
+- **#510 (FILED) — retire leftover team `dribbles_success_pct`** (a player metric ruled dropped team-side
+  2026-06-11; catalogue row + the mart_momentum__team computation never cleaned up). Left unclassified in #511.
+- Earlier today: **Task A COMPLETE** (#503 mart_roster, #507 composites, #508 mart_leaderboards + consolidation,
+  #509 handover) + filed #504/#505/#506. Memory: [[project-leaderboards-roster-design]],
+  [[feedback-doc-clutter-discipline]], [[project-season-model-naming-parked]] (#500 still OPEN).
 
 ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
@@ -77,8 +77,10 @@ OPEN. Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. 
    History/Career, makes season-over-season real, deepens benchmarks. (This is #479's territory.)
 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
-3. **`mart_competition_benchmarks`** (team+player) — the flagship engine; UNBLOCKED now (#480 gave a clean
-   season aggregation). Percentile def → metric_catalogue + football-analytics (position-aware = v1.x).
+3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
+   semantic + #512 mart_competition_benchmarks__team; median-led, rank-of-N, direction-agnostic). **Player
+   benchmark + percentile-vs-peers = v1.x** (needs per-90 — a NEW catalogue metric — + position-aware peers +
+   a minutes floor). The **opponent/schedule-context flagship** (weights opponents via this engine) is also v1.x.
 4. **Coaches ingest + `dim_coach`**; **`mart_player_career`** (on the backfill) for the Career/History tabs.
 
 ### Carryovers (also open, CPO directs)
@@ -86,7 +88,10 @@ OPEN. Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. 
   per §8.4 — NOT mart logic). Changes shipped numbers → own validation.
 - **Team season-record ↔ rollup unification + naming (#500)** — the team-side analog of #480 (the season
   record's final row == the rollup; they're one aggregation), bundled with the model-naming fix
-  (`int_team_season__full_season_metrics` → `int_team_season__metrics`). Now tracked as **#500**.
+  (`int_team_season__full_season_metrics` → `int_team_season__metrics`). Now tracked as **#500**. NOTE: the
+  benchmark (#512) now also reads this model — the rename updates its refs too.
+- **#510** — retire leftover team `dribbles_success_pct` (catalogue row + the `mart_momentum__team` computation
+  + the range test; a player metric ruled dropped team-side 2026-06-11, never fully cleaned up).
 - **Team season-rollup enhancement** — point `mart_team_season`/`int_team_season` at the mapping spine so
   pre-season teams appear (deferred from the dim_team work).
 - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
