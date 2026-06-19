@@ -54,11 +54,11 @@ Additional smaller table: `RAW_APIF_LEAGUES` (same append schema, no `fixture_id
 
 Reference tables — fixtures-next, standings, teams, players, coaches, injuries, leagues — are written with `WRITE_APPEND`. On every pipeline run:
 
-1. The pipeline calls the API for all configured seasons (the full history window).
+1. The pipeline assembles the **full history window** for the competition. A full (active) run fetches every configured season from the API, reusing finished historical seasons from the previous snapshot (issue #283). A poll/idle run (a finished competition) fetches only the current season and **carries forward** the prior seasons from the latest snapshot — finished matches never change, so the carried rows stay current. Either path yields a complete response.
 2. The complete response is written as a new row with the current UTC timestamp.
 3. Prior rows are preserved. BigQuery retains the full ingest history.
 
-The latest row always contains the complete picture because each run fetches all seasons from the API. Staging reads only the latest snapshot per league using partition pruning and a `QUALIFY` window:
+The latest row always contains the complete picture because every run writes a **complete** snapshot (current season refreshed; finished seasons reused or carried forward). This is the invariant the full-refresh `fct_fixture` depends on, so it must hold for active **and** idle competitions. Staging reads only the latest snapshot per league using partition pruning and a `QUALIFY` window:
 
 ```sql
 -- Pre-filter engages partition pruning; QUALIFY picks latest snapshot per league
