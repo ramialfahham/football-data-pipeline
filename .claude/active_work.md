@@ -4,19 +4,25 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-19 (TEAM competition benchmark built). Merged **#511** (metric direction + interpretation
-catalogue semantic) then **#512** (mart_competition_benchmarks__team — the team-vs-league benchmark engine). main
-at b8de817. Filed **#510** (retire leftover team dribbles_success_pct). Earlier this day: Task A (roster +
-leaderboards v1) shipped as #503/#507/#508 + handover #509; filed #504/#505/#506. **#500** + **#510** OPEN.
-Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-19 (idle-mode fixtures-completeness fix). The backfill task (NEXT #1) uncovered + fixed
+an idle-mode bug: idle/poll ingest wrote current-season-only fixtures snapshots, so the full-refresh `fct_fixture`
+collapsed to one season for idle leagues (BL1 308 vs 3075 in the incremental player-stats fact). Shipped **#514**
+(carry-forward at the write boundary) + **#515** (restore the suppressed fct_fixture FK guard). Ran a **zero-API
+recovery** — reconstructed 25 leagues' fixtures from RAW history; corrected CNL/CDR/DFBP stale wrong-provider-id
+data. Filed **#517** (purge stale wrong-id data) + **#518** (process/behavioural retrospective — read it). Prior
+session: TEAM benchmark #511/#512 (merged). #500/#510 still OPEN. Governance G1–G4 LIVE. **Website blueprint #391
+still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge. `git fetch` + ff to confirm (main b8de817). **Task A + the TEAM benchmark are DONE.**
-  The CPO directs the next item (none auto-granted) — see NEXT. Open content-architecture picks: **the backfill**
-  (NEXT #1), **coaches + `mart_player_career`** (NEXT #4). Benchmark **v1.x** follow-ups: the **player benchmark**
-  (per-90 + position-aware + percentile) and the **opponent/schedule-context** flagship. Open carryovers: **#500**
-  (team-season rename), **#510** (team dribbles), **#506** (leaderboard rate boards). **Read
-  `docs/content_architecture.md`** first. Benchmark design: [[project-competition-benchmarks-design]].
+- Nothing pending-merge (`git fetch` + ff). The **idle-mode completeness bug is FIXED + recovered + guarded**
+  (#514/#515 merged; 0 orphans warehouse-wide; all relationship tests green). **The deep-season backfill (the
+  ORIGINAL NEXT #1) is STILL PENDING:** the recovery only restored what was already in RAW — PL/PD/SA/L1 genuinely
+  lack 2016–2023 (only ~2 seasons in RAW), so the **cost-gated API backfill of their missing seasons is still to
+  do**. **CRITICAL LESSON ([[feedback-raw-staging-latest-payload]]): NEVER judge ingested depth from staging/core —
+  query RAW.** CPO directs the next item (none auto-granted) — open: the deep-season backfill (cost-gated),
+  **coaches + `mart_player_career`** (NEXT #4), the **player benchmark** + **opponent/schedule-context** (v1.x),
+  carryovers **#500/#506/#510**, and the new **#517** (stale-id purge) / **#518** (process retrospective). **Read
+  `docs/content_architecture.md`** first.
 - The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
   cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
   the local manifest meanwhile). See [[project-dbt-mcp-server]].
@@ -25,30 +31,33 @@ Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Webs
 - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
 
-## This session (2026-06-19, pm) — the TEAM competition benchmark
-- **#511 (MERGED) — metric `direction` + `interpretation` catalogue semantic.** Two new metric_catalogue columns
-  (richer than the retained binary `lower_is_better`): `direction` = higher_better / lower_better / **neutral**
-  (descriptive/style = no verdict — most football metrics are style not quality); `interpretation` = a short
-  meaning string (the seed of website auto-narrative). Classified all 24 team metrics (14 higher / 2 lower / 8
-  neutral). Player metrics deferred (v1.x). football-analytics confirmed neutral-for-volume + corners→neutral.
-- **#512 (MERGED) — `mart_competition_benchmarks__team`** (the vs-benchmark engine). **20 team metrics**,
-  season-to-date, LONG (team × metric): value · league_median (+ mean) · p25/p75 · **rank (k of N)** ·
-  vs_median_delta. `int_competition_benchmarks__team` = the distribution engine; a macro holds the shared
-  20-metric list; ≥3-games floor. Added 4 catalogued metrics to `int_team_season__full_season_metrics`
-  (clean_sheets rate + tackles/interceptions/blocks per match).
-- **Design rulings (CPO, don't re-litigate):** **median-led not mean** (mean skewed by a dominant team);
-  **rank-of-N not percentile** (counter-intuitive at N~18; percentile-vs-peers is a PLAYER thing → v1.x);
-  **direction-agnostic mart** (positional — `direction` joined at display); the 20 = the locked display set minus
-  shot_share/points_capture (deserved-vs-actual inputs, structurally-fixed means), league_rank/points_won
-  (non-metrics), dribbles (#510). Mart-only, no export wiring (#391 paused). Memory:
-  [[project-competition-benchmarks-design]].
-- **Benchmark-first ruling:** built on the current `int_team_season__full_season_metrics` (the 4 additions are
-  additive); **#500** team-season rename/consolidation deferred (it updates the benchmark refs when it lands).
-- **#510 (FILED) — retire leftover team `dribbles_success_pct`** (a player metric ruled dropped team-side
-  2026-06-11; catalogue row + the mart_momentum__team computation never cleaned up). Left unclassified in #511.
-- Earlier today: **Task A COMPLETE** (#503 mart_roster, #507 composites, #508 mart_leaderboards + consolidation,
-  #509 handover) + filed #504/#505/#506. Memory: [[project-leaderboards-roster-design]],
-  [[feedback-doc-clutter-discipline]], [[project-season-model-naming-parked]] (#500 still OPEN).
+## This session (2026-06-19) — idle-mode fixtures snapshot completeness
+- **Root cause.** Staging reads ONLY the latest RAW snapshot per league (intentional, cost — data_contract.md
+  "Append-only writes"); the whole design relies on every snapshot being COMPLETE. Idle/poll ingest
+  (`catalog.py` poll_mode) collapsed `seasons_list` to the current season, so a finished league's latest snapshot
+  went thin → the full-refresh `fct_fixture` rebuilt to one season (BL1 308 vs 3075 in the incremental
+  player-stats fact). The referential FK tests that would have caught it were SUPPRESSED in core.yml.
+- **#514 (MERGED) — the fix.** `fetch_merge_and_persist_fixtures` carries forward the prior snapshot's seasons
+  not refetched this run, so every written snapshot stays complete; team_ids stay latest-season-scoped (squad
+  catch-up). An empty/quota-exhausted fresh fetch now writes NOTHING (no stale re-stamp). Tests use a REAL
+  committed `/fixtures` sample (`tests/fixtures/apif/` — bootstrapped the CPO 2026-06-12 sample-payload rule).
+- **Recovery (zero-API).** Reconstructed 25 leagues' complete fixtures snapshots from RAW history
+  (latest-version-per-fixture) — the data was already in RAW, masked by the thin latest snapshot, so NO provider
+  calls. CORRECTED CNL/CDR/DFBP: the first reconstruction resurrected stale wrong-provider-id fixtures (English NL
+  #43 under CNL, Supercopa #556 under CDR, DFL-Supercup #529 under DFBP — from before the 2026-05-28 id
+  corrections); re-did them inner-joining `$.league.id` to dim_league. Result: 0 orphans warehouse-wide; all
+  relationship tests green; marts rebuilt.
+- **#515 (MERGED) — the guard.** Restored the 3 `fct_fixture` FK relationship tests (fanout fixture_sk ->
+  fct_fixture) + corrected the misleading "current-season snapshots only" descriptions. The durable alarm.
+- **#517 (FILED)** purge stale wrong-id data (RAW debt; filtered out of consumption, not a live defect).
+  **#518 (FILED)** process/behavioural retrospective — diagnosis drifted ~15 rounds (hacky-first, flip-flopping,
+  not reading docs, not tracing end-to-end). Memory: [[feedback-raw-staging-latest-payload]],
+  [[feedback-no-hacky-solutions]].
+- **dbt ruling — recorded in #514's contract (CPO-confirmed there, reviewed + merged; re-stated here, NOT
+  re-decided):** `fct_fixture` STAYS full-refresh — incremental would be an anti-pattern (a `--full-refresh`
+  would re-lose history; no perf need at this volume). Materialization follows the source-delivery pattern; the
+  bug was an unenforced cross-layer invariant ("the latest snapshot is complete"), now restored in ingest +
+  tested by the FK guard.
 
 ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
