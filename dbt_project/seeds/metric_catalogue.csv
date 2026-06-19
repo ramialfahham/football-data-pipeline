@@ -51,3 +51,6 @@ shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in 
 goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,
 shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,
 points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,
+scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,goals + assists,,false,integer,goals,,
+defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,tackles + interceptions + blocks,,false,integer,defending,,
+cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",cards_yellow + cards_red,,false,integer,discipline,,
