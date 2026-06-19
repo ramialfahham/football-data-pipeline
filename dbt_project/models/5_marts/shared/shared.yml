@@ -570,77 +570,6 @@ models:
       - name: standings_group_description
         description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
 
-  - name: mart_player_season
-    description: "Per-player, per-season rollup (feeds mart_top_scorers). Grain: (player_sk, season_sk). Composes the shared int_player_season__metrics (#480) — no inline aggregation. pass_accuracy_pct is the catalogue-correct weighted value (replaced the former unweighted, unconsumed pass_accuracy_avg_percent). A player who transfers mid-season produces one row per competition-season (today's grain)."
-    meta:
-      owner: "data-platform"
-      domain: "football"
-      criticality: "medium"
-    config:
-      tags: ["marts", "football"]
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - player_sk
-            - season_sk
-      - dbt_utils.expression_is_true:
-          expression: "starts + substitute_appearances <= appearances"
-      - dbt_utils.expression_is_true:
-          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
-          name: player_season_pass_accuracy_pct_in_range
-    columns:
-      - name: player_season_sk
-        description: "Surrogate key from (player_sk, season_sk)."
-        tests: [not_null, unique]
-      - name: player_sk
-        description: "FK to dim_player."
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_player')
-              field: player_sk
-      - name: season_sk
-        description: "FK to dim_competition_season."
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_competition_season')
-              field: season_sk
-      - name: league_sk
-        description: "FK to dim_league."
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_league')
-              field: league_sk
-      - name: league_code
-        tests: [not_null]
-      - name: season_api_year
-        tests: [not_null]
-      - name: player_name
-      - name: player_first_name
-      - name: player_last_name
-      - name: player_nationality
-      - name: player_birth_date
-      - name: appearances
-        description: "Fixtures the player appears on the team sheet for (any minutes, or 0-minute substitutes)."
-        tests: [not_null]
-      - name: starts
-        description: "Fixtures where the player started (derived is_starter in core)."
-      - name: substitute_appearances
-        description: "Fixtures where the player was flagged as a substitute in the source payload."
-      - name: minutes
-        description: "Sum of minutes played."
-      - name: goals
-      - name: assists
-      - name: shots
-      - name: shots_on_target
-      - name: key_passes
-      - name: pass_accuracy_pct
-        description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
-      - name: yellow_cards
-      - name: red_cards
-
   - name: mart_player_profile
     description: >
       Player profile (#325). One row per (player, competition-season): the player's
@@ -674,16 +603,6 @@ models:
       - dbt_utils.expression_is_true:
           expression: "saves <= shots_on_target_faced"
           name: player_profile_saves_lte_faced
-      # leaderboard ranks (GAP-19.1): positive when present; zero performers unranked (null)
-      - dbt_utils.expression_is_true:
-          expression: "goals_rank is null or goals_rank >= 1"
-          name: player_profile_goals_rank_positive
-      - dbt_utils.expression_is_true:
-          expression: "assists_rank is null or assists_rank >= 1"
-          name: player_profile_assists_rank_positive
-      - dbt_utils.expression_is_true:
-          expression: "shots_on_target_rank is null or shots_on_target_rank >= 1"
-          name: player_profile_shots_on_target_rank_positive
     columns:
       - name: player_season_sk
         tests: [unique, not_null]
@@ -838,31 +757,47 @@ models:
           - accepted_values:
               values: ["W", "D", "L"]
 
-  - name: mart_top_scorers
-    description: "Top scorers per (league_code, season_api_year) derived from mart_player_season. View (cheap to rebuild). Replaces the /players/topscorers endpoint. DENSE_RANK ties share a rank and no ranks are skipped; filter is scorer_rank <= 25 (inclusive of ties at rank 25)."
+  - name: mart_leaderboards
+    description: >
+      Per-board player leaderboards (the Leaderboards block; content_architecture §3). LONG — one row
+      per (player, board): the player's rank on that board within its competition-season. Generalises
+      the retired mart_top_scorers to 9 COUNT boards (goals, scorer_points, shots_on_target,
+      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total).
+      Season-to-date, composed from int_player_season__metrics + dim_player. rank = DENSE_RANK over the
+      board's metric desc within (league_code, season_api_year): ties share a rank, top-10 inclusive of
+      ties; only positive-value players are ranked. The 5 rate boards + their qualification floor are
+      deferred (#506). View. Grain: (player_sk, season_sk, metric_key).
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "medium"
     config:
-      tags: ["marts", "football"]
+      tags: ["marts", "football", "leaderboards"]
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - player_sk
-            - season_sk
+          combination_of_columns: [player_sk, season_sk, metric_key]
       - dbt_utils.expression_is_true:
-          expression: "scorer_rank <= 25"
+          expression: "rank between 1 and 10"
+          name: mart_leaderboards_rank_in_range
       - dbt_utils.expression_is_true:
-          expression: "goals > 0"
+          expression: "sort_value > 0"
+          name: mart_leaderboards_sort_value_positive
     columns:
-      - name: player_season_sk
-        description: "FK to mart_player_season."
+      - name: player_leaderboard_sk
+        description: "Surrogate from (player_sk, season_sk, metric_key)."
+        tests: [not_null, unique]
+      - name: metric_key
+        description: "The board — a metric_catalogue metric_id (the 9 count boards)."
         tests:
           - not_null
-          - relationships:
-              to: ref('mart_player_season')
-              field: player_season_sk
+          - accepted_values:
+              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total"]
+      - name: rank
+        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+        tests: [not_null]
+      - name: sort_value
+        description: "The board's own value the rank is computed from (always > 0)."
+        tests: [not_null]
       - name: player_sk
         tests:
           - not_null
@@ -882,21 +817,42 @@ models:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
+        description: "Partition key — app slices by this to retrieve a competition's boards."
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
       - name: player_name
+        description: "Denormalised from dim_player."
       - name: player_nationality
+        description: "Denormalised from dim_player."
+      - name: player_position
+        description: "Listed/bio position from dim_player."
+      - name: player_photo_url
+        description: "Player photo URL from dim_player; nullable."
+      # Denormalised season-to-date display atoms (from int_player_season__metrics): the per-board
+      # breakdown values the UI shows alongside sort_value (the board's own ranked metric).
       - name: appearances
-      - name: starts
       - name: minutes
       - name: goals
-        tests: [not_null]
       - name: assists
       - name: shots_on_target
-      - name: scorer_rank
-        description: "DENSE_RANK over goals desc (ties share a rank). 1 is top."
-        tests: [not_null]
+      - name: dribbles_attempts
+      - name: dribbles_success
+      - name: passes_total
+      - name: passes_key
+      - name: duels_total
+      - name: duels_won
+      - name: tackles_total
+      - name: tackles_interceptions
+      - name: tackles_blocks
+      - name: cards_yellow
+      - name: cards_red
+      - name: scorer_points
+        description: "goals + assists (the 'scorer_points' board's value)."
+      - name: defensive_actions
+        description: "tackles + interceptions + blocks (the 'defensive_actions' board's value)."
+      - name: cards_total
+        description: "cards_yellow + cards_red (the 'cards_total' board's value)."
 
   - name: mart_team_market_value
     description: >

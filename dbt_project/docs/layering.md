@@ -260,8 +260,7 @@ Canonical mart inventory (exhaustive) for this project:
 | Mart | Grain | Materialization | Notes |
 |------|-------|-----------------|-------|
 | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
-| `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
-| `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
+| `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards (9 count boards); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share. |
 | `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
 | `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
 | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | Current league standings per team-season. |
@@ -300,7 +299,7 @@ Allowed in the frontend:
 drift bug):
 - Metric math, window selection, result/perspective computation.
 - Ranking or ordering that encodes a business rule (leaderboard ranks live in marts —
-  `mart_top_scorers.scorer_rank` is the pattern).
+  `mart_leaderboards.rank` is the pattern).
 - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
   published URL identity — they must come from the warehouse so every frontend links
   identically).

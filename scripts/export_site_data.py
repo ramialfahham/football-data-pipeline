@@ -41,12 +41,19 @@ REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 
-# Player leaderboards: unambiguous catalogue count metrics, each ranked desc.
-# (More boards are a one-line addition; per-metric ranking choices beyond these
-# are a design call.)
-_LEADERBOARD_METRICS = ("goals", "assists", "shots_on_target")
-_LB_KEEP = ("player_sk", "player_name", "player_photo_url", "position_code",
-            "appearances", "minutes", "goals", "assists", "shots_on_target")
+# Player leaderboards: the 9 COUNT boards from mart_leaderboards (LONG, one row per
+# board, pre-ranked by the warehouse). metric_key drives the board; the 5 rate boards
+# are deferred (#506). The order here is the display order.
+_LEADERBOARD_METRICS = ("goals", "scorer_points", "shots_on_target", "dribbles_success",
+                        "passes_total", "passes_key", "duels_won", "defensive_actions",
+                        "cards_total")
+_LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
+            "appearances", "minutes", "rank", "sort_value",
+            "goals", "assists", "shots_on_target", "dribbles_success", "dribbles_attempts",
+            "passes_total", "passes_key", "duels_won", "duels_total",
+            "tackles_total", "tackles_interceptions", "tackles_blocks",
+            "cards_yellow", "cards_red",
+            "scorer_points", "defensive_actions", "cards_total")
 
 # Join/identity keys dropped from each per-side block in the fixture payload
 # (they live at the fixture top level or are join plumbing, not display data).
@@ -247,7 +254,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
         "standings": sorted(
             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
         ),
-        "top_scorers": sorted(top_scorers, key=lambda r: r.get("scorer_rank") or 999),
+        "top_scorers": sorted(top_scorers, key=lambda r: r.get("rank") or 999),
         "fixtures": sorted(fixtures, key=lambda r: r.get("kickoff_datetime") or datetime.min),
     }
 
@@ -527,7 +534,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         "league_code", "season_api_year",
     )
     scorers = _group2(
-        _query(client, f"select * from `{marts}.mart_top_scorers`"),
+        _query(client, f"select * from `{marts}.mart_leaderboards` where metric_key = 'goals'"),
         "league_code", "season_api_year",
     )
     teams = {
@@ -569,20 +576,20 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     return payloads
 
 
-def shape_leaderboards(profile_rows: list[dict], metrics=_LEADERBOARD_METRICS,
-                       limit: int = 25) -> dict:
-    """Per-metric player leaderboards: SELECTED by the warehouse <metric>_rank columns
-    (mart_player_profile; DENSE_RANK, zero performers unranked = null). The export
-    selects and orders by the rank — it does not rank. Ties share a rank, so a board
-    may exceed `limit` when ranks tie at the cut (the mart_top_scorers convention)."""
-    boards: dict = {}
-    for m in metrics:
-        rank_col = f"{m}_rank"
-        ranked = sorted(
-            [r for r in profile_rows if r.get(rank_col) is not None and r[rank_col] <= limit],
-            key=lambda r, rc=rank_col: r[rc],
-        )
-        boards[m] = [{k: r.get(k) for k in _LB_KEEP} for r in ranked]
+def shape_leaderboards(rows: list[dict], metrics=_LEADERBOARD_METRICS,
+                       limit: int = 10) -> dict:
+    """Per-board player leaderboards from mart_leaderboards (LONG): the warehouse already
+    ranked (DENSE_RANK, top-10 inclusive of ties) and tagged each row with metric_key + rank.
+    The export groups by metric_key and orders by rank — it does not rank. Ties share a rank,
+    so a board may exceed `limit` when ranks tie at the cut."""
+    boards: dict = {m: [] for m in metrics}
+    for r in rows:
+        m = r.get("metric_key")
+        if m in boards and r.get("rank") is not None and r["rank"] <= limit:
+            boards[m].append(r)
+    for m in boards:
+        boards[m] = [{k: r.get(k) for k in _LB_KEEP}
+                     for r in sorted(boards[m], key=lambda r: r["rank"])]
     return boards
 
 
@@ -592,7 +599,7 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
         for c in _registry_competitions(registry_path)
     }
     grouped = _group2(
-        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`"),
+        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards`"),
         "league_code", "season_api_year",
     )
     keys = sorted(grouped.keys())

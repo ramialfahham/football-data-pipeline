@@ -136,7 +136,7 @@ The MVP's competition-card landing is **obsolete** for a website. Module order
    biggest deserved-vs-actual gaps. *Status:* ✓ data in `mart_team_profile`; ⚠ needs
    the data-to-text narrative generator (build).
 4. **Stats:** top-scorer leaderboard teasers + mini standings. *Status:*
-   ✓ `mart_top_scorers`, `mart_standings`.
+   ✓ `mart_leaderboards`, `mart_standings`.
 
 Persistent: search, language switcher.
 

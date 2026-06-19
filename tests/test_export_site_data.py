@@ -22,18 +22,19 @@ from scripts.export_site_data import (
 )
 
 
-def test_shape_leaderboards_selects_by_warehouse_rank():
-    # selection only: ordered by the <metric>_rank columns; null rank (zero performers,
-    # unranked in dbt) is excluded. No Python ranking.
+def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
+    # mart_leaderboards is LONG: one row per (player, board) with metric_key + rank already
+    # set by the warehouse. The export groups by metric_key and orders by rank — no Python ranking.
     rows = [
-        {"player_sk": 1, "player_name": "A", "goals": 0, "goals_rank": None, "assists": 5, "assists_rank": 1},
-        {"player_sk": 2, "player_name": "B", "goals": 9, "goals_rank": 1, "assists": 1, "assists_rank": 2},
-        {"player_sk": 3, "player_name": "C", "goals": 4, "goals_rank": 2, "assists": 0, "assists_rank": None},
+        {"metric_key": "goals", "rank": 2, "player_sk": 3, "player_name": "C"},
+        {"metric_key": "goals", "rank": 1, "player_sk": 2, "player_name": "B"},
+        {"metric_key": "scorer_points", "rank": 1, "player_sk": 1, "player_name": "A"},
+        {"metric_key": "goals", "rank": 99, "player_sk": 4, "player_name": "D"},   # beyond the limit
     ]
-    boards = shape_leaderboards(rows, metrics=("goals", "assists"), limit=10)
-    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]    # by goals_rank; null excluded
-    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]  # by assists_rank; null excluded
-    assert len(boards["goals"]) == 2 and len(boards["assists"]) == 2    # null-rank rows dropped
+    boards = shape_leaderboards(rows, metrics=("goals", "scorer_points"), limit=10)
+    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]   # by rank; D dropped (> limit)
+    assert [p["player_name"] for p in boards["scorer_points"]] == ["A"]
+    assert len(boards["goals"]) == 2
 
 
 def test_display_group_of_type_reads_seed():
@@ -111,12 +112,12 @@ def test_shape_competition_payload_sorts_sections():
     p = shape_competition_payload(
         "BL1", 2025, {"name": "Bundesliga", "slug": "bundesliga"},
         standings=[{"group_name": "", "standing_rank": 2}, {"group_name": "", "standing_rank": 1}],
-        top_scorers=[{"scorer_rank": 2}, {"scorer_rank": 1}],
+        top_scorers=[{"rank": 2}, {"rank": 1}],
         fixtures=[{"kickoff_datetime": "2025-09-02"}, {"kickoff_datetime": "2025-09-01"}],
     )
     assert p["type"] == "competition" and p["slug"] == "bundesliga"
     assert [s["standing_rank"] for s in p["standings"]] == [1, 2]
-    assert [s["scorer_rank"] for s in p["top_scorers"]] == [1, 2]
+    assert [s["rank"] for s in p["top_scorers"]] == [1, 2]
     assert [f["kickoff_datetime"] for f in p["fixtures"]] == ["2025-09-01", "2025-09-02"]
 
 
