@@ -2,8 +2,9 @@
 
 {#
   Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
-  player-season rollup consumed by BOTH mart_player_profile and mart_player_season (#480
-  consolidation). Replaces the inline aggregation each mart previously duplicated.
+  player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
+  mart_player_season was retired with the leaderboards consolidation). Replaces the inline
+  aggregation the marts previously duplicated.
 
   Grain: (player_sk, season_sk) — one row per player per competition-season (season_sk encodes the
   competition). league_sk / league_code / season_api_year carried for downstream slicing. (The

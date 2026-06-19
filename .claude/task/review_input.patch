@@ -1,145 +1,850 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 01cfced..2b26f9f 100644
+index 2b26f9f..b6f574d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,73 +1,55 @@
--# Task contract — feat: mart_roster (identity-only club squad list)
-+# Task contract — feat: player-season composite metrics (leaderboards precursor, PR 2a)
+@@ -1,55 +1,83 @@
+-# Task contract — feat: player-season composite metrics (leaderboards precursor, PR 2a)
++# Task contract — feat: mart_leaderboards + full consolidation (PR 2b)
  
--> PR 1 of the split task A (CPO-directed 2026-06-19). Mart-only: add `mart_roster`, the
--> Squad-block data foundation. NO export wiring — the Squad-block consumer lives in the
--> PAUSED website blueprint (#391); wiring a payload nothing renders is speculative plumbing,
--> so it rides with the Squad-block build. The companion `mart_leaderboards` is a separate
--> later PR.
-+> PR 2a of the split leaderboards build (CPO-directed 2026-06-19). The metric precursor — like
-+> #499→#501: define the 3 count-composite metrics the upcoming `mart_leaderboards` (PR 2b) ranks
-+> by, in the canonical single source + the catalogue, FIRST. Purely additive — nothing consumes
-+> them yet, no shipped number changes.
+-> PR 2a of the split leaderboards build (CPO-directed 2026-06-19). The metric precursor — like
+-> #499→#501: define the 3 count-composite metrics the upcoming `mart_leaderboards` (PR 2b) ranks
+-> by, in the canonical single source + the catalogue, FIRST. Purely additive — nothing consumes
+-> them yet, no shipped number changes.
++> PR 2b of the split leaderboards build (CPO-directed 2026-06-19). Build the LONG leaderboards mart
++> ranking by the 9 count boards (the v1 set; rate boards deferred #506), and FULLY CONSOLIDATE the
++> leaderboard surface onto it: retire mart_top_scorers + orphaned mart_player_season, drop the 3 now-dead
++> rank columns from mart_player_profile, repoint BOTH export paths. Builds on PR 2a's composites
++> (#507, merged) — the mart ranks by scorer_points / defensive_actions / cards_total + the existing atoms.
  
  objective: >
--  Add mart_roster — an identity-only squad list, one row per rostered player per
--  (club team, competition-season), from dim_player_team_season_mapping joined to dim_player.
--  Scoped to CLUB competitions (entity_type = 'club', resolved league_code → competition_registry
--  → competition_types — never a dim_team flag). Identity columns only (name, listed position,
--  nationality, birth_date, photo + keys); NO per-club season stats (the deferred per-club grain,
--  #480 §8.3). Materialised as a view (flat identity projection, no aggregation).
-+  Add 3 player-season COUNT composite metrics — scorer_points (goals + assists), defensive_actions
-+  (tackles + interceptions + blocks), cards_total (cards_yellow + cards_red) — computed once in the
-+  canonical int_player_season__metrics (the metric-layer single source) and registered in
-+  metric_catalogue. These are the new sort keys for the 9-count-board mart_leaderboards (PR 2b).
-+  All three are sums of existing catalogued atoms already aggregated in the model.
+-  Add 3 player-season COUNT composite metrics — scorer_points (goals + assists), defensive_actions
+-  (tackles + interceptions + blocks), cards_total (cards_yellow + cards_red) — computed once in the
+-  canonical int_player_season__metrics (the metric-layer single source) and registered in
+-  metric_catalogue. These are the new sort keys for the 9-count-board mart_leaderboards (PR 2b).
+-  All three are sums of existing catalogued atoms already aggregated in the model.
++  Add mart_leaderboards — a LONG per-board player ranking (one row per player per board), season-to-date
++  via int_player_season__metrics, top 10 per (league_code, season_api_year, metric_key), DENSE_RANK (ties
++  share, top-10 inclusive of ties). 9 count boards: goals, scorer_points, shots_on_target,
++  dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total. Then consolidate:
++  delete mart_top_scorers + mart_player_season (orphaned once top_scorers retires); drop goals_rank /
++  assists_rank / shots_on_target_rank (+ their tests) from mart_player_profile; repoint
++  export_site_data.py's competition-hub top_scorers (now metric_key='goals' from mart_leaderboards) AND
++  fetch_leaderboard_payloads / shape_leaderboards (now grouped by metric_key from mart_leaderboards).
  
--refs: docs/content_architecture.md §3 (Squad/roster block) + §7 (new-mart list); .claude/active_work.md NEXT #2; task A (split, PR 1).
-+refs: leaderboards v1 design (this conversation); docs/metric_layer.md; deferred rate boards = #506; PR 2b = the mart + consolidation.
+-refs: leaderboards v1 design (this conversation); docs/metric_layer.md; deferred rate boards = #506; PR 2b = the mart + consolidation.
++refs: leaderboards v1 design (this conversation); PR 2a = #507 (the 3 composites); deferred rate boards = #506.
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/mart_roster.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/3_core/core.yml
--  - dbt_project/docs/layering.md
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_top_scorers.sql
++  - dbt_project/models/5_marts/shared/mart_player_season.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
+   - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/docs/layering.md
++  - docs/site_architecture.md
++  - docs/ui_design_brief.md
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
    - .claude/task/contract.md
    - .claude/task/review.md
  
  decisions_taken: >
--  CPO-directed this conversation (2026-06-19): split task A into two PRs; build mart_roster
--  FIRST, mart-only, export wiring deferred (blueprint #391 PAUSED — "PR1 scope approved").
--  Grain (team_sk, league_code, season_api_year, player_sk) = the mapping's membership grain
--  (the mapping surrogate player_team_season_sk is reused as the mart surrogate). Club-only via
--  the competition_types seed (entity_type = 'club'), mirroring mart_standings' registry→types
--  join — NOT a dim_team column (per the dim_team-is-a-pure-entity ruling). Identity columns:
--  name, listed position (player_position from dim_player bio), nationality, birth_date, photo.
--  Age is a render-time derivation, NOT a mart column (a stored current-age would be
--  non-deterministic / rebuild-dependent). LEFT join dim_player + a relationships test so a
--  membership with no player entity surfaces as a test failure, never a silent drop.
-+  CPO-directed (2026-06-19): leaderboards v1 = 9 COUNT boards; rate boards + finishing_efficiency +
-+  the floor DEFERRED (#506); composites computed in the int model "like the other metrics"; full
-+  consolidation is PR 2b. The 3 composites: scorer_points = goals + assists (group goals);
-+  defensive_actions = tackles_total + tackles_interceptions + tackles_blocks (group defending);
-+  cards_total = cards_yellow + cards_red (group discipline). format integer. Reuse the existing
-+  playerMetrics.* label keys (scorerPoints.label / defensiveActions.label / cards.label); i18n
-+  resolution in site/i18n is deferred until surfaced — the established convention (the #501 catalogue
-+  metrics also carry not-yet-resolved keys). No int yml column docs/tests added: the model documents
-+  only keys + ratio ranges, its many count atoms (goals, assists, tackles…) are undocumented there by
-+  pattern, and the catalogue is the metric glossary (metric_layer.md).
+-  CPO-directed (2026-06-19): leaderboards v1 = 9 COUNT boards; rate boards + finishing_efficiency +
+-  the floor DEFERRED (#506); composites computed in the int model "like the other metrics"; full
+-  consolidation is PR 2b. The 3 composites: scorer_points = goals + assists (group goals);
+-  defensive_actions = tackles_total + tackles_interceptions + tackles_blocks (group defending);
+-  cards_total = cards_yellow + cards_red (group discipline). format integer. Reuse the existing
+-  playerMetrics.* label keys (scorerPoints.label / defensiveActions.label / cards.label); i18n
+-  resolution in site/i18n is deferred until surfaced — the established convention (the #501 catalogue
+-  metrics also carry not-yet-resolved keys). No int yml column docs/tests added: the model documents
+-  only keys + ratio ranges, its many count atoms (goals, assists, tackles…) are undocumented there by
+-  pattern, and the catalogue is the metric glossary (metric_layer.md).
++  CPO-directed (2026-06-19): leaderboards v1 = 9 COUNT boards; FULL consolidation (single surface).
++  mart_leaderboards composes int_player_season__metrics directly (the full atom set incl. PR 2a's
++  composites), NOT mart_player_season (lacks duels/dribbles/tackles). LONG shape, metric_key = the
++  catalogue metric_id, rank = DENSE_RANK over the metric desc within (league_code, season_api_year),
++  ties share, where rank <= 10; only positive-value rows ranked (a leaderboard shows players with a
++  positive count). Materialised as a view (thin ranking over the int table, like the retired
++  mart_top_scorers). Identity from dim_player (name, nationality, photo, listed position). The mart
++  carries the union of the 9 boards' display atoms so the export selects per board (marts contain what
++  we show). Retiring mart_player_season is in scope (orphaned). The int model docstrings are updated to
++  drop the now-dead mart_player_season reference (clean retirement). mart_player_profile loses 3 rank
++  columns (a shipped-mart shape change) — the export no longer reads them after the repoint.
  
  decisions_reserved:
--  - Export / payload wiring is OUT of scope (deferred to the Squad-block build under #391).
--    If tempted to add it, STOP — that is the deferred decision, not this PR.
--  - NO per-club season stats / appearances (the deferred #480 §8.3 per-club grain).
--  - If the registry → types join cannot cleanly yield entity_type for a league_code present in
--    the mapping, STOP and escalate — do not hardcode a club/national split or a league_code list.
--  - mart_leaderboards (the companion mart, retirements, catalogue rows, export repoint) is a
--    SEPARATE later PR — nothing from it belongs here.
-+  - mart_leaderboards + full consolidation (retire mart_top_scorers / mart_player_season, drop
-+    mart_player_profile's 3 rank columns, repoint both export paths) is PR 2b — NOTHING from it here.
-+  - finishing_efficiency + the 5 rate boards + the qualification floor are deferred (#506) — not here.
-+  - cards_total lower_is_better is set to false to match the existing cards_yellow / cards_red rows;
-+    if football-analytics wants true (cards are a negative), that is their call — record it.
-+  - If football-analytics disputes any composite's definition / numerator / group / label, record it.
+-  - mart_leaderboards + full consolidation (retire mart_top_scorers / mart_player_season, drop
+-    mart_player_profile's 3 rank columns, repoint both export paths) is PR 2b — NOTHING from it here.
+-  - finishing_efficiency + the 5 rate boards + the qualification floor are deferred (#506) — not here.
+-  - cards_total lower_is_better is set to false to match the existing cards_yellow / cards_red rows;
+-    if football-analytics wants true (cards are a negative), that is their call — record it.
+-  - If football-analytics disputes any composite's definition / numerator / group / label, record it.
++  - The 5 rate boards + finishing_efficiency + the qualification floor are deferred (#506) — not here.
++  - i18n: the catalogue label keys are not added to site/i18n here (deferred until UI-surfaced; the
++    established convention) — no site/i18n / wireframe change, so no bi-analyst routing.
++  - Leaderboard position badge: use dim_player.player_position (bio), not the season modal position_code
++    (avoids replicating mart_player_profile's modal CTE). If a reviewer judges the modal is required for
++    parity, that is a build-detail call — record it.
++  - If retiring mart_player_season breaks any consumer not found by grep, STOP — do not force the delete.
  
  done_when:
--  - mart_roster.sql compiles; `dbt parse` is clean; sqlfluff lint passes on the new model.
--  - Grain unique on (team_sk, league_code, season_api_year, player_sk); player_team_season_sk
--    unique + not_null; relationships player_sk → dim_player and team_sk → dim_team; not_null on
--    team_sk / player_sk / league_code / season_api_year; entity_type accepted_values ['club'].
--  - Only club rows are present (national-team memberships excluded by the entity_type filter).
--  - dbt_project/docs/layering.md mart inventory lists mart_roster (view) with its grain.
--  - dim_player_team_season_mapping.league_code carries a relationships test to
--    competition_registry.league_code, so an unregistered roster competition fails the build
--    rather than being silently dropped by mart_roster's club filter.
--  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each);
--    no FAIL; no ESCALATE.
+-  - int_player_season__metrics computes scorer_points, defensive_actions, cards_total in the final
+-    select; `dbt parse` clean; sqlfluff lint passes on the model.
+-  - metric_catalogue.csv has the 3 rows (entity=player, format integer, groups goals/defending/discipline),
+-    each an 11-field row matching the seed schema.
+-  - The drift guard assert_no_uncatalogued_season_metric still passes (the 3 new int columns are now
+-    catalogued) — verified in ci-data-build (it queries the warehouse; not runnable offline).
+-  - mart_player_profile / mart_player_season are UNCHANGED (they select named columns, not *), so no
+-    shipped number moves.
+-  - reviewers: scope-auditor + analytics-engineer + football-analytics-expert-reviewer PASS
+-    (>=2 named risks each); no FAIL; no ESCALATE.
 -
--amendments:
--  - 2026-06-19: + dbt_project/models/3_core/core.yml — authority: analytics-engineer-reviewer
--    FAIL on the first review round (the mart's club filter `where entity_type = 'club'` runs
--    after LEFT joins, so a league_code present in the mapping but absent from the registry
--    silently drops those memberships; the post-filter not_null/accepted_values tests on
--    entity_type are vacuous) + DQ-non-negotiable standing rule + the fix-don't-escalate rule for
--    non-§10 findings. Content: a relationships test on
--    dim_player_team_season_mapping.league_code -> competition_registry.league_code (the reviewer's
--    own suggested guard). Verified clean against live data first (0 unregistered league_codes;
--    231,860 club / 21,657 national / 0 null entity_type), so the guard passes CI today and only
--    fires on a future regression. Also dropped player_first_name / player_last_name from the mart
--    SELECT (the locked spec lists only "name"; they were undocumented in shared.yml — round-1
--    finding 2). No new reviewer routed (core.yml is dbt_project/** -> analytics-engineer).
-+  - int_player_season__metrics computes scorer_points, defensive_actions, cards_total in the final
-+    select; `dbt parse` clean; sqlfluff lint passes on the model.
-+  - metric_catalogue.csv has the 3 rows (entity=player, format integer, groups goals/defending/discipline),
-+    each an 11-field row matching the seed schema.
-+  - The drift guard assert_no_uncatalogued_season_metric still passes (the 3 new int columns are now
-+    catalogued) — verified in ci-data-build (it queries the warehouse; not runnable offline).
-+  - mart_player_profile / mart_player_season are UNCHANGED (they select named columns, not *), so no
-+    shipped number moves.
-+  - reviewers: scope-auditor + analytics-engineer + football-analytics-expert-reviewer PASS
-+    (>=2 named risks each); no FAIL; no ESCALATE.
+-amendments: (none)
++  - mart_leaderboards compiles; `dbt parse` clean; sqlfluff lint passes. Grain unique on
++    (player_sk, season_sk, metric_key); metric_key accepted_values = the 9 board ids; rank >= 1 and <= 10;
++    player_sk -> dim_player relationship; not_null on keys + league_code.
++  - mart_top_scorers.sql + mart_player_season.sql deleted; their shared.yml + layering.md entries removed;
++    no remaining dbt ref()/code usage of either model; the "upstream mart" references in
++    docs/site_architecture.md + docs/ui_design_brief.md + the layering.md ranking illustration are
++    updated to mart_leaderboards (clean retirement). The new mart docstrings' "retired mart_top_scorers"
++    mentions are intentional; broader historical doc mentions are #505 doc-audit territory.
++  - mart_player_profile no longer has goals_rank / assists_rank / shots_on_target_rank (+ their 3 tests).
++  - export_site_data.py: both the competition-hub top_scorers and fetch_leaderboard_payloads read
++    mart_leaderboards; no reference to mart_top_scorers or mart_player_profile rank columns remains.
++  - tests/test_export_site_data.py updated to the new LONG/metric_key shapes; `pytest tests/test_export_site_data.py` passes.
++  - `dbt parse` resolves with no dangling ref to the deleted models; the validate-local offline gates pass.
++  - reviewers: scope-auditor + analytics-engineer-reviewer + cto-reviewer PASS (>=2 risks each); no FAIL; no ESCALATE.
 +
-+amendments: (none)
++amendments:
++  - 2026-06-19: + docs/site_architecture.md + docs/ui_design_brief.md — authority:
++    analytics-engineer-reviewer FAIL (round 1): the deleted mart_top_scorers was still named as the live
++    upstream mart in these product docs. Clean retirement updates references to the retired model.
++    Content: change the mart_top_scorers source references to mart_leaderboards (one token each). The same
++    round-1 FAIL also surfaced that the 3 composite columns (scorer_points / defensive_actions /
++    cards_total) were computed in the mart's base CTE but dropped from its final SELECT — added them to
++    the SELECT + shared.yml + the export _LB_KEEP (all in the original scope). Plain docs/** routes only
++    to scope-auditor — no new reviewer.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 922385a..6aefb22 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -260,8 +260,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | Mart | Grain | Materialization | Notes |
+ |------|-------|-----------------|-------|
+ | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
+-| `mart_player_season` | (player_sk, season_sk) | table | Per-player-per-season rollup over finished matches; per-fixture team attribution stays in `fct_fixture_player_stats`. |
+-| `mart_top_scorers` | (player_sk, season_sk) | view | Top-25 ranking derived from `mart_player_season`; replaces the dropped `/players/topscorers` ingestion. |
++| `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards (9 count boards); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share. |
+ | `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+ | `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
+ | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | Current league standings per team-season. |
+@@ -300,7 +299,7 @@ Allowed in the frontend:
+ drift bug):
+ - Metric math, window selection, result/perspective computation.
+ - Ranking or ordering that encodes a business rule (leaderboard ranks live in marts —
+-  `mart_top_scorers.scorer_rank` is the pattern).
++  `mart_leaderboards.rank` is the pattern).
+ - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
+   published URL identity — they must come from the warehouse so every frontend links
+   identically).
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index 49b853e..b7d601c 100644
+index b7d601c..e5bb2ba 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-@@ -148,6 +148,10 @@ select
-     penalty_committed,
-     goals_saves,
-     goals_conceded,
-+    -- count composites (leaderboard sort keys; sums of the atoms above) — metric_catalogue rows
-+    goals + assists as scorer_points,
-+    tackles_total + tackles_interceptions + tackles_blocks as defensive_actions,
-+    cards_yellow + cards_red as cards_total,
-     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
-     safe_divide(duels_won, duels_total) as duels_won_pct,
-     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index eaf0107..5b88236 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -51,3 +51,6 @@ shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in
- goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,
- shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,
- points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,
-+scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,goals + assists,,false,integer,goals,,
-+defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,tackles + interceptions + blocks,,false,integer,defending,,
-+cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",cards_yellow + cards_red,,false,integer,discipline,,
+@@ -2,8 +2,9 @@
+ 
+ {#
+   Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
+-  player-season rollup consumed by BOTH mart_player_profile and mart_player_season (#480
+-  consolidation). Replaces the inline aggregation each mart previously duplicated.
++  player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
++  mart_player_season was retired with the leaderboards consolidation). Replaces the inline
++  aggregation the marts previously duplicated.
+ 
+   Grain: (player_sk, season_sk) — one row per player per competition-season (season_sk encodes the
+   competition). league_sk / league_code / season_api_year carried for downstream slicing. (The
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 9596306..eea300e 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -67,8 +67,8 @@ models:
+   - name: int_player_season__metrics
+     description: >
+       Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
+-      player-season rollup consumed by BOTH mart_player_profile and mart_player_season (#480
+-      consolidation; replaces the inline aggregation each mart duplicated). Atoms follow
++      player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
++      mart_player_season was retired with the leaderboards consolidation). Atoms follow
+       docs/player_metrics_catalogue.md: passes_accurate = per-fixture ROUND(passes_total *
+       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
+       nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+new file mode 100644
+index 0000000..7b035cf
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -0,0 +1,132 @@
++{{ config(materialized='view') }}
++
++{#
++  mart_leaderboards — LONG per-board player rankings (the Leaderboards block; content_architecture §3).
++  Generalises the retired mart_top_scorers beyond goals. One row per (player, board): the player's rank on
++  that board within its competition-season. Season-to-date, composed from the canonical
++  int_player_season__metrics (the single source) + dim_player identity — NOT mart-from-mart.
++
++  9 COUNT boards (v1); metric_key = the catalogue metric_id. rank = DENSE_RANK over the board's metric
++  desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and the top-10 cut
++  is inclusive of ties (the mart_top_scorers convention). Only players with a positive value on a board
++  are ranked (a leaderboard shows positive performers). The 5 RATE boards + their qualification floor are
++  the deferred follow-up (#506).
++
++  Each row carries the union of the boards' display atoms so the export selects per board (marts contain
++  what we show); sort_value is the board's own ranked value. Grain: (player_sk, season_sk, metric_key).
++#}
++
++{% set boards = [
++    'goals',
++    'scorer_points',
++    'shots_on_target',
++    'dribbles_success',
++    'passes_total',
++    'passes_key',
++    'duels_won',
++    'defensive_actions',
++    'cards_total',
++] %}
++
++with season as (
++    select * from {{ ref('int_player_season__metrics') }}
++),
++
++players as (
++    select
++        player_sk,
++        player_name,
++        player_nationality,
++        player_position,
++        player_photo_url
++    from {{ ref('dim_player') }}
++),
++
++base as (
++    select
++        s.player_sk,
++        s.season_sk,
++        s.league_sk,
++        s.league_code,
++        s.season_api_year,
++        s.appearances,
++        s.minutes,
++        s.goals,
++        s.assists,
++        s.shots_on_target,
++        s.dribbles_attempts,
++        s.dribbles_success,
++        s.passes_total,
++        s.passes_key,
++        s.duels_total,
++        s.duels_won,
++        s.tackles_total,
++        s.tackles_interceptions,
++        s.tackles_blocks,
++        s.cards_yellow,
++        s.cards_red,
++        s.scorer_points,
++        s.defensive_actions,
++        s.cards_total,
++        p.player_name,
++        p.player_nationality,
++        p.player_position,
++        p.player_photo_url
++    from season as s
++    left join players as p on s.player_sk = p.player_sk
++),
++
++ranked as (
++    {% for metric_key in boards %}
++    select
++        base.*,
++        '{{ metric_key }}' as metric_key,
++        {{ metric_key }} as sort_value,
++        dense_rank() over (
++            partition by league_code, season_api_year
++            order by {{ metric_key }} desc
++        ) as board_rank
++    from base
++    where {{ metric_key }} > 0
++    {% if not loop.last %}
++    union all
++    {% endif %}
++    {% endfor %}
++)
++
++select
++    {{ dbt_utils.generate_surrogate_key(['player_sk', 'season_sk', 'metric_key']) }}
++        as player_leaderboard_sk,
++    metric_key,
++    board_rank as rank,
++    sort_value,
++    league_code,
++    season_api_year,
++    season_sk,
++    league_sk,
++    player_sk,
++    player_name,
++    player_nationality,
++    player_position,
++    player_photo_url,
++    appearances,
++    minutes,
++    goals,
++    assists,
++    shots_on_target,
++    dribbles_attempts,
++    dribbles_success,
++    passes_total,
++    passes_key,
++    duels_total,
++    duels_won,
++    tackles_total,
++    tackles_interceptions,
++    tackles_blocks,
++    cards_yellow,
++    cards_red,
++    scorer_points,
++    defensive_actions,
++    cards_total
++from ranked
++where board_rank <= 10
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 378f868..7d25340 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -6,9 +6,10 @@
+ 
+   #480 consolidation: the per-season aggregation now COMPOSES the shared
+   int_player_season__metrics (the single player-season rollup) instead of re-aggregating
+-  fct_fixture_player_stats inline. Identity (dim_player), the modal season position, the leaderboard
+-  ranks, and the GK full-triple (saves / shots_on_target_faced) are assembled here. Numbers are
+-  unchanged — the shared int reproduces the catalogue (ROUND-weighted) computations this mart used.
++  fct_fixture_player_stats inline. Identity (dim_player), the modal season position, and the GK
++  full-triple (saves / shots_on_target_faced) are assembled here. Numbers are unchanged — the shared
++  int reproduces the catalogue (ROUND-weighted) computations this mart used. Per-board leaderboard
++  ranks moved to mart_leaderboards (the LONG single-surface; the 3 rank columns here were retired).
+ 
+   Metric governance (catalogue-only v1): every metric is a metric_catalogue row computed by its
+   catalogue formula — counts + the four catalogued player ratios. NO invented metrics (no per-90, no
+@@ -109,22 +110,7 @@ select
+     a.pass_accuracy_pct,
+     a.duels_won_pct,
+     a.dribbles_success_pct,
+-    a.save_pct,
+-    -- per-(league, season) leaderboard ranks (GAP-19.1): zero performers unranked
+-    -- (null), DENSE_RANK so ties share a rank — the mart_top_scorers.scorer_rank
+-    -- pattern. Selected by the export's player leaderboards (no Python ranking).
+-    case when a.goals > 0 then dense_rank() over (
+-        partition by a.league_code, a.season_api_year
+-        order by a.goals desc, a.assists desc, a.minutes asc
+-    ) end as goals_rank,
+-    case when a.assists > 0 then dense_rank() over (
+-        partition by a.league_code, a.season_api_year
+-        order by a.assists desc, a.goals desc, a.minutes asc
+-    ) end as assists_rank,
+-    case when a.shots_on_target > 0 then dense_rank() over (
+-        partition by a.league_code, a.season_api_year
+-        order by a.shots_on_target desc, a.goals desc, a.minutes asc
+-    ) end as shots_on_target_rank
++    a.save_pct
+ from season as a
+ left join players as p
+     on a.player_sk = p.player_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_player_season.sql b/dbt_project/models/5_marts/shared/mart_player_season.sql
+deleted file mode 100644
+index 496997d..0000000
+--- a/dbt_project/models/5_marts/shared/mart_player_season.sql
++++ /dev/null
+@@ -1,49 +0,0 @@
+-{{ config(materialized='table') }}
+-
+-{#
+-    Per-player, per-season rollup (the lighter season surface; feeds mart_top_scorers).
+-
+-    #480 consolidation: now COMPOSES the shared int_player_season__metrics instead of
+-    re-aggregating fct_fixture_player_stats inline. Pass accuracy is now the catalogue-correct
+-    WEIGHTED value (`pass_accuracy_pct` = accurate ÷ attempted) — the previous
+-    `pass_accuracy_avg_percent` was a naive average of per-fixture percentages (wrong for low-volume
+-    games) and was unconsumed; corrected here as part of the consolidation.
+-
+-    A player who moves clubs mid-season produces one row per competition-season (today's grain; the
+-    per-club split is the deferred §8.3 follow-up). Grain: (player_sk, season_sk).
+-#}
+-
+-with season as (
+-    select * from {{ ref('int_player_season__metrics') }}
+-),
+-
+-dim_player as (
+-    select * from {{ ref('dim_player') }}
+-)
+-
+-select
+-    {{ dbt_utils.generate_surrogate_key(['s.player_sk', 's.season_sk']) }} as player_season_sk,
+-    s.player_sk,
+-    s.season_sk,
+-    s.league_sk,
+-    s.league_code,
+-    s.season_api_year,
+-    p.player_name,
+-    p.player_first_name,
+-    p.player_last_name,
+-    p.player_nationality,
+-    p.player_birth_date,
+-    s.appearances,
+-    s.starts,
+-    s.substitute_appearances,
+-    s.minutes,
+-    s.goals,
+-    s.assists,
+-    s.shots_total as shots,
+-    s.shots_on_target,
+-    s.passes_key as key_passes,
+-    s.pass_accuracy_pct,
+-    s.cards_yellow as yellow_cards,
+-    s.cards_red as red_cards
+-from season as s
+-left join dim_player as p on s.player_sk = p.player_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_top_scorers.sql b/dbt_project/models/5_marts/shared/mart_top_scorers.sql
+deleted file mode 100644
+index d4fcba3..0000000
+--- a/dbt_project/models/5_marts/shared/mart_top_scorers.sql
++++ /dev/null
+@@ -1,46 +0,0 @@
+-{{ config(materialized='view') }}
+-
+-{#
+-    Top scorers per (league_code, season_api_year), derived from
+-    mart_player_season. Replaces the /players/topscorers endpoint we no longer
+-    ingest. Ranking uses DENSE_RANK so ties share a rank and no ranks are
+-    skipped; the top-N filter is inclusive of ties.
+-#}
+-
+-with mart_player_season as (
+-    select * from {{ ref('mart_player_season') }}
+-),
+-
+-scored as (
+-    select
+-        player_season_sk,
+-        player_sk,
+-        season_sk,
+-        league_sk,
+-        league_code,
+-        season_api_year,
+-        player_name,
+-        player_nationality,
+-        appearances,
+-        starts,
+-        minutes,
+-        goals,
+-        assists,
+-        shots_on_target
+-    from mart_player_season
+-    where goals > 0
+-),
+-
+-ranked as (
+-    select
+-        *,
+-        dense_rank() over (
+-            partition by league_code, season_api_year
+-            order by goals desc, assists desc, minutes asc
+-        ) as scorer_rank
+-    from scored
+-)
+-
+-select *
+-from ranked
+-where scorer_rank <= 25
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index eb00273..2f36d87 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -570,77 +570,6 @@ models:
+       - name: standings_group_description
+         description: "API standings row description (e.g. group or stage label) from the same fct_standings row as latest_rank. Null when standings are absent. The provider may reuse the same label across different physical groups."
+ 
+-  - name: mart_player_season
+-    description: "Per-player, per-season rollup (feeds mart_top_scorers). Grain: (player_sk, season_sk). Composes the shared int_player_season__metrics (#480) — no inline aggregation. pass_accuracy_pct is the catalogue-correct weighted value (replaced the former unweighted, unconsumed pass_accuracy_avg_percent). A player who transfers mid-season produces one row per competition-season (today's grain)."
+-    meta:
+-      owner: "data-platform"
+-      domain: "football"
+-      criticality: "medium"
+-    config:
+-      tags: ["marts", "football"]
+-    tests:
+-      - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns:
+-            - player_sk
+-            - season_sk
+-      - dbt_utils.expression_is_true:
+-          expression: "starts + substitute_appearances <= appearances"
+-      - dbt_utils.expression_is_true:
+-          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+-          name: player_season_pass_accuracy_pct_in_range
+-    columns:
+-      - name: player_season_sk
+-        description: "Surrogate key from (player_sk, season_sk)."
+-        tests: [not_null, unique]
+-      - name: player_sk
+-        description: "FK to dim_player."
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_player')
+-              field: player_sk
+-      - name: season_sk
+-        description: "FK to dim_competition_season."
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_competition_season')
+-              field: season_sk
+-      - name: league_sk
+-        description: "FK to dim_league."
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_league')
+-              field: league_sk
+-      - name: league_code
+-        tests: [not_null]
+-      - name: season_api_year
+-        tests: [not_null]
+-      - name: player_name
+-      - name: player_first_name
+-      - name: player_last_name
+-      - name: player_nationality
+-      - name: player_birth_date
+-      - name: appearances
+-        description: "Fixtures the player appears on the team sheet for (any minutes, or 0-minute substitutes)."
+-        tests: [not_null]
+-      - name: starts
+-        description: "Fixtures where the player started (derived is_starter in core)."
+-      - name: substitute_appearances
+-        description: "Fixtures where the player was flagged as a substitute in the source payload."
+-      - name: minutes
+-        description: "Sum of minutes played."
+-      - name: goals
+-      - name: assists
+-      - name: shots
+-      - name: shots_on_target
+-      - name: key_passes
+-      - name: pass_accuracy_pct
+-        description: "Weighted pass accuracy (accurate ÷ attempted, catalogue-correct); 0-1. Replaced the unweighted pass_accuracy_avg_percent (#480)."
+-      - name: yellow_cards
+-      - name: red_cards
+-
+   - name: mart_player_profile
+     description: >
+       Player profile (#325). One row per (player, competition-season): the player's
+@@ -674,16 +603,6 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "saves <= shots_on_target_faced"
+           name: player_profile_saves_lte_faced
+-      # leaderboard ranks (GAP-19.1): positive when present; zero performers unranked (null)
+-      - dbt_utils.expression_is_true:
+-          expression: "goals_rank is null or goals_rank >= 1"
+-          name: player_profile_goals_rank_positive
+-      - dbt_utils.expression_is_true:
+-          expression: "assists_rank is null or assists_rank >= 1"
+-          name: player_profile_assists_rank_positive
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_on_target_rank is null or shots_on_target_rank >= 1"
+-          name: player_profile_shots_on_target_rank_positive
+     columns:
+       - name: player_season_sk
+         tests: [unique, not_null]
+@@ -838,31 +757,47 @@ models:
+           - accepted_values:
+               values: ["W", "D", "L"]
+ 
+-  - name: mart_top_scorers
+-    description: "Top scorers per (league_code, season_api_year) derived from mart_player_season. View (cheap to rebuild). Replaces the /players/topscorers endpoint. DENSE_RANK ties share a rank and no ranks are skipped; filter is scorer_rank <= 25 (inclusive of ties at rank 25)."
++  - name: mart_leaderboards
++    description: >
++      Per-board player leaderboards (the Leaderboards block; content_architecture §3). LONG — one row
++      per (player, board): the player's rank on that board within its competition-season. Generalises
++      the retired mart_top_scorers to 9 COUNT boards (goals, scorer_points, shots_on_target,
++      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total).
++      Season-to-date, composed from int_player_season__metrics + dim_player. rank = DENSE_RANK over the
++      board's metric desc within (league_code, season_api_year): ties share a rank, top-10 inclusive of
++      ties; only positive-value players are ranked. The 5 rate boards + their qualification floor are
++      deferred (#506). View. Grain: (player_sk, season_sk, metric_key).
+     meta:
+       owner: "data-platform"
+       domain: "football"
+       criticality: "medium"
+     config:
+-      tags: ["marts", "football"]
++      tags: ["marts", "football", "leaderboards"]
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns:
+-            - player_sk
+-            - season_sk
++          combination_of_columns: [player_sk, season_sk, metric_key]
+       - dbt_utils.expression_is_true:
+-          expression: "scorer_rank <= 25"
++          expression: "rank between 1 and 10"
++          name: mart_leaderboards_rank_in_range
+       - dbt_utils.expression_is_true:
+-          expression: "goals > 0"
++          expression: "sort_value > 0"
++          name: mart_leaderboards_sort_value_positive
+     columns:
+-      - name: player_season_sk
+-        description: "FK to mart_player_season."
++      - name: player_leaderboard_sk
++        description: "Surrogate from (player_sk, season_sk, metric_key)."
++        tests: [not_null, unique]
++      - name: metric_key
++        description: "The board — a metric_catalogue metric_id (the 9 count boards)."
+         tests:
+           - not_null
+-          - relationships:
+-              to: ref('mart_player_season')
+-              field: player_season_sk
++          - accepted_values:
++              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total"]
++      - name: rank
++        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
++        tests: [not_null]
++      - name: sort_value
++        description: "The board's own value the rank is computed from (always > 0)."
++        tests: [not_null]
+       - name: player_sk
+         tests:
+           - not_null
+@@ -882,21 +817,42 @@ models:
+               to: ref('dim_league')
+               field: league_sk
+       - name: league_code
++        description: "Partition key — app slices by this to retrieve a competition's boards."
+         tests: [not_null]
+       - name: season_api_year
+         tests: [not_null]
+       - name: player_name
++        description: "Denormalised from dim_player."
+       - name: player_nationality
++        description: "Denormalised from dim_player."
++      - name: player_position
++        description: "Listed/bio position from dim_player."
++      - name: player_photo_url
++        description: "Player photo URL from dim_player; nullable."
++      # Denormalised season-to-date display atoms (from int_player_season__metrics): the per-board
++      # breakdown values the UI shows alongside sort_value (the board's own ranked metric).
+       - name: appearances
+-      - name: starts
+       - name: minutes
+       - name: goals
+-        tests: [not_null]
+       - name: assists
+       - name: shots_on_target
+-      - name: scorer_rank
+-        description: "DENSE_RANK over goals desc (ties share a rank). 1 is top."
+-        tests: [not_null]
++      - name: dribbles_attempts
++      - name: dribbles_success
++      - name: passes_total
++      - name: passes_key
++      - name: duels_total
++      - name: duels_won
++      - name: tackles_total
++      - name: tackles_interceptions
++      - name: tackles_blocks
++      - name: cards_yellow
++      - name: cards_red
++      - name: scorer_points
++        description: "goals + assists (the 'scorer_points' board's value)."
++      - name: defensive_actions
++        description: "tackles + interceptions + blocks (the 'defensive_actions' board's value)."
++      - name: cards_total
++        description: "cards_yellow + cards_red (the 'cards_total' board's value)."
+ 
+   - name: mart_team_market_value
+     description: >
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 9d75a78..980d291 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -117,12 +117,12 @@ Adding a competition/team/player adds pages with **zero template changes**.
+ |---|---|---|
+ | Landing | `landing.json` | landing feed (#365; next rounds, kickoff, trending from `mart_team_profile`) |
+ | Competitions index / country hub | `nav.json` (registry-derived) | registry seed + grouping fields |
+-| Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_top_scorers` |
++| Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_momentum__team` (W1), `mart_season_record__team` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_momentum__player`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
+ | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log` |
+ | Standings | within competition JSON | `mart_standings` (league + group tables, incl. WC group letters) |
+-| Leaderboards | `leaderboards/{league_code}/{metric_id}.json` | `mart_top_scorers`, player catalogue metrics |
++| Leaderboards | `leaderboards/{league_code}/{metric_id}.json` | `mart_leaderboards`, player catalogue metrics |
+ | Head-to-head | `h2h/{pair_key}.json` | `mart_head_to_head` (**#375 — the one missing mart**) |
+ | Metric glossary | `metrics.json` | `metric_catalogue` seed (descriptions, formulas, labels) |
+ 
+diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
+index 67fcb7c..b51ba2e 100644
+--- a/docs/ui_design_brief.md
++++ b/docs/ui_design_brief.md
+@@ -136,7 +136,7 @@ The MVP's competition-card landing is **obsolete** for a website. Module order
+    biggest deserved-vs-actual gaps. *Status:* ✓ data in `mart_team_profile`; ⚠ needs
+    the data-to-text narrative generator (build).
+ 4. **Stats:** top-scorer leaderboard teasers + mini standings. *Status:*
+-   ✓ `mart_top_scorers`, `mart_standings`.
++   ✓ `mart_leaderboards`, `mart_standings`.
+ 
+ Persistent: search, language switcher.
+ 
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 2693fc5..d3a8104 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -41,12 +41,19 @@ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
+ 
+-# Player leaderboards: unambiguous catalogue count metrics, each ranked desc.
+-# (More boards are a one-line addition; per-metric ranking choices beyond these
+-# are a design call.)
+-_LEADERBOARD_METRICS = ("goals", "assists", "shots_on_target")
+-_LB_KEEP = ("player_sk", "player_name", "player_photo_url", "position_code",
+-            "appearances", "minutes", "goals", "assists", "shots_on_target")
++# Player leaderboards: the 9 COUNT boards from mart_leaderboards (LONG, one row per
++# board, pre-ranked by the warehouse). metric_key drives the board; the 5 rate boards
++# are deferred (#506). The order here is the display order.
++_LEADERBOARD_METRICS = ("goals", "scorer_points", "shots_on_target", "dribbles_success",
++                        "passes_total", "passes_key", "duels_won", "defensive_actions",
++                        "cards_total")
++_LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
++            "appearances", "minutes", "rank", "sort_value",
++            "goals", "assists", "shots_on_target", "dribbles_success", "dribbles_attempts",
++            "passes_total", "passes_key", "duels_won", "duels_total",
++            "tackles_total", "tackles_interceptions", "tackles_blocks",
++            "cards_yellow", "cards_red",
++            "scorer_points", "defensive_actions", "cards_total")
+ 
+ # Join/identity keys dropped from each per-side block in the fixture payload
+ # (they live at the fixture top level or are join plumbing, not display data).
+@@ -247,7 +254,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
+         "standings": sorted(
+             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
+         ),
+-        "top_scorers": sorted(top_scorers, key=lambda r: r.get("scorer_rank") or 999),
++        "top_scorers": sorted(top_scorers, key=lambda r: r.get("rank") or 999),
+         "fixtures": sorted(fixtures, key=lambda r: r.get("kickoff_datetime") or datetime.min),
+     }
+ 
+@@ -527,7 +534,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+         "league_code", "season_api_year",
+     )
+     scorers = _group2(
+-        _query(client, f"select * from `{marts}.mart_top_scorers`"),
++        _query(client, f"select * from `{marts}.mart_leaderboards` where metric_key = 'goals'"),
+         "league_code", "season_api_year",
+     )
+     teams = {
+@@ -569,20 +576,20 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     return payloads
+ 
+ 
+-def shape_leaderboards(profile_rows: list[dict], metrics=_LEADERBOARD_METRICS,
+-                       limit: int = 25) -> dict:
+-    """Per-metric player leaderboards: SELECTED by the warehouse <metric>_rank columns
+-    (mart_player_profile; DENSE_RANK, zero performers unranked = null). The export
+-    selects and orders by the rank — it does not rank. Ties share a rank, so a board
+-    may exceed `limit` when ranks tie at the cut (the mart_top_scorers convention)."""
+-    boards: dict = {}
+-    for m in metrics:
+-        rank_col = f"{m}_rank"
+-        ranked = sorted(
+-            [r for r in profile_rows if r.get(rank_col) is not None and r[rank_col] <= limit],
+-            key=lambda r, rc=rank_col: r[rc],
+-        )
+-        boards[m] = [{k: r.get(k) for k in _LB_KEEP} for r in ranked]
++def shape_leaderboards(rows: list[dict], metrics=_LEADERBOARD_METRICS,
++                       limit: int = 10) -> dict:
++    """Per-board player leaderboards from mart_leaderboards (LONG): the warehouse already
++    ranked (DENSE_RANK, top-10 inclusive of ties) and tagged each row with metric_key + rank.
++    The export groups by metric_key and orders by rank — it does not rank. Ties share a rank,
++    so a board may exceed `limit` when ranks tie at the cut."""
++    boards: dict = {m: [] for m in metrics}
++    for r in rows:
++        m = r.get("metric_key")
++        if m in boards and r.get("rank") is not None and r["rank"] <= limit:
++            boards[m].append(r)
++    for m in boards:
++        boards[m] = [{k: r.get(k) for k in _LB_KEEP}
++                     for r in sorted(boards[m], key=lambda r: r["rank"])]
+     return boards
+ 
+ 
+@@ -592,7 +599,7 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
+         for c in _registry_competitions(registry_path)
+     }
+     grouped = _group2(
+-        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`"),
++        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards`"),
+         "league_code", "season_api_year",
+     )
+     keys = sorted(grouped.keys())
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index d4746f2..f5b2020 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -22,18 +22,19 @@ from scripts.export_site_data import (
+ )
+ 
+ 
+-def test_shape_leaderboards_selects_by_warehouse_rank():
+-    # selection only: ordered by the <metric>_rank columns; null rank (zero performers,
+-    # unranked in dbt) is excluded. No Python ranking.
++def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
++    # mart_leaderboards is LONG: one row per (player, board) with metric_key + rank already
++    # set by the warehouse. The export groups by metric_key and orders by rank — no Python ranking.
+     rows = [
+-        {"player_sk": 1, "player_name": "A", "goals": 0, "goals_rank": None, "assists": 5, "assists_rank": 1},
+-        {"player_sk": 2, "player_name": "B", "goals": 9, "goals_rank": 1, "assists": 1, "assists_rank": 2},
+-        {"player_sk": 3, "player_name": "C", "goals": 4, "goals_rank": 2, "assists": 0, "assists_rank": None},
++        {"metric_key": "goals", "rank": 2, "player_sk": 3, "player_name": "C"},
++        {"metric_key": "goals", "rank": 1, "player_sk": 2, "player_name": "B"},
++        {"metric_key": "scorer_points", "rank": 1, "player_sk": 1, "player_name": "A"},
++        {"metric_key": "goals", "rank": 99, "player_sk": 4, "player_name": "D"},   # beyond the limit
+     ]
+-    boards = shape_leaderboards(rows, metrics=("goals", "assists"), limit=10)
+-    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]    # by goals_rank; null excluded
+-    assert [p["player_name"] for p in boards["assists"]] == ["A", "B"]  # by assists_rank; null excluded
+-    assert len(boards["goals"]) == 2 and len(boards["assists"]) == 2    # null-rank rows dropped
++    boards = shape_leaderboards(rows, metrics=("goals", "scorer_points"), limit=10)
++    assert [p["player_name"] for p in boards["goals"]] == ["B", "C"]   # by rank; D dropped (> limit)
++    assert [p["player_name"] for p in boards["scorer_points"]] == ["A"]
++    assert len(boards["goals"]) == 2
+ 
+ 
+ def test_display_group_of_type_reads_seed():
+@@ -111,12 +112,12 @@ def test_shape_competition_payload_sorts_sections():
+     p = shape_competition_payload(
+         "BL1", 2025, {"name": "Bundesliga", "slug": "bundesliga"},
+         standings=[{"group_name": "", "standing_rank": 2}, {"group_name": "", "standing_rank": 1}],
+-        top_scorers=[{"scorer_rank": 2}, {"scorer_rank": 1}],
++        top_scorers=[{"rank": 2}, {"rank": 1}],
+         fixtures=[{"kickoff_datetime": "2025-09-02"}, {"kickoff_datetime": "2025-09-01"}],
+     )
+     assert p["type"] == "competition" and p["slug"] == "bundesliga"
+     assert [s["standing_rank"] for s in p["standings"]] == [1, 2]
+-    assert [s["scorer_rank"] for s in p["top_scorers"]] == [1, 2]
++    assert [s["rank"] for s in p["top_scorers"]] == [1, 2]
+     assert [f["kickoff_datetime"] for f in p["fixtures"]] == ["2025-09-01", "2025-09-02"]
+ 
+ 

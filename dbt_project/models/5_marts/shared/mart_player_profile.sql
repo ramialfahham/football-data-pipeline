@@ -6,9 +6,10 @@
 
   #480 consolidation: the per-season aggregation now COMPOSES the shared
   int_player_season__metrics (the single player-season rollup) instead of re-aggregating
-  fct_fixture_player_stats inline. Identity (dim_player), the modal season position, the leaderboard
-  ranks, and the GK full-triple (saves / shots_on_target_faced) are assembled here. Numbers are
-  unchanged — the shared int reproduces the catalogue (ROUND-weighted) computations this mart used.
+  fct_fixture_player_stats inline. Identity (dim_player), the modal season position, and the GK
+  full-triple (saves / shots_on_target_faced) are assembled here. Numbers are unchanged — the shared
+  int reproduces the catalogue (ROUND-weighted) computations this mart used. Per-board leaderboard
+  ranks moved to mart_leaderboards (the LONG single-surface; the 3 rank columns here were retired).
 
   Metric governance (catalogue-only v1): every metric is a metric_catalogue row computed by its
   catalogue formula — counts + the four catalogued player ratios. NO invented metrics (no per-90, no
@@ -109,22 +110,7 @@ select
     a.pass_accuracy_pct,
     a.duels_won_pct,
     a.dribbles_success_pct,
-    a.save_pct,
-    -- per-(league, season) leaderboard ranks (GAP-19.1): zero performers unranked
-    -- (null), DENSE_RANK so ties share a rank — the mart_top_scorers.scorer_rank
-    -- pattern. Selected by the export's player leaderboards (no Python ranking).
-    case when a.goals > 0 then dense_rank() over (
-        partition by a.league_code, a.season_api_year
-        order by a.goals desc, a.assists desc, a.minutes asc
-    ) end as goals_rank,
-    case when a.assists > 0 then dense_rank() over (
-        partition by a.league_code, a.season_api_year
-        order by a.assists desc, a.goals desc, a.minutes asc
-    ) end as assists_rank,
-    case when a.shots_on_target > 0 then dense_rank() over (
-        partition by a.league_code, a.season_api_year
-        order by a.shots_on_target desc, a.goals desc, a.minutes asc
-    ) end as shots_on_target_rank
+    a.save_pct
 from season as a
 left join players as p
     on a.player_sk = p.player_sk
