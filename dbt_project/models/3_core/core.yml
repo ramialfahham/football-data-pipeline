@@ -293,7 +293,15 @@ models:
               field: league_sk
       - name: league_code
         description: "Internal league code — the competition the roster belongs to."
-        tests: [not_null]
+        tests:
+          - not_null
+          # Every rostered competition must be registered. Without this, a league_code
+          # present here but absent from competition_registry would be silently dropped by
+          # downstream club/national filters that resolve entity_type via the registry → types
+          # seeds (e.g. mart_roster's `where entity_type = 'club'`). Verified clean today.
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
       - name: season_api_year
         description: "API-Football season year of the roster."
         tests: [not_null]
