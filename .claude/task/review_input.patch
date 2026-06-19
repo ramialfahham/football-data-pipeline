@@ -1,172 +1,187 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index d2fc549..ddc007a 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,19 +4,25 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: 2026-06-19 (TEAM competition benchmark built). Merged **#511** (metric direction + interpretation
+-catalogue semantic) then **#512** (mart_competition_benchmarks__team — the team-vs-league benchmark engine). main
+-at b8de817. Filed **#510** (retire leftover team dribbles_success_pct). Earlier this day: Task A (roster +
+-leaderboards v1) shipped as #503/#507/#508 + handover #509; filed #504/#505/#506. **#500** + **#510** OPEN.
+-Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
++_Last updated: 2026-06-19 (idle-mode fixtures-completeness fix). The backfill task (NEXT #1) uncovered + fixed
++an idle-mode bug: idle/poll ingest wrote current-season-only fixtures snapshots, so the full-refresh `fct_fixture`
++collapsed to one season for idle leagues (BL1 308 vs 3075 in the incremental player-stats fact). Shipped **#514**
++(carry-forward at the write boundary) + **#515** (restore the suppressed fct_fixture FK guard). Ran a **zero-API
++recovery** — reconstructed 25 leagues' fixtures from RAW history; corrected CNL/CDR/DFBP stale wrong-provider-id
++data. Filed **#517** (purge stale wrong-id data) + **#518** (process/behavioural retrospective — read it). Prior
++session: TEAM benchmark #511/#512 (merged). #500/#510 still OPEN. Governance G1–G4 LIVE. **Website blueprint #391
++still PAUSED.**_
+ 
+ ## FIRST next session (do this first)
+-- Nothing pending-merge. `git fetch` + ff to confirm (main b8de817). **Task A + the TEAM benchmark are DONE.**
+-  The CPO directs the next item (none auto-granted) — see NEXT. Open content-architecture picks: **the backfill**
+-  (NEXT #1), **coaches + `mart_player_career`** (NEXT #4). Benchmark **v1.x** follow-ups: the **player benchmark**
+-  (per-90 + position-aware + percentile) and the **opponent/schedule-context** flagship. Open carryovers: **#500**
+-  (team-season rename), **#510** (team dribbles), **#506** (leaderboard rate boards). **Read
+-  `docs/content_architecture.md`** first. Benchmark design: [[project-competition-benchmarks-design]].
++- Nothing pending-merge (`git fetch` + ff). The **idle-mode completeness bug is FIXED + recovered + guarded**
++  (#514/#515 merged; 0 orphans warehouse-wide; all relationship tests green). **The deep-season backfill (the
++  ORIGINAL NEXT #1) is STILL PENDING:** the recovery only restored what was already in RAW — PL/PD/SA/L1 genuinely
++  lack 2016–2023 (only ~2 seasons in RAW), so the **cost-gated API backfill of their missing seasons is still to
++  do**. **CRITICAL LESSON ([[feedback-raw-staging-latest-payload]]): NEVER judge ingested depth from staging/core —
++  query RAW.** CPO directs the next item (none auto-granted) — open: the deep-season backfill (cost-gated),
++  **coaches + `mart_player_career`** (NEXT #4), the **player benchmark** + **opponent/schedule-context** (v1.x),
++  carryovers **#500/#506/#510**, and the new **#517** (stale-id purge) / **#518** (process retrospective). **Read
++  `docs/content_architecture.md`** first.
+ - The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
+   cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
+   the local manifest meanwhile). See [[project-dbt-mcp-server]].
+@@ -25,30 +31,33 @@ Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Webs
+ - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
+   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
+ 
+-## This session (2026-06-19, pm) — the TEAM competition benchmark
+-- **#511 (MERGED) — metric `direction` + `interpretation` catalogue semantic.** Two new metric_catalogue columns
+-  (richer than the retained binary `lower_is_better`): `direction` = higher_better / lower_better / **neutral**
+-  (descriptive/style = no verdict — most football metrics are style not quality); `interpretation` = a short
+-  meaning string (the seed of website auto-narrative). Classified all 24 team metrics (14 higher / 2 lower / 8
+-  neutral). Player metrics deferred (v1.x). football-analytics confirmed neutral-for-volume + corners→neutral.
+-- **#512 (MERGED) — `mart_competition_benchmarks__team`** (the vs-benchmark engine). **20 team metrics**,
+-  season-to-date, LONG (team × metric): value · league_median (+ mean) · p25/p75 · **rank (k of N)** ·
+-  vs_median_delta. `int_competition_benchmarks__team` = the distribution engine; a macro holds the shared
+-  20-metric list; ≥3-games floor. Added 4 catalogued metrics to `int_team_season__full_season_metrics`
+-  (clean_sheets rate + tackles/interceptions/blocks per match).
+-- **Design rulings (CPO, don't re-litigate):** **median-led not mean** (mean skewed by a dominant team);
+-  **rank-of-N not percentile** (counter-intuitive at N~18; percentile-vs-peers is a PLAYER thing → v1.x);
+-  **direction-agnostic mart** (positional — `direction` joined at display); the 20 = the locked display set minus
+-  shot_share/points_capture (deserved-vs-actual inputs, structurally-fixed means), league_rank/points_won
+-  (non-metrics), dribbles (#510). Mart-only, no export wiring (#391 paused). Memory:
+-  [[project-competition-benchmarks-design]].
+-- **Benchmark-first ruling:** built on the current `int_team_season__full_season_metrics` (the 4 additions are
+-  additive); **#500** team-season rename/consolidation deferred (it updates the benchmark refs when it lands).
+-- **#510 (FILED) — retire leftover team `dribbles_success_pct`** (a player metric ruled dropped team-side
+-  2026-06-11; catalogue row + the mart_momentum__team computation never cleaned up). Left unclassified in #511.
+-- Earlier today: **Task A COMPLETE** (#503 mart_roster, #507 composites, #508 mart_leaderboards + consolidation,
+-  #509 handover) + filed #504/#505/#506. Memory: [[project-leaderboards-roster-design]],
+-  [[feedback-doc-clutter-discipline]], [[project-season-model-naming-parked]] (#500 still OPEN).
++## This session (2026-06-19) — idle-mode fixtures snapshot completeness
++- **Root cause.** Staging reads ONLY the latest RAW snapshot per league (intentional, cost — data_contract.md
++  "Append-only writes"); the whole design relies on every snapshot being COMPLETE. Idle/poll ingest
++  (`catalog.py` poll_mode) collapsed `seasons_list` to the current season, so a finished league's latest snapshot
++  went thin → the full-refresh `fct_fixture` rebuilt to one season (BL1 308 vs 3075 in the incremental
++  player-stats fact). The referential FK tests that would have caught it were SUPPRESSED in core.yml.
++- **#514 (MERGED) — the fix.** `fetch_merge_and_persist_fixtures` carries forward the prior snapshot's seasons
++  not refetched this run, so every written snapshot stays complete; team_ids stay latest-season-scoped (squad
++  catch-up). An empty/quota-exhausted fresh fetch now writes NOTHING (no stale re-stamp). Tests use a REAL
++  committed `/fixtures` sample (`tests/fixtures/apif/` — bootstrapped the CPO 2026-06-12 sample-payload rule).
++- **Recovery (zero-API).** Reconstructed 25 leagues' complete fixtures snapshots from RAW history
++  (latest-version-per-fixture) — the data was already in RAW, masked by the thin latest snapshot, so NO provider
++  calls. CORRECTED CNL/CDR/DFBP: the first reconstruction resurrected stale wrong-provider-id fixtures (English NL
++  #43 under CNL, Supercopa #556 under CDR, DFL-Supercup #529 under DFBP — from before the 2026-05-28 id
++  corrections); re-did them inner-joining `$.league.id` to dim_league. Result: 0 orphans warehouse-wide; all
++  relationship tests green; marts rebuilt.
++- **#515 (MERGED) — the guard.** Restored the 3 `fct_fixture` FK relationship tests (fanout fixture_sk ->
++  fct_fixture) + corrected the misleading "current-season snapshots only" descriptions. The durable alarm.
++- **#517 (FILED)** purge stale wrong-id data (RAW debt; filtered out of consumption, not a live defect).
++  **#518 (FILED)** process/behavioural retrospective — diagnosis drifted ~15 rounds (hacky-first, flip-flopping,
++  not reading docs, not tracing end-to-end). Memory: [[feedback-raw-staging-latest-payload]],
++  [[feedback-no-hacky-solutions]].
++- **dbt ruling — recorded in #514's contract (CPO-confirmed there, reviewed + merged; re-stated here, NOT
++  re-decided):** `fct_fixture` STAYS full-refresh — incremental would be an anti-pattern (a `--full-refresh`
++  would re-lose history; no perf need at this volume). Materialization follows the source-delivery pattern; the
++  bug was an unenforced cross-layer invariant ("the latest snapshot is complete"), now restored in ingest +
++  tested by the FK guard.
+ 
+ ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
+ 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 5b3d164..33e8430 100644
+index 33e8430..f8aedbd 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,85 +1,51 @@
--# Task contract — fix: idle-mode fixtures snapshot completeness (PR1 of 2 — the ingestion fix)
-+# Task contract — test: restore the fct_fixture FK guard (PR2 of 2 — the alarm)
+@@ -1,51 +1,49 @@
+-# Task contract — test: restore the fct_fixture FK guard (PR2 of 2 — the alarm)
++# Task contract — chore: refresh the handover after the idle-mode completeness fix
  
--> The append-complete-snapshot contract (data_contract.md "Append-only writes": every appended fixtures
--> snapshot is COMPLETE, so the latest row carries full history) is honored in full ingest mode but broken
--> in poll/idle mode: a finished/idle league writes a current-season-only snapshot, which becomes "latest",
--> so the full-refresh fct_fixture rebuilds down to one season (verified: BL1 308 in fct_fixture vs 3075 in
--> fct_fixture_player_stats). PR1 fixes the ingest WRITE path so every snapshot stays complete. NO dbt
--> materialization change (fct_fixture stays full-refresh — CPO-confirmed: incremental would be an
--> anti-pattern here). The ALARM (restore the suppressed fanout FK tests + fix their descriptions) is PR2,
--> a follow-up AFTER the post-merge recovery — CI-timing forces the split (see decisions_reserved).
--> Design + 2-PR split settled with CPO this conversation 2026-06-19. See working_agreement.md §2/§10/§11.
-+> The idle-mode completeness bug (PR1 #514) ran silently because the referential-integrity tests that
-+> would have caught it — every fanout fixture must have a fct_fixture header — were DELIBERATELY SUPPRESSED
-+> in core.yml ("No FK test: fct_fixture covers current-season snapshots only"), with the thin state written
-+> into the column descriptions as if intended. PR2 RESTORES those three FK tests and corrects the
-+> descriptions. It is the durable guard so this can never silently regress again. Unblocked now that PR1 +
-+> the zero-API recovery made fct_fixture consistent with the fanout facts (verified: 0 orphans warehouse-wide).
-+> Design + 2-PR split CPO-approved this conversation 2026-06-19. See working_agreement.md §2/§10/Appendix A.
+-> The idle-mode completeness bug (PR1 #514) ran silently because the referential-integrity tests that
+-> would have caught it — every fanout fixture must have a fct_fixture header — were DELIBERATELY SUPPRESSED
+-> in core.yml ("No FK test: fct_fixture covers current-season snapshots only"), with the thin state written
+-> into the column descriptions as if intended. PR2 RESTORES those three FK tests and corrects the
+-> descriptions. It is the durable guard so this can never silently regress again. Unblocked now that PR1 +
+-> the zero-API recovery made fct_fixture consistent with the fanout facts (verified: 0 orphans warehouse-wide).
+-> Design + 2-PR split CPO-approved this conversation 2026-06-19. See working_agreement.md §2/§10/Appendix A.
++> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this session's
++> idle-mode fixtures-completeness fix (PR #514 carry-forward + the zero-API recovery + PR #515 the restored
++> FK guard, all merged), the filed #517 (stale wrong-id purge) + #518 (process/behavioural retrospective),
++> and re-point FIRST/NEXT (the deep-season backfill — the original NEXT #1 — is STILL pending; the recovery
++> only restored what was already in RAW). Preserve all durable standing sections verbatim. No code.
++> active_work.md is artifact-only for commits but NOT auto-editable, so it is in scope_paths; the commit
++> also carries contract.md (never review-exempt) -> scope-auditor reviews.
  
  objective: >
--  Enforce the "every fixtures snapshot is complete" invariant at the WRITE boundary in
--  fetch_merge_and_persist_fixtures: carry forward the cached historical seasons (from the previous
--  snapshot it already reads for the #283 cache-skip) into the written snapshot, so poll/idle runs no
--  longer thin it. Squad-catch-up team scoping is preserved — team_ids/fixture_ids are derived from the
--  freshly-fetched current season BEFORE the carry-forward (the documented "latest-season team list"
--  behavior in run_poll_phases / select_squad_catchup_team_ids). Full mode is unaffected (its season list
--  already covers everything → carry-forward is a no-op). Plus unit tests and a one-sentence accuracy fix
--  to the data_contract.md "Append-only writes" paragraph (poll/idle now carries forward rather than
--  re-fetching).
-+  In dbt_project/models/3_core/core.yml, add the `relationships` test (fixture_sk -> ref('fct_fixture'),
-+  field fixture_sk) to the fixture_sk column of fct_fixture_player_stats, fct_fixture_team_stats, and
-+  fct_fixture_event, and replace each misleading description ("No FK test: fct_fixture covers current-season
-+  snapshots only; this incremental table accumulates historical seasons.") with one that states the FK and
-+  the now-correct invariant (fct_fixture carries full history via the append-complete-snapshot carry-forward
-+  from PR #514). No other change.
+-  In dbt_project/models/3_core/core.yml, add the `relationships` test (fixture_sk -> ref('fct_fixture'),
+-  field fixture_sk) to the fixture_sk column of fct_fixture_player_stats, fct_fixture_team_stats, and
+-  fct_fixture_event, and replace each misleading description ("No FK test: fct_fixture covers current-season
+-  snapshots only; this incremental table accumulates historical seasons.") with one that states the FK and
+-  the now-correct invariant (fct_fixture carries full history via the append-complete-snapshot carry-forward
+-  from PR #514). No other change.
++  Update the session-specific parts of .claude/active_work.md: the Last-updated line, FIRST, the
++  This-session section (replace the prior TEAM-benchmark session with the 2026-06-19 idle-mode fix:
++  root cause, #514 carry-forward, the zero-API recovery incl. the CNL/CDR/DFBP stale-id correction, #515
++  the restored FK guard, #517/#518 filed, and the don't-re-litigate dbt ruling that fct_fixture stays
++  full-refresh), and the NEXT pointer (the deep-season backfill is still pending; add #517/#518). Carry ALL
++  durable standing sections (Standing authority, Product roadmap, the other NEXT items + Carryovers,
++  dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT, Environment) forward
++  UNCHANGED + verbatim.
  
  refs: >
--  This conversation 2026-06-19. Root cause: catalog.py poll_mode collapses seasons_list to [current];
--  fetch_merge_and_persist_fixtures then writes a current-season-only snapshot. Fix at the write boundary
--  in fixtures.py (keep the poll collapse — it provides the documented latest-season team scoping). The
--  suppressed FK tests are core.yml lines 593/543/~676 ("No FK test: fct_fixture covers current-season
--  snapshots only") — PR2 restores them. Emerged while investigating NEXT #1 (the backfill); prerequisite.
-+  This conversation 2026-06-19. PR1 #514 (merged) fixed the idle-mode snapshot thinning; the one-time
-+  zero-API recovery rebuilt fct_fixture from RAW history (0 orphans verified). The suppressed tests are
-+  core.yml lines ~593/543/676. This is the deferred PR2 alarm from #514's contract.
+-  This conversation 2026-06-19. PR1 #514 (merged) fixed the idle-mode snapshot thinning; the one-time
+-  zero-API recovery rebuilt fct_fixture from RAW history (0 orphans verified). The suppressed tests are
+-  core.yml lines ~593/543/676. This is the deferred PR2 alarm from #514's contract.
++  This conversation 2026-06-19. Merged #514 (idle-mode carry-forward) + #515 (fct_fixture FK guard); ran
++  the zero-API recovery (25 leagues from RAW; CNL/CDR/DFBP stale-id corrected). Filed #517 + #518.
++  Memory: [[feedback-raw-staging-latest-payload]], [[feedback-no-hacky-solutions]].
  
  scope_paths:
--  - ingestion/api_football/loads/fixtures.py
--  - tests/test_fixtures_snapshot_completeness.py
--  - tests/fixtures/apif/**
--  - docs/data_contract.md
-+  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/3_core/core.yml
++  - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
  decisions_taken: >
--  CPO-confirmed this conversation: fct_fixture STAYS full-refresh table (incremental is an anti-pattern —
--  a full-refresh would re-lose history; no perf need at this volume); the dbt read path is unchanged; the
--  fix belongs in ingestion (the append-complete-snapshot contract was violated by idle mode). The 2-PR
--  split is CPO-approved: PR1 = this ingestion fix; PR2 = the alarm. Alarm severity = HARD-FAIL (PR2).
--  Storage hygiene (expiring old snapshots) = DEFERRED. The PL/PD/SA/L1 deep-season backfill = DEFERRED.
-+  CPO directed PR2 this conversation ("PR2 now"). The FK tests were deliberately suppressed to mask the
-+  idle-mode thinning (Appendix-A "disabled the failing test" anti-pattern); restoring them is the principled
-+  un-masking. The relationships test is the standard dbt referential-integrity guard. Severity = error
-+  (hard-fail) — DQ is non-negotiable. The data is now consistent (0 orphans), so the tests pass.
+-  CPO directed PR2 this conversation ("PR2 now"). The FK tests were deliberately suppressed to mask the
+-  idle-mode thinning (Appendix-A "disabled the failing test" anti-pattern); restoring them is the principled
+-  un-masking. The relationships test is the standard dbt referential-integrity guard. Severity = error
+-  (hard-fail) — DQ is non-negotiable. The data is now consistent (0 orphans), so the tests pass.
++  CPO directed the handover refresh + the housekeeping this conversation ("do the proposed housekeeping",
++  "create an issue"). Pure bookkeeping: records the already-merged #514/#515, the recovery, the filed
++  #517/#518, and re-points NEXT. No new product / metric / naming / layer decision — the idle-fix design
++  rulings (fct_fixture stays full-refresh; the carry-forward write-boundary fix) are already shipped and
++  are recorded, not re-decided. Durable standing sections preserved verbatim.
  
  decisions_reserved:
--  - PR2 (the alarm): restore the three fanout FK relationship tests (fixture_sk -> fct_fixture on
--    fct_fixture_player_stats / _team_stats / _event) + correct the "current-season snapshots only"
--    descriptions. Deferred to a follow-up PR AFTER recovery, because ci-data-build runs `dbt test` on the
--    PR against the warehouse, which stays thin until recovery — so the restored tests would fail on a same-PR.
--  - One-time RECOVERY (run BL1 full-mode once so a complete snapshot lands; verify PL/PD/SA/L1) is a
--    POST-MERGE operational step, NOT in this diff. ~10 provider calls (BL1 season lists; fanout untouched) —
--    the one budget spend, only after merge with CPO go.
--  - The carry-forward reads the LATEST snapshot for history; if it is thin (pre-recovery) it carries
--    nothing — recovery re-establishes a complete latest snapshot, after which poll runs keep it complete.
--    If the fix is found to need reading the last COMPLETE snapshot instead, STOP and escalate (larger change).
-+  - Exact test form: the standard `relationships` test (fanout fixture_sk -> fct_fixture) is chosen, as it
-+    directly encodes "every fanout fixture has a header". If the analytics-engineer prefers a different/
-+    additional form (e.g. a registry-depth completeness test), that is a build-detail call for that reviewer.
-+  - This PR adds no data and no ingestion/mart change; it is core.yml schema tests + descriptions only.
+-  - Exact test form: the standard `relationships` test (fanout fixture_sk -> fct_fixture) is chosen, as it
+-    directly encodes "every fanout fixture has a header". If the analytics-engineer prefers a different/
+-    additional form (e.g. a registry-depth completeness test), that is a build-detail call for that reviewer.
+-  - This PR adds no data and no ingestion/mart change; it is core.yml schema tests + descriptions only.
++  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
++  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
  
  done_when:
--  - fixtures.py: the written fixtures snapshot includes every season from the previous snapshot it reads
--    (carry-forward), so a poll/idle run never reduces season coverage; team_ids/fixture_ids computed from
--    the freshly-fetched seasons (pre-carry-forward) so squad catch-up stays latest-season-scoped; full-mode
--    behavior unchanged (carry-forward no-op when the season list already covers all prior seasons).
--  - fixtures.py (data-engineer Finding 2): when the FRESH fetch returns no fixtures (e.g. quota exhausted
--    before the current season is fetched), the run writes NO new snapshot — the prior complete snapshot
--    stays "latest" — so a failed run never re-stamps a stale/empty snapshot as today's. Error still logs.
--  - tests/test_fixtures_snapshot_completeness.py: (a) a poll-style single-season fetch with a complete
--    cached snapshot writes a COMPLETE snapshot; (b) team_ids exclude carried-forward-only seasons' teams;
--    (c) full-mode no-op; (d) empty/thin cache carries nothing; (e) an empty/quota-exhausted fresh fetch
--    writes NOTHING (Finding 2). The carry-forward + completeness tests exercise a REAL committed /fixtures
--    payload under tests/fixtures/apif/ (CPO sample-payload rule 2026-06-12), not inline dicts.
--    Run: python -m pytest tests/test_fixtures_snapshot_completeness.py -q.
--  - docs/data_contract.md "Append-only writes": the paragraph reflects that poll/idle runs keep the
--    snapshot complete by carrying forward prior seasons (not by re-fetching them).
--  - validate-local passes (sqlfluff / dbt parse / offline pytest gates).
--  - Commit on branch fix/idle-snapshot-completeness; post-commit opens the PR.
--  - reviewers: scope-auditor + data-engineer (ingestion + data_contract) + cto (tests) PASS (each >=2 named
--    risks); no FAIL; no ESCALATE. (analytics-engineer NOT required — PR1 touches no dbt model/test.)
--
--amendments:
--  - 2026-06-19: + tests/fixtures/apif/** — authority: data-engineer reviewer FAIL (Finding 1: the CPO
--    sample-payload rule 2026-06-12 requires offline tests against committed sample payloads under
--    tests/fixtures/apif/, which never existed) + CPO ruling this conversation to bootstrap it minimally
--    (option a). Content: a REAL BL1 /fixtures snapshot slice extracted from RAW_APIF_FIXTURES_NEXT (no
--    fabrication, no API spend) that the carry-forward / completeness tests exercise. Also folded in the
--    Finding 2 fix (no write on an empty fresh fetch) — within the existing fixtures.py scope, no new path.
-+  - core.yml: the fixture_sk column of fct_fixture_player_stats / _team_stats / _event each carries
-+    `relationships: { to: ref('fct_fixture'), field: fixture_sk }` (in addition to not_null), and the
-+    "No FK test ... current-season snapshots only" description is replaced with the FK + carry-forward wording.
-+  - dbt parse succeeds; `dbt test --select fct_fixture_player_stats fct_fixture_team_stats fct_fixture_event`
-+    (the restored relationship tests) PASS against the current warehouse (0 orphans).
-+  - validate-local passes (sqlfluff/dbt parse offline gates).
-+  - Commit on branch test/fct-fixture-fk-guard; post-commit opens the PR.
-+  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (each >=2 named risks); no FAIL; no ESCALATE.
-+
-+amendments: (none)
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 70ab63f..4e8633f 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -537,9 +537,12 @@ models:
-         description: "Surrogate key from (fixture_id, league_code, team_id)."
-         tests: [not_null, unique]
-       - name: fixture_sk
--        description: "fixture_api_id cast to INT64. No FK test: fct_fixture covers current-season snapshots only; this incremental table accumulates historical seasons."
-+        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
-         tests:
-           - not_null
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-       - name: team_sk
-         description: "FK to dim_team."
-         tests:
-@@ -590,9 +593,12 @@ models:
-         description: "Surrogate key from (fixture_id, league_code, team_id, player_id)."
-         tests: [not_null, unique]
-       - name: fixture_sk
--        description: "fixture_api_id cast to INT64. No FK test: fct_fixture covers current-season snapshots only; this incremental table accumulates historical seasons."
-+        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
-         tests:
-           - not_null
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-       - name: team_sk
-         description: "FK to dim_team."
-         tests:
-@@ -666,9 +672,12 @@ models:
-         description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
-         tests: [not_null]
-       - name: fixture_sk
--        description: "fixture_api_id cast to INT64. No FK test: fct_fixture covers current-season snapshots only; this incremental table accumulates historical seasons."
-+        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
-         tests:
-           - not_null
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-       - name: team_sk
-         description: "FK to dim_team for the event's team."
-         tests:
+-  - core.yml: the fixture_sk column of fct_fixture_player_stats / _team_stats / _event each carries
+-    `relationships: { to: ref('fct_fixture'), field: fixture_sk }` (in addition to not_null), and the
+-    "No FK test ... current-season snapshots only" description is replaced with the FK + carry-forward wording.
+-  - dbt parse succeeds; `dbt test --select fct_fixture_player_stats fct_fixture_team_stats fct_fixture_event`
+-    (the restored relationship tests) PASS against the current warehouse (0 orphans).
+-  - validate-local passes (sqlfluff/dbt parse offline gates).
+-  - Commit on branch test/fct-fixture-fk-guard; post-commit opens the PR.
+-  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (each >=2 named risks); no FAIL; no ESCALATE.
++  - .claude/active_work.md reflects: #514 + #515 merged; the zero-API recovery + the CNL/CDR/DFBP stale-id
++    correction; #517 + #518 filed; FIRST/NEXT re-pointed (deep-season backfill still pending — recovery only
++    restored what was in RAW); the idle-fix session recorded; all durable sections intact + verbatim.
++  - Commit on branch chore/handover-refresh-idle-fix; post-commit opens the PR.
++  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
+ 
+ amendments: (none)

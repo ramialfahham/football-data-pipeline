@@ -1,51 +1,49 @@
-# Task contract — test: restore the fct_fixture FK guard (PR2 of 2 — the alarm)
+# Task contract — chore: refresh the handover after the idle-mode completeness fix
 
-> The idle-mode completeness bug (PR1 #514) ran silently because the referential-integrity tests that
-> would have caught it — every fanout fixture must have a fct_fixture header — were DELIBERATELY SUPPRESSED
-> in core.yml ("No FK test: fct_fixture covers current-season snapshots only"), with the thin state written
-> into the column descriptions as if intended. PR2 RESTORES those three FK tests and corrects the
-> descriptions. It is the durable guard so this can never silently regress again. Unblocked now that PR1 +
-> the zero-API recovery made fct_fixture consistent with the fanout facts (verified: 0 orphans warehouse-wide).
-> Design + 2-PR split CPO-approved this conversation 2026-06-19. See working_agreement.md §2/§10/Appendix A.
+> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this session's
+> idle-mode fixtures-completeness fix (PR #514 carry-forward + the zero-API recovery + PR #515 the restored
+> FK guard, all merged), the filed #517 (stale wrong-id purge) + #518 (process/behavioural retrospective),
+> and re-point FIRST/NEXT (the deep-season backfill — the original NEXT #1 — is STILL pending; the recovery
+> only restored what was already in RAW). Preserve all durable standing sections verbatim. No code.
+> active_work.md is artifact-only for commits but NOT auto-editable, so it is in scope_paths; the commit
+> also carries contract.md (never review-exempt) -> scope-auditor reviews.
 
 objective: >
-  In dbt_project/models/3_core/core.yml, add the `relationships` test (fixture_sk -> ref('fct_fixture'),
-  field fixture_sk) to the fixture_sk column of fct_fixture_player_stats, fct_fixture_team_stats, and
-  fct_fixture_event, and replace each misleading description ("No FK test: fct_fixture covers current-season
-  snapshots only; this incremental table accumulates historical seasons.") with one that states the FK and
-  the now-correct invariant (fct_fixture carries full history via the append-complete-snapshot carry-forward
-  from PR #514). No other change.
+  Update the session-specific parts of .claude/active_work.md: the Last-updated line, FIRST, the
+  This-session section (replace the prior TEAM-benchmark session with the 2026-06-19 idle-mode fix:
+  root cause, #514 carry-forward, the zero-API recovery incl. the CNL/CDR/DFBP stale-id correction, #515
+  the restored FK guard, #517/#518 filed, and the don't-re-litigate dbt ruling that fct_fixture stays
+  full-refresh), and the NEXT pointer (the deep-season backfill is still pending; add #517/#518). Carry ALL
+  durable standing sections (Standing authority, Product roadmap, the other NEXT items + Carryovers,
+  dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT, Environment) forward
+  UNCHANGED + verbatim.
 
 refs: >
-  This conversation 2026-06-19. PR1 #514 (merged) fixed the idle-mode snapshot thinning; the one-time
-  zero-API recovery rebuilt fct_fixture from RAW history (0 orphans verified). The suppressed tests are
-  core.yml lines ~593/543/676. This is the deferred PR2 alarm from #514's contract.
+  This conversation 2026-06-19. Merged #514 (idle-mode carry-forward) + #515 (fct_fixture FK guard); ran
+  the zero-API recovery (25 leagues from RAW; CNL/CDR/DFBP stale-id corrected). Filed #517 + #518.
+  Memory: [[feedback-raw-staging-latest-payload]], [[feedback-no-hacky-solutions]].
 
 scope_paths:
-  - dbt_project/models/3_core/core.yml
+  - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
 
 decisions_taken: >
-  CPO directed PR2 this conversation ("PR2 now"). The FK tests were deliberately suppressed to mask the
-  idle-mode thinning (Appendix-A "disabled the failing test" anti-pattern); restoring them is the principled
-  un-masking. The relationships test is the standard dbt referential-integrity guard. Severity = error
-  (hard-fail) — DQ is non-negotiable. The data is now consistent (0 orphans), so the tests pass.
+  CPO directed the handover refresh + the housekeeping this conversation ("do the proposed housekeeping",
+  "create an issue"). Pure bookkeeping: records the already-merged #514/#515, the recovery, the filed
+  #517/#518, and re-points NEXT. No new product / metric / naming / layer decision — the idle-fix design
+  rulings (fct_fixture stays full-refresh; the carry-forward write-boundary fix) are already shipped and
+  are recorded, not re-decided. Durable standing sections preserved verbatim.
 
 decisions_reserved:
-  - Exact test form: the standard `relationships` test (fanout fixture_sk -> fct_fixture) is chosen, as it
-    directly encodes "every fanout fixture has a header". If the analytics-engineer prefers a different/
-    additional form (e.g. a registry-depth completeness test), that is a build-detail call for that reviewer.
-  - This PR adds no data and no ingestion/mart change; it is core.yml schema tests + descriptions only.
+  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
+  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
 
 done_when:
-  - core.yml: the fixture_sk column of fct_fixture_player_stats / _team_stats / _event each carries
-    `relationships: { to: ref('fct_fixture'), field: fixture_sk }` (in addition to not_null), and the
-    "No FK test ... current-season snapshots only" description is replaced with the FK + carry-forward wording.
-  - dbt parse succeeds; `dbt test --select fct_fixture_player_stats fct_fixture_team_stats fct_fixture_event`
-    (the restored relationship tests) PASS against the current warehouse (0 orphans).
-  - validate-local passes (sqlfluff/dbt parse offline gates).
-  - Commit on branch test/fct-fixture-fk-guard; post-commit opens the PR.
-  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (each >=2 named risks); no FAIL; no ESCALATE.
+  - .claude/active_work.md reflects: #514 + #515 merged; the zero-API recovery + the CNL/CDR/DFBP stale-id
+    correction; #517 + #518 filed; FIRST/NEXT re-pointed (deep-season backfill still pending — recovery only
+    restored what was in RAW); the idle-fix session recorded; all durable sections intact + verbatim.
+  - Commit on branch chore/handover-refresh-idle-fix; post-commit opens the PR.
+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
 
 amendments: (none)
