@@ -4,16 +4,19 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-18 (metric layer Phase 1 + a black-box-rating removal). Merged **#499** (dropped the
-API-Football player `rating` end-to-end — a vendor black box) then **#501** (metric layer Phase 1). main at
-4353e41. Opened **#500** (team-season model naming + consolidation). The product roadmap below
-(#491/#493/#494/#480) is UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-19 (Task A: roster + leaderboards v1 — COMPLETE). Merged **#503** (mart_roster), **#507**
+(player-season composites scorer_points/defensive_actions/cards_total), **#508** (mart_leaderboards — 9 count
+boards, LONG — + full consolidation: retired mart_top_scorers + mart_player_season, dropped mart_player_profile's
+rank cols, repointed both export paths). main at 279dcff. Filed **#504** (retire legacy metric_definitions.csv at
+#377), **#505** (docs audit/consolidation), **#506** (deferred leaderboard rate boards + floor). **#500** still
+OPEN. Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge. `git fetch` + ff to confirm (main 4353e41). Then the CPO directs the next item
-  (none auto-granted) — see NEXT; the immediate pick is **task A: `mart_leaderboards` + `mart_roster`**
-  (NEXT #2), now unblocked on the metric-layer foundation (#501). **Read `docs/content_architecture.md`**
-  (the IA + data spec) **and `docs/metric_layer.md`** (the metric layer) **first.**
+- Nothing pending-merge. `git fetch` + ff to confirm (main 279dcff). **Task A is DONE** (roster + leaderboards
+  v1). The CPO directs the next item (none auto-granted) — see NEXT; the open content-architecture picks are
+  **the backfill** (NEXT #1), **`mart_competition_benchmarks`** (NEXT #3, the flagship engine, unblocked), and
+  **coaches + `mart_player_career`** (NEXT #4). The deferred leaderboard rate boards are **#506**. **Read
+  `docs/content_architecture.md`** (the IA + data spec) first.
 - The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
   cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
   the local manifest meanwhile). See [[project-dbt-mcp-server]].
@@ -22,27 +25,30 @@ API-Football player `rating` end-to-end — a vendor black box) then **#501** (m
 - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
 
-## This session (2026-06-18) — metric layer Phase 1 (+ a rating-removal precursor)
-- **#499 (MERGED) — dropped the black-box player `rating` end-to-end.** API-Football's per-player match
-  `rating` is a vendor black box (opaque formula, unverifiable, variable coverage) → removed from staging →
-  base → `fct_fixture_player_stats` → `int_legs__player_match` → the two fixture-grain marts, plus the season
-  aggregate `rating_avg`, plus the doc/wireframe mentions. A focused precursor so the metric layer built on a
-  rating-free base.
-- **#501 (MERGED) — metric layer Phase 1, the dbt-idiomatic way.** NOT an engine: the **model is the single
-  source** (#480 player-season; team via #500), the **catalogue is the registry/glossary**, and **one drift
-  test** (`tests/assert_no_uncatalogued_season_metric.sql`) FAILS if a season model computes a metric not in
-  `metric_catalogue`. Added the 4 rows for metrics the models already compute (`shots_total`,
-  `goals_conceded`, `shot_share`, `points_capture`), ratio range tests, and `docs/metric_layer.md`.
-- **Over-build reverted (lesson).** Mid-session I built a bespoke conformance engine — a binding-map seed, a
-  `metric_kind` taxonomy, a `context` flag, and a test re-deriving every metric from the legs — which bought
-  nothing over #480's single source + a one-line drift test. The CPO flagged it; reverted to the simple
-  version above. Lesson: **size the solution to the need; check what a mechanism buys before building it.**
-  Memory: [[feedback-no-hacky-solutions]].
-- **#500 (OPEN)** — team-season model naming + consolidation (the team analog of #480; the
-  `int_team_season__full_season_metrics` → `int_team_season__metrics` rename rides with collapsing the split
-  team-season models). Memory: [[project-season-model-naming-parked]].
-- **Non-blocking follow-up:** the 4 new metrics' i18n labels (not in `site/i18n` yet; they are not displayed
-  rows; add when surfaced).
+## This session (2026-06-19) — Task A: roster + leaderboards v1 (COMPLETE)
+- **#503 (MERGED) — `mart_roster`.** Identity-only club squad list, grain (team_sk, league_code,
+  season_api_year, player_sk) from `dim_player_team_season_mapping` ⋈ `dim_player`, club-scoped via
+  `competition_registry → competition_types (entity_type='club')`. Identity only (no per-club stats — deferred
+  #480 §8.3); view; **mart-only, no export wiring** (the Squad-block consumer is in PAUSED #391). Review caught
+  a silent-drop (an unregistered league_code dropped by the club filter) → added a `relationships` test
+  mapping.league_code → competition_registry in core.yml (verified 0 unregistered codes live).
+- **#507 (MERGED) — 3 player-season COUNT composites** in `int_player_season__metrics` + `metric_catalogue`:
+  `scorer_points` (goals+assists), `defensive_actions` (T+I+B), `cards_total` (Y+R) — the count-board sort keys.
+  Football-analytics caught the 2nd-yellow double-count → CPO ruled keep `yellow+red` ("total cards shown") +
+  DISCLOSE it in the description (catalogue descriptions are window-agnostic by design).
+- **#508 (MERGED) — `mart_leaderboards` + full consolidation.** LONG mart (one row per player×board),
+  season-to-date via `int_player_season__metrics`, **9 COUNT boards**, top-10 per (league_code, season,
+  metric_key), DENSE_RANK ties share. Retired `mart_top_scorers` + orphaned `mart_player_season`; dropped the 3
+  rank cols from `mart_player_profile`; repointed BOTH export paths. analytics-engineer caught the 3 composites
+  being dropped from the final SELECT → re-added + documented (SELECT must == documented shared.yml columns).
+- **Key leaderboard decisions:** season-to-date (NOT last-5); LONG; top-10 stored (UI slices); **no floor for
+  count boards** (CPO challenged — only RATE boards get gamed by low-volume outliers). The **5 RATE boards +
+  finishing_efficiency + the per-denominator floor are DEFERRED → #506.** Memory: [[project-leaderboards-roster-design]].
+- **Doc-clutter feedback (Rami).** Flagged over-production of `.md` docs (clutter > clarity). Default to NOT
+  creating a new doc; fold into the authoritative one or keep it in the PR/issue. **#505** tracks the docs/ audit.
+  Memory: [[feedback-doc-clutter-discipline]].
+- **#500 still OPEN** — team-season model naming + consolidation (the team analog of #480). Memory:
+  [[project-season-model-naming-parked]].
 
 ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
@@ -69,8 +75,8 @@ API-Football player `rating` end-to-end — a vendor black box) then **#501** (m
 1. **Backfill** — set per-competition `history_seasons` in `docs/competition_registry.yml` (the agreed
    tiered policy) + run it. Cost-gated ingest (data-engineer); uses spare API budget + BQ. Lights up
    History/Career, makes season-over-season real, deepens benchmarks. (This is #479's territory.)
-2. **`mart_leaderboards`** (generalise `mart_top_scorers` to any catalogue metric) + **`mart_roster`**
-   (from the team↔player mapping) — cheap, high navigability/SEO, no governance.
+2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
+   + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
 3. **`mart_competition_benchmarks`** (team+player) — the flagship engine; UNBLOCKED now (#480 gave a clean
    season aggregation). Percentile def → metric_catalogue + football-analytics (position-aware = v1.x).
 4. **Coaches ingest + `dim_coach`**; **`mart_player_career`** (on the backfill) for the Career/History tabs.
@@ -86,6 +92,8 @@ API-Football player `rating` end-to-end — a vendor black box) then **#501** (m
 - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
   the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned).
 - **#483** — qualifying-type cumulative window (GAP-18 follow-up).
+- **#506** — leaderboards v1.x: the 5 RATE boards (pass% / duels% / dribble% / save% / finishing) + a new
+  `finishing_efficiency` (uncapped) + the per-denominator qualification floor (deferred from the v1 count boards).
 - **Pilot PR2 (slugs)** — STILL BLOCKED on the two BLINDED §10 rulings E2/E3 (do NOT pre-decide).
 
 ## Key specs to read before building (the source of truth)
@@ -94,7 +102,7 @@ API-Football player `rating` end-to-end — a vendor black box) then **#501** (m
 - **`docs/metrics_context_model.md` §8** — the player performance surface (windows + aggregation).
 - `docs/player_metrics_catalogue.md` + `docs/wireframes/metrics_display.md` — metric defs + locked display.
 - Player season agg is now ONE model: `int_player_season__metrics` → `mart_player_profile` +
-  `mart_player_season`. Do NOT re-introduce inline player-season aggregation.
+  `mart_leaderboards` (`mart_player_season` was RETIRED in #508). Do NOT re-introduce inline player-season aggregation.
 
 ## dim_team model (still current — from the prior session)
 - **`dim_team`** = pure team ENTITY (one row per team_api_id; identity/venue only; **NO league_code**).
@@ -113,9 +121,15 @@ API-Football player `rating` end-to-end — a vendor black box) then **#501** (m
   expects. Force-push the feature branch with `--force-with-lease`.
 - A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate. Read the existing docs before
   claiming a gap. Communication: compact + plain, lead with decisions + a bolded recommendation.
-- **Size the solution to the need** ([[feedback-no-hacky-solutions]]): don't over-build (this session's
-  reverted metric-layer conformance engine) and don't hack (a flag-to-ignore instead of the principled fix).
+- **Size the solution to the need** ([[feedback-no-hacky-solutions]]): don't over-build (the reverted
+  metric-layer conformance engine) and don't hack (a flag-to-ignore instead of the principled fix).
   Before building any mechanism, ask what it buys over the simplest thing + what is already solved.
+- **Don't over-produce docs** ([[feedback-doc-clutter-discipline]]): Rami flagged `.md` clutter — default to NOT
+  creating a new doc; fold into the authoritative one or keep it in the PR/issue. #505 tracks the docs/ audit.
+- **Reviewer-driven scope amendment** (PR1 + 2b this session): when a reviewer FAIL's fix needs a NEW file (an
+  upstream DQ test; a stale-ref doc), it is a clean-tree contract amendment — stash the code changes, edit
+  contract.md (authority = the FAIL + standing rule), unstash, fix, re-review. A mart's SELECT must exactly
+  match its documented `shared.yml` columns (the analytics-engineer hunts undocumented columns every round).
 
 ## The governance machinery (G1–G4 all LIVE — unchanged)
 - **Contract first**: every unit writes `.claude/task/contract.md` (objective, scope_paths, decisions,
