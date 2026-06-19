@@ -278,6 +278,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
 | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
 | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
+| `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
 

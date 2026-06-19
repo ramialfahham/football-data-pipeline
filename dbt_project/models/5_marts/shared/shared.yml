@@ -978,3 +978,65 @@ models:
           - accepted_values:
               values: ["W", "D", "L"]
 
+  - name: mart_roster
+    description: >
+      Identity-only club squad list (the Squad block; content_architecture §3). One row per
+      rostered player per (club team, competition-season), from dim_player_team_season_mapping
+      joined to dim_player. Scoped to club competitions (entity_type = 'club', via
+      competition_registry + competition_types — never a dim_team flag). Identity only: name,
+      listed position, nationality, birth_date, photo; NO per-club season stats (the deferred
+      per-club grain, #480 §8.3). Age is derived at render from player_birth_date (a stored age
+      would be non-deterministic). dim_player is LEFT-joined so a membership with no player
+      entity surfaces via the relationships test, not a silent drop. View. league_code is the
+      partition key; season_sk is nullable (roster season with no competition-season row).
+      Grain: (team_sk, league_code, season_api_year, player_sk).
+    config:
+      tags: ["marts", "football", "roster"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, league_code, season_api_year, player_sk]
+    columns:
+      - name: player_team_season_sk
+        description: "Surrogate carried from dim_player_team_season_mapping (player, team, league_code, season)."
+        tests: [not_null, unique]
+      - name: team_sk
+        description: "FK to dim_team (the club)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        description: "FK to dim_player."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        description: "Partition key — app slices by this to retrieve a club's squad for a competition-season."
+        tests: [not_null]
+      - name: season_api_year
+        description: "The roster season; always present (anchors the grain even when season_sk is null)."
+        tests: [not_null]
+      - name: season_sk
+        description: "FK to dim_competition_season; nullable (roster season with no competition-season row)."
+      - name: competition_type
+        description: "From competition_registry; the mart is filtered to club types."
+      - name: entity_type
+        description: "Always 'club' — the mart is club-scoped via competition_types."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club"]
+      - name: player_name
+        description: "Denormalised from dim_player."
+      - name: player_position
+        description: "Listed/bio position from dim_player (general position, not a per-season modal)."
+      - name: player_nationality
+        description: "Denormalised from dim_player."
+      - name: player_birth_date
+        description: "Birth date from dim_player bio; age is computed at render."
+      - name: player_photo_url
+        description: "Player photo URL from dim_player; nullable."
+

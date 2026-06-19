@@ -1,191 +1,286 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index ba235d3..9b37d67 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,35 +4,45 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-18 (dbt MCP server — a CPO-directed tooling detour off a LinkedIn post). Merged
--**#497**: a read-only dbt MCP server (`.mcp.json`, local-manifest lineage) + MCP config classified
--PROTECTED command-class. main at dff05d7. The prior session's product work (#491 spec, #493 content
--architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Governance G1–G4 LIVE.
--**Website blueprint #391 still PAUSED.**_
-+_Last updated: 2026-06-18 (metric layer Phase 1 + a black-box-rating removal). Merged **#499** (dropped the
-+API-Football player `rating` end-to-end — a vendor black box) then **#501** (metric layer Phase 1). main at
-+4353e41. Opened **#500** (team-season model naming + consolidation). The product roadmap below
-+(#491/#493/#494/#480) is UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge. `git fetch` + ff to confirm (main dff05d7). The **dbt MCP server is LIVE** — it
--  loads on session start, so this fresh session should have `mcp__dbt__get_lineage_dev` /
--  `get_node_details_dev` (read-only local-manifest lineage; refresh with `dbt parse` if stale). Then the
--  CPO directs the next item (none auto-granted) — see NEXT. **Read `docs/content_architecture.md` first** —
--  it is the IA + data spec everything below builds against.
-+- Nothing pending-merge. `git fetch` + ff to confirm (main 4353e41). Then the CPO directs the next item
-+  (none auto-granted) — see NEXT; the immediate pick is **task A: `mart_leaderboards` + `mart_roster`**
-+  (NEXT #2), now unblocked on the metric-layer foundation (#501). **Read `docs/content_architecture.md`**
-+  (the IA + data spec) **and `docs/metric_layer.md`** (the metric layer) **first.**
-+- The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
-+  cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
-+  the local manifest meanwhile). See [[project-dbt-mcp-server]].
- 
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
- 
--## This session (2026-06-18) — dbt MCP server (CPO-directed tooling detour)
--- **#497 (MERGED) — read-only dbt MCP server + MCP-config protection.** Prompted by a LinkedIn post on dbt
--  Labs "Wizard"; the one real gap it named for us was **edit-time lineage/impact analysis** (the rest —
--  validation loop, skills — we already have, often stricter). `.mcp.json` runs `uvx --python 3.12.13
--  dbt-mcp` with a read-only allowlist (`DBT_MCP_ENABLE_TOOLS=get_lineage_dev,get_node_details_dev,list,parse`)
--  — **no warehouse tools, no dbt Cloud, dbt stays 1.7.19** (dbt-mcp shells out; no forced upgrade). The
--  cto-reviewer caught a real bug pre-merge (the group-enable + allowlist combo leaked all 11 CLI tools incl.
--  build/run/test) → fixed to allowlist-only, live-verified exactly 4 tools + dim_date lineage.
--- **§10 ruling (2026-06-18):** `.mcp.json` / `.cursor/mcp.json` are **PROTECTED command-class** (they
--  auto-launch a command each session, like `.claude/commands/`) — in `task_contract_gate.py` PROTECTED_FILES
--  + routed to cto-reviewer (opus floor). No agent self-grants an MCP server in an ordinary task. Memory:
--  [[project-dbt-mcp-server]]. `.cursor/mcp.json` path is protected but NOT created (Cursor config deferred).
-+## This session (2026-06-18) — metric layer Phase 1 (+ a rating-removal precursor)
-+- **#499 (MERGED) — dropped the black-box player `rating` end-to-end.** API-Football's per-player match
-+  `rating` is a vendor black box (opaque formula, unverifiable, variable coverage) → removed from staging →
-+  base → `fct_fixture_player_stats` → `int_legs__player_match` → the two fixture-grain marts, plus the season
-+  aggregate `rating_avg`, plus the doc/wireframe mentions. A focused precursor so the metric layer built on a
-+  rating-free base.
-+- **#501 (MERGED) — metric layer Phase 1, the dbt-idiomatic way.** NOT an engine: the **model is the single
-+  source** (#480 player-season; team via #500), the **catalogue is the registry/glossary**, and **one drift
-+  test** (`tests/assert_no_uncatalogued_season_metric.sql`) FAILS if a season model computes a metric not in
-+  `metric_catalogue`. Added the 4 rows for metrics the models already compute (`shots_total`,
-+  `goals_conceded`, `shot_share`, `points_capture`), ratio range tests, and `docs/metric_layer.md`.
-+- **Over-build reverted (lesson).** Mid-session I built a bespoke conformance engine — a binding-map seed, a
-+  `metric_kind` taxonomy, a `context` flag, and a test re-deriving every metric from the legs — which bought
-+  nothing over #480's single source + a one-line drift test. The CPO flagged it; reverted to the simple
-+  version above. Lesson: **size the solution to the need; check what a mechanism buys before building it.**
-+  Memory: [[feedback-no-hacky-solutions]].
-+- **#500 (OPEN)** — team-season model naming + consolidation (the team analog of #480; the
-+  `int_team_season__full_season_metrics` → `int_team_season__metrics` rename rides with collapsing the split
-+  team-season models). Memory: [[project-season-model-naming-parked]].
-+- **Non-blocking follow-up:** the 4 new metrics' i18n labels (not in `site/i18n` yet; they are not displayed
-+  rows; add when surfaced).
- 
- ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
- 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
-@@ -68,8 +78,9 @@ architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Gover
- ### Carryovers (also open, CPO directs)
- - **#484** — player national/tournament **context** window (a NEW national-anchored intermediate selector
-   per §8.4 — NOT mart logic). Changes shipped numbers → own validation.
--- **Team season-record ↔ rollup unification** — the team-side analog of #480 (the season record's final
--  row == the rollup; they're one aggregation). Latent consolidation.
-+- **Team season-record ↔ rollup unification + naming (#500)** — the team-side analog of #480 (the season
-+  record's final row == the rollup; they're one aggregation), bundled with the model-naming fix
-+  (`int_team_season__full_season_metrics` → `int_team_season__metrics`). Now tracked as **#500**.
- - **Team season-rollup enhancement** — point `mart_team_season`/`int_team_season` at the mapping spine so
-   pre-season teams appear (deferred from the dim_team work).
- - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
-@@ -102,6 +113,9 @@ architecture, #494/#480 player-season) is the roadmap below — UNCHANGED. Gover
-   expects. Force-push the feature branch with `--force-with-lease`.
- - A reviewer FAIL on a non-§10 finding → fix + re-review, don't escalate. Read the existing docs before
-   claiming a gap. Communication: compact + plain, lead with decisions + a bolded recommendation.
-+- **Size the solution to the need** ([[feedback-no-hacky-solutions]]): don't over-build (this session's
-+  reverted metric-layer conformance engine) and don't hack (a flag-to-ignore instead of the principled fix).
-+  Before building any mechanism, ask what it buys over the simplest thing + what is already solved.
- 
- ## The governance machinery (G1–G4 all LIVE — unchanged)
- - **Contract first**: every unit writes `.claude/task/contract.md` (objective, scope_paths, decisions,
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 31acedc..42a7c29 100644
+index 42a7c29..01cfced 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,62 +1,47 @@
--# Task contract — feat: metric layer (Phase 1) — catalogue completeness + drift guard
-+# Task contract — chore: refresh the handover after #499 + #501 merged
+@@ -1,47 +1,73 @@
+-# Task contract — chore: refresh the handover after #499 + #501 merged
++# Task contract — feat: mart_roster (identity-only club squad list)
  
--> The metric layer, done the dbt-idiomatic way. The season MODELS are the single source of truth for each
--> metric (already so — #480 for player-season; team-season consolidation tracked in #500). This task just
--> (a) makes the catalogue COMPLETE — every metric the two season models already compute is registered —
--> and (b) adds ONE drift guard: a test that fails if a model computes a metric not in the catalogue, plus
--> standard range tests. NO bespoke conformance engine, NO binding-map, NO metric_kind column — those were
--> over-built (re-deriving every metric to check the model) and have been reverted; they bought nothing over
--> #480's single source + a drift test. CPO-directed, 2026-06-18.
-+> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this session's
-+> merges (#499 rating removal, #501 metric layer Phase 1), the metric-layer outcome + the over-build lesson,
-+> the new follow-up #500, and re-point NEXT to task A (leaderboards + roster). Preserve all durable standing
-+> sections verbatim. No code, no docs-content change. active_work.md is artifact-only for commits but NOT
-+> auto-editable, so it is in scope_paths. The commit also carries contract.md (never review-exempt) →
-+> scope-auditor reviews.
+-> Bookkeeping. Update `.claude/active_work.md` so a fresh session continues correctly: record this session's
+-> merges (#499 rating removal, #501 metric layer Phase 1), the metric-layer outcome + the over-build lesson,
+-> the new follow-up #500, and re-point NEXT to task A (leaderboards + roster). Preserve all durable standing
+-> sections verbatim. No code, no docs-content change. active_work.md is artifact-only for commits but NOT
+-> auto-editable, so it is in scope_paths. The commit also carries contract.md (never review-exempt) →
+-> scope-auditor reviews.
++> PR 1 of the split task A (CPO-directed 2026-06-19). Mart-only: add `mart_roster`, the
++> Squad-block data foundation. NO export wiring — the Squad-block consumer lives in the
++> PAUSED website blueprint (#391); wiring a payload nothing renders is speculative plumbing,
++> so it rides with the Squad-block build. The companion `mart_leaderboards` is a separate
++> later PR.
  
  objective: >
--  (1) Add the 4 catalogue rows for metrics the season models ALREADY compute but that are not registered:
--  shot_share + points_capture (int_team_season__full_season_metrics), shots_total + goals_conceded
--  (int_player_season__metrics). (2) Add a drift-guard test: for each canonical season model, every
--  metric-bearing column — excluding keys, coverage counts, *_sum_season intermediates, and the playing-time
--  facts (appearances/starts/subs/minutes) — maps to a metric_catalogue metric_id; fails on any uncatalogued
--  metric. Normalisation: strip the team `_season` suffix; map the one `goals_saves`->`saves` quirk (NOT a
--  binding-map — two rules). (3) Range tests (0-1) on the ratio metrics. (4) docs/metric_layer.md describing
--  the layer: model = single source; catalogue = registry/docs; drift test = guard; standard dbt tests =
--  correctness. NO model SQL changes.
-+  Update the session-specific parts of .claude/active_work.md: the Last-updated line (main 4353e41; #499 +
-+  #501 merged; #500 opened), FIRST (nothing pending; NEXT = task A on the metric-layer foundation; dbt MCP
-+  cold-start note), the This-session section (replace the MCP-server session with metric-layer Phase 1 + the
-+  rating-removal precursor + the over-build lesson), the team-consolidation carryover (now #500), and add the
-+  size-the-solution process lesson. Carry ALL durable sections (Standing authority, Product roadmap, NEXT,
-+  other Carryovers, Key specs, dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT,
-+  Environment) forward UNCHANGED + verbatim.
- 
- refs: >
--  This conversation 2026-06-18. Metric layer = model-as-single-source (#480) + catalogue-as-registry + a
--  drift guard, NOT a recompute engine (reverted after the CPO flagged it as over-built). Naming + team-season
--  model consolidation = #500. Season-grain completeness beyond the 4 orphans (e.g. clean_sheets at season
--  grain) is a separate concern, not this task.
-+  This conversation 2026-06-18. Merged #499 (rating removal) + #501 (metric layer Phase 1), main 4353e41.
-+  Opened #500 (team-season naming + consolidation). Memory: [[feedback-no-hacky-solutions]],
-+  [[project-season-model-naming-parked]].
+-  Update the session-specific parts of .claude/active_work.md: the Last-updated line (main 4353e41; #499 +
+-  #501 merged; #500 opened), FIRST (nothing pending; NEXT = task A on the metric-layer foundation; dbt MCP
+-  cold-start note), the This-session section (replace the MCP-server session with metric-layer Phase 1 + the
+-  rating-removal precursor + the over-build lesson), the team-consolidation carryover (now #500), and add the
+-  size-the-solution process lesson. Carry ALL durable sections (Standing authority, Product roadmap, NEXT,
+-  other Carryovers, Key specs, dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT,
+-  Environment) forward UNCHANGED + verbatim.
+-
+-refs: >
+-  This conversation 2026-06-18. Merged #499 (rating removal) + #501 (metric layer Phase 1), main 4353e41.
+-  Opened #500 (team-season naming + consolidation). Memory: [[feedback-no-hacky-solutions]],
+-  [[project-season-model-naming-parked]].
++  Add mart_roster — an identity-only squad list, one row per rostered player per
++  (club team, competition-season), from dim_player_team_season_mapping joined to dim_player.
++  Scoped to CLUB competitions (entity_type = 'club', resolved league_code → competition_registry
++  → competition_types — never a dim_team flag). Identity columns only (name, listed position,
++  nationality, birth_date, photo + keys); NO per-club season stats (the deferred per-club grain,
++  #480 §8.3). Materialised as a view (flat identity projection, no aggregation).
++
++refs: docs/content_architecture.md §3 (Squad/roster block) + §7 (new-mart list); .claude/active_work.md NEXT #2; task A (split, PR 1).
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/macros/
--  - dbt_project/tests/
--  - docs/metric_layer.md
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - dbt_project/models/5_marts/shared/mart_roster.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/docs/layering.md
    - .claude/task/contract.md
    - .claude/task/review.md
  
  decisions_taken: >
--  CPO 2026-06-18: build the metric layer the dbt-idiomatic way — model = single source (#480/#500),
--  catalogue = registry/docs, ONE drift-guard test (no uncatalogued metric), standard dbt tests for
--  correctness. The bespoke conformance engine (binding-map seed, metric_kind, context flag, recompute-from-
--  legs test) was over-built and is reverted. league_rank/points_won stay plain catalogue rows (they are the
--  UI glossary's source too). The drift test handles the goals_saves<->saves quirk + the _season suffix via
--  small normalisation, not a binding-map.
-+  CPO directed the handover refresh this conversation (2026-06-18, "do it"). Pure bookkeeping: records the
-+  already-merged #499 + #501, the metric-layer outcome (model + catalogue + drift test, NOT an engine) + the
-+  reverted over-build lesson, the new #500, and re-points NEXT to task A. No new product / metric / naming /
-+  layer decision. Durable standing sections preserved verbatim.
+-  CPO directed the handover refresh this conversation (2026-06-18, "do it"). Pure bookkeeping: records the
+-  already-merged #499 + #501, the metric-layer outcome (model + catalogue + drift test, NOT an engine) + the
+-  reverted over-build lesson, the new #500, and re-points NEXT to task A. No new product / metric / naming /
+-  layer decision. Durable standing sections preserved verbatim.
++  CPO-directed this conversation (2026-06-19): split task A into two PRs; build mart_roster
++  FIRST, mart-only, export wiring deferred (blueprint #391 PAUSED — "PR1 scope approved").
++  Grain (team_sk, league_code, season_api_year, player_sk) = the mapping's membership grain
++  (the mapping surrogate player_team_season_sk is reused as the mart surrogate). Club-only via
++  the competition_types seed (entity_type = 'club'), mirroring mart_standings' registry→types
++  join — NOT a dim_team column (per the dim_team-is-a-pure-entity ruling). Identity columns:
++  name, listed position (player_position from dim_player bio), nationality, birth_date, photo.
++  Age is a render-time derivation, NOT a mart column (a stored current-age would be
++  non-deterministic / rebuild-dependent). LEFT join dim_player + a relationships test so a
++  membership with no player entity surfaces as a test failure, never a silent drop.
  
  decisions_reserved:
--  - No recompute/conformance engine; no binding-map; no metric_kind column; no context flag.
--  - No model SQL changes — the models already compute these metrics; this task only catalogues + tests.
--  - Season-grain completeness beyond the 4 orphans (clean_sheets / per-match T-I-B / dribbles% at season
--    grain) is a SEPARATE task, not bundled here.
--  - Naming consistency + team-season model consolidation = #500 (not here).
-+  - No new scope. The NEXT items (task A + the content-architecture sequence) are unchanged and remain
-+    CPO-directed; this is not the place to add or re-decide them.
-+  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
+-  - No new scope. The NEXT items (task A + the content-architecture sequence) are unchanged and remain
+-    CPO-directed; this is not the place to add or re-decide them.
+-  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
++  - Export / payload wiring is OUT of scope (deferred to the Squad-block build under #391).
++    If tempted to add it, STOP — that is the deferred decision, not this PR.
++  - NO per-club season stats / appearances (the deferred #480 §8.3 per-club grain).
++  - If the registry → types join cannot cleanly yield entity_type for a league_code present in
++    the mapping, STOP and escalate — do not hardcode a club/national split or a league_code list.
++  - mart_leaderboards (the companion mart, retirements, catalogue rows, export repoint) is a
++    SEPARATE later PR — nothing from it belongs here.
  
  done_when:
--  - metric_catalogue has the 4 orphan rows (shot_share, points_capture, shots_total, goals_conceded).
--  - The drift test passes now and WOULD FAIL if a season model gained an uncatalogued metric column.
--  - The ratio metrics have 0-1 range tests.
--  - docs/metric_layer.md documents the (simple) mechanism.
--  - validate-local green; ci-data-build green on the PR.
--  - reviewer (per .claude/review_routing.json): analytics-engineer-reviewer + football-analytics-expert-reviewer
--    (metric_catalogue.csv) + scope-auditor PASS (>=2 named risks each); no FAIL; no ESCALATE.
--  - Branch feat/metric-layer-phase1; PR opened (CPO merges).
-+  - .claude/active_work.md reflects: #499 + #501 merged (main 4353e41); #500 opened; FIRST = nothing pending +
-+    NEXT = task A; the metric-layer Phase 1 session + the over-build lesson recorded; all durable sections
-+    intact and verbatim.
-+  - Commit on branch chore/handover-refresh-metric-layer; post-commit opens the PR.
-+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
+-  - .claude/active_work.md reflects: #499 + #501 merged (main 4353e41); #500 opened; FIRST = nothing pending +
+-    NEXT = task A; the metric-layer Phase 1 session + the over-build lesson recorded; all durable sections
+-    intact and verbatim.
+-  - Commit on branch chore/handover-refresh-metric-layer; post-commit opens the PR.
+-  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
++  - mart_roster.sql compiles; `dbt parse` is clean; sqlfluff lint passes on the new model.
++  - Grain unique on (team_sk, league_code, season_api_year, player_sk); player_team_season_sk
++    unique + not_null; relationships player_sk → dim_player and team_sk → dim_team; not_null on
++    team_sk / player_sk / league_code / season_api_year; entity_type accepted_values ['club'].
++  - Only club rows are present (national-team memberships excluded by the entity_type filter).
++  - dbt_project/docs/layering.md mart inventory lists mart_roster (view) with its grain.
++  - dim_player_team_season_mapping.league_code carries a relationships test to
++    competition_registry.league_code, so an unregistered roster competition fails the build
++    rather than being silently dropped by mart_roster's club filter.
++  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each);
++    no FAIL; no ESCALATE.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-06-19: + dbt_project/models/3_core/core.yml — authority: analytics-engineer-reviewer
++    FAIL on the first review round (the mart's club filter `where entity_type = 'club'` runs
++    after LEFT joins, so a league_code present in the mapping but absent from the registry
++    silently drops those memberships; the post-filter not_null/accepted_values tests on
++    entity_type are vacuous) + DQ-non-negotiable standing rule + the fix-don't-escalate rule for
++    non-§10 findings. Content: a relationships test on
++    dim_player_team_season_mapping.league_code -> competition_registry.league_code (the reviewer's
++    own suggested guard). Verified clean against live data first (0 unregistered league_codes;
++    231,860 club / 21,657 national / 0 null entity_type), so the guard passes CI today and only
++    fires on a future regression. Also dropped player_first_name / player_last_name from the mart
++    SELECT (the locked spec lists only "name"; they were undocumented in shared.yml — round-1
++    finding 2). No new reviewer routed (core.yml is dbt_project/** -> analytics-engineer).
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 61d894b..922385a 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -278,6 +278,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+ | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
++| `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
+ 
+ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+ 
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 4229293..70ab63f 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -293,7 +293,15 @@ models:
+               field: league_sk
+       - name: league_code
+         description: "Internal league code — the competition the roster belongs to."
+-        tests: [not_null]
++        tests:
++          - not_null
++          # Every rostered competition must be registered. Without this, a league_code
++          # present here but absent from competition_registry would be silently dropped by
++          # downstream club/national filters that resolve entity_type via the registry → types
++          # seeds (e.g. mart_roster's `where entity_type = 'club'`). Verified clean today.
++          - relationships:
++              to: ref('competition_registry')
++              field: league_code
+       - name: season_api_year
+         description: "API-Football season year of the roster."
+         tests: [not_null]
+diff --git a/dbt_project/models/5_marts/shared/mart_roster.sql b/dbt_project/models/5_marts/shared/mart_roster.sql
+new file mode 100644
+index 0000000..7b5eb3d
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_roster.sql
+@@ -0,0 +1,66 @@
++{{ config(materialized='view') }}
++
++{#
++  mart_roster — identity-only club squad list (the Squad block; content_architecture §3).
++  One row per rostered player per (club team, competition-season), from
++  dim_player_team_season_mapping joined to dim_player for identity. Scoped to CLUB
++  competitions (entity_type = 'club', resolved league_code -> competition_registry ->
++  competition_types — mirrors mart_standings; never a dim_team flag, per the
++  dim_team-is-a-pure-entity ruling).
++
++  Identity only: name, listed position, nationality, birth_date, photo. NO per-club season
++  stats / appearances — that is the deferred per-club grain (#480 §8.3). Age is a render-time
++  derivation, so the mart carries player_birth_date, not a (non-deterministic) stored age.
++
++  dim_player is LEFT-joined so a membership with no resolvable player entity is NOT silently
++  dropped — it surfaces through the player_sk -> dim_player relationships test instead.
++
++  league_code is the partition key. season_sk is nullable (a roster season with no
++  competition-season row in dim_competition_season); season_api_year is always present and
++  anchors the grain. Grain: (team_sk, league_code, season_api_year, player_sk).
++#}
++
++with mapping as (
++    select * from {{ ref('dim_player_team_season_mapping') }}
++),
++
++players as (
++    select * from {{ ref('dim_player') }}
++),
++
++registry as (
++    select
++        league_code,
++        competition_type
++    from {{ ref('competition_registry') }}
++),
++
++types as (
++    select
++        competition_type,
++        entity_type
++    from {{ ref('competition_types') }}
++)
++
++select
++    m.player_team_season_sk,
++    m.team_sk,
++    m.player_sk,
++    m.season_sk,
++    m.league_code,
++    m.season_api_year,
++    reg.competition_type,
++    typ.entity_type,
++    p.player_name,
++    p.player_position,
++    p.player_nationality,
++    p.player_birth_date,
++    p.player_photo_url
++from mapping as m
++left join players as p
++    on m.player_sk = p.player_sk
++left join registry as reg
++    on m.league_code = reg.league_code
++left join types as typ
++    on reg.competition_type = typ.competition_type
++where typ.entity_type = 'club'
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index edbc1d7..eb00273 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -978,3 +978,65 @@ models:
+           - accepted_values:
+               values: ["W", "D", "L"]
+ 
++  - name: mart_roster
++    description: >
++      Identity-only club squad list (the Squad block; content_architecture §3). One row per
++      rostered player per (club team, competition-season), from dim_player_team_season_mapping
++      joined to dim_player. Scoped to club competitions (entity_type = 'club', via
++      competition_registry + competition_types — never a dim_team flag). Identity only: name,
++      listed position, nationality, birth_date, photo; NO per-club season stats (the deferred
++      per-club grain, #480 §8.3). Age is derived at render from player_birth_date (a stored age
++      would be non-deterministic). dim_player is LEFT-joined so a membership with no player
++      entity surfaces via the relationships test, not a silent drop. View. league_code is the
++      partition key; season_sk is nullable (roster season with no competition-season row).
++      Grain: (team_sk, league_code, season_api_year, player_sk).
++    config:
++      tags: ["marts", "football", "roster"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, league_code, season_api_year, player_sk]
++    columns:
++      - name: player_team_season_sk
++        description: "Surrogate carried from dim_player_team_season_mapping (player, team, league_code, season)."
++        tests: [not_null, unique]
++      - name: team_sk
++        description: "FK to dim_team (the club)."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: player_sk
++        description: "FK to dim_player."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: league_code
++        description: "Partition key — app slices by this to retrieve a club's squad for a competition-season."
++        tests: [not_null]
++      - name: season_api_year
++        description: "The roster season; always present (anchors the grain even when season_sk is null)."
++        tests: [not_null]
++      - name: season_sk
++        description: "FK to dim_competition_season; nullable (roster season with no competition-season row)."
++      - name: competition_type
++        description: "From competition_registry; the mart is filtered to club types."
++      - name: entity_type
++        description: "Always 'club' — the mart is club-scoped via competition_types."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["club"]
++      - name: player_name
++        description: "Denormalised from dim_player."
++      - name: player_position
++        description: "Listed/bio position from dim_player (general position, not a per-season modal)."
++      - name: player_nationality
++        description: "Denormalised from dim_player."
++      - name: player_birth_date
++        description: "Birth date from dim_player bio; age is computed at render."
++      - name: player_photo_url
++        description: "Player photo URL from dim_player; nullable."
++
