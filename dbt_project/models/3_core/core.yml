@@ -537,9 +537,12 @@ models:
         description: "Surrogate key from (fixture_id, league_code, team_id)."
         tests: [not_null, unique]
       - name: fixture_sk
-        description: "fixture_api_id cast to INT64. No FK test: fct_fixture covers current-season snapshots only; this incremental table accumulates historical seasons."
+        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
         tests:
           - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "FK to dim_team."
         tests:
@@ -590,9 +593,12 @@ models:
         description: "Surrogate key from (fixture_id, league_code, team_id, player_id)."
         tests: [not_null, unique]
       - name: fixture_sk
-        description: "fixture_api_id cast to INT64. No FK test: fct_fixture covers current-season snapshots only; this incremental table accumulates historical seasons."
+        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
         tests:
           - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "FK to dim_team."
         tests:
@@ -666,9 +672,12 @@ models:
         description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
         tests: [not_null]
       - name: fixture_sk
-        description: "fixture_api_id cast to INT64. No FK test: fct_fixture covers current-season snapshots only; this incremental table accumulates historical seasons."
+        description: "fixture_api_id cast to INT64. FK to fct_fixture: every fixture with fanout data must have a fixture header. This incremental fact accumulates historical seasons; fct_fixture (full-refresh) carries the same history via the append-complete-snapshot carry-forward (PR #514), so the FK holds for active and idle competitions alike."
         tests:
           - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "FK to dim_team for the event's team."
         tests:
