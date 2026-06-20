@@ -249,11 +249,11 @@ competitions:
     provider_league_id: 39
     season_type: "split_year"
     current_season: "2025"
-    history_seasons: 2
+    history_seasons: 11
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
+    notes: "Backfilled to BL1 parity (2016-2025 finished + 2026 in-progress), §8 top-domestic depth, 2026-06-20, #479. hs=11 (not 10) offsets the provider current_season=2026, one ahead of BL1's 2025. Slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "PD"
     name: "La Liga"

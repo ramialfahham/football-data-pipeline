@@ -4,8 +4,9 @@ The API uses the competition start calendar year as its 'season' identifier
 (e.g. 2024 = the 2024/25 Bundesliga season). This module handles three concerns:
 
 1. Season discovery — which API season years to ingest for a given competition.
-   Domestic leagues use a rolling 10-year window; international tournaments use
-   current_season from the competition registry to avoid pulling irrelevant prior editions.
+   A competition's `history_seasons` (registry) is the authoritative depth; when unset,
+   a default rolling window applies. International tournaments use current_season from
+   the competition registry to avoid pulling irrelevant prior editions.
 
 2. Fixture query params — how to ask the API for fixtures (full season vs. date window).
 
@@ -229,12 +230,15 @@ def _seasons_for_ingestion(
         league_catalog=league_catalog,
     )
 
-    global_lo = effective_season_min()
     if history_seasons is not None and history_seasons >= 1:
-        competition_lo = resolved_current - (history_seasons - 1)
-        lo = max(global_lo, competition_lo)
+        # history_seasons (registry) is the AUTHORITATIVE depth knob: the lower bound is
+        # exactly resolved_current - (history_seasons - 1), NOT clamped to the default
+        # window. A competition backfills to its configured depth deterministically —
+        # independent of today's date and the provider's current-season flag.
+        lo = resolved_current - (history_seasons - 1)
     else:
-        lo = global_lo
+        # No explicit depth in the registry -> fall back to the default rolling window.
+        lo = effective_season_min()
     hi = resolved_current
     fallback = resolved_current
 
