@@ -268,11 +268,11 @@ competitions:
     provider_league_id: 140
     season_type: "split_year"
     current_season: "2025"
-    history_seasons: 2
+    history_seasons: 10
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
+    notes: "Backfilled to 2016-2025 (10 finished seasons, BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. Slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "BL2"
     name: "2. Fußball-Bundesliga"
@@ -306,11 +306,11 @@ competitions:
     provider_league_id: 135
     season_type: "split_year"
     current_season: "2025"
-    history_seasons: 2
+    history_seasons: 11
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
+    notes: "Backfilled to 2016-2025 finished + 2026 (BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. hs=11 offsets provider current_season=2026. Slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "L1"
     name: "Ligue 1"
@@ -325,11 +325,11 @@ competitions:
     provider_league_id: 61
     season_type: "split_year"
     current_season: "2025"
-    history_seasons: 2
+    history_seasons: 11
     status: "active"
     ingest_active: true
     ingest_completeness_gate: soft
-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
+    notes: "Backfilled to 2016-2025 finished + 2026 (BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. hs=11 offsets provider current_season=2026. Slice mart_matchday_insights and mart_team_season_insights by league_code."
 
   - league_code: "VL"
     name: "Veikkausliiga"
