@@ -112,7 +112,7 @@ Each snapshot is stamped with the team's last-recorded `season` (payload key `se
 Data is complete when four conditions hold:
 
 1. **Coverage** — every in-scope raw table has been refreshed, and staging has been rebuilt on top of that refresh.
-2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
+2. **History** — raw tables carry each competition's season depth from its `history_seasons` (registry), which is authoritative; when unset, the default window (`DEFAULT_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`) applies.
 3. **Freshness** — when new source data appears (matchdays, results), the next run merges it into the corresponding raw tables.
 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
 

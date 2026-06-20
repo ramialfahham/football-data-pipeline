@@ -13,7 +13,7 @@ from ingestion.api_football.season_inference import (
     effective_season_min,
     season_year,
 )
-from ingestion.api_football.settings import V1_SEASON_WINDOW_YEARS
+from ingestion.api_football.settings import DEFAULT_SEASON_WINDOW_YEARS
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ class TestInferCompetitionSeasonStartYear:
 # ---------------------------------------------------------------------------
 
 class TestEffectiveSeasonWindow:
-    def test_window_is_v1_season_window_years_wide(self, monkeypatch):
+    def test_window_is_default_season_window_years_wide(self, monkeypatch):
         monkeypatch.setattr(
             "ingestion.api_football.season_inference._infer_competition_season_start_year",
             lambda now=None: 2024,
@@ -61,14 +61,14 @@ class TestEffectiveSeasonWindow:
         lo = effective_season_min()
         hi = effective_season_max()
         assert hi == 2024
-        assert hi - lo == V1_SEASON_WINDOW_YEARS - 1
+        assert hi - lo == DEFAULT_SEASON_WINDOW_YEARS - 1
 
     def test_min_is_hi_minus_window(self, monkeypatch):
         monkeypatch.setattr(
             "ingestion.api_football.season_inference._infer_competition_season_start_year",
             lambda now=None: 2025,
         )
-        assert effective_season_min() == 2025 - (V1_SEASON_WINDOW_YEARS - 1)
+        assert effective_season_min() == 2025 - (DEFAULT_SEASON_WINDOW_YEARS - 1)
 
 
 # ---------------------------------------------------------------------------

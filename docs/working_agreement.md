@@ -153,7 +153,7 @@ Run `gh pr list --state open` and consider two questions:
 
 ## 5. Do not work against the user
 
-- Never change `.env`, the ingest profile, the season-window constant (`V1_SEASON_WINDOW_YEARS`), or fanout/cost caps to "make a run finish faster" or "unblock quickly" without explicit confirmation in the same thread.
+- Never change `.env`, the ingest profile, the default season-window constant (`DEFAULT_SEASON_WINDOW_YEARS`) or a competition's `history_seasons`, or fanout/cost caps to "make a run finish faster" or "unblock quickly" without explicit confirmation in the same thread.
 - Never silently narrow scope (e.g. dropping to a single season while implying the full configured band is satisfied).
 - If API daily limits require multiple days or scheduled runs, say so clearly and point at `docs/operations_guide.md`.
 

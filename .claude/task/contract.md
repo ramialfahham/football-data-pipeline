@@ -1,49 +1,65 @@
-# Task contract — chore: refresh the handover after the idle-mode completeness fix
-
-> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this session's
-> idle-mode fixtures-completeness fix (PR #514 carry-forward + the zero-API recovery + PR #515 the restored
-> FK guard, all merged), the filed #517 (stale wrong-id purge) + #518 (process/behavioural retrospective),
-> and re-point FIRST/NEXT (the deep-season backfill — the original NEXT #1 — is STILL pending; the recovery
-> only restored what was already in RAW). Preserve all durable standing sections verbatim. No code.
-> active_work.md is artifact-only for commits but NOT auto-editable, so it is in scope_paths; the commit
-> also carries contract.md (never review-exempt) -> scope-auditor reviews.
+# Task contract — Make history_seasons authoritative + backfill PL to BL1 parity (2016)
 
 objective: >
-  Update the session-specific parts of .claude/active_work.md: the Last-updated line, FIRST, the
-  This-session section (replace the prior TEAM-benchmark session with the 2026-06-19 idle-mode fix:
-  root cause, #514 carry-forward, the zero-API recovery incl. the CNL/CDR/DFBP stale-id correction, #515
-  the restored FK guard, #517/#518 filed, and the don't-re-litigate dbt ruling that fct_fixture stays
-  full-refresh), and the NEXT pointer (the deep-season backfill is still pending; add #517/#518). Carry ALL
-  durable standing sections (Standing authority, Product roadmap, the other NEXT items + Carryovers,
-  dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT, Environment) forward
-  UNCHANGED + verbatim.
-
+  Refactor the season-depth config so the per-competition `history_seasons` (registry) is the
+  authoritative depth knob, not silently clamped by a global v1 constant; retire that constant
+  (`V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`) to a default-only role. Then apply it
+  to PL: hs=11 -> 2016-2025 finished (true BL1 parity) + 2026 in-progress, deterministically (no
+  July-1 date dependency). This is the robust fix replacing the fragile date-dependent hs=11 patch.
 refs: >
-  This conversation 2026-06-19. Merged #514 (idle-mode carry-forward) + #515 (fct_fixture FK guard); ran
-  the zero-API recovery (25 leagues from RAW; CNL/CDR/DFBP stale-id corrected). Filed #517 + #518.
-  Memory: [[feedback-raw-staging-latest-payload]], [[feedback-no-hacky-solutions]].
+  #479 (deep-season backfill); docs/content_architecture.md §8/§9; CPO Path-A decision in this
+  conversation (2026-06-20): "make history_seasons authoritative + retire the v1 constant, then PL
+  -> 2016 cleanly". The CPO flagged V1_SEASON_WINDOW_YEARS as an unacceptable v1 artifact and the
+  season-depth config as not robust.
 
 scope_paths:
-  - .claude/active_work.md
-  - .claude/task/contract.md
-  - .claude/task/review.md
+  - ingestion/api_football/settings.py
+  - ingestion/api_football/season_inference.py
+  - ingestion/api_football/seasons.py
+  - ingestion/api_football/orchestrator.py
+  - tests/test_season_inference.py
+  - tests/test_seasons_for_ingestion.py
+  - docs/data_contract.md
+  - docs/working_agreement.md
+  - docs/competition_registry.yml
+  - .claude/task/**
 
 decisions_taken: >
-  CPO directed the handover refresh + the housekeeping this conversation ("do the proposed housekeeping",
-  "create an issue"). Pure bookkeeping: records the already-merged #514/#515, the recovery, the filed
-  #517/#518, and re-points NEXT. No new product / metric / naming / layer decision — the idle-fix design
-  rulings (fct_fixture stays full-refresh; the carry-forward write-boundary fix) are already shipped and
-  are recorded, not re-decided. Durable standing sections preserved verbatim.
+  CPO chose Path A (2026-06-20). (1) BEHAVIOUR: in seasons._seasons_for_ingestion, when
+  history_seasons is set the band lower bound becomes lo = resolved_current - (history_seasons - 1)
+  with NO max(global_lo, ...) clamp — history_seasons fully determines depth (can now exceed the
+  default window, and is date-independent). When history_seasons is UNSET, the default window floor
+  (effective_season_min) still applies. (2) RENAME: V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS
+  (internal constant, default-only role). (3) Economy/default profile output is UNCHANGED for existing
+  configs — the MAX_SEASONS cap is a separate, later branch (verified: a wider band is still truncated
+  to the last MAX_SEASONS). (4) PL history_seasons 10 -> 11 (offsets the provider's current_season=2026,
+  one ahead of BL1's 2025) -> reaches 2016. (5) Re-run the PL backfill to fetch 2016 (incremental).
+  Authority: working_agreement §2 (amendment, clean tree) + the CPO's explicit Path-A approval; the
+  constant change is pre-confirmed in-thread per working_agreement §156.
 
 decisions_reserved:
-  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
-  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
+  - Phantom-current-season hardening (anchor depth to the latest FINISHED season, so PL could use
+    hs=10 like BL1) — CPO ruled SEPARABLE (2026-06-20); filed as a follow-up, NOT in this PR.
+    Documented consequence: PL uses hs=11 vs BL1's hs=10 to reach the same finished depth.
+  - PD/SA/L1 + Phase 2 per-type depths — deferred; a separate cost decision after PL.
+  - The new constant name (DEFAULT_SEASON_WINDOW_YEARS) is agent-chosen (internal, not user-visible);
+    CPO may override.
 
 done_when:
-  - .claude/active_work.md reflects: #514 + #515 merged; the zero-API recovery + the CNL/CDR/DFBP stale-id
-    correction; #517 + #518 filed; FIRST/NEXT re-pointed (deep-season backfill still pending — recovery only
-    restored what was in RAW); the idle-fix session recorded; all durable sections intact + verbatim.
-  - Commit on branch chore/handover-refresh-idle-fix; post-commit opens the PR.
-  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
+  - history_seasons authoritative: new tests in tests/test_seasons_for_ingestion.py prove (a) under the
+    full profile an explicit history_seasons reaches below the default floor (monkeypatched), and
+    (b) unset history_seasons still clamps to the default window. Existing season tests pass under the
+    renamed constant.
+  - V1_SEASON_WINDOW_YEARS fully retired: `git grep V1_SEASON_WINDOW_YEARS` returns 0 (code + docs).
+  - Registry PL history_seasons = 11; check_registry_var_sync.py green.
+  - validate-local gates (ruff/pytest/sqlfluff/dbt parse) green locally before push.
+  - Backfill re-run (full profile, LEAGUE_CODES=PL): PL RAW shows 2016-2026 (2016-2025 finished),
+    fanout 100%; measured call delta captured and reported.
+  - ci-data-build green on the PR (relationship/orphan tests against the new RAW).
 
-amendments: (none)
+amendments:
+  - 2026-06-20: EXPANDED from the one-line PL history_seasons=10 change to the season-depth config
+    refactor (Path A). Authority: CPO Path-A approval in this conversation. Added scope_paths:
+    ingestion/api_football/{settings,season_inference,seasons,orchestrator}.py, tests/test_season_inference.py,
+    tests/test_seasons_for_ingestion.py, docs/data_contract.md, docs/working_agreement.md.
+    PL history_seasons target changed 10 -> 11.

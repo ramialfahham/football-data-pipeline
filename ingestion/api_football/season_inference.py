@@ -8,9 +8,10 @@ The API uses the competition start calendar year as its season identifier
    Only correct for split-year domestic leagues; international tournaments (WC,
    qualifiers) use current_season from the competition registry instead.
 
-2. Rolling window — the v1 pipeline ingests the last V1_SEASON_WINDOW_YEARS
-   season start years, inclusive of the active campaign. effective_season_min /
-   effective_season_max expose these bounds for filtering discovered API seasons.
+2. Default rolling window — when a competition does not set history_seasons, the
+   pipeline ingests the last DEFAULT_SEASON_WINDOW_YEARS season start years, inclusive
+   of the active campaign. effective_season_min / effective_season_max expose these
+   bounds for filtering discovered API seasons. An explicit history_seasons overrides them.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from __future__ import annotations
 import os
 from datetime import date, datetime
 
-from .settings import V1_SEASON_WINDOW_YEARS
+from .settings import DEFAULT_SEASON_WINDOW_YEARS
 
 
 def _infer_competition_season_start_year(now: datetime | None = None) -> int:
@@ -39,9 +40,12 @@ def _infer_competition_season_start_year(now: datetime | None = None) -> int:
 
 
 def effective_season_min() -> int:
-    """Lower bound: ``V1_SEASON_WINDOW_YEARS`` start years ending at the active campaign."""
+    """Default lower bound: ``DEFAULT_SEASON_WINDOW_YEARS`` start years ending at the active campaign.
+
+    Used when a competition does not specify ``history_seasons`` (which, when set, is authoritative).
+    """
     hi = _infer_competition_season_start_year()
-    return hi - (V1_SEASON_WINDOW_YEARS - 1)
+    return hi - (DEFAULT_SEASON_WINDOW_YEARS - 1)
 
 
 def effective_season_max() -> int:
@@ -64,8 +68,8 @@ def season_year() -> int:
     If ``API_FOOTBALL_SEASON`` is set, it wins.
 
     If unset, we infer the **current** campaign via :func:`_infer_competition_season_start_year`
-    then clamp to the v1 window ``[effective_season_min(), effective_season_max()]``
-    (last ``V1_SEASON_WINDOW_YEARS`` API season start years, inclusive). Set
+    then clamp to the default window ``[effective_season_min(), effective_season_max()]``
+    (last ``DEFAULT_SEASON_WINDOW_YEARS`` API season start years, inclusive). Set
     ``API_FOOTBALL_SEASONS`` for an explicit list when needed.
     """
     raw = os.getenv("API_FOOTBALL_SEASON")

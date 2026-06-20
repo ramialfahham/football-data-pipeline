@@ -33,9 +33,11 @@ DATASET_ID = (os.getenv("API_FOOTBALL_BIGQUERY_DATASET", "raw").strip() or "raw"
 APISPORTS_BASE = "https://v3.football.api-sports.io"
 RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
 
-# v1 milestone: last N API ``season`` start years **including** the active campaign (see
-# ``season_inference._infer_competition_season_start_year``). Fixed N here — widen in code later if v2 needs it.
-V1_SEASON_WINDOW_YEARS = 10
+# Default rolling window: the number of API ``season`` start years (including the active
+# campaign) ingested when a competition does NOT set ``history_seasons`` in the registry (see
+# ``season_inference._infer_competition_season_start_year`` and ``seasons._seasons_for_ingestion``).
+# A competition's explicit ``history_seasons`` is authoritative and overrides this default.
+DEFAULT_SEASON_WINDOW_YEARS = 10
 
 
 def raw_table(entity: str) -> str:
@@ -118,8 +120,8 @@ def _ingest_profile_name() -> str:
 def _apply_ingest_profile_defaults() -> None:
     """
     **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
-    v1 window (``V1_SEASON_WINDOW_YEARS``), no request pacing unless you set it, and
-    high pagination caps.
+    default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
+    history_seasons widens it, no request pacing unless you set it, and high pagination caps.
     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
 
     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
@@ -149,7 +151,7 @@ def _apply_ingest_profile_defaults() -> None:
     d.setdefault("API_FOOTBALL_FIXTURES_MAX_PAGE", "50")
     print(
         "[api-football] ingest profile=full -> unset env got paid defaults "
-        f"(multi-season within v1 window last {V1_SEASON_WINDOW_YEARS} API season years, "
+        f"(multi-season within the default window last {DEFAULT_SEASON_WINDOW_YEARS} API season years, "
         "REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
         "Unset API_FOOTBALL_SEASON for multi-season; set any var explicitly to override.",
         flush=True,

@@ -1,187 +1,401 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index d2fc549..ddc007a 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,19 +4,25 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-19 (TEAM competition benchmark built). Merged **#511** (metric direction + interpretation
--catalogue semantic) then **#512** (mart_competition_benchmarks__team — the team-vs-league benchmark engine). main
--at b8de817. Filed **#510** (retire leftover team dribbles_success_pct). Earlier this day: Task A (roster +
--leaderboards v1) shipped as #503/#507/#508 + handover #509; filed #504/#505/#506. **#500** + **#510** OPEN.
--Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Website blueprint #391 still PAUSED.**_
-+_Last updated: 2026-06-19 (idle-mode fixtures-completeness fix). The backfill task (NEXT #1) uncovered + fixed
-+an idle-mode bug: idle/poll ingest wrote current-season-only fixtures snapshots, so the full-refresh `fct_fixture`
-+collapsed to one season for idle leagues (BL1 308 vs 3075 in the incremental player-stats fact). Shipped **#514**
-+(carry-forward at the write boundary) + **#515** (restore the suppressed fct_fixture FK guard). Ran a **zero-API
-+recovery** — reconstructed 25 leagues' fixtures from RAW history; corrected CNL/CDR/DFBP stale wrong-provider-id
-+data. Filed **#517** (purge stale wrong-id data) + **#518** (process/behavioural retrospective — read it). Prior
-+session: TEAM benchmark #511/#512 (merged). #500/#510 still OPEN. Governance G1–G4 LIVE. **Website blueprint #391
-+still PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge. `git fetch` + ff to confirm (main b8de817). **Task A + the TEAM benchmark are DONE.**
--  The CPO directs the next item (none auto-granted) — see NEXT. Open content-architecture picks: **the backfill**
--  (NEXT #1), **coaches + `mart_player_career`** (NEXT #4). Benchmark **v1.x** follow-ups: the **player benchmark**
--  (per-90 + position-aware + percentile) and the **opponent/schedule-context** flagship. Open carryovers: **#500**
--  (team-season rename), **#510** (team dribbles), **#506** (leaderboard rate boards). **Read
--  `docs/content_architecture.md`** first. Benchmark design: [[project-competition-benchmarks-design]].
-+- Nothing pending-merge (`git fetch` + ff). The **idle-mode completeness bug is FIXED + recovered + guarded**
-+  (#514/#515 merged; 0 orphans warehouse-wide; all relationship tests green). **The deep-season backfill (the
-+  ORIGINAL NEXT #1) is STILL PENDING:** the recovery only restored what was already in RAW — PL/PD/SA/L1 genuinely
-+  lack 2016–2023 (only ~2 seasons in RAW), so the **cost-gated API backfill of their missing seasons is still to
-+  do**. **CRITICAL LESSON ([[feedback-raw-staging-latest-payload]]): NEVER judge ingested depth from staging/core —
-+  query RAW.** CPO directs the next item (none auto-granted) — open: the deep-season backfill (cost-gated),
-+  **coaches + `mart_player_career`** (NEXT #4), the **player benchmark** + **opponent/schedule-context** (v1.x),
-+  carryovers **#500/#506/#510**, and the new **#517** (stale-id purge) / **#518** (process retrospective). **Read
-+  `docs/content_architecture.md`** first.
- - The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
-   cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
-   the local manifest meanwhile). See [[project-dbt-mcp-server]].
-@@ -25,30 +31,33 @@ Product roadmap (#491/#493/#494/#480) UNCHANGED. Governance G1–G4 LIVE. **Webs
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
- 
--## This session (2026-06-19, pm) — the TEAM competition benchmark
--- **#511 (MERGED) — metric `direction` + `interpretation` catalogue semantic.** Two new metric_catalogue columns
--  (richer than the retained binary `lower_is_better`): `direction` = higher_better / lower_better / **neutral**
--  (descriptive/style = no verdict — most football metrics are style not quality); `interpretation` = a short
--  meaning string (the seed of website auto-narrative). Classified all 24 team metrics (14 higher / 2 lower / 8
--  neutral). Player metrics deferred (v1.x). football-analytics confirmed neutral-for-volume + corners→neutral.
--- **#512 (MERGED) — `mart_competition_benchmarks__team`** (the vs-benchmark engine). **20 team metrics**,
--  season-to-date, LONG (team × metric): value · league_median (+ mean) · p25/p75 · **rank (k of N)** ·
--  vs_median_delta. `int_competition_benchmarks__team` = the distribution engine; a macro holds the shared
--  20-metric list; ≥3-games floor. Added 4 catalogued metrics to `int_team_season__full_season_metrics`
--  (clean_sheets rate + tackles/interceptions/blocks per match).
--- **Design rulings (CPO, don't re-litigate):** **median-led not mean** (mean skewed by a dominant team);
--  **rank-of-N not percentile** (counter-intuitive at N~18; percentile-vs-peers is a PLAYER thing → v1.x);
--  **direction-agnostic mart** (positional — `direction` joined at display); the 20 = the locked display set minus
--  shot_share/points_capture (deserved-vs-actual inputs, structurally-fixed means), league_rank/points_won
--  (non-metrics), dribbles (#510). Mart-only, no export wiring (#391 paused). Memory:
--  [[project-competition-benchmarks-design]].
--- **Benchmark-first ruling:** built on the current `int_team_season__full_season_metrics` (the 4 additions are
--  additive); **#500** team-season rename/consolidation deferred (it updates the benchmark refs when it lands).
--- **#510 (FILED) — retire leftover team `dribbles_success_pct`** (a player metric ruled dropped team-side
--  2026-06-11; catalogue row + the mart_momentum__team computation never cleaned up). Left unclassified in #511.
--- Earlier today: **Task A COMPLETE** (#503 mart_roster, #507 composites, #508 mart_leaderboards + consolidation,
--  #509 handover) + filed #504/#505/#506. Memory: [[project-leaderboards-roster-design]],
--  [[feedback-doc-clutter-discipline]], [[project-season-model-naming-parked]] (#500 still OPEN).
-+## This session (2026-06-19) — idle-mode fixtures snapshot completeness
-+- **Root cause.** Staging reads ONLY the latest RAW snapshot per league (intentional, cost — data_contract.md
-+  "Append-only writes"); the whole design relies on every snapshot being COMPLETE. Idle/poll ingest
-+  (`catalog.py` poll_mode) collapsed `seasons_list` to the current season, so a finished league's latest snapshot
-+  went thin → the full-refresh `fct_fixture` rebuilt to one season (BL1 308 vs 3075 in the incremental
-+  player-stats fact). The referential FK tests that would have caught it were SUPPRESSED in core.yml.
-+- **#514 (MERGED) — the fix.** `fetch_merge_and_persist_fixtures` carries forward the prior snapshot's seasons
-+  not refetched this run, so every written snapshot stays complete; team_ids stay latest-season-scoped (squad
-+  catch-up). An empty/quota-exhausted fresh fetch now writes NOTHING (no stale re-stamp). Tests use a REAL
-+  committed `/fixtures` sample (`tests/fixtures/apif/` — bootstrapped the CPO 2026-06-12 sample-payload rule).
-+- **Recovery (zero-API).** Reconstructed 25 leagues' complete fixtures snapshots from RAW history
-+  (latest-version-per-fixture) — the data was already in RAW, masked by the thin latest snapshot, so NO provider
-+  calls. CORRECTED CNL/CDR/DFBP: the first reconstruction resurrected stale wrong-provider-id fixtures (English NL
-+  #43 under CNL, Supercopa #556 under CDR, DFL-Supercup #529 under DFBP — from before the 2026-05-28 id
-+  corrections); re-did them inner-joining `$.league.id` to dim_league. Result: 0 orphans warehouse-wide; all
-+  relationship tests green; marts rebuilt.
-+- **#515 (MERGED) — the guard.** Restored the 3 `fct_fixture` FK relationship tests (fanout fixture_sk ->
-+  fct_fixture) + corrected the misleading "current-season snapshots only" descriptions. The durable alarm.
-+- **#517 (FILED)** purge stale wrong-id data (RAW debt; filtered out of consumption, not a live defect).
-+  **#518 (FILED)** process/behavioural retrospective — diagnosis drifted ~15 rounds (hacky-first, flip-flopping,
-+  not reading docs, not tracing end-to-end). Memory: [[feedback-raw-staging-latest-payload]],
-+  [[feedback-no-hacky-solutions]].
-+- **dbt ruling — recorded in #514's contract (CPO-confirmed there, reviewed + merged; re-stated here, NOT
-+  re-decided):** `fct_fixture` STAYS full-refresh — incremental would be an anti-pattern (a `--full-refresh`
-+  would re-lose history; no perf need at this volume). Materialization follows the source-delivery pattern; the
-+  bug was an unenforced cross-layer invariant ("the latest snapshot is complete"), now restored in ingest +
-+  tested by the FK guard.
- 
- ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
- 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 33e8430..f8aedbd 100644
+index f8aedbd..445f9cb 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,51 +1,49 @@
--# Task contract — test: restore the fct_fixture FK guard (PR2 of 2 — the alarm)
-+# Task contract — chore: refresh the handover after the idle-mode completeness fix
- 
--> The idle-mode completeness bug (PR1 #514) ran silently because the referential-integrity tests that
--> would have caught it — every fanout fixture must have a fct_fixture header — were DELIBERATELY SUPPRESSED
--> in core.yml ("No FK test: fct_fixture covers current-season snapshots only"), with the thin state written
--> into the column descriptions as if intended. PR2 RESTORES those three FK tests and corrects the
--> descriptions. It is the durable guard so this can never silently regress again. Unblocked now that PR1 +
--> the zero-API recovery made fct_fixture consistent with the fanout facts (verified: 0 orphans warehouse-wide).
--> Design + 2-PR split CPO-approved this conversation 2026-06-19. See working_agreement.md §2/§10/Appendix A.
-+> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this session's
-+> idle-mode fixtures-completeness fix (PR #514 carry-forward + the zero-API recovery + PR #515 the restored
-+> FK guard, all merged), the filed #517 (stale wrong-id purge) + #518 (process/behavioural retrospective),
-+> and re-point FIRST/NEXT (the deep-season backfill — the original NEXT #1 — is STILL pending; the recovery
-+> only restored what was already in RAW). Preserve all durable standing sections verbatim. No code.
-+> active_work.md is artifact-only for commits but NOT auto-editable, so it is in scope_paths; the commit
-+> also carries contract.md (never review-exempt) -> scope-auditor reviews.
+@@ -1,49 +1,65 @@
+-# Task contract — chore: refresh the handover after the idle-mode completeness fix
+-
+-> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this session's
+-> idle-mode fixtures-completeness fix (PR #514 carry-forward + the zero-API recovery + PR #515 the restored
+-> FK guard, all merged), the filed #517 (stale wrong-id purge) + #518 (process/behavioural retrospective),
+-> and re-point FIRST/NEXT (the deep-season backfill — the original NEXT #1 — is STILL pending; the recovery
+-> only restored what was already in RAW). Preserve all durable standing sections verbatim. No code.
+-> active_work.md is artifact-only for commits but NOT auto-editable, so it is in scope_paths; the commit
+-> also carries contract.md (never review-exempt) -> scope-auditor reviews.
++# Task contract — Make history_seasons authoritative + backfill PL to BL1 parity (2016)
  
  objective: >
--  In dbt_project/models/3_core/core.yml, add the `relationships` test (fixture_sk -> ref('fct_fixture'),
--  field fixture_sk) to the fixture_sk column of fct_fixture_player_stats, fct_fixture_team_stats, and
--  fct_fixture_event, and replace each misleading description ("No FK test: fct_fixture covers current-season
--  snapshots only; this incremental table accumulates historical seasons.") with one that states the FK and
--  the now-correct invariant (fct_fixture carries full history via the append-complete-snapshot carry-forward
--  from PR #514). No other change.
-+  Update the session-specific parts of .claude/active_work.md: the Last-updated line, FIRST, the
-+  This-session section (replace the prior TEAM-benchmark session with the 2026-06-19 idle-mode fix:
-+  root cause, #514 carry-forward, the zero-API recovery incl. the CNL/CDR/DFBP stale-id correction, #515
-+  the restored FK guard, #517/#518 filed, and the don't-re-litigate dbt ruling that fct_fixture stays
-+  full-refresh), and the NEXT pointer (the deep-season backfill is still pending; add #517/#518). Carry ALL
-+  durable standing sections (Standing authority, Product roadmap, the other NEXT items + Carryovers,
-+  dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT, Environment) forward
-+  UNCHANGED + verbatim.
- 
+-  Update the session-specific parts of .claude/active_work.md: the Last-updated line, FIRST, the
+-  This-session section (replace the prior TEAM-benchmark session with the 2026-06-19 idle-mode fix:
+-  root cause, #514 carry-forward, the zero-API recovery incl. the CNL/CDR/DFBP stale-id correction, #515
+-  the restored FK guard, #517/#518 filed, and the don't-re-litigate dbt ruling that fct_fixture stays
+-  full-refresh), and the NEXT pointer (the deep-season backfill is still pending; add #517/#518). Carry ALL
+-  durable standing sections (Standing authority, Product roadmap, the other NEXT items + Carryovers,
+-  dim_team, governance, form-window vocab, parked, pending CPO actions, Do-NOT, Environment) forward
+-  UNCHANGED + verbatim.
+-
++  Refactor the season-depth config so the per-competition `history_seasons` (registry) is the
++  authoritative depth knob, not silently clamped by a global v1 constant; retire that constant
++  (`V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`) to a default-only role. Then apply it
++  to PL: hs=11 -> 2016-2025 finished (true BL1 parity) + 2026 in-progress, deterministically (no
++  July-1 date dependency). This is the robust fix replacing the fragile date-dependent hs=11 patch.
  refs: >
--  This conversation 2026-06-19. PR1 #514 (merged) fixed the idle-mode snapshot thinning; the one-time
--  zero-API recovery rebuilt fct_fixture from RAW history (0 orphans verified). The suppressed tests are
--  core.yml lines ~593/543/676. This is the deferred PR2 alarm from #514's contract.
-+  This conversation 2026-06-19. Merged #514 (idle-mode carry-forward) + #515 (fct_fixture FK guard); ran
-+  the zero-API recovery (25 leagues from RAW; CNL/CDR/DFBP stale-id corrected). Filed #517 + #518.
-+  Memory: [[feedback-raw-staging-latest-payload]], [[feedback-no-hacky-solutions]].
+-  This conversation 2026-06-19. Merged #514 (idle-mode carry-forward) + #515 (fct_fixture FK guard); ran
+-  the zero-API recovery (25 leagues from RAW; CNL/CDR/DFBP stale-id corrected). Filed #517 + #518.
+-  Memory: [[feedback-raw-staging-latest-payload]], [[feedback-no-hacky-solutions]].
++  #479 (deep-season backfill); docs/content_architecture.md §8/§9; CPO Path-A decision in this
++  conversation (2026-06-20): "make history_seasons authoritative + retire the v1 constant, then PL
++  -> 2016 cleanly". The CPO flagged V1_SEASON_WINDOW_YEARS as an unacceptable v1 artifact and the
++  season-depth config as not robust.
  
  scope_paths:
--  - dbt_project/models/3_core/core.yml
-+  - .claude/active_work.md
-   - .claude/task/contract.md
-   - .claude/task/review.md
+-  - .claude/active_work.md
+-  - .claude/task/contract.md
+-  - .claude/task/review.md
++  - ingestion/api_football/settings.py
++  - ingestion/api_football/season_inference.py
++  - ingestion/api_football/seasons.py
++  - ingestion/api_football/orchestrator.py
++  - tests/test_season_inference.py
++  - tests/test_seasons_for_ingestion.py
++  - docs/data_contract.md
++  - docs/working_agreement.md
++  - docs/competition_registry.yml
++  - .claude/task/**
  
  decisions_taken: >
--  CPO directed PR2 this conversation ("PR2 now"). The FK tests were deliberately suppressed to mask the
--  idle-mode thinning (Appendix-A "disabled the failing test" anti-pattern); restoring them is the principled
--  un-masking. The relationships test is the standard dbt referential-integrity guard. Severity = error
--  (hard-fail) — DQ is non-negotiable. The data is now consistent (0 orphans), so the tests pass.
-+  CPO directed the handover refresh + the housekeeping this conversation ("do the proposed housekeeping",
-+  "create an issue"). Pure bookkeeping: records the already-merged #514/#515, the recovery, the filed
-+  #517/#518, and re-points NEXT. No new product / metric / naming / layer decision — the idle-fix design
-+  rulings (fct_fixture stays full-refresh; the carry-forward write-boundary fix) are already shipped and
-+  are recorded, not re-decided. Durable standing sections preserved verbatim.
+-  CPO directed the handover refresh + the housekeeping this conversation ("do the proposed housekeeping",
+-  "create an issue"). Pure bookkeeping: records the already-merged #514/#515, the recovery, the filed
+-  #517/#518, and re-points NEXT. No new product / metric / naming / layer decision — the idle-fix design
+-  rulings (fct_fixture stays full-refresh; the carry-forward write-boundary fix) are already shipped and
+-  are recorded, not re-decided. Durable standing sections preserved verbatim.
++  CPO chose Path A (2026-06-20). (1) BEHAVIOUR: in seasons._seasons_for_ingestion, when
++  history_seasons is set the band lower bound becomes lo = resolved_current - (history_seasons - 1)
++  with NO max(global_lo, ...) clamp — history_seasons fully determines depth (can now exceed the
++  default window, and is date-independent). When history_seasons is UNSET, the default window floor
++  (effective_season_min) still applies. (2) RENAME: V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS
++  (internal constant, default-only role). (3) Economy/default profile output is UNCHANGED for existing
++  configs — the MAX_SEASONS cap is a separate, later branch (verified: a wider band is still truncated
++  to the last MAX_SEASONS). (4) PL history_seasons 10 -> 11 (offsets the provider's current_season=2026,
++  one ahead of BL1's 2025) -> reaches 2016. (5) Re-run the PL backfill to fetch 2016 (incremental).
++  Authority: working_agreement §2 (amendment, clean tree) + the CPO's explicit Path-A approval; the
++  constant change is pre-confirmed in-thread per working_agreement §156.
  
  decisions_reserved:
--  - Exact test form: the standard `relationships` test (fanout fixture_sk -> fct_fixture) is chosen, as it
--    directly encodes "every fanout fixture has a header". If the analytics-engineer prefers a different/
--    additional form (e.g. a registry-depth completeness test), that is a build-detail call for that reviewer.
--  - This PR adds no data and no ingestion/mart change; it is core.yml schema tests + descriptions only.
-+  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
-+  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
+-  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
+-  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
++  - Phantom-current-season hardening (anchor depth to the latest FINISHED season, so PL could use
++    hs=10 like BL1) — CPO ruled SEPARABLE (2026-06-20); filed as a follow-up, NOT in this PR.
++    Documented consequence: PL uses hs=11 vs BL1's hs=10 to reach the same finished depth.
++  - PD/SA/L1 + Phase 2 per-type depths — deferred; a separate cost decision after PL.
++  - The new constant name (DEFAULT_SEASON_WINDOW_YEARS) is agent-chosen (internal, not user-visible);
++    CPO may override.
  
  done_when:
--  - core.yml: the fixture_sk column of fct_fixture_player_stats / _team_stats / _event each carries
--    `relationships: { to: ref('fct_fixture'), field: fixture_sk }` (in addition to not_null), and the
--    "No FK test ... current-season snapshots only" description is replaced with the FK + carry-forward wording.
--  - dbt parse succeeds; `dbt test --select fct_fixture_player_stats fct_fixture_team_stats fct_fixture_event`
--    (the restored relationship tests) PASS against the current warehouse (0 orphans).
--  - validate-local passes (sqlfluff/dbt parse offline gates).
--  - Commit on branch test/fct-fixture-fk-guard; post-commit opens the PR.
--  - reviewers: scope-auditor + analytics-engineer-reviewer PASS (each >=2 named risks); no FAIL; no ESCALATE.
-+  - .claude/active_work.md reflects: #514 + #515 merged; the zero-API recovery + the CNL/CDR/DFBP stale-id
-+    correction; #517 + #518 filed; FIRST/NEXT re-pointed (deep-season backfill still pending — recovery only
-+    restored what was in RAW); the idle-fix session recorded; all durable sections intact + verbatim.
-+  - Commit on branch chore/handover-refresh-idle-fix; post-commit opens the PR.
-+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
+-  - .claude/active_work.md reflects: #514 + #515 merged; the zero-API recovery + the CNL/CDR/DFBP stale-id
+-    correction; #517 + #518 filed; FIRST/NEXT re-pointed (deep-season backfill still pending — recovery only
+-    restored what was in RAW); the idle-fix session recorded; all durable sections intact + verbatim.
+-  - Commit on branch chore/handover-refresh-idle-fix; post-commit opens the PR.
+-  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
++  - history_seasons authoritative: new tests in tests/test_seasons_for_ingestion.py prove (a) under the
++    full profile an explicit history_seasons reaches below the default floor (monkeypatched), and
++    (b) unset history_seasons still clamps to the default window. Existing season tests pass under the
++    renamed constant.
++  - V1_SEASON_WINDOW_YEARS fully retired: `git grep V1_SEASON_WINDOW_YEARS` returns 0 (code + docs).
++  - Registry PL history_seasons = 11; check_registry_var_sync.py green.
++  - validate-local gates (ruff/pytest/sqlfluff/dbt parse) green locally before push.
++  - Backfill re-run (full profile, LEAGUE_CODES=PL): PL RAW shows 2016-2026 (2016-2025 finished),
++    fanout 100%; measured call delta captured and reported.
++  - ci-data-build green on the PR (relationship/orphan tests against the new RAW).
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-06-20: EXPANDED from the one-line PL history_seasons=10 change to the season-depth config
++    refactor (Path A). Authority: CPO Path-A approval in this conversation. Added scope_paths:
++    ingestion/api_football/{settings,season_inference,seasons,orchestrator}.py, tests/test_season_inference.py,
++    tests/test_seasons_for_ingestion.py, docs/data_contract.md, docs/working_agreement.md.
++    PL history_seasons target changed 10 -> 11.
+diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
+index b9ce1bd..fc4ff2f 100644
+--- a/docs/competition_registry.yml
++++ b/docs/competition_registry.yml
+@@ -249,11 +249,11 @@ competitions:
+     provider_league_id: 39
+     season_type: "split_year"
+     current_season: "2025"
+-    history_seasons: 2
++    history_seasons: 11
+     status: "active"
+     ingest_active: true
+     ingest_completeness_gate: soft
+-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
++    notes: "Backfilled to BL1 parity (2016-2025 finished + 2026 in-progress), §8 top-domestic depth, 2026-06-20, #479. hs=11 (not 10) offsets the provider current_season=2026, one ahead of BL1's 2025. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+ 
+   - league_code: "PD"
+     name: "La Liga"
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 8cbc979..053b107 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -112,7 +112,7 @@ Each snapshot is stamped with the team's last-recorded `season` (payload key `se
+ Data is complete when four conditions hold:
+ 
+ 1. **Coverage** — every in-scope raw table has been refreshed, and staging has been rebuilt on top of that refresh.
+-2. **History** — raw tables carry the multi-season window configured via `V1_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`.
++2. **History** — raw tables carry each competition's season depth from its `history_seasons` (registry), which is authoritative; when unset, the default window (`DEFAULT_SEASON_WINDOW_YEARS` in `ingestion/api_football/settings.py`) applies.
+ 3. **Freshness** — when new source data appears (matchdays, results), the next run merges it into the corresponding raw tables.
+ 4. **Query truth** — queries against raw or staging reflect the latest successful run, not a partial update in flight.
+ 
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index ae420a2..53a5421 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -153,7 +153,7 @@ Run `gh pr list --state open` and consider two questions:
+ 
+ ## 5. Do not work against the user
+ 
+-- Never change `.env`, the ingest profile, the season-window constant (`V1_SEASON_WINDOW_YEARS`), or fanout/cost caps to "make a run finish faster" or "unblock quickly" without explicit confirmation in the same thread.
++- Never change `.env`, the ingest profile, the default season-window constant (`DEFAULT_SEASON_WINDOW_YEARS`) or a competition's `history_seasons`, or fanout/cost caps to "make a run finish faster" or "unblock quickly" without explicit confirmation in the same thread.
+ - Never silently narrow scope (e.g. dropping to a single season while implying the full configured band is satisfied).
+ - If API daily limits require multiple days or scheduled runs, say so clearly and point at `docs/operations_guide.md`.
+ 
+diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
+index 047d07a..bcd97c9 100644
+--- a/ingestion/api_football/orchestrator.py
++++ b/ingestion/api_football/orchestrator.py
+@@ -34,8 +34,8 @@ from .ingestion_lock import (
+ )
+ from .settings import (
+     DATASET_ID,
++    DEFAULT_SEASON_WINDOW_YEARS,
+     GCP_PROJECT_ID,
+-    V1_SEASON_WINDOW_YEARS,
+     _apply_ingest_profile_defaults,
+     _env_truthy,
+     _ingest_profile_name,
+@@ -105,7 +105,7 @@ def _load_api_football(request):
+             f"[api-football] profile={_ingest_profile_name()!r} "
+             f"inferred_single_season={season_year()} API_FOOTBALL_SEASON={_raw!r} "
+             f"API_FOOTBALL_SEASONS={_seasons_csv!r} API_FOOTBALL_ALL_SEASONS={_all_s} "
+-            f"v1_seasons_last_{V1_SEASON_WINDOW_YEARS}={_lo}-{_hi} "
++            f"default_window_last_{DEFAULT_SEASON_WINDOW_YEARS}={_lo}-{_hi} "
+             f"fixtures_mode={_fx_mode!r} fanout_priority={_fan_pri!r} "
+             f"include_in_progress={include_in_progress_competitions()} run_id={run_id}",
+             flush=True,
+diff --git a/ingestion/api_football/season_inference.py b/ingestion/api_football/season_inference.py
+index 7ff76cc..77fd9ed 100644
+--- a/ingestion/api_football/season_inference.py
++++ b/ingestion/api_football/season_inference.py
+@@ -8,9 +8,10 @@ The API uses the competition start calendar year as its season identifier
+    Only correct for split-year domestic leagues; international tournaments (WC,
+    qualifiers) use current_season from the competition registry instead.
+ 
+-2. Rolling window — the v1 pipeline ingests the last V1_SEASON_WINDOW_YEARS
+-   season start years, inclusive of the active campaign. effective_season_min /
+-   effective_season_max expose these bounds for filtering discovered API seasons.
++2. Default rolling window — when a competition does not set history_seasons, the
++   pipeline ingests the last DEFAULT_SEASON_WINDOW_YEARS season start years, inclusive
++   of the active campaign. effective_season_min / effective_season_max expose these
++   bounds for filtering discovered API seasons. An explicit history_seasons overrides them.
+ """
+ 
+ from __future__ import annotations
+@@ -18,7 +19,7 @@ from __future__ import annotations
+ import os
+ from datetime import date, datetime
+ 
+-from .settings import V1_SEASON_WINDOW_YEARS
++from .settings import DEFAULT_SEASON_WINDOW_YEARS
+ 
+ 
+ def _infer_competition_season_start_year(now: datetime | None = None) -> int:
+@@ -39,9 +40,12 @@ def _infer_competition_season_start_year(now: datetime | None = None) -> int:
+ 
+ 
+ def effective_season_min() -> int:
+-    """Lower bound: ``V1_SEASON_WINDOW_YEARS`` start years ending at the active campaign."""
++    """Default lower bound: ``DEFAULT_SEASON_WINDOW_YEARS`` start years ending at the active campaign.
++
++    Used when a competition does not specify ``history_seasons`` (which, when set, is authoritative).
++    """
+     hi = _infer_competition_season_start_year()
+-    return hi - (V1_SEASON_WINDOW_YEARS - 1)
++    return hi - (DEFAULT_SEASON_WINDOW_YEARS - 1)
+ 
+ 
+ def effective_season_max() -> int:
+@@ -64,8 +68,8 @@ def season_year() -> int:
+     If ``API_FOOTBALL_SEASON`` is set, it wins.
+ 
+     If unset, we infer the **current** campaign via :func:`_infer_competition_season_start_year`
+-    then clamp to the v1 window ``[effective_season_min(), effective_season_max()]``
+-    (last ``V1_SEASON_WINDOW_YEARS`` API season start years, inclusive). Set
++    then clamp to the default window ``[effective_season_min(), effective_season_max()]``
++    (last ``DEFAULT_SEASON_WINDOW_YEARS`` API season start years, inclusive). Set
+     ``API_FOOTBALL_SEASONS`` for an explicit list when needed.
+     """
+     raw = os.getenv("API_FOOTBALL_SEASON")
+diff --git a/ingestion/api_football/seasons.py b/ingestion/api_football/seasons.py
+index 42093f3..3c21c16 100644
+--- a/ingestion/api_football/seasons.py
++++ b/ingestion/api_football/seasons.py
+@@ -4,8 +4,9 @@ The API uses the competition start calendar year as its 'season' identifier
+ (e.g. 2024 = the 2024/25 Bundesliga season). This module handles three concerns:
+ 
+ 1. Season discovery — which API season years to ingest for a given competition.
+-   Domestic leagues use a rolling 10-year window; international tournaments use
+-   current_season from the competition registry to avoid pulling irrelevant prior editions.
++   A competition's `history_seasons` (registry) is the authoritative depth; when unset,
++   a default rolling window applies. International tournaments use current_season from
++   the competition registry to avoid pulling irrelevant prior editions.
+ 
+ 2. Fixture query params — how to ask the API for fixtures (full season vs. date window).
+ 
+@@ -229,12 +230,15 @@ def _seasons_for_ingestion(
+         league_catalog=league_catalog,
+     )
+ 
+-    global_lo = effective_season_min()
+     if history_seasons is not None and history_seasons >= 1:
+-        competition_lo = resolved_current - (history_seasons - 1)
+-        lo = max(global_lo, competition_lo)
++        # history_seasons (registry) is the AUTHORITATIVE depth knob: the lower bound is
++        # exactly resolved_current - (history_seasons - 1), NOT clamped to the default
++        # window. A competition backfills to its configured depth deterministically —
++        # independent of today's date and the provider's current-season flag.
++        lo = resolved_current - (history_seasons - 1)
+     else:
+-        lo = global_lo
++        # No explicit depth in the registry -> fall back to the default rolling window.
++        lo = effective_season_min()
+     hi = resolved_current
+     fallback = resolved_current
+ 
+diff --git a/ingestion/api_football/settings.py b/ingestion/api_football/settings.py
+index a88f426..cfef878 100644
+--- a/ingestion/api_football/settings.py
++++ b/ingestion/api_football/settings.py
+@@ -33,9 +33,11 @@ DATASET_ID = (os.getenv("API_FOOTBALL_BIGQUERY_DATASET", "raw").strip() or "raw"
+ APISPORTS_BASE = "https://v3.football.api-sports.io"
+ RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
+ 
+-# v1 milestone: last N API ``season`` start years **including** the active campaign (see
+-# ``season_inference._infer_competition_season_start_year``). Fixed N here — widen in code later if v2 needs it.
+-V1_SEASON_WINDOW_YEARS = 10
++# Default rolling window: the number of API ``season`` start years (including the active
++# campaign) ingested when a competition does NOT set ``history_seasons`` in the registry (see
++# ``season_inference._infer_competition_season_start_year`` and ``seasons._seasons_for_ingestion``).
++# A competition's explicit ``history_seasons`` is authoritative and overrides this default.
++DEFAULT_SEASON_WINDOW_YEARS = 10
+ 
+ 
+ def raw_table(entity: str) -> str:
+@@ -118,8 +120,8 @@ def _ingest_profile_name() -> str:
+ def _apply_ingest_profile_defaults() -> None:
+     """
+     **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
+-    v1 window (``V1_SEASON_WINDOW_YEARS``), no request pacing unless you set it, and
+-    high pagination caps.
++    default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
++    history_seasons widens it, no request pacing unless you set it, and high pagination caps.
+     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
+ 
+     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
+@@ -149,7 +151,7 @@ def _apply_ingest_profile_defaults() -> None:
+     d.setdefault("API_FOOTBALL_FIXTURES_MAX_PAGE", "50")
+     print(
+         "[api-football] ingest profile=full -> unset env got paid defaults "
+-        f"(multi-season within v1 window last {V1_SEASON_WINDOW_YEARS} API season years, "
++        f"(multi-season within the default window last {DEFAULT_SEASON_WINDOW_YEARS} API season years, "
+         "REQUEST_PAUSE_MS=0, higher page caps, fanout soft cap off). "
+         "Unset API_FOOTBALL_SEASON for multi-season; set any var explicitly to override.",
+         flush=True,
+diff --git a/tests/test_season_inference.py b/tests/test_season_inference.py
+index 498494c..815c303 100644
+--- a/tests/test_season_inference.py
++++ b/tests/test_season_inference.py
+@@ -13,7 +13,7 @@ from ingestion.api_football.season_inference import (
+     effective_season_min,
+     season_year,
+ )
+-from ingestion.api_football.settings import V1_SEASON_WINDOW_YEARS
++from ingestion.api_football.settings import DEFAULT_SEASON_WINDOW_YEARS
+ 
+ 
+ # ---------------------------------------------------------------------------
+@@ -53,7 +53,7 @@ class TestInferCompetitionSeasonStartYear:
+ # ---------------------------------------------------------------------------
+ 
+ class TestEffectiveSeasonWindow:
+-    def test_window_is_v1_season_window_years_wide(self, monkeypatch):
++    def test_window_is_default_season_window_years_wide(self, monkeypatch):
+         monkeypatch.setattr(
+             "ingestion.api_football.season_inference._infer_competition_season_start_year",
+             lambda now=None: 2024,
+@@ -61,14 +61,14 @@ class TestEffectiveSeasonWindow:
+         lo = effective_season_min()
+         hi = effective_season_max()
+         assert hi == 2024
+-        assert hi - lo == V1_SEASON_WINDOW_YEARS - 1
++        assert hi - lo == DEFAULT_SEASON_WINDOW_YEARS - 1
+ 
+     def test_min_is_hi_minus_window(self, monkeypatch):
+         monkeypatch.setattr(
+             "ingestion.api_football.season_inference._infer_competition_season_start_year",
+             lambda now=None: 2025,
+         )
+-        assert effective_season_min() == 2025 - (V1_SEASON_WINDOW_YEARS - 1)
++        assert effective_season_min() == 2025 - (DEFAULT_SEASON_WINDOW_YEARS - 1)
+ 
+ 
+ # ---------------------------------------------------------------------------
+diff --git a/tests/test_seasons_for_ingestion.py b/tests/test_seasons_for_ingestion.py
+index 4bae80f..196382e 100644
+--- a/tests/test_seasons_for_ingestion.py
++++ b/tests/test_seasons_for_ingestion.py
+@@ -116,3 +116,55 @@ class TestSeasonsForIngestion:
+             season_type="split_year",
+         )
+         assert seasons == [2023, 2024, 2025]
++
++    def test_full_profile_history_seasons_authoritative_below_default_floor(self, monkeypatch):
++        # history_seasons is AUTHORITATIVE: under the full profile it reaches its full
++        # configured depth even when the default-window floor would be higher (e.g. after
++        # July 1, when effective_season_min would clamp to 2017). Regression for removing the
++        # max(global_lo, competition_lo) clamp — PL must reach 2016 deterministically (hs=11,
++        # provider current=2026).
++        monkeypatch.delenv("API_FOOTBALL_SEASON", raising=False)
++        monkeypatch.delenv("API_FOOTBALL_SEASONS", raising=False)
++        monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
++        monkeypatch.setattr(
++            "ingestion.api_football.seasons.effective_season_min", lambda: 2017
++        )
++        catalog = {
++            "response": [
++                {"seasons": [{"year": y, "current": y == 2026} for y in range(2016, 2027)]},
++            ]
++        }
++        seasons = _seasons_for_ingestion(
++            catalog,
++            league_id=39,
++            headers={},
++            errors=[],
++            current_season=None,
++            history_seasons=11,
++            season_type="split_year",
++        )
++        assert seasons == list(range(2016, 2027))
++
++    def test_unset_history_seasons_falls_back_to_default_window(self, monkeypatch):
++        # With no explicit history_seasons, the default-window floor still applies.
++        monkeypatch.delenv("API_FOOTBALL_SEASON", raising=False)
++        monkeypatch.delenv("API_FOOTBALL_SEASONS", raising=False)
++        monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
++        monkeypatch.setattr(
++            "ingestion.api_football.seasons.effective_season_min", lambda: 2020
++        )
++        catalog = {
++            "response": [
++                {"seasons": [{"year": y, "current": y == 2025} for y in range(2016, 2026)]},
++            ]
++        }
++        seasons = _seasons_for_ingestion(
++            catalog,
++            league_id=39,
++            headers={},
++            errors=[],
++            current_season=None,
++            history_seasons=None,
++            season_type="split_year",
++        )
++        assert seasons == list(range(2020, 2026))

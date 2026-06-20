@@ -116,3 +116,55 @@ class TestSeasonsForIngestion:
             season_type="split_year",
         )
         assert seasons == [2023, 2024, 2025]
+
+    def test_full_profile_history_seasons_authoritative_below_default_floor(self, monkeypatch):
+        # history_seasons is AUTHORITATIVE: under the full profile it reaches its full
+        # configured depth even when the default-window floor would be higher (e.g. after
+        # July 1, when effective_season_min would clamp to 2017). Regression for removing the
+        # max(global_lo, competition_lo) clamp — PL must reach 2016 deterministically (hs=11,
+        # provider current=2026).
+        monkeypatch.delenv("API_FOOTBALL_SEASON", raising=False)
+        monkeypatch.delenv("API_FOOTBALL_SEASONS", raising=False)
+        monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
+        monkeypatch.setattr(
+            "ingestion.api_football.seasons.effective_season_min", lambda: 2017
+        )
+        catalog = {
+            "response": [
+                {"seasons": [{"year": y, "current": y == 2026} for y in range(2016, 2027)]},
+            ]
+        }
+        seasons = _seasons_for_ingestion(
+            catalog,
+            league_id=39,
+            headers={},
+            errors=[],
+            current_season=None,
+            history_seasons=11,
+            season_type="split_year",
+        )
+        assert seasons == list(range(2016, 2027))
+
+    def test_unset_history_seasons_falls_back_to_default_window(self, monkeypatch):
+        # With no explicit history_seasons, the default-window floor still applies.
+        monkeypatch.delenv("API_FOOTBALL_SEASON", raising=False)
+        monkeypatch.delenv("API_FOOTBALL_SEASONS", raising=False)
+        monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
+        monkeypatch.setattr(
+            "ingestion.api_football.seasons.effective_season_min", lambda: 2020
+        )
+        catalog = {
+            "response": [
+                {"seasons": [{"year": y, "current": y == 2025} for y in range(2016, 2026)]},
+            ]
+        }
+        seasons = _seasons_for_ingestion(
+            catalog,
+            league_id=39,
+            headers={},
+            errors=[],
+            current_season=None,
+            history_seasons=None,
+            season_type="split_year",
+        )
+        assert seasons == list(range(2020, 2026))

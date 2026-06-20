@@ -34,8 +34,8 @@ from .ingestion_lock import (
 )
 from .settings import (
     DATASET_ID,
+    DEFAULT_SEASON_WINDOW_YEARS,
     GCP_PROJECT_ID,
-    V1_SEASON_WINDOW_YEARS,
     _apply_ingest_profile_defaults,
     _env_truthy,
     _ingest_profile_name,
@@ -105,7 +105,7 @@ def _load_api_football(request):
             f"[api-football] profile={_ingest_profile_name()!r} "
             f"inferred_single_season={season_year()} API_FOOTBALL_SEASON={_raw!r} "
             f"API_FOOTBALL_SEASONS={_seasons_csv!r} API_FOOTBALL_ALL_SEASONS={_all_s} "
-            f"v1_seasons_last_{V1_SEASON_WINDOW_YEARS}={_lo}-{_hi} "
+            f"default_window_last_{DEFAULT_SEASON_WINDOW_YEARS}={_lo}-{_hi} "
             f"fixtures_mode={_fx_mode!r} fanout_priority={_fan_pri!r} "
             f"include_in_progress={include_in_progress_competitions()} run_id={run_id}",
             flush=True,
