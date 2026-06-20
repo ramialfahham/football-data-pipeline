@@ -1,236 +1,133 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index ddc007a..6839278 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,60 +4,60 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-19 (idle-mode fixtures-completeness fix). The backfill task (NEXT #1) uncovered + fixed
--an idle-mode bug: idle/poll ingest wrote current-season-only fixtures snapshots, so the full-refresh `fct_fixture`
--collapsed to one season for idle leagues (BL1 308 vs 3075 in the incremental player-stats fact). Shipped **#514**
--(carry-forward at the write boundary) + **#515** (restore the suppressed fct_fixture FK guard). Ran a **zero-API
--recovery** — reconstructed 25 leagues' fixtures from RAW history; corrected CNL/CDR/DFBP stale wrong-provider-id
--data. Filed **#517** (purge stale wrong-id data) + **#518** (process/behavioural retrospective — read it). Prior
--session: TEAM benchmark #511/#512 (merged). #500/#510 still OPEN. Governance G1–G4 LIVE. **Website blueprint #391
--still PAUSED.**_
-+_Last updated: 2026-06-20 (PL deep-season backfill + season-depth config refactor). Closed **#414** as
-+obsolete (premise-check: the supporting_leagues guard it targeted was retired by #429). Backfilled **PL to
-+2016-2026** (2016-2025 finished = **true BL1 parity**) for ~3k API calls total — cheap because the per-fixture
-+details already lived in RAW (the thin fixtures snapshot masked them; [[feedback-raw-staging-latest-payload]]).
-+Shipped **#520** (season-depth config refactor): per-competition `history_seasons` is now AUTHORITATIVE
-+(dropped the global-floor clamp), and `V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`. Filed **#521**
-+(phantom-current-season hardening — deferred; would let PL use hs=10 like BL1 instead of hs=11). Prior:
-+idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPEN. Governance G1-G4 LIVE.
-+**Website blueprint #391 still PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge (`git fetch` + ff). The **idle-mode completeness bug is FIXED + recovered + guarded**
--  (#514/#515 merged; 0 orphans warehouse-wide; all relationship tests green). **The deep-season backfill (the
--  ORIGINAL NEXT #1) is STILL PENDING:** the recovery only restored what was already in RAW — PL/PD/SA/L1 genuinely
--  lack 2016–2023 (only ~2 seasons in RAW), so the **cost-gated API backfill of their missing seasons is still to
--  do**. **CRITICAL LESSON ([[feedback-raw-staging-latest-payload]]): NEVER judge ingested depth from staging/core —
--  query RAW.** CPO directs the next item (none auto-granted) — open: the deep-season backfill (cost-gated),
--  **coaches + `mart_player_career`** (NEXT #4), the **player benchmark** + **opponent/schedule-context** (v1.x),
--  carryovers **#500/#506/#510**, and the new **#517** (stale-id purge) / **#518** (process retrospective). **Read
--  `docs/content_architecture.md`** first.
--- The **dbt MCP server** may or may not appear this session: if `mcp__dbt__*` tools are absent it is a benign
--  cold-start race (the config is fine; the warm cache means the next start connects it; use `dbt parse` +
--  the local manifest meanwhile). See [[project-dbt-mcp-server]].
-+- Nothing pending-merge (`git fetch` + ff main; #520 merged). **PL deep-season backfill is DONE** (PL RAW =
-+  2016-2026, 10 finished seasons = BL1 parity; all 4 fanout endpoints 100%; ~3k calls). The **season-depth
-+  config is now ROBUST** (#520: `history_seasons` authoritative, no global clamp; v1 constant retired). The
-+  next nightly run rebuilds PL's marts from the deepened RAW (no local dbt build — shared BQ).
-+- **NEXT is the CPO's pick (none auto-granted).** Obvious continuation: **PD/SA/L1** to 10 seasons — but COST
-+  DIFFERS FROM PL: PL was ~3k because its details pre-existed in RAW; PD/SA/L1 have only ~2 seasons of details
-+  (760/760/617 detail rows), so each is a genuine ~8-season fanout fetch ≈ **~12k calls apiece (~34k for the
-+  three)** — a fresh cost gate. Then Phase 2 (the other ~40 leagues per the §8 tiered policy). Other open
-+  items: **coaches + `mart_player_career`**, the **player benchmark / opponent-context** (v1.x), carryovers
-+  **#500/#506/#510/#521**, stale-id purge **#517**, process retrospective **#518**. **Read
-+  `docs/content_architecture.md` §8/§9 first.**
-+- **To backfill a league now (post-#520):** set its `history_seasons` in the registry — it is AUTHORITATIVE,
-+  no V1 cap — then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`,
-+  `LOG_QUOTA=1`), measure the call delta, verify RAW depth, then `verify-competition-ingest`. **Query RAW for
-+  true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
-+- The **dbt MCP server** cold-start race may recur — see [[project-dbt-mcp-server]].
- 
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
- 
--## This session (2026-06-19) — idle-mode fixtures snapshot completeness
--- **Root cause.** Staging reads ONLY the latest RAW snapshot per league (intentional, cost — data_contract.md
--  "Append-only writes"); the whole design relies on every snapshot being COMPLETE. Idle/poll ingest
--  (`catalog.py` poll_mode) collapsed `seasons_list` to the current season, so a finished league's latest snapshot
--  went thin → the full-refresh `fct_fixture` rebuilt to one season (BL1 308 vs 3075 in the incremental
--  player-stats fact). The referential FK tests that would have caught it were SUPPRESSED in core.yml.
--- **#514 (MERGED) — the fix.** `fetch_merge_and_persist_fixtures` carries forward the prior snapshot's seasons
--  not refetched this run, so every written snapshot stays complete; team_ids stay latest-season-scoped (squad
--  catch-up). An empty/quota-exhausted fresh fetch now writes NOTHING (no stale re-stamp). Tests use a REAL
--  committed `/fixtures` sample (`tests/fixtures/apif/` — bootstrapped the CPO 2026-06-12 sample-payload rule).
--- **Recovery (zero-API).** Reconstructed 25 leagues' complete fixtures snapshots from RAW history
--  (latest-version-per-fixture) — the data was already in RAW, masked by the thin latest snapshot, so NO provider
--  calls. CORRECTED CNL/CDR/DFBP: the first reconstruction resurrected stale wrong-provider-id fixtures (English NL
--  #43 under CNL, Supercopa #556 under CDR, DFL-Supercup #529 under DFBP — from before the 2026-05-28 id
--  corrections); re-did them inner-joining `$.league.id` to dim_league. Result: 0 orphans warehouse-wide; all
--  relationship tests green; marts rebuilt.
--- **#515 (MERGED) — the guard.** Restored the 3 `fct_fixture` FK relationship tests (fanout fixture_sk ->
--  fct_fixture) + corrected the misleading "current-season snapshots only" descriptions. The durable alarm.
--- **#517 (FILED)** purge stale wrong-id data (RAW debt; filtered out of consumption, not a live defect).
--  **#518 (FILED)** process/behavioural retrospective — diagnosis drifted ~15 rounds (hacky-first, flip-flopping,
--  not reading docs, not tracing end-to-end). Memory: [[feedback-raw-staging-latest-payload]],
--  [[feedback-no-hacky-solutions]].
--- **dbt ruling — recorded in #514's contract (CPO-confirmed there, reviewed + merged; re-stated here, NOT
--  re-decided):** `fct_fixture` STAYS full-refresh — incremental would be an anti-pattern (a `--full-refresh`
--  would re-lose history; no perf need at this volume). Materialization follows the source-delivery pattern; the
--  bug was an unenforced cross-layer invariant ("the latest snapshot is complete"), now restored in ingest +
--  tested by the FK guard.
-+## This session (2026-06-20) — #414 closed, PL backfill, season-depth config refactor
-+- **#414 closed obsolete (premise-check, §11).** The "supporting_leagues guard checks an unused
-+  competition_type" DQ bug targeted a mechanism RETIRED by #429/#430 — the guard, the registry keys, and the
-+  silent-drop path no longer exist; form selection is now taxonomy-driven (validated by
-+  assert_tournament_form_window.sql). Surfaced the stale premise, CPO chose to close. Residual noted
-+  (empty-tournament-window loudness) -> GAP-18/#483 cluster, not #414.
-+- **PL deep-season backfill DONE.** Two `full`-profile scoped runs: run1 restored the thin fixtures snapshot
-+  (2017-2026; details pre-existed in RAW, ~1.8k calls); run2 (post-refactor) fetched 2016 (~1.2k). PL RAW now
-+  **2016-2026, 10 finished seasons (2016-2025) = BL1 parity**, all 4 fanout endpoints 100% covered. Total ~3k
-+  calls — over-estimated at ~10.7k because the per-fixture details already lived in RAW (the thin snapshot
-+  masked them; [[feedback-raw-staging-latest-payload]]). **PD/SA/L1 are NOT pre-existing → ~12k each.**
-+- **#520 (MERGED) — season-depth config refactor (Path A).** Per-competition `history_seasons` is now the
-+  AUTHORITATIVE depth knob in `seasons._seasons_for_ingestion`: `lo = resolved_current - (history_seasons-1)`,
-+  the old `max(global_lo, …)` clamp DROPPED (deterministic depth, can exceed the old 10-yr ceiling); the
-+  default window applies only when history_seasons is unset. Retired the v1 artifact:
-+  `V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`. Economy/MAX_SEASONS cap unchanged. PL hs 10->11
-+  (offsets provider current=2026, one ahead of BL1's 2025). 2 regression tests; 282 pass; 3 reviewers PASS.
-+- **#521 (FILED)** phantom-current-season hardening (anchor depth to the latest FINISHED season) — deferred,
-+  separable; would let PL use hs=10 like BL1.
-+- **Process note (locked):** I first mis-framed the 2016 fix as needing a global v1-constant bump; the CPO
-+  pushed back ("shouldn't be rocket science"); re-derived from seasons.py — it was a 1-line hs + clamp removal.
-+  HOLD a defensible position when challenged, but re-derive from the CODE, not the lean ([[feedback-no-hacky-solutions]]).
- 
- ## Product roadmap (merged 2026-06-17 — the basis for NEXT below; UNCHANGED this session)
- 1. **#491 (MERGED) — player performance-surface spec** (`metrics_context_model.md` §8): one aggregation /
-@@ -81,9 +81,10 @@ still PAUSED.**_
-    cycle / cups 5 — + a data-quality floor (skip empty-player-stat seasons) + phased rollout.
- 
- ## NEXT — the content_architecture build sequence (CPO directs; none auto-granted)
--1. **Backfill** — set per-competition `history_seasons` in `docs/competition_registry.yml` (the agreed
--   tiered policy) + run it. Cost-gated ingest (data-engineer); uses spare API budget + BQ. Lights up
--   History/Career, makes season-over-season real, deepens benchmarks. (This is #479's territory.)
-+1. **Backfill** (#479) — **PL DONE (2016-2026, BL1 parity, 2026-06-20); config now robust (#520).**
-+   REMAINING: **PD/SA/L1 to 10 seasons (~12k calls EACH — details do NOT pre-exist, unlike PL; a fresh
-+   cost gate)**, then **Phase 2** (the other ~40 leagues per the §8 tiered depth). Recipe: set
-+   `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated.
- 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
-    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
- 3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 445f9cb..72c3754 100644
+index 72c3754..1f128a2 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,65 +1,52 @@
--# Task contract — Make history_seasons authoritative + backfill PL to BL1 parity (2016)
-+# Task contract — chore: refresh the handover after the PL backfill + season-depth refactor
-+
-+> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this
-+> session's work — #414 closed as obsolete (premise-check), the PL deep-season backfill (PL now
-+> 2016-2026 = BL1 parity, ~3k calls total), and the season-depth config refactor merged as #520
-+> (history_seasons authoritative; V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS), plus the
-+> filed #521 (phantom-current-season hardening, deferred). Re-point FIRST/NEXT. Preserve all durable
-+> standing sections verbatim. No code. active_work.md is artifact-only for commits but NOT
-+> auto-editable, so it is in scope_paths; the commit also carries contract.md (never review-exempt)
-+> -> scope-auditor reviews.
+@@ -1,52 +1,43 @@
+-# Task contract — chore: refresh the handover after the PL backfill + season-depth refactor
+-
+-> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this
+-> session's work — #414 closed as obsolete (premise-check), the PL deep-season backfill (PL now
+-> 2016-2026 = BL1 parity, ~3k calls total), and the season-depth config refactor merged as #520
+-> (history_seasons authoritative; V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS), plus the
+-> filed #521 (phantom-current-season hardening, deferred). Re-point FIRST/NEXT. Preserve all durable
+-> standing sections verbatim. No code. active_work.md is artifact-only for commits but NOT
+-> auto-editable, so it is in scope_paths; the commit also carries contract.md (never review-exempt)
+-> -> scope-auditor reviews.
++# Task contract — Backfill PD/SA/L1 to 2016-2025 (BL1/PL parity)
  
  objective: >
--  Refactor the season-depth config so the per-competition `history_seasons` (registry) is the
--  authoritative depth knob, not silently clamped by a global v1 constant; retire that constant
--  (`V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`) to a default-only role. Then apply it
--  to PL: hs=11 -> 2016-2025 finished (true BL1 parity) + 2026 in-progress, deterministically (no
--  July-1 date dependency). This is the robust fix replacing the fragile date-dependent hs=11 patch.
-+  Update the session-specific parts of .claude/active_work.md: the Last-updated header, FIRST, the
-+  This-session section (replace the 2026-06-19 idle-mode fix with the 2026-06-20 session: #414 closed
-+  obsolete; the PL backfill — fixtures snapshot restored + 2016 fetched to reach BL1 parity 2016-2025
-+  finished; the #520 config refactor making history_seasons authoritative + retiring the v1 constant;
-+  the key cost lesson that PL was cheap because details pre-existed but PD/SA/L1 are NOT pre-existing
-+  (~12k each); #521 filed), and the NEXT pointer. Carry ALL durable standing sections (Standing
-+  authority, Product roadmap, the other NEXT items + Carryovers, dim_team, governance, form-window
-+  vocab, parked, pending CPO actions, Do-NOT, Environment) forward UNCHANGED + verbatim.
-+
+-  Update the session-specific parts of .claude/active_work.md: the Last-updated header, FIRST, the
+-  This-session section (replace the 2026-06-19 idle-mode fix with the 2026-06-20 session: #414 closed
+-  obsolete; the PL backfill — fixtures snapshot restored + 2016 fetched to reach BL1 parity 2016-2025
+-  finished; the #520 config refactor making history_seasons authoritative + retiring the v1 constant;
+-  the key cost lesson that PL was cheap because details pre-existed but PD/SA/L1 are NOT pre-existing
+-  (~12k each); #521 filed), and the NEXT pointer. Carry ALL durable standing sections (Standing
+-  authority, Product roadmap, the other NEXT items + Carryovers, dim_team, governance, form-window
+-  vocab, parked, pending CPO actions, Do-NOT, Environment) forward UNCHANGED + verbatim.
+-
++  Backfill La Liga (PD), Serie A (SA) and Ligue 1 (L1) to a full 10 finished seasons
++  (2016-2025), matching BL1/PL — the §8 top-domestic depth. Completes the featured top-5
++  deep history (BL1 + PL already done). Set per-competition history_seasons (authoritative
++  post-#520): PD=10, SA=11, L1=11 — the differing values offset each league's provider
++  current-season (PD resolves 2025, SA/L1 resolve 2026) to all reach 2016. Run a full-profile
++  scoped ingest one league at a time (PD measured FIRST before the broader SA+L1 spend).
  refs: >
--  #479 (deep-season backfill); docs/content_architecture.md §8/§9; CPO Path-A decision in this
--  conversation (2026-06-20): "make history_seasons authoritative + retire the v1 constant, then PL
--  -> 2016 cleanly". The CPO flagged V1_SEASON_WINDOW_YEARS as an unacceptable v1 artifact and the
--  season-depth config as not robust.
-+  This conversation 2026-06-20. Closed #414 (obsolete — premise-check). Backfilled PL to 2016-2026
-+  (BL1 parity). Merged #520 (season-depth config refactor: history_seasons authoritative,
-+  V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS). Filed #521 (phantom-season hardening).
-+  Memory: [[feedback-raw-staging-latest-payload]], [[no-hacky-solutions]].
+-  This conversation 2026-06-20. Closed #414 (obsolete — premise-check). Backfilled PL to 2016-2026
+-  (BL1 parity). Merged #520 (season-depth config refactor: history_seasons authoritative,
+-  V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS). Filed #521 (phantom-season hardening).
+-  Memory: [[feedback-raw-staging-latest-payload]], [[no-hacky-solutions]].
++  #479 (deep-season backfill); docs/content_architecture.md §8 (top-domestic = 10 seasons);
++  the PL precedent (#520, 2016-2025 parity). CPO "continue with backfill" 2026-06-20.
  
  scope_paths:
--  - ingestion/api_football/settings.py
--  - ingestion/api_football/season_inference.py
--  - ingestion/api_football/seasons.py
--  - ingestion/api_football/orchestrator.py
--  - tests/test_season_inference.py
--  - tests/test_seasons_for_ingestion.py
--  - docs/data_contract.md
--  - docs/working_agreement.md
--  - docs/competition_registry.yml
--  - .claude/task/**
-+  - .claude/active_work.md
-+  - .claude/task/contract.md
-+  - .claude/task/review.md
+-  - .claude/active_work.md
+-  - .claude/task/contract.md
+-  - .claude/task/review.md
++  - docs/competition_registry.yml
++  - .claude/task/**
  
  decisions_taken: >
--  CPO chose Path A (2026-06-20). (1) BEHAVIOUR: in seasons._seasons_for_ingestion, when
--  history_seasons is set the band lower bound becomes lo = resolved_current - (history_seasons - 1)
--  with NO max(global_lo, ...) clamp — history_seasons fully determines depth (can now exceed the
--  default window, and is date-independent). When history_seasons is UNSET, the default window floor
--  (effective_season_min) still applies. (2) RENAME: V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS
--  (internal constant, default-only role). (3) Economy/default profile output is UNCHANGED for existing
--  configs — the MAX_SEASONS cap is a separate, later branch (verified: a wider band is still truncated
--  to the last MAX_SEASONS). (4) PL history_seasons 10 -> 11 (offsets the provider's current_season=2026,
--  one ahead of BL1's 2025) -> reaches 2016. (5) Re-run the PL backfill to fetch 2016 (incremental).
--  Authority: working_agreement §2 (amendment, clean tree) + the CPO's explicit Path-A approval; the
--  constant change is pre-confirmed in-thread per working_agreement §156.
-+  CPO directed each step this conversation: closed #414 (Path A), approved the PL backfill (Phase 1),
-+  approved Path A (config refactor), merged #520. Pure bookkeeping: records already-merged/already-done
-+  work and re-points NEXT. No new product/metric/naming/layer decision — the refactor's design choices
-+  (history_seasons authoritative; the rename; PL hs=11; phantom-season deferral) are shipped + recorded,
-+  not re-decided. Durable standing sections preserved verbatim.
+-  CPO directed each step this conversation: closed #414 (Path A), approved the PL backfill (Phase 1),
+-  approved Path A (config refactor), merged #520. Pure bookkeeping: records already-merged/already-done
+-  work and re-points NEXT. No new product/metric/naming/layer decision — the refactor's design choices
+-  (history_seasons authoritative; the rename; PL hs=11; phantom-season deferral) are shipped + recorded,
+-  not re-decided. Durable standing sections preserved verbatim.
++  CPO directed "continue with backfill" (2026-06-20) = the featured top-5 completion (PD/SA/L1),
++  to the same 2016-2025 finished depth as BL1/PL (consistent execution of the PL parity precedent,
++  not a new decision). Depth authority: content_architecture §8 ("Top domestic leagues = 10 seasons").
++  hs values reach 2016 given each league's resolved_current (verified via RAW max season this session:
++  PD=2025 -> hs=10; SA=2026 -> hs=11; L1=2026 -> hs=11). The hs asymmetry is the phantom-current-season
++  offset tracked by #521 (deferred). Cost (measured this session: detail rows PD/SA=760, L1=617 — details
++  do NOT pre-exist, unlike PL) ~= ~12k calls each (~34k total); a fresh spend the CPO approved by
++  directing the backfill. PD is the one-league measure before the broader SA+L1 spend (cost rule).
++  Runs are env-var driven (full profile, LEAGUE_CODES per league); the only committed change is the
++  three registry history_seasons values. Downstream rebuild rides ci-data-build / the nightly run.
  
  decisions_reserved:
--  - Phantom-current-season hardening (anchor depth to the latest FINISHED season, so PL could use
--    hs=10 like BL1) — CPO ruled SEPARABLE (2026-06-20); filed as a follow-up, NOT in this PR.
--    Documented consequence: PL uses hs=11 vs BL1's hs=10 to reach the same finished depth.
--  - PD/SA/L1 + Phase 2 per-type depths — deferred; a separate cost decision after PL.
--  - The new constant name (DEFAULT_SEASON_WINDOW_YEARS) is agent-chosen (internal, not user-visible);
--    CPO may override.
-+  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
-+  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
+-  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
+-  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
++  - Phase 2 (the other ~40 leagues + their §8 per-type depths) — deferred; a separate cost decision.
++  - If a league's resolved_current differs at run time and it does NOT reach 2016, adjust its hs
++    empirically (NOT a CPO call; the §8 target is the 2016-2025 finished depth, confirmed post-run).
  
  done_when:
--  - history_seasons authoritative: new tests in tests/test_seasons_for_ingestion.py prove (a) under the
--    full profile an explicit history_seasons reaches below the default floor (monkeypatched), and
--    (b) unset history_seasons still clamps to the default window. Existing season tests pass under the
--    renamed constant.
--  - V1_SEASON_WINDOW_YEARS fully retired: `git grep V1_SEASON_WINDOW_YEARS` returns 0 (code + docs).
--  - Registry PL history_seasons = 11; check_registry_var_sync.py green.
--  - validate-local gates (ruff/pytest/sqlfluff/dbt parse) green locally before push.
--  - Backfill re-run (full profile, LEAGUE_CODES=PL): PL RAW shows 2016-2026 (2016-2025 finished),
--    fanout 100%; measured call delta captured and reported.
--  - ci-data-build green on the PR (relationship/orphan tests against the new RAW).
-+  - .claude/active_work.md reflects: #414 closed obsolete; PL backfilled to 2016-2026 (BL1 parity, ~3k
-+    calls); #520 merged (history_seasons authoritative + v1 constant retired); the PD/SA/L1 cost lesson
-+    (~12k each, details not pre-existing); #521 filed; FIRST/NEXT re-pointed; all durable sections
-+    intact + verbatim.
-+  - Commit on branch chore/handover-pl-backfill; post-commit opens the PR.
-+  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
+-  - .claude/active_work.md reflects: #414 closed obsolete; PL backfilled to 2016-2026 (BL1 parity, ~3k
+-    calls); #520 merged (history_seasons authoritative + v1 constant retired); the PD/SA/L1 cost lesson
+-    (~12k each, details not pre-existing); #521 filed; FIRST/NEXT re-pointed; all durable sections
+-    intact + verbatim.
+-  - Commit on branch chore/handover-pl-backfill; post-commit opens the PR.
+-  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
++  - Registry: PD history_seasons=10, SA=11, L1=11; no other field changed. check_registry_var_sync green.
++  - PD backfill run completes; actual call count captured + reported BEFORE the SA+L1 spend.
++  - Each league RAW (RAW_APIF_FIXTURES_NEXT latest snapshot) shows 2016-2025 finished seasons with
++    populated RAW_APIF_FIXTURE_DETAILS; fanout 100% (all_fanout_complete).
++  - verify-competition-ingest for each league: 0 NULL fixture_id / 0 stale wrong-id / 0 missing teams.
++  - ci-data-build green on the PR (relationship/orphan tests against the new RAW).
  
--amendments:
--  - 2026-06-20: EXPANDED from the one-line PL history_seasons=10 change to the season-depth config
--    refactor (Path A). Authority: CPO Path-A approval in this conversation. Added scope_paths:
--    ingestion/api_football/{settings,season_inference,seasons,orchestrator}.py, tests/test_season_inference.py,
--    tests/test_seasons_for_ingestion.py, docs/data_contract.md, docs/working_agreement.md.
--    PL history_seasons target changed 10 -> 11.
-+amendments: (none)
+ amendments: (none)
+diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
+index fc4ff2f..ed53e11 100644
+--- a/docs/competition_registry.yml
++++ b/docs/competition_registry.yml
+@@ -268,11 +268,11 @@ competitions:
+     provider_league_id: 140
+     season_type: "split_year"
+     current_season: "2025"
+-    history_seasons: 2
++    history_seasons: 10
+     status: "active"
+     ingest_active: true
+     ingest_completeness_gate: soft
+-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
++    notes: "Backfilled to 2016-2025 (10 finished seasons, BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+ 
+   - league_code: "BL2"
+     name: "2. Fußball-Bundesliga"
+@@ -306,11 +306,11 @@ competitions:
+     provider_league_id: 135
+     season_type: "split_year"
+     current_season: "2025"
+-    history_seasons: 2
++    history_seasons: 11
+     status: "active"
+     ingest_active: true
+     ingest_completeness_gate: soft
+-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
++    notes: "Backfilled to 2016-2025 finished + 2026 (BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. hs=11 offsets provider current_season=2026. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+ 
+   - league_code: "L1"
+     name: "Ligue 1"
+@@ -325,11 +325,11 @@ competitions:
+     provider_league_id: 61
+     season_type: "split_year"
+     current_season: "2025"
+-    history_seasons: 2
++    history_seasons: 11
+     status: "active"
+     ingest_active: true
+     ingest_completeness_gate: soft
+-    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
++    notes: "Backfilled to 2016-2025 finished + 2026 (BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. hs=11 offsets provider current_season=2026. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+ 
+   - league_code: "VL"
+     name: "Veikkausliiga"
