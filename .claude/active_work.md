@@ -4,33 +4,59 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-20 (PL deep-season backfill + season-depth config refactor). Closed **#414** as
-obsolete (premise-check: the supporting_leagues guard it targeted was retired by #429). Backfilled **PL to
-2016-2026** (2016-2025 finished = **true BL1 parity**) for ~3k API calls total — cheap because the per-fixture
-details already lived in RAW (the thin fixtures snapshot masked them; [[feedback-raw-staging-latest-payload]]).
-Shipped **#520** (season-depth config refactor): per-competition `history_seasons` is now AUTHORITATIVE
-(dropped the global-floor clamp), and `V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`. Filed **#521**
-(phantom-current-season hardening — deferred; would let PL use hs=10 like BL1 instead of hs=11). Prior:
-idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPEN. Governance G1-G4 LIVE.
-**Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-21 (deep-backfill DQ heal + Phase 2a depths shipped). **#527 MERGED** — the complete,
+bounded deep-backfill DQ fix (events team_id recovery + self-heal in fct_fixture_event; mis-placed standings
+not_null test relocated to the cleaned layer; player id-collision drop in base_apif__fixture_players, committed
+rows healed by a one-time CPO-authorized full-refresh). **#524 MERGED** — Phase 2a registry §8 depths (7 domestic
+2->5: BL2/ED/LMX/LP/MLS/SPL/VL; 8 continental-club 5->10: UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC). **#523 MERGED**
+— PD/SA/L1 backfilled to 2016-2025 (BL1/PL parity). main is GREEN, the nightly is unblocked. Updated **#518**
+with this session's behaviour instance (coverage-cut is never a DQ fix; count offending rows in RAW first). Prior:
+#520 season-depth config refactor (history_seasons authoritative); PL 2016-2026 (BL1 parity). #500/#506/#510/#517/#518/#521/#526
+still OPEN. Governance G1-G4 LIVE. **Website blueprint #391 still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge (`git fetch` + ff main; #520 merged). **PL deep-season backfill is DONE** (PL RAW =
-  2016-2026, 10 finished seasons = BL1 parity; all 4 fanout endpoints 100%; ~3k calls). The **season-depth
-  config is now ROBUST** (#520: `history_seasons` authoritative, no global clamp; v1 constant retired). The
-  next nightly run rebuilds PL's marts from the deepened RAW (no local dbt build — shared BQ).
-- **NEXT is the CPO's pick (none auto-granted).** Obvious continuation: **PD/SA/L1** to 10 seasons — but COST
-  DIFFERS FROM PL: PL was ~3k because its details pre-existed in RAW; PD/SA/L1 have only ~2 seasons of details
-  (760/760/617 detail rows), so each is a genuine ~8-season fanout fetch ≈ **~12k calls apiece (~34k for the
-  three)** — a fresh cost gate. Then Phase 2 (the other ~40 leagues per the §8 tiered policy). Other open
-  items: **coaches + `mart_player_career`**, the **player benchmark / opponent-context** (v1.x), carryovers
-  **#500/#506/#510/#521**, stale-id purge **#517**, process retrospective **#518**. **Read
-  `docs/content_architecture.md` §8/§9 first.**
-- **To backfill a league now (post-#520):** set its `history_seasons` in the registry — it is AUTHORITATIVE,
-  no V1 cap — then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`,
-  `LOG_QUOTA=1`), measure the call delta, verify RAW depth, then `verify-competition-ingest`. **Query RAW for
-  true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
+- Nothing pending-merge (`git fetch` + ff main; #527 + #524 merged; main green). The deep-backfill DQ defect
+  class is now HANDLED in main (events recover + self-heal, standings test at the cleaned layer, player
+  id-collision drop) — these generalize to the same provider quirks in the remaining deep seasons, so further
+  backfill should need NO new manual heals. **#526 still tracks a separate pre-existing DQ defect** (38 events
+  referencing a team that is not one of the fixture's two teams) — independent of the recovery; a follow-up.
+- **RESUME the Phase 2a deep INGEST (CPO-directed; the registry depths are merged in #524 but the actual deep
+  fetch was STOPPED partway).** #524 only set `history_seasons`; the controlled local backfill that fills RAW
+  was interrupted (~21k calls in via taskkill, to deal with the DQ failures). RESUME for the leagues NOT yet at
+  their §8 depth: continental-club (UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC → 10) + 7 domestic
+  (BL2/ED/LMX/LP/MLS/SPL/VL → 5). **First query RAW per league to see which already reached depth** (skip-if-present
+  makes re-runs cheap — already-ingested fixtures skip), then `full`-profile scoped ingest only for the incomplete
+  ones, then `verify-competition-ingest`. **Query RAW for true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
+- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): editions/cycle depth
+  needs a per-cadence mapping (not a year-count), a separate task. Other open items: **coaches + `mart_player_career`**,
+  the **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510/#521**, stale-id purge **#517**,
+  process retrospective **#518**. **Read `docs/content_architecture.md` §8/§9 first.**
+- **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
+  then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
+  the call delta, verify RAW depth, then `verify-competition-ingest`.
+- **Cost reality (locked):** deep backfills are ~10x cheaper than `fixtures × 4` estimates — the per-fixture
+  sub-endpoints batch ~20 fixtures/call (the `ids` param), so a season's fanout is ~fixtures/20 × 4, not
+  fixtures × 4. (PL was ~3k not ~10.7k partly for this + pre-existing details.)
 - The **dbt MCP server** cold-start race may recur — see [[project-dbt-mcp-server]].
+
+## This session (2026-06-21) — deep-backfill DQ heal (#527) + Phase 2a depths (#524)
+- **#527 (MERGED) — the complete, bounded deep-backfill DQ fix.** The PD/SA/L1 + partial Phase 2a deep data
+  (2016-era) surfaced 3 DQ failures; enumerated the FULL defect set from RAW via one clean build (bounded:
+  ~15 fixable rows; recent seasons 0 dupes / 280k+ legs). Fixes: (a) **events** — recover null `team_id` in
+  base_apif__fixture_events from the same team's other events in the fixture (by name), + a SELF-HEAL clause in
+  fct_fixture_event's incremental filter to reach already-committed null rows; (b) **standings** — removed the
+  mis-placed `not_null` on FAITHFUL `stg_apif__standings.team_id` (the provider legitimately leaves it null in
+  old data); cleanliness stays guarded at base + `fct_standings.team_sk`; (c) **player id-collision** — provider
+  reused one `player_id` for two players in a fixture; extended base_apif__fixture_players's phantom-leg cleanup
+  to drop real-id collisions, + a one-time CPO-authorized `--full-refresh` of fct_fixture_player_stats to heal
+  the 4 committed rows (merge can't delete; verified 0 remaining). Both reviewers PASS.
+- **#524 (MERGED) — Phase 2a registry §8 depths.** 15 `history_seasons` lines (7 domestic 2->5, 8 continental-
+  club 5->10). Registry-only; rebased on the #527-healed main (sibling-PR rebase: only `.claude/task/*` conflicted;
+  registry replayed byte-identical; review hash rebound; collapsed to one commit — [[feedback-sibling-pr-rebase-rebind]]).
+- **Process lesson (locked, #518 updated):** I first framed the old-data DQ failures as "older data is messier"
+  and floated PULLING BACK ingest depth as the "fix". CPO: *"the fix is not fixing it but just not ingesting it."*
+  **A failing DQ test is a defect to fix, NEVER a reason to ingest less; COUNT the offending rows in RAW before
+  any "messier data / skip it" framing** ([[feedback-no-hacky-solutions]]).
 
 ## Standing authority (in force)
 - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
@@ -81,10 +107,12 @@ idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPE
    cycle / cups 5 — + a data-quality floor (skip empty-player-stat seasons) + phased rollout.
 
 ## NEXT — the content_architecture build sequence (CPO directs; none auto-granted)
-1. **Backfill** (#479) — **PL DONE (2016-2026, BL1 parity, 2026-06-20); config now robust (#520).**
-   REMAINING: **PD/SA/L1 to 10 seasons (~12k calls EACH — details do NOT pre-exist, unlike PL; a fresh
-   cost gate)**, then **Phase 2** (the other ~40 leagues per the §8 tiered depth). Recipe: set
-   `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated.
+1. **Backfill** (#479) — **PL + PD/SA/L1 DONE (2016-2025 finished = BL1 parity; #523, 2026-06-21); config
+   robust (#520).** Phase 2a registry §8 depths MERGED (#524) but the deep INGEST was STOPPED partway →
+   **RESUME** for the leagues not yet at depth (8 continental-club → 10, 7 domestic → 5; see FIRST-next-session).
+   Then **Phase 2b** (national-team tournaments + qualifiers; DEFERRED — per-cadence editions/cycle mapping).
+   Recipe: set `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated;
+   ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
 3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
