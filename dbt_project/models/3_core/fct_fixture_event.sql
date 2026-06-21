@@ -33,6 +33,15 @@ src as (
             select coalesce(max(tgt.raw_ingested_at), timestamp('1970-01-01'))
             from {{ this }} as tgt
         )
+        -- Self-heal: also re-process any fixture that currently has a null team_sk, so the
+        -- base-layer team_id recovery reaches rows already committed before the fix (no
+        -- --full-refresh needed). Self-limiting — once recovered they no longer match; the
+        -- unique_key=event_sk merge updates the healed rows in place.
+        or base.fixture_id in (
+            select tgt.fixture_api_id
+            from {{ this }} as tgt
+            where tgt.team_sk is null
+        )
     {% endif %}
 )
 
