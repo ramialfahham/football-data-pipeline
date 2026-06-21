@@ -1,39 +1,26 @@
-# Review — chore/backfill-phase2a — 2026-06-21
+# Review — chore/handover-refresh-0621 — 2026-06-21
 
-> Phase 2a: §8 club/domestic depths in docs/competition_registry.yml — 7 non-top-5 domestic_league
-> 2->5 (BL2,ED,LMX,LP,MLS,SPL,VL) + 8 continental_club 5->10 (UCL,UEL,UECL,LIBER,CAFCL,AFCCL,CCCU,CWC).
-> Phase 2b (national-team tournaments/qualifiers) DEFERRED (CPO Option A). Routing: data-engineer +
-> scope-auditor. Both PASS, blinded. No FAIL, no ESCALATE.
+> Documentation-only handover refresh: rewrite .claude/active_work.md to the true post-merge state
+> (#527 DQ heal + #524 Phase 2a depths + #523 PD/SA/L1 parity all MERGED; main green) and set the
+> FIRST next action (RESUME the stopped Phase 2a deep ingest). Contract.md rewritten to a docs-task
+> contract. No code, no product/metric/naming decision. Routing: artifact paths -> scope-auditor only
+> (contract.md is in the commit, so not review-exempt). PASS, blinded. No FAIL, no ESCALATE.
 
-diff_sha256: 7fe5ef6092f8c150d0910390fa90f6e93d42a0513480e046941373973123f877
+diff_sha256: 6882201326e082191b11161f0615e293bbb52b6713bc09afecab722cfa0a2908
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §8 application is mechanical, not a unilateral §10 call: the 5-season rule applies to non-top-5
-  domestic_league (tier-1 ED/VL/LMX/LP/MLS/SPL + tier-2 BL2) per §8's "2nd-tier/smaller" bucket
-  (its own examples include tier-1 leagues); continental_club = 10 per §8. Diff changes ONLY
-  history_seasons on exactly the 15 intended leagues — no other field/league, no status/classification
-  change. UESC (not in §8) left at 5; cups + APD/BSA/J1/KL1 (already 5) untouched; CWC/CCCU use their
-  existing registry competition_type, not reclassified.
-- Phase 2b boundary held: national-team tournaments + qualifiers are RESERVED (Option A), flowing from
-  §8's own two-track design (editions/cycle need a per-cadence mapping, not a year-count) — not smuggled
-  in, not decided here. No Appendix A anti-pattern.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Registry integrity + nightly behaviour: exactly 15 history_seasons lines changed (7 dom 2->5,
-  8 cc 5->10), no provider_league_id/status/other field touched; valid parse; history_seasons is not
-  a dbt var (var-sync green, sync_dbt_vars not needed). The economy MAX_SEASONS cap only fires on the
-  economy profile; the nightly scheduler sets no INGEST_PROFILE -> runs full -> the new hs values are
-  respected nightly with no cost cap interference, and INCLUDE_IN_PROGRESS=1 is already in dbt-scheduled.yml
-  for the in_progress continental_club set. #514 carry-forward unaffected.
-- Sparse-catalog safety: hs=10 on UECL (founded 2021/22) / CWC (old format) computes a lower bound
-  earlier than the competition existed, but _seasons_for_ingestion discovers only the years the API
-  returns and filters to [lo,hi] — missing years are silently skipped (no empty-row writes, no
-  corruption). done_when already states ">=10 or the API's available depth"; no off-by-one in the
-  inclusive band formula.
+- Scope boundary — RESUME direction: verified the "RESUME the Phase 2a deep INGEST" instruction directs
+  no new work beyond the 15 leagues already set in #524's registry (merged, CPO-directed); the depth
+  targets are identical to the §8 policy; RESUME is explicitly marked CPO-directed and refers to the same
+  session. No scope drift. Diff touches ONLY the contract's scope_paths (.claude/active_work.md,
+  .claude/task/**) — no out-of-scope file.
+- Decision-rights boundary — "Cost reality (locked)" finding: verified the ~10x-cheaper note is empirical
+  (from this session's backfills) and merely justifies the already-approved §8 depths rather than
+  authorizing new depths or budget widening. No silent §10 cost decision. Faithfulness check: the
+  handover records merged outcomes (#527/#524/#523/#520) accurately and does not overstate ("should need
+  NO new manual heals" is conditional; #526 listed as a separate pre-existing defect). No Appendix A pattern.
 
 ## escalations
 (none)
