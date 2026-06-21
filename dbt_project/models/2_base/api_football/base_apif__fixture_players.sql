@@ -89,7 +89,15 @@ select
     penalty_saved,
     raw_ingested_at
 from src
-qualify row_number() over (
-    partition by league_code, fixture_id, team_id, player_id
-    order by raw_ingested_at desc
-) = 1
+qualify
+    row_number() over (
+        partition by league_code, fixture_id, team_id, player_id
+        order by raw_ingested_at desc
+    ) = 1
+    -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
+    -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
+    -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
+    -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
+    -- downstream (int_legs__player_match / mart_player_match_log).
+    and min(team_id) over (partition by league_code, fixture_id, player_id)
+    = max(team_id) over (partition by league_code, fixture_id, player_id)

@@ -1,133 +1,255 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 72c3754..1f128a2 100644
+index 1f128a2..38cc041 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,52 +1,43 @@
--# Task contract — chore: refresh the handover after the PL backfill + season-depth refactor
--
--> Bookkeeping. Update .claude/active_work.md so a fresh session continues correctly: record this
--> session's work — #414 closed as obsolete (premise-check), the PL deep-season backfill (PL now
--> 2016-2026 = BL1 parity, ~3k calls total), and the season-depth config refactor merged as #520
--> (history_seasons authoritative; V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS), plus the
--> filed #521 (phantom-current-season hardening, deferred). Re-point FIRST/NEXT. Preserve all durable
--> standing sections verbatim. No code. active_work.md is artifact-only for commits but NOT
--> auto-editable, so it is in scope_paths; the commit also carries contract.md (never review-exempt)
--> -> scope-auditor reviews.
-+# Task contract — Backfill PD/SA/L1 to 2016-2025 (BL1/PL parity)
+@@ -1,43 +1,108 @@
+-# Task contract — Backfill PD/SA/L1 to 2016-2025 (BL1/PL parity)
++# Task contract — Recover null event team_id from sibling events (DQ fix)
  
  objective: >
--  Update the session-specific parts of .claude/active_work.md: the Last-updated header, FIRST, the
--  This-session section (replace the 2026-06-19 idle-mode fix with the 2026-06-20 session: #414 closed
--  obsolete; the PL backfill — fixtures snapshot restored + 2016 fetched to reach BL1 parity 2016-2025
--  finished; the #520 config refactor making history_seasons authoritative + retiring the v1 constant;
--  the key cost lesson that PL was cheap because details pre-existed but PD/SA/L1 are NOT pre-existing
--  (~12k each); #521 filed), and the NEXT pointer. Carry ALL durable standing sections (Standing
--  authority, Product roadmap, the other NEXT items + Carryovers, dim_team, governance, form-window
--  vocab, parked, pending CPO actions, Do-NOT, Environment) forward UNCHANGED + verbatim.
--
-+  Backfill La Liga (PD), Serie A (SA) and Ligue 1 (L1) to a full 10 finished seasons
-+  (2016-2025), matching BL1/PL — the §8 top-domestic depth. Completes the featured top-5
-+  deep history (BL1 + PL already done). Set per-competition history_seasons (authoritative
-+  post-#520): PD=10, SA=11, L1=11 — the differing values offset each league's provider
-+  current-season (PD resolves 2025, SA/L1 resolve 2026) to all reach 2016. Run a full-profile
-+  scoped ingest one league at a time (PD measured FIRST before the broader SA+L1 spend).
+-  Backfill La Liga (PD), Serie A (SA) and Ligue 1 (L1) to a full 10 finished seasons
+-  (2016-2025), matching BL1/PL — the §8 top-domestic depth. Completes the featured top-5
+-  deep history (BL1 + PL already done). Set per-competition history_seasons (authoritative
+-  post-#520): PD=10, SA=11, L1=11 — the differing values offset each league's provider
+-  current-season (PD resolves 2025, SA/L1 resolve 2026) to all reach 2016. Run a full-profile
+-  scoped ingest one league at a time (PD measured FIRST before the broader SA+L1 spend).
++  Fix the real DQ defect surfaced by the deep backfill: some old API-Football /fixtures/events
++  records carry team.name but a null team.id (mostly Card events), so fct_fixture_event.team_sk is
++  null -> the not_null_fct_fixture_event_team_sk test fails (broke main's 2026-06-21 nightly + #524).
++  Recover the null team_id in base_apif__fixture_events from the SAME team's other events in the same
++  fixture (the team has a valid id on its goals/subs), keyed by (league_code, fixture_id, team_name).
++  This is CPO-chosen Option A (recover, not drop) — preserves the events (cards stay attributed).
  refs: >
--  This conversation 2026-06-20. Closed #414 (obsolete — premise-check). Backfilled PL to 2016-2026
--  (BL1 parity). Merged #520 (season-depth config refactor: history_seasons authoritative,
--  V1_SEASON_WINDOW_YEARS -> DEFAULT_SEASON_WINDOW_YEARS). Filed #521 (phantom-season hardening).
--  Memory: [[feedback-raw-staging-latest-payload]], [[no-hacky-solutions]].
-+  #479 (deep-season backfill); docs/content_architecture.md §8 (top-domestic = 10 seasons);
-+  the PL precedent (#520, 2016-2025 parity). CPO "continue with backfill" 2026-06-20.
+-  #479 (deep-season backfill); docs/content_architecture.md §8 (top-domestic = 10 seasons);
+-  the PL precedent (#520, 2016-2025 parity). CPO "continue with backfill" 2026-06-20.
++  This conversation 2026-06-21 (CPO: Option A — recover). Failure: not_null_fct_fixture_event_team_sk
++  (11 events, PD/SA 2016-era; e.g. Eibar id 545 valid on goals, null on cards in fixture 27411).
++  Traced to RAW. Surfaced by the #520/#523 deep backfill.
  
  scope_paths:
--  - .claude/active_work.md
--  - .claude/task/contract.md
--  - .claude/task/review.md
-+  - docs/competition_registry.yml
-+  - .claude/task/**
+-  - docs/competition_registry.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/3_core/fct_fixture_event.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+   - .claude/task/**
  
  decisions_taken: >
--  CPO directed each step this conversation: closed #414 (Path A), approved the PL backfill (Phase 1),
--  approved Path A (config refactor), merged #520. Pure bookkeeping: records already-merged/already-done
--  work and re-points NEXT. No new product/metric/naming/layer decision — the refactor's design choices
--  (history_seasons authoritative; the rename; PL hs=11; phantom-season deferral) are shipped + recorded,
--  not re-decided. Durable standing sections preserved verbatim.
-+  CPO directed "continue with backfill" (2026-06-20) = the featured top-5 completion (PD/SA/L1),
-+  to the same 2016-2025 finished depth as BL1/PL (consistent execution of the PL parity precedent,
-+  not a new decision). Depth authority: content_architecture §8 ("Top domestic leagues = 10 seasons").
-+  hs values reach 2016 given each league's resolved_current (verified via RAW max season this session:
-+  PD=2025 -> hs=10; SA=2026 -> hs=11; L1=2026 -> hs=11). The hs asymmetry is the phantom-current-season
-+  offset tracked by #521 (deferred). Cost (measured this session: detail rows PD/SA=760, L1=617 — details
-+  do NOT pre-exist, unlike PL) ~= ~12k calls each (~34k total); a fresh spend the CPO approved by
-+  directing the backfill. PD is the one-league measure before the broader SA+L1 spend (cost rule).
-+  Runs are env-var driven (full profile, LEAGUE_CODES per league); the only committed change is the
-+  three registry history_seasons values. Downstream rebuild rides ci-data-build / the nightly run.
+-  CPO directed "continue with backfill" (2026-06-20) = the featured top-5 completion (PD/SA/L1),
+-  to the same 2016-2025 finished depth as BL1/PL (consistent execution of the PL parity precedent,
+-  not a new decision). Depth authority: content_architecture §8 ("Top domestic leagues = 10 seasons").
+-  hs values reach 2016 given each league's resolved_current (verified via RAW max season this session:
+-  PD=2025 -> hs=10; SA=2026 -> hs=11; L1=2026 -> hs=11). The hs asymmetry is the phantom-current-season
+-  offset tracked by #521 (deferred). Cost (measured this session: detail rows PD/SA=760, L1=617 — details
+-  do NOT pre-exist, unlike PL) ~= ~12k calls each (~34k total); a fresh spend the CPO approved by
+-  directing the backfill. PD is the one-league measure before the broader SA+L1 spend (cost rule).
+-  Runs are env-var driven (full profile, LEAGUE_CODES per league); the only committed change is the
+-  three registry history_seasons values. Downstream rebuild rides ci-data-build / the nightly run.
++  CPO chose Option A (recover) over dropping, in this conversation (2026-06-21). Layer: base
++  (raw cleanup / first logic) — the recovery is a within-source derivation (no cross-entity join,
++  no schema change). Mechanism: coalesce(team_id, max(team_id) over (partition by league_code,
++  fixture_id, team_name)) applied only when team_id is null and team_name is not null, AFTER the
++  existing dedup. Verified this session: all current null-id (fixture, team_name) groups have exactly
++  ONE sibling non-null id, so recovery is unambiguous. Non-null team_id rows are unchanged (no impact
++  on existing events). The existing not_null_fct_fixture_event_team_sk test (core.yml) stays as the
++  regression guard for the outcome; recovery correctness rests on the per-fixture name->team uniqueness
++  invariant (a fixture has two distinct teams with distinct names).
  
  decisions_reserved:
--  - No new scope. NEXT items remain CPO-directed; this is not the place to add or re-decide them.
--  - If anything beyond active_work.md needs editing, STOP — that is not bookkeeping.
-+  - Phase 2 (the other ~40 leagues + their §8 per-type depths) — deferred; a separate cost decision.
-+  - If a league's resolved_current differs at run time and it does NOT reach 2016, adjust its hs
-+    empirically (NOT a CPO call; the §8 target is the 2016-2025 finished depth, confirmed post-run).
+-  - Phase 2 (the other ~40 leagues + their §8 per-type depths) — deferred; a separate cost decision.
+-  - If a league's resolved_current differs at run time and it does NOT reach 2016, adjust its hs
+-    empirically (NOT a CPO call; the §8 target is the 2016-2025 finished depth, confirmed post-run).
++  - A team whose events in a fixture are ALL null-id (no goal/sub with a valid id) is not recoverable
++    within-events and would still null -> the not_null test would catch it. If the Phase 2a deep data
++    surfaces such a case, extend with a fixture-home/away-team fallback (needs team names in the
++    fixtures chain) — NOT built now (no current case; the test is the guard).
++  - dbt 1.7.19 has no unit-test framework, so no unit test is added; the singular not_null test guards.
++  - Finding 1 (wrong-id guard): a broad "event team_api_id in {fixture home, away}" test is NOT added
++    — it fails on 38 PRE-EXISTING non-null events (team not in the fixture's two teams), unrelated to
++    this recovery (which only fills NULLs). The recovery cannot create a wrong id beyond the negligible
++    two-teams-share-a-name case; not_null + relationships(team_sk -> dim_team) guard the outcome. The 38
++    pre-existing rows are a separate DQ defect to file as a follow-up issue.
  
  done_when:
--  - .claude/active_work.md reflects: #414 closed obsolete; PL backfilled to 2016-2026 (BL1 parity, ~3k
--    calls); #520 merged (history_seasons authoritative + v1 constant retired); the PD/SA/L1 cost lesson
--    (~12k each, details not pre-existing); #521 filed; FIRST/NEXT re-pointed; all durable sections
--    intact + verbatim.
--  - Commit on branch chore/handover-pl-backfill; post-commit opens the PR.
--  - reviewer: scope-auditor PASS (>=2 named risks); no FAIL; no ESCALATE.
-+  - Registry: PD history_seasons=10, SA=11, L1=11; no other field changed. check_registry_var_sync green.
-+  - PD backfill run completes; actual call count captured + reported BEFORE the SA+L1 spend.
-+  - Each league RAW (RAW_APIF_FIXTURES_NEXT latest snapshot) shows 2016-2025 finished seasons with
-+    populated RAW_APIF_FIXTURE_DETAILS; fanout 100% (all_fanout_complete).
-+  - verify-competition-ingest for each league: 0 NULL fixture_id / 0 stale wrong-id / 0 missing teams.
-+  - ci-data-build green on the PR (relationship/orphan tests against the new RAW).
+-  - Registry: PD history_seasons=10, SA=11, L1=11; no other field changed. check_registry_var_sync green.
+-  - PD backfill run completes; actual call count captured + reported BEFORE the SA+L1 spend.
+-  - Each league RAW (RAW_APIF_FIXTURES_NEXT latest snapshot) shows 2016-2025 finished seasons with
+-    populated RAW_APIF_FIXTURE_DETAILS; fanout 100% (all_fanout_complete).
+-  - verify-competition-ingest for each league: 0 NULL fixture_id / 0 stale wrong-id / 0 missing teams.
+-  - ci-data-build green on the PR (relationship/orphan tests against the new RAW).
++  - base_apif__fixture_events recovers null team_id as specified; non-null rows unchanged.
++  - dbt parse + sqlfluff clean; recovery verified empirically (all 11 current null events recover to
++    the correct team id).
++  - HEALING (finding 2): fct_fixture_event is incremental on raw_ingested_at, so already-committed null
++    rows are NOT healed by the base fix alone. A SELF-HEAL clause in fct_fixture_event's incremental
++    filter re-processes any fixture currently holding a null team_sk, so the next NORMAL ci-data-build
++    heals the committed rows via the unique_key merge (no manual --full-refresh — that op is blocked by
++    the no-local-build rule). Self-limiting once healed; also resilient to future stray nulls.
++  - not_null_fct_fixture_event_team_sk PASSES on the fix PR's ci-data-build. Unblocks main; then #524 is
++    rebased on the merged fix and re-runs green.
++  - Standings: base_apif__standings ALREADY drops null team_id (`where team_id is not null`) and
++    fct_standings.team_sk ALREADY has not_null + relationships(dim_team) — the cleaned layer is guarded.
++    The failing not_null_stg_apif__standings_team_id test is MIS-PLACED on FAITHFUL staging (which the
++    provider can leave null, e.g. UEL 2017), inconsistent with events staging (no such test). Fix:
++    remove that one staging-layer test. DQ preserved at core; no base/core SQL change.
++  - Player id-collision: base_apif__fixture_players drops player legs where one player_id appears under
++    >1 team in a fixture (provider id-reuse; both legs unattributable; verified surgical — 2 pairs / 4
++    rows, AFCCL 2016). This prevents NEW collisions entering fct_fixture_player_stats. The ALREADY-
++    committed rows (fct is incremental; a merge cannot delete — unlike the events self-heal which is an
++    UPDATE) are removed by a one-time CPO-authorized (Option B) `dbt run --select base_apif__fixture_players
++    fct_fixture_player_stats --full-refresh` — EXECUTED 2026-06-21 (1.7M rows rebuilt from the clean base;
++    verified 0 remaining collisions). int_legs__player_match + mart_player_match_log (both materialized
++    tables, full-rebuilt from the clean fct) (fixture,player) grain tests then PASS on ci-data-build.
  
- amendments: (none)
-diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
-index fc4ff2f..ed53e11 100644
---- a/docs/competition_registry.yml
-+++ b/docs/competition_registry.yml
-@@ -268,11 +268,11 @@ competitions:
-     provider_league_id: 140
-     season_type: "split_year"
-     current_season: "2025"
--    history_seasons: 2
-+    history_seasons: 10
-     status: "active"
-     ingest_active: true
-     ingest_completeness_gate: soft
--    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
-+    notes: "Backfilled to 2016-2025 (10 finished seasons, BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+-amendments: (none)
++amendments:
++  - 2026-06-21: analytics-engineer FAIL on the player-collision — base_apif__fixture_players prevents NEW
++    collisions but does NOT heal the 4 ALREADY-committed rows in the incremental fct_fixture_player_stats
++    (merge cannot delete; the events self-heal pattern is an UPDATE, this is a DELETE). Both failing grain
++    tests (int_legs__player_match, mart_player_match_log) read fct directly. CPO chose Option B (one-time
++    full-refresh) over dropping in the two full-rebuild consumers. EXECUTED the CPO-authorized
++    `dbt run --select base_apif__fixture_players fct_fixture_player_stats --full-refresh` (1.7M rows; 0
++    remaining collisions). No int_legs/mart change. Authority: CPO "Execute B" (2026-06-21).
++  - 2026-06-21: enumerated the COMPLETE deep-backfill defect set via one clean build (backfill stopped,
++    stable RAW). Result: bounded — events (recovered), standings (test relocated), and a player id-collision
++    in base_apif__fixture_players (the provider reused one player_id for two different players in a fixture,
++    one per team — e.g. AFCCL 2016 id 44061; verified surgical: exactly 2 (fixture,player) pairs / 4 rows,
++    no false positives). Recent seasons are CLEAN (0 dupes across 280k+ legs/season) — disproving any
++    "just don't ingest old data" framing; these are ~15 specific fixable rows, fixed properly, all deep
++    history kept. FIX: extend base_apif__fixture_players's existing cross-team phantom-leg cleanup (today
++    only player_id=0) to drop real-id collisions too (player under >1 team in a fixture -> both legs
++    dropped, unattributable). Added base_apif__fixture_players to scope. Authority: CPO "yes" to the
++    rigorous fix-all-defects plan (2026-06-21); existing player_id=0 cleanup precedent.
++  - 2026-06-21: analytics-engineer FAIL (2 findings). FIX: (a) finding 2 (incremental heal) — added the
++    one-time fct_fixture_event --full-refresh deployment step to done_when; the base fix alone does not
++    heal already-committed incremental rows. (b) finding 1 (wrong-id guard) — recorded why the broad
++    integrity test is deferred (38 pre-existing non-null violations) + to file separately. No base-model
++    change (it is correct). Authority: the reviewer FAIL + standing DQ rules (clean-tree amendment;
++    code change stashed during the edit).
++  - 2026-06-21: CPO chose Option 1 (self-heal) over the manual full-refresh — the full-refresh is blocked
++    by the no-local-build rule (and ci-data-build only builds incrementally). Added scope_path
++    dbt_project/models/3_core/fct_fixture_event.sql + a self-heal clause in its incremental filter
++    (re-process fixtures with a null team_sk) so the heal runs via the normal ci-data-build, no manual
++    shared-warehouse op. Authority: CPO directive this conversation (2026-06-21).
++  - 2026-06-21: the deep backfill surfaced the SAME null-team_id quirk in old standings (UEL 2017, 2
++    rows), blocking #527 at the staging step. Investigation: base_apif__standings ALREADY filters
++    `where team_id is not null` and fct_standings.team_sk ALREADY has not_null + relationships(dim_team)
++    — the cleaned layer was always guarded. The only defect is the not_null test mis-placed on the
++    FAITHFUL staging column (which the provider legitimately leaves null), inconsistent with events
++    staging (no such test). Fix = remove the staging-layer not_null on stg_apif__standings.team_id (a
++    yml change; NO SQL change). Scope corrected: stg_apif__generic.yml (not the .sql). Enumerated the
++    class as bounded (fixture_players 0 nulls, fixture_lineups no team_id). Folded into #527. Authority:
++    layering rule (staging = faithful flatten; cleanliness tests live on the cleaned layer) + DQ preserved
++    at core; CPO directed resolving #527 (2026-06-21).
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 8d3a537..e1b2884 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -50,7 +50,9 @@ models:
+       - name: season
+         tests: [not_null]
+       - name: team_id
+-        tests: [not_null]
++        # Faithful staging: old API-Football standings can carry team.name with a null team.id
++        # (e.g. UEL 2017). base_apif__standings drops those rows and fct_standings.team_sk enforces
++        # not_null + relationships(dim_team) — the cleanliness guard lives on the cleaned layer.
+       - name: raw_ingested_at
+         tests: [not_null]
  
-   - league_code: "BL2"
-     name: "2. Fußball-Bundesliga"
-@@ -306,11 +306,11 @@ competitions:
-     provider_league_id: 135
-     season_type: "split_year"
-     current_season: "2025"
--    history_seasons: 2
-+    history_seasons: 11
-     status: "active"
-     ingest_active: true
-     ingest_completeness_gate: soft
--    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
-+    notes: "Backfilled to 2016-2025 finished + 2026 (BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. hs=11 offsets provider current_season=2026. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index eaa8fc8..23d9b4b 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -17,6 +17,15 @@ with src as (
+     from {{ ref('stg_apif__fixture_events') }}
+     where
+         fixture_id is not null
++),
++
++deduped as (
++    select *
++    from src
++    qualify row_number() over (
++        partition by league_code, fixture_id, event_index
++        order by raw_ingested_at desc
++    ) = 1
+ )
  
-   - league_code: "L1"
-     name: "Ligue 1"
-@@ -325,11 +325,11 @@ competitions:
-     provider_league_id: 61
-     season_type: "split_year"
-     current_season: "2025"
--    history_seasons: 2
-+    history_seasons: 11
-     status: "active"
-     ingest_active: true
-     ingest_completeness_gate: soft
--    notes: "2025/26 season only at onboarding; slice mart_matchday_insights and mart_team_season_insights by league_code."
-+    notes: "Backfilled to 2016-2025 finished + 2026 (BL1/PL parity), §8 top-domestic depth, 2026-06-20, #479. hs=11 offsets provider current_season=2026. Slice mart_matchday_insights and mart_team_season_insights by league_code."
+ select
+@@ -25,7 +34,6 @@ select
+     event_index,
+     minute_elapsed,
+     minute_extra,
+-    team_id,
+     team_name,
+     player_id,
+     player_name,
+@@ -33,9 +41,18 @@ select
+     event_type,
+     event_detail,
+     event_comments,
+-    raw_ingested_at
+-from src
+-qualify row_number() over (
+-    partition by league_code, fixture_id, event_index
+-    order by raw_ingested_at desc
+-) = 1
++    raw_ingested_at,
++    -- Recover a null team_id from the same team's other events in the fixture. Some old
++    -- API-Football events (mostly Cards) carry team.name but a null team.id, while the same
++    -- team has a valid id on its goals/subs; within (fixture, team_name) we backfill the id so
++    -- the event stays attributed and fct_fixture_event.team_sk is never null for a named event.
++    -- A fixture has two distinct teams with distinct names, so name -> id is unambiguous.
++    case
++        when team_id is not null then team_id
++        when team_name is not null
++            then max(team_id) over (
++                partition by league_code, fixture_id, team_name
++            )
++        else team_id
++    end as team_id
++from deduped
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 96025de..d34003d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -89,7 +89,15 @@ select
+     penalty_saved,
+     raw_ingested_at
+ from src
+-qualify row_number() over (
+-    partition by league_code, fixture_id, team_id, player_id
+-    order by raw_ingested_at desc
+-) = 1
++qualify
++    row_number() over (
++        partition by league_code, fixture_id, team_id, player_id
++        order by raw_ingested_at desc
++    ) = 1
++    -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
++    -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
++    -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
++    -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
++    -- downstream (int_legs__player_match / mart_player_match_log).
++    and min(team_id) over (partition by league_code, fixture_id, player_id)
++    = max(team_id) over (partition by league_code, fixture_id, player_id)
+diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
+index c7c1b23..0539465 100644
+--- a/dbt_project/models/3_core/fct_fixture_event.sql
++++ b/dbt_project/models/3_core/fct_fixture_event.sql
+@@ -33,6 +33,15 @@ src as (
+             select coalesce(max(tgt.raw_ingested_at), timestamp('1970-01-01'))
+             from {{ this }} as tgt
+         )
++        -- Self-heal: also re-process any fixture that currently has a null team_sk, so the
++        -- base-layer team_id recovery reaches rows already committed before the fix (no
++        -- --full-refresh needed). Self-limiting — once recovered they no longer match; the
++        -- unique_key=event_sk merge updates the healed rows in place.
++        or base.fixture_id in (
++            select tgt.fixture_api_id
++            from {{ this }} as tgt
++            where tgt.team_sk is null
++        )
+     {% endif %}
+ )
  
-   - league_code: "VL"
-     name: "Veikkausliiga"

@@ -50,7 +50,9 @@ models:
       - name: season
         tests: [not_null]
       - name: team_id
-        tests: [not_null]
+        # Faithful staging: old API-Football standings can carry team.name with a null team.id
+        # (e.g. UEL 2017). base_apif__standings drops those rows and fct_standings.team_sk enforces
+        # not_null + relationships(dim_team) — the cleanliness guard lives on the cleaned layer.
       - name: raw_ingested_at
         tests: [not_null]
 

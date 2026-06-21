@@ -1,43 +1,49 @@
-# Review — chore/backfill-pd-sa-l1 — 2026-06-20
+# Review — fix/event-team-id-recovery — 2026-06-21
 
-> Backfill PD/SA/L1 to 2016-2025 finished (BL1/PL parity): docs/competition_registry.yml
-> history_seasons PD 2->10, SA 2->11, L1 2->11 (+ provenance notes). Routing for
-> competition_registry.yml = data-engineer-reviewer; scope-auditor always. Both PASS, blinded.
-> No FAIL, no ESCALATE. The actual ingest is env-var driven (PD measured first); only the three
-> registry values are committed here.
+> Complete deep-backfill DQ fix (bounded defect set, enumerated via a clean build): events team_id
+> recovery (base) + self-heal (fct_fixture_event) + mis-placed standings not_null test removed
+> (stg_apif__generic.yml, CPO-approved) + player id-collision drop (base_apif__fixture_players) with the
+> already-committed rows healed by a one-time CPO-authorized full-refresh of fct_fixture_player_stats
+> (Option B). Routing: dbt -> analytics-engineer; scope-auditor always. BOTH PASS. No FAIL.
 
-diff_sha256: bfd494f15e24f4fa918eab5bb7efdcb5d4a78248b8fd7fce98a2c8ea1740c1e3
+diff_sha256: 1ac415d54cf0a9fdb7dc1832854d13e5d1087f66bc7c7d3b63b9b90d716ad5d9
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Full-refresh is the correct DELETE-type heal: fct_fixture_player_stats uses unique_key merge
+  (insert/update, never delete), so the 4 committed collision rows can't be removed by any incremental
+  run — the one-time --full-refresh from the collision-dropped base view is structurally the only fix
+  (the events self-heal is an UPDATE, inapplicable to a deletion). Executed; verified 0 remaining
+  collisions. All consumers (int_legs__player_match, mart_player_match_log, mart_fixture_stats__player)
+  are materialized tables, full-rebuilt from the clean fct → grain tests pass; no incremental
+  intermediate retains stale rows. The base qualify guard is permanent (prevents recurrence).
+- Events recovery + self-heal + standings test removal unchanged from prior PASS: recovery runs over
+  the deduped set (no stale-null poisoning); self-heal merge-updates committed null team_sk in place,
+  self-limiting; standings cleanliness preserved at the cleaned layer (base drop + fct_standings.team_sk
+  not_null + relationships). base_players collision-drop is surgical (min(team_id)=max(team_id) over
+  (fixture, player); 2 pairs / 4 rows, no false positives).
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Depth target is not a unilateral §10 decision: 10 finished seasons is content_architecture §8
-  (top-domestic); targeting 2016-2025 for PD/SA/L1 is consistent execution of the CPO's PL parity
-  precedent (#520), and the ~34k spend is covered by the CPO's "continue with backfill" + the
-  measure-PD-first cadence. Differing hs (PD=10 vs SA/L1=11) is documented (the #521 phantom-season
-  offset), not arbitrary. Phase 2 correctly reserved.
-- Phantom-current-season coupling + cost groundedness: SA/L1 hs=11 assumes the API resolves their
-  current to 2026 (verified via RAW max season this session); the ~12k/league estimate rests on
-  measured detail-row counts (760/760/617, details don't pre-exist). Both are mitigated by the
-  contract's gates — PD measured FIRST (LOG_QUOTA) before the broader SA+L1 spend, and post-run
-  verification (0 NULL fixture_id / 0 stale-id / fanout 100%) before relying on the data.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Band math (post-#520 authoritative): lo = resolved_current - (history_seasons - 1). SA/L1
-  (resolved_current=2026, hs=11) -> lo=2016, hi=2026; PD (2025, hs=10) -> lo=2016, hi=2025. All
-  reach 2016 as intended; no global clamp intervenes.
-- Nightly run + invariants unchanged: the economy/default profile still truncates to the last
-  MAX_SEASONS (=3) regardless of hs=11, so no daily cost increase; the wider window only applies on
-  full-profile backfill runs. #514 carry-forward unaffected; history_seasons is not a dbt var
-  (check_registry_var_sync stays green, sync_dbt_vars not required); no provider_league_id change.
-- PD runtime-flip risk: if the API's current flag advances to 2026 before the PD run, hs=10 yields
-  lo=2017 (missing 2016) — explicitly RESERVED as an empirical post-run adjust, not an uncovered gap.
-- NOTED (non-blocking): SA/L1 `current_season` field reads "2025" while the notes say provider=2026.
-  The field is fallback-only (API `current:true` wins, step 1); it cannot cause a wrong live band,
-  but if the API ever dropped the current flag the fallback would resolve 2025 -> lo=2015 (one extra
-  season). Same pattern as the merged PL entry; root cause tracked by #521.
+- Heal verified pre-merge by the gating CI (resolves the prior ESCALATE): the full-refresh's success is
+  not taken on trust — #527's ci-data-build rebuilds int_legs__player_match + mart_player_match_log
+  (materialized tables) from the live fct and runs their (fixture,player) grain tests; if the heal had
+  failed they'd be red, and the CPO merges only a green PR. So there is no false-green / merge-unverified
+  window. The one-time --full-refresh is recorded as a CPO-authorized ("Execute B") one-time deploy, not
+  a routine-local-build precedent.
+- Scope + faithfulness: the diff touches only scope_paths (int_legs/mart are NOT changed — B used the
+  full-refresh, not consumer edits); all 5 amendments carry CPO authority; the fix is "fix the defects,
+  keep all deep history" (no depth-cut / avoid); reserved items (#526 38-row integrity, finding-1) stay
+  reserved. No Appendix A anti-pattern.
 
 ## escalations
-(none)
+- question: Removing the not_null test on stg_apif__standings.team_id (mis-placed on faithful staging,
+  which the provider leaves null in old data) — is that a §10 DQ decision the CPO must bless?
+  CPO ANSWER: Approved (2026-06-21): "The fix: remove that staging-layer test." DQ preserved at the
+  cleaned layer (base_apif__standings drops null team_id; fct_standings.team_sk has not_null +
+  relationships(dim_team)).
+- note: the scope-auditor's round-N question on verifying the one-time full-refresh was resolved by the
+  §11 premise check (the gating ci-data-build grain tests verify the heal pre-merge) — re-reviewed to
+  PASS, no CPO ruling required.
