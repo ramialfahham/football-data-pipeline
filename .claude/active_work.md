@@ -4,47 +4,48 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-22 (#518 impact-map gate SHIPPED). **PR #540 MERGED** — the #518 diagnosis-drift fix is LIVE:
-the task contract now requires an EVIDENCED `impact_map` for any **structural-surface** edit (`ingestion/**`,
-`dbt_project/models/**`, `scripts/export_*.py`, `site*/`) — every writer + downstream lineage (pasted from `dbt ls`/dbt
-MCP, NOT asserted) + CI layer rules + shared-warehouse deploy ordering + blast radius. `task_contract_gate.py`
-presence-gates it at the edit boundary (denies the first structural Edit/Write until a non-placeholder map exists);
-the routed reviewers judge its honesty; `working_agreement.md` §2 + **Appendix A6** name the anti-pattern; the three
-reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539
-MERGED (PR #542)** — codified the read-all staging class in `layering.md` §1_staging ACCURATELY + gave the four
-fixture-detail staging models the header/yml read-all rationale. Source-verified correction (trace, not guess):
-RAW_APIF_FIXTURE_DETAILS is **bounded one-row-per-(league_code, fixture_id)** (skip-if-present + delete-on-retry), NOT
-accumulate — so it AND RAW_APIF_PLAYERS are both merge-on-write/per-key; both read all rows in staging (sub-league
-grain → no league_code qualify) and base resolves current-per-entity. This was the first real exercise of the #540
-gate (the trace-first discipline caught #539's own wrong premise before it hit the doc). main GREEN. Prior session:
-**PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per (team,season); **Phase 2a backfill #479
-COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by #540, #539 by #542.
-#500/#506/#510/#517/#521/#526 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
+investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
+2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
+loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
+realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
+real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
+labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
+duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
+(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
+OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+
+## How work is organized — two tracks (NEW 2026-06-23)
+- **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
+  This is the GOAL; everything else is an enabler paced around it. Label `stream:product`.
+- **PROGRAMS (enablers — pull in deliberately; never let them eclipse product):**
+  - **Coverage expansion — #545** (`stream:coverage`): onboard the ~146 missing domestic leagues, phased by tranche
+    (discover → onboard via registry zero-file → `verify-competition-ingest`, paired with a DQ sweep). API-cheap
+    (~25-40k calls one-time vs 75k/day); **DQ-at-scale is the real cost**.
+  - **Data-quality routines — #546** (`stream:data-quality`): a growing CI integrity-test suite + a scheduled DQ sweep
+    across ALL leagues + the triage rule (diagnose-to-root → bounded fix or tracked issue → **never** coverage-cut).
+    Seeded by #526.
+  - **Cost optimization — #547** (`stream:platform`): BQ build-bytes / storage / materialisation, sized BEFORE the
+    expansion lands.
+- **One board + `stream:*` labels** group everything; the **CPO sets the per-stretch mix** (default = product).
 
 ## FIRST next session (do this first)
-- **Nothing pending-merge** (`git fetch` + ff main; #540 + #536 merged). RAW_APIF_PLAYERS is now one merge-on-write row
-  per (team,season); existing data was re-shaped IN PLACE on prod. The next nightly runs the new staging on the
-  re-shaped RAW (verified: the identical PR build was green; main's post-merge ci-data-build confirmed). If a
-  player-roster DQ test or an empty `mart_roster` surfaces, suspect the re-grain — but the PR build + the re-shape's
-  set-identity check (413,755 preserved) cover it. To backfill any league's players now: a `full`-profile scoped
-  run merges per-(team,season) rows (bounded; no 100MB risk).
-- **#518 (diagnosis drift) — DONE (PR #540 merged).** The impact-map gate is LIVE: any structural-surface edit
-  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`) now requires a non-placeholder
-  `impact_map` in contract.md BEFORE the first Edit/Write, or `task_contract_gate.py` denies it. When you next
-  touch a raw writer / dbt model / export / site file, FILL THE MAP — evidence (pasted `dbt ls --select <model>+`
-  / dbt-MCP lineage + RAW/leaf count), not assertion; trivial edits get a one-line short-form. See
-  `docs/working_agreement.md` §2 + Appendix A6 and `.claude/task/TEMPLATE.md`. Known v1 limit: the shell-write path
-  is not impact-gated (Edit/Write only). **Follow-up #539 — DONE (PR #542).** layering.md §1_staging now codifies the
-  read-all class accurately (sub-league grain → read all rows, no league_code qualify, base resolves current; the two
-  loader reasons = skip-if-present incremental-accumulation + per-key merge-on-write; fixture_details AND players are
-  both bounded one-row-per-key) and the four fixture-detail staging models carry the header/yml read-all rationale.
-- **Phase 2a backfill (#479) is COMPLETE** — all 15 active continental + domestic leagues at provider depth. Residual:
-  **#521** (phantom-current-season parity — UCL/UEL 9 finished, ED/LMX 4, one short of 10/5 because provider
-  current=2026; closing it = `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
-- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): per-cadence editions/cycle
-  mapping, a separate task. Other open items: **coaches + `mart_player_career`** (now unblocked — the player
-  affiliation grain is fixed), **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510**,
-  stale-id purge **#517**. **Read `docs/content_architecture.md` §8/§9 first.**
+- **Nothing pending-merge** (`git fetch` + ff main). main GREEN.
+- **PROGRAMS — pick the cut, then build:**
+  - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
+    tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
+    onboard (registry, zero-file), `verify-competition-ingest`.
+  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
+    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
+    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
+    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
+    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
+    standing DQ scan (template for the class).
+  - **#547 (cost):** size BQ build cost before the expansion scales.
+- **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
+  **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
+  (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
+- **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
 - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
   the call delta, verify RAW depth, then `verify-competition-ingest`.
