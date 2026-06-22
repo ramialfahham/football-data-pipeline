@@ -12,7 +12,7 @@
   Grain: (upcoming_fixture_sk, team_sk).
 
   league_rank is not computed here — it comes from the standings surface (#322).
-  player-derived metrics (key_passes_per_match through dribbles_success_pct) are
+  player-derived metrics (key_passes_per_match through duels_won_pct) are
   NULL when no player stats exist for the window (coverage gap, honest absence).
 #}
 
@@ -76,8 +76,7 @@ select
     safe_divide(b.tackles + b.interceptions + b.blocks, b.games_with_player_stats)
         as defensive_actions_per_match,
     safe_divide(b.duels_total, b.games_with_player_stats) as duels_per_match,
-    safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
-    safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct
+    safe_divide(b.duels_won, b.duels_total) as duels_won_pct
 from builder as b
 inner join fixtures as f
     on b.upcoming_fixture_sk = f.fixture_sk

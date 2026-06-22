@@ -93,9 +93,7 @@ player_derived as (
         sum(p.interceptions) as interceptions,
         sum(p.blocks) as blocks,
         sum(p.duels_total) as duels_total,
-        sum(p.duels_won) as duels_won,
-        sum(p.dribbles_attempts) as dribbles_attempts,
-        sum(p.dribbles_success) as dribbles_success
+        sum(p.duels_won) as duels_won
     from window_legs as wl
     left join {{ ref('int_legs__team_from_players') }} as p
         on
@@ -137,9 +135,7 @@ select
     pd.interceptions,
     pd.blocks,
     pd.duels_total,
-    pd.duels_won,
-    pd.dribbles_attempts,
-    pd.dribbles_success
+    pd.duels_won
 from team_agg as ta
 left join player_derived as pd
     on

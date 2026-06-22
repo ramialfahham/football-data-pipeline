@@ -99,8 +99,6 @@ matched as (
         sf.blocks,
         sf.duels_total,
         sf.duels_won,
-        sf.dribbles_attempts,
-        sf.dribbles_success,
         1 as priority
     from sides as s
     inner join season_final as sf
@@ -147,8 +145,6 @@ matched as (
         sf.blocks,
         sf.duels_total,
         sf.duels_won,
-        sf.dribbles_attempts,
-        sf.dribbles_success,
         2 as priority
     from sides as s
     inner join season_final as sf
@@ -212,6 +208,5 @@ select
     safe_divide(tackles + interceptions + blocks, games_with_player_stats)
         as defensive_actions_per_match,
     safe_divide(duels_total, games_with_player_stats) as duels_per_match,
-    safe_divide(duels_won, duels_total) as duels_won_pct,
-    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct
+    safe_divide(duels_won, duels_total) as duels_won_pct
 from chosen

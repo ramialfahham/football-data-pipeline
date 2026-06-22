@@ -17,7 +17,7 @@ models:
       final team performance metrics from int_momentum__team raw sums. All ratios and
       per-match rates live here; none in the builder. league_rank is excluded — it comes
       from the standings surface (#322). Player-derived metrics (key_passes_per_match
-      through dribbles_success_pct) are NULL when no player stats exist for the window.
+      through duels_won_pct) are NULL when no player stats exist for the window.
       Grain: (upcoming_fixture_sk, team_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -43,9 +43,6 @@ models:
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: momentum_team_duels_won_pct_in_range
-      - dbt_utils.expression_is_true:
-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
-          name: momentum_team_dribbles_success_pct_in_range
       # clean sheets are scoreline-based: always present, bounded by the window
       - dbt_utils.expression_is_true:
           expression: "clean_sheets between 0 and games_in_window"
@@ -322,9 +319,6 @@ models:
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: std_team_duels_won_pct_in_range
-      - dbt_utils.expression_is_true:
-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
-          name: std_team_dribbles_success_pct_in_range
       # W/D/L counts (GAP-10): must reconcile with games and points exactly
       - dbt_utils.expression_is_true:
           expression: "wins + draws + losses = games_played"

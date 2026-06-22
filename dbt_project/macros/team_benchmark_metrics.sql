@@ -5,7 +5,7 @@
   int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
-  (non-metrics), and dribbles_success_pct (retiring team-side, #510).
+  (non-metrics), and dribbles_success_pct (retired team-side, #510).
 #}
     {% set metrics = [
         ('goals_per_match', 'goals_per_match_season'),

@@ -56,8 +56,6 @@ legs as (
         pl.blocks,
         pl.duels_total,
         pl.duels_won,
-        pl.dribbles_attempts,
-        pl.dribbles_success,
         tl.result,
         case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
         pl.fixture_sk is not null as has_player_stats
@@ -116,9 +114,7 @@ select
     sum(interceptions) over w as interceptions,
     sum(blocks) over w as blocks,
     sum(duels_total) over w as duels_total,
-    sum(duels_won) over w as duels_won,
-    sum(dribbles_attempts) over w as dribbles_attempts,
-    sum(dribbles_success) over w as dribbles_success
+    sum(duels_won) over w as duels_won
 from legs
 window
     w as (
