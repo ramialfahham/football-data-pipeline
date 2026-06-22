@@ -1,176 +1,747 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 6839278..952ab58 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,34 +4,60 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-20 (PL deep-season backfill + season-depth config refactor). Closed **#414** as
--obsolete (premise-check: the supporting_leagues guard it targeted was retired by #429). Backfilled **PL to
--2016-2026** (2016-2025 finished = **true BL1 parity**) for ~3k API calls total — cheap because the per-fixture
--details already lived in RAW (the thin fixtures snapshot masked them; [[feedback-raw-staging-latest-payload]]).
--Shipped **#520** (season-depth config refactor): per-competition `history_seasons` is now AUTHORITATIVE
--(dropped the global-floor clamp), and `V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`. Filed **#521**
--(phantom-current-season hardening — deferred; would let PL use hs=10 like BL1 instead of hs=11). Prior:
--idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPEN. Governance G1-G4 LIVE.
--**Website blueprint #391 still PAUSED.**_
-+_Last updated: 2026-06-21 (deep-backfill DQ heal + Phase 2a depths shipped). **#527 MERGED** — the complete,
-+bounded deep-backfill DQ fix (events team_id recovery + self-heal in fct_fixture_event; mis-placed standings
-+not_null test relocated to the cleaned layer; player id-collision drop in base_apif__fixture_players, committed
-+rows healed by a one-time CPO-authorized full-refresh). **#524 MERGED** — Phase 2a registry §8 depths (7 domestic
-+2->5: BL2/ED/LMX/LP/MLS/SPL/VL; 8 continental-club 5->10: UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC). **#523 MERGED**
-+— PD/SA/L1 backfilled to 2016-2025 (BL1/PL parity). main is GREEN, the nightly is unblocked. Updated **#518**
-+with this session's behaviour instance (coverage-cut is never a DQ fix; count offending rows in RAW first). Prior:
-+#520 season-depth config refactor (history_seasons authoritative); PL 2016-2026 (BL1 parity). #500/#506/#510/#517/#518/#521/#526
-+still OPEN. Governance G1-G4 LIVE. **Website blueprint #391 still PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge (`git fetch` + ff main; #520 merged). **PL deep-season backfill is DONE** (PL RAW =
--  2016-2026, 10 finished seasons = BL1 parity; all 4 fanout endpoints 100%; ~3k calls). The **season-depth
--  config is now ROBUST** (#520: `history_seasons` authoritative, no global clamp; v1 constant retired). The
--  next nightly run rebuilds PL's marts from the deepened RAW (no local dbt build — shared BQ).
--- **NEXT is the CPO's pick (none auto-granted).** Obvious continuation: **PD/SA/L1** to 10 seasons — but COST
--  DIFFERS FROM PL: PL was ~3k because its details pre-existed in RAW; PD/SA/L1 have only ~2 seasons of details
--  (760/760/617 detail rows), so each is a genuine ~8-season fanout fetch ≈ **~12k calls apiece (~34k for the
--  three)** — a fresh cost gate. Then Phase 2 (the other ~40 leagues per the §8 tiered policy). Other open
--  items: **coaches + `mart_player_career`**, the **player benchmark / opponent-context** (v1.x), carryovers
--  **#500/#506/#510/#521**, stale-id purge **#517**, process retrospective **#518**. **Read
--  `docs/content_architecture.md` §8/§9 first.**
--- **To backfill a league now (post-#520):** set its `history_seasons` in the registry — it is AUTHORITATIVE,
--  no V1 cap — then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`,
--  `LOG_QUOTA=1`), measure the call delta, verify RAW depth, then `verify-competition-ingest`. **Query RAW for
--  true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
-+- Nothing pending-merge (`git fetch` + ff main; #527 + #524 merged; main green). The deep-backfill DQ defect
-+  class is now HANDLED in main (events recover + self-heal, standings test at the cleaned layer, player
-+  id-collision drop) — these generalize to the same provider quirks in the remaining deep seasons, so further
-+  backfill should need NO new manual heals. **#526 still tracks a separate pre-existing DQ defect** (38 events
-+  referencing a team that is not one of the fixture's two teams) — independent of the recovery; a follow-up.
-+- **RESUME the Phase 2a deep INGEST (CPO-directed; the registry depths are merged in #524 but the actual deep
-+  fetch was STOPPED partway).** #524 only set `history_seasons`; the controlled local backfill that fills RAW
-+  was interrupted (~21k calls in via taskkill, to deal with the DQ failures). RESUME for the leagues NOT yet at
-+  their §8 depth: continental-club (UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC → 10) + 7 domestic
-+  (BL2/ED/LMX/LP/MLS/SPL/VL → 5). **First query RAW per league to see which already reached depth** (skip-if-present
-+  makes re-runs cheap — already-ingested fixtures skip), then `full`-profile scoped ingest only for the incomplete
-+  ones, then `verify-competition-ingest`. **Query RAW for true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
-+- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): editions/cycle depth
-+  needs a per-cadence mapping (not a year-count), a separate task. Other open items: **coaches + `mart_player_career`**,
-+  the **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510/#521**, stale-id purge **#517**,
-+  process retrospective **#518**. **Read `docs/content_architecture.md` §8/§9 first.**
-+- **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
-+  then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
-+  the call delta, verify RAW depth, then `verify-competition-ingest`.
-+- **Cost reality (locked):** deep backfills are ~10x cheaper than `fixtures × 4` estimates — the per-fixture
-+  sub-endpoints batch ~20 fixtures/call (the `ids` param), so a season's fanout is ~fixtures/20 × 4, not
-+  fixtures × 4. (PL was ~3k not ~10.7k partly for this + pre-existing details.)
- - The **dbt MCP server** cold-start race may recur — see [[project-dbt-mcp-server]].
- 
-+## This session (2026-06-21) — deep-backfill DQ heal (#527) + Phase 2a depths (#524)
-+- **#527 (MERGED) — the complete, bounded deep-backfill DQ fix.** The PD/SA/L1 + partial Phase 2a deep data
-+  (2016-era) surfaced 3 DQ failures; enumerated the FULL defect set from RAW via one clean build (bounded:
-+  ~15 fixable rows; recent seasons 0 dupes / 280k+ legs). Fixes: (a) **events** — recover null `team_id` in
-+  base_apif__fixture_events from the same team's other events in the fixture (by name), + a SELF-HEAL clause in
-+  fct_fixture_event's incremental filter to reach already-committed null rows; (b) **standings** — removed the
-+  mis-placed `not_null` on FAITHFUL `stg_apif__standings.team_id` (the provider legitimately leaves it null in
-+  old data); cleanliness stays guarded at base + `fct_standings.team_sk`; (c) **player id-collision** — provider
-+  reused one `player_id` for two players in a fixture; extended base_apif__fixture_players's phantom-leg cleanup
-+  to drop real-id collisions, + a one-time CPO-authorized `--full-refresh` of fct_fixture_player_stats to heal
-+  the 4 committed rows (merge can't delete; verified 0 remaining). Both reviewers PASS.
-+- **#524 (MERGED) — Phase 2a registry §8 depths.** 15 `history_seasons` lines (7 domestic 2->5, 8 continental-
-+  club 5->10). Registry-only; rebased on the #527-healed main (sibling-PR rebase: only `.claude/task/*` conflicted;
-+  registry replayed byte-identical; review hash rebound; collapsed to one commit — [[feedback-sibling-pr-rebase-rebind]]).
-+- **Process lesson (locked, #518 updated):** I first framed the old-data DQ failures as "older data is messier"
-+  and floated PULLING BACK ingest depth as the "fix". CPO: *"the fix is not fixing it but just not ingesting it."*
-+  **A failing DQ test is a defect to fix, NEVER a reason to ingest less; COUNT the offending rows in RAW before
-+  any "messier data / skip it" framing** ([[feedback-no-hacky-solutions]]).
-+
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
-@@ -81,10 +107,12 @@ idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPE
-    cycle / cups 5 — + a data-quality floor (skip empty-player-stat seasons) + phased rollout.
- 
- ## NEXT — the content_architecture build sequence (CPO directs; none auto-granted)
--1. **Backfill** (#479) — **PL DONE (2016-2026, BL1 parity, 2026-06-20); config now robust (#520).**
--   REMAINING: **PD/SA/L1 to 10 seasons (~12k calls EACH — details do NOT pre-exist, unlike PL; a fresh
--   cost gate)**, then **Phase 2** (the other ~40 leagues per the §8 tiered depth). Recipe: set
--   `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated.
-+1. **Backfill** (#479) — **PL + PD/SA/L1 DONE (2016-2025 finished = BL1 parity; #523, 2026-06-21); config
-+   robust (#520).** Phase 2a registry §8 depths MERGED (#524) but the deep INGEST was STOPPED partway →
-+   **RESUME** for the leagues not yet at depth (8 continental-club → 10, 7 domestic → 5; see FIRST-next-session).
-+   Then **Phase 2b** (national-team tournaments + qualifiers; DEFERRED — per-cadence editions/cycle mapping).
-+   Recipe: set `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated;
-+   ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
- 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
-    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
- 3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index cd92456..7609e00 100644
+index 7609e00..b777ad1 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,45 +1,30 @@
--# Task contract — Phase 2a backfill: club + domestic competitions (§8 depths)
-+# Task contract — Handover refresh (2026-06-21 close-out)
+@@ -1,30 +1,67 @@
+-# Task contract — Handover refresh (2026-06-21 close-out)
++# Task contract — Fix RAW_APIF_PLAYERS >100MB single-row load failure (players snapshot chunking)
  
  objective: >
--  Apply the §8 tiered depths to the club/domestic competitions (the mechanical part of Phase 2):
--  set history_seasons for 7 non-top-5 domestic leagues 2->5 and 8 continental-club competitions
--  5->10, then run a scoped backfill. Completes the deep-history foundation for all club competitions.
--  Phase 2b (national-team tournaments + qualifiers) is DEFERRED per the CPO (Option A) — their
--  "editions/cycle" depth does not map to the history_seasons year-count and needs its own pass.
-+  Refresh .claude/active_work.md to hand the next session the true state after this
-+  session's deep-backfill DQ heal + Phase 2a depths landed: #527 (events recovery +
-+  self-heal, standings test relocation, player id-collision drop) and #524 (Phase 2a
-+  registry §8 depths) are BOTH MERGED; main is green and the nightly is unblocked.
-+  Record the locked process lesson (coverage-cut is never a DQ fix; count offending
-+  rows in RAW first — #518 updated) and set the FIRST next action: RESUME the stopped
-+  Phase 2a deep ingest for the leagues not yet at their §8 depth.
+-  Refresh .claude/active_work.md to hand the next session the true state after this
+-  session's deep-backfill DQ heal + Phase 2a depths landed: #527 (events recovery +
+-  self-heal, standings test relocation, player id-collision drop) and #524 (Phase 2a
+-  registry §8 depths) are BOTH MERGED; main is green and the nightly is unblocked.
+-  Record the locked process lesson (coverage-cut is never a DQ fix; count offending
+-  rows in RAW first — #518 updated) and set the FIRST next action: RESUME the stopped
+-  Phase 2a deep ingest for the leagues not yet at their §8 depth.
++  Fix the loader defect that made the LIBER /players load fail during the 2026-06-22 Phase 2a
++  resume run: `load_squad_players_batch` (loads/squads.py) accumulates ALL team×season player
++  responses for a league into ONE payload dict and writes it as a SINGLE BigQuery row, which
++  exceeds BQ's 100 MB per-row JSON limit for large-roster deep leagues. Measured blast radius:
++  LIBER's full 8-season snapshot >100 MB (load rejected, "Rows: 1; errors: 1; Row size larger
++  than 104857600"); UEL already 81.8 MB and UCL 78.7 MB as single rows — both will overflow on
++  their next deep run. Sibling tables (SQUADS/PROFILES/TEAMS) are all <2 MB → NOT affected; the
++  fix is scoped to RAW_APIF_PLAYERS only.
 +
++  Fix: chunk the accumulated players `response` into size-bounded payload rows and write them in
++  ONE atomic load job sharing a single `ingested_at`; update the TWO "latest snapshot per league"
++  readers of RAW_APIF_PLAYERS to read all rows of the latest snapshot (ingested_at = max per
++  league_code) instead of row_number()=1.
+ 
  refs: >
--  #479 (deep-season backfill); docs/content_architecture.md §8 (tiered depths); CPO "Execute 2a" +
--  defer 2b (Option A) 2026-06-21. The batched-fanout cost finding (~1k/league) from PL/PD/SA/L1.
-+  This conversation 2026-06-21 (CPO: "524 merged. Let's close for today.").
-+  PRs #527, #524, #520, #523 (all merged). Issue #518 (behaviour retrospective) updated.
+-  This conversation 2026-06-21 (CPO: "524 merged. Let's close for today.").
+-  PRs #527, #524, #520, #523 (all merged). Issue #518 (behaviour retrospective) updated.
++  This conversation 2026-06-22 (CPO: "investigate the bugs thoroughly and fix now"). Surfaced by
++  the Phase 2a resume run /tmp log: "players BQ LIBER: 400 ... Row size is larger than 104857600".
++  Root cause: ingestion/api_football/loads/squads.py:24-65 + bigquery.py:131-201 (load_json_to_bq
++  writes one row). Consumers: dbt stg_apif__players.sql + loads/player_universe.py:_query_universe.
++  Design contract from tests/test_player_squads_catchup.py:153-157 (latest-snapshot-per-league;
++  a partial write masks the prior complete one — hence the single ATOMIC load job).
++
++decisions_taken: >
++  - Chunk-the-response (keep the (league_code, payload, ingested_at) schema + the
++    {league_code, response:[...]} payload shape; only the NUMBER of rows per snapshot changes).
++    Chosen over per-entity rows (schema change) and trimming (data loss). Least invasive correct fix.
++  - Atomicity: all chunks of one run land in a SINGLE load_table_from_file job (all-or-nothing) and
++    share one ingested_at — so the "ingested_at = max per league_code" readers see the COMPLETE
++    chunked snapshot or none of it; a partial snapshot is never visible. This preserves the existing
++    latest-snapshot-per-league contract.
++  - Output-preserving for existing data: every league currently has at most one row per run
++    (distinct per-run timestamps), so ingested_at=max == today's row_number()=1 — NO shipped number
++    changes for current single-row snapshots. Multi-row reads only occur once chunked data lands.
++  - Chunk threshold measured as ascii-escaped JSON bytes (matching the loader's
++    json.dumps(ensure_ascii=True) serialization, which inflates accented LATAM names vs
++    TO_JSON_STRING — why LIBER overflowed). Default ~40 MB/row (headroom under 100 MB), env-tunable.
++  - NOT in scope: CAFCL's 440 missing FIXTURE_STATISTICS (VERIFIED provider coverage limit — 0 stat
++    blocks, no errors; correct permanent-empty handling, not a defect). Sibling player tables (safe).
++    The pre-existing quota-cut partial-snapshot behaviour of the players loader (unchanged here).
  
  scope_paths:
--  - docs/competition_registry.yml
-+  - .claude/active_work.md
++  - ingestion/api_football/bigquery.py
++  - ingestion/api_football/loads/squads.py
++  - ingestion/api_football/loads/player_universe.py
++  - dbt_project/models/1_staging/api_football/stg_apif__players.sql
++  - tests/**
++  - docs/data_contract.md
+   - .claude/active_work.md
    - .claude/task/**
  
- decisions_taken: >
--  CPO directed "Execute 2a" (2026-06-21). Mechanical application of content_architecture §8 by each
--  league's registry competition_type: domestic_league (non-top-5) = 5 seasons; continental_club = 10.
--  Changed (15): domestic 2->5 = BL2, ED, LMX, LP, MLS, SPL, VL; continental_club 5->10 = UCL, UEL,
--  UECL, LIBER, CAFCL, AFCCL, CCCU, CWC. NOT changed (already at §8 depth): APD/BSA/J1/KL1 (domestic, 5),
--  all 5 domestic cups (5). UESC (continental_super_cup) is NOT in the §8 table -> left at status-quo 5
--  (no forced classification). CWC/CCCU are tournaments but registered as continental_club -> treated per
--  that type (10), not reclassified. Cost is cheap (batched fanout ~1k/league, proven on PL/PD/SA/L1) -
--  the spend is covered by the CPO's Phase-2 direction. The continental_club set + APD/BSA/J1/KL1 are
--  status=in_progress, so the run uses INCLUDE_IN_PROGRESS=1. Only the registry history_seasons values
--  are committed; the run is env-var driven.
+-decisions_taken: >
+-  Documentation-only handover refresh. No code, no product decision. An active_work.md +
+-  .claude/task/** commit is review-exempt per the commit gate (artifact-only), but
+-  active_work.md still needs scope_paths to pass the task_contract_gate. No reviewers
+-  required by routing for these paths beyond the artifact exemption.
 -
--decisions_reserved:
--  - Phase 2b — national-team tournaments (WC + 7 continental_championship) + 7 WCQ* qualifiers: DEFERRED
--    (CPO Option A). "Last 4 editions" / "current+prev cycle" need a per-cadence mapping, not a year-count;
--    a separate task. NOT decided here.
--  - UESC depth (super cup, absent from §8) and any CWC/CCCU reclassification — left at status quo; a CPO
--    call if revisited.
-+  Documentation-only handover refresh. No code, no product decision. An active_work.md +
-+  .claude/task/** commit is review-exempt per the commit gate (artifact-only), but
-+  active_work.md still needs scope_paths to pass the task_contract_gate. No reviewers
-+  required by routing for these paths beyond the artifact exemption.
- 
  done_when:
--  - Registry: the 15 history_seasons values set (7 domestic=5, 8 continental_club=10); no other field/league
--    changed except those values. check_registry_var_sync.py green.
--  - Backfill run (full profile, scoped to the 15, INCLUDE_IN_PROGRESS=1) completes within quota; actual
--    call count captured + reported.
--  - Each league reaches its §8 depth in RAW (RAW_APIF_FIXTURES_NEXT latest snapshot): domestic >=5 finished
--    seasons, continental_club >=10 (or the API's available depth); fanout 100% (all_fanout_complete).
--  - ci-data-build green on the PR.
--
--amendments: (none)
-+  - active_work.md reflects: #527 + #524 merged (main green, nightly unblocked); PD/SA/L1
-+    at 2016-2025 parity (#523); Phase 2a registry depths set (#524) but the deep INGEST
-+    stopped partway → RESUME as FIRST next action; #518 lesson logged.
-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+-  - active_work.md reflects: #527 + #524 merged (main green, nightly unblocked); PD/SA/L1
+-    at 2016-2025 parity (#523); Phase 2a registry depths set (#524) but the deep INGEST
+-    stopped partway → RESUME as FIRST next action; #518 lesson logged.
+-  - Tree matches the contract (only active_work.md + .claude/task/**).
++  - load_squad_players_batch chunks its response and writes via a new atomic multi-row loader
++    (bigquery.py) that shares one ingested_at across all chunk rows; 1-chunk leagues still write
++    one row (back-compat).
++  - stg_apif__players.sql AND player_universe.py:_query_universe both select the latest snapshot
++    as "ingested_at = max(ingested_at) over (partition by league_code)" with a WHY comment.
++  - A pure unit test for the chunker (preserves all entries in order; each chunk under threshold;
++    >=1 chunk incl. empty; an oversize single entry gets its own chunk) + a loader/atomicity test
++    (one load job, shared ingested_at, league_code stamped) following the existing test style.
++  - validate-local passes (ruff/black/pytest + dbt parse + sqlfluff on the changed model).
++  - data_contract.md notes the chunked-snapshot model for RAW_APIF_PLAYERS (folded into the
++    existing RAW/merge section; no new doc).
++  - Full review cycle (data-engineer + analytics-engineer + scope-auditor) PASS; ONE substantive
++    commit; PR opened for the CPO to merge. active_work.md handover updated at close-out.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__players.sql b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
+index 1c3885d..3c5b8b6 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
+@@ -1,7 +1,10 @@
+ with src as (
+     select *
+     from {{ source('api_football', 'raw_apif_players') }}
+-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++    -- A players snapshot may span MULTIPLE rows (it is chunked when it would exceed
++    -- BigQuery's 100 MB per-row limit; all chunks share one ingested_at, written atomically).
++    -- Keep every row of the latest snapshot, not just one — see loads/squads.py.
++    qualify ingested_at = max(ingested_at) over (partition by league_code)
+ ),
+ 
+ team_blocks as (
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 053b107..dd96c70 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -68,6 +68,8 @@ qualify row_number() over (
+ ) = 1
+ ```
+ 
++**`RAW_APIF_PLAYERS` chunked-snapshot exception.** A `/players` snapshot for a large-roster deep league (e.g. LIBER, UEL, UCL across many seasons) exceeds BigQuery's 100 MB per-row JSON limit. That snapshot is therefore split into byte-bounded chunk rows that **all share one `ingested_at`** and are written in a **single atomic load job** (`load_json_payload_rows_to_bq`) — so the snapshot lands completely or not at all. Its latest-snapshot readers (`stg_apif__players` and the player-universe query in `loads/player_universe.py`) consequently keep **all rows of the latest snapshot** with `qualify ingested_at = max(ingested_at) over (partition by league_code)` rather than `row_number() = 1`. For every other reference table a snapshot is still one row, so the `row_number()` form above stands.
++
+ This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
+ 
+ ---
+diff --git a/ingestion/api_football/bigquery.py b/ingestion/api_football/bigquery.py
+index 6b9aff2..b7c653b 100644
+--- a/ingestion/api_football/bigquery.py
++++ b/ingestion/api_football/bigquery.py
+@@ -201,6 +201,62 @@ def load_json_to_bq(
+     job.result()
+ 
+ 
++def load_json_payload_rows_to_bq(
++    client: bigquery.Client,
++    table_name: str,
++    payloads: list[dict],
++    *,
++    league_code: str,
++    append: bool = True,
++) -> int:
++    """Append several JSON payload rows to a unified raw table in ONE atomic load job.
++
++    Each element of ``payloads`` becomes one row ``{league_code, payload, ingested_at}``;
++    every row shares a single ``ingested_at`` and the whole batch is written with one
++    ``load_table_from_file`` call. A BigQuery load job is all-or-nothing, so the rows
++    appear together or not at all — readers that take the latest snapshot as
++    ``ingested_at = max(ingested_at) per league_code`` therefore always see a COMPLETE
++    chunked snapshot, never a partial one. The shared ``ingested_at`` is microsecond
++    precision and ingestion is single-flight (the lease lock admits one run at a time,
++    minutes apart), so two distinct snapshots cannot tie on ``ingested_at`` and be merged
++    by those readers — every tie is, by construction, the chunks of one snapshot.
++
++    Used when a single snapshot's payload would exceed BigQuery's 100 MB per-row JSON
++    limit (RAW_APIF_PLAYERS for large-roster deep leagues — see loads/squads.py). A
++    one-element ``payloads`` writes exactly one row, identical to ``load_json_to_bq``.
++    Returns the number of rows written (0 for an empty ``payloads``).
++    """
++    if not payloads:
++        return 0
++    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
++    if append:
++        ensure_unified_raw_table(client, table_name)
++    ingested_at = datetime.now(timezone.utc).isoformat()
++    schema = [
++        bigquery.SchemaField("league_code", "STRING"),
++        bigquery.SchemaField("payload", "JSON"),
++        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
++    ]
++    lines = "".join(
++        json.dumps(
++            {"league_code": league_code, "payload": p, "ingested_at": ingested_at},
++            ensure_ascii=True,
++        )
++        + "\n"
++        for p in payloads
++    )
++    job_config = bigquery.LoadJobConfig(
++        schema=schema,
++        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
++        write_disposition="WRITE_APPEND" if append else "WRITE_TRUNCATE",
++    )
++    job = client.load_table_from_file(
++        io.BytesIO(lines.encode("utf-8")), table_id, job_config=job_config
++    )
++    job.result()
++    return len(payloads)
++
++
+ def read_latest_payload_json(
+     client: bigquery.Client,
+     table_name: str,
+diff --git a/ingestion/api_football/loads/player_universe.py b/ingestion/api_football/loads/player_universe.py
+index e99ac36..aad806b 100644
+--- a/ingestion/api_football/loads/player_universe.py
++++ b/ingestion/api_football/loads/player_universe.py
+@@ -40,9 +40,12 @@ def _query_universe(client: bigquery.Client, min_season: int) -> list[tuple[int,
+     """(player_id, provenance_league_code) for players rostered in season >= min_season."""
+     sql = f"""
+     with latest as (
++        -- A players snapshot may span MULTIPLE rows (chunked when it would exceed BigQuery's
++        -- 100 MB per-row limit; all chunks share one ingested_at). Keep every row of the latest
++        -- snapshot, not just one — mirrors stg_apif__players.sql. See loads/squads.py.
+         select payload, league_code
+         from {_fq('PLAYERS')}
+-        qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++        qualify ingested_at = max(ingested_at) over (partition by league_code)
+     ),
+     players as (
+         select
+diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
+index 7d82185..8251b59 100644
+--- a/ingestion/api_football/loads/squads.py
++++ b/ingestion/api_football/loads/squads.py
+@@ -2,19 +2,73 @@
+ 
+ Each run fetches squad data for all teams across all configured seasons and
+ appends a fresh complete snapshot row. No cross-run merge with prior BQ data.
++
++A large-roster deep league (LIBER, UEL, UCL across many seasons) produces a
++snapshot whose JSON exceeds BigQuery's 100 MB per-row limit, so the snapshot is
++split into byte-bounded chunk rows written in a single atomic load job — readers
++take the latest snapshot as ``ingested_at = max per league_code`` and so see the
++complete chunked snapshot or none of it. See ``load_json_payload_rows_to_bq``.
+ """
+ 
+ from __future__ import annotations
+ 
++import json
+ import os
+ 
+ from .. import quota as errors_quota
+-from ..bigquery import load_json_to_bq
++from ..bigquery import load_json_payload_rows_to_bq
+ from ..settings import raw_table
+ from ..fixture_scheduling import players_response_for_team
+ from .context import PipelineContext
+ 
+ 
++def _players_max_row_bytes() -> int:
++    """Per-row chunk budget (ascii-escaped JSON bytes) for RAW_APIF_PLAYERS.
++
++    Measured against ``json.dumps(..., ensure_ascii=True)`` because that is what the loader
++    writes, and it inflates accented names (e.g. LATAM rosters) to ``\\uXXXX`` — well beyond
++    their UTF-8 size, which is why LIBER overflowed the 100 MB cap. Default leaves ~2.5x
++    headroom; tunable via ``API_FOOTBALL_PLAYERS_MAX_ROW_BYTES`` (floored at 1 MB).
++    """
++    raw = os.getenv("API_FOOTBALL_PLAYERS_MAX_ROW_BYTES", "").strip()
++    if raw:
++        try:
++            return max(1_000_000, int(raw))
++        except ValueError:
++            pass
++    return 40_000_000
++
++
++def _entry_bytes(entry: dict) -> int:
++    return len(json.dumps(entry, ensure_ascii=True).encode("utf-8"))
++
++
++def chunk_players_response(
++    league_code: str, response_entries: list[dict], max_row_bytes: int
++) -> list[dict]:
++    """Split the accumulated players response into ``{league_code, response:[...]}`` payloads.
++
++    Each payload's ascii-escaped JSON stays under ``max_row_bytes``. Entries are kept in
++    order and never dropped; an entry that alone exceeds the budget still gets its own chunk
++    (it cannot be split further, and dropping it would lose data). Always returns at least
++    one payload — an empty response yields a single empty-snapshot row, matching prior
++    behaviour (a snapshot is always written so the run is recorded).
++    """
++    chunks: list[list[dict]] = []
++    current: list[dict] = []
++    current_bytes = 0
++    for entry in response_entries:
++        eb = _entry_bytes(entry)
++        if current and current_bytes + eb > max_row_bytes:
++            chunks.append(current)
++            current = []
++            current_bytes = 0
++        current.append(entry)
++        current_bytes += eb
++    chunks.append(current)  # always flush the final (possibly empty) chunk
++    return [{"league_code": league_code, "response": c} for c in chunks]
++
++
+ def load_squad_players_batch(
+     ctx: PipelineContext,
+     league_code: str,
+@@ -55,13 +109,15 @@ def load_squad_players_batch(
+                     f"players {league_code} team {team_id} season={season}: {e}"
+                 )
+     try:
+-        load_json_to_bq(
++        chunks = chunk_players_response(
++            league_code, players_payload["response"], _players_max_row_bytes()
++        )
++        load_json_payload_rows_to_bq(
+             ctx.client,
+             raw_table("PLAYERS"),
+-            players_payload,
+-            as_json_payload=True,
+-            append=True,
++            chunks,
+             league_code=league_code,
++            append=True,
+         )
+         ctx.add_loaded(1)
+     except Exception as e:
+diff --git a/tests/fixtures/apif/players_cwc_sample.json b/tests/fixtures/apif/players_cwc_sample.json
+new file mode 100644
+index 0000000..cf1ee5e
+--- /dev/null
++++ b/tests/fixtures/apif/players_cwc_sample.json
+@@ -0,0 +1,207 @@
++{
++  "league_code": "CWC",
++  "response": [
++    {
++      "team_id": 40,
++      "season": 2016,
++      "players_payload": [
++        {
++          "player": {
++            "age": 27,
++            "birth": {
++              "country": "Republic of Ireland",
++              "date": "1998-11-23",
++              "place": "Cork"
++            },
++            "firstname": "Caoimhín Odhrán",
++            "height": "188",
++            "id": 281,
++            "injured": false,
++            "lastname": "Kelleher",
++            "name": "C. Kelleher",
++            "nationality": "Republic of Ireland",
++            "photo": "https://media.api-sports.io/football/players/281.png",
++            "weight": "74"
++          },
++          "statistics": [
++            {
++              "cards": {
++                "red": 0,
++                "yellow": 0,
++                "yellowred": 0
++              },
++              "dribbles": {
++                "attempts": null,
++                "past": null,
++                "success": null
++              },
++              "duels": {
++                "total": null,
++                "won": null
++              },
++              "fouls": {
++                "committed": null,
++                "drawn": null
++              },
++              "games": {
++                "appearences": 0,
++                "captain": false,
++                "lineups": 0,
++                "minutes": 0,
++                "number": null,
++                "position": "Goalkeeper",
++                "rating": null
++              },
++              "goals": {
++                "assists": null,
++                "conceded": null,
++                "saves": null,
++                "total": 0
++              },
++              "league": {
++                "country": null,
++                "flag": null,
++                "id": null,
++                "logo": null,
++                "name": "Club Friendlies",
++                "season": 2016
++              },
++              "passes": {
++                "accuracy": null,
++                "key": null,
++                "total": null
++              },
++              "penalty": {
++                "commited": null,
++                "missed": null,
++                "saved": null,
++                "scored": null,
++                "won": null
++              },
++              "shots": {
++                "on": null,
++                "total": null
++              },
++              "substitutes": {
++                "bench": 1,
++                "in": 0,
++                "out": 0
++              },
++              "tackles": {
++                "blocks": null,
++                "interceptions": null,
++                "total": null
++              },
++              "team": {
++                "id": 40,
++                "logo": "https://media.api-sports.io/football/teams/40.png",
++                "name": "Liverpool"
++              }
++            }
++          ]
++        }
++      ]
++    },
++    {
++      "team_id": 49,
++      "season": 2016,
++      "players_payload": [
++        {
++          "player": {
++            "age": 37,
++            "birth": {
++              "country": "Brazil",
++              "date": "1988-10-07",
++              "place": "Lagarto"
++            },
++            "firstname": "Diego",
++            "height": "188 cm",
++            "id": 54,
++            "injured": false,
++            "lastname": "da Silva Costa",
++            "name": "Diego Costa",
++            "nationality": "Spain",
++            "photo": "https://media.api-sports.io/football/players/54.png",
++            "weight": "83 kg"
++          },
++          "statistics": [
++            {
++              "cards": {
++                "red": 0,
++                "yellow": 10,
++                "yellowred": 0
++              },
++              "dribbles": {
++                "attempts": 134,
++                "past": null,
++                "success": 56
++              },
++              "duels": {
++                "total": 569,
++                "won": 207
++              },
++              "fouls": {
++                "committed": 43,
++                "drawn": 92
++              },
++              "games": {
++                "appearences": 35,
++                "captain": false,
++                "lineups": 35,
++                "minutes": 3090,
++                "number": null,
++                "position": "Attacker",
++                "rating": "7.154285"
++              },
++              "goals": {
++                "assists": 7,
++                "conceded": null,
++                "saves": null,
++                "total": 20
++              },
++              "league": {
++                "country": "England",
++                "flag": "https://media.api-sports.io/flags/gb-eng.svg",
++                "id": 39,
++                "logo": "https://media.api-sports.io/football/leagues/39.png",
++                "name": "Premier League",
++                "season": 2016
++              },
++              "passes": {
++                "accuracy": 73,
++                "key": 43,
++                "total": 778
++              },
++              "penalty": {
++                "commited": null,
++                "missed": 1,
++                "saved": null,
++                "scored": 0,
++                "won": 1
++              },
++              "shots": {
++                "on": 42,
++                "total": 111
++              },
++              "substitutes": {
++                "bench": 1,
++                "in": 0,
++                "out": 8
++              },
++              "tackles": {
++                "blocks": 3,
++                "interceptions": 7,
++                "total": 18
++              },
++              "team": {
++                "id": 49,
++                "logo": "https://media.api-sports.io/football/teams/49.png",
++                "name": "Chelsea"
++              }
++            }
++          ]
++        }
++      ]
++    }
++  ]
++}
+diff --git a/tests/test_squad_players_chunking.py b/tests/test_squad_players_chunking.py
+new file mode 100644
+index 0000000..9780dd9
+--- /dev/null
++++ b/tests/test_squad_players_chunking.py
+@@ -0,0 +1,223 @@
++"""Tests for RAW_APIF_PLAYERS snapshot chunking (the >100 MB single-row load fix).
++
++A large-roster deep league's /players snapshot exceeds BigQuery's 100 MB per-row JSON
++limit, so loads/squads.py splits it into byte-bounded chunk rows written in ONE atomic
++load job sharing a single ingested_at. These tests cover the pure chunker (no entry is
++lost or reordered; the row budget is respected) and the atomic multi-row loader (one
++load job, one shared ingested_at, league_code stamped).
++"""
++
++from __future__ import annotations
++
++import json
++import types
++from pathlib import Path
++
++from ingestion.api_football.loads.squads import (
++    chunk_players_response,
++    _entry_bytes,
++)
++
++_FIXTURE = Path(__file__).parent / "fixtures" / "apif" / "players_cwc_sample.json"
++
++
++def _entry(team_id: int, season: int, blob_chars: int = 0) -> dict:
++    # players_payload padded to a controllable size so chunk boundaries are deterministic.
++    return {
++        "team_id": team_id,
++        "season": season,
++        "players_payload": [{"x": "a" * blob_chars}] if blob_chars else [],
++    }
++
++
++def _all_team_seasons(chunks: list[dict]) -> list[tuple[int, int]]:
++    out: list[tuple[int, int]] = []
++    for payload in chunks:
++        for e in payload["response"]:
++            out.append((e["team_id"], e["season"]))
++    return out
++
++
++# --- chunk_players_response: pure, no I/O ---
++
++
++def test_empty_response_yields_one_empty_snapshot_row():
++    chunks = chunk_players_response("LIBER", [], max_row_bytes=40_000_000)
++    assert chunks == [{"league_code": "LIBER", "response": []}]
++
++
++def test_small_response_stays_one_row():
++    entries = [_entry(10, 2025), _entry(11, 2025), _entry(12, 2025)]
++    chunks = chunk_players_response("PL", entries, max_row_bytes=40_000_000)
++    assert len(chunks) == 1
++    assert all(c["league_code"] == "PL" for c in chunks)
++    assert _all_team_seasons(chunks) == [(10, 2025), (11, 2025), (12, 2025)]
++
++
++def test_splits_when_over_budget_and_preserves_all_entries_in_order():
++    # Each padded entry is ~1000 bytes; a 2500-byte budget => 2 entries per chunk.
++    entries = [_entry(i, 2025, blob_chars=1000) for i in range(1, 6)]  # 5 entries
++    chunks = chunk_players_response("UEL", entries, max_row_bytes=2500)
++    assert len(chunks) > 1
++    # No entry dropped, original order preserved across chunks.
++    assert _all_team_seasons(chunks) == [(i, 2025) for i in range(1, 6)]
++    # Every chunk's ascii-escaped entry bytes are within budget (a non-oversize chunk).
++    for c in chunks:
++        assert sum(_entry_bytes(e) for e in c["response"]) <= 2500
++
++
++def test_oversize_single_entry_gets_its_own_chunk_not_dropped():
++    big = _entry(99, 2025, blob_chars=5000)  # alone exceeds the 2500 budget
++    entries = [_entry(1, 2025, blob_chars=1000), big, _entry(2, 2025, blob_chars=1000)]
++    chunks = chunk_players_response("UCL", entries, max_row_bytes=2500)
++    # The oversize entry survives, in order, isolated in its own chunk.
++    assert (99, 2025) in _all_team_seasons(chunks)
++    assert _all_team_seasons(chunks) == [(1, 2025), (99, 2025), (2, 2025)]
++    big_chunk = [c for c in chunks if any(e["team_id"] == 99 for e in c["response"])]
++    assert len(big_chunk) == 1 and len(big_chunk[0]["response"]) == 1
++
++
++# --- load_json_payload_rows_to_bq: one atomic job, one shared ingested_at ---
++
++
++class _FakeJob:
++    def result(self):
++        return None
++
++
++class _CapturingClient:
++    def __init__(self):
++        self.calls: list[dict] = []
++
++    def load_table_from_file(self, fileobj, table_id, job_config=None):
++        self.calls.append(
++            {
++                "data": fileobj.read().decode("utf-8"),
++                "table_id": table_id,
++                "write_disposition": job_config.write_disposition,
++            }
++        )
++        return _FakeJob()
++
++
++def test_multi_row_loader_writes_one_job_with_shared_ingested_at(monkeypatch):
++    from ingestion.api_football import bigquery as bq
++
++    monkeypatch.setattr(bq, "ensure_unified_raw_table", lambda *a, **k: None)
++    client = _CapturingClient()
++    payloads = [
++        {"league_code": "LIBER", "response": [{"team_id": 1, "season": 2025}]},
++        {"league_code": "LIBER", "response": [{"team_id": 2, "season": 2025}]},
++        {"league_code": "LIBER", "response": [{"team_id": 3, "season": 2025}]},
++    ]
++    written = bq.load_json_payload_rows_to_bq(
++        client, "RAW_APIF_PLAYERS", payloads, league_code="LIBER", append=True
++    )
++    assert written == 3
++    # Exactly ONE load job (atomic — all rows land together or not at all).
++    assert len(client.calls) == 1
++    call = client.calls[0]
++    assert call["write_disposition"] == "WRITE_APPEND"
++    rows = [json.loads(line) for line in call["data"].splitlines() if line.strip()]
++    assert len(rows) == 3
++    # All rows share one ingested_at and carry the league_code + their chunk payload.
++    assert len({r["ingested_at"] for r in rows}) == 1
++    assert all(r["league_code"] == "LIBER" for r in rows)
++    assert [r["payload"]["response"][0]["team_id"] for r in rows] == [1, 2, 3]
++
++
++def test_multi_row_loader_empty_payloads_writes_nothing():
++    client = _CapturingClient()
++    written = __import__(
++        "ingestion.api_football.bigquery", fromlist=["load_json_payload_rows_to_bq"]
++    ).load_json_payload_rows_to_bq(
++        client, "RAW_APIF_PLAYERS", [], league_code="LIBER", append=True
++    )
++    assert written == 0
++    assert client.calls == []
++
++
++# --- load_squad_players_batch: end-to-end chunking with a tiny budget (no network) ---
++
++
++def test_load_squad_players_batch_chunks_under_small_budget(monkeypatch):
++    from ingestion.api_football.loads import squads as sq
++
++    from ingestion.api_football import quota as q
++
++    monkeypatch.setattr(q, "_http_quota_exhausted", False)
++    monkeypatch.setenv("API_FOOTBALL_PLAYERS_MAX_ROW_BYTES", "1000000")  # floored to 1 MB
++
++    # Each team returns a ~400 KB roster blob → several teams force multiple chunks.
++    def fake_players(headers, team_id, season, errors, error_context=""):
++        return [{"player": {"id": team_id * 1000 + season}, "blob": "a" * 400_000}]
++
++    monkeypatch.setattr(sq, "players_response_for_team", fake_players)
++
++    captured: list[dict] = []
++
++    def fake_loader(client, table, payloads, *, league_code, append=True):
++        captured.append({"payloads": payloads, "league_code": league_code})
++        return len(payloads)
++
++    monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", fake_loader)
++
++    ctx = types.SimpleNamespace(
++        headers={}, errors=[], client=None, add_loaded=lambda n: None
++    )
++    sq.load_squad_players_batch(ctx, "LIBER", [2024, 2025], {10, 11, 12})
++
++    assert len(captured) == 1  # one logical players load for the league
++    payloads = captured[0]["payloads"]
++    assert len(payloads) > 1  # split into multiple chunk rows under the 1 MB budget
++    # All 6 team×season entries present exactly once, none lost to chunking.
++    seen = [
++        (e["team_id"], e["season"])
++        for p in payloads
++        for e in p["response"]
++    ]
++    expected = [(t, s) for s in (2024, 2025) for t in (10, 11, 12)]
++    assert len(seen) == len(expected)  # each team×season exactly once, none lost
++    assert sorted(seen) == sorted(expected)
++
++
++# --- chunk_players_response against a COMMITTED real /players payload slice ---
++# A real CWC snapshot trimmed to 2 team×season entries, at the true api-football shape
++# ({team_id, season, players_payload:[{player, statistics:[...]}]}, accented names and all).
++# Guards the chunker AND the chunked row shape that stg_apif__players unnests against the
++# real wire format, not just synthetic dicts (data-engineer reviewer rule).
++
++
++def _load_fixture() -> dict:
++    return json.loads(_FIXTURE.read_text(encoding="utf-8"))
++
++
++def test_real_payload_has_expected_shape():
++    snap = _load_fixture()
++    assert snap["league_code"] == "CWC"
++    entries = snap["response"]
++    assert len(entries) == 2
++    for e in entries:
++        assert set(e) >= {"team_id", "season", "players_payload"}
++        assert isinstance(e["players_payload"], list) and e["players_payload"]
++        player = e["players_payload"][0]
++        assert "player" in player and isinstance(player["statistics"], list)
++
++
++def test_chunk_real_payload_splits_and_preserves_every_player():
++    entries = _load_fixture()["response"]
++    # A budget just under a single real entry forces one chunk per entry — exercises real sizes.
++    chunks = chunk_players_response("CWC", entries, max_row_bytes=_entry_bytes(entries[0]))
++    assert len(chunks) == len(entries)
++    assert all(c["league_code"] == "CWC" for c in chunks)
++    # Every team×season preserved in order, none dropped.
++    assert _all_team_seasons(chunks) == [(40, 2016), (49, 2016)]
++    # The chunked rows expose exactly the player ids stg_apif__players unnests
++    # ($.response[].players_payload[].player.id) — union across chunks, no loss or duplication.
++    ids = sorted(
++        p["player"]["id"]
++        for c in chunks
++        for e in c["response"]
++        for p in e["players_payload"]
++    )
++    assert ids == [54, 281]

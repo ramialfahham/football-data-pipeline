@@ -4,29 +4,34 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-21 (deep-backfill DQ heal + Phase 2a depths shipped). **#527 MERGED** — the complete,
-bounded deep-backfill DQ fix (events team_id recovery + self-heal in fct_fixture_event; mis-placed standings
-not_null test relocated to the cleaned layer; player id-collision drop in base_apif__fixture_players, committed
-rows healed by a one-time CPO-authorized full-refresh). **#524 MERGED** — Phase 2a registry §8 depths (7 domestic
-2->5: BL2/ED/LMX/LP/MLS/SPL/VL; 8 continental-club 5->10: UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC). **#523 MERGED**
-— PD/SA/L1 backfilled to 2016-2025 (BL1/PL parity). main is GREEN, the nightly is unblocked. Updated **#518**
-with this session's behaviour instance (coverage-cut is never a DQ fix; count offending rows in RAW first). Prior:
-#520 season-depth config refactor (history_seasons authoritative); PL 2016-2026 (BL1 parity). #500/#506/#510/#517/#518/#521/#526
-still OPEN. Governance G1-G4 LIVE. **Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-22 (Phase 2a continental resume + RAW_APIF_PLAYERS chunking fix). **Phase 2a deep ingest
+RESUME (CPO Option A) DONE** — CAFCL/LIBER/CWC are at MAX PROVIDER DEPTH; the year-count "gaps" (LIBER 2017-18,
+CAFCL 2016-18, CWC 2018) were API-Football **catalog floors**, not ingest misses (LIBER/CAFCL coverage starts
+2019; CWC has no 2018/2024 edition). verify-competition-ingest clean on all 3. Cost ~8,320 calls (vs a ~160
+estimate — a `full` run re-refreshes rosters/squads/standings/injuries/coaches for ALL in-window seasons; the
+estimate wrongly counted only new-fixture fanout — lesson). The run surfaced a real loader bug → **PR
+`fix/raw-players-row-chunking` OPEN (awaiting CPO merge; review cycle PASSED — 4 reviewers, blinded):**
+RAW_APIF_PLAYERS snapshots overflowed BigQuery's 100 MB per-row limit (LIBER failed; UEL 81.8/UCL 78.7 MB
+imminent) — now chunked into byte-bounded rows written in one atomic load job (shared ingested_at); both
+latest-snapshot readers switched to `ingested_at = max per league_code`. CAFCL's 440 missing FIXTURE_STATISTICS
+= VERIFIED provider-empty (correct permanent-empty handling, NOT a defect). main GREEN. Prior: #527/#524/#523/#520
+all merged. #500/#506/#510/#517/#518/#521/#526 still OPEN. Governance G1-G4 LIVE. **Website blueprint #391 still PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge (`git fetch` + ff main; #527 + #524 merged; main green). The deep-backfill DQ defect
-  class is now HANDLED in main (events recover + self-heal, standings test at the cleaned layer, player
-  id-collision drop) — these generalize to the same provider quirks in the remaining deep seasons, so further
-  backfill should need NO new manual heals. **#526 still tracks a separate pre-existing DQ defect** (38 events
-  referencing a team that is not one of the fixture's two teams) — independent of the recovery; a follow-up.
-- **RESUME the Phase 2a deep INGEST (CPO-directed; the registry depths are merged in #524 but the actual deep
-  fetch was STOPPED partway).** #524 only set `history_seasons`; the controlled local backfill that fills RAW
-  was interrupted (~21k calls in via taskkill, to deal with the DQ failures). RESUME for the leagues NOT yet at
-  their §8 depth: continental-club (UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC → 10) + 7 domestic
-  (BL2/ED/LMX/LP/MLS/SPL/VL → 5). **First query RAW per league to see which already reached depth** (skip-if-present
-  makes re-runs cheap — already-ingested fixtures skip), then `full`-profile scoped ingest only for the incomplete
-  ones, then `verify-competition-ingest`. **Query RAW for true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
+- **Merge-pending: PR `fix/raw-players-row-chunking`** (RAW_APIF_PLAYERS >100 MB chunking fix). `git fetch` +
+  ff main; if merged, the players loader bug is closed and the next nightly will refresh LIBER/UEL/UCL player
+  rosters (which currently fail to load). If not merged, it is the first action — the review cycle already
+  PASSED (4 reviewers, blinded; diff_sha256 in `.claude/task/review.md`); **CPO merges, never the agent.**
+- **Phase 2a backfill (#479) is COMPLETE for the active continental + domestic set.** All 15 Phase 2a leagues
+  are at their configured / maximum-available provider depth — 12 were already at depth, and CAFCL/LIBER/CWC
+  were confirmed PROVIDER-FLOORED this session (the deeper years simply don't exist at API-Football). No further
+  continental/domestic deep ingest is pending. (Method reminder: query RAW for true depth, never staging —
+  [[feedback-raw-staging-latest-payload]]; and read the run's `seasons_to_ingest`/catalog floor before assuming a gap.)
+- **#521 (phantom-current-season parity) is the one substantive Phase 2a residual** — UCL/UEL sit at 9 finished
+  seasons (2017-2025) and ED/LMX at 4, one short of the 10/5-finished parity bar, because the provider's
+  current-season flag is the *unstarted* 2026 season (post-#520 `lo = current-(hs-1)` pulls the deep end forward).
+  Closing it = `history_seasons`+1 (a registry **depth increase = CPO decision**, same as the PL hs=11 precedent).
+  Left DEFERRED per Option A; this is NOT a fetch gap.
 - Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): editions/cycle depth
   needs a per-cadence mapping (not a year-count), a separate task. Other open items: **coaches + `mart_player_career`**,
   the **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510/#521**, stale-id purge **#517**,

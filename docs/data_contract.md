@@ -68,6 +68,8 @@ qualify row_number() over (
 ) = 1
 ```
 
+**`RAW_APIF_PLAYERS` chunked-snapshot exception.** A `/players` snapshot for a large-roster deep league (e.g. LIBER, UEL, UCL across many seasons) exceeds BigQuery's 100 MB per-row JSON limit. That snapshot is therefore split into byte-bounded chunk rows that **all share one `ingested_at`** and are written in a **single atomic load job** (`load_json_payload_rows_to_bq`) — so the snapshot lands completely or not at all. Its latest-snapshot readers (`stg_apif__players` and the player-universe query in `loads/player_universe.py`) consequently keep **all rows of the latest snapshot** with `qualify ingested_at = max(ingested_at) over (partition by league_code)` rather than `row_number() = 1`. For every other reference table a snapshot is still one row, so the `row_number()` form above stands.
+
 This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
 
 ---

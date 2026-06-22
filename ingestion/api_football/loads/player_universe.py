@@ -40,9 +40,12 @@ def _query_universe(client: bigquery.Client, min_season: int) -> list[tuple[int,
     """(player_id, provenance_league_code) for players rostered in season >= min_season."""
     sql = f"""
     with latest as (
+        -- A players snapshot may span MULTIPLE rows (chunked when it would exceed BigQuery's
+        -- 100 MB per-row limit; all chunks share one ingested_at). Keep every row of the latest
+        -- snapshot, not just one — mirrors stg_apif__players.sql. See loads/squads.py.
         select payload, league_code
         from {_fq('PLAYERS')}
-        qualify row_number() over (partition by league_code order by ingested_at desc) = 1
+        qualify ingested_at = max(ingested_at) over (partition by league_code)
     ),
     players as (
         select

@@ -1,7 +1,10 @@
 with src as (
     select *
     from {{ source('api_football', 'raw_apif_players') }}
-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
+    -- A players snapshot may span MULTIPLE rows (it is chunked when it would exceed
+    -- BigQuery's 100 MB per-row limit; all chunks share one ingested_at, written atomically).
+    -- Keep every row of the latest snapshot, not just one — see loads/squads.py.
+    qualify ingested_at = max(ingested_at) over (partition by league_code)
 ),
 
 team_blocks as (
