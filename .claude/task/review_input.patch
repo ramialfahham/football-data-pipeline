@@ -1,145 +1,315 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 74dc672..a1314d6 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -10,12 +10,16 @@ the task contract now requires an EVIDENCED `impact_map` for any **structural-su
- MCP, NOT asserted) + CI layer rules + shared-warehouse deploy ordering + blast radius. `task_contract_gate.py`
- presence-gates it at the edit boundary (denies the first structural Edit/Write until a non-placeholder map exists);
- the routed reviewers judge its honesty; `working_agreement.md` §2 + **Appendix A6** name the anti-pattern; the three
--reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539 FILED**
--— the bundled merge-on-write `layering.md` codification was de-scoped mid-review (RAW_APIF_FIXTURE_DETAILS is
--delete-on-retry-only → accumulate + base-dedup, NOT the per-key upsert of RAW_APIF_PLAYERS; needs its own accurate
--treatment). main GREEN. Prior session: **PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per
--(team,season); **Phase 2a backfill #479 COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by
--#540. #500/#506/#510/#517/#521/#526/#539 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
-+reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539
-+MERGED (PR #542)** — codified the read-all staging class in `layering.md` §1_staging ACCURATELY + gave the four
-+fixture-detail staging models the header/yml read-all rationale. Source-verified correction (trace, not guess):
-+RAW_APIF_FIXTURE_DETAILS is **bounded one-row-per-(league_code, fixture_id)** (skip-if-present + delete-on-retry), NOT
-+accumulate — so it AND RAW_APIF_PLAYERS are both merge-on-write/per-key; both read all rows in staging (sub-league
-+grain → no league_code qualify) and base resolves current-per-entity. This was the first real exercise of the #540
-+gate (the trace-first discipline caught #539's own wrong premise before it hit the doc). main GREEN. Prior session:
-+**PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per (team,season); **Phase 2a backfill #479
-+COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by #540, #539 by #542.
-+#500/#506/#510/#517/#521/#526 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
- 
- ## FIRST next session (do this first)
- - **Nothing pending-merge** (`git fetch` + ff main; #540 + #536 merged). RAW_APIF_PLAYERS is now one merge-on-write row
-@@ -30,10 +34,10 @@ treatment). main GREEN. Prior session: **PR #536 MERGED** (RAW_APIF_PLAYERS re-g
-   touch a raw writer / dbt model / export / site file, FILL THE MAP — evidence (pasted `dbt ls --select <model>+`
-   / dbt-MCP lineage + RAW/leaf count), not assertion; trivial edits get a one-line short-form. See
-   `docs/working_agreement.md` §2 + Appendix A6 and `.claude/task/TEMPLATE.md`. Known v1 limit: the shell-write path
--  is not impact-gated (Edit/Write only). **Follow-up #539** (not urgent) — codify the staging read-all classes
--  accurately in `layering.md` §1_staging: merge-on-write per-key upsert (RAW_APIF_PLAYERS) vs accumulate-and-
--  base-dedup (RAW_APIF_FIXTURE_DETAILS, delete-on-retry-only) are DIFFERENT; + give the fixture-detail staging
--  models a header/yml read-all rationale.
-+  is not impact-gated (Edit/Write only). **Follow-up #539 — DONE (PR #542).** layering.md §1_staging now codifies the
-+  read-all class accurately (sub-league grain → read all rows, no league_code qualify, base resolves current; the two
-+  loader reasons = skip-if-present incremental-accumulation + per-key merge-on-write; fixture_details AND players are
-+  both bounded one-row-per-key) and the four fixture-detail staging models carry the header/yml read-all rationale.
- - **Phase 2a backfill (#479) is COMPLETE** — all 15 active continental + domestic leagues at provider depth. Residual:
-   **#521** (phantom-current-season parity — UCL/UEL 9 finished, ED/LMX 4, one short of 10/5 because provider
-   current=2026; closing it = `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 07bddbb..f2ba771 100644
+index f2ba771..7a54eae 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,79 +1,34 @@
--# Task contract — Codify the read-all staging class (#539)
-+# Task contract — Handover refresh (2026-06-22 close-out: #539 merged)
+@@ -1,34 +1,82 @@
+-# Task contract — Handover refresh (2026-06-22 close-out: #539 merged)
++# Task contract — Retire team dribbles_success_pct end-to-end (#510)
  
  objective: >
--  Accurately codify the "read-all" staging snapshot-selection class in layering.md §1_staging,
--  and give the fixture-detail staging models the header/yml read-all rationale they currently
--  lack. Corrected premise (traced to source this session): RAW_APIF_FIXTURE_DETAILS is NOT
--  accumulate-and-grow — batch_fixtures.py only fetches finished fixtures that are missing-entirely
--  or empty-stats-within-the-3-day-retry-window, deletes-on-retry, and skips fixtures with good
--  stats, so it holds one row per (league_code, fixture_id) — bounded, same outcome as
--  RAW_APIF_PLAYERS' per-(team,season) upsert. So both are merge-on-write/per-key; the accurate
--  staging rule is: a raw table keyed at a SUB-league_code grain reads ALL rows (no
--  `partition by league_code` qualify, which would drop entities) and base resolves
--  current-per-entity. #539's "accumulate-vs-upsert distinction" was based on a reviewer misread
--  (the staging yml's "duplicates possible" is defensive robustness, not a real accumulation path);
--  CPO directed "make it solid" → proceed with the corrected, slimmed scope.
-+  Refresh .claude/active_work.md after PR #542 (#539) merged. #539 codified the read-all staging
-+  class in layering.md §1_staging accurately (sub-league grain → read all rows, no league_code
-+  qualify, base resolves current-per-entity; incremental-accumulation + merge-on-write as the two
-+  loader reasons; RAW_APIF_FIXTURE_DETAILS and RAW_APIF_PLAYERS both bounded one-row-per-key — the
-+  corrected, source-verified premise) and gave the four fixture-detail staging models the header +
-+  yml read-all rationale. It was the first real exercise of the #540 impact-map gate. Update the
-+  status line + FIRST-next-session (drop the #539 follow-up — now done); main green.
+-  Refresh .claude/active_work.md after PR #542 (#539) merged. #539 codified the read-all staging
+-  class in layering.md §1_staging accurately (sub-league grain → read all rows, no league_code
+-  qualify, base resolves current-per-entity; incremental-accumulation + merge-on-write as the two
+-  loader reasons; RAW_APIF_FIXTURE_DETAILS and RAW_APIF_PLAYERS both bounded one-row-per-key — the
+-  corrected, source-verified premise) and gave the four fixture-detail staging models the header +
+-  yml read-all rationale. It was the first real exercise of the #540 impact-map gate. Update the
+-  status line + FIRST-next-session (drop the #539 follow-up — now done); main green.
++  Finish the 2026-06-11 display ruling ("team dribbles dropped; stays a player metric") by
++  retiring the team `dribbles_success_pct` metric end-to-end. CPO directed option (A) this session:
++  remove it from EVERY team surface where it ships — not just the momentum surface #510 enumerated.
++  Tracing showed it ships in TWO team surfaces (momentum W1 + season-record W2), NOT the three I
++  first listed: the team-season model (int_team_season__full_season_metrics) has no team dribbles,
++  and the int_team_season.yml:88 ratio test is the PLAYER one. The player dribbles_success_pct and
++  the raw player dribbles_success count are untouched.
  
  refs: >
--  Issue #539 (split from the #518 impact-map-gate PR #540). Source of truth:
--  ingestion/api_football/loads/batch_fixtures.py:211-280 (skip-if-present + delete-on-retry);
--  docs/data_contract.md (already accurate — fixture_details merge-on-write, one row per fixture).
--  CPO direction this session ("Make it solid"). First real exercise of the #540 impact-map gate.
-+  This conversation 2026-06-22. PR #542 (merged, #539). Prior this session: #540 (impact-map gate),
-+  #541 (handover). Memory: feedback-no-hacky-solutions (the trace-first discipline caught #539's own
-+  premise being wrong before it hit the authoritative doc).
+-  This conversation 2026-06-22. PR #542 (merged, #539). Prior this session: #540 (impact-map gate),
+-  #541 (handover). Memory: feedback-no-hacky-solutions (the trace-first discipline caught #539's own
+-  premise being wrong before it hit the authoritative doc).
++  Issue #510. Ruling: docs/wireframes/metrics_display.md changelog 2026-06-11. CPO direction this
++  session ("A" — end-to-end). The scope note on #510 (team competition benchmark unaffected — not a
++  season metric) verified: int_team_season__full_season_metrics has no dribbles.
  
  scope_paths:
-+  - .claude/active_work.md
+-  - .claude/active_work.md
    - .claude/task/**
--  - dbt_project/docs/layering.md
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
++  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
++  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
++  - dbt_project/models/5_marts/shared/mart_season_record__team.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
++  - dbt_project/macros/team_benchmark_metrics.sql
  
  decisions_taken: >
--  CPO-approved framing (this session): codify ONE read-all staging rule (sub-league grain →
--  read all rows, no league_code qualify, base resolves current-per-entity) with the loader
--  reasons as sub-cases (skip-if-present incremental-accumulation; per-key merge-on-write) —
--  do NOT mint a rigid class that mischaracterises fixture_details. The premise correction
--  (fixture_details is bounded one-row-per-fixture, not accumulate) is a FACT established by
--  reading the loader, not a new decision. DOC + model-comment change only — no SQL/grain edits.
-+  Documentation-only handover refresh — no code, no product decision. The commit carries
-+  contract.md (hashed, not artifact-exempt), so it needs review; routing for active_work.md +
-+  .claude/task/** is scope-auditor only. active_work.md is hash-excluded (artifact).
+-  Documentation-only handover refresh — no code, no product decision. The commit carries
+-  contract.md (hashed, not artifact-exempt), so it needs review; routing for active_work.md +
+-  .claude/task/** is scope-auditor only. active_work.md is hash-excluded (artifact).
++  CPO-directed (this session): option (A) end-to-end retirement. Executes the existing 2026-06-11
++  display ruling — not a NEW catalogue decision (removing an already-ruled-dropped metric). The
++  orphaned raw `dribbles_attempts` + `dribbles_success` SUMS in the two team int models are removed
++  too: they exist only to feed the retired pct, and there is no team catalogue metric for the raw
++  counts (leaving them would be dead code). Player dribbles + raw player dribbles_success untouched.
  
  decisions_reserved:
--  - none. Framing CPO-approved; the corrected facts are source-verified. If a reviewer surfaces
--    a genuinely new CPO-class question (e.g. renaming an existing staging class), escalate it.
--
--impact_map: >
--  Change class: DOCUMENTATION ONLY — staging model HEADER COMMENTS + yml `description:` text +
--  layering.md prose. No SQL, no grain, no column, no materialization change.
--  Writers (NOT edited by this task): RAW_APIF_FIXTURE_DETAILS <- ingestion/api_football/loads/
--  batch_fixtures.py (skip-if-present fetch of finished fixtures missing data + delete-on-retry ->
--  one row per (league_code, fixture_id)); RAW_APIF_PLAYERS <- loads/squads.py (delete+append per
--  (team,season)). Both bounded one-row-per-key.
--  Downstream lineage of the edited staging models (`dbt ls --select stg_apif__fixture_*+
--  stg_apif__lineups+`, 2026-06-22): base_apif__fixture_{events,players,statistics} ->
--  fct_fixture_event / fct_fixture_player_stats / fct_fixture_team_stats -> int_legs__*,
--  int_momentum__*, int_season_record__*, int_player_season__metrics,
--  int_team_season__full_season_metrics, int_competition_benchmarks__team -> ~20 marts
--  (mart_fixture_stats__{player,team}, mart_momentum__*, mart_season_record__*, mart_leaderboards,
--  mart_player_profile, mart_roster, mart_team_season, mart_head_to_head, ...).
--  Layer rules that apply: check_layer_contract.py staging-purity — staging reads ALL rows with NO
--  `partition by league_code` qualify (sub-league grain), which is legal; entity dedup stays in
--  base. This task changes no SELECT, so every rule remains satisfied (header comments are stripped
--  by the purity check's comment-stripper).
--  Deploy ordering: none — comment/description/doc text only; no shared-warehouse migration; the
--  next CI rebuild is byte-identical.
--  Blast radius: NONE. No shipped number changes — edits are restricted to SQL header comments,
--  yml `description` fields, and layering.md prose; no compiled SQL changes.
-+  - none. Pure handover bookkeeping.
+-  - none. Pure handover bookkeeping.
++  - none. Retirement scope settled by the 2026-06-11 ruling + the CPO (A) direction; surfaces are
++    source-verified.
++
++impact_map: >
++  Change class: RETIRE team `dribbles_success_pct` end-to-end (#510). Removes a SHIPPED mart column
++  from two team surfaces — directed removal; before/after = the column disappears, no retained
++  metric's value changes. No raw writer touched.
++  Surfaces (traced): W1 momentum — mart_momentum__team (the pct col) + int_momentum__team (orphaned
++  dribbles_attempts + dribbles_success sums) + the momentum_team_dribbles_success_pct_in_range test
++  (shared.yml). W2 season-record — mart_season_record__team (the pct col) + int_season_record__team
++  (orphaned sums) + the std_team_dribbles_success_pct_in_range test (shared.yml). Catalogue —
++  metric_catalogue.csv `dribbles_success_pct,team` row + the seeds/schema.yml "retiring/#510"
++  direction+interpretation notes. Team-season has NONE (verified).
++  Downstream lineage (`dbt ls --select mart_momentum__team+ mart_season_record__team+`):
++  mart_momentum__team -> mart_matchday_insights ONLY, which `select *`s the momentum form into a CTE
++  but projects explicit renamed rate columns and never references/outputs dribbles_success_pct ->
++  transparent, no breakage. mart_season_record__team is a leaf.
++  Consumption verified: export_site_data.py references `dribbles_success` only as a PLAYER
++  leaderboard/payload field; the team pct is surfaced nowhere -> site/export unaffected.
++  Layer rules: check_layer_contract unaffected (column/test removals; no layer violation). Catalogue
++  governance: executes the existing 2026-06-11 ruling (football-analytics + analytics-engineer review).
++  Deploy ordering: shared warehouse — the two marts rebuild without the column, the seed reloads, and
++  the 2 range tests drop on the next CI build; pure removal, no migration ordering.
++  Blast radius: the two team marts lose dribbles_success_pct; metric_catalogue loses the team row;
++  2 range tests removed; orphaned raw-dribbles sums removed from the 2 int models. Nothing else changes.
  
  done_when:
--  - layering.md §1_staging codifies the read-all class accurately: sub-league grain -> read all
--    rows (no league_code qualify) + base resolves current-per-entity; skip-if-present and
--    per-key merge-on-write as the two loader reasons; fixture_details + players both bounded.
--  - stg_apif__fixture_{events,players,statistics}.sql and stg_apif__lineups.sql carry a header
--    comment stating the read-all rationale (mirroring stg_apif__players.sql).
--  - stg_apif__generic.yml entries for those models state the read-all rationale; the "multiple
--    ingestions may produce duplicate rows" language is clarified to "base dedups defensively".
--  - check_layer_contract.py still passes; dbt parse green; reviewers PASS (scope-auditor +
--    analytics-engineer).
--  - Tree matches scope_paths.
-+  - active_work.md reflects: #542 merged (#539 read-all staging codification + corrected premise);
-+    the #539 follow-up removed from the #518 bullet; main green; FIRST next action set.
-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+-  - active_work.md reflects: #542 merged (#539 read-all staging codification + corrected premise);
+-    the #539 follow-up removed from the #518 bullet; main green; FIRST next action set.
+-  - Tree matches the contract (only active_work.md + .claude/task/**).
++  - The team dribbles_success_pct is gone from: metric_catalogue.csv (the team row); mart_momentum__team
++    + mart_season_record__team (the pct columns); int_momentum__team + int_season_record__team (the
++    orphaned dribbles_attempts/success sums + carry-throughs); shared.yml (both range tests);
++    seeds/schema.yml (the "#510/retiring" notes). Player dribbles_success_pct untouched.
++  - check_layer_contract passes; dbt parse green; the metric-catalogue seed test (uniqueness etc.)
++    passes; reviewers PASS (scope-auditor + analytics-engineer + football-analytics-expert).
++  - The doc-sync is COMPLETE — no stale "dribbles_success_pct,team" reference remains in any
++    description, comment, or test (incl. seeds/schema.yml metric_id desc, the unique-by-entity
++    test comment, and the team-benchmark macro comment).
++  - Tree matches scope_paths.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-06-22: + dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
++    + dbt_project/macros/team_benchmark_metrics.sql. Authority: analytics-engineer reviewer FAIL
++    (doc-sync / retirement-completeness) + the standing doc-sync rule — both carry stale
++    "dribbles_success_pct" comments (the test's both-entities example; the macro's "retiring"
++    exclusion note) that the retirement must clear. Comment-only; neither is on the structural
++    surface (not under dbt_project/models/), so the impact_map is unchanged. Also fixed the
++    in-scope seeds/schema.yml metric_id description (same stale both-entities claim).
+diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
+index 1ab8398..eb249ac 100644
+--- a/dbt_project/macros/team_benchmark_metrics.sql
++++ b/dbt_project/macros/team_benchmark_metrics.sql
+@@ -5,7 +5,7 @@
+   int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
+   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
+   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
+-  (non-metrics), and dribbles_success_pct (retiring team-side, #510).
++  (non-metrics), and dribbles_success_pct (retired team-side, #510).
+ #}
+     {% set metrics = [
+         ('goals_per_match', 'goals_per_match_season'),
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum__team.sql b/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
+index 75aeecb..c9a63e1 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
+@@ -93,9 +93,7 @@ player_derived as (
+         sum(p.interceptions) as interceptions,
+         sum(p.blocks) as blocks,
+         sum(p.duels_total) as duels_total,
+-        sum(p.duels_won) as duels_won,
+-        sum(p.dribbles_attempts) as dribbles_attempts,
+-        sum(p.dribbles_success) as dribbles_success
++        sum(p.duels_won) as duels_won
+     from window_legs as wl
+     left join {{ ref('int_legs__team_from_players') }} as p
+         on
+@@ -137,9 +135,7 @@ select
+     pd.interceptions,
+     pd.blocks,
+     pd.duels_total,
+-    pd.duels_won,
+-    pd.dribbles_attempts,
+-    pd.dribbles_success
++    pd.duels_won
+ from team_agg as ta
+ left join player_derived as pd
+     on
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record__team.sql b/dbt_project/models/4_intermediate/shared/int_season_record__team.sql
+index 1e0d2ba..db5808b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_season_record__team.sql
+@@ -56,8 +56,6 @@ legs as (
+         pl.blocks,
+         pl.duels_total,
+         pl.duels_won,
+-        pl.dribbles_attempts,
+-        pl.dribbles_success,
+         tl.result,
+         case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
+         pl.fixture_sk is not null as has_player_stats
+@@ -116,9 +114,7 @@ select
+     sum(interceptions) over w as interceptions,
+     sum(blocks) over w as blocks,
+     sum(duels_total) over w as duels_total,
+-    sum(duels_won) over w as duels_won,
+-    sum(dribbles_attempts) over w as dribbles_attempts,
+-    sum(dribbles_success) over w as dribbles_success
++    sum(duels_won) over w as duels_won
+ from legs
+ window
+     w as (
+diff --git a/dbt_project/models/5_marts/shared/mart_momentum__team.sql b/dbt_project/models/5_marts/shared/mart_momentum__team.sql
+index af4dca1..f5ddf32 100644
+--- a/dbt_project/models/5_marts/shared/mart_momentum__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_momentum__team.sql
+@@ -12,7 +12,7 @@
+   Grain: (upcoming_fixture_sk, team_sk).
+ 
+   league_rank is not computed here — it comes from the standings surface (#322).
+-  player-derived metrics (key_passes_per_match through dribbles_success_pct) are
++  player-derived metrics (key_passes_per_match through duels_won_pct) are
+   NULL when no player stats exist for the window (coverage gap, honest absence).
+ #}
+ 
+@@ -76,8 +76,7 @@ select
+     safe_divide(b.tackles + b.interceptions + b.blocks, b.games_with_player_stats)
+         as defensive_actions_per_match,
+     safe_divide(b.duels_total, b.games_with_player_stats) as duels_per_match,
+-    safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
+-    safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct
++    safe_divide(b.duels_won, b.duels_total) as duels_won_pct
+ from builder as b
+ inner join fixtures as f
+     on b.upcoming_fixture_sk = f.fixture_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_season_record__team.sql b/dbt_project/models/5_marts/shared/mart_season_record__team.sql
+index 8a5381a..601848c 100644
+--- a/dbt_project/models/5_marts/shared/mart_season_record__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_season_record__team.sql
+@@ -99,8 +99,6 @@ matched as (
+         sf.blocks,
+         sf.duels_total,
+         sf.duels_won,
+-        sf.dribbles_attempts,
+-        sf.dribbles_success,
+         1 as priority
+     from sides as s
+     inner join season_final as sf
+@@ -147,8 +145,6 @@ matched as (
+         sf.blocks,
+         sf.duels_total,
+         sf.duels_won,
+-        sf.dribbles_attempts,
+-        sf.dribbles_success,
+         2 as priority
+     from sides as s
+     inner join season_final as sf
+@@ -212,6 +208,5 @@ select
+     safe_divide(tackles + interceptions + blocks, games_with_player_stats)
+         as defensive_actions_per_match,
+     safe_divide(duels_total, games_with_player_stats) as duels_per_match,
+-    safe_divide(duels_won, duels_total) as duels_won_pct,
+-    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct
++    safe_divide(duels_won, duels_total) as duels_won_pct
+ from chosen
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 4411c1f..34e44db 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -17,7 +17,7 @@ models:
+       final team performance metrics from int_momentum__team raw sums. All ratios and
+       per-match rates live here; none in the builder. league_rank is excluded — it comes
+       from the standings surface (#322). Player-derived metrics (key_passes_per_match
+-      through dribbles_success_pct) are NULL when no player stats exist for the window.
++      through duels_won_pct) are NULL when no player stats exist for the window.
+       Grain: (upcoming_fixture_sk, team_sk).
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+@@ -43,9 +43,6 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+           name: momentum_team_duels_won_pct_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+-          name: momentum_team_dribbles_success_pct_in_range
+       # clean sheets are scoreline-based: always present, bounded by the window
+       - dbt_utils.expression_is_true:
+           expression: "clean_sheets between 0 and games_in_window"
+@@ -322,9 +319,6 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+           name: std_team_duels_won_pct_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+-          name: std_team_dribbles_success_pct_in_range
+       # W/D/L counts (GAP-10): must reconcile with games and points exactly
+       - dbt_utils.expression_is_true:
+           expression: "wins + draws + losses = games_played"
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index a568692..7df0325 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -11,7 +11,6 @@ shots_on_target_per_match,team,metrics.shots_on_target_per_match.label,Average s
+ finishing_efficiency,team,metrics.finishing_efficiency.label,"Goals per shot on target, over matches with shot stats available (numerator and denominator share the window). Can exceed 100% when a goal is not counted as a shot on target (penalties, own goals in the team's favour) — shown uncapped. Null when shots_on_goal is zero.",goals_for,shots_on_goal,false,percent,shooting,1,4,higher_better,Clinical finishing - goals per shot on target; high = ruthless
+ duels_per_match,team,metrics.duels_per_match.label,"Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.",duels_total,games,false,decimal_0,duels,2,1,neutral,Duel engagement - physical contests per game; a combative/contested style
+ duels_won_pct,team,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,duels_won,duels_total,false,percent,duels,2,2,higher_better,Duel success - share of duels won; high = wins the physical battle
+-dribbles_success_pct,team,metrics.dribbles_success_pct.label,Dribble success rate in the form window. Null when dribbles_attempts is zero. Aggregated from player stats.,dribbles_success,dribbles_attempts,false,percent,duels,,,,
+ defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,"Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.",tackles + interceptions + blocks,games,false,decimal_1,defending,2,1,neutral,Defensive workload - tackles + interceptions + blocks per game; high = a deep block or an aggressive press
+ tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,tackles,games,false,decimal_1,defending,,,neutral,Tackling volume - ball-winning challenges per game
+ interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,interceptions,games,false,decimal_1,defending,,,neutral,Interception volume - reading and cutting out passes
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index c1ef557..a5bc0b9 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -79,8 +79,8 @@ seeds:
+       - name: metric_id
+         description: >
+           Stable semantic id. Window-agnostic — no _recent or _pretournament suffix.
+-          Unique per (metric_id, entity) — duels_won_pct and dribbles_success_pct exist
+-          for both entities (enforced by assert_metric_catalogue_unique_by_entity).
++          Unique per (metric_id, entity) — e.g. duels_won_pct exists for both team and
++          player (enforced by assert_metric_catalogue_unique_by_entity).
+         tests:
+           - not_null
+       - name: entity
+@@ -137,9 +137,8 @@ seeds:
+           Performance semantic (the richer successor to lower_is_better): higher_better,
+           lower_better, or neutral (a descriptive/style metric with no inherent good-or-bad).
+           Orients the competition benchmark and seeds website auto-interpretation. Populated for
+-          team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x)
+-          and for dribbles_success_pct,team (retiring — #510). lower_is_better is retained until
+-          the full migration.
++          team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x).
++          lower_is_better is retained until the full migration.
+         tests:
+           - accepted_values:
+               values: ["higher_better", "lower_better", "neutral"]
+@@ -147,7 +146,7 @@ seeds:
+         description: >
+           Short plain-English meaning of the metric — what it captures and what a notably high
+           value signals — the seed of website auto-narrative. Populated for team metrics; null for
+-          player metrics (v1.x) and dribbles_success_pct,team (#510).
++          player metrics (v1.x).
+ 
+   - name: metric_definitions
+     description: >
+diff --git a/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql b/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
+index 17c20c5..9987ac7 100644
+--- a/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
++++ b/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
+@@ -1,5 +1,5 @@
+ -- The catalogue grain is (metric_id, entity): the same metric family may exist
+--- for team and player (duels_won_pct, dribbles_success_pct). A plain unique test
++-- for team and player (e.g. duels_won_pct). A plain unique test
+ -- on metric_id is wrong at this grain and was failing; this enforces the real key.
+ select
+     metric_id,
