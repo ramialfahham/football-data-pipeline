@@ -38,7 +38,7 @@ Eleven tables serve the entire fleet of competitions. No per-competition raw tab
 | `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
-| `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
+| `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
 | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
 | `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
@@ -67,6 +67,8 @@ qualify row_number() over (
     partition by league_code order by ingested_at desc
 ) = 1
 ```
+
+**`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
 
 This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
 

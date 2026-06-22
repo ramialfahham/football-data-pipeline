@@ -86,8 +86,10 @@ models:
 
   - name: stg_apif__players
     description: >
-      One row per player per team per season per league from GET /players.
-      Latest ingestion snapshot selected per league_code. Grain: (league_code, team_id, season_year, player_id).
+      One row per player per team per season per league from GET /players. RAW_APIF_PLAYERS
+      stores one merge-on-write row per (team, season), so staging reads ALL rows faithfully
+      (no latest-snapshot qualify); current-per-entity is assembled in base. Grain after base:
+      (league_code, team_id, season_year, player_id).
     columns:
       - name: league_code
         tests: [not_null]
