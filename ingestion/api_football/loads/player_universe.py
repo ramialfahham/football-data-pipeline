@@ -39,18 +39,20 @@ def _fq(entity: str) -> str:
 def _query_universe(client: bigquery.Client, min_season: int) -> list[tuple[int, str]]:
     """(player_id, provenance_league_code) for players rostered in season >= min_season."""
     sql = f"""
-    with latest as (
+    with all_snapshots as (
+        -- RAW_APIF_PLAYERS stores one row per (team, season); read ALL rows faithfully (no
+        -- latest-snapshot qualify) — the universe is a player_id SET, deduped by the group by
+        -- below, so reading every row only adds duplicates that collapse. Mirrors stg_apif__players.
         select payload, league_code
         from {_fq('PLAYERS')}
-        qualify row_number() over (partition by league_code order by ingested_at desc) = 1
     ),
     players as (
         select
-            latest.league_code,
+            all_snapshots.league_code,
             safe_cast(json_value(team_block, '$.season') as int64) as season,
             safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
-        from latest,
-            unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as team_block,
+        from all_snapshots,
+            unnest(json_query_array(json_query(all_snapshots.payload, '$.response'), '$')) as team_block,
             unnest(json_query_array(json_query(team_block, '$.players_payload'), '$')) as player_el
     )
     select player_id, min(league_code) as provenance_league_code

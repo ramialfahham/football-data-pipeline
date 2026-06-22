@@ -1,176 +1,902 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 6839278..952ab58 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,34 +4,60 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-20 (PL deep-season backfill + season-depth config refactor). Closed **#414** as
--obsolete (premise-check: the supporting_leagues guard it targeted was retired by #429). Backfilled **PL to
--2016-2026** (2016-2025 finished = **true BL1 parity**) for ~3k API calls total — cheap because the per-fixture
--details already lived in RAW (the thin fixtures snapshot masked them; [[feedback-raw-staging-latest-payload]]).
--Shipped **#520** (season-depth config refactor): per-competition `history_seasons` is now AUTHORITATIVE
--(dropped the global-floor clamp), and `V1_SEASON_WINDOW_YEARS` -> `DEFAULT_SEASON_WINDOW_YEARS`. Filed **#521**
--(phantom-current-season hardening — deferred; would let PL use hs=10 like BL1 instead of hs=11). Prior:
--idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPEN. Governance G1-G4 LIVE.
--**Website blueprint #391 still PAUSED.**_
-+_Last updated: 2026-06-21 (deep-backfill DQ heal + Phase 2a depths shipped). **#527 MERGED** — the complete,
-+bounded deep-backfill DQ fix (events team_id recovery + self-heal in fct_fixture_event; mis-placed standings
-+not_null test relocated to the cleaned layer; player id-collision drop in base_apif__fixture_players, committed
-+rows healed by a one-time CPO-authorized full-refresh). **#524 MERGED** — Phase 2a registry §8 depths (7 domestic
-+2->5: BL2/ED/LMX/LP/MLS/SPL/VL; 8 continental-club 5->10: UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC). **#523 MERGED**
-+— PD/SA/L1 backfilled to 2016-2025 (BL1/PL parity). main is GREEN, the nightly is unblocked. Updated **#518**
-+with this session's behaviour instance (coverage-cut is never a DQ fix; count offending rows in RAW first). Prior:
-+#520 season-depth config refactor (history_seasons authoritative); PL 2016-2026 (BL1 parity). #500/#506/#510/#517/#518/#521/#526
-+still OPEN. Governance G1-G4 LIVE. **Website blueprint #391 still PAUSED.**_
- 
- ## FIRST next session (do this first)
--- Nothing pending-merge (`git fetch` + ff main; #520 merged). **PL deep-season backfill is DONE** (PL RAW =
--  2016-2026, 10 finished seasons = BL1 parity; all 4 fanout endpoints 100%; ~3k calls). The **season-depth
--  config is now ROBUST** (#520: `history_seasons` authoritative, no global clamp; v1 constant retired). The
--  next nightly run rebuilds PL's marts from the deepened RAW (no local dbt build — shared BQ).
--- **NEXT is the CPO's pick (none auto-granted).** Obvious continuation: **PD/SA/L1** to 10 seasons — but COST
--  DIFFERS FROM PL: PL was ~3k because its details pre-existed in RAW; PD/SA/L1 have only ~2 seasons of details
--  (760/760/617 detail rows), so each is a genuine ~8-season fanout fetch ≈ **~12k calls apiece (~34k for the
--  three)** — a fresh cost gate. Then Phase 2 (the other ~40 leagues per the §8 tiered policy). Other open
--  items: **coaches + `mart_player_career`**, the **player benchmark / opponent-context** (v1.x), carryovers
--  **#500/#506/#510/#521**, stale-id purge **#517**, process retrospective **#518**. **Read
--  `docs/content_architecture.md` §8/§9 first.**
--- **To backfill a league now (post-#520):** set its `history_seasons` in the registry — it is AUTHORITATIVE,
--  no V1 cap — then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`,
--  `LOG_QUOTA=1`), measure the call delta, verify RAW depth, then `verify-competition-ingest`. **Query RAW for
--  true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
-+- Nothing pending-merge (`git fetch` + ff main; #527 + #524 merged; main green). The deep-backfill DQ defect
-+  class is now HANDLED in main (events recover + self-heal, standings test at the cleaned layer, player
-+  id-collision drop) — these generalize to the same provider quirks in the remaining deep seasons, so further
-+  backfill should need NO new manual heals. **#526 still tracks a separate pre-existing DQ defect** (38 events
-+  referencing a team that is not one of the fixture's two teams) — independent of the recovery; a follow-up.
-+- **RESUME the Phase 2a deep INGEST (CPO-directed; the registry depths are merged in #524 but the actual deep
-+  fetch was STOPPED partway).** #524 only set `history_seasons`; the controlled local backfill that fills RAW
-+  was interrupted (~21k calls in via taskkill, to deal with the DQ failures). RESUME for the leagues NOT yet at
-+  their §8 depth: continental-club (UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC → 10) + 7 domestic
-+  (BL2/ED/LMX/LP/MLS/SPL/VL → 5). **First query RAW per league to see which already reached depth** (skip-if-present
-+  makes re-runs cheap — already-ingested fixtures skip), then `full`-profile scoped ingest only for the incomplete
-+  ones, then `verify-competition-ingest`. **Query RAW for true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
-+- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): editions/cycle depth
-+  needs a per-cadence mapping (not a year-count), a separate task. Other open items: **coaches + `mart_player_career`**,
-+  the **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510/#521**, stale-id purge **#517**,
-+  process retrospective **#518**. **Read `docs/content_architecture.md` §8/§9 first.**
-+- **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
-+  then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
-+  the call delta, verify RAW depth, then `verify-competition-ingest`.
-+- **Cost reality (locked):** deep backfills are ~10x cheaper than `fixtures × 4` estimates — the per-fixture
-+  sub-endpoints batch ~20 fixtures/call (the `ids` param), so a season's fanout is ~fixtures/20 × 4, not
-+  fixtures × 4. (PL was ~3k not ~10.7k partly for this + pre-existing details.)
- - The **dbt MCP server** cold-start race may recur — see [[project-dbt-mcp-server]].
- 
-+## This session (2026-06-21) — deep-backfill DQ heal (#527) + Phase 2a depths (#524)
-+- **#527 (MERGED) — the complete, bounded deep-backfill DQ fix.** The PD/SA/L1 + partial Phase 2a deep data
-+  (2016-era) surfaced 3 DQ failures; enumerated the FULL defect set from RAW via one clean build (bounded:
-+  ~15 fixable rows; recent seasons 0 dupes / 280k+ legs). Fixes: (a) **events** — recover null `team_id` in
-+  base_apif__fixture_events from the same team's other events in the fixture (by name), + a SELF-HEAL clause in
-+  fct_fixture_event's incremental filter to reach already-committed null rows; (b) **standings** — removed the
-+  mis-placed `not_null` on FAITHFUL `stg_apif__standings.team_id` (the provider legitimately leaves it null in
-+  old data); cleanliness stays guarded at base + `fct_standings.team_sk`; (c) **player id-collision** — provider
-+  reused one `player_id` for two players in a fixture; extended base_apif__fixture_players's phantom-leg cleanup
-+  to drop real-id collisions, + a one-time CPO-authorized `--full-refresh` of fct_fixture_player_stats to heal
-+  the 4 committed rows (merge can't delete; verified 0 remaining). Both reviewers PASS.
-+- **#524 (MERGED) — Phase 2a registry §8 depths.** 15 `history_seasons` lines (7 domestic 2->5, 8 continental-
-+  club 5->10). Registry-only; rebased on the #527-healed main (sibling-PR rebase: only `.claude/task/*` conflicted;
-+  registry replayed byte-identical; review hash rebound; collapsed to one commit — [[feedback-sibling-pr-rebase-rebind]]).
-+- **Process lesson (locked, #518 updated):** I first framed the old-data DQ failures as "older data is messier"
-+  and floated PULLING BACK ingest depth as the "fix". CPO: *"the fix is not fixing it but just not ingesting it."*
-+  **A failing DQ test is a defect to fix, NEVER a reason to ingest less; COUNT the offending rows in RAW before
-+  any "messier data / skip it" framing** ([[feedback-no-hacky-solutions]]).
-+
- ## Standing authority (in force)
- - **Per-item CPO-directed.** Run the full review cycle → open PR; **CPO merges**. Stop-conditions
-   ALWAYS hold: never merge, escalate §10 (in PLAIN LANGUAGE), stop for cost/destructive.
-@@ -81,10 +107,12 @@ idle-mode fix #514/#515; TEAM benchmark #511/#512. #500/#510/#517/#518 still OPE
-    cycle / cups 5 — + a data-quality floor (skip empty-player-stat seasons) + phased rollout.
- 
- ## NEXT — the content_architecture build sequence (CPO directs; none auto-granted)
--1. **Backfill** (#479) — **PL DONE (2016-2026, BL1 parity, 2026-06-20); config now robust (#520).**
--   REMAINING: **PD/SA/L1 to 10 seasons (~12k calls EACH — details do NOT pre-exist, unlike PL; a fresh
--   cost gate)**, then **Phase 2** (the other ~40 leagues per the §8 tiered depth). Recipe: set
--   `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated.
-+1. **Backfill** (#479) — **PL + PD/SA/L1 DONE (2016-2025 finished = BL1 parity; #523, 2026-06-21); config
-+   robust (#520).** Phase 2a registry §8 depths MERGED (#524) but the deep INGEST was STOPPED partway →
-+   **RESUME** for the leagues not yet at depth (8 continental-club → 10, 7 domestic → 5; see FIRST-next-session).
-+   Then **Phase 2b** (national-team tournaments + qualifiers; DEFERRED — per-cadence editions/cycle mapping).
-+   Recipe: set `history_seasons` (authoritative post-#520) + `full`-profile scoped run + verify RAW. Cost-gated;
-+   ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
- 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
-    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
- 3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index cd92456..7609e00 100644
+index 7609e00..d7917a7 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,45 +1,30 @@
--# Task contract — Phase 2a backfill: club + domestic competitions (§8 depths)
-+# Task contract — Handover refresh (2026-06-21 close-out)
+@@ -1,30 +1,70 @@
+-# Task contract — Handover refresh (2026-06-21 close-out)
++# Task contract — RAW_APIF_PLAYERS merge-on-write per (team,season) (all leagues backfillable)
  
  objective: >
--  Apply the §8 tiered depths to the club/domestic competitions (the mechanical part of Phase 2):
--  set history_seasons for 7 non-top-5 domestic leagues 2->5 and 8 continental-club competitions
--  5->10, then run a scoped backfill. Completes the deep-history foundation for all club competitions.
--  Phase 2b (national-team tournaments + qualifiers) is DEFERRED per the CPO (Option A) — their
--  "editions/cycle" depth does not map to the history_seasons year-count and needs its own pass.
-+  Refresh .claude/active_work.md to hand the next session the true state after this
-+  session's deep-backfill DQ heal + Phase 2a depths landed: #527 (events recovery +
-+  self-heal, standings test relocation, player id-collision drop) and #524 (Phase 2a
-+  registry §8 depths) are BOTH MERGED; main is green and the nightly is unblocked.
-+  Record the locked process lesson (coverage-cut is never a DQ fix; count offending
-+  rows in RAW first — #518 updated) and set the FIRST next action: RESUME the stopped
-+  Phase 2a deep ingest for the leagues not yet at their §8 depth.
+-  Refresh .claude/active_work.md to hand the next session the true state after this
+-  session's deep-backfill DQ heal + Phase 2a depths landed: #527 (events recovery +
+-  self-heal, standings test relocation, player id-collision drop) and #524 (Phase 2a
+-  registry §8 depths) are BOTH MERGED; main is green and the nightly is unblocked.
+-  Record the locked process lesson (coverage-cut is never a DQ fix; count offending
+-  rows in RAW first — #518 updated) and set the FIRST next action: RESUME the stopped
+-  Phase 2a deep ingest for the leagues not yet at their §8 depth.
++  Fix the players backfill so EVERY league — including the biggest (LIBER/UEL/UCL) — can be
++  backfilled. Root cause: the loader crammed an entire league's players (all teams × all seasons)
++  into ONE BigQuery row, exceeding BQ's 100 MB per-row JSON limit (LIBER failed on the 2026-06-22
++  full-profile resume). Fix: store ONE small row per (team, season), merge-on-write — exactly the
++  RAW_APIF_FIXTURE_DETAILS pattern (one row per fixture). No row approaches the limit, for any league.
 +
++decisions_taken: >
++  - Grain: one row per (team, season); payload {league_code, response:[entry]} (one entry/row).
++  - Loader (squads.py) is MERGE-ON-WRITE: append the run's per-(team,season) rows, then delete the
++    superseded prior rows for exactly those keys → one row per (league, team, season), BOUNDED (not
++    append-accumulating). Only re-written keys are touched, so a quota cut leaves un-fetched keys'
++    prior rows intact (a partial-snapshot warning is logged). This makes it an idempotent/upsert
++    table — the reviewers required idempotency to avoid unbounded growth.
++  - Staging (stg_apif__players) reads ALL rows faithfully — NO latest-snapshot qualify (forbidden by
++    check_layer_contract for a non-league partition; and a per-league qualify would drop entities) —
++    and current-per-(player,team,season) is assembled in BASE (base_apif__player_team_season /
++    base_apif__players already dedup by entity keys). This is layer-legal because the table is
++    merge-on-write/upsert (one row per key), exactly like RAW_APIF_FIXTURE_DETAILS, whose staging
++    also reads faithfully without a qualify.
++  - player_universe._query_universe reads all rows (its own group by player_id dedups).
++  - One-time migration via scripts/diagnostics/reshape_players_to_team_season.py (dry-run default):
++    explodes each league's latest bloated snapshot into per-(team,season) rows and deletes the
++    pre-migration rows. Idempotency guard (no-op if no bloated rows remain) + SET-IDENTITY check
++    (EXCEPT both ways, not count-only) that ABORTS before deleting on any mismatch. Dry-checked:
++    626 bloated rows -> 13,386 small rows, 413,755 player-team-seasons preserved exactly.
++  - Supersedes PR #534 (chunking). #534 to be CLOSED.
++
++blast_radius (end-to-end, traced): >
++  RAW_APIF_PLAYERS feeds ONLY dim_player (identity; 1 of 3 sources) and
++  dim_player_team_season_mapping -> mart_roster (affiliation). The player PERFORMANCE chain
++  (fct_fixture_player_stats -> int_player_season__metrics / momentum / season-record / profile /
++  match-log / leaderboards) is built from RAW_APIF_FIXTURE_DETAILS and is UNAFFECTED. Numbers are
++  preserved end-to-end (re-shape reproduces 413,755; mart_roster + dim_player unchanged).
++
++amendments: >
++  2026-06-22 (1) — CPO "ok, do it": the fixture-details-style per-entity re-grain + reviewed
++  re-shape script. Added scripts/diagnostics/** to scope.
++  2026-06-22 (2) — CPO "Implement" after the end-to-end assessment + review FAIL: adopt merge-on-write
++  (bounded loader, the reviewers' required idempotent/upsert), and broaden the dbt-staging scope to
++  `dbt_project/models/1_staging/api_football/**` to fix the stale stg_apif__players description in
++  stg_apif__generic.yml (analytics-engineer finding). Authority: this conversation.
+ 
  refs: >
--  #479 (deep-season backfill); docs/content_architecture.md §8 (tiered depths); CPO "Execute 2a" +
--  defer 2b (Option A) 2026-06-21. The batched-fanout cost finding (~1k/league) from PL/PD/SA/L1.
-+  This conversation 2026-06-21 (CPO: "524 merged. Let's close for today.").
-+  PRs #527, #524, #520, #523 (all merged). Issue #518 (behaviour retrospective) updated.
+-  This conversation 2026-06-21 (CPO: "524 merged. Let's close for today.").
+-  PRs #527, #524, #520, #523 (all merged). Issue #518 (behaviour retrospective) updated.
++  Review FAIL (3 reviewers) on the prior append+read-all approach: unbounded growth + the §1_staging
++  read-all exemption is for skip-if-present/upsert loaders. Pattern: loads/batch_fixtures.py
++  (merge-on-write, one row per fixture). Root cause log: /tmp/phase2a_resume.log.
  
  scope_paths:
--  - docs/competition_registry.yml
-+  - .claude/active_work.md
++  - ingestion/api_football/bigquery.py
++  - ingestion/api_football/loads/squads.py
++  - ingestion/api_football/loads/player_universe.py
++  - dbt_project/models/1_staging/api_football/**
++  - scripts/diagnostics/**
++  - tests/**
++  - docs/data_contract.md
+   - .claude/active_work.md
    - .claude/task/**
  
- decisions_taken: >
--  CPO directed "Execute 2a" (2026-06-21). Mechanical application of content_architecture §8 by each
--  league's registry competition_type: domestic_league (non-top-5) = 5 seasons; continental_club = 10.
--  Changed (15): domestic 2->5 = BL2, ED, LMX, LP, MLS, SPL, VL; continental_club 5->10 = UCL, UEL,
--  UECL, LIBER, CAFCL, AFCCL, CCCU, CWC. NOT changed (already at §8 depth): APD/BSA/J1/KL1 (domestic, 5),
--  all 5 domestic cups (5). UESC (continental_super_cup) is NOT in the §8 table -> left at status-quo 5
--  (no forced classification). CWC/CCCU are tournaments but registered as continental_club -> treated per
--  that type (10), not reclassified. Cost is cheap (batched fanout ~1k/league, proven on PL/PD/SA/L1) -
--  the spend is covered by the CPO's Phase-2 direction. The continental_club set + APD/BSA/J1/KL1 are
--  status=in_progress, so the run uses INCLUDE_IN_PROGRESS=1. Only the registry history_seasons values
--  are committed; the run is env-var driven.
+-decisions_taken: >
+-  Documentation-only handover refresh. No code, no product decision. An active_work.md +
+-  .claude/task/** commit is review-exempt per the commit gate (artifact-only), but
+-  active_work.md still needs scope_paths to pass the task_contract_gate. No reviewers
+-  required by routing for these paths beyond the artifact exemption.
 -
--decisions_reserved:
--  - Phase 2b — national-team tournaments (WC + 7 continental_championship) + 7 WCQ* qualifiers: DEFERRED
--    (CPO Option A). "Last 4 editions" / "current+prev cycle" need a per-cadence mapping, not a year-count;
--    a separate task. NOT decided here.
--  - UESC depth (super cup, absent from §8) and any CWC/CCCU reclassification — left at status quo; a CPO
--    call if revisited.
-+  Documentation-only handover refresh. No code, no product decision. An active_work.md +
-+  .claude/task/** commit is review-exempt per the commit gate (artifact-only), but
-+  active_work.md still needs scope_paths to pass the task_contract_gate. No reviewers
-+  required by routing for these paths beyond the artifact exemption.
- 
  done_when:
--  - Registry: the 15 history_seasons values set (7 domestic=5, 8 continental_club=10); no other field/league
--    changed except those values. check_registry_var_sync.py green.
--  - Backfill run (full profile, scoped to the 15, INCLUDE_IN_PROGRESS=1) completes within quota; actual
--    call count captured + reported.
--  - Each league reaches its §8 depth in RAW (RAW_APIF_FIXTURES_NEXT latest snapshot): domestic >=5 finished
--    seasons, continental_club >=10 (or the API's available depth); fanout 100% (all_fanout_complete).
--  - ci-data-build green on the PR.
--
--amendments: (none)
-+  - active_work.md reflects: #527 + #524 merged (main green, nightly unblocked); PD/SA/L1
-+    at 2016-2025 parity (#523); Phase 2a registry depths set (#524) but the deep INGEST
-+    stopped partway → RESUME as FIRST next action; #518 lesson logged.
-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+-  - active_work.md reflects: #527 + #524 merged (main green, nightly unblocked); PD/SA/L1
+-    at 2016-2025 parity (#523); Phase 2a registry depths set (#524) but the deep INGEST
+-    stopped partway → RESUME as FIRST next action; #518 lesson logged.
+-  - Tree matches the contract (only active_work.md + .claude/task/**).
++  - squads.py writes one merge-on-write row per (team, season) (append + delete-superseded-keys);
++    quota cut logs a partial warning and leaves un-fetched keys intact.
++  - stg_apif__players reads all rows faithfully (no qualify); base assembles current-per-entity;
++    stg_apif__generic.yml description corrected. check_layer_contract.py passes.
++  - reshape script: dry-run default, idempotency guard, set-identity (EXCEPT) abort-before-delete.
++  - validate-local green (pytest + dbt parse + sqlfluff + layer-contract).
++  - data_contract.md documents merge-on-write one-row-per-(team,season) for RAW_APIF_PLAYERS.
++  - Full review cycle PASS; PR opened; re-shape run on prod RAW; CI (incl. data-build) green; CPO merges. #534 closed.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index e1b2884..7dfbde6 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -86,8 +86,10 @@ models:
+ 
+   - name: stg_apif__players
+     description: >
+-      One row per player per team per season per league from GET /players.
+-      Latest ingestion snapshot selected per league_code. Grain: (league_code, team_id, season_year, player_id).
++      One row per player per team per season per league from GET /players. RAW_APIF_PLAYERS
++      stores one merge-on-write row per (team, season), so staging reads ALL rows faithfully
++      (no latest-snapshot qualify); current-per-entity is assembled in base. Grain after base:
++      (league_code, team_id, season_year, player_id).
+     columns:
+       - name: league_code
+         tests: [not_null]
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__players.sql b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
+index 1c3885d..c4e361b 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
+@@ -1,7 +1,14 @@
++-- RAW_APIF_PLAYERS stores one small row per (team, season) (response = a single entry) so no
++-- row approaches BigQuery's 100 MB limit (see loads/squads.py). Like the per-player profiles/
++-- teams pulls, staging reads ALL rows faithfully (no latest-snapshot qualify — that would drop
++-- entities) and assembles current-per-(player, team, season) in base, where the layer contract
++-- keeps entity deduplication. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+-    select *
++    select
++        league_code,
++        payload,
++        ingested_at
+     from {{ source('api_football', 'raw_apif_players') }}
+-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
+ ),
+ 
+ team_blocks as (
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 053b107..9bf67ca 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -38,7 +38,7 @@ Eleven tables serve the entire fleet of competitions. No per-competition raw tab
+ | `RAW_APIF_FIXTURES_NEXT` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_STANDINGS` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_TEAMS` | append | `DATE(ingested_at)` | `league_code` | — |
+-| `RAW_APIF_PLAYERS` | append | `DATE(ingested_at)` | `league_code` | — |
++| `RAW_APIF_PLAYERS` | merge-on-write | `DATE(ingested_at)` | `league_code` | `(league_code, team_id, season)` |
+ | `RAW_APIF_COACHES` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_INJURIES` | append | `DATE(ingested_at)` | `league_code` | — |
+ | `RAW_APIF_TRANSFERS` | append | `DATE(ingested_at)` | `league_code` | — |
+@@ -68,6 +68,8 @@ qualify row_number() over (
+ ) = 1
+ ```
+ 
++**`RAW_APIF_PLAYERS` grain (merge-on-write, one row per team×season).** The `/players` roster snapshot is written **merge-on-write** as **one small row per `(team, season)`** (each row's `response` carries a single `{team_id, season, players_payload}` entry), not one giant per-league row — so no single row approaches BigQuery's 100 MB per-row JSON limit for large-roster deep leagues (LIBER/UEL/UCL), which previously failed to load. Each run appends the freshly-fetched per-(team,season) rows then deletes the superseded prior rows for exactly those keys, so the table holds one row per `(league, team, season)` — bounded, not append-accumulating — exactly like `RAW_APIF_FIXTURE_DETAILS` (one row per fixture). A quota cut leaves un-fetched keys' prior rows intact (a partial warning is logged). Because it is one row per key (no per-league snapshot), `stg_apif__players` reads **all** rows faithfully — **no** latest-snapshot `QUALIFY` (which is also forbidden in staging for a non-`league_code` partition) — and current-per-`(player, team, season)` is assembled in **base** (`base_apif__player_team_season` / `base_apif__players` dedup by entity keys, robust to any transient duplicate). This satisfies the staging layer contract (entity deduplication belongs in base, never staging — see `dbt_project/docs/layering.md` §1_staging). The existing bloated rows are converted to this grain by the one-time `scripts/diagnostics/reshape_players_to_team_season.py` (data-preserving — verified to reproduce the exact distinct player-team-season set).
++
+ This scales cleanly: adding more seasons or competitions adds rows to existing tables, not new tables.
+ 
+ ---
+diff --git a/ingestion/api_football/bigquery.py b/ingestion/api_football/bigquery.py
+index 6b9aff2..24d2353 100644
+--- a/ingestion/api_football/bigquery.py
++++ b/ingestion/api_football/bigquery.py
+@@ -201,6 +201,57 @@ def load_json_to_bq(
+     job.result()
+ 
+ 
++def load_json_payload_rows_to_bq(
++    client: bigquery.Client,
++    table_name: str,
++    payloads: list[dict],
++    *,
++    league_code: str,
++    append: bool = True,
++    ingested_at: str | None = None,
++) -> int:
++    """Append several JSON payload rows to a unified raw table in ONE atomic load job.
++
++    Each element of ``payloads`` becomes one row ``{league_code, payload, ingested_at}``,
++    all sharing one ``ingested_at`` and written with a single ``load_table_from_file`` call
++    (all-or-nothing). Used to store a snapshot as MANY small rows instead of one oversized
++    row — e.g. RAW_APIF_PLAYERS writes one row per (team, season) so no single row can
++    approach BigQuery's 100 MB per-row JSON limit (mirrors RAW_APIF_FIXTURE_DETAILS, which
++    stores one row per fixture). Pass ``ingested_at`` (UTC ISO string) when the caller needs
++    the exact timestamp afterwards — e.g. a merge-on-write that deletes superseded rows
++    written before this load. Returns the number of rows written (0 for empty input).
++    """
++    if not payloads:
++        return 0
++    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
++    if append:
++        ensure_unified_raw_table(client, table_name)
++    ingested_at = ingested_at or datetime.now(timezone.utc).isoformat()
++    schema = [
++        bigquery.SchemaField("league_code", "STRING"),
++        bigquery.SchemaField("payload", "JSON"),
++        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
++    ]
++    lines = "".join(
++        json.dumps(
++            {"league_code": league_code, "payload": p, "ingested_at": ingested_at},
++            ensure_ascii=True,
++        )
++        + "\n"
++        for p in payloads
++    )
++    job_config = bigquery.LoadJobConfig(
++        schema=schema,
++        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
++        write_disposition="WRITE_APPEND" if append else "WRITE_TRUNCATE",
++    )
++    job = client.load_table_from_file(
++        io.BytesIO(lines.encode("utf-8")), table_id, job_config=job_config
++    )
++    job.result()
++    return len(payloads)
++
++
+ def read_latest_payload_json(
+     client: bigquery.Client,
+     table_name: str,
+diff --git a/ingestion/api_football/loads/player_universe.py b/ingestion/api_football/loads/player_universe.py
+index e99ac36..9dd7c32 100644
+--- a/ingestion/api_football/loads/player_universe.py
++++ b/ingestion/api_football/loads/player_universe.py
+@@ -39,18 +39,20 @@ def _fq(entity: str) -> str:
+ def _query_universe(client: bigquery.Client, min_season: int) -> list[tuple[int, str]]:
+     """(player_id, provenance_league_code) for players rostered in season >= min_season."""
+     sql = f"""
+-    with latest as (
++    with all_snapshots as (
++        -- RAW_APIF_PLAYERS stores one row per (team, season); read ALL rows faithfully (no
++        -- latest-snapshot qualify) — the universe is a player_id SET, deduped by the group by
++        -- below, so reading every row only adds duplicates that collapse. Mirrors stg_apif__players.
+         select payload, league_code
+         from {_fq('PLAYERS')}
+-        qualify row_number() over (partition by league_code order by ingested_at desc) = 1
+     ),
+     players as (
+         select
+-            latest.league_code,
++            all_snapshots.league_code,
+             safe_cast(json_value(team_block, '$.season') as int64) as season,
+             safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
+-        from latest,
+-            unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as team_block,
++        from all_snapshots,
++            unnest(json_query_array(json_query(all_snapshots.payload, '$.response'), '$')) as team_block,
+             unnest(json_query_array(json_query(team_block, '$.players_payload'), '$')) as player_el
+     )
+     select player_id, min(league_code) as provenance_league_code
+diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
+index 7d82185..928600f 100644
+--- a/ingestion/api_football/loads/squads.py
++++ b/ingestion/api_football/loads/squads.py
+@@ -1,37 +1,88 @@
+-"""Fetch /players per team×season (batched) → RAW_*_PLAYERS.
++"""Fetch /players per team×season (batched) → RAW_APIF_PLAYERS.
+ 
+-Each run fetches squad data for all teams across all configured seasons and
+-appends a fresh complete snapshot row. No cross-run merge with prior BQ data.
++Storage model: ONE row per (team, season) (each row's ``response`` carries a single
++``{team_id, season, players_payload}`` entry), not one giant per-league row — so no row
++approaches BigQuery's 100 MB per-row JSON limit, for any league. This mirrors
++RAW_APIF_FIXTURE_DETAILS (one row per fixture).
++
++Merge-on-write: each run appends the freshly-fetched per-(team,season) rows, then deletes
++the superseded prior rows for exactly those keys, so the table holds one row per
++(league, team, season) — bounded, not append-accumulating. Only re-written keys are
++touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a warning is
++logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
++is assembled in base.
+ """
+ 
+ from __future__ import annotations
+ 
+ import os
++from datetime import datetime, timezone
++
++from google.cloud import bigquery
+ 
+ from .. import quota as errors_quota
+-from ..bigquery import load_json_to_bq
+-from ..settings import raw_table
++from ..bigquery import load_json_payload_rows_to_bq
++from ..settings import GCP_PROJECT_ID, DATASET_ID, raw_table
+ from ..fixture_scheduling import players_response_for_team
+ from .context import PipelineContext
+ 
+ 
++def _delete_superseded_player_rows(
++    client: bigquery.Client,
++    table_name: str,
++    league_code: str,
++    keys: list[str],
++    before: datetime,
++) -> None:
++    """Drop rows for the just-written (team, season) ``keys`` (``"{team_id}-{season}"``) that
++    predate this run, so RAW_APIF_PLAYERS holds one row per (league, team, season). Only the
++    re-written keys are touched — un-fetched keys keep their prior row (quota-cut safe)."""
++    if not keys:
++        return
++    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
++    q = f"""
++        delete from `{table_id}`
++        where league_code = @lc
++          and ingested_at < @before
++          and concat(
++                ifnull(json_value(payload, '$.response[0].team_id'), 'x'), '-',
++                ifnull(json_value(payload, '$.response[0].season'), 'x')
++              ) in unnest(@keys)
++    """
++    client.query(
++        q,
++        job_config=bigquery.QueryJobConfig(
++            query_parameters=[
++                bigquery.ScalarQueryParameter("lc", "STRING", league_code),
++                bigquery.ScalarQueryParameter("before", "TIMESTAMP", before),
++                bigquery.ArrayQueryParameter("keys", "STRING", keys),
++            ]
++        ),
++    ).result()
++
++
+ def load_squad_players_batch(
+     ctx: PipelineContext,
+     league_code: str,
+     seasons_list: list[int],
+     team_ids: set[int],
+ ) -> None:
+-    players_payload = {"league_code": league_code, "response": []}
+     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
+         ctx.errors.append(
+             f"players {league_code}: skipped (API_FOOTBALL_SKIP_PLAYERS set — use on low-quota archive runs)"
+         )
+         return
++
++    rows: list[dict] = []
++    written_keys: list[str] = []
++    quota_cut = False
+     for season in seasons_list:
+         if errors_quota._http_quota_exhausted:
++            quota_cut = True
+             break
+         for team_id in sorted(team_ids):
+             if errors_quota._http_quota_exhausted:
++                quota_cut = True
+                 break
+             try:
+                 players_rows = players_response_for_team(
+@@ -43,26 +94,44 @@ def load_squad_players_batch(
+                         f"players {league_code} team_id={team_id} season={season}"
+                     ),
+                 )
+-                players_payload["response"].append(
++                rows.append(
+                     {
+-                        "team_id": team_id,
+-                        "season": season,
+-                        "players_payload": players_rows,
++                        "league_code": league_code,
++                        "response": [
++                            {
++                                "team_id": team_id,
++                                "season": season,
++                                "players_payload": players_rows,
++                            }
++                        ],
+                     }
+                 )
++                written_keys.append(f"{team_id}-{season}")
+             except Exception as e:
+                 ctx.errors.append(
+                     f"players {league_code} team {team_id} season={season}: {e}"
+                 )
+-    try:
+-        load_json_to_bq(
+-            ctx.client,
+-            raw_table("PLAYERS"),
+-            players_payload,
+-            as_json_payload=True,
+-            append=True,
+-            league_code=league_code,
++
++    if rows:
++        try:
++            ts = datetime.now(timezone.utc)
++            load_json_payload_rows_to_bq(
++                ctx.client,
++                raw_table("PLAYERS"),
++                rows,
++                league_code=league_code,
++                append=True,
++                ingested_at=ts.isoformat(),
++            )
++            _delete_superseded_player_rows(
++                ctx.client, raw_table("PLAYERS"), league_code, written_keys, ts
++            )
++            ctx.add_loaded(1)
++        except Exception as e:
++            ctx.errors.append(f"players BQ {league_code}: {e}")
++
++    if quota_cut:
++        ctx.errors.append(
++            f"players {league_code}: PARTIAL — quota exhausted mid-fetch; "
++            f"{len(written_keys)} team-season(s) refreshed, the remainder keep their prior rows"
+         )
+-        ctx.add_loaded(1)
+-    except Exception as e:
+-        ctx.errors.append(f"players BQ {league_code}: {e}")
+diff --git a/scripts/diagnostics/reshape_players_to_team_season.py b/scripts/diagnostics/reshape_players_to_team_season.py
+new file mode 100644
+index 0000000..7f25e62
+--- /dev/null
++++ b/scripts/diagnostics/reshape_players_to_team_season.py
+@@ -0,0 +1,189 @@
++"""One-time re-shape of RAW_APIF_PLAYERS to the one-row-per-(team, season) grain.
++
++Background
++----------
++RAW_APIF_PLAYERS historically stored one bloated row per league (``response`` = every
++team×season), which for large-roster deep leagues (LIBER/UEL/UCL) exceeds BigQuery's
++100 MB per-row JSON limit and fails to load. The loader now writes one small row per
++(team, season) (loads/squads.py, merge-on-write). This script migrates the EXISTING data
++to that grain so staging can read it faithfully (current-per-entity is assembled in base).
++
++What it does
++------------
++For each league it takes the LATEST bloated snapshot, explodes its ``response`` array into
++one row per (team, season) (payload reshaped to ``{league_code, response:[entry]}``, the
++exact shape the loader now writes), then deletes every pre-migration row. Net effect:
++identical player-team-season data, re-shaped into small rows. No API calls.
++
++Safety
++------
++- Dry-run by default; ``--execute`` required for writes.
++- Idempotency guard: if there are no bloated rows left (``response`` length > 1), the
++  migration has already run (or there is nothing to migrate) and the script is a no-op.
++- The re-shaped rows are inserted at one migration timestamp; the INSERT is verified BEFORE
++  any delete by a SET-IDENTITY check (EXCEPT in both directions) — not a mere count — so a
++  dropped or substituted player cannot pass. On any mismatch it ABORTS without deleting.
++- Raw data is re-derivable from the API and BigQuery time travel is a further net.
++"""
++
++from __future__ import annotations
++
++import argparse
++import os
++import sys
++from datetime import datetime, timezone
++
++_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
++if _ROOT not in sys.path:
++    sys.path.insert(0, _ROOT)
++
++from google.cloud import bigquery  # noqa: E402
++
++from ingestion.api_football.settings import GCP_PROJECT_ID, DATASET_ID  # noqa: E402
++
++TABLE = f"{GCP_PROJECT_ID}.{DATASET_ID}.RAW_APIF_PLAYERS"
++
++# Idempotency guard: rows still in the bloated (>1 entry) grain, older than the migration ts.
++_BLOATED = """
++select count(*) as n from `{t}`
++where ingested_at < @ts
++  and array_length(json_query_array(json_query(payload, '$.response'), '$')) > 1
++"""
++
++_ROWS_NOW = "select count(*) as n from `{t}` where ingested_at < @ts"
++
++_PRE_KEY_COUNT = """
++with latest as (
++  select league_code, payload from `{t}`
++  where ingested_at < @ts
++  qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++)
++select count(*) as n from (
++  select distinct league_code,
++    safe_cast(json_value(pe, '$.player.id') as int64) as pid,
++    safe_cast(json_value(tb, '$.team_id') as int64) as tid,
++    safe_cast(json_value(tb, '$.season') as int64) as ssn
++  from latest,
++    unnest(json_query_array(json_query(payload, '$.response'), '$')) as tb,
++    unnest(json_query_array(json_query(tb, '$.players_payload'), '$')) as pe
++)
++"""
++
++_ROWS_TO_INSERT = """
++select count(*) as n from (
++  select 1 from (
++    select league_code, payload from `{t}`
++    where ingested_at < @ts
++    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++  ) latest,
++    unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as entry
++)
++"""
++
++_INSERT = """
++insert into `{t}` (league_code, payload, ingested_at)
++select latest.league_code,
++       json_object('league_code', latest.league_code, 'response', json_array(entry)),
++       @ts
++from (
++  select league_code, payload from `{t}`
++  where ingested_at < @ts
++  qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++) latest,
++  unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as entry
++"""
++
++# SET-IDENTITY check: the pre-migration key set (rows < @ts, latest snapshot per league) must
++# EQUAL the re-shaped key set (rows = @ts), in BOTH directions. Returns the two diff counts.
++_KEY_DIFF = """
++with pre as (
++  select distinct league_code,
++    safe_cast(json_value(pe, '$.player.id') as int64) as pid,
++    safe_cast(json_value(tb, '$.team_id') as int64) as tid,
++    safe_cast(json_value(tb, '$.season') as int64) as ssn
++  from (
++    select league_code, payload from `{t}`
++    where ingested_at < @ts
++    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
++  ) latest,
++    unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as tb,
++    unnest(json_query_array(json_query(tb, '$.players_payload'), '$')) as pe
++),
++post as (
++  select distinct league_code,
++    safe_cast(json_value(pe, '$.player.id') as int64) as pid,
++    safe_cast(json_value(tb, '$.team_id') as int64) as tid,
++    safe_cast(json_value(tb, '$.season') as int64) as ssn
++  from `{t}`,
++    unnest(json_query_array(json_query(payload, '$.response'), '$')) as tb,
++    unnest(json_query_array(json_query(tb, '$.players_payload'), '$')) as pe
++  where ingested_at = @ts
++)
++select
++  (select count(*) from (select * from pre except distinct select * from post)) as pre_not_post,
++  (select count(*) from (select * from post except distinct select * from pre)) as post_not_pre
++"""
++
++_DELETE = "delete from `{t}` where ingested_at < @ts"
++
++
++def _job_config(ts: datetime) -> bigquery.QueryJobConfig:
++    return bigquery.QueryJobConfig(
++        query_parameters=[bigquery.ScalarQueryParameter("ts", "TIMESTAMP", ts)]
++    )
++
++
++def _scalar(client: bigquery.Client, sql: str, ts: datetime) -> int:
++    return int(list(client.query(sql.format(t=TABLE), job_config=_job_config(ts)).result())[0]["n"])
++
++
++def main() -> int:
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--execute", action="store_true", help="perform the INSERT + DELETE (default: dry-run)")
++    args = ap.parse_args()
++
++    client = bigquery.Client(project=GCP_PROJECT_ID)
++    ts = datetime.now(timezone.utc)
++
++    bloated = _scalar(client, _BLOATED, ts)
++    if bloated == 0:
++        print(f"Table: {TABLE}")
++        print("No bloated rows to migrate (already re-shaped, or empty). Nothing to do.")
++        return 0
++
++    rows_now = _scalar(client, _ROWS_NOW, ts)
++    pre_keys = _scalar(client, _PRE_KEY_COUNT, ts)
++    rows_to_insert = _scalar(client, _ROWS_TO_INSERT, ts)
++
++    print(f"Table: {TABLE}")
++    print(f"Migration timestamp: {ts.isoformat()}")
++    print(f"Bloated (>1-entry) rows present: {bloated:,}")
++    print(f"Pre-migration rows (deleted after re-shape): {rows_now:,}")
++    print(f"Rows to insert (one per team x season): {rows_to_insert:,}")
++    print(f"Distinct (league, player, team, season) to preserve: {pre_keys:,}")
++
++    if not args.execute:
++        print("\nDRY-RUN — nothing written. Re-run with --execute to apply.")
++        return 0
++
++    print("\nExecuting INSERT (re-shaped rows)...")
++    client.query(_INSERT.format(t=TABLE), job_config=_job_config(ts)).result()
++
++    diff = list(client.query(_KEY_DIFF.format(t=TABLE), job_config=_job_config(ts)).result())[0]
++    pre_not_post, post_not_pre = int(diff["pre_not_post"]), int(diff["post_not_pre"])
++    if pre_not_post or post_not_pre:
++        raise SystemExit(
++            f"ABORT (no delete): key-set mismatch — pre_not_post={pre_not_post}, "
++            f"post_not_pre={post_not_pre}. No pre-migration rows were deleted; the "
++            "migration-timestamp rows can be removed manually."
++        )
++    print("Verified: re-shaped key set is identical to pre-migration (EXCEPT both ways = 0). Deleting...")
++
++    del_job = client.query(_DELETE.format(t=TABLE), job_config=_job_config(ts))
++    del_job.result()
++    print(f"Deleted pre-migration rows (dml_affected_rows={del_job.num_dml_affected_rows}). Done.")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/tests/fixtures/apif/players_cwc_sample.json b/tests/fixtures/apif/players_cwc_sample.json
+new file mode 100644
+index 0000000..c034c4c
+--- /dev/null
++++ b/tests/fixtures/apif/players_cwc_sample.json
+@@ -0,0 +1,123 @@
++{
++  "league_code": "CWC",
++  "response": [
++    {
++      "team_id": 40,
++      "season": 2016,
++      "players_payload": [
++        {
++          "player": {
++            "age": 27,
++            "birth": {
++              "country": "Republic of Ireland",
++              "date": "1998-11-23",
++              "place": "Cork"
++            },
++            "firstname": "Caoimhín Odhrán",
++            "height": "188",
++            "id": 281,
++            "injured": false,
++            "lastname": "Kelleher",
++            "name": "C. Kelleher",
++            "nationality": "Republic of Ireland",
++            "photo": "https://media.api-sports.io/football/players/281.png",
++            "weight": "74"
++          },
++          "statistics": [
++            {
++              "cards": {
++                "red": 0,
++                "yellow": 0,
++                "yellowred": 0
++              },
++              "games": {
++                "appearences": 0,
++                "captain": false,
++                "lineups": 0,
++                "minutes": 0,
++                "number": null,
++                "position": "Goalkeeper",
++                "rating": null
++              },
++              "goals": {
++                "assists": null,
++                "conceded": null,
++                "saves": null,
++                "total": 0
++              },
++              "league": {
++                "country": null,
++                "id": null,
++                "name": "Club Friendlies",
++                "season": 2016
++              },
++              "team": {
++                "id": 40,
++                "name": "Liverpool"
++              }
++            }
++          ]
++        }
++      ]
++    },
++    {
++      "team_id": 49,
++      "season": 2016,
++      "players_payload": [
++        {
++          "player": {
++            "age": 37,
++            "birth": {
++              "country": "Brazil",
++              "date": "1988-10-07",
++              "place": "Lagarto"
++            },
++            "firstname": "Diego",
++            "height": "188 cm",
++            "id": 54,
++            "injured": false,
++            "lastname": "da Silva Costa",
++            "name": "Diego Costa",
++            "nationality": "Spain",
++            "photo": "https://media.api-sports.io/football/players/54.png",
++            "weight": "83 kg"
++          },
++          "statistics": [
++            {
++              "cards": {
++                "red": 0,
++                "yellow": 10,
++                "yellowred": 0
++              },
++              "games": {
++                "appearences": 35,
++                "captain": false,
++                "lineups": 35,
++                "minutes": 3090,
++                "number": null,
++                "position": "Attacker",
++                "rating": "7.154285"
++              },
++              "goals": {
++                "assists": 7,
++                "conceded": null,
++                "saves": null,
++                "total": 20
++              },
++              "league": {
++                "country": "England",
++                "id": 39,
++                "name": "Premier League",
++                "season": 2016
++              },
++              "team": {
++                "id": 49,
++                "name": "Chelsea"
++              }
++            }
++          ]
++        }
++      ]
++    }
++  ]
++}
+diff --git a/tests/test_squad_players_rows.py b/tests/test_squad_players_rows.py
+new file mode 100644
+index 0000000..212ea4a
+--- /dev/null
++++ b/tests/test_squad_players_rows.py
+@@ -0,0 +1,166 @@
++"""Tests for RAW_APIF_PLAYERS one-row-per-(team, season) writes (the >100 MB load fix).
++
++The players snapshot is written as one small row per (team, season) — not one giant
++per-league row — so no single row can approach BigQuery's 100 MB per-row JSON limit,
++for any league (mirrors RAW_APIF_FIXTURE_DETAILS, one row per fixture). These tests
++cover the loader grain (one row per team×season, none lost) against a committed real
++/players slice, and the atomic multi-row writer.
++"""
++
++from __future__ import annotations
++
++import json
++import types
++from pathlib import Path
++
++from ingestion.api_football.loads import squads as sq
++from ingestion.api_football import bigquery as bq
++
++_FIXTURE = Path(__file__).parent / "fixtures" / "apif" / "players_cwc_sample.json"
++
++
++def _load_fixture() -> dict:
++    return json.loads(_FIXTURE.read_text(encoding="utf-8"))
++
++
++# --- load_squad_players_batch: one small row per (team, season), no network ---
++
++
++def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
++    fixture = _load_fixture()
++    by_key = {
++        (e["team_id"], e["season"]): e["players_payload"] for e in fixture["response"]
++    }
++
++    def fake_fetch(headers, team_id, season, errors, error_context=""):
++        return by_key.get((team_id, season), [])
++
++    monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
++    monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++
++    captured: dict = {}
++
++    def fake_loader(client, table, rows, *, league_code, append=True, ingested_at=None):
++        captured["rows"] = rows
++        captured["league_code"] = league_code
++        captured["ingested_at"] = ingested_at
++        return len(rows)
++
++    def fake_delete(client, table, league_code, keys, before):
++        captured["delete_keys"] = keys
++        captured["delete_before"] = before
++
++    monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", fake_loader)
++    monkeypatch.setattr(sq, "_delete_superseded_player_rows", fake_delete)
++
++    ctx = types.SimpleNamespace(
++        headers={}, errors=[], client=None, add_loaded=lambda n: None
++    )
++    sq.load_squad_players_batch(ctx, "CWC", [2016], {40, 49})
++
++    rows = captured["rows"]
++    assert captured["league_code"] == "CWC"
++    assert len(rows) == 2  # one row per (team, season) — not one giant row
++    for r in rows:
++        assert r["league_code"] == "CWC"
++        assert len(r["response"]) == 1  # exactly one team×season entry per row (small)
++    # Every (team, season) present exactly once; both real players preserved.
++    team_seasons = sorted(
++        (e["team_id"], e["season"]) for r in rows for e in r["response"]
++    )
++    assert team_seasons == [(40, 2016), (49, 2016)]
++    ids = sorted(
++        p["player"]["id"]
++        for r in rows
++        for e in r["response"]
++        for p in e["players_payload"]
++    )
++    assert ids == [54, 281]
++    # Merge-on-write: the superseded prior rows for exactly the written keys are deleted,
++    # using the same ingested_at the rows were written with.
++    assert sorted(captured["delete_keys"]) == ["40-2016", "49-2016"]
++    assert captured["delete_before"].isoformat() == captured["ingested_at"]
++    assert ctx.errors == []
++
++
++def test_no_rows_means_no_write(monkeypatch):
++    monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++    monkeypatch.setattr(
++        sq, "players_response_for_team", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not fetch"))
++    )
++    called = {"n": 0}
++    monkeypatch.setattr(
++        sq, "load_json_payload_rows_to_bq", lambda *a, **k: called.__setitem__("n", called["n"] + 1)
++    )
++    ctx = types.SimpleNamespace(headers={}, errors=[], client=None, add_loaded=lambda n: None)
++    sq.load_squad_players_batch(ctx, "CWC", [2016], set())  # no teams -> nothing fetched
++    assert called["n"] == 0  # no load job when there is nothing to write
++
++
++def test_quota_cut_logs_partial_warning(monkeypatch):
++    # A quota cut mid-fetch must NOT report a silent success — a PARTIAL warning is logged.
++    monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++
++    def fake_fetch(headers, team_id, season, errors, error_context=""):
++        monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", True)  # exhaust after first
++        return [{"player": {"id": 1}}]
++
++    monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
++    monkeypatch.setattr(sq, "load_json_payload_rows_to_bq", lambda *a, **k: 1)
++    monkeypatch.setattr(sq, "_delete_superseded_player_rows", lambda *a, **k: None)
++    ctx = types.SimpleNamespace(headers={}, errors=[], client=None, add_loaded=lambda n: None)
++    sq.load_squad_players_batch(ctx, "CWC", [2016], {40, 49})
++    assert any("PARTIAL" in e for e in ctx.errors)
++
++
++# --- load_json_payload_rows_to_bq: one atomic job, one shared ingested_at ---
++
++
++class _FakeJob:
++    def result(self):
++        return None
++
++
++class _CapturingClient:
++    def __init__(self):
++        self.calls: list[dict] = []
++
++    def load_table_from_file(self, fileobj, table_id, job_config=None):
++        self.calls.append(
++            {
++                "data": fileobj.read().decode("utf-8"),
++                "table_id": table_id,
++                "write_disposition": job_config.write_disposition,
++            }
++        )
++        return _FakeJob()
++
++
++def test_multi_row_loader_writes_one_job_with_shared_ingested_at(monkeypatch):
++    monkeypatch.setattr(bq, "ensure_unified_raw_table", lambda *a, **k: None)
++    client = _CapturingClient()
++    payloads = [
++        {"league_code": "CWC", "response": [{"team_id": 40, "season": 2016}]},
++        {"league_code": "CWC", "response": [{"team_id": 49, "season": 2016}]},
++    ]
++    written = bq.load_json_payload_rows_to_bq(
++        client, "RAW_APIF_PLAYERS", payloads, league_code="CWC", append=True
++    )
++    assert written == 2
++    assert len(client.calls) == 1  # ONE atomic load job for the whole snapshot
++    call = client.calls[0]
++    assert call["write_disposition"] == "WRITE_APPEND"
++    rows = [json.loads(line) for line in call["data"].splitlines() if line.strip()]
++    assert len(rows) == 2
++    assert len({r["ingested_at"] for r in rows}) == 1  # all rows share one ingested_at
++    assert all(r["league_code"] == "CWC" for r in rows)
++    assert [r["payload"]["response"][0]["team_id"] for r in rows] == [40, 49]
++
++
++def test_multi_row_loader_empty_writes_nothing():
++    client = _CapturingClient()
++    written = bq.load_json_payload_rows_to_bq(
++        client, "RAW_APIF_PLAYERS", [], league_code="CWC", append=True
++    )
++    assert written == 0
++    assert client.calls == []

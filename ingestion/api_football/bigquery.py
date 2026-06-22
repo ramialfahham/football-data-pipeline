@@ -201,6 +201,57 @@ def load_json_to_bq(
     job.result()
 
 
+def load_json_payload_rows_to_bq(
+    client: bigquery.Client,
+    table_name: str,
+    payloads: list[dict],
+    *,
+    league_code: str,
+    append: bool = True,
+    ingested_at: str | None = None,
+) -> int:
+    """Append several JSON payload rows to a unified raw table in ONE atomic load job.
+
+    Each element of ``payloads`` becomes one row ``{league_code, payload, ingested_at}``,
+    all sharing one ``ingested_at`` and written with a single ``load_table_from_file`` call
+    (all-or-nothing). Used to store a snapshot as MANY small rows instead of one oversized
+    row — e.g. RAW_APIF_PLAYERS writes one row per (team, season) so no single row can
+    approach BigQuery's 100 MB per-row JSON limit (mirrors RAW_APIF_FIXTURE_DETAILS, which
+    stores one row per fixture). Pass ``ingested_at`` (UTC ISO string) when the caller needs
+    the exact timestamp afterwards — e.g. a merge-on-write that deletes superseded rows
+    written before this load. Returns the number of rows written (0 for empty input).
+    """
+    if not payloads:
+        return 0
+    table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
+    if append:
+        ensure_unified_raw_table(client, table_name)
+    ingested_at = ingested_at or datetime.now(timezone.utc).isoformat()
+    schema = [
+        bigquery.SchemaField("league_code", "STRING"),
+        bigquery.SchemaField("payload", "JSON"),
+        bigquery.SchemaField("ingested_at", "TIMESTAMP"),
+    ]
+    lines = "".join(
+        json.dumps(
+            {"league_code": league_code, "payload": p, "ingested_at": ingested_at},
+            ensure_ascii=True,
+        )
+        + "\n"
+        for p in payloads
+    )
+    job_config = bigquery.LoadJobConfig(
+        schema=schema,
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        write_disposition="WRITE_APPEND" if append else "WRITE_TRUNCATE",
+    )
+    job = client.load_table_from_file(
+        io.BytesIO(lines.encode("utf-8")), table_id, job_config=job_config
+    )
+    job.result()
+    return len(payloads)
+
+
 def read_latest_payload_json(
     client: bigquery.Client,
     table_name: str,

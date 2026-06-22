@@ -1,7 +1,14 @@
+-- RAW_APIF_PLAYERS stores one small row per (team, season) (response = a single entry) so no
+-- row approaches BigQuery's 100 MB limit (see loads/squads.py). Like the per-player profiles/
+-- teams pulls, staging reads ALL rows faithfully (no latest-snapshot qualify — that would drop
+-- entities) and assembles current-per-(player, team, season) in base, where the layer contract
+-- keeps entity deduplication. See dbt_project/docs/layering.md §1_staging.
 with src as (
-    select *
+    select
+        league_code,
+        payload,
+        ingested_at
     from {{ source('api_football', 'raw_apif_players') }}
-    qualify row_number() over (partition by league_code order by ingested_at desc) = 1
 ),
 
 team_blocks as (
