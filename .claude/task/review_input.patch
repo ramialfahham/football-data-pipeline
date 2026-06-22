@@ -1,262 +1,145 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 74dc672..a1314d6 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -10,12 +10,16 @@ the task contract now requires an EVIDENCED `impact_map` for any **structural-su
+ MCP, NOT asserted) + CI layer rules + shared-warehouse deploy ordering + blast radius. `task_contract_gate.py`
+ presence-gates it at the edit boundary (denies the first structural Edit/Write until a non-placeholder map exists);
+ the routed reviewers judge its honesty; `working_agreement.md` §2 + **Appendix A6** name the anti-pattern; the three
+-reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539 FILED**
+-— the bundled merge-on-write `layering.md` codification was de-scoped mid-review (RAW_APIF_FIXTURE_DETAILS is
+-delete-on-retry-only → accumulate + base-dedup, NOT the per-key upsert of RAW_APIF_PLAYERS; needs its own accurate
+-treatment). main GREEN. Prior session: **PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per
+-(team,season); **Phase 2a backfill #479 COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by
+-#540. #500/#506/#510/#517/#521/#526/#539 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
++reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539
++MERGED (PR #542)** — codified the read-all staging class in `layering.md` §1_staging ACCURATELY + gave the four
++fixture-detail staging models the header/yml read-all rationale. Source-verified correction (trace, not guess):
++RAW_APIF_FIXTURE_DETAILS is **bounded one-row-per-(league_code, fixture_id)** (skip-if-present + delete-on-retry), NOT
++accumulate — so it AND RAW_APIF_PLAYERS are both merge-on-write/per-key; both read all rows in staging (sub-league
++grain → no league_code qualify) and base resolves current-per-entity. This was the first real exercise of the #540
++gate (the trace-first discipline caught #539's own wrong premise before it hit the doc). main GREEN. Prior session:
++**PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per (team,season); **Phase 2a backfill #479
++COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by #540, #539 by #542.
++#500/#506/#510/#517/#521/#526 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+ 
+ ## FIRST next session (do this first)
+ - **Nothing pending-merge** (`git fetch` + ff main; #540 + #536 merged). RAW_APIF_PLAYERS is now one merge-on-write row
+@@ -30,10 +34,10 @@ treatment). main GREEN. Prior session: **PR #536 MERGED** (RAW_APIF_PLAYERS re-g
+   touch a raw writer / dbt model / export / site file, FILL THE MAP — evidence (pasted `dbt ls --select <model>+`
+   / dbt-MCP lineage + RAW/leaf count), not assertion; trivial edits get a one-line short-form. See
+   `docs/working_agreement.md` §2 + Appendix A6 and `.claude/task/TEMPLATE.md`. Known v1 limit: the shell-write path
+-  is not impact-gated (Edit/Write only). **Follow-up #539** (not urgent) — codify the staging read-all classes
+-  accurately in `layering.md` §1_staging: merge-on-write per-key upsert (RAW_APIF_PLAYERS) vs accumulate-and-
+-  base-dedup (RAW_APIF_FIXTURE_DETAILS, delete-on-retry-only) are DIFFERENT; + give the fixture-detail staging
+-  models a header/yml read-all rationale.
++  is not impact-gated (Edit/Write only). **Follow-up #539 — DONE (PR #542).** layering.md §1_staging now codifies the
++  read-all class accurately (sub-league grain → read all rows, no league_code qualify, base resolves current; the two
++  loader reasons = skip-if-present incremental-accumulation + per-key merge-on-write; fixture_details AND players are
++  both bounded one-row-per-key) and the four fixture-detail staging models carry the header/yml read-all rationale.
+ - **Phase 2a backfill (#479) is COMPLETE** — all 15 active continental + domestic leagues at provider depth. Residual:
+   **#521** (phantom-current-season parity — UCL/UEL 9 finished, ED/LMX 4, one short of 10/5 because provider
+   current=2026; closing it = `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7f69aee..07bddbb 100644
+index 07bddbb..f2ba771 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,36 +1,79 @@
--# Task contract — Handover refresh (2026-06-22 close-out: #518 impact-map gate)
-+# Task contract — Codify the read-all staging class (#539)
+@@ -1,79 +1,34 @@
+-# Task contract — Codify the read-all staging class (#539)
++# Task contract — Handover refresh (2026-06-22 close-out: #539 merged)
  
  objective: >
--  Refresh .claude/active_work.md to the true post-merge state. This session shipped the #518
--  impact-map gate as PR #540 (MERGED): the task contract now requires an EVIDENCED impact_map
--  for any structural-surface edit (ingestion/**, dbt_project/models/**, scripts/export_*.py,
--  site*/); task_contract_gate.py presence-gates it at the edit boundary; the three reviewer
--  specs hunt it; working_agreement.md §2 + Appendix A6 document it. The bundled merge-on-write
--  layering.md codification was de-scoped to #539 mid-review (RAW_APIF_FIXTURE_DETAILS is
--  delete-on-retry-only, not the per-key upsert of RAW_APIF_PLAYERS). Update FIRST-next-session
--  (drop the now-done "#518 tackle soon" item; surface #539); main green.
-+  Accurately codify the "read-all" staging snapshot-selection class in layering.md §1_staging,
-+  and give the fixture-detail staging models the header/yml read-all rationale they currently
-+  lack. Corrected premise (traced to source this session): RAW_APIF_FIXTURE_DETAILS is NOT
-+  accumulate-and-grow — batch_fixtures.py only fetches finished fixtures that are missing-entirely
-+  or empty-stats-within-the-3-day-retry-window, deletes-on-retry, and skips fixtures with good
-+  stats, so it holds one row per (league_code, fixture_id) — bounded, same outcome as
-+  RAW_APIF_PLAYERS' per-(team,season) upsert. So both are merge-on-write/per-key; the accurate
-+  staging rule is: a raw table keyed at a SUB-league_code grain reads ALL rows (no
-+  `partition by league_code` qualify, which would drop entities) and base resolves
-+  current-per-entity. #539's "accumulate-vs-upsert distinction" was based on a reviewer misread
-+  (the staging yml's "duplicates possible" is defensive robustness, not a real accumulation path);
-+  CPO directed "make it solid" → proceed with the corrected, slimmed scope.
+-  Accurately codify the "read-all" staging snapshot-selection class in layering.md §1_staging,
+-  and give the fixture-detail staging models the header/yml read-all rationale they currently
+-  lack. Corrected premise (traced to source this session): RAW_APIF_FIXTURE_DETAILS is NOT
+-  accumulate-and-grow — batch_fixtures.py only fetches finished fixtures that are missing-entirely
+-  or empty-stats-within-the-3-day-retry-window, deletes-on-retry, and skips fixtures with good
+-  stats, so it holds one row per (league_code, fixture_id) — bounded, same outcome as
+-  RAW_APIF_PLAYERS' per-(team,season) upsert. So both are merge-on-write/per-key; the accurate
+-  staging rule is: a raw table keyed at a SUB-league_code grain reads ALL rows (no
+-  `partition by league_code` qualify, which would drop entities) and base resolves
+-  current-per-entity. #539's "accumulate-vs-upsert distinction" was based on a reviewer misread
+-  (the staging yml's "duplicates possible" is defensive robustness, not a real accumulation path);
+-  CPO directed "make it solid" → proceed with the corrected, slimmed scope.
++  Refresh .claude/active_work.md after PR #542 (#539) merged. #539 codified the read-all staging
++  class in layering.md §1_staging accurately (sub-league grain → read all rows, no league_code
++  qualify, base resolves current-per-entity; incremental-accumulation + merge-on-write as the two
++  loader reasons; RAW_APIF_FIXTURE_DETAILS and RAW_APIF_PLAYERS both bounded one-row-per-key — the
++  corrected, source-verified premise) and gave the four fixture-detail staging models the header +
++  yml read-all rationale. It was the first real exercise of the #540 impact-map gate. Update the
++  status line + FIRST-next-session (drop the #539 follow-up — now done); main green.
  
  refs: >
--  This conversation 2026-06-22. PR #540 (merged), issue #539 (layering follow-up). #518 closed
--  by #540's mechanism. Memory: feedback-no-hacky-solutions (mode 5 = end-to-end-map-first).
-+  Issue #539 (split from the #518 impact-map-gate PR #540). Source of truth:
-+  ingestion/api_football/loads/batch_fixtures.py:211-280 (skip-if-present + delete-on-retry);
-+  docs/data_contract.md (already accurate — fixture_details merge-on-write, one row per fixture).
-+  CPO direction this session ("Make it solid"). First real exercise of the #540 impact-map gate.
+-  Issue #539 (split from the #518 impact-map-gate PR #540). Source of truth:
+-  ingestion/api_football/loads/batch_fixtures.py:211-280 (skip-if-present + delete-on-retry);
+-  docs/data_contract.md (already accurate — fixture_details merge-on-write, one row per fixture).
+-  CPO direction this session ("Make it solid"). First real exercise of the #540 impact-map gate.
++  This conversation 2026-06-22. PR #542 (merged, #539). Prior this session: #540 (impact-map gate),
++  #541 (handover). Memory: feedback-no-hacky-solutions (the trace-first discipline caught #539's own
++  premise being wrong before it hit the authoritative doc).
  
  scope_paths:
--  - .claude/active_work.md
++  - .claude/active_work.md
    - .claude/task/**
-+  - dbt_project/docs/layering.md
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-+  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+-  - dbt_project/docs/layering.md
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+-  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
  
  decisions_taken: >
--  Documentation-only handover refresh — no code, no product decision. The commit carries
--  contract.md (hashed, not artifact-exempt), so it needs review; routing for active_work.md +
--  .claude/task/** is scope-auditor only. active_work.md is hash-excluded (artifact). No code
--  paths touched.
-+  CPO-approved framing (this session): codify ONE read-all staging rule (sub-league grain →
-+  read all rows, no league_code qualify, base resolves current-per-entity) with the loader
-+  reasons as sub-cases (skip-if-present incremental-accumulation; per-key merge-on-write) —
-+  do NOT mint a rigid class that mischaracterises fixture_details. The premise correction
-+  (fixture_details is bounded one-row-per-fixture, not accumulate) is a FACT established by
-+  reading the loader, not a new decision. DOC + model-comment change only — no SQL/grain edits.
+-  CPO-approved framing (this session): codify ONE read-all staging rule (sub-league grain →
+-  read all rows, no league_code qualify, base resolves current-per-entity) with the loader
+-  reasons as sub-cases (skip-if-present incremental-accumulation; per-key merge-on-write) —
+-  do NOT mint a rigid class that mischaracterises fixture_details. The premise correction
+-  (fixture_details is bounded one-row-per-fixture, not accumulate) is a FACT established by
+-  reading the loader, not a new decision. DOC + model-comment change only — no SQL/grain edits.
++  Documentation-only handover refresh — no code, no product decision. The commit carries
++  contract.md (hashed, not artifact-exempt), so it needs review; routing for active_work.md +
++  .claude/task/** is scope-auditor only. active_work.md is hash-excluded (artifact).
  
  decisions_reserved:
--  - none. Pure handover bookkeeping.
-+  - none. Framing CPO-approved; the corrected facts are source-verified. If a reviewer surfaces
-+    a genuinely new CPO-class question (e.g. renaming an existing staging class), escalate it.
-+
-+impact_map: >
-+  Change class: DOCUMENTATION ONLY — staging model HEADER COMMENTS + yml `description:` text +
-+  layering.md prose. No SQL, no grain, no column, no materialization change.
-+  Writers (NOT edited by this task): RAW_APIF_FIXTURE_DETAILS <- ingestion/api_football/loads/
-+  batch_fixtures.py (skip-if-present fetch of finished fixtures missing data + delete-on-retry ->
-+  one row per (league_code, fixture_id)); RAW_APIF_PLAYERS <- loads/squads.py (delete+append per
-+  (team,season)). Both bounded one-row-per-key.
-+  Downstream lineage of the edited staging models (`dbt ls --select stg_apif__fixture_*+
-+  stg_apif__lineups+`, 2026-06-22): base_apif__fixture_{events,players,statistics} ->
-+  fct_fixture_event / fct_fixture_player_stats / fct_fixture_team_stats -> int_legs__*,
-+  int_momentum__*, int_season_record__*, int_player_season__metrics,
-+  int_team_season__full_season_metrics, int_competition_benchmarks__team -> ~20 marts
-+  (mart_fixture_stats__{player,team}, mart_momentum__*, mart_season_record__*, mart_leaderboards,
-+  mart_player_profile, mart_roster, mart_team_season, mart_head_to_head, ...).
-+  Layer rules that apply: check_layer_contract.py staging-purity — staging reads ALL rows with NO
-+  `partition by league_code` qualify (sub-league grain), which is legal; entity dedup stays in
-+  base. This task changes no SELECT, so every rule remains satisfied (header comments are stripped
-+  by the purity check's comment-stripper).
-+  Deploy ordering: none — comment/description/doc text only; no shared-warehouse migration; the
-+  next CI rebuild is byte-identical.
-+  Blast radius: NONE. No shipped number changes — edits are restricted to SQL header comments,
-+  yml `description` fields, and layering.md prose; no compiled SQL changes.
+-  - none. Framing CPO-approved; the corrected facts are source-verified. If a reviewer surfaces
+-    a genuinely new CPO-class question (e.g. renaming an existing staging class), escalate it.
+-
+-impact_map: >
+-  Change class: DOCUMENTATION ONLY — staging model HEADER COMMENTS + yml `description:` text +
+-  layering.md prose. No SQL, no grain, no column, no materialization change.
+-  Writers (NOT edited by this task): RAW_APIF_FIXTURE_DETAILS <- ingestion/api_football/loads/
+-  batch_fixtures.py (skip-if-present fetch of finished fixtures missing data + delete-on-retry ->
+-  one row per (league_code, fixture_id)); RAW_APIF_PLAYERS <- loads/squads.py (delete+append per
+-  (team,season)). Both bounded one-row-per-key.
+-  Downstream lineage of the edited staging models (`dbt ls --select stg_apif__fixture_*+
+-  stg_apif__lineups+`, 2026-06-22): base_apif__fixture_{events,players,statistics} ->
+-  fct_fixture_event / fct_fixture_player_stats / fct_fixture_team_stats -> int_legs__*,
+-  int_momentum__*, int_season_record__*, int_player_season__metrics,
+-  int_team_season__full_season_metrics, int_competition_benchmarks__team -> ~20 marts
+-  (mart_fixture_stats__{player,team}, mart_momentum__*, mart_season_record__*, mart_leaderboards,
+-  mart_player_profile, mart_roster, mart_team_season, mart_head_to_head, ...).
+-  Layer rules that apply: check_layer_contract.py staging-purity — staging reads ALL rows with NO
+-  `partition by league_code` qualify (sub-league grain), which is legal; entity dedup stays in
+-  base. This task changes no SELECT, so every rule remains satisfied (header comments are stripped
+-  by the purity check's comment-stripper).
+-  Deploy ordering: none — comment/description/doc text only; no shared-warehouse migration; the
+-  next CI rebuild is byte-identical.
+-  Blast radius: NONE. No shipped number changes — edits are restricted to SQL header comments,
+-  yml `description` fields, and layering.md prose; no compiled SQL changes.
++  - none. Pure handover bookkeeping.
  
  done_when:
--  - active_work.md reflects: #540 merged (impact-map gate live; what it gates + how);
--    #539 filed (layering merge-on-write follow-up + why de-scoped); the "#518 tackle soon"
--    item removed from FIRST-next-session; main green; FIRST next action set.
--  - Tree matches the contract (only active_work.md + .claude/task/**).
-+  - layering.md §1_staging codifies the read-all class accurately: sub-league grain -> read all
-+    rows (no league_code qualify) + base resolves current-per-entity; skip-if-present and
-+    per-key merge-on-write as the two loader reasons; fixture_details + players both bounded.
-+  - stg_apif__fixture_{events,players,statistics}.sql and stg_apif__lineups.sql carry a header
-+    comment stating the read-all rationale (mirroring stg_apif__players.sql).
-+  - stg_apif__generic.yml entries for those models state the read-all rationale; the "multiple
-+    ingestions may produce duplicate rows" language is clarified to "base dedups defensively".
-+  - check_layer_contract.py still passes; dbt parse green; reviewers PASS (scope-auditor +
-+    analytics-engineer).
-+  - Tree matches scope_paths.
+-  - layering.md §1_staging codifies the read-all class accurately: sub-league grain -> read all
+-    rows (no league_code qualify) + base resolves current-per-entity; skip-if-present and
+-    per-key merge-on-write as the two loader reasons; fixture_details + players both bounded.
+-  - stg_apif__fixture_{events,players,statistics}.sql and stg_apif__lineups.sql carry a header
+-    comment stating the read-all rationale (mirroring stg_apif__players.sql).
+-  - stg_apif__generic.yml entries for those models state the read-all rationale; the "multiple
+-    ingestions may produce duplicate rows" language is clarified to "base dedups defensively".
+-  - check_layer_contract.py still passes; dbt parse green; reviewers PASS (scope-auditor +
+-    analytics-engineer).
+-  - Tree matches scope_paths.
++  - active_work.md reflects: #542 merged (#539 read-all staging codification + corrected premise);
++    the #539 follow-up removed from the #518 bullet; main green; FIRST next action set.
++  - Tree matches the contract (only active_work.md + .claude/task/**).
  
  amendments: (none)
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 8265b9f..1a92a84 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -80,6 +80,20 @@ A staging model does exactly two things, in this order:
-      incremental-accumulation **iff** its loader is skip-if-present, and that must be stated in
-      the model header and its `stg_apif__generic.yml` entry. (Recognized 2026-06-15 by CPO
-      ruling; the first such tables are `RAW_APIF_PLAYER_PROFILES` / `RAW_APIF_PLAYER_TEAMS`.)
-+   - **Merge-on-write (per-key) tables.** A few raw tables are keyed at a grain *below*
-+     `league_code` — one row per fixture (`RAW_APIF_FIXTURE_DETAILS`) or per `(team, season)`
-+     (`RAW_APIF_PLAYERS`) — and the loader maintains **one current row per key**: skip-if-present
-+     fetch + delete-on-retry for fixture details (only finished fixtures that are missing data, or
-+     have empty stats inside the 3-day retry window, are fetched; a retry deletes the prior row
-+     before re-inserting), and delete-then-append per `(team, season)` for players. The table is
-+     therefore **bounded** — it grows with the key set, not with run count — but holds **many keys
-+     per `league_code`**, so, like incremental-accumulation tables, these read **all** rows
-+     (`select * from {{ source(...) }}` with no latest-snapshot qualify). A `partition by
-+     league_code` qualify would keep one fixture/team-season per league and drop the rest. It is
-+     still a faithful flatten with no entity dedup; the staging grain carries `raw_ingested_at`,
-+     and base resolves the current row per entity (robust to any transient duplicate). State the
-+     read-all rationale in the model header and its `stg_apif__generic.yml` entry. (Recognized
-+     2026-06-22 by CPO ruling, #539; see `docs/data_contract.md` — merge-on-write tables.)
- 2. **Faithful 1:1 flatten.** Unnest that snapshot's JSON payload into one typed row per
-    entity, rename to snake_case, and cast. Every entity present in the selected snapshot
-    must appear exactly once in the output — nothing merged, aggregated, or dropped
-@@ -91,8 +105,8 @@ team_id, …) after flattening — and that belongs in base, never staging.**
- 
- Allowed:
- - Latest-snapshot selection per `league_code` (partition on `league_code` only) for
--  complete-snapshot tables; reading **all** snapshots (no qualify) for incremental-accumulation
--  tables (skip-if-present loaders — see step 1).
-+  complete-snapshot tables; reading **all** rows (no qualify) for incremental-accumulation
-+  (skip-if-present) and merge-on-write (per-key, sub-`league_code` grain) tables — see step 1.
- - Source-to-model mapping (one staging model per raw source table).
- - Column renaming to consistent naming conventions (snake_case).
- - Safe type casting and lightweight normalization.
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-index 35ae9f1..27327ac 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
-@@ -1,3 +1,9 @@
-+-- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
-+-- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
-+-- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
-+-- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
-+-- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
-+-- (merge-on-write tables).
- with src as (
-     select *
-     from {{ source('api_football', 'raw_apif_fixture_details') }}
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-index f9ea5ef..c43e1b7 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
-@@ -1,3 +1,9 @@
-+-- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
-+-- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
-+-- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
-+-- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
-+-- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
-+-- (merge-on-write tables).
- with src as (
-     select *
-     from {{ source('api_football', 'raw_apif_fixture_details') }}
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-index 2f6f538..91c32b5 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
-@@ -1,3 +1,9 @@
-+-- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
-+-- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
-+-- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
-+-- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
-+-- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
-+-- (merge-on-write tables).
- with src as (
-     select *
-     from {{ source('api_football', 'raw_apif_fixture_details') }}
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-index 7dfbde6..3199419 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-@@ -102,10 +102,12 @@ models:
- 
-   - name: stg_apif__fixture_events
-     description: >
--      One row per event per fixture from the $.events array in raw_apif_fixture_details.
--      No dedup at staging — multiple ingestions may produce duplicate (fixture_id, event_index)
--      rows; dedup is in base_apif__fixture_events. Grain at staging: (fixture_id, event_index,
--      raw_ingested_at).
-+      One row per event per fixture from the $.events array in raw_apif_fixture_details — a
-+      merge-on-write table (one bounded row per (league_code, fixture_id); see layering.md
-+      §1_staging). Staging reads ALL rows faithfully — no latest-snapshot qualify, the grain is
-+      sub-league (one row per fixture); current-per-entity is assembled in base_apif__fixture_events,
-+      which dedups defensively (robust to any transient duplicate). Grain at staging:
-+      (fixture_id, event_index, raw_ingested_at).
-     columns:
-       - name: league_code
-         tests: [not_null]
-@@ -118,9 +120,11 @@ models:
- 
-   - name: stg_apif__fixture_players
-     description: >
--      One row per player per team per fixture from $.players in raw_apif_fixture_details.
--      No dedup at staging — dedup happens in base_apif__fixture_players.
--      Grain at staging: (fixture_id, team_id, player_id, raw_ingested_at).
-+      One row per player per team per fixture from $.players in raw_apif_fixture_details — a
-+      merge-on-write table (one bounded row per (league_code, fixture_id)). Staging reads ALL rows
-+      faithfully (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled
-+      in base_apif__fixture_players (defensive dedup). Grain at staging:
-+      (fixture_id, team_id, player_id, raw_ingested_at).
-     columns:
-       - name: league_code
-         tests: [not_null]
-@@ -136,9 +140,11 @@ models:
-   - name: stg_apif__fixture_statistics
-     description: >
-       Long format — one row per statistic line per team per fixture from $.statistics in
--      raw_apif_fixture_details. Faithful 1:1 flatten only. The pivot to wide columns and the
--      dedup both happen in base_apif__fixture_statistics (business reshaping belongs in base).
--      Grain at staging: (fixture_id, team_id, stat_type, raw_ingested_at).
-+      raw_apif_fixture_details (a merge-on-write table, one bounded row per (league_code,
-+      fixture_id)). Faithful 1:1 flatten only — staging reads ALL rows (no latest-snapshot qualify,
-+      sub-league grain); the pivot to wide columns and the dedup both happen in
-+      base_apif__fixture_statistics (business reshaping belongs in base). Grain at staging:
-+      (fixture_id, team_id, stat_type, raw_ingested_at).
-     columns:
-       - name: league_code
-         tests: [not_null]
-@@ -151,9 +157,10 @@ models:
- 
-   - name: stg_apif__lineups
-     description: >
--      One row per team per fixture from $.lineups in raw_apif_fixture_details.
--      No dedup at staging — dedup happens downstream.
--      Grain at staging: (fixture_id, team_id, raw_ingested_at).
-+      One row per team per fixture from $.lineups in raw_apif_fixture_details — a merge-on-write
-+      table (one bounded row per (league_code, fixture_id)). Staging reads ALL rows faithfully (no
-+      latest-snapshot qualify — sub-league grain); current-per-entity is assembled in base
-+      (defensive dedup). Grain at staging: (fixture_id, team_id, raw_ingested_at).
-     columns:
-       - name: league_code
-         tests: [not_null]
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-index 8f1719f..05149b9 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
-@@ -1,3 +1,9 @@
-+-- RAW_APIF_FIXTURE_DETAILS holds one merge-on-write row per (league_code, fixture_id): the loader
-+-- skip-fetches only finished fixtures missing data and deletes-on-retry (ingestion/api_football/
-+-- loads/batch_fixtures.py), so it is bounded yet carries many fixtures per league_code. Staging
-+-- reads ALL rows faithfully (NO latest-snapshot qualify — that would drop fixtures) and base
-+-- assembles current-per-fixture by entity-key dedup. See dbt_project/docs/layering.md §1_staging
-+-- (merge-on-write tables).
- with src as (
-     select *
-     from {{ source('api_football', 'raw_apif_fixture_details') }}

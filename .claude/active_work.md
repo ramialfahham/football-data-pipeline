@@ -10,12 +10,16 @@ the task contract now requires an EVIDENCED `impact_map` for any **structural-su
 MCP, NOT asserted) + CI layer rules + shared-warehouse deploy ordering + blast radius. `task_contract_gate.py`
 presence-gates it at the edit boundary (denies the first structural Edit/Write until a non-placeholder map exists);
 the routed reviewers judge its honesty; `working_agreement.md` §2 + **Appendix A6** name the anti-pattern; the three
-reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539 FILED**
-— the bundled merge-on-write `layering.md` codification was de-scoped mid-review (RAW_APIF_FIXTURE_DETAILS is
-delete-on-retry-only → accumulate + base-dedup, NOT the per-key upsert of RAW_APIF_PLAYERS; needs its own accurate
-treatment). main GREEN. Prior session: **PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per
-(team,season); **Phase 2a backfill #479 COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by
-#540. #500/#506/#510/#517/#521/#526/#539 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539
+MERGED (PR #542)** — codified the read-all staging class in `layering.md` §1_staging ACCURATELY + gave the four
+fixture-detail staging models the header/yml read-all rationale. Source-verified correction (trace, not guess):
+RAW_APIF_FIXTURE_DETAILS is **bounded one-row-per-(league_code, fixture_id)** (skip-if-present + delete-on-retry), NOT
+accumulate — so it AND RAW_APIF_PLAYERS are both merge-on-write/per-key; both read all rows in staging (sub-league
+grain → no league_code qualify) and base resolves current-per-entity. This was the first real exercise of the #540
+gate (the trace-first discipline caught #539's own wrong premise before it hit the doc). main GREEN. Prior session:
+**PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per (team,season); **Phase 2a backfill #479
+COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by #540, #539 by #542.
+#500/#506/#510/#517/#521/#526 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
 
 ## FIRST next session (do this first)
 - **Nothing pending-merge** (`git fetch` + ff main; #540 + #536 merged). RAW_APIF_PLAYERS is now one merge-on-write row
@@ -30,10 +34,10 @@ treatment). main GREEN. Prior session: **PR #536 MERGED** (RAW_APIF_PLAYERS re-g
   touch a raw writer / dbt model / export / site file, FILL THE MAP — evidence (pasted `dbt ls --select <model>+`
   / dbt-MCP lineage + RAW/leaf count), not assertion; trivial edits get a one-line short-form. See
   `docs/working_agreement.md` §2 + Appendix A6 and `.claude/task/TEMPLATE.md`. Known v1 limit: the shell-write path
-  is not impact-gated (Edit/Write only). **Follow-up #539** (not urgent) — codify the staging read-all classes
-  accurately in `layering.md` §1_staging: merge-on-write per-key upsert (RAW_APIF_PLAYERS) vs accumulate-and-
-  base-dedup (RAW_APIF_FIXTURE_DETAILS, delete-on-retry-only) are DIFFERENT; + give the fixture-detail staging
-  models a header/yml read-all rationale.
+  is not impact-gated (Edit/Write only). **Follow-up #539 — DONE (PR #542).** layering.md §1_staging now codifies the
+  read-all class accurately (sub-league grain → read all rows, no league_code qualify, base resolves current; the two
+  loader reasons = skip-if-present incremental-accumulation + per-key merge-on-write; fixture_details AND players are
+  both bounded one-row-per-key) and the four fixture-detail staging models carry the header/yml read-all rationale.
 - **Phase 2a backfill (#479) is COMPLETE** — all 15 active continental + domestic leagues at provider depth. Residual:
   **#521** (phantom-current-season parity — UCL/UEL 9 finished, ED/LMX 4, one short of 10/5 because provider
   current=2026; closing it = `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
