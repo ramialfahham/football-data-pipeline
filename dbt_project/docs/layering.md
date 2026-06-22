@@ -80,6 +80,20 @@ A staging model does exactly two things, in this order:
      incremental-accumulation **iff** its loader is skip-if-present, and that must be stated in
      the model header and its `stg_apif__generic.yml` entry. (Recognized 2026-06-15 by CPO
      ruling; the first such tables are `RAW_APIF_PLAYER_PROFILES` / `RAW_APIF_PLAYER_TEAMS`.)
+   - **Merge-on-write (per-key) tables.** A few raw tables are keyed at a grain *below*
+     `league_code` — one row per fixture (`RAW_APIF_FIXTURE_DETAILS`) or per `(team, season)`
+     (`RAW_APIF_PLAYERS`) — and the loader maintains **one current row per key**: skip-if-present
+     fetch + delete-on-retry for fixture details (only finished fixtures that are missing data, or
+     have empty stats inside the 3-day retry window, are fetched; a retry deletes the prior row
+     before re-inserting), and delete-then-append per `(team, season)` for players. The table is
+     therefore **bounded** — it grows with the key set, not with run count — but holds **many keys
+     per `league_code`**, so, like incremental-accumulation tables, these read **all** rows
+     (`select * from {{ source(...) }}` with no latest-snapshot qualify). A `partition by
+     league_code` qualify would keep one fixture/team-season per league and drop the rest. It is
+     still a faithful flatten with no entity dedup; the staging grain carries `raw_ingested_at`,
+     and base resolves the current row per entity (robust to any transient duplicate). State the
+     read-all rationale in the model header and its `stg_apif__generic.yml` entry. (Recognized
+     2026-06-22 by CPO ruling, #539; see `docs/data_contract.md` — merge-on-write tables.)
 2. **Faithful 1:1 flatten.** Unnest that snapshot's JSON payload into one typed row per
    entity, rename to snake_case, and cast. Every entity present in the selected snapshot
    must appear exactly once in the output — nothing merged, aggregated, or dropped
@@ -91,8 +105,8 @@ team_id, …) after flattening — and that belongs in base, never staging.**
 
 Allowed:
 - Latest-snapshot selection per `league_code` (partition on `league_code` only) for
-  complete-snapshot tables; reading **all** snapshots (no qualify) for incremental-accumulation
-  tables (skip-if-present loaders — see step 1).
+  complete-snapshot tables; reading **all** rows (no qualify) for incremental-accumulation
+  (skip-if-present) and merge-on-write (per-key, sub-`league_code` grain) tables — see step 1.
 - Source-to-model mapping (one staging model per raw source table).
 - Column renaming to consistent naming conventions (snake_case).
 - Safe type casting and lightweight normalization.
