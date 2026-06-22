@@ -4,33 +4,39 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-21 (deep-backfill DQ heal + Phase 2a depths shipped). **#527 MERGED** — the complete,
-bounded deep-backfill DQ fix (events team_id recovery + self-heal in fct_fixture_event; mis-placed standings
-not_null test relocated to the cleaned layer; player id-collision drop in base_apif__fixture_players, committed
-rows healed by a one-time CPO-authorized full-refresh). **#524 MERGED** — Phase 2a registry §8 depths (7 domestic
-2->5: BL2/ED/LMX/LP/MLS/SPL/VL; 8 continental-club 5->10: UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC). **#523 MERGED**
-— PD/SA/L1 backfilled to 2016-2025 (BL1/PL parity). main is GREEN, the nightly is unblocked. Updated **#518**
-with this session's behaviour instance (coverage-cut is never a DQ fix; count offending rows in RAW first). Prior:
-#520 season-depth config refactor (history_seasons authoritative); PL 2016-2026 (BL1 parity). #500/#506/#510/#517/#518/#521/#526
-still OPEN. Governance G1-G4 LIVE. **Website blueprint #391 still PAUSED.**_
+_Last updated: 2026-06-22 (Phase 2a resume DONE + RAW_APIF_PLAYERS re-grain). **Phase 2a deep RESUME (CPO Option A)
+DONE** — CAFCL/LIBER/CWC confirmed at MAX PROVIDER DEPTH; the year-count "gaps" (LIBER 2017-18, CAFCL 2016-18, CWC
+2018) were API-Football **catalog floors**, not ingest misses. All 15 Phase 2a leagues are now at their
+configured/available depth → **Phase 2a backfill (#479) COMPLETE.** **PR #536 MERGED** — fixed the real loader bug the
+resume surfaced: RAW_APIF_PLAYERS crammed a whole league's players into one >100MB BigQuery row (LIBER/UEL/UCL failed
+to load); re-grained to one **merge-on-write row per (team,season)** (the RAW_APIF_FIXTURE_DETAILS pattern) → bounded,
+all leagues backfillable; staging reads all faithfully, base dedups; existing data re-shaped in place via
+`scripts/diagnostics/reshape_players_to_team_season.py` (413,755 player-team-seasons preserved exactly, set-identity
+verified). **#534 (chunking) CLOSED** superseded. main GREEN. **#518 UPDATED** — diagnosis-drift recurred this session
+(chunking→dual-path→append+read-all, each caught downstream because I didn't trace end-to-end first); added proposed
+enforcement (mandatory pre-implementation impact-map in contract.md, gate-enforced) — **CPO wants this tackled soon.**
+Prior: #527/#524/#523/#520 merged. #500/#506/#510/#517/#518/#521/#526 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
 
 ## FIRST next session (do this first)
-- Nothing pending-merge (`git fetch` + ff main; #527 + #524 merged; main green). The deep-backfill DQ defect
-  class is now HANDLED in main (events recover + self-heal, standings test at the cleaned layer, player
-  id-collision drop) — these generalize to the same provider quirks in the remaining deep seasons, so further
-  backfill should need NO new manual heals. **#526 still tracks a separate pre-existing DQ defect** (38 events
-  referencing a team that is not one of the fixture's two teams) — independent of the recovery; a follow-up.
-- **RESUME the Phase 2a deep INGEST (CPO-directed; the registry depths are merged in #524 but the actual deep
-  fetch was STOPPED partway).** #524 only set `history_seasons`; the controlled local backfill that fills RAW
-  was interrupted (~21k calls in via taskkill, to deal with the DQ failures). RESUME for the leagues NOT yet at
-  their §8 depth: continental-club (UCL/UEL/UECL/LIBER/CAFCL/AFCCL/CCCU/CWC → 10) + 7 domestic
-  (BL2/ED/LMX/LP/MLS/SPL/VL → 5). **First query RAW per league to see which already reached depth** (skip-if-present
-  makes re-runs cheap — already-ingested fixtures skip), then `full`-profile scoped ingest only for the incomplete
-  ones, then `verify-competition-ingest`. **Query RAW for true depth, never staging** ([[feedback-raw-staging-latest-payload]]).
-- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): editions/cycle depth
-  needs a per-cadence mapping (not a year-count), a separate task. Other open items: **coaches + `mart_player_career`**,
-  the **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510/#521**, stale-id purge **#517**,
-  process retrospective **#518**. **Read `docs/content_architecture.md` §8/§9 first.**
+- **Nothing pending-merge** (`git fetch` + ff main; #536 merged). RAW_APIF_PLAYERS is now one merge-on-write row
+  per (team,season); existing data was re-shaped IN PLACE on prod. The next nightly runs the new staging on the
+  re-shaped RAW (verified: the identical PR build was green; main's post-merge ci-data-build confirmed). If a
+  player-roster DQ test or an empty `mart_roster` surfaces, suspect the re-grain — but the PR build + the re-shape's
+  set-identity check (413,755 preserved) cover it. To backfill any league's players now: a `full`-profile scoped
+  run merges per-(team,season) rows (bounded; no 100MB risk).
+- **#518 (reduce diagnosis drift) — CPO directed: tackle this SOON.** The PROPOSED mechanism (a mandatory
+  pre-implementation **impact map** in contract.md for any change touching a raw write / `1_staging/**` / a table's
+  grain — every writer + full lineage to marts via the dbt lineage MCP + the CI-enforced layer rules + the
+  shared-warehouse deploy ordering — enforced by a `task_contract_gate` hook) is a NEW guardrail = a §10 design
+  decision: get CPO sign-off on the design BEFORE building it (do NOT assume it's approved). See the 2026-06-22
+  comment on #518. Separately, codify merge-on-write staging (read-all for upsert tables) in `layering.md` §1_staging.
+- **Phase 2a backfill (#479) is COMPLETE** — all 15 active continental + domestic leagues at provider depth. Residual:
+  **#521** (phantom-current-season parity — UCL/UEL 9 finished, ED/LMX 4, one short of 10/5 because provider
+  current=2026; closing it = `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
+- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): per-cadence editions/cycle
+  mapping, a separate task. Other open items: **coaches + `mart_player_career`** (now unblocked — the player
+  affiliation grain is fixed), **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510**,
+  stale-id purge **#517**. **Read `docs/content_architecture.md` §8/§9 first.**
 - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
   the call delta, verify RAW depth, then `verify-competition-ingest`.
