@@ -44,6 +44,14 @@ adjectives are banned from your output.
    branch, name the document and FAIL.
 5. **decisions_reserved**: is anything listed there nevertheless decided in
    the diff?
+6. **Impact-map (structural surface, A6)**: if the diff touches `ingestion/**`,
+   `dbt_project/models/**`, `scripts/export_*.py`, or `site*/`, the contract must
+   carry an `impact_map` (§2). Is it EVIDENCED — the actual `dbt ls --select
+   <model>+` / dbt-MCP lineage output and the RAW/leaf count pasted in — or merely
+   asserted from memory? Is any "trivial/none" short-form honest given the diff's
+   real reach? Is the change a **coverage-cut dodging a defect** (narrowing
+   ingest/scope/coverage to make a test go green) rather than fixing it? Missing,
+   hand-waved, asserted-not-evidenced, or dishonest → FAIL (Appendix A6, #518).
 
 ## Verdict rules (no free passes)
 

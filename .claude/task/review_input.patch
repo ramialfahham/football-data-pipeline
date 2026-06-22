@@ -1,95 +1,466 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index cdbf8eb..1794264 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -45,6 +45,12 @@ adjectives are banned from your output.
+ 7. **Same-window rule**: every ratio's numerator and denominator computed over
+    the same game set (coverage counts); flag any new safe_divide whose inputs
+    have mismatched coverage.
++8. **Impact-map for model/grain changes (A6, #518)**: any change to a model's
++   grain, a raw write it reads, or a `1_staging` model must be backed by the
++   contract's `impact_map` (§2) — writers + the full downstream lineage (PASTED
++   from `dbt ls --select <model>+` / the dbt MCP, not asserted) + the CI layer
++   rules that apply. A spot-fix shipped without the end-to-end map, or an
++   asserted / dishonest "trivial" short-form, → FAIL.
+ 
+ ## Verdict rules (no free passes)
+ 
+diff --git a/.claude/agents/data-engineer-reviewer.md b/.claude/agents/data-engineer-reviewer.md
+index 6428431..d1c8e1b 100644
+--- a/.claude/agents/data-engineer-reviewer.md
++++ b/.claude/agents/data-engineer-reviewer.md
+@@ -40,6 +40,14 @@ diff here as the next incident until proven otherwise.
+ 5. **Raw schema contract**: `RAW_{source}_{entity}` naming and column
+    contracts unchanged, or `docs/data_contract.md` updated in the same
+    branch.
++6. **Impact-map for raw-write / grain changes (A6, #518)**: a change to what a
++   loader writes, a raw table's grain, or a raw schema must be backed by the
++   contract's `impact_map` (§2) — every writer + the downstream lineage to marts
++   (PASTED from `dbt ls --select <model>+` / the dbt MCP, not asserted) + the
++   shared-warehouse deploy ordering (re-graining a raw table breaks the deployed
++   staging until merge — was it sequenced around the 04:00 nightly?). Absent or
++   asserted-not-evidenced → FAIL. A "messier old data → ingest less / skip it"
++   framing WITHOUT the RAW offending-row COUNT stated → FAIL (coverage-cut, A6).
+ 
+ ### Class 2 — registry / onboarding changes (`docs/competition_registry.yml`)
+ 
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 963a8d9..670fcf1 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -44,6 +44,14 @@ adjectives are banned from your output.
+    branch, name the document and FAIL.
+ 5. **decisions_reserved**: is anything listed there nevertheless decided in
+    the diff?
++6. **Impact-map (structural surface, A6)**: if the diff touches `ingestion/**`,
++   `dbt_project/models/**`, `scripts/export_*.py`, or `site*/`, the contract must
++   carry an `impact_map` (§2). Is it EVIDENCED — the actual `dbt ls --select
++   <model>+` / dbt-MCP lineage output and the RAW/leaf count pasted in — or merely
++   asserted from memory? Is any "trivial/none" short-form honest given the diff's
++   real reach? Is the change a **coverage-cut dodging a defect** (narrowing
++   ingest/scope/coverage to make a test go green) rather than fixing it? Missing,
++   hand-waved, asserted-not-evidenced, or dishonest → FAIL (Appendix A6, #518).
+ 
+ ## Verdict rules (no free passes)
+ 
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 6cc540b..0ea811e 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -11,6 +11,11 @@ Drift is made mechanically impossible: every unit of work declares a contract
+       carries an explicit `protected_override` naming the CPO approval
+     - edits to the contract itself while the tree is dirty (clean-tree rule:
+       amendments are discrete events, never mixed into code changes)
++    - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models
++      `dbt_project/models/**`, consumption `scripts/export_*.py` / `site*/`) when
++      the contract carries no non-placeholder `impact_map` — the end-to-end
++      blast-radius map must precede the first structural edit, so diagnosis
++      happens before code, not one layer downstream at a time (#518, Appendix A6)
+ 
+   PreToolUse Bash (best effort — shell is not fully parseable)
+     - script heredocs (`python - <<EOF` …) that bypass the Edit-tool gates
+@@ -77,6 +82,33 @@ _SED_I = re.compile(r"\bsed\s+(?:-[a-zA-Z]*\s+)*-i\b[^|;&]*?\s((?:[^\s;|&-][^\s;
+ 
+ _IGNORED_TARGETS = {"/dev/null", "$null", "nul"}
+ 
++# The STRUCTURAL SURFACE (#518 / Appendix A6): raw writers, dbt models, and the
++# consumption layer — where a change ripples across layers, so the contract must
++# carry an end-to-end `impact_map` BEFORE the first edit. Trace before code.
++_STRUCTURAL_PREFIXES = ("ingestion/", "dbt_project/models/", "site/", "site_v2/")
++_EXPORT_RE = re.compile(r"^scripts/export_[A-Za-z0-9_]+\.py$")
++# A `<template placeholder>` is not real content; nor is a bare YAML block
++# indicator or an empty/(none) line.
++_PLACEHOLDER_RE = re.compile(r"^<.*>$")
++
++
++def _impact_content(text: str) -> bool:
++    """True when `text` is real impact-map content — not blank, a comment, a bare
++    YAML block indicator (`>`/`|`), `(none)`, or a `<template placeholder>`."""
++    s = text.strip()
++    if not s or s in (">", "|", "(none)"):
++        return False
++    if s.startswith("#"):
++        return False
++    return not _PLACEHOLDER_RE.match(s)
++
++
++def _is_structural(rel: str) -> bool:
++    """The structural surface — an impact_map is required before editing here."""
++    if any(rel.startswith(p) for p in _STRUCTURAL_PREFIXES):
++        return True
++    return bool(_EXPORT_RE.match(rel))
++
+ 
+ def _repo_root() -> str:
+     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+@@ -95,11 +127,13 @@ def _rel_in_repo(path: str, root: str) -> str | None:
+ 
+ 
+ def _read_contract(root: str) -> dict | None:
+-    """Parse the contract's scope_paths + protected_override. None when absent."""
++    """Parse scope_paths, protected_override, and whether a non-placeholder
++    impact_map section is present. None when absent."""
+     path = os.path.join(root, CONTRACT_REL)
+     if not os.path.isfile(path):
+         return None
+     scope, in_scope_block, override = [], False, False
++    in_impact_block, impact_present = False, False
+     try:
+         for raw in open(path, encoding="utf-8", errors="replace"):
+             line = raw.rstrip("\n")
+@@ -113,11 +147,23 @@ def _read_contract(root: str) -> dict | None:
+                     continue
+                 if line.strip() and not line.startswith((" ", "\t")):
+                     in_scope_block = False
++            mi = re.match(r"^impact_map\s*:(.*)$", line)
++            if mi:
++                in_impact_block = True
++                if _impact_content(mi.group(1)):
++                    impact_present = True
++                continue
++            if in_impact_block:
++                if line.strip() and not line.startswith((" ", "\t")):
++                    in_impact_block = False      # next top-level key ends the block
++                elif _impact_content(line):
++                    impact_present = True
+             if re.match(r"^protected_override\s*:", line):
+                 override = True
+     except Exception:
+         return None
+-    return {"scope": scope, "protected_override": override}
++    return {"scope": scope, "protected_override": override,
++            "impact_map_present": impact_present}
+ 
+ 
+ def _matches_scope(rel: str, scope: list[str]) -> bool:
+@@ -178,6 +224,22 @@ def _deny_protected(rel: str) -> None:
+     )
+ 
+ 
++def _deny_missing_impact_map(rel: str) -> None:
++    emit_deny(
++        f"CONTRACT GATE: `{rel}` is on the STRUCTURAL SURFACE (raw writer, dbt "
++        "model, or consumption), so the task contract must carry a non-placeholder "
++        "`impact_map:` section BEFORE this edit. Trace end-to-end FIRST and paste "
++        "EVIDENCE, not assertion: every writer of the table/model; the downstream "
++        "lineage to marts/consumption (`dbt ls --select <model>+` or the dbt-MCP "
++        "output); the CI layer rules that apply; the shared-warehouse deploy "
++        "ordering; the blast radius (which marts/numbers change, or 'none' with the "
++        "RAW count / leaf evidence). Trivial/leaf/cosmetic changes may use a "
++        "one-line evidenced short-form. No map -> no structural edit. Add it to the "
++        "contract on a CLEAN tree, then proceed. See docs/working_agreement.md §2 "
++        "and Appendix A6 (#518)."
++    )
++
++
+ def _gate_file_edit(event: dict, root: str) -> None:
+     path = (event.get("tool_input") or {}).get("file_path") or ""
+     if not path:
+@@ -216,6 +278,9 @@ def _gate_file_edit(event: dict, root: str) -> None:
+     if not _matches_scope(rel, contract["scope"]):
+         _deny_out_of_scope(rel)
+         return
++    if _is_structural(rel) and not contract.get("impact_map_present"):
++        _deny_missing_impact_map(rel)
++        return
+ 
+ 
+ def _shell_write_targets(cmd: str) -> list[str]:
+diff --git a/.claude/task/TEMPLATE.md b/.claude/task/TEMPLATE.md
+index 80dabe5..b8d2a42 100644
+--- a/.claude/task/TEMPLATE.md
++++ b/.claude/task/TEMPLATE.md
+@@ -18,6 +18,24 @@ scope_paths:
+ # protected_override: >
+ #   <CPO approval reference>
+ 
++# REQUIRED when scope_paths touches the STRUCTURAL SURFACE — a raw writer
++# (ingestion/**), a dbt model (dbt_project/models/**), or consumption
++# (scripts/export_*.py, site*/). The contract gate DENIES the first structural edit
++# until this is present. Trace BEFORE you build, and paste EVIDENCE, not assertion
++# (the actual `dbt ls --select <model>+` / dbt-MCP lineage output and the RAW count —
++# do not claim them from memory). Trivial/leaf/cosmetic changes use a one-line
++# evidenced short-form (e.g. "leaf mart; `dbt ls --select mart_x+` → no downstream
++# models; cosmetic label change"). A dishonest "trivial" tag is a reviewer FAIL (A6).
++# Omit this key entirely when no structural path is in scope.
++# impact_map: >
++#   writers: <every loader/model that writes the table/model being changed>
++#   downstream: <lineage to marts/consumption — PASTE `dbt ls --select <model>+`
++#     or the dbt-MCP get_lineage_dev output>
++#   layer_rules: <the CI-enforced layer rules that apply (check_layer_contract)>
++#   deploy_order: <shared-warehouse migration ordering — does this break the
++#     deployed model until merge? how is it sequenced around the 04:00 nightly?>
++#   blast_radius: <which marts/numbers change, or "none" + the RAW count / leaf evidence>
++
+ decisions_taken: >
+   <what this contract pre-approves, quoting the CPO ruling it rests on>
+ 
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d7917a7..27af816 100644
+index 27af816..88fd48f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,70 +1,30 @@
--# Task contract — RAW_APIF_PLAYERS merge-on-write per (team,season) (all leagues backfillable)
-+# Task contract — Handover refresh (2026-06-22 close-out: players re-grain)
+@@ -1,30 +1,101 @@
+-# Task contract — Handover refresh (2026-06-22 close-out: players re-grain)
++# Task contract — Impact-map gate (diagnosis drift, #518)
  
  objective: >
--  Fix the players backfill so EVERY league — including the biggest (LIBER/UEL/UCL) — can be
--  backfilled. Root cause: the loader crammed an entire league's players (all teams × all seasons)
--  into ONE BigQuery row, exceeding BQ's 100 MB per-row JSON limit (LIBER failed on the 2026-06-22
--  full-profile resume). Fix: store ONE small row per (team, season), merge-on-write — exactly the
--  RAW_APIF_FIXTURE_DETAILS pattern (one row per fixture). No row approaches the limit, for any league.
--
--decisions_taken: >
--  - Grain: one row per (team, season); payload {league_code, response:[entry]} (one entry/row).
--  - Loader (squads.py) is MERGE-ON-WRITE: append the run's per-(team,season) rows, then delete the
--    superseded prior rows for exactly those keys → one row per (league, team, season), BOUNDED (not
--    append-accumulating). Only re-written keys are touched, so a quota cut leaves un-fetched keys'
--    prior rows intact (a partial-snapshot warning is logged). This makes it an idempotent/upsert
--    table — the reviewers required idempotency to avoid unbounded growth.
--  - Staging (stg_apif__players) reads ALL rows faithfully — NO latest-snapshot qualify (forbidden by
--    check_layer_contract for a non-league partition; and a per-league qualify would drop entities) —
--    and current-per-(player,team,season) is assembled in BASE (base_apif__player_team_season /
--    base_apif__players already dedup by entity keys). This is layer-legal because the table is
--    merge-on-write/upsert (one row per key), exactly like RAW_APIF_FIXTURE_DETAILS, whose staging
--    also reads faithfully without a qualify.
--  - player_universe._query_universe reads all rows (its own group by player_id dedups).
--  - One-time migration via scripts/diagnostics/reshape_players_to_team_season.py (dry-run default):
--    explodes each league's latest bloated snapshot into per-(team,season) rows and deletes the
--    pre-migration rows. Idempotency guard (no-op if no bloated rows remain) + SET-IDENTITY check
--    (EXCEPT both ways, not count-only) that ABORTS before deleting on any mismatch. Dry-checked:
--    626 bloated rows -> 13,386 small rows, 413,755 player-team-seasons preserved exactly.
--  - Supersedes PR #534 (chunking). #534 to be CLOSED.
--
--blast_radius (end-to-end, traced): >
--  RAW_APIF_PLAYERS feeds ONLY dim_player (identity; 1 of 3 sources) and
--  dim_player_team_season_mapping -> mart_roster (affiliation). The player PERFORMANCE chain
--  (fct_fixture_player_stats -> int_player_season__metrics / momentum / season-record / profile /
--  match-log / leaderboards) is built from RAW_APIF_FIXTURE_DETAILS and is UNAFFECTED. Numbers are
--  preserved end-to-end (re-shape reproduces 413,755; mart_roster + dim_player unchanged).
--
--amendments: >
--  2026-06-22 (1) — CPO "ok, do it": the fixture-details-style per-entity re-grain + reviewed
--  re-shape script. Added scripts/diagnostics/** to scope.
--  2026-06-22 (2) — CPO "Implement" after the end-to-end assessment + review FAIL: adopt merge-on-write
--  (bounded loader, the reviewers' required idempotent/upsert), and broaden the dbt-staging scope to
--  `dbt_project/models/1_staging/api_football/**` to fix the stale stg_apif__players description in
--  stg_apif__generic.yml (analytics-engineer finding). Authority: this conversation.
-+  Refresh .claude/active_work.md to the true post-merge state. This session: (1) the Phase 2a deep
-+  RESUME (CPO Option A) is DONE — CAFCL/LIBER/CWC are at MAX PROVIDER DEPTH (the year-count "gaps"
-+  were API-Football catalog floors, not ingest misses); all 15 Phase 2a leagues are at their
-+  configured/available depth. (2) The resume surfaced a real loader bug — RAW_APIF_PLAYERS crammed a
-+  whole league's players into one >100MB BigQuery row (LIBER/UEL/UCL failed) — fixed by re-graining to
-+  one merge-on-write row per (team,season) (the RAW_APIF_FIXTURE_DETAILS pattern): PR #536 MERGED, the
-+  existing data re-shaped in place (413,755 player-team-seasons preserved). #534 (chunking) closed.
-+  (3) #518 updated with the diagnosis-drift recurrence + proposed enforcement. Set the FIRST next action.
+-  Refresh .claude/active_work.md to the true post-merge state. This session: (1) the Phase 2a deep
+-  RESUME (CPO Option A) is DONE — CAFCL/LIBER/CWC are at MAX PROVIDER DEPTH (the year-count "gaps"
+-  were API-Football catalog floors, not ingest misses); all 15 Phase 2a leagues are at their
+-  configured/available depth. (2) The resume surfaced a real loader bug — RAW_APIF_PLAYERS crammed a
+-  whole league's players into one >100MB BigQuery row (LIBER/UEL/UCL failed) — fixed by re-graining to
+-  one merge-on-write row per (team,season) (the RAW_APIF_FIXTURE_DETAILS pattern): PR #536 MERGED, the
+-  existing data re-shaped in place (413,755 player-team-seasons preserved). #534 (chunking) closed.
+-  (3) #518 updated with the diagnosis-drift recurrence + proposed enforcement. Set the FIRST next action.
++  Make end-to-end diagnosis a precondition of structural change, so the spot-fix /
++  diagnosis-drift pattern (#518) stops recurring. Introduce a mandatory, EVIDENCED
++  "impact map" in the task contract for any change on the structural surface
++  (ingestion/**, dbt_project/models/**, scripts/export_*.py, site*/): every writer
++  of the table/model, the downstream lineage to marts/consumption (pasted from
++  `dbt ls --select <model>+` or the dbt MCP — evidence, not assertion), the
++  CI-enforced layer rules, the shared-warehouse deploy ordering, and the blast
++  radius. The contract gate denies a structural edit until the map is present;
++  the routed reviewers judge its honesty. Plus: sharpen three reviewer specs to
++  hunt the map (and coverage-cut "fixes") and name the anti-pattern (Appendix A6).
++  (The bundled merge-on-write/read-all layering.md codification was DE-SCOPED to
++  issue #539 after review — see amendments.)
  
  refs: >
--  Review FAIL (3 reviewers) on the prior append+read-all approach: unbounded growth + the §1_staging
--  read-all exemption is for skip-if-present/upsert loaders. Pattern: loads/batch_fixtures.py
--  (merge-on-write, one row per fixture). Root cause log: /tmp/phase2a_resume.log.
-+  This conversation 2026-06-22. PR #536 (merged), #534 (closed), #518 (process retrospective updated).
-+  Memory: feedback-no-hacky-solutions (5th mode — end-to-end-map-first).
+-  This conversation 2026-06-22. PR #536 (merged), #534 (closed), #518 (process retrospective updated).
+-  Memory: feedback-no-hacky-solutions (5th mode — end-to-end-map-first).
++  Issue #518 (process retrospective; 3 logged instances #514/#527/#536). CPO §10
++  design sign-off in this conversation 2026-06-22 ("OK. Execute."). The design and
++  its alternatives were escalated and approved this session. Memory:
++  feedback-no-hacky-solutions (mode 5 = end-to-end-map-first).
  
  scope_paths:
--  - ingestion/api_football/bigquery.py
--  - ingestion/api_football/loads/squads.py
--  - ingestion/api_football/loads/player_universe.py
--  - dbt_project/models/1_staging/api_football/**
--  - scripts/diagnostics/**
--  - tests/**
--  - docs/data_contract.md
-   - .claude/active_work.md
+-  - .claude/active_work.md
    - .claude/task/**
- 
-+decisions_taken: >
-+  Documentation-only handover refresh — no code, no product decision. The commit carries contract.md
-+  (hashed, not artifact-exempt), so it needs review; routing for active_work.md + .claude/task/** is
-+  scope-auditor only. active_work.md is hash-excluded (artifact). No code paths touched.
++  - .claude/hooks/task_contract_gate.py
++  - .claude/agents/scope-auditor.md
++  - .claude/agents/data-engineer-reviewer.md
++  - .claude/agents/analytics-engineer-reviewer.md
++  - tests/test_governance_hooks.py
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
 +
++protected_override: >
++  CPO §10 sign-off 2026-06-22 (this conversation): the impact-map gate is a NEW
++  governance mechanism; building it edits the gate hook (.claude/hooks/) and three
++  reviewer specs (.claude/agents/), both PROTECTED. The CPO approved the design and
++  said "Execute." Routes to cto-reviewer (guard paths) at the opus floor.
+ 
+ decisions_taken: >
+-  Documentation-only handover refresh — no code, no product decision. The commit carries contract.md
+-  (hashed, not artifact-exempt), so it needs review; routing for active_work.md + .claude/task/** is
+-  scope-auditor only. active_work.md is hash-excluded (artifact). No code paths touched.
++  CPO-approved design (this conversation): (1) the impact-map is a presence-gated,
++  reviewer-judged section of contract.md — the gate checks PRESENCE, the reviewer
++  checks HONESTY (same split as scope_paths). (2) Teeth = "evidence, not assertion":
++  the map must paste the lineage output + the RAW/leaf evidence, mirroring the
++  existing provider-ID evidence rule. (3) Breadth = the WHOLE structural surface
++  (ingestion/** + all dbt_project/models/** + scripts/export_*.py + site*/), not
++  just raw/staging — the pattern is general; trivial/leaf/cosmetic changes use a
++  one-line evidenced short-form. (4) Enforcement POINT = the edit boundary: the gate
++  denies the FIRST structural Edit/Write until the contract carries a non-placeholder
++  impact_map (so no structural code exists without the map). This is the robust
++  implementation of the approved "contract chokepoint" direction — the PreToolUse
++  event cannot reliably read pre-write contract content, so the check reads the
++  on-disk contract when a structural file is about to be edited. (5) DEFERRED on
++  purpose (not built): the active diagnose-data-issue skill / trace-subagent — add
++  only if the evidenced contract + sharpened reviewers prove insufficient (avoid the
++  over-build pattern). (6) The bundled merge-on-write/read-all layering.md
++  codification was DE-SCOPED to #539 mid-review: the reviewer correctly showed
++  RAW_APIF_FIXTURE_DETAILS (delete-on-retry-only, accumulate + base-dedup) is NOT the
++  same write-class as RAW_APIF_PLAYERS (per-key upsert), so an accurate codification
++  needs its own focused task. CPO directed the follow-up split this session.
++
++decisions_reserved:
++  - none. The design (mechanism, teeth, breadth, enforcement point, the deferred
++    skill) was settled at §10 sign-off this session. If a reviewer surfaces a
++    genuinely new CPO-class question (e.g. the consumption breadth is too wide for
++    pure-UI edits), escalate it blinded — do not decide it here.
++
++# Known v1 limits (documented, not defects): the impact-map check fires on the
++# Edit/Write authoring path only, not on shell write-operators (those are already
++# scope/heredoc-gated); it checks PRESENCE not correctness (honesty is the
++# reviewer's job); it cannot govern a diagnosis floated in pure chat before any
++# contract exists — it catches it at the latest safe point (before code).
++
++impact_map: >
++  Not applicable — no path in scope_paths is on the structural surface. This task
++  edits the gate hook, reviewer specs, governance docs (docs/**), and the hook test.
++  `_is_structural` matches ingestion/** + dbt_project/models/** + scripts/export_*.py
++  + site*/ — none of which this task touches; verified the new gate does not require
++  a map for this task's own files.
+ 
  done_when:
--  - squads.py writes one merge-on-write row per (team, season) (append + delete-superseded-keys);
--    quota cut logs a partial warning and leaves un-fetched keys intact.
--  - stg_apif__players reads all rows faithfully (no qualify); base assembles current-per-entity;
--    stg_apif__generic.yml description corrected. check_layer_contract.py passes.
--  - reshape script: dry-run default, idempotency guard, set-identity (EXCEPT) abort-before-delete.
--  - validate-local green (pytest + dbt parse + sqlfluff + layer-contract).
--  - data_contract.md documents merge-on-write one-row-per-(team,season) for RAW_APIF_PLAYERS.
--  - Full review cycle PASS; PR opened; re-shape run on prod RAW; CI (incl. data-build) green; CPO merges. #534 closed.
-+  - active_work.md reflects: #536 merged (players merge-on-write per (team,season); main green);
-+    Phase 2a resume done (all 15 at provider depth; gaps were catalog floors); #534 closed; #518
-+    updated; the end-to-end-map-first lesson; FIRST next action set.
-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+-  - active_work.md reflects: #536 merged (players merge-on-write per (team,season); main green);
+-    Phase 2a resume done (all 15 at provider depth; gaps were catalog floors); #534 closed; #518
+-    updated; the end-to-end-map-first lesson; FIRST next action set.
+-  - Tree matches the contract (only active_work.md + .claude/task/**).
++  - task_contract_gate.py: a structural Edit/Write (e.g. dbt_project/models/x.sql,
++    ingestion/y.py) is DENIED when the contract has no non-placeholder impact_map,
++    ALLOWED when it has one; a non-structural edit (docs/**) is allowed without one.
++  - TEMPLATE.md carries the impact_map section + the short-form guidance.
++  - The three reviewer specs hunt the impact-map + coverage-cut; working_agreement
++    §2 documents the requirement and Appendix A6 names the anti-pattern;
++    agent_guardrails.md line for task_contract_gate reflects the new deny.
++  - tests/test_governance_hooks.py adds present/absent/non-structural cases; the
++    full governance test module passes (`python -m pytest tests/test_governance_hooks.py`).
++  - validate-local gates pass (sqlfluff/layer-contract/registry-sync unaffected);
++    the routed reviewers PASS (scope-auditor + cto-reviewer; analytics-engineer is
++    no longer required after the layering.md de-scope — no dbt_project/** in the diff).
++  - Tree matches scope_paths.
++
++amendments:
++  - 2026-06-22: REMOVED dbt_project/docs/layering.md from scope (objective + done_when
++    trimmed). Authority: CPO directive this session ("fix in follow-up issue") after the
++    analytics-engineer reviewer FAILed the bundled merge-on-write codification twice for
++    a real accuracy issue (RAW_APIF_FIXTURE_DETAILS delete is retry-only → accumulate +
++    base-dedup, NOT per-key upsert like RAW_APIF_PLAYERS). Tracked accurately as #539.
++    The #518 gate mechanism is unaffected and stands on its own.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index f3ae678..aca745f 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -51,7 +51,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`) when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
+ 
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 53a5421..0052e41 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -24,6 +24,18 @@ committed with the branch so it is PR-visible:
+ - **decisions_taken** — what the contract pre-approves, quoting the CPO ruling
+ - **decisions_reserved** — known CPO-class questions (§10); each is escalated
+   blinded (§11), never decided
++- **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
++  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`): the
++  end-to-end blast-radius map produced BEFORE the first structural edit — every
++  writer of the table/model, the downstream lineage to marts/consumption (from
++  `dbt ls --select <model>+` or the dbt MCP, **pasted as evidence, not asserted
++  from memory**), the CI layer rules that apply, the shared-warehouse deploy
++  ordering, and the blast radius (which marts/numbers change, or "none" with the
++  RAW/leaf evidence). The gate denies the first structural edit until it is
++  present; the routed reviewer judges its honesty — a dishonest "trivial"
++  short-form is a FAIL (Appendix A6). This makes the trace-first habit a
++  precondition, not guidance. Trivial/leaf/cosmetic changes use a one-line
++  evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
+ - **done_when** — mechanical verification steps
+ - **amendments** — scope extensions, written on a CLEAN tree, each recording the
+   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
+@@ -33,6 +45,9 @@ committed with the branch so it is PR-visible:
+ 
+ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+ - No contract → repo edits denied. Out-of-scope path → denied.
++- **Structural surface** (`ingestion/**`, `dbt_project/models/**`,
++  `scripts/export_*.py`, `site*/`) → the first Edit/Write is denied until the
++  contract carries a non-placeholder `impact_map` (§2 above / Appendix A6).
+ - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
+   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
+   `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
+@@ -237,3 +252,4 @@ Concrete past failures of this project. Reviewers and escalations cross-referenc
+ | A3 | Slug/UDF incident: URL formatting classified as "transformation" and pulled into dbt; persistent UDFs + an `on-run-start` lifecycle hook introduced unilaterally to satisfy a linter | Rule over-extension + new mechanism without approval |
+ | A4 | v2 export initially planned through `mart_matchday_insights` (the MVP's presentation pivot) | Consumption-side shortcut instead of source-of-truth architecture |
+ | A5 | W/D/L results, player→team affiliation, and rankings derived in the Python export | Logic/transformation in the frontend (consumption-layer violation) |
++| A6 | Diagnosis drift across #514/#527/#536: spot-fixing a data/grain bug one layer at a time without the end-to-end map; framing "older data is messier" → proposing to ingest LESS as the "fix"; asserting before counting the offending rows in RAW. Each caught only one layer downstream, costing many round-trips | Spot-fix without the blast-radius map / coverage-cut as a DQ fix / assert-before-measure (the `impact_map` rule, §2, exists to prevent this) |
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 5604417..9ca23c7 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -15,7 +15,7 @@ import pytest
+ 
+ HOOKS = os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks")
+ 
+-CONTRACT = """# Task contract — test
++CONTRACT_NO_IMPACT = """# Task contract — test
+ objective: >
+   test
+ refs: test
+@@ -33,6 +33,19 @@ done_when:
+ amendments: (none)
+ """
+ 
++# The default CONTRACT carries an impact_map so structural-path tests (which edit
++# dbt_project/models/allowed.sql) are allowed; the missing-map deny is exercised
++# with CONTRACT_NO_IMPACT. (#518 / Appendix A6 — the impact-map gate.)
++_IMPACT_BLOCK = (
++    "impact_map: >\n"
++    "  writers: loader_x. downstream (dbt ls --select allowed+): none (leaf).\n"
++    "  layer_rules: staging partitions by league_code only.\n"
++    "  deploy_order: rebuilds on next CI; no shared-warehouse break.\n"
++    "  blast_radius: none (leaf mart).\n\n"
++)
++CONTRACT = CONTRACT_NO_IMPACT.replace(
++    "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
++
+ CONTRACT_OVERRIDE = CONTRACT.replace(
+     "decisions_taken:",
+     'protected_override: >\n  CPO approval test\ndecisions_taken:',
+@@ -148,6 +161,49 @@ def test_contract_amendment_allowed_on_clean_tree(repo):
+     assert out.strip() == ""
+ 
+ 
++# --------------------------------------------------------------------------- #
++# task_contract_gate — impact-map gate (structural surface, #518 / Appendix A6)
++# --------------------------------------------------------------------------- #
++def test_structural_edit_denied_without_impact_map(repo):
++    write_contract(repo, CONTRACT_NO_IMPACT)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
++    assert denied(out) and "impact_map" in out
++
++
++def test_structural_edit_allowed_with_impact_map(repo):
++    write_contract(repo)  # default CONTRACT carries an impact_map
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
++    assert out.strip() == ""
++
++
++def test_nonstructural_edit_allowed_without_impact_map(repo):
++    write_contract(repo, CONTRACT_NO_IMPACT)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "docs/allowed_dir/page.md"), repo)
++    assert out.strip() == ""
++
++
++def test_ingestion_edit_denied_without_impact_map(repo):
++    write_contract(repo, CONTRACT_NO_IMPACT.replace(
++        "  - docs/allowed_dir/\n", "  - docs/allowed_dir/\n  - ingestion/\n"))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "ingestion/loader.py", "Write"), repo)
++    assert denied(out) and "impact_map" in out
++
++
++def test_placeholder_impact_map_does_not_satisfy(repo):
++    """A literally-copied `<placeholder>` is not a real map — still denied."""
++    write_contract(repo, CONTRACT_NO_IMPACT.replace(
++        "decisions_taken:", "impact_map: <fill me in>\ndecisions_taken:"))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
++    assert denied(out) and "impact_map" in out
++
++
++def test_out_of_scope_structural_edit_denied_for_scope_first(repo):
++    """An out-of-scope structural path fails the scope check before the map check."""
++    write_contract(repo, CONTRACT_NO_IMPACT)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/other.sql"), repo)
++    assert denied(out) and "OUTSIDE" in out
++
++
+ # --------------------------------------------------------------------------- #
+ # task_contract_gate — shell coverage
+ # --------------------------------------------------------------------------- #

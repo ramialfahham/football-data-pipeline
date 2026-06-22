@@ -40,6 +40,14 @@ diff here as the next incident until proven otherwise.
 5. **Raw schema contract**: `RAW_{source}_{entity}` naming and column
    contracts unchanged, or `docs/data_contract.md` updated in the same
    branch.
+6. **Impact-map for raw-write / grain changes (A6, #518)**: a change to what a
+   loader writes, a raw table's grain, or a raw schema must be backed by the
+   contract's `impact_map` (§2) — every writer + the downstream lineage to marts
+   (PASTED from `dbt ls --select <model>+` / the dbt MCP, not asserted) + the
+   shared-warehouse deploy ordering (re-graining a raw table breaks the deployed
+   staging until merge — was it sequenced around the 04:00 nightly?). Absent or
+   asserted-not-evidenced → FAIL. A "messier old data → ingest less / skip it"
+   framing WITHOUT the RAW offending-row COUNT stated → FAIL (coverage-cut, A6).
 
 ### Class 2 — registry / onboarding changes (`docs/competition_registry.yml`)
 

@@ -45,6 +45,12 @@ adjectives are banned from your output.
 7. **Same-window rule**: every ratio's numerator and denominator computed over
    the same game set (coverage counts); flag any new safe_divide whose inputs
    have mismatched coverage.
+8. **Impact-map for model/grain changes (A6, #518)**: any change to a model's
+   grain, a raw write it reads, or a `1_staging` model must be backed by the
+   contract's `impact_map` (§2) — writers + the full downstream lineage (PASTED
+   from `dbt ls --select <model>+` / the dbt MCP, not asserted) + the CI layer
+   rules that apply. A spot-fix shipped without the end-to-end map, or an
+   asserted / dishonest "trivial" short-form, → FAIL.
 
 ## Verdict rules (no free passes)
 

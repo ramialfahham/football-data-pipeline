@@ -11,6 +11,11 @@ Drift is made mechanically impossible: every unit of work declares a contract
       carries an explicit `protected_override` naming the CPO approval
     - edits to the contract itself while the tree is dirty (clean-tree rule:
       amendments are discrete events, never mixed into code changes)
+    - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models
+      `dbt_project/models/**`, consumption `scripts/export_*.py` / `site*/`) when
+      the contract carries no non-placeholder `impact_map` — the end-to-end
+      blast-radius map must precede the first structural edit, so diagnosis
+      happens before code, not one layer downstream at a time (#518, Appendix A6)
 
   PreToolUse Bash (best effort — shell is not fully parseable)
     - script heredocs (`python - <<EOF` …) that bypass the Edit-tool gates
@@ -77,6 +82,33 @@ _SED_I = re.compile(r"\bsed\s+(?:-[a-zA-Z]*\s+)*-i\b[^|;&]*?\s((?:[^\s;|&-][^\s;
 
 _IGNORED_TARGETS = {"/dev/null", "$null", "nul"}
 
+# The STRUCTURAL SURFACE (#518 / Appendix A6): raw writers, dbt models, and the
+# consumption layer — where a change ripples across layers, so the contract must
+# carry an end-to-end `impact_map` BEFORE the first edit. Trace before code.
+_STRUCTURAL_PREFIXES = ("ingestion/", "dbt_project/models/", "site/", "site_v2/")
+_EXPORT_RE = re.compile(r"^scripts/export_[A-Za-z0-9_]+\.py$")
+# A `<template placeholder>` is not real content; nor is a bare YAML block
+# indicator or an empty/(none) line.
+_PLACEHOLDER_RE = re.compile(r"^<.*>$")
+
+
+def _impact_content(text: str) -> bool:
+    """True when `text` is real impact-map content — not blank, a comment, a bare
+    YAML block indicator (`>`/`|`), `(none)`, or a `<template placeholder>`."""
+    s = text.strip()
+    if not s or s in (">", "|", "(none)"):
+        return False
+    if s.startswith("#"):
+        return False
+    return not _PLACEHOLDER_RE.match(s)
+
+
+def _is_structural(rel: str) -> bool:
+    """The structural surface — an impact_map is required before editing here."""
+    if any(rel.startswith(p) for p in _STRUCTURAL_PREFIXES):
+        return True
+    return bool(_EXPORT_RE.match(rel))
+
 
 def _repo_root() -> str:
     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
@@ -95,11 +127,13 @@ def _rel_in_repo(path: str, root: str) -> str | None:
 
 
 def _read_contract(root: str) -> dict | None:
-    """Parse the contract's scope_paths + protected_override. None when absent."""
+    """Parse scope_paths, protected_override, and whether a non-placeholder
+    impact_map section is present. None when absent."""
     path = os.path.join(root, CONTRACT_REL)
     if not os.path.isfile(path):
         return None
     scope, in_scope_block, override = [], False, False
+    in_impact_block, impact_present = False, False
     try:
         for raw in open(path, encoding="utf-8", errors="replace"):
             line = raw.rstrip("\n")
@@ -113,11 +147,23 @@ def _read_contract(root: str) -> dict | None:
                     continue
                 if line.strip() and not line.startswith((" ", "\t")):
                     in_scope_block = False
+            mi = re.match(r"^impact_map\s*:(.*)$", line)
+            if mi:
+                in_impact_block = True
+                if _impact_content(mi.group(1)):
+                    impact_present = True
+                continue
+            if in_impact_block:
+                if line.strip() and not line.startswith((" ", "\t")):
+                    in_impact_block = False      # next top-level key ends the block
+                elif _impact_content(line):
+                    impact_present = True
             if re.match(r"^protected_override\s*:", line):
                 override = True
     except Exception:
         return None
-    return {"scope": scope, "protected_override": override}
+    return {"scope": scope, "protected_override": override,
+            "impact_map_present": impact_present}
 
 
 def _matches_scope(rel: str, scope: list[str]) -> bool:
@@ -178,6 +224,22 @@ def _deny_protected(rel: str) -> None:
     )
 
 
+def _deny_missing_impact_map(rel: str) -> None:
+    emit_deny(
+        f"CONTRACT GATE: `{rel}` is on the STRUCTURAL SURFACE (raw writer, dbt "
+        "model, or consumption), so the task contract must carry a non-placeholder "
+        "`impact_map:` section BEFORE this edit. Trace end-to-end FIRST and paste "
+        "EVIDENCE, not assertion: every writer of the table/model; the downstream "
+        "lineage to marts/consumption (`dbt ls --select <model>+` or the dbt-MCP "
+        "output); the CI layer rules that apply; the shared-warehouse deploy "
+        "ordering; the blast radius (which marts/numbers change, or 'none' with the "
+        "RAW count / leaf evidence). Trivial/leaf/cosmetic changes may use a "
+        "one-line evidenced short-form. No map -> no structural edit. Add it to the "
+        "contract on a CLEAN tree, then proceed. See docs/working_agreement.md §2 "
+        "and Appendix A6 (#518)."
+    )
+
+
 def _gate_file_edit(event: dict, root: str) -> None:
     path = (event.get("tool_input") or {}).get("file_path") or ""
     if not path:
@@ -215,6 +277,9 @@ def _gate_file_edit(event: dict, root: str) -> None:
         return
     if not _matches_scope(rel, contract["scope"]):
         _deny_out_of_scope(rel)
+        return
+    if _is_structural(rel) and not contract.get("impact_map_present"):
+        _deny_missing_impact_map(rel)
         return
 
 

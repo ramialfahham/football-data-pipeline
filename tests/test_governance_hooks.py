@@ -15,7 +15,7 @@ import pytest
 
 HOOKS = os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks")
 
-CONTRACT = """# Task contract — test
+CONTRACT_NO_IMPACT = """# Task contract — test
 objective: >
   test
 refs: test
@@ -32,6 +32,19 @@ done_when:
   - test
 amendments: (none)
 """
+
+# The default CONTRACT carries an impact_map so structural-path tests (which edit
+# dbt_project/models/allowed.sql) are allowed; the missing-map deny is exercised
+# with CONTRACT_NO_IMPACT. (#518 / Appendix A6 — the impact-map gate.)
+_IMPACT_BLOCK = (
+    "impact_map: >\n"
+    "  writers: loader_x. downstream (dbt ls --select allowed+): none (leaf).\n"
+    "  layer_rules: staging partitions by league_code only.\n"
+    "  deploy_order: rebuilds on next CI; no shared-warehouse break.\n"
+    "  blast_radius: none (leaf mart).\n\n"
+)
+CONTRACT = CONTRACT_NO_IMPACT.replace(
+    "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
 
 CONTRACT_OVERRIDE = CONTRACT.replace(
     "decisions_taken:",
@@ -146,6 +159,49 @@ def test_contract_amendment_allowed_on_clean_tree(repo):
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/contract.md"), repo)
     assert out.strip() == ""
+
+
+# --------------------------------------------------------------------------- #
+# task_contract_gate — impact-map gate (structural surface, #518 / Appendix A6)
+# --------------------------------------------------------------------------- #
+def test_structural_edit_denied_without_impact_map(repo):
+    write_contract(repo, CONTRACT_NO_IMPACT)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_structural_edit_allowed_with_impact_map(repo):
+    write_contract(repo)  # default CONTRACT carries an impact_map
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert out.strip() == ""
+
+
+def test_nonstructural_edit_allowed_without_impact_map(repo):
+    write_contract(repo, CONTRACT_NO_IMPACT)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "docs/allowed_dir/page.md"), repo)
+    assert out.strip() == ""
+
+
+def test_ingestion_edit_denied_without_impact_map(repo):
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "  - docs/allowed_dir/\n", "  - docs/allowed_dir/\n  - ingestion/\n"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "ingestion/loader.py", "Write"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_placeholder_impact_map_does_not_satisfy(repo):
+    """A literally-copied `<placeholder>` is not a real map — still denied."""
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "decisions_taken:", "impact_map: <fill me in>\ndecisions_taken:"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_out_of_scope_structural_edit_denied_for_scope_first(repo):
+    """An out-of-scope structural path fails the scope check before the map check."""
+    write_contract(repo, CONTRACT_NO_IMPACT)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/other.sql"), repo)
+    assert denied(out) and "OUTSIDE" in out
 
 
 # --------------------------------------------------------------------------- #
