@@ -24,6 +24,18 @@ committed with the branch so it is PR-visible:
 - **decisions_taken** — what the contract pre-approves, quoting the CPO ruling
 - **decisions_reserved** — known CPO-class questions (§10); each is escalated
   blinded (§11), never decided
+- **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
+  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`): the
+  end-to-end blast-radius map produced BEFORE the first structural edit — every
+  writer of the table/model, the downstream lineage to marts/consumption (from
+  `dbt ls --select <model>+` or the dbt MCP, **pasted as evidence, not asserted
+  from memory**), the CI layer rules that apply, the shared-warehouse deploy
+  ordering, and the blast radius (which marts/numbers change, or "none" with the
+  RAW/leaf evidence). The gate denies the first structural edit until it is
+  present; the routed reviewer judges its honesty — a dishonest "trivial"
+  short-form is a FAIL (Appendix A6). This makes the trace-first habit a
+  precondition, not guidance. Trivial/leaf/cosmetic changes use a one-line
+  evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
 - **done_when** — mechanical verification steps
 - **amendments** — scope extensions, written on a CLEAN tree, each recording the
   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
@@ -33,6 +45,9 @@ committed with the branch so it is PR-visible:
 
 Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - No contract → repo edits denied. Out-of-scope path → denied.
+- **Structural surface** (`ingestion/**`, `dbt_project/models/**`,
+  `scripts/export_*.py`, `site*/`) → the first Edit/Write is denied until the
+  contract carries a non-placeholder `impact_map` (§2 above / Appendix A6).
 - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
   `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
@@ -237,3 +252,4 @@ Concrete past failures of this project. Reviewers and escalations cross-referenc
 | A3 | Slug/UDF incident: URL formatting classified as "transformation" and pulled into dbt; persistent UDFs + an `on-run-start` lifecycle hook introduced unilaterally to satisfy a linter | Rule over-extension + new mechanism without approval |
 | A4 | v2 export initially planned through `mart_matchday_insights` (the MVP's presentation pivot) | Consumption-side shortcut instead of source-of-truth architecture |
 | A5 | W/D/L results, player→team affiliation, and rankings derived in the Python export | Logic/transformation in the frontend (consumption-layer violation) |
+| A6 | Diagnosis drift across #514/#527/#536: spot-fixing a data/grain bug one layer at a time without the end-to-end map; framing "older data is messier" → proposing to ingest LESS as the "fix"; asserting before counting the offending rows in RAW. Each caught only one layer downstream, costing many round-trips | Spot-fix without the blast-radius map / coverage-cut as a DQ fix / assert-before-measure (the `impact_map` rule, §2, exists to prevent this) |
