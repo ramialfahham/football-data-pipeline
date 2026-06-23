@@ -6,21 +6,21 @@
   round (off-season) or before matchday 1 of the next season.
 #}
 
-with import_int_team_season__full_season_metrics as (
-    select * from {{ ref('int_team_season__full_season_metrics') }}
+with import_int_team_season__metrics as (
+    select * from {{ ref('int_team_season__metrics') }}
 ),
 
 latest_season_per_league as (
     select
         league_code,
         max(season_api_year) as season_api_year
-    from import_int_team_season__full_season_metrics
+    from import_int_team_season__metrics
     group by league_code
 ),
 
 latest_season_metrics as (
     select m.*
-    from import_int_team_season__full_season_metrics as m
+    from import_int_team_season__metrics as m
     inner join latest_season_per_league as ls
         on
             m.league_code = ls.league_code
