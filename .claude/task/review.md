@@ -1,35 +1,34 @@
-# Review — feat/leaderboards-rate-boards — 2026-06-23
+# Review — feat/player-per90-metrics — 2026-06-23
 
-diff_sha256: e229ba1316afbc3cf0270370d693d7dda3981b2a7db38999fb95d58c6bf4112b
+diff_sha256: 8340f2fe4f747585a5cf1556363ba3758c9619d6a348735d47c6eb365b8e15ea
 
 ## scope-auditor
-VERDICT: PASS
+VERDICT: ESCALATE
 risks_checked:
-- Downstream column isolation — `int_player_season__metrics` gains one column (`finishing_efficiency`); verified `mart_player_profile` and `int_player_career__metrics` use named SELECTs (not `select *` in their final), so the new column does not leak — their schemas and numbers are unchanged. Edits stay strictly within `scope_paths`; no §10 decision taken unilaterally (the metric extension, the qualification rule, and the i18n key are all recorded in `decisions_taken`).
-- sort_value INT64→FLOAT64 widening + export boundary — verified the export (`scripts/export_site_data.py`) filters `metric_key` to `_LEADERBOARD_METRICS` (the 9 count boards only); the 5 rate keys are NOT added, so the live export is unchanged; count-board `sort_value` is JSON-numeric-equal (25 ≡ 25.0). Export wiring honestly deferred (#391). impact_map matches the actual files.
+- Scope-amendment authority — the amendment adds `int_team_season.yml` (non-negative per-90 DQ test) + `mart_player_profile.sql` (stale-comment touch-up); the scope-auditor held (rounds 1-3) that §2 requires the amendment to record CPO authority, not reviewer-FAIL authority. Put to the CPO (two paths: confirm vs drop to a follow-up). See escalations.
+- Scope surgical + no other §10 drift — every staged file is in the (amended) scope_paths; the per-90 reintroduction and the direction classification are both recorded in decisions_taken as CPO rulings; the 2 added files are genuine dependencies of the per-90 work.
+CPO ANSWER: (a) confirm the scope amendment — the CPO authorizes adding int_team_season.yml (DQ test) + mart_player_profile.sql (comment) to PR1's scope; authority = the CPO's "good now" approval of the plan that named both fixes (durably recorded in escalations.log, conversation 2026-06-23).
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Unified-loop refactor correctness — verified the two loops were merged into one `boards` list (9 count + 5 rate = 14) ranked by a single loop with `{% if not loop.last %}union all{% endif %}`: compiles to exactly 14 branches / 13 `union all`, no dangling union; each WHERE is correct (count `key > 0`; rate `minutes >= 270 and <scope> and key > 0`; finishing adds `shots_on_target >= 10`; save is GK-only). The prior hidden "rate_boards non-empty" invariant is removed.
-- Catalogue drift guard + range tests — `finishing_efficiency` column in the int model is non-exempt and normalises to `finishing_efficiency`; the new `(entity='player', metric_id='finishing_efficiency')` catalogue row satisfies `assert_no_uncatalogued_season_metric`. The 4 bounded-rate [0,1] tests are added; `finishing_efficiency` is correctly EXCLUDED (uncapped — a real 3-goal/2-SoT player-season exists). Mart SELECT matches the documented `shared.yml` column set; grain `(player_sk, season_sk, metric_key)` holds.
+- Non-negative test completeness — verified `int_player_season_per90_non_negative` lists all 13 per-90 columns with the `col is null or col >= 0` pattern (no dropped null guard), correctly placed on `int_player_season__metrics` within `int_team_season.yml`.
+- Drift-guard coverage — all 13 new int columns (incl. `scorer_points_per90`, `defensive_actions_per90`) resolve verbatim to their `metric_id`s under `assert_no_uncatalogued_season_metric`'s normalisation; the catalogue has exactly those 13 player rows; no orphan column or row; numerators correct (key_passes←passes_key, interceptions←tackles_interceptions, blocks←tackles_blocks, saves←goals_saves); blast radius isolated (named-select consumers unaffected).
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Uncapped / >100% mechanism — the description now states a verified, mechanism-neutral condition ("rarely the source logs more goals than on-target shots ... can exceed 100%"), replacing the wrong "penalties" claim; matches the live data (1 breach in 11,809 player-seasons; 0 above the SoT>=10 board floor) and `safe_divide` null-on-zero behaviour. `goals / shots_on_target` is a sound player finishing definition; `lower_is_better=false` correct.
-- Coverage-gap disclosure — "inherits player-stat coverage gaps, like the other player rates" is accurate and correctly framed as a shared property of all player rate metrics, not finishing-specific. SoT>=10 board floor defensible (a leaderboard qualification, kept out of the catalogue definition).
+- `duels_won_per90 = neutral` while `duels_won_pct = higher_better` — the volume-vs-rate split is football-correct and matches the team precedent (`duels_per_match` neutral / `duels_won_pct` higher_better); the interpretation flags "the win rate captures efficiency" so no false quality signal.
+- `saves_per90 = neutral` + `dribbles_success_per90 = higher_better` — a busy keeper's save volume is workload not quality (interpretation discloses it; the save rate carries quality); a successful take-on is a player-initiated output (defensibly higher_better, unlike involuntary defensive volume). All directions consistent with their team analogs; neutral interpretations carry the "style not quality" signal.
 
 ## escalations
-(none)
+- question: PR1's two reviewer-fix files (int_team_season.yml DQ test + mart_player_profile.sql comment) are a scope amendment. §2 requires the amendment to record CPO authority. Confirm the amendment (authorize the two files), or drop them from PR1 to a separate follow-up?
+  CPO ANSWER: (a) confirm the scope amendment — the CPO authorizes adding both files to PR1; authority = the CPO's "good now" approval of the plan that named the DQ guard + the comment touch-up (conversation, 2026-06-23). Durably recorded in `.claude/task/escalations.log`.
 
 ## post-review delta (transparency)
-The cold blinded review ran on staged hash
-`cf42f9bbf62ed2fd9fe57fd635a1a9c8f14e08994f550898158d03cdc4429e51`
-and returned the three PASS verdicts above. The football-analytics reviewer noted one non-blocking
-residual: the SQL comment in `int_player_season__metrics.sql` still carried the stale "penalties can
-exceed 100%" wording it had asked be corrected in the catalogue. That comment was then aligned to the
-verified mechanism-neutral wording — a 2-line, semantically inert change with no effect on SQL
-behaviour, layer rules, scope, metric definition, or any risk the reviewers assessed. The final staged
-diff (`e229ba13...`, recorded in `diff_sha256` above) differs from the cold-reviewed diff ONLY by that
-reviewer-requested comment correction. The verdicts therefore bind unchanged.
+The analytics-engineer + football-analytics PASS verdicts were returned on staged hash
+`661080eabb0586ef44aa9764add97e9deec3105921a59cc356c5c490438f3077`. The only change since is the
+re-phrasing of the contract's `amendments`-block authority (and this escalation resolution) — a
+contract-text-only delta with zero change to the code, metrics, formulas, classifications, or yml that
+those two reviewers judged. Their verdicts therefore bind unchanged to the final hash above. The
+scope-auditor's concern was resolved by the CPO ANSWER recorded above and in escalations.log.
