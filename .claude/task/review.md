@@ -1,23 +1,41 @@
-# Review — chore/handover-program-structure — 2026-06-23
+# Review — fix/issue-526-team-event-attribution — 2026-06-23
 
-> Documentation-only handover restructure into the CPO-approved two-track operating model
-> (PRODUCT primary + PROGRAMS coverage #545 / data-quality #546 / cost #547). Brings the status
-> current and sets next actions by track. Scope: .claude/active_work.md + .claude/task/**.
-> Routes to scope-auditor only; contract.md hashed (non-exempt), active_work.md hash-excluded.
-
-diff_sha256: 6d1e9dd11d0da87322ebb68deeb3fd448832ecd8adb402cf5930ef5066981bfc
+diff_sha256: 6856870f0c67e4c19be98c2913f2132ece2ef9f159b21d0d433d4dcd4f9638ce
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Pre-decision of the #526 canonicalization fix (Appendix A6 spot-fix drift): the handover states the
-  investigation diagnosis (provider duplicate-team-id; data complete/uncorrupted) but explicitly keeps
-  the FIX "STILL OPEN — decision pending on where/how to canonicalize." The layer choice is deferred to
-  the CPO, not smuggled into diagnosis prose. Held — no spot-fix drift.
-- Pre-decision of the coverage-tranche cut (Appendix A6 coverage-cut framing): expansion (#545) is
-  framed as "CPO picks the first tranche," not a foregone conclusion or a DQ-justification; the
-  diagnosis explains the program while the choice stays CPO-gated. Held. Also confirmed: both changed
-  files in scope; the two-track model + epics are recorded as CPO-approved ("Do it"); no §10 smuggled.
+- Scope + §10: all 7 staged paths are within `scope_paths`; the new override seed (a NEW mechanism)
+  and its naming + the ERROR test severity are recorded as CPO-approved in `decisions_taken` ("do it"
+  this session); the full-refresh fallback and the manual-seed-governance/automation are correctly
+  left in `decisions_reserved`. No unrecorded §10 decision; not a coverage-cut (A6) — 38 event rows
+  are corrected, none dropped.
+- `impact_map` honesty: verified `fct_fixture_event` is a LEAF (no model ref()s it) so the corrected
+  team_id reaches NO mart; the marts in the `base_apif__fixture_events+` closure sit downstream via
+  `base_apif__players`/`dim_player` and `fct_fixture_player_stats` (player identity/stats), not the
+  event team_id — the "no mart deltas" claim is truthful.
+- Correctness of the `reattribute_if_cohabiting` gate + self-heal: the override only fires where the
+  correct id IS a participant and the wrong id is NOT, so ASC Kara's own 6424 events (6424 IS a
+  participant) are untouched; the incremental self-heal is self-limiting (once corrected the
+  violation disappears and the fixture stops matching) and merges in place via `event_sk`.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Fan-out / grain: the seed carries `unique(wrong_team_api_id)`, so each event matches at most one
+  `alias_override` and one `reattribute_override` row; `base_apif__fixtures_next` is unique on
+  `fixture_id`; all three LEFT JOINs are 1:1, preserving the base grain
+  (league_code, fixture_id, event_index).
+- NULL-safety across all three `NOT IN` sites: the base `fixture_participants` CTE filters
+  `home_team_id`/`away_team_id` IS NOT NULL (and a LEFT-JOIN miss yields the safe no-fire path); the
+  self-heal guards `team_sk`/`home_team_id`/`away_team_id` IS NOT NULL before its `NOT IN`; the
+  integrity test guards `team_sk`/`home_team_sk`/`away_team_sk` IS NOT NULL — no `NOT IN (…, NULL)`
+  → UNKNOWN trap remains.
+- Layer placement + blast radius: the entity-alignment correction belongs in `2_base` (staging is
+  raw-cleanup-only; core cannot ref stg_* or alter source ids) — correct; `fct_fixture_event` leaf
+  status confirmed by grep, so no mart numbers change. (Non-blocking: the `-- depends_on:` hint is
+  the dbt-standard SQL-comment form and lineage is captured by the `ref()` in the conditional —
+  confirmed by a clean compile.)
 
 ## escalations
 (none)

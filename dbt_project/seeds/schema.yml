@@ -203,3 +203,40 @@ seeds:
             - team_sk
             - as_of_date
             - source_code
+
+  - name: fixture_event_team_overrides
+    description: >
+      CPO-owned corrections for known API-Football fixture-event team-id defects (#526),
+      applied in base_apif__fixture_events. One row per wrong source team id.
+      mode = `alias` replaces the id unconditionally (a genuine duplicate provider id for one
+      club, e.g. Riga FC 2263 -> 10124). mode = `reattribute_if_cohabiting` replaces it only in
+      fixtures where correct_team_api_id is a participant and wrong_team_api_id is not (a
+      mis-attribution between two DISTINCT clubs, e.g. ASKO Kara 25274 events mis-tagged to rival
+      ASC Kara 6424 — so the wrong club's own legitimate events are never touched). Add a row only
+      with EXTERNALLY verified evidence; never infer a duplicate from internal name similarity.
+    config:
+      column_types:
+        wrong_team_api_id: int64
+        correct_team_api_id: int64
+        mode: string
+        note: string
+    columns:
+      - name: wrong_team_api_id
+        description: "The team_api_id the provider's event feed wrongly emits."
+        tests:
+          - not_null
+          - unique
+      - name: correct_team_api_id
+        description: "The team_api_id the event should resolve to."
+        tests:
+          - not_null
+      - name: mode
+        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["alias", "reattribute_if_cohabiting"]
+      - name: note
+        description: "Human note + external-evidence reference for the correction (required — the governance control)."
+        tests:
+          - not_null

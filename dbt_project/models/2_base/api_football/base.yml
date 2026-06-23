@@ -203,7 +203,11 @@ models:
       event_index is the 0-based position in the $.events array and is the
       stable identity for each event. The API occasionally returns duplicate
       event content at different positions; base deduplicates on position,
-      not content.
+      not content. team_id is then resolved: a null team_id is recovered from the same
+      team's other events in the fixture (by team_name), and known provider team-id defects
+      are corrected via the CPO-owned seeds/fixture_event_team_overrides.csv (#526) — an
+      `alias` duplicate-id replacement, or a participant-gated `reattribute_if_cohabiting`
+      mis-attribution fix.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:

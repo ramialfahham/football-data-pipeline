@@ -1,202 +1,400 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index a1314d6..e0ae9f8 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,47 +4,48 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-22 (#518 impact-map gate SHIPPED). **PR #540 MERGED** — the #518 diagnosis-drift fix is LIVE:
--the task contract now requires an EVIDENCED `impact_map` for any **structural-surface** edit (`ingestion/**`,
--`dbt_project/models/**`, `scripts/export_*.py`, `site*/`) — every writer + downstream lineage (pasted from `dbt ls`/dbt
--MCP, NOT asserted) + CI layer rules + shared-warehouse deploy ordering + blast radius. `task_contract_gate.py`
--presence-gates it at the edit boundary (denies the first structural Edit/Write until a non-placeholder map exists);
--the routed reviewers judge its honesty; `working_agreement.md` §2 + **Appendix A6** name the anti-pattern; the three
--reviewer specs hunt the map + coverage-cut "fixes". Trivial/leaf/cosmetic edits use a one-line short-form. **#539
--MERGED (PR #542)** — codified the read-all staging class in `layering.md` §1_staging ACCURATELY + gave the four
--fixture-detail staging models the header/yml read-all rationale. Source-verified correction (trace, not guess):
--RAW_APIF_FIXTURE_DETAILS is **bounded one-row-per-(league_code, fixture_id)** (skip-if-present + delete-on-retry), NOT
--accumulate — so it AND RAW_APIF_PLAYERS are both merge-on-write/per-key; both read all rows in staging (sub-league
--grain → no league_code qualify) and base resolves current-per-entity. This was the first real exercise of the #540
--gate (the trace-first discipline caught #539's own wrong premise before it hit the doc). main GREEN. Prior session:
--**PR #536 MERGED** (RAW_APIF_PLAYERS re-grained to one merge-on-write row per (team,season); **Phase 2a backfill #479
--COMPLETE** — all 15 leagues at provider depth; #534 closed). #518 closed by #540, #539 by #542.
--#500/#506/#510/#517/#521/#526 OPEN. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
-+_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
-+investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
-+2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
-+loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
-+realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
-+real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
-+labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
-+duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
-+(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
-+OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
-+
-+## How work is organized — two tracks (NEW 2026-06-23)
-+- **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
-+  This is the GOAL; everything else is an enabler paced around it. Label `stream:product`.
-+- **PROGRAMS (enablers — pull in deliberately; never let them eclipse product):**
-+  - **Coverage expansion — #545** (`stream:coverage`): onboard the ~146 missing domestic leagues, phased by tranche
-+    (discover → onboard via registry zero-file → `verify-competition-ingest`, paired with a DQ sweep). API-cheap
-+    (~25-40k calls one-time vs 75k/day); **DQ-at-scale is the real cost**.
-+  - **Data-quality routines — #546** (`stream:data-quality`): a growing CI integrity-test suite + a scheduled DQ sweep
-+    across ALL leagues + the triage rule (diagnose-to-root → bounded fix or tracked issue → **never** coverage-cut).
-+    Seeded by #526.
-+  - **Cost optimization — #547** (`stream:platform`): BQ build-bytes / storage / materialisation, sized BEFORE the
-+    expansion lands.
-+- **One board + `stream:*` labels** group everything; the **CPO sets the per-stretch mix** (default = product).
- 
- ## FIRST next session (do this first)
--- **Nothing pending-merge** (`git fetch` + ff main; #540 + #536 merged). RAW_APIF_PLAYERS is now one merge-on-write row
--  per (team,season); existing data was re-shaped IN PLACE on prod. The next nightly runs the new staging on the
--  re-shaped RAW (verified: the identical PR build was green; main's post-merge ci-data-build confirmed). If a
--  player-roster DQ test or an empty `mart_roster` surfaces, suspect the re-grain — but the PR build + the re-shape's
--  set-identity check (413,755 preserved) cover it. To backfill any league's players now: a `full`-profile scoped
--  run merges per-(team,season) rows (bounded; no 100MB risk).
--- **#518 (diagnosis drift) — DONE (PR #540 merged).** The impact-map gate is LIVE: any structural-surface edit
--  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`) now requires a non-placeholder
--  `impact_map` in contract.md BEFORE the first Edit/Write, or `task_contract_gate.py` denies it. When you next
--  touch a raw writer / dbt model / export / site file, FILL THE MAP — evidence (pasted `dbt ls --select <model>+`
--  / dbt-MCP lineage + RAW/leaf count), not assertion; trivial edits get a one-line short-form. See
--  `docs/working_agreement.md` §2 + Appendix A6 and `.claude/task/TEMPLATE.md`. Known v1 limit: the shell-write path
--  is not impact-gated (Edit/Write only). **Follow-up #539 — DONE (PR #542).** layering.md §1_staging now codifies the
--  read-all class accurately (sub-league grain → read all rows, no league_code qualify, base resolves current; the two
--  loader reasons = skip-if-present incremental-accumulation + per-key merge-on-write; fixture_details AND players are
--  both bounded one-row-per-key) and the four fixture-detail staging models carry the header/yml read-all rationale.
--- **Phase 2a backfill (#479) is COMPLETE** — all 15 active continental + domestic leagues at provider depth. Residual:
--  **#521** (phantom-current-season parity — UCL/UEL 9 finished, ED/LMX 4, one short of 10/5 because provider
--  current=2026; closing it = `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
--- Then **Phase 2b** (national-team tournaments + qualifiers) — DEFERRED (CPO Option A): per-cadence editions/cycle
--  mapping, a separate task. Other open items: **coaches + `mart_player_career`** (now unblocked — the player
--  affiliation grain is fixed), **player benchmark / opponent-context** (v1.x), carryovers **#500/#506/#510**,
--  stale-id purge **#517**. **Read `docs/content_architecture.md` §8/§9 first.**
-+- **Nothing pending-merge** (`git fetch` + ff main). main GREEN.
-+- **PROGRAMS — pick the cut, then build:**
-+  - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
-+    tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
-+    onboard (registry, zero-file), `verify-competition-ingest`.
-+  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
-+    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
-+    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
-+    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
-+    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
-+    standing DQ scan (template for the class).
-+  - **#547 (cost):** size BQ build cost before the expansion scales.
-+- **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
-+  **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
-+  (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
-+- **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
- - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
-   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
-   the call delta, verify RAW depth, then `verify-competition-ingest`.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7a54eae..dc04671 100644
+index dc04671..fee2034 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,82 +1,37 @@
--# Task contract — Retire team dribbles_success_pct end-to-end (#510)
-+# Task contract — Handover restructure into two tracks (2026-06-23 close-out)
+@@ -1,37 +1,103 @@
+-# Task contract — Handover restructure into two tracks (2026-06-23 close-out)
++# Task contract — #526 event team mis-attribution + duplicate-id correction (Path A)
  
  objective: >
--  Finish the 2026-06-11 display ruling ("team dribbles dropped; stays a player metric") by
--  retiring the team `dribbles_success_pct` metric end-to-end. CPO directed option (A) this session:
--  remove it from EVERY team surface where it ships — not just the momentum surface #510 enumerated.
--  Tracing showed it ships in TWO team surfaces (momentum W1 + season-record W2), NOT the three I
--  first listed: the team-season model (int_team_season__full_season_metrics) has no team dribbles,
--  and the int_team_season.yml:88 ratio test is the PLAYER one. The player dribbles_success_pct and
--  the raw player dribbles_success count are untouched.
-+  Restructure .claude/active_work.md from a flat list into the CPO-approved two-track operating model:
-+  PRODUCT (primary) + PROGRAMS (coverage #545 / data-quality #546 / cost #547), so the new
-+  domestic-league expansion program does not eclipse product work and a fresh chat inherits both
-+  tracks + the current mix. Also bring the handover current: PRs #540/#542/#544 merged, #510/#539
-+  closed, and today's deep #526 investigation (provider duplicate-team-id quirk; data complete/
-+  uncorrupted; the clubs are thin only because we ingest them via continental cups, not their domestic
-+  leagues) which seeded the three program epics + the stream:* labels. Set FIRST next action by track.
+-  Restructure .claude/active_work.md from a flat list into the CPO-approved two-track operating model:
+-  PRODUCT (primary) + PROGRAMS (coverage #545 / data-quality #546 / cost #547), so the new
+-  domestic-league expansion program does not eclipse product work and a fresh chat inherits both
+-  tracks + the current mix. Also bring the handover current: PRs #540/#542/#544 merged, #510/#539
+-  closed, and today's deep #526 investigation (provider duplicate-team-id quirk; data complete/
+-  uncorrupted; the clubs are thin only because we ingest them via continental cups, not their domestic
+-  leagues) which seeded the three program epics + the stream:* labels. Set FIRST next action by track.
++  Correct the two confirmed fixture-event team-attribution defects (CPO-approved Path A),
++  via a base-layer CPO-owned override seed, and ship a permanent integrity guard:
++  (a) Riga FC — provider duplicate id: alias event team 2263 -> 10124 (one club, two ids).
++  (b) ASC Kara / ASKO Kara — mis-attribution: re-attribute event team 6424 -> 25274 ONLY in
++      fixtures where 25274 is a participant and 6424 is not (ASC Kara's own 2019/2025 events,
++      where 6424 IS the participant, stay 6424). The two ids are DISTINCT real clubs — never
++      merged. Then add an integrity test (event team in {home, away}) as a permanent ERROR guard.
  
  refs: >
--  Issue #510. Ruling: docs/wireframes/metrics_display.md changelog 2026-06-11. CPO direction this
--  session ("A" — end-to-end). The scope note on #510 (team competition benchmark unaffected — not a
--  season metric) verified: int_team_season__full_season_metrics has no dribbles.
-+  This conversation 2026-06-22/23. Created today: epics #545 (coverage), #546 (data-quality, seeded by
-+  #526), #547 (cost); stream:* labels. #526 fix still OPEN (canonicalization decision pending).
+-  This conversation 2026-06-22/23. Created today: epics #545 (coverage), #546 (data-quality, seeded by
+-  #526), #547 (cost); stream:* labels. #526 fix still OPEN (canonicalization decision pending).
++  #526 (defect + full triple-verified diagnosis this session). Seeds the #546 DQ standing scan
++  (the integrity test is the generic detector). #549 (proposal-gate) / #550 (automation design)
++  are separate follow-ups, not built here.
  
  scope_paths:
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - dbt_project/seeds/fixture_event_team_overrides.csv        # NEW seed (name reserved, see below)
++  - dbt_project/seeds/schema.yml                              # document/test the seed
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture_event.sql           # extend self-heal to reprocess the fixtures
++  - dbt_project/tests/assert_event_team_in_fixture_participants.sql  # NEW integrity test (name reserved)
    - .claude/task/**
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
--  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
--  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
--  - dbt_project/models/5_marts/shared/mart_season_record__team.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
--  - dbt_project/macros/team_benchmark_metrics.sql
  
++impact_map: >
++  writers: base_apif__fixture_events derives event team_id from RAW_APIF_FIXTURE_DETAILS
++    $.events[].team.id (via stg_apif__fixture_events), today with a null-team_id recovery clause.
++    This task adds a seed-driven OVERRIDE of team_id in that base model. To evaluate the
++    `reattribute_if_cohabiting` mode it joins base_apif__fixtures_next (fixture participants:
++    home_team_id/away_team_id) on fixture_id. NO ingestion/raw writer change — provider data is
++    left faithful; the correction lives in transform. The `alias` mode is unconditional.
++  downstream: (dbt ls --select base_apif__fixture_events+ --resource-type model, this session)
++    base_apif__fixture_events
++    base_apif__players
++    dim_player
++    fct_fixture_event
++    mart_fixture_stats__player
++    mart_leaderboards
++    mart_momentum_window__team
++    mart_player_match_log
++    mart_player_profile
++    mart_roster
++  layer_rules: the correction is "entity alignment", which the layer contract places in 2_base
++    (1_staging is raw-cleanup-only; 3_core is canonical facts). Seed = seeds-as-configuration.
++    No per-competition files; league_code flows through. check_layer_contract unaffected.
++  deploy_order: base_apif__fixture_events is a VIEW (recomputes on read). fct_fixture_event is
++    INCREMENTAL on raw_ingested_at and will NOT reprocess already-committed rows for a changed
++    (non-null -> non-null) team_id. Chosen reprocessing: extend fct_fixture_event's existing
++    self-heal clause to also re-run fixtures listed in the override seed (bounded, self-limiting;
++    mirrors the #527 null-team_sk self-heal) -- NO --full-refresh. Idempotent; ci-data-build on the
++    PR rebuilds and applies it; nothing is broken between merge and rebuild.
++  blast_radius: the corrected team_id lands ONLY in fct_fixture_event.team_sk/team_api_id, and
++    fct_fixture_event is a LEAF -- `dbt ls --select fct_fixture_event+` returns only itself and NO
++    model ref()s it (grep over models/ this session). So NO mart number changes. The marts in the
++    base_apif__fixture_events+ closure (mart_leaderboards / mart_roster / mart_player_profile /
++    mart_player_match_log / mart_fixture_stats__player / mart_momentum_window__team) sit downstream
++    of BASE via base_apif__players -> dim_player (player identity) and fct_fixture_player_stats
++    (player match stats) — neither reads the event team_id. Change is bounded to 38 fct_fixture_event
++    rows across 3 clubs (25274 ASKO Kara, 6424 ASC Kara, 10124/2263 Riga FC) in 15 fixtures (13 CAFCL
++    2020-24 + 2 UEL 2018) -- RAW count this session: event team NOT IN (home,away) = 38 / 15 fixtures;
++    recent-season baseline 0. All 15 fixtures ARE present in base_apif__fixtures_next / fct_fixture
++    (verified: fct_fixture carries their home/away participants), so the reattribute_if_cohabiting
++    path fires and the integrity test covers them.
++
  decisions_taken: >
--  CPO-directed (this session): option (A) end-to-end retirement. Executes the existing 2026-06-11
--  display ruling — not a NEW catalogue decision (removing an already-ruled-dropped metric). The
--  orphaned raw `dribbles_attempts` + `dribbles_success` SUMS in the two team int models are removed
--  too: they exist only to feed the retired pct, and there is no team catalogue metric for the raw
--  counts (leaving them would be dead code). Player dribbles + raw player dribbles_success untouched.
-+  Documentation-only handover refresh — no code, no product decision. The commit carries contract.md
-+  (hashed, not artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is
-+  scope-auditor only. active_work.md is hash-excluded (artifact). The two-track model + the three
-+  program epics were CPO-approved this session ("Do it").
+-  Documentation-only handover refresh — no code, no product decision. The commit carries contract.md
+-  (hashed, not artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is
+-  scope-auditor only. active_work.md is hash-excluded (artifact). The two-track model + the three
+-  program epics were CPO-approved this session ("Do it").
++  Path A approved by the CPO this session ("Path A seems reasonable" + "yes ... open the #526 Path A
++  task" + "Option 1"). Identity triple-verified and CPO-accepted this session (external Togo
++  championship/CAF records mapping 1:1 to the participant id; disjoint squads across the ASC vs ASKO
++  windows; intra-payload RAW trace; Riga players appearing under BOTH ids across seasons): 6424 ASC
++  Kara and 25274 ASKO Kara are TWO DISTINCT clubs (Togo = mis-attribution, NEVER merge); 2263/10124
++  are ONE club, Riga FC (genuine duplicate id). Mechanism = Option 1: a SINGLE override seed with a
++  `mode` column -- `alias` (unconditional id replacement) for Riga; `reattribute_if_cohabiting`
++  (replace only where the correct id is a participant and the wrong id is not) for Togo -- applied in
++  base_apif__fixture_events. Scope = events-only; dim_team left untouched (CPO-approved; the 2263
++  orphan is harmless). Reprocessing = extend the existing fct_fixture_event self-heal (the #527
++  pattern), not a full-refresh. Dropping events (coverage-cut) and merging the two Togo clubs (option
++  B) are both ruled out by the CPO. CPO confirmed the proposed naming (seed
++  fixture_event_team_overrides; columns wrong_team_api_id/correct_team_api_id/mode/note; test
++  assert_event_team_in_fixture_participants) and ERROR severity on review this session ("do it") —
++  the test carries an explicit config(severity='error').
  
  decisions_reserved:
--  - none. Retirement scope settled by the 2026-06-11 ruling + the CPO (A) direction; surfaces are
--    source-verified.
--
--impact_map: >
--  Change class: RETIRE team `dribbles_success_pct` end-to-end (#510). Removes a SHIPPED mart column
--  from two team surfaces — directed removal; before/after = the column disappears, no retained
--  metric's value changes. No raw writer touched.
--  Surfaces (traced): W1 momentum — mart_momentum__team (the pct col) + int_momentum__team (orphaned
--  dribbles_attempts + dribbles_success sums) + the momentum_team_dribbles_success_pct_in_range test
--  (shared.yml). W2 season-record — mart_season_record__team (the pct col) + int_season_record__team
--  (orphaned sums) + the std_team_dribbles_success_pct_in_range test (shared.yml). Catalogue —
--  metric_catalogue.csv `dribbles_success_pct,team` row + the seeds/schema.yml "retiring/#510"
--  direction+interpretation notes. Team-season has NONE (verified).
--  Downstream lineage (`dbt ls --select mart_momentum__team+ mart_season_record__team+`):
--  mart_momentum__team -> mart_matchday_insights ONLY, which `select *`s the momentum form into a CTE
--  but projects explicit renamed rate columns and never references/outputs dribbles_success_pct ->
--  transparent, no breakage. mart_season_record__team is a leaf.
--  Consumption verified: export_site_data.py references `dribbles_success` only as a PLAYER
--  leaderboard/payload field; the team pct is surfaced nowhere -> site/export unaffected.
--  Layer rules: check_layer_contract unaffected (column/test removals; no layer violation). Catalogue
--  governance: executes the existing 2026-06-11 ruling (football-analytics + analytics-engineer review).
--  Deploy ordering: shared warehouse — the two marts rebuild without the column, the seed reloads, and
--  the 2 range tests drop on the next CI build; pure removal, no migration ordering.
--  Blast radius: the two team marts lose dribbles_success_pct; metric_catalogue loses the team row;
--  2 range tests removed; orphaned raw-dribbles sums removed from the 2 int models. Nothing else changes.
-+  - none. Pure handover bookkeeping + structure. (#526's fix and the coverage tranche cut are
-+    escalated on their issues, not decided here.)
+-  - none. Pure handover bookkeeping + structure. (#526's fix and the coverage tranche cut are
+-    escalated on their issues, not decided here.)
++  - Fallback only: if extending the self-heal cannot reach the committed rows, a one-time
++    --full-refresh of fct_fixture_event is CPO cost-authorization — do NOT run unprompted.
++  - Seed governance is manual BY DESIGN: a false row (a duplicate inferred from internal name
++    similarity) would corrupt attribution until caught. Accepted control = the `note`-column
++    external-evidence rule + the integrity test catching NEW violations; automating the
++    detect-evidence-escalate loop is tracked by #546 / #550, not built here.
  
  done_when:
--  - The team dribbles_success_pct is gone from: metric_catalogue.csv (the team row); mart_momentum__team
--    + mart_season_record__team (the pct columns); int_momentum__team + int_season_record__team (the
--    orphaned dribbles_attempts/success sums + carry-throughs); shared.yml (both range tests);
--    seeds/schema.yml (the "#510/retiring" notes). Player dribbles_success_pct untouched.
--  - check_layer_contract passes; dbt parse green; the metric-catalogue seed test (uniqueness etc.)
--    passes; reviewers PASS (scope-auditor + analytics-engineer + football-analytics-expert).
--  - The doc-sync is COMPLETE — no stale "dribbles_success_pct,team" reference remains in any
--    description, comment, or test (incl. seeds/schema.yml metric_id desc, the unique-by-entity
--    test comment, and the team-benchmark macro comment).
--  - Tree matches scope_paths.
-+  - active_work.md carries: a 2026-06-23 status line; a "How work is organized — two tracks" section
-+    (PRODUCT primary + PROGRAMS #545/#546/#547 with stream:* labels); a FIRST-next-session organized
-+    by track (programs: #545 tranche pick, #526 fix decision, #546 scan, #547 sizing; product: the
-+    content_architecture roadmap); the durable reference sections retained.
-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+-  - active_work.md carries: a 2026-06-23 status line; a "How work is organized — two tracks" section
+-    (PRODUCT primary + PROGRAMS #545/#546/#547 with stream:* labels); a FIRST-next-session organized
+-    by track (programs: #545 tranche pick, #526 fix decision, #546 scan, #547 sizing; product: the
+-    content_architecture roadmap); the durable reference sections retained.
+-  - Tree matches the contract (only active_work.md + .claude/task/**).
++  - Override seed carries exactly the 2 confirmed rows (2263->10124 alias; 6424->25274
++    reattribute_if_cohabiting); `dbt seed` loads it.
++  - base_apif__fixture_events applies the override; for the 15 fixtures the event team_id resolves
++    to the correct club; ASC Kara's own 2019/2025 events (participant 6424) are untouched.
++  - fct_fixture_event reprocesses the override fixtures (self-heal); team_sk corrected.
++  - assert_event_team_in_fixture_participants returns 0 rows across ALL leagues (was 38).
++  - dim_player row count + values unchanged (team_id is not a player-identity input).
++  - validate-local passes (sqlfluff + dbt parse); ci-validate + ci-data-build green on the PR;
++    no mart deltas expected (fct_fixture_event is a leaf) -- ci-data-build confirms the integrity
++    test returns 0 rows and that no mart output changed.
  
--amendments:
--  - 2026-06-22: + dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
--    + dbt_project/macros/team_benchmark_metrics.sql. Authority: analytics-engineer reviewer FAIL
--    (doc-sync / retirement-completeness) + the standing doc-sync rule — both carry stale
--    "dribbles_success_pct" comments (the test's both-entities example; the macro's "retiring"
--    exclusion note) that the retirement must clear. Comment-only; neither is on the structural
--    surface (not under dbt_project/models/), so the impact_map is unchanged. Also fixed the
--    in-scope seeds/schema.yml metric_id description (same stale both-entities claim).
-+amendments: (none)
+ amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 16847b9..6e2baa8 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -203,7 +203,11 @@ models:
+       event_index is the 0-based position in the $.events array and is the
+       stable identity for each event. The API occasionally returns duplicate
+       event content at different positions; base deduplicates on position,
+-      not content.
++      not content. team_id is then resolved: a null team_id is recovered from the same
++      team's other events in the fixture (by team_name), and known provider team-id defects
++      are corrected via the CPO-owned seeds/fixture_event_team_overrides.csv (#526) — an
++      `alias` duplicate-id replacement, or a participant-gated `reattribute_if_cohabiting`
++      mis-attribution fix.
+     config:
+       tags: ["base", "api_football", "fixture_context"]
+     tests:
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index 23d9b4b..03b7736 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -26,33 +26,101 @@ deduped as (
+         partition by league_code, fixture_id, event_index
+         order by raw_ingested_at desc
+     ) = 1
++),
++
++recovered as (
++    select
++        league_code,
++        fixture_id,
++        event_index,
++        minute_elapsed,
++        minute_extra,
++        team_name,
++        player_id,
++        player_name,
++        assist_player_name,
++        event_type,
++        event_detail,
++        event_comments,
++        raw_ingested_at,
++        -- Recover a null team_id from the same team's other events in the fixture. Some old
++        -- API-Football events (mostly Cards) carry team.name but a null team.id, while the same
++        -- team has a valid id on its goals/subs; within (fixture, team_name) we backfill the id so
++        -- the event stays attributed and fct_fixture_event.team_sk is never null for a named event.
++        -- A fixture has two distinct teams with distinct names, so name -> id is unambiguous.
++        case
++            when team_id is not null then team_id
++            when team_name is not null
++                then max(team_id) over (
++                    partition by league_code, fixture_id, team_name
++                )
++            else team_id
++        end as team_id
++    from deduped
++),
++
++-- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting
++-- override condition below. base_apif__fixtures_next grain is one row per fixture_id. Only
++-- fixtures whose two participants are BOTH known are kept, so the IN / NOT IN participant checks
++-- in the reattribute join never hit the NOT IN (value, NULL) -> UNKNOWN trap (a fixture with a
++-- missing participant id is a separate defect; the override conservatively does not fire there).
++fixture_participants as (
++    select
++        fixture_id,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where
++        home_team_id is not null
++        and away_team_id is not null
++),
++
++-- CPO-owned corrections for known provider team-id defects (#526), from
++-- seeds/fixture_event_team_overrides.csv. `alias` = unconditional duplicate-id replacement (one
++-- club under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is
++-- a fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so
++-- a club's own legitimate events are never touched).
++overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id,
++        mode
++    from {{ ref('fixture_event_team_overrides') }}
+ )
+ 
+ select
+-    league_code,
+-    fixture_id,
+-    event_index,
+-    minute_elapsed,
+-    minute_extra,
+-    team_name,
+-    player_id,
+-    player_name,
+-    assist_player_name,
+-    event_type,
+-    event_detail,
+-    event_comments,
+-    raw_ingested_at,
+-    -- Recover a null team_id from the same team's other events in the fixture. Some old
+-    -- API-Football events (mostly Cards) carry team.name but a null team.id, while the same
+-    -- team has a valid id on its goals/subs; within (fixture, team_name) we backfill the id so
+-    -- the event stays attributed and fct_fixture_event.team_sk is never null for a named event.
+-    -- A fixture has two distinct teams with distinct names, so name -> id is unambiguous.
+-    case
+-        when team_id is not null then team_id
+-        when team_name is not null
+-            then max(team_id) over (
+-                partition by league_code, fixture_id, team_name
+-            )
+-        else team_id
+-    end as team_id
+-from deduped
++    recovered.league_code,
++    recovered.fixture_id,
++    recovered.event_index,
++    recovered.minute_elapsed,
++    recovered.minute_extra,
++    recovered.team_name,
++    recovered.player_id,
++    recovered.player_name,
++    recovered.assist_player_name,
++    recovered.event_type,
++    recovered.event_detail,
++    recovered.event_comments,
++    recovered.raw_ingested_at,
++    coalesce(
++        alias_override.correct_team_api_id,
++        reattribute_override.correct_team_api_id,
++        recovered.team_id
++    ) as team_id
++from recovered
++left join overrides as alias_override
++    on
++        recovered.team_id = alias_override.wrong_team_api_id
++        and alias_override.mode = 'alias'
++left join fixture_participants
++    on recovered.fixture_id = fixture_participants.fixture_id
++left join overrides as reattribute_override
++    on
++        recovered.team_id = reattribute_override.wrong_team_api_id
++        and reattribute_override.mode = 'reattribute_if_cohabiting'
++        and reattribute_override.correct_team_api_id in (
++            fixture_participants.home_team_id, fixture_participants.away_team_id
++        )
++        and reattribute_override.wrong_team_api_id not in (
++            fixture_participants.home_team_id, fixture_participants.away_team_id
++        )
+diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
+index 0539465..5f1b583 100644
+--- a/dbt_project/models/3_core/fct_fixture_event.sql
++++ b/dbt_project/models/3_core/fct_fixture_event.sql
+@@ -6,6 +6,8 @@
+     )
+ }}
+ 
++-- depends_on: {{ ref('base_apif__fixtures_next') }}
++
+ {#
+     One row per match event (goals, cards, substitutions, VAR decisions) across all
+     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
+@@ -42,6 +44,24 @@ src as (
+             from {{ this }} as tgt
+             where tgt.team_sk is null
+         )
++        -- Self-heal (#526): also re-process any fixture whose committed events violate the
++        -- team-in-participants rule, so seed-driven team-id corrections
++        -- (fixture_event_team_overrides) reach rows committed before the fix (no --full-refresh).
++        -- Self-limiting: once the attribution is corrected the violation is gone and the fixture
++        -- no longer matches.
++        or base.fixture_id in (
++            select committed.fixture_api_id
++            from {{ this }} as committed
++            inner join {{ ref('base_apif__fixtures_next') }} as fx
++                on committed.fixture_api_id = fx.fixture_id
++            where
++                committed.team_sk is not null
++                and fx.home_team_id is not null
++                and fx.away_team_id is not null
++                and committed.team_sk not in (
++                    cast(fx.home_team_id as int64), cast(fx.away_team_id as int64)
++                )
++        )
+     {% endif %}
+ )
+ 
+diff --git a/dbt_project/seeds/fixture_event_team_overrides.csv b/dbt_project/seeds/fixture_event_team_overrides.csv
+new file mode 100644
+index 0000000..8a64f96
+--- /dev/null
++++ b/dbt_project/seeds/fixture_event_team_overrides.csv
+@@ -0,0 +1,3 @@
++wrong_team_api_id,correct_team_api_id,mode,note
++2263,10124,alias,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
++6424,25274,reattribute_if_cohabiting,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index a5bc0b9..ac8b5c2 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -203,3 +203,40 @@ seeds:
+             - team_sk
+             - as_of_date
+             - source_code
++
++  - name: fixture_event_team_overrides
++    description: >
++      CPO-owned corrections for known API-Football fixture-event team-id defects (#526),
++      applied in base_apif__fixture_events. One row per wrong source team id.
++      mode = `alias` replaces the id unconditionally (a genuine duplicate provider id for one
++      club, e.g. Riga FC 2263 -> 10124). mode = `reattribute_if_cohabiting` replaces it only in
++      fixtures where correct_team_api_id is a participant and wrong_team_api_id is not (a
++      mis-attribution between two DISTINCT clubs, e.g. ASKO Kara 25274 events mis-tagged to rival
++      ASC Kara 6424 — so the wrong club's own legitimate events are never touched). Add a row only
++      with EXTERNALLY verified evidence; never infer a duplicate from internal name similarity.
++    config:
++      column_types:
++        wrong_team_api_id: int64
++        correct_team_api_id: int64
++        mode: string
++        note: string
++    columns:
++      - name: wrong_team_api_id
++        description: "The team_api_id the provider's event feed wrongly emits."
++        tests:
++          - not_null
++          - unique
++      - name: correct_team_api_id
++        description: "The team_api_id the event should resolve to."
++        tests:
++          - not_null
++      - name: mode
++        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["alias", "reattribute_if_cohabiting"]
++      - name: note
++        description: "Human note + external-evidence reference for the correction (required — the governance control)."
++        tests:
++          - not_null
+diff --git a/dbt_project/tests/assert_event_team_in_fixture_participants.sql b/dbt_project/tests/assert_event_team_in_fixture_participants.sql
+new file mode 100644
+index 0000000..46d92f8
+--- /dev/null
++++ b/dbt_project/tests/assert_event_team_in_fixture_participants.sql
+@@ -0,0 +1,22 @@
++{{ config(severity = 'error') }}
++
++-- Integrity guard (#526): every non-null event team_sk must be one of its fixture's two
++-- participants. A violation means an event is attributed to a team that did not play the
++-- fixture — a provider mis-attribution or duplicate team id. Known cases are corrected upstream
++-- by seeds/fixture_event_team_overrides.csv; this test fails (ERROR) on any new occurrence, so the
++-- standing DQ scan catches the class as coverage expands (#546). Scoped to fixtures whose two
++-- participants are both known — NULL-safe: a fixture missing a participant id is a separate defect,
++-- not flagged here, and the explicit IS NOT NULL guards avoid the NOT IN (NULL, ...) -> UNKNOWN trap.
++select
++    e.fixture_sk,
++    e.event_index,
++    e.team_sk,
++    e.league_code
++from {{ ref('fct_fixture_event') }} as e
++inner join {{ ref('fct_fixture') }} as f
++    on e.fixture_sk = f.fixture_sk
++where
++    e.team_sk is not null
++    and f.home_team_sk is not null
++    and f.away_team_sk is not null
++    and e.team_sk not in (f.home_team_sk, f.away_team_sk)
