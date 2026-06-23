@@ -6,6 +6,8 @@
     )
 }}
 
+-- depends_on: {{ ref('base_apif__fixtures_next') }}
+
 {#
     One row per match event (goals, cards, substitutions, VAR decisions) across all
     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
@@ -41,6 +43,24 @@ src as (
             select tgt.fixture_api_id
             from {{ this }} as tgt
             where tgt.team_sk is null
+        )
+        -- Self-heal (#526): also re-process any fixture whose committed events violate the
+        -- team-in-participants rule, so seed-driven team-id corrections
+        -- (fixture_event_team_overrides) reach rows committed before the fix (no --full-refresh).
+        -- Self-limiting: once the attribution is corrected the violation is gone and the fixture
+        -- no longer matches.
+        or base.fixture_id in (
+            select committed.fixture_api_id
+            from {{ this }} as committed
+            inner join {{ ref('base_apif__fixtures_next') }} as fx
+                on committed.fixture_api_id = fx.fixture_id
+            where
+                committed.team_sk is not null
+                and fx.home_team_id is not null
+                and fx.away_team_id is not null
+                and committed.team_sk not in (
+                    cast(fx.home_team_id as int64), cast(fx.away_team_id as int64)
+                )
         )
     {% endif %}
 )
