@@ -6,17 +6,22 @@
   that board within its competition-season. Season-to-date, composed from the canonical
   int_player_season__metrics (the single source) + dim_player identity — NOT mart-from-mart.
 
-  9 COUNT boards (v1); metric_key = the catalogue metric_id. rank = DENSE_RANK over the board's metric
-  desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and the top-10 cut
-  is inclusive of ties (the mart_top_scorers convention). Only players with a positive value on a board
-  are ranked (a leaderboard shows positive performers). The 5 RATE boards + their qualification floor are
-  the deferred follow-up (#506).
+  14 boards: 9 COUNT + 5 RATE (#506). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
+  board's metric desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and
+  the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
+  value on a board are ranked (a leaderboard shows positive performers).
+
+  RATE boards add a qualification rule (CPO, #506) so a tiny sample can't game a rate: minutes >= 270
+  (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
+  dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
+  shots_on_target >= 10 (minutes don't bound shot count, and finishing_efficiency is uncapped).
+  sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
 
   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
   what we show); sort_value is the board's own ranked value. Grain: (player_sk, season_sk, metric_key).
 #}
 
-{% set boards = [
+{% set count_boards = [
     'goals',
     'scorer_points',
     'shots_on_target',
@@ -27,6 +32,27 @@
     'defensive_actions',
     'cards_total',
 ] %}
+
+{# RATE boards (#506): qualify on minutes >= 270 + a position scope (+ a SoT floor for finishing). #}
+{% set outfield = "player_position is not null and player_position != 'Goalkeeper'" %}
+{% set rate_boards = [
+    {'key': 'pass_accuracy_pct', 'qualify': outfield},
+    {'key': 'duels_won_pct', 'qualify': outfield},
+    {'key': 'dribbles_success_pct', 'qualify': outfield},
+    {'key': 'finishing_efficiency', 'qualify': outfield ~ ' and shots_on_target >= 10'},
+    {'key': 'save_pct', 'qualify': "player_position = 'Goalkeeper'"},
+] %}
+
+{# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
+   guard. Count boards rank all positive performers; rate boards add the qualification rule. #}
+{% set boards = [] %}
+{% for key in count_boards %}
+{% do boards.append({'key': key, 'where': key ~ ' > 0'}) %}
+{% endfor %}
+{% for board in rate_boards %}
+{% set rate_where = 'minutes >= 270 and ' ~ board.qualify ~ ' and ' ~ board.key ~ ' > 0' %}
+{% do boards.append({'key': board.key, 'where': rate_where}) %}
+{% endfor %}
 
 with season as (
     select * from {{ ref('int_player_season__metrics') }}
@@ -68,6 +94,11 @@ base as (
         s.scorer_points,
         s.defensive_actions,
         s.cards_total,
+        s.pass_accuracy_pct,
+        s.duels_won_pct,
+        s.dribbles_success_pct,
+        s.save_pct,
+        s.finishing_efficiency,
         p.player_name,
         p.player_nationality,
         p.player_position,
@@ -77,17 +108,17 @@ base as (
 ),
 
 ranked as (
-    {% for metric_key in boards %}
+    {% for board in boards %}
     select
         base.*,
-        '{{ metric_key }}' as metric_key,
-        {{ metric_key }} as sort_value,
+        '{{ board.key }}' as metric_key,
+        cast({{ board.key }} as float64) as sort_value,
         dense_rank() over (
             partition by league_code, season_api_year
-            order by {{ metric_key }} desc
+            order by {{ board.key }} desc
         ) as board_rank
     from base
-    where {{ metric_key }} > 0
+    where {{ board.where }}
     {% if not loop.last %}
     union all
     {% endif %}
@@ -127,6 +158,11 @@ select
     cards_red,
     scorer_points,
     defensive_actions,
-    cards_total
+    cards_total,
+    pass_accuracy_pct,
+    duels_won_pct,
+    dribbles_success_pct,
+    save_pct,
+    finishing_efficiency
 from ranked
 where board_rank <= 10

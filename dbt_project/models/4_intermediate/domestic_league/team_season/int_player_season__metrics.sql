@@ -156,5 +156,9 @@ select
     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
     safe_divide(duels_won, duels_total) as duels_won_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
-    safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct
+    safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct,
+    -- finishing efficiency: goals per shot on target. Uncapped (mirrors the team metric):
+    -- rarely the source logs more goals than on-target shots, so it can exceed 100%.
+    -- Null when shots_on_target is zero. (#506)
+    safe_divide(goals, shots_on_target) as finishing_efficiency
 from aggregated

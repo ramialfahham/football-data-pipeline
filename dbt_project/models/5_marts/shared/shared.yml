@@ -755,12 +755,15 @@ models:
     description: >
       Per-board player leaderboards (the Leaderboards block; content_architecture §3). LONG — one row
       per (player, board): the player's rank on that board within its competition-season. Generalises
-      the retired mart_top_scorers to 9 COUNT boards (goals, scorer_points, shots_on_target,
-      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total).
+      the retired mart_top_scorers to 14 boards: 9 COUNT (goals, scorer_points, shots_on_target,
+      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total) + 5 RATE
+      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct).
       Season-to-date, composed from int_player_season__metrics + dim_player. rank = DENSE_RANK over the
       board's metric desc within (league_code, season_api_year): ties share a rank, top-10 inclusive of
-      ties; only positive-value players are ranked. The 5 rate boards + their qualification floor are
-      deferred (#506). View. Grain: (player_sk, season_sk, metric_key).
+      ties; only positive-value players are ranked. RATE boards add a qualification rule (#506) so a tiny
+      sample can't game a rate: minutes >= 270, a position scope (pass/duels/dribble/finishing = outfield,
+      save = GK), plus shots_on_target >= 10 for finishing. sort_value is FLOAT64 (holds the counts and
+      the 0-1 rates). View. Grain: (player_sk, season_sk, metric_key).
     meta:
       owner: "data-platform"
       domain: "football"
@@ -776,21 +779,36 @@ models:
       - dbt_utils.expression_is_true:
           expression: "sort_value > 0"
           name: mart_leaderboards_sort_value_positive
+      # RATE-board ratios are bounded [0,1] (same-window guard). finishing_efficiency is
+      # deliberately EXCLUDED — it is uncapped (penalties can push goals/SoT > 1), mirroring
+      # the team finishing_efficiency. Rates are null when their denominator is zero.
+      - dbt_utils.expression_is_true:
+          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
+          name: mart_leaderboards_pass_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: mart_leaderboards_duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: mart_leaderboards_dribbles_success_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "save_pct is null or (save_pct between 0 and 1)"
+          name: mart_leaderboards_save_pct_in_range
     columns:
       - name: player_leaderboard_sk
         description: "Surrogate from (player_sk, season_sk, metric_key)."
         tests: [not_null, unique]
       - name: metric_key
-        description: "The board — a metric_catalogue metric_id (the 9 count boards)."
+        description: "The board — a metric_catalogue metric_id (9 count + 5 rate boards = 14)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total"]
+              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
       - name: sort_value
-        description: "The board's own value the rank is computed from (always > 0)."
+        description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
         tests: [not_null]
       - name: player_sk
         tests:
@@ -847,6 +865,18 @@ models:
         description: "tackles + interceptions + blocks (the 'defensive_actions' board's value)."
       - name: cards_total
         description: "cards_yellow + cards_red (the 'cards_total' board's value)."
+      # RATE-board values (#506) — the player's season rate, carried on every row as a display
+      # atom; each is the ranked value of its own board. Null when the denominator is zero.
+      - name: pass_accuracy_pct
+        description: "Pass completion rate — the 'pass_accuracy_pct' board's ranked value."
+      - name: duels_won_pct
+        description: "Duel win rate — the 'duels_won_pct' board's ranked value."
+      - name: dribbles_success_pct
+        description: "Dribble success rate — the 'dribbles_success_pct' board's ranked value."
+      - name: save_pct
+        description: "Goalkeeper save rate — the 'save_pct' board's ranked value."
+      - name: finishing_efficiency
+        description: "Goals per shot on target, uncapped — the 'finishing_efficiency' board's ranked value."
 
   - name: mart_team_market_value
     description: >

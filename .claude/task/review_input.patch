@@ -1,198 +1,346 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index ea40671..d3663ec 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,22 +4,20 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
--fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
--complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
--EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
--are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
--Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
--**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
--had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
--Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
--base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
--`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
--LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
--proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
--escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
--**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
--**Website #391 PAUSED.**_
-+_Last updated: 2026-06-23 (**session-close refresh**). main GREEN; no open PRs. Two-track operating model live.
-+**Merged this session:** **#551** (fixture-event team-attribution fix → **#526 CLOSED**); **#500** (team-season
-+rollup consolidation + rename `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded —
-+benchmark #512 refs updated); **#555** (`mart_player_career` — player career-by-competition surface, counts only,
-+no minutes); **#556** (`dim_coach` + `dim_coach_team_mapping` — Coach entity/affiliation split from
-+RAW_APIF_COACHES, read-all snapshot per CPO ruling, soft team_sk link). **Filed:** **#549** (the proposal phase is
-+ungated — the #526 mis-diagnosis was an unverified premise NO gate caught) + **#550** (automated DQ-triage design:
-+detect → evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix; nests under #546). **#526 durable
-+lesson:** identity must be verified EXTERNALLY, never inferred from internal name similarity
-+([[feedback-verify-real-world-identity]]) — the 38 wrong-team events were TWO opposite classes (Togo
-+ASC≠ASKO mis-attribution vs Riga duplicate-id), healed by the CPO-owned `fixture_event_team_overrides` seed + the
-+permanent `assert_event_team_in_fixture_participants` test (now 0, was 38). Governance G1-G4 LIVE.
-+**Website #391 PAUSED.** OPEN: the **Coach + career CONSUMPTION marts** (deferred, #391-gated) + the **#500
-+column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#547** + the **#549/#550** designs._
- 
- ## How work is organized — two tracks (NEW 2026-06-23)
- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
-@@ -48,8 +46,10 @@ escalate; human decides; NO auto-fix; nests under #546). Prior merged this stret
-     a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
-     merge-on-internal-similarity.
-   - **#547 (cost):** size BQ build cost before the expansion scales.
--- **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
--  **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
-+- **PRODUCT (primary):** the content_architecture roadmap — **`mart_player_career` (#555) + coaches (#556) now
-+  DONE.** Next product slices: the **Coach + career CONSUMPTION marts** (Coach page Overview = current club +
-+  clubs managed; the team-header current-coach chip — both DEFERRED, website #391 PAUSED); player **benchmark /
-+  opponent-context** (v1.x); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves) + **#506**
-   (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
- - **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
- - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
-@@ -140,15 +140,16 @@ escalate; human decides; NO auto-fix; nests under #546). Prior merged this stret
-    semantic + #512 mart_competition_benchmarks__team; median-led, rank-of-N, direction-agnostic). **Player
-    benchmark + percentile-vs-peers = v1.x** (needs per-90 — a NEW catalogue metric — + position-aware peers +
-    a minutes floor). The **opponent/schedule-context flagship** (weights opponents via this engine) is also v1.x.
--4. **Coaches ingest + `dim_coach`**; **`mart_player_career`** (on the backfill) for the Career/History tabs.
-+4. ~~**Coaches + `dim_coach`**; **`mart_player_career`** for the Career/History tabs~~ — **DONE 2026-06-23**
-+   (#555 `mart_player_career`, counts only; #556 `dim_coach` + `dim_coach_team_mapping`). The **Coach + career
-+   CONSUMPTION marts** (page Overview / team-header current-coach chip) remain DEFERRED — website #391 PAUSED.
- 
- ### Carryovers (also open, CPO directs)
- - **#484** — player national/tournament **context** window (a NEW national-anchored intermediate selector
-   per §8.4 — NOT mart logic). Changes shipped numbers → own validation.
--- **Team season-record ↔ rollup unification + naming (#500)** — the team-side analog of #480 (the season
--  record's final row == the rollup; they're one aggregation), bundled with the model-naming fix
--  (`int_team_season__full_season_metrics` → `int_team_season__metrics`). Now tracked as **#500**. NOTE: the
--  benchmark (#512) now also reads this model — the rename updates its refs too.
-+- ~~**Team season-record ↔ rollup unification + naming (#500)**~~ — **DONE 2026-06-23** (consolidation + rename
-+  `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded; benchmark #512 refs updated).
-+  RESIDUAL (deferred, logged): the `_season`-suffix / goals_saves column-alignment follow-up.
- - **#510** — retire leftover team `dribbles_success_pct` (catalogue row + the `mart_momentum__team` computation
-   + the range test; a player metric ruled dropped team-side 2026-06-11, never fully cleaned up).
- - **Team season-rollup enhancement** — point `mart_team_season`/`int_team_season` at the mapping spine so
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d0cd2d2..f86395b 100644
+index f86395b..9a3853f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,87 +1,47 @@
--# Task contract — dim_coach + dim_coach_team_mapping (Coach entity)
-+# Task contract — session handover refresh (2026-06-23)
+@@ -1,47 +1,90 @@
+-# Task contract — session handover refresh (2026-06-23)
++# Task contract — leaderboards rate boards + qualification rule (#506)
  
  objective: >
--  Build the coach entity surface from the ALREADY-INGESTED RAW_APIF_COACHES (no new ingest, no cost
--  gate). Mirror the dim_player/dim_team entity/affiliation split:
--  (1) dim_coach — pure coach ENTITY (one row per coach; identity: name/nationality/birth/photo; NO
--      league_code).
--  (2) dim_coach_team_mapping — coach<->team AFFILIATION from the coach `career[]` stints (one row per
--      (coach, team, stint) with start/end dates). The "clubs managed" history; current-coach-per-team
--      is derivable from the open/latest stint (left to the deferred consumption PR).
--  Chain: sources.yml + staging (entity flatten + career unnest) + base (dedup x2) + core (the 2 dims).
--  Data-forced design: career[] clubs EXCEED our dim_team set (youth/reserve/untracked sides), so the
--  mapping carries the provider team_id + team_name and team_sk is a SOFT link (no strict FK) — keep
--  full history over a strict link. Affiliation source = career[] (authoritative), NOT coach.team
--  (the fetch-context provenance team).
-+  Refresh `.claude/active_work.md` so a fresh chat (handed this file by the SessionStart
-+  `handover_in` hook) continues from the CURRENT state. The on-main handover is the #526-closeout
-+  version and predates THREE merged PRs this session — it would start the next chat with a stale
-+  picture. Update the status line + the FIRST-next-session list to reflect: #500 (team-season
-+  consolidation) MERGED, mart_player_career (#555) MERGED, dim_coach + dim_coach_team_mapping (#556)
-+  MERGED. Re-point the product roadmap "next" (career + coaches are now DONE; the next product slices
-+  are the Coach/career CONSUMPTION marts — website #391 PAUSED — plus the deferred #500 column-alignment
-+  follow-up, #506 rate boards, player benchmark/opponent-context v1.x). No code; handover doc only.
- 
+-  Refresh `.claude/active_work.md` so a fresh chat (handed this file by the SessionStart
+-  `handover_in` hook) continues from the CURRENT state. The on-main handover is the #526-closeout
+-  version and predates THREE merged PRs this session — it would start the next chat with a stale
+-  picture. Update the status line + the FIRST-next-session list to reflect: #500 (team-season
+-  consolidation) MERGED, mart_player_career (#555) MERGED, dim_coach + dim_coach_team_mapping (#556)
+-  MERGED. Re-point the product roadmap "next" (career + coaches are now DONE; the next product slices
+-  are the Coach/career CONSUMPTION marts — website #391 PAUSED — plus the deferred #500 column-alignment
+-  follow-up, #506 rate boards, player benchmark/opponent-context v1.x). No code; handover doc only.
+-
++  Add the 5 deferred RATE boards to mart_leaderboards (pass% / duels% / dribble% /
++  finishing% / save%), with a CPO-set qualification rule that keeps boards populated
++  early-season yet sample-safe. Warehouse-only (mart + metric layer); export wiring is
++  out of scope per the issue (and #391 paused).
  refs: >
--  content_architecture.md (Coach thin SEO entity: header chip + Team History + Coach page Overview =
--  current club + clubs managed). CPO this session: coaches after the career mart (done); names
--  dim_coach + dim_coach_team_mapping (incl start/end); entity + affiliation this PR, defer the
--  consumption (website #391 PAUSED). Pattern: project_player_model_redesign / project_team_model_redesign.
-+  CPO this session set the build order (career mart first, then coaches) — both shipped. User is moving
-+  to a fresh chat; the handover is the bridge. Two-track operating model (PRODUCT primary + PROGRAMS
-+  #545/#546/#547) unchanged. Pattern: prior handover refreshes (#542, #552, ea26884).
+-  CPO this session set the build order (career mart first, then coaches) — both shipped. User is moving
+-  to a fresh chat; the handover is the bridge. Two-track operating model (PRODUCT primary + PROGRAMS
+-  #545/#546/#547) unchanged. Pattern: prior handover refreshes (#542, #552, ea26884).
++  #506. CPO design rulings recorded live this session (2026-06-23): minutes gate,
++  position scoping, finishing sample floor, and "finishing_efficiency is not a new
++  metric — extend the existing one to the player entity".
  
  scope_paths:
--  - dbt_project/models/1_staging/api_football/sources.yml
--  - dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
--  - dbt_project/models/2_base/api_football/base_apif__coaches.sql
--  - dbt_project/models/2_base/api_football/base_apif__coach_career.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/3_core/dim_coach.sql
--  - dbt_project/models/3_core/dim_coach_team_mapping.sql
--  - dbt_project/models/3_core/core.yml
--  - dbt_project/docs/layering.md
-+  - .claude/active_work.md
-   - .claude/task/**
+-  - .claude/active_work.md
+-  - .claude/task/**
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/shared.yml
  
  impact_map: >
--  writers: 6 NEW additive models reading the existing RAW_APIF_COACHES (newly declared as a dbt source)
--    + dim_team (soft team_sk link in the mapping). stg_apif__coaches (flatten $.response[].coach),
--    stg_apif__coach_career (unnest coach.career[]); base_apif__coaches (dedup -> 1 row/coach_api_id),
--    base_apif__coach_career (dedup stints); dim_coach (pure entity, no league_code, mirrors dim_player),
--    dim_coach_team_mapping (coach<->team stints + start/end, soft team_sk). NO existing model modified.
--  downstream: NONE — new LEAF dims; nothing ref()s them (Coach page/chip consumption deferred, website
--    #391 PAUSED). `dbt ls --select dim_coach+ dim_coach_team_mapping+` would return only themselves once
--    built. Source: RAW_APIF_COACHES (629 rows / 45 leagues, verified this session); dim_team read for the
--    soft team link.
--  layer_rules: staging = raw flatten/unnest (one source -> two grains, exactly like RAW_APIF_FIXTURE_DETAILS
--    -> stg events/players/statistics); base = dedup + entity resolution; core = canonical dims. dim_coach
--    is a pure entity (drops league_code, mirrors dim_player). league_code flows through staging/base. No
--    per-competition logic; check_layer_contract unaffected.
--  deploy_order: additive — 6 new relations, no existing model changed, nothing depends on them. ci-data-build
--    creates them. No shipped-number change.
--  blast_radius: NONE — additive only; no existing mart/number moves. New data = coach entity + career
--    mapping. The mapping's team_sk is a SOFT link (no strict relationships test) because career[] clubs
--    (youth/reserve/foreign-untracked) exceed dim_team — a strict FK would fail on untracked clubs.
-+  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
-+  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
-+  layer_rules: n/a (no model touched). check_layer_contract / registry-sync unaffected.
-+  deploy_order: n/a — doc merge to main; nothing builds.
-+  blast_radius: NONE — handover text only; no shipped number moves.
+-  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
+-  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
+-  layer_rules: n/a (no model touched). check_layer_contract / registry-sync unaffected.
+-  deploy_order: n/a — doc merge to main; nothing builds.
+-  blast_radius: NONE — handover text only; no shipped number moves.
++  writers:
++    - finishing_efficiency (player) = safe_divide(goals, shots_on_target) — computed ONLY
++      in int_player_season__metrics (alongside the 4 rate columns already there:
++      pass_accuracy_pct, duels_won_pct, dribbles_success_pct, save_pct).
++    - the 5 rate boards — emitted ONLY by mart_leaderboards (the LONG per-board mart).
++  downstream (pasted, `dbt ls`):
++    - int_player_season__metrics+ → int_player_career__metrics, mart_leaderboards,
++      mart_player_career, mart_player_profile. VERIFIED by reading each: mart_player_profile
++      (named SELECT, lines 61-113) and int_player_career__metrics (named sums of
++      appearances/goals/assists, lines 17-31) select named columns — the new
++      finishing_efficiency column does NOT leak into them; their schemas/numbers are
++      unchanged. mart_player_career reads int_player_career__metrics, not the season model.
++    - mart_leaderboards+ → (leaf; no downstream dbt models).
++    - metric_catalogue+ → the catalogue's own accepted_values / not_null / uniqueness tests
++      + assert_no_uncatalogued_season_metric (which REQUIRES the finishing_efficiency player
++      row — see layer_rules).
++  consumption (outside dbt lineage):
++    - scripts/export_site_data.py reads mart_leaderboards but filters metric_key to
++      _LEADERBOARD_METRICS (the 9 count boards). The 5 rate keys are NOT added there, so the
++      live export is unchanged. sort_value widens INT64→FLOAT64 (see blast_radius); value is
++      identical (25 ≡ 25.0), reaches the export only on the next Pages run, JSON-numeric-equal.
++      Export wiring of the rate boards is deferred (out of scope, #391 paused).
++  layer_rules:
++    - assert_no_uncatalogued_season_metric: every metric column in int_player_season__metrics
++      must have a metric_catalogue row (entity='player', metric_id=column). Adding the
++      finishing_efficiency column REQUIRES the catalogue row — both land in this PR.
++    - marts are consumption-only: the rates are precomputed in the int model; the mart selects
++      + ranks + floors, it does not derive new facts. No logic in the export.
++  deploy_order:
++    - shared warehouse; ci-data-build rebuilds seed (metric_catalogue) → int_player_season__metrics
++      (table) → mart_leaderboards (view) → tests, in one run. Additive column + additive rows +
++      new board rows; no migration hazard. Not run against the 04:00 nightly (CI builds on the PR).
++  blast_radius:
++    - mart_leaderboards: +5 board types (rate), +5 documented rate columns, metric_key
++      accepted_values +5, sort_value type INT64→FLOAT64 (union of count+rate; value unchanged).
++    - int_player_season__metrics: +1 column (finishing_efficiency).
++    - metric_catalogue: +1 row (finishing_efficiency, player).
++    - NO change to mart_player_profile / int_player_career__metrics / mart_player_career
++      (named selects — verified). NO change to the live export (rate keys not listed).
  
  decisions_taken: >
--  CPO this session: (a) coaches ingest ALREADY exists (RAW_APIF_COACHES) — no new ingest / no cost gate;
--  (b) NAMES = dim_coach (entity) + dim_coach_team_mapping (affiliation, incl start/end dates); (c) scope =
--  entity + affiliation this PR, defer the Coach page mart + the team-header current-coach chip (website
--  #391 PAUSED). Pattern = the dim_player/dim_team entity/affiliation split. Affiliation source = career[]
--  (authoritative coach history), NOT coach.team (fetch-context provenance). The mapping carries provider
--  team_id + team_name; team_sk soft-links to dim_team where tracked, NO strict FK (career clubs exceed our
--  tracked set — data-forced, keeps full history).
--  base_apif__coach_career guards `start_date is not null` (currently 0 rows; prevents a future
--  null-start surrogate-key collision / not_null CI break). The staging snapshot rule (read-all vs
--  latest-per-league) was a §10 escalated + ruled this session — see decisions_reserved + escalations.log.
-+  Reflect already-merged facts only — no NEW design or product call. #500 / #555 / #556 are merged
-+  (main GREEN). Career + coaches builds are DONE; their consumption marts stay DEFERRED (website #391
-+  PAUSED) per the standing CPO ruling, not re-decided here. The two-track model + program epics carry
-+  forward verbatim. This is a status refresh, not a re-scope.
+-  Reflect already-merged facts only — no NEW design or product call. #500 / #555 / #556 are merged
+-  (main GREEN). Career + coaches builds are DONE; their consumption marts stay DEFERRED (website #391
+-  PAUSED) per the standing CPO ruling, not re-decided here. The two-track model + program epics carry
+-  forward verbatim. This is a status refresh, not a re-scope.
++  CPO rulings recorded live this session (2026-06-23), grounded in 2025-season distributions
++  pulled from intermediate.int_player_season__metrics:
++  - finishing_efficiency is NOT a new metric: extend the existing (team) metric to the player
++    entity, same definition goals/shots_on_target, uncapped (verbatim: "finishing_efficiency is
++    not a new metric ... we already have this"). New catalogue row entity='player', mirroring the
++    team row; label_i18n_key playerMetrics.finishingEfficiency.label (player-namespace convention).
++  - Qualification rule, all 5 rate boards: minutes >= 270 (3 full matches) — fills boards by
++    ~matchday 3-4 yet sample-safe.
++  - Position scoping: pass% / duels% / dribble% → outfield (player_position not null and
++    != 'Goalkeeper'); finishing% → outfield ("otherwise we would exclude offensive midfielders");
++    save% → player_position = 'Goalkeeper'.
++  - Extra sample floor: finishing% → shots_on_target >= 10 (data: minutes alone leaves 46% of
++    finishing qualifiers at <=3 SoT, top gamed by 100%-on-tiny-sample; SoT>=10 cleans it). save%
++    → GK filter alone, no shots-faced floor.
++  - Scope is warehouse-only per #506 (export wiring deferred).
  
  decisions_reserved:
--  - SNAPSHOT RULE (§10, ESCALATED + RULED this session): read-all vs latest-per-league for the
--    complete-snapshot RAW_APIF_COACHES — the two reviewers split. Put to the CPO with the ~120-coach
--    delta evidence (no anchoring). CPO ANSWER: read-all / all-time ("all") — preserve every coach ever
--    seen (mirrors dim_player/dim_team). Durable record: escalations.log (2026-06-23) + review.md.
--  - The Coach consumption (thin page Overview = current club + clubs managed; the team-header current-coach
--    chip + its "open/latest stint" derivation) is a later mart — website #391 PAUSED, not this PR.
--  - Display enrichment (dim_team-resolved names vs the provider team_name on the mapping) is the consumption
--    PR's call.
-+  - What the next stretch builds (next product slice vs a program tranche) is the CPO's pick at the
-+    start of the fresh chat — the handover LISTS the open queue, it does not choose.
-+  - #545 coverage tranche cut, #549/#550 governance designs, the #500 `_season`/goals_saves column
-+    alignment, #506 rate boards — all remain open CPO decisions, carried in the handover unchanged.
+-  - What the next stretch builds (next product slice vs a program tranche) is the CPO's pick at the
+-    start of the fresh chat — the handover LISTS the open queue, it does not choose.
+-  - #545 coverage tranche cut, #549/#550 governance designs, the #500 `_season`/goals_saves column
+-    alignment, #506 rate boards — all remain open CPO decisions, carried in the handover unchanged.
++  - Export wiring (adding the 5 rate keys to _LEADERBOARD_METRICS / rate columns to _LB_KEEP) —
++    a product/site decision under paused #391; NOT decided here. Flagged to CPO.
++  - The player finishing label STRING/i18n translation — added at export-wiring time (no test binds
++    label_i18n_key today; key declared now). The KEY spelling is a naming detail CPO can override.
  
  done_when:
--  - sources.yml declares raw_apif_coaches; stg_apif__coaches + stg_apif__coach_career flatten/unnest cleanly.
--  - base_apif__coaches: one row per coach_api_id; base_apif__coach_career: one row per (coach, team, start).
--  - dim_coach: pure entity (coach_sk + identity), grain coach_sk unique+not_null; dim_coach_team_mapping:
--    (coach_sk, team_api_id, start_date) grain unique, start/end dates, coach_sk relationship to dim_coach.
--  - layering.md dimension inventory lists dim_coach + dim_coach_team_mapping.
--  - validate-local (dbt parse + sqlfluff + check_layer_contract) green; ci-data-build green (build + tests).
-+  - active_work.md status line names #500 + mart_player_career (#555) + dim_coach/#556 as MERGED, main GREEN.
-+  - FIRST-next-session reflects career + coaches DONE; lists the open queue without choosing.
-+  - Last-updated stamp moved to 2026-06-23 (session-close refresh).
-+  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
+-  - active_work.md status line names #500 + mart_player_career (#555) + dim_coach/#556 as MERGED, main GREEN.
+-  - FIRST-next-session reflects career + coaches DONE; lists the open queue without choosing.
+-  - Last-updated stamp moved to 2026-06-23 (session-close refresh).
+-  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
++  - `.venv/Scripts/dbt parse` clean; `.venv/Scripts/sqlfluff lint` clean on the changed SQL.
++  - mart_leaderboards compiles; metric_key accepted_values lists 14 boards; the 4 bounded rates have
++    0-1 range tests, finishing_efficiency is EXCLUDED from the range test (uncapped, mirrors team).
++  - assert_no_uncatalogued_season_metric still green (finishing_efficiency player row present).
++  - validate-local passes (offline gates + dbt parse + sqlfluff). The BQ data-build runs in CI.
  
  amendments: (none)
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index e5bb2ba..e1d4a80 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -156,5 +156,9 @@ select
+     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
+     safe_divide(duels_won, duels_total) as duels_won_pct,
+     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
+-    safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct
++    safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct,
++    -- finishing efficiency: goals per shot on target. Uncapped (mirrors the team metric):
++    -- rarely the source logs more goals than on-target shots, so it can exceed 100%.
++    -- Null when shots_on_target is zero. (#506)
++    safe_divide(goals, shots_on_target) as finishing_efficiency
+ from aggregated
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index 7b035cf..3dae383 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -6,17 +6,22 @@
+   that board within its competition-season. Season-to-date, composed from the canonical
+   int_player_season__metrics (the single source) + dim_player identity — NOT mart-from-mart.
+ 
+-  9 COUNT boards (v1); metric_key = the catalogue metric_id. rank = DENSE_RANK over the board's metric
+-  desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and the top-10 cut
+-  is inclusive of ties (the mart_top_scorers convention). Only players with a positive value on a board
+-  are ranked (a leaderboard shows positive performers). The 5 RATE boards + their qualification floor are
+-  the deferred follow-up (#506).
++  14 boards: 9 COUNT + 5 RATE (#506). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
++  board's metric desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and
++  the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
++  value on a board are ranked (a leaderboard shows positive performers).
++
++  RATE boards add a qualification rule (CPO, #506) so a tiny sample can't game a rate: minutes >= 270
++  (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
++  dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
++  shots_on_target >= 10 (minutes don't bound shot count, and finishing_efficiency is uncapped).
++  sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
+ 
+   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
+   what we show); sort_value is the board's own ranked value. Grain: (player_sk, season_sk, metric_key).
+ #}
+ 
+-{% set boards = [
++{% set count_boards = [
+     'goals',
+     'scorer_points',
+     'shots_on_target',
+@@ -28,6 +33,27 @@
+     'cards_total',
+ ] %}
+ 
++{# RATE boards (#506): qualify on minutes >= 270 + a position scope (+ a SoT floor for finishing). #}
++{% set outfield = "player_position is not null and player_position != 'Goalkeeper'" %}
++{% set rate_boards = [
++    {'key': 'pass_accuracy_pct', 'qualify': outfield},
++    {'key': 'duels_won_pct', 'qualify': outfield},
++    {'key': 'dribbles_success_pct', 'qualify': outfield},
++    {'key': 'finishing_efficiency', 'qualify': outfield ~ ' and shots_on_target >= 10'},
++    {'key': 'save_pct', 'qualify': "player_position = 'Goalkeeper'"},
++] %}
++
++{# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
++   guard. Count boards rank all positive performers; rate boards add the qualification rule. #}
++{% set boards = [] %}
++{% for key in count_boards %}
++{% do boards.append({'key': key, 'where': key ~ ' > 0'}) %}
++{% endfor %}
++{% for board in rate_boards %}
++{% set rate_where = 'minutes >= 270 and ' ~ board.qualify ~ ' and ' ~ board.key ~ ' > 0' %}
++{% do boards.append({'key': board.key, 'where': rate_where}) %}
++{% endfor %}
++
+ with season as (
+     select * from {{ ref('int_player_season__metrics') }}
+ ),
+@@ -68,6 +94,11 @@ base as (
+         s.scorer_points,
+         s.defensive_actions,
+         s.cards_total,
++        s.pass_accuracy_pct,
++        s.duels_won_pct,
++        s.dribbles_success_pct,
++        s.save_pct,
++        s.finishing_efficiency,
+         p.player_name,
+         p.player_nationality,
+         p.player_position,
+@@ -77,17 +108,17 @@ base as (
+ ),
+ 
+ ranked as (
+-    {% for metric_key in boards %}
++    {% for board in boards %}
+     select
+         base.*,
+-        '{{ metric_key }}' as metric_key,
+-        {{ metric_key }} as sort_value,
++        '{{ board.key }}' as metric_key,
++        cast({{ board.key }} as float64) as sort_value,
+         dense_rank() over (
+             partition by league_code, season_api_year
+-            order by {{ metric_key }} desc
++            order by {{ board.key }} desc
+         ) as board_rank
+     from base
+-    where {{ metric_key }} > 0
++    where {{ board.where }}
+     {% if not loop.last %}
+     union all
+     {% endif %}
+@@ -127,6 +158,11 @@ select
+     cards_red,
+     scorer_points,
+     defensive_actions,
+-    cards_total
++    cards_total,
++    pass_accuracy_pct,
++    duels_won_pct,
++    dribbles_success_pct,
++    save_pct,
++    finishing_efficiency
+ from ranked
+ where board_rank <= 10
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index bbfe090..45cc90c 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -755,12 +755,15 @@ models:
+     description: >
+       Per-board player leaderboards (the Leaderboards block; content_architecture §3). LONG — one row
+       per (player, board): the player's rank on that board within its competition-season. Generalises
+-      the retired mart_top_scorers to 9 COUNT boards (goals, scorer_points, shots_on_target,
+-      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total).
++      the retired mart_top_scorers to 14 boards: 9 COUNT (goals, scorer_points, shots_on_target,
++      dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total) + 5 RATE
++      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct).
+       Season-to-date, composed from int_player_season__metrics + dim_player. rank = DENSE_RANK over the
+       board's metric desc within (league_code, season_api_year): ties share a rank, top-10 inclusive of
+-      ties; only positive-value players are ranked. The 5 rate boards + their qualification floor are
+-      deferred (#506). View. Grain: (player_sk, season_sk, metric_key).
++      ties; only positive-value players are ranked. RATE boards add a qualification rule (#506) so a tiny
++      sample can't game a rate: minutes >= 270, a position scope (pass/duels/dribble/finishing = outfield,
++      save = GK), plus shots_on_target >= 10 for finishing. sort_value is FLOAT64 (holds the counts and
++      the 0-1 rates). View. Grain: (player_sk, season_sk, metric_key).
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -776,21 +779,36 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "sort_value > 0"
+           name: mart_leaderboards_sort_value_positive
++      # RATE-board ratios are bounded [0,1] (same-window guard). finishing_efficiency is
++      # deliberately EXCLUDED — it is uncapped (penalties can push goals/SoT > 1), mirroring
++      # the team finishing_efficiency. Rates are null when their denominator is zero.
++      - dbt_utils.expression_is_true:
++          expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
++          name: mart_leaderboards_pass_accuracy_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
++          name: mart_leaderboards_duels_won_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
++          name: mart_leaderboards_dribbles_success_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "save_pct is null or (save_pct between 0 and 1)"
++          name: mart_leaderboards_save_pct_in_range
+     columns:
+       - name: player_leaderboard_sk
+         description: "Surrogate from (player_sk, season_sk, metric_key)."
+         tests: [not_null, unique]
+       - name: metric_key
+-        description: "The board — a metric_catalogue metric_id (the 9 count boards)."
++        description: "The board — a metric_catalogue metric_id (9 count + 5 rate boards = 14)."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total"]
++              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
+       - name: rank
+         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+         tests: [not_null]
+       - name: sort_value
+-        description: "The board's own value the rank is computed from (always > 0)."
++        description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
+         tests: [not_null]
+       - name: player_sk
+         tests:
+@@ -847,6 +865,18 @@ models:
+         description: "tackles + interceptions + blocks (the 'defensive_actions' board's value)."
+       - name: cards_total
+         description: "cards_yellow + cards_red (the 'cards_total' board's value)."
++      # RATE-board values (#506) — the player's season rate, carried on every row as a display
++      # atom; each is the ranked value of its own board. Null when the denominator is zero.
++      - name: pass_accuracy_pct
++        description: "Pass completion rate — the 'pass_accuracy_pct' board's ranked value."
++      - name: duels_won_pct
++        description: "Duel win rate — the 'duels_won_pct' board's ranked value."
++      - name: dribbles_success_pct
++        description: "Dribble success rate — the 'dribbles_success_pct' board's ranked value."
++      - name: save_pct
++        description: "Goalkeeper save rate — the 'save_pct' board's ranked value."
++      - name: finishing_efficiency
++        description: "Goals per shot on target, uncapped — the 'finishing_efficiency' board's ranked value."
+ 
+   - name: mart_team_market_value
+     description: >
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 7df0325..f7383c3 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -47,6 +47,7 @@ saves,player,playerMetrics.savePct.saves,Saves made in the form window.,goals_sa
+ shots_on_target_faced,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,goals_saves + goals_conceded,,false,integer,goalkeeping,,1,,
+ save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1,,
+ shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,shots_total,,false,integer,shooting,,,,
++finishing_efficiency,player,playerMetrics.finishingEfficiency.label,"Goals per shot on target in the form window. Aggregated over fixtures with player stats (inherits player-stat coverage gaps, like the other player rates). Shown uncapped: in rare cases the source logs more goals than on-target shots for a player, so the value can exceed 100%. Null when shots_on_target is zero.",goals,shots_on_target,false,percent,shooting,,2,,
+ goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,,,
+ shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
+ points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
