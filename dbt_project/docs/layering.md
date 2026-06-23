@@ -293,6 +293,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
 | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
 | `mart_competition_benchmarks__team` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_competition_benchmarks__team` (the per-metric league distribution). Direction-agnostic (positional). |
+| `mart_player_career` | (player_sk, league_code) | table | Player Career tab: per-(player, competition) career totals (appearances/goals/assists across seasons) + `entity_type`. Composes `int_player_career__metrics`; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. Clubs list stays with `dim_player_team_season_mapping`. |
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
 

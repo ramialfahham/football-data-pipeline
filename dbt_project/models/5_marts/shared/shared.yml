@@ -1071,3 +1071,47 @@ models:
       - name: team_logo_url
         description: "Denormalised from dim_team; nullable."
 
+  - name: mart_player_career
+    description: >
+      Player Career tab: one row per (player, competition) with the player's CAREER totals in that
+      competition (appearances / goals / assists summed across seasons — NO minutes) + identity
+      (dim_player) + the competition entity_type (club / national). National-entity rows are the
+      player's NATIONAL APPEARANCES IN COVERED COMPETITIONS — honestly NOT true career caps (we ingest
+      only a subset of national competitions). national_appearances_total denormalises the per-player
+      national-appearance sum (a fact computed in dbt, not the export). The clubs-played-for list is
+      served by dim_player_team_season_mapping, not duplicated here. Grain: (player_sk, league_code).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - league_code
+      # semantic guard: distinct seasons can't exceed the first..last span (one row per season_sk)
+      - dbt_utils.expression_is_true:
+          expression: "seasons_played between 1 and (last_season - first_season + 1)"
+          name: player_career_seasons_within_span
+    columns:
+      - name: player_career_sk
+        description: "Surrogate key — generate_surrogate_key(player_sk, league_code)."
+        tests: [not_null, unique]
+      - name: player_sk
+        description: "Player entity key."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        description: "Competition code (the partition key)."
+        tests: [not_null]
+      - name: entity_type
+        description: "club or national (from the registry -> competition_types seeds); null if the competition is unmapped."
+        tests:
+          - accepted_values:
+              values: ["club", "national"]
+      - name: appearances
+        description: "Career appearances in this competition (sum of finished-match player-stat rows across seasons)."
+        tests: [not_null]
+      - name: national_appearances_total
+        description: "Per-player denormalised sum of appearances across national-entity competitions only (covered comps — not true career caps)."
+        tests: [not_null]
+
