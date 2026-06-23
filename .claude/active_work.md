@@ -4,22 +4,20 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
-fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
-complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
-EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
-are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
-Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
-**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
-had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
-Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
-base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
-`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
-LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
-proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
-escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
-**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
-**Website #391 PAUSED.**_
+_Last updated: 2026-06-23 (**session-close refresh**). main GREEN; no open PRs. Two-track operating model live.
+**Merged this session:** **#551** (fixture-event team-attribution fix → **#526 CLOSED**); **#500** (team-season
+rollup consolidation + rename `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded —
+benchmark #512 refs updated); **#555** (`mart_player_career` — player career-by-competition surface, counts only,
+no minutes); **#556** (`dim_coach` + `dim_coach_team_mapping` — Coach entity/affiliation split from
+RAW_APIF_COACHES, read-all snapshot per CPO ruling, soft team_sk link). **Filed:** **#549** (the proposal phase is
+ungated — the #526 mis-diagnosis was an unverified premise NO gate caught) + **#550** (automated DQ-triage design:
+detect → evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix; nests under #546). **#526 durable
+lesson:** identity must be verified EXTERNALLY, never inferred from internal name similarity
+([[feedback-verify-real-world-identity]]) — the 38 wrong-team events were TWO opposite classes (Togo
+ASC≠ASKO mis-attribution vs Riga duplicate-id), healed by the CPO-owned `fixture_event_team_overrides` seed + the
+permanent `assert_event_team_in_fixture_participants` test (now 0, was 38). Governance G1-G4 LIVE.
+**Website #391 PAUSED.** OPEN: the **Coach + career CONSUMPTION marts** (deferred, #391-gated) + the **#500
+column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#547** + the **#549/#550** designs._
 
 ## How work is organized — two tracks (NEW 2026-06-23)
 - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
@@ -48,8 +46,10 @@ escalate; human decides; NO auto-fix; nests under #546). Prior merged this stret
     a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
     merge-on-internal-similarity.
   - **#547 (cost):** size BQ build cost before the expansion scales.
-- **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
-  **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
+- **PRODUCT (primary):** the content_architecture roadmap — **`mart_player_career` (#555) + coaches (#556) now
+  DONE.** Next product slices: the **Coach + career CONSUMPTION marts** (Coach page Overview = current club +
+  clubs managed; the team-header current-coach chip — both DEFERRED, website #391 PAUSED); player **benchmark /
+  opponent-context** (v1.x); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves) + **#506**
   (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
 - **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
 - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
@@ -140,15 +140,16 @@ escalate; human decides; NO auto-fix; nests under #546). Prior merged this stret
    semantic + #512 mart_competition_benchmarks__team; median-led, rank-of-N, direction-agnostic). **Player
    benchmark + percentile-vs-peers = v1.x** (needs per-90 — a NEW catalogue metric — + position-aware peers +
    a minutes floor). The **opponent/schedule-context flagship** (weights opponents via this engine) is also v1.x.
-4. **Coaches ingest + `dim_coach`**; **`mart_player_career`** (on the backfill) for the Career/History tabs.
+4. ~~**Coaches + `dim_coach`**; **`mart_player_career`** for the Career/History tabs~~ — **DONE 2026-06-23**
+   (#555 `mart_player_career`, counts only; #556 `dim_coach` + `dim_coach_team_mapping`). The **Coach + career
+   CONSUMPTION marts** (page Overview / team-header current-coach chip) remain DEFERRED — website #391 PAUSED.
 
 ### Carryovers (also open, CPO directs)
 - **#484** — player national/tournament **context** window (a NEW national-anchored intermediate selector
   per §8.4 — NOT mart logic). Changes shipped numbers → own validation.
-- **Team season-record ↔ rollup unification + naming (#500)** — the team-side analog of #480 (the season
-  record's final row == the rollup; they're one aggregation), bundled with the model-naming fix
-  (`int_team_season__full_season_metrics` → `int_team_season__metrics`). Now tracked as **#500**. NOTE: the
-  benchmark (#512) now also reads this model — the rename updates its refs too.
+- ~~**Team season-record ↔ rollup unification + naming (#500)**~~ — **DONE 2026-06-23** (consolidation + rename
+  `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded; benchmark #512 refs updated).
+  RESIDUAL (deferred, logged): the `_season`-suffix / goals_saves column-alignment follow-up.
 - **#510** — retire leftover team `dribbles_success_pct` (catalogue row + the `mart_momentum__team` computation
   + the range test; a player metric ruled dropped team-side 2026-06-11, never fully cleaned up).
 - **Team season-rollup enhancement** — point `mart_team_season`/`int_team_season` at the mapping spine so
