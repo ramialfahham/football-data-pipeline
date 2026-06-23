@@ -4,18 +4,20 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-23 (**benchmark-PR2 close**). main GREEN; no open PRs. Two-track operating model live.
-**Merged this session:** **#561** (**player benchmark PR2** — the engine + mart + macro:
-`int_player_season_position__metrics` (per (player,season,position) in-role aggregate) →
-`int_competition_benchmarks__player` (per (league,season,position_group,metric) distribution) →
-`mart_competition_benchmarks__player` (LONG: in-position value, distribution, rank + percentile + peer_count,
-vs-median) + `player_benchmark_metrics()` macro; three build-time CPO refinements to the locked design — see
-the benchmark section below). The player competition benchmark is now COMPLETE (PR1 #559 metric layer + PR2
-#561 engine/mart). Governance G1-G4 LIVE. **Website #391 PAUSED.**
-OPEN (no item is "next" until the CPO picks): the **Coach + career CONSUMPTION marts** (#391-gated) + player
-**opponent-context** (v1.x flagship — weights opponents via the #561 benchmark engine) + program epics
-**#545/#546/#547** + the **#549/#550** designs + carryovers **#484/#510/#500-column-align/#483/#521** +
-**wiring the benchmark into an export/display** (deferred with #391)._
+_Last updated: 2026-06-23 (**deserved-redesign queued**). main GREEN; no open PRs. Two-track operating model live.
+**Merged this session:** **#561** (player benchmark PR2 — engine + mart + macro; player competition benchmark
+now COMPLETE — PR1 #559 + PR2 #561; see the benchmark section below); **#562** (handover refresh); **#563**
+(**REMOVED the unapproved `performance_vs_results_gap` metric** from `mart_team_profile` — an uncatalogued
+"deserved-vs-actual" gap = `shot_share_season − points_capture_season` invented in #324 before the G3 review
+existed, never CPO-approved; surgical removal, the two catalogued inputs retained; see the deserved-vs-actual
+section below). Governance G1-G4 LIVE. **Website #391 PAUSED.**
+**NEXT SESSION (CPO-directed, new chat tomorrow): discuss the TEAM deserved-vs-actual REDESIGN** (a DESIGN
+discussion, NOT a build; **players are OUT of this round** — CPO). See the deserved-vs-actual section below.
+OTHER OPEN (CPO picks when ready): the **Coach + career CONSUMPTION marts** (#391-gated) + player
+**opponent-context** (v1.x — weights opponents via the #561 benchmark engine) + program epics
+**#545/#546/#547** + the **#549/#550** designs + **#530** (catalogue-first CI enforcement — the gap that let
+#324 slip) + carryovers **#484/#510/#500-column-align/#483/#521** + **wiring the benchmark into an export**
+(deferred with #391)._
 
 ## How work is organized — two tracks (NEW 2026-06-23)
 - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
@@ -67,11 +69,40 @@ same metric can rank differently across them — INTENDED (Golden Boot vs effici
 alignment: finishing% uses the SAME floor on both (minutes>=270 AND SoT>=10). The leaderboard count boards stay
 TOTALS — do NOT convert them to per-90.
 
+## Deserved-vs-actual REDESIGN — TEAM only (NEXT SESSION's design discussion; do NOT build yet)
+The flagship "how you PLAY vs what you GET" read (`content_architecture.md` §6). **This is a DESIGN
+discussion, not a build** — football-analytics owns the metric definition (§10). **TEAM only this round —
+the CPO explicitly excluded the player analog.**
+
+**What happened (context, do not re-litigate):** the prior team implementation —
+`mart_team_profile.performance_vs_results_gap = shot_share_season − points_capture_season` — was REMOVED in
+#563. It was uncatalogued + never approved (a #324 governance violation), AND substantively crude: it
+subtracted two **non-commensurable [0,1] shares with different baselines** (shot_share ≈ 0.50, points_capture
+≈ 0.44), so the gap had no meaningful zero. CPO called it correctly. shot_share_season + points_capture_season
+remain in the mart as plain catalogued metrics.
+
+**The framing we settled this session (carry into the discussion — don't re-derive):**
+- The real failure was **comparability**. The fix = compare deserved and actual in a **common space**.
+- **Candidate (my lean, NOT decided): percentile-space gap via the #511/#512 benchmark engine** — deserved =
+  the team's percentile on the *underlying-play* metrics, actual = its percentile on the *results* metrics,
+  gap = the difference (both 0–1, same meaning → interpretable). The benchmark engine already produces these
+  percentiles. The narrative target: *"creating like a top-2 side, sitting 7th → likely to climb."*
+- **Alternative:** a non-xG "deserved-goals/points" composite, then gap vs actuals (richer; a new composite
+  football-analytics must define + validate). **Explicitly NO xG** (north-star constraint).
+- **RESERVED for the discussion (football-analytics + CPO):** (1) the comparability METHOD (percentile-space
+  vs composite); (2) the "deserved" input set (shot_share / danger_zone_ratio / shots_on_target / finishing /
+  chance creation); (3) the "actual" set (points_capture / rank / goals).
+- **Process — catalogue-first this time:** define the metric(s) as `metric_catalogue` rows with football-
+  analytics + CPO approval BEFORE building (the #324 lesson). The football-analytics-expert-reviewer gates the
+  catalogue rows.
+
 ## FIRST next session (do this first)
-- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. The player competition benchmark is COMPLETE
-  (PR1 #559 + PR2 #561). **No item is pre-selected as "next" — the CPO picks the next slice** from the open
-  queue below (a program tranche, opponent-context v1.x, Coach/career marts, #500 column-align, or wiring the
-  benchmark into an export/display). Do NOT infer the next task from an issue title.
+- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. **FIRST TOPIC (CPO-directed): the TEAM
+  deserved-vs-actual REDESIGN discussion** — see the section directly above; it is a DESIGN discussion (settle
+  the method + inputs, catalogue-first), NOT a build, and NOT for players this round. Do not jump to code.
+- The player competition benchmark is COMPLETE (PR1 #559 + PR2 #561). Other open items (CPO picks after the
+  deserved-vs-actual discussion): a program tranche (#545/#546/#547), opponent-context v1.x, Coach/career
+  marts, #530 (catalogue-first CI enforcement), #500 column-align, or wiring the benchmark into an export.
 - **PROGRAMS — pick the cut, then build:**
   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
