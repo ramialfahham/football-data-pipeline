@@ -1,35 +1,34 @@
-# Review — refactor/500-team-season-consolidation — 2026-06-23
+# Review — feat/mart-player-career — 2026-06-23
 
-diff_sha256: 4863e98a2f29bc6cb259284914d130484b654195468ee39470fab25d1536ce41
-
-## scope-auditor
-VERDICT: PASS
-risks_checked:
-- Grain uniqueness + join safety: `int_team_season__metrics` enforces grain
-  (league_code, season_api_year, team_sk) via `unique_combination_of_columns`; `mart_team_season`
-  joins on (team_sk, season_sk) to dim_team + standings — deterministic, no row multiplication.
-  The impact_map downstream is pasted verbatim `dbt ls` output; the clean_sheets mapping now reads
-  `clean_sheets=clean_sheets_sum_season`, matching the code. The §10 Option-A approval is recorded
-  in escalations.log (no open decision); the `_season`-column alignment is honestly deferred.
-- W/D/L byte-identity under relocation: the counts moved to the rollup via identical
-  `countif(result=…)` logic; the pre-existing `wins+draws+losses=played` test (shared.yml) +
-  ci-data-build before/after = 0 is the done_when gate that mechanically blocks any regression.
+diff_sha256: 98da1b18c08c99ffa9a027c94de9c81dde2a3156120390f07ee918ae52a68e85
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Column EXISTENCE (the earlier build-break): confirmed every `m.<col>` mart_team_season reads is
-  in the rollup's FINAL SELECT — `clean_sheets_count_season as clean_sheets_sum_season`
-  (int_team_season__metrics line 102) and `m.clean_sheets_sum_season` (mart line 41); the prior
-  failure (count computed in a CTE but not exposed) is resolved, and no other column is missing.
-- Byte-identity: `goals_against` is non-null at the leg grain (int_legs__team_match filters
-  non-null goals), so `countif(goals_against=0)` == old `countif(coalesce(.,0)=0)`; SUM==SUM(coalesce);
-  count(distinct fixture_sk)==count(*); W/D/L `result` is accepted_values-tested so the defensive
-  upper(trim) is a no-op; team_season_sk surrogate identical. Rename complete (zero stale refs);
-  new `_sum_season` columns catalogue-exempt.
+- Cross-model column existence + grain: verified every column int_player_career__metrics reads from
+  int_player_season__metrics (player_sk, league_code, league_sk, season_sk, season_api_year,
+  appearances, goals, assists) and every column mart_player_career reads from the rollup / dim_player /
+  the seeds exists. The GROUP BY (player_sk, league_code) matches the surrogate-key grain exactly;
+  any_value(league_sk) is safe (0 league_codes map to >1 league_sk, BQ-verified); unique_combination
+  test guards it. No fan-out.
+- Catalogue governance: NO new/uncatalogued metric — `appearances` is an exempt playing-time fact (drift
+  test exempt list); `goals`/`assists` are catalogued player metrics and the catalogue is window-agnostic,
+  so career totals are the same atoms over a career window. `national_appearances_total` is a denormalised
+  fact computed in dbt (window sum), not in the export — consumption-layer rule honoured. mart_player_career
+  is correctly added to layering.md's "exhaustive" mart inventory. (Non-blocking: a not_null guard on
+  entity_type would harden against an unmapped competition; bounded — all active comps are registered.)
+
+## scope-auditor
+VERDICT: PASS
+risks_checked:
+- Rollup grain safety: int_player_career__metrics aggregates int_player_season__metrics (one row per
+  player-season) by (player_sk, league_code), summing appearances/goals/assists across seasons — no hidden
+  duplication; the unique_combination test enforces one row per grain.
+- Denormalisation without double-count: national_appearances_total is a window sum over (partition by
+  player_sk); the intermediate's grain uniqueness prevents double-counting. Scope is honest — additive
+  only (no existing model/number changed); the impact_map pastes source-depth evidence; the layering.md
+  addition is a recorded clean-tree amendment (authority: the reviewer FAIL + the exhaustive-inventory rule);
+  the national figure is honestly labelled "national appearances in covered competitions", not caps.
 
 ## escalations
-- question: Was #500 Option A (rename + fold the dedup) approved this session, given memory recorded
-  "keep as-is for now" (2026-06-18, metric-layer Phase 1)?
-  CPO ANSWER: Approved this session — "Then it's A" + "Rename + fold that dedup"; the 2026-06-18
-  parking is superseded. Durable record in `.claude/task/escalations.log` (2026-06-23 entry).
+(none)

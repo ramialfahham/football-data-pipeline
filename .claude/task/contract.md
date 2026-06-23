@@ -1,98 +1,82 @@
-# Task contract — #500 team-season consolidation (Option A: rename + mart dedup)
+# Task contract — mart_player_career (Player Career tab)
 
 objective: >
-  #500 Option A (CPO: "Then it's A" + "Rename + fold that dedup"). (1) Rename
-  int_team_season__full_season_metrics -> int_team_season__metrics, parallel to
-  int_player_season__metrics (#480); keep the per-match record (int_season_record__team) and
-  standings (int_team_season__standings_primary) as distinct surfaces, mirroring the player side.
-  (2) Fold the one real redundancy: mart_team_season re-aggregates season W/D/L/goals from
-  int_legs__team_match that the rollup already sums — add wins/draws/losses_sum_season to the
-  rollup and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical
-  refactor — NO shipped-number change. Defer the `_season`-suffix / goals_saves COLUMN alignment
-  (a larger separate cascade) to a follow-up.
+  Build the player career surface (content_architecture: Player "Career" tab = clubs + per-competition
+  totals + caps; powers `mart_player_career`, on the backfill). Two NEW additive models:
+  (1) int_player_career__metrics — across-seasons rollup of int_player_season__metrics, one row per
+  (player, competition): career appearances / goals / assists (NO minutes — CPO), first/last season,
+  seasons_played. (2) mart_player_career — consumption: + dim_player identity + competition entity_type
+  (club/national). National-entity rows = the honest "national appearances in covered competitions"
+  (NOT true career caps — we only ingest a subset of national comps); the per-player national total is
+  computed in dbt (denormalized onto the mart), never derived in the export. Clubs list stays with the
+  existing dim_player_team_season_mapping — not duplicated here.
 
 refs: >
-  #500 (team analog of #480). The catalogue drift-test comment earmarks the `_season`/goals_saves
-  column alignment for #500 — deferred here (see decisions_reserved).
+  content_architecture.md §3 (block↔mart: mart_player_career) + §4 (Player Career tab) + §7 (new-mart
+  list). CPO this session: career first (then coaches); grain per (player, competition); counts only,
+  no minutes; "national appearances" not "caps". Website #391 PAUSED — this builds the DATA, not UI copy.
 
 scope_paths:
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/models/5_marts/shared/mart_team_season.sql
-  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
-  - dbt_project/macros/team_benchmark_metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_career__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_career.yml
+  - dbt_project/models/5_marts/shared/mart_player_career.sql
   - dbt_project/models/5_marts/shared/shared.yml
-  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
-  - docs/metric_layer.md
+  - dbt_project/docs/layering.md
   - .claude/task/**
 
 impact_map: >
-  writers: int_team_season__metrics (renamed from __full_season_metrics) — SAME aggregation over
-    int_legs__team_match + int_legs__team_from_players, PLUS three new counts
-    wins_sum_season/draws_sum_season/losses_sum_season + the previously-internal clean-sheet count
-    now EXPOSED in the final select as clean_sheets_sum_season (the `_sum_season` convention keeps
-    them catalogue-exempt). mart_team_season — now COMPOSES int_team_season__metrics for the season
-    counts (played=season_games_played, goals_for/against=*_sum_season, points=points_won_sum_season,
-    clean_sheets=clean_sheets_sum_season, +W/D/L) and DROPS its own int_legs__team_match
-    aggregation; keeps the dim_team + int_team_season__standings_primary joins.
-  downstream: pasted from `dbt ls` this session (raw --output name):
-    $ dbt ls --select int_team_season__full_season_metrics+ --resource-type model --output name
-        int_competition_benchmarks__team
-        int_team_season__full_season_metrics
-        mart_competition_benchmarks__team
-        mart_team_profile
-        mart_team_season_insights
-    $ dbt ls --select mart_team_season+ --resource-type model --output name
-        mart_team_profile
-        mart_team_season
-        mart_team_season_insights
-    (team_benchmark_metrics macro NAMES the model in a comment only — no ref(), confirmed by grep.)
-  layer_rules: the rename is name-only. The dedup moves leg-aggregation OUT of the mart and makes
-    the mart a consumer of the intermediate rollup — logic moves UP the layers (correct direction).
-    No staging/core touched. check_layer_contract unaffected.
-  deploy_order: all tables/views; ci-data-build does a full rebuild so int_team_season__metrics is
-    created under the new name. The old int_team_season__full_season_metrics relation is orphaned in
-    the shared warehouse (dbt does not drop a renamed model's old table) — harmless, swept by the
-    next full-refresh; no consumer references it post-rename.
-  blast_radius: NO shipped-number change intended. The rename is name-only. The mart_team_season
-    dedup is byte-identical: the rollup's sums equal mart_team_season's prior agg over the SAME legs
-    (SUM ignores nulls == SUM(coalesce(.,0)); finished legs carry non-null goals, so
-    clean_sheets_count_season == countif(coalesce(goals_against,0)=0); count(distinct fixture_sk) ==
-    count(*) at the one-row-per-(team,fixture) leg grain). wins/draws/losses are newly RELOCATED
-    from the mart into the rollup. Byte-identity is established PRE-HOC by the column-equivalence
-    reasoning above (each composed column maps 1:1 to an existing rollup sum); ci-data-build
-    before/after = 0 diff on mart_team_season + mart_team_profile + mart_team_season_insights is the
-    done_when CONFIRMATION gate (runs on the PR, not yet executed). The benchmark engine reads only
-    the rate columns (unchanged), so int_competition_benchmarks__team / mart_competition_benchmarks__team
-    are inert.
+  writers: TWO NEW models, both additive. int_player_career__metrics (4_intermediate/shared) groups
+    int_player_season__metrics by (player_sk, league_code, league_sk) and sums appearances/goals/assists
+    + min/max season + count(distinct season_sk). mart_player_career (5_marts/shared) reads that +
+    dim_player (identity) + competition_registry -> competition_types (entity_type club/national), and
+    denormalises a per-player national_appearances_total. NO existing model is modified.
+  downstream: NONE — both are new LEAF models; nothing ref()s them (the website that will consume them is
+    PAUSED, #391). `dbt ls --select mart_player_career+` would return only itself once built. Sources
+    (all exist, verified this session): int_player_season__metrics, dim_player, competition_registry,
+    competition_types.
+  layer_rules: the across-seasons rollup (aggregation) belongs in 4_intermediate — mirrors
+    int_player_season__metrics (the season-level agg) per the #480 pattern; the mart is 5_marts
+    consumption (entity lookup + denormalisation + identity). league_code flows through; no
+    per-competition business logic. No staging/core touched. check_layer_contract unaffected.
+  deploy_order: purely additive — two NEW relations, no existing model changed, nothing depends on them,
+    so no ordering risk and no shipped-number change. ci-data-build creates them.
+  blast_radius: NONE — additive only; no existing mart/number moves. New data = player career rollups.
+    Source depth confirmed this session (int_player_season__metrics: 10-season career for top leagues +
+    continental; national comps WC/WCQ/EURO/AFCON/CNL present for the national-appearances rows).
+    source evidence (bq, this session): per-league player-season counts — top leagues at 10-season
+    depth (PD/SA/L1/PL/BL1 2016-2025; UCL/UEL 2017-2025); national comps present (WC 1242, WCQEU 1966,
+    CNL 2405, AFCON 652, EURO 621 player-seasons); and the new grain is unique — 0 league_codes map to
+    >1 league_sk, so (player_sk, league_code) is safe (re-run after the GROUP-BY alignment).
 
 decisions_taken: >
-  Option A approved by the CPO this session ("Then it's A"; "Rename + fold that dedup"). Mirror
-  #480: int_team_season__metrics is the canonical season rollup; the per-match record and standings
-  stay as separate surfaces (not merged). The mart_team_season aggregation dedup is folded in and
-  must be byte-identical. New W/D/L counts use the `_sum_season` suffix (catalogue-exempt, matching
-  the existing raw-sum columns).
+  CPO this session: (a) sequence — mart_player_career first, dim_coach/coaches second; (b) grain = one
+  row per (player, competition); (c) counts only — appearances, goals, assists — explicitly NO minutes;
+  (d) the national figure is labelled honestly as national appearances in covered competitions, NOT
+  "caps" (DQ — we don't ingest a player's full international history); (e) int + mart layering. The
+  consumption-layer rule ([[feedback-consumption-layer-contract]]): the per-player national total is a
+  fact computed in dbt (denormalised), never summed in the export.
+  Catalogue governance: NO new/uncatalogued metric. `appearances` is an exempt playing-time FACT
+  (assert_no_uncatalogued_season_metric exempts it as "dimensions, not metrics"); `goals`/`assists`
+  are catalogued player metrics (metric_catalogue.csv), and the catalogue is WINDOW-AGNOSTIC (metric
+  ids carry no window suffix) — so career totals are the SAME catalogued atoms over a career window,
+  exactly as int_player_season__metrics exposes them at season grain and mart_team_season at team. The
+  new career model is a fresh surface, not added to the season drift-test (that governs only the two
+  SEASON canonical models).
 
 decisions_reserved:
-  - The `_season`-suffix / goals_saves COLUMN-name alignment (catalogue-test comment ties it to #500)
-    is DEFERRED — a large separate cascade (the benchmark engine + marts + metric layer). CPO scoped
-    THIS PR to rename + dedup. The drift-test keeps its `_season`/goals_saves normalisation until that
-    follow-up.
-  - If ci-data-build shows ANY delta on mart_team_season or its downstream, the dedup is NOT
-    byte-identical -> stop and reconcile before merge; never ship a silent number change (§10).
+  - Career tab DISPLAY copy / i18n (the "national appearances" wording, the tab layout) is a
+    bi-analyst / §10 display-contract item — deferred (website #391 PAUSED); this PR is data-only.
+  - Career-long RATES (pass% etc.) excluded by CPO (counts only); a follow-up if ever wanted.
+  - The "team-history equivalent" (content_architecture §3) is a separate later mart, not this PR.
 
 done_when:
-  - int_team_season__metrics exists; int_team_season__full_season_metrics gone; every ref updated
-    (int_competition_benchmarks__team, mart_competition_benchmarks__team, mart_team_profile,
-    mart_team_season_insights, the drift-test depends_on + model tuple); dbt parse + sqlfluff clean.
-  - mart_team_season composes the rollup, no longer reads int_legs__team_match; same output columns
-    + grain.
-  - assert_no_uncatalogued_season_metric passes (W/D/L exempt via `_sum_season`).
-  - validate-local passes; ci-data-build green; before/after diff on mart_team_season +
-    mart_team_profile + mart_team_season_insights = 0 rows changed.
+  - int_player_career__metrics: grain (player_sk, league_code) unique-tested; appearances/goals/assists
+    summed across seasons; first_season/last_season/seasons_played present.
+  - mart_player_career: one row per (player, competition) with entity_type + national_appearances_total;
+    player identity from dim_player; documented in shared.yml with grain + not-null + relationship tests.
+  - validate-local (sqlfluff + dbt parse) green; ci-data-build green (new models build, tests pass).
 
-amendments: (none)
+amendments:
+  - 2026-06-23: + dbt_project/docs/layering.md — authority: analytics-engineer reviewer FAIL (the
+    "Canonical mart inventory (exhaustive)" in layering.md must list every mart) + the standing
+    doc-sync rule. Content: add the mart_player_career row to the §5_marts inventory table.

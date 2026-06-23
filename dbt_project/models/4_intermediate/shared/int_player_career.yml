@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: int_player_career__metrics
+    description: >
+      Per (player, competition) career rollup: the across-seasons sum of int_player_season__metrics
+      (career appearances / goals / assists — NO minutes, CPO) plus the season span (first / last /
+      count). Grain: (player_sk, league_code). Powers mart_player_career (the Player Career tab);
+      entity_type (club / national) is added downstream at the mart.
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - league_code
+    columns:
+      - name: player_career_sk
+        tests: [not_null, unique]
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        tests: [not_null]
+      - name: appearances
+        tests: [not_null]
