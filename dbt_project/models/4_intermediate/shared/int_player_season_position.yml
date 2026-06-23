@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: int_player_season_position__metrics
+    description: >
+      Per (player, competition-season, position) aggregate over finished matches — the position-split
+      sibling of int_player_season__metrics, built for the player competition benchmark. Splits a player's
+      legs by the position played (fct_fixture_player_stats.position_code G/D/M/F -> GK/DEF/MID/ATT) and
+      aggregates each role separately; the 18 benchmark metrics (per-90 + rates) are computed in-position.
+      Atom formulas mirror int_player_season__metrics, so a single-position player's per-90 matches his
+      whole-season per-90 there. No floor here — the benchmark filters minutes >= 270.
+      Grain: (player_sk, season_sk, position_group).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, season_sk, position_group]
+    columns:
+      - name: player_sk
+        description: "FK to dim_player."
+        tests: [not_null]
+      - name: season_sk
+        description: "FK to dim_competition_season (encodes the competition-season)."
+        tests: [not_null]
+      - name: league_sk
+        tests: [not_null]
+      - name: league_code
+        description: "Partition key."
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: position_group
+        description: "GK/DEF/MID/ATT, mapped from the match-time position_code (G/D/M/F)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["GK", "DEF", "MID", "ATT"]
+      - name: minutes
+        description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor)."
+        tests: [not_null]
+      - name: appearances
+        description: "Finished player-stat rows IN this position this competition-season."
+        tests: [not_null]

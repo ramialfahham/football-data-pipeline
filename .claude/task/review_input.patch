@@ -1,267 +1,768 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index d3663ec..e5d57c5 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,20 +4,18 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-23 (**session-close refresh**). main GREEN; no open PRs. Two-track operating model live.
--**Merged this session:** **#551** (fixture-event team-attribution fix → **#526 CLOSED**); **#500** (team-season
--rollup consolidation + rename `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded —
--benchmark #512 refs updated); **#555** (`mart_player_career` — player career-by-competition surface, counts only,
--no minutes); **#556** (`dim_coach` + `dim_coach_team_mapping` — Coach entity/affiliation split from
--RAW_APIF_COACHES, read-all snapshot per CPO ruling, soft team_sk link). **Filed:** **#549** (the proposal phase is
--ungated — the #526 mis-diagnosis was an unverified premise NO gate caught) + **#550** (automated DQ-triage design:
--detect → evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix; nests under #546). **#526 durable
--lesson:** identity must be verified EXTERNALLY, never inferred from internal name similarity
--([[feedback-verify-real-world-identity]]) — the 38 wrong-team events were TWO opposite classes (Togo
--ASC≠ASKO mis-attribution vs Riga duplicate-id), healed by the CPO-owned `fixture_event_team_overrides` seed + the
--permanent `assert_event_team_in_fixture_participants` test (now 0, was 38). Governance G1-G4 LIVE.
--**Website #391 PAUSED.** OPEN: the **Coach + career CONSUMPTION marts** (deferred, #391-gated) + the **#500
--column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#547** + the **#549/#550** designs._
-+_Last updated: 2026-06-23 (**benchmark-PR1 close**). main GREEN; no open PRs. Two-track operating model live.
-+**Merged this session:** **#558** (`mart_leaderboards` v1.x — the 5 RATE boards pass%/duels%/dribble%/finishing%/
-+save%, with the CPO qualification rule: minutes>=270 + position scope (outfield, save=GK) + finishing also
-+SoT>=10; `finishing_efficiency` extended to the player entity; **#506 CLOSED**); **#559** (**player benchmark
-+PR1** — the metric layer: 13 per-90 player metrics computed in `int_player_season__metrics` + catalogue rows,
-+AND `direction`+`interpretation` classified on those 13 + the 5 existing benchmark rates, interpretations written
-+player-native for website auto-content; per-90 reintroduced the PROPER way via the catalogue, reversing the A1
-+unapproved-invention anti-pattern). **NEXT = player benchmark PR2** (the engine + mart — FULLY DESIGNED this
-+session; see the LOCKED block below — do NOT re-litigate). Governance G1-G4 LIVE. **Website #391 PAUSED.**
-+OPEN: **benchmark PR2** (build-ready) + the **Coach + career CONSUMPTION marts** (#391-gated) + player
-+**opponent-context** (v1.x) + program epics **#545/#546/#547** + the **#549/#550** designs + carryovers
-+**#484/#510/#500-column-align/#483/#521**._
- 
- ## How work is organized — two tracks (NEW 2026-06-23)
- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
-@@ -33,8 +31,50 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
-     expansion lands.
- - **One board + `stream:*` labels** group everything; the **CPO sets the per-stretch mix** (default = product).
- 
-+## Player competition benchmark — PR1 MERGED (#559); PR2 is the build-ready next slice
-+The vs-benchmark engine for PLAYERS (`content_architecture.md` §6), the player analog of the team benchmark
-+(#511/#512). **PR1 (#559, MERGED)** = the metric layer (13 per-90 metrics in `int_player_season__metrics` +
-+catalogue rows + direction/interpretation on those 13 and the 5 existing benchmark rates). **PR2 = the benchmark
-+itself — FULLY DESIGNED this session, CPO-locked, do NOT re-litigate** (the CPO design rulings are logged
-+verbatim in `.claude/task/escalations.log`, 2026-06-23 "player competition benchmark — up-front CPO design
-+rulings"):
-+- **Structure (mirror #512):** `int_competition_benchmarks__player` (engine: per (league_code, season_api_year,
-+  **position_group**, metric_key) distribution — count/mean/p25/median/p75) + `mart_competition_benchmarks__player`
-+  (LONG, one row per (player, season, metric_key): value, distribution, **rank + peer_count + percentile**,
-+  value−median) + a **`player_benchmark_metrics()`** macro (metric list, shared engine↔mart, like
-+  `team_benchmark_metrics()`).
-+- **Metric set (18, all catalogued with direction+interpretation):** the 13 per-90 (goals/assists/scorer_points/
-+  shots_on_target/key_passes/dribbles_success/passes/tackles/interceptions/blocks/defensive_actions/duels_won/
-+  saves) + the 5 rates (pass_accuracy_pct/duels_won_pct/dribbles_success_pct/finishing_efficiency/save_pct).
-+- **Peers = position group** (GK/DEF/MID/ATT from `dim_player.player_position`; ~0.5% null among 270-min
-+  qualifiers). Benchmark is per (competition, season, **position**) — compare within position (raw per-90 is
-+  position-bound, e.g. defender goals/90 ≈ 0).
-+- **Floor = `minutes >= 270`** (≈3 matches) for ALL metrics; **finishing_efficiency ALSO needs
-+  `shots_on_target >= 10`** (its denominator is shots, not minutes — same floor as the leaderboard finishing
-+  board). save% uses the GK position scope.
-+- **Carry BOTH rank-of-N and percentile** (large player N makes percentile the intuitive read; rank stays honest
-+  in small leagues). Carry `minutes` + `appearances` so the sample is always visible.
-+- **ALL competitions — NO league-only scoping.** Percentiles are descriptive/relative, so tournaments compare
-+  players within their own edition; single-match comps (e.g. Super Cup) fall out below the 270 floor naturally.
-+- **NO prev-season fallback.** Each competition-season is benchmarked on its own data; the live current season
-+  fills in honestly as players cross the floor (quiet ~2 months early; completed seasons are full now). Display
-+  shows the season — never relabel last season as this (CPO rejected the fallback as confusing mid-season).
-+- **Direction-agnostic mart** (like #512): rank by value desc; the good/bad reading comes from the catalogue
-+  `direction` at display (now populated for these 18 player metrics).
-+- **Floor evidence (locked):** settled against 2025 distributions — 450 too low (cameos like Awoniyi 502min/4g
-+  spiked), 720/900 too slow; per-90 amplifies small samples, so 270 + sample-visible + robust median is the call.
-+
-+## Leaderboards vs benchmark — coherence ruling (CPO, this session)
-+TWO deliberate lenses, kept separate (CPO chose this over merging): **leaderboards = totals/achievements** (top
-+scorer; the count boards rank season TOTALS) · **benchmark = per-90 standing vs position peers** (percentile). The
-+same metric can rank differently across them — INTENDED (Golden Boot vs efficiency; fbref carries both). The only
-+alignment: finishing% uses the SAME floor on both (minutes>=270 AND SoT>=10). The leaderboard count boards stay
-+TOTALS — do NOT convert them to per-90.
-+
- ## FIRST next session (do this first)
--- **Nothing pending-merge** (`git fetch` + ff main). main GREEN.
-+- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. **Immediate next = player benchmark PR2** (the
-+  engine + mart — see the LOCKED design block above; mirrors team #512, consumes the #559 per-90/rate metrics via
-+  a new `player_benchmark_metrics()` macro). CPO directs whether to build PR2 now or pick another slice.
- - **PROGRAMS — pick the cut, then build:**
-   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
-     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
-@@ -46,11 +86,12 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
-     a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
-     merge-on-internal-similarity.
-   - **#547 (cost):** size BQ build cost before the expansion scales.
--- **PRODUCT (primary):** the content_architecture roadmap — **`mart_player_career` (#555) + coaches (#556) now
--  DONE.** Next product slices: the **Coach + career CONSUMPTION marts** (Coach page Overview = current club +
--  clubs managed; the team-header current-coach chip — both DEFERRED, website #391 PAUSED); player **benchmark /
--  opponent-context** (v1.x); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves) + **#506**
--  (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
-+- **PRODUCT (primary):** the content_architecture roadmap — **#506 leaderboards rate boards (#558) + player
-+  benchmark PR1 (#559) now DONE.** Next product slices: **player benchmark PR2** (build-ready — the LOCKED block
-+  above); the **Coach + career CONSUMPTION marts** (Coach page Overview / team-header current-coach chip — both
-+  DEFERRED, website #391 PAUSED); the **opponent-context** flagship (v1.x — weights opponents via the benchmark
-+  engine); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves). **Read
-+  `docs/content_architecture.md` §8/§9 first.**
- - **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
- - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
-   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
-@@ -136,10 +177,10 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
-    ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
- 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
-    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
--3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
--   semantic + #512 mart_competition_benchmarks__team; median-led, rank-of-N, direction-agnostic). **Player
--   benchmark + percentile-vs-peers = v1.x** (needs per-90 — a NEW catalogue metric — + position-aware peers +
--   a minutes floor). The **opponent/schedule-context flagship** (weights opponents via this engine) is also v1.x.
-+3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 + #512). **PLAYER benchmark:
-+   PR1 (the metric layer — per-90 metrics + direction/interpretation) DONE 2026-06-23 (#559); PR2 (engine + mart)
-+   is the build-ready next slice** — see the LOCKED design block near the top of this file. The **opponent/
-+   schedule-context flagship** (weights opponents via this engine) is v1.x, after the benchmark.
- 4. ~~**Coaches + `dim_coach`**; **`mart_player_career`** for the Career/History tabs~~ — **DONE 2026-06-23**
-    (#555 `mart_player_career`, counts only; #556 `dim_coach` + `dim_coach_team_mapping`). The **Coach + career
-    CONSUMPTION marts** (page Overview / team-header current-coach chip) remain DEFERRED — website #391 PAUSED.
-@@ -157,8 +198,8 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
- - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
-   the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned).
- - **#483** — qualifying-type cumulative window (GAP-18 follow-up).
--- **#506** — leaderboards v1.x: the 5 RATE boards (pass% / duels% / dribble% / save% / finishing) + a new
--  `finishing_efficiency` (uncapped) + the per-denominator qualification floor (deferred from the v1 count boards).
-+- ~~**#506**~~ — leaderboards rate boards **DONE 2026-06-23 (#558)**: the 5 RATE boards + the CPO qualification
-+  rule (minutes>=270 + position scope + finishing SoT>=10); `finishing_efficiency` extended to the player entity.
- - **Pilot PR2 (slugs)** — STILL BLOCKED on the two BLINDED §10 rulings E2/E3 (do NOT pre-decide).
- 
- ## Key specs to read before building (the source of truth)
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4a7f195..376cf9a 100644
+index 376cf9a..1ae01f9 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,98 +1,45 @@
--# Task contract — player per-90 metrics + benchmark-metric classification (benchmark PR1)
-+# Task contract — session handover refresh (2026-06-23, benchmark PR1 close)
+@@ -1,45 +1,108 @@
+-# Task contract — session handover refresh (2026-06-23, benchmark PR1 close)
++# Task contract — player competition benchmark PR2 (engine + mart)
++
++> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), Appendix A.
  
  objective: >
--  Add the 13 per-90 player metrics (the minutes-normalised comparison layer) to the
--  metric_catalogue + compute them in int_player_season__metrics; classify direction +
--  interpretation for those 13 AND the 5 existing benchmark rate metrics, so the whole
--  player-benchmark metric set carries good/bad semantics and auto-narrative meaning. This is
--  the metric-layer foundation (PR1) for the player competition benchmark (PR2). Additive only.
-+  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session merged
-+  #558 (leaderboards rate boards → #506 CLOSED) + #559 (player per-90 metric layer = benchmark PR1).
-+  Record: those merges; the FULLY LOCKED player-benchmark PR2 design (so the next chat builds without
-+  re-litigating a long design); the leaderboards-vs-benchmark two-lens coherence ruling; the open queue.
-+  No code; handover doc only.
+-  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session merged
+-  #558 (leaderboards rate boards → #506 CLOSED) + #559 (player per-90 metric layer = benchmark PR1).
+-  Record: those merges; the FULLY LOCKED player-benchmark PR2 design (so the next chat builds without
+-  re-litigating a long design); the leaderboards-vs-benchmark two-lens coherence ruling; the open queue.
+-  No code; handover doc only.
++  Build the player competition benchmark (content_architecture §6 — the per-90 vs-position-peers engine;
++  player analog of the team benchmark #511/#512). Composes the #559 per-90/rate metrics into a per-position
++  distribution and ranks each qualifying (player, season, position) against its competition peers
++  (rank + percentile + value-median). Three additive models + one macro; modifies NO existing model.
  refs: >
--  Player competition benchmark — the per-90 vs-peers surface (content_architecture §6), the v1.x
--  follow-up to the team benchmark (#511/#512). Designed + ruled live this session (2026-06-23):
--  per-90 via the proper catalogue route (reverses the A1 unapproved-invention removal); the
--  13-metric list CPO-confirmed; direction classified (ruling "A": classify now, like the team);
--  interpretations written player-native for website auto-content generation.
-+  CPO directed wrapping the session for a fresh chat. The benchmark design was decided live by the CPO
-+  this session and is now logged durably in `.claude/task/escalations.log` (2026-06-23 "player
-+  competition benchmark — up-front CPO design rulings": per-90 + position-group peers + percentile/rank
-+  + floor 270 / finishing SoT>=10 + all-competitions + no prev-season fallback + the leaderboards-vs-
-+  benchmark two-lens ruling), per the 2026-06-17 E1 precedent. Pattern: prior handover refreshes.
+-  CPO directed wrapping the session for a fresh chat. The benchmark design was decided live by the CPO
+-  this session and is now logged durably in `.claude/task/escalations.log` (2026-06-23 "player
+-  competition benchmark — up-front CPO design rulings": per-90 + position-group peers + percentile/rank
+-  + floor 270 / finishing SoT>=10 + all-competitions + no prev-season fallback + the leaderboards-vs-
+-  benchmark two-lens ruling), per the 2026-06-17 E1 precedent. Pattern: prior handover refreshes.
++  content_architecture.md §6; player analog of #511/#512; consumes the #559 metric layer.
++  CPO design rulings: .claude/task/escalations.log 2026-06-23 ("player competition benchmark — UP-FRONT
++  CPO DESIGN RULINGS" D1-D8 + the two source/floor rulings logged this session).
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+  - .claude/active_work.md
-+  - .claude/task/**
+-  - .claude/active_work.md
++  - dbt_project/macros/player_benchmark_metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
++  - dbt_project/models/5_marts/shared/shared.yml
+   - .claude/task/**
  
  impact_map: >
--  writers:
--    - 13 per-90 columns (goals/assists/scorer_points/shots_on_target/key_passes/dribbles_success/
--      passes/tackles/interceptions/blocks/defensive_actions/duels_won/saves _per90) =
--      safe_divide(count * 90, minutes) — computed ONLY in int_player_season__metrics (the canonical
--      player-season model, mirroring the per-match rates in int_team_season__metrics). 13 matching
--      metric_catalogue rows (entity='player'), each carrying direction + interpretation.
--    - direction + interpretation also filled on the 5 existing player benchmark RATES
--      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct) —
--      additive catalogue-field updates (previously empty), no formula change.
--  downstream (pasted, `dbt ls --select int_player_season__metrics+`):
--    - int_player_season__metrics → int_player_career__metrics, mart_leaderboards, mart_player_career,
--      mart_player_profile. VERIFIED (during #506) all four use named SELECTs — the new per-90 columns
--      do NOT leak; schemas/numbers unchanged. PR2 (the benchmark) is the intended consumer.
--    - metric_catalogue: the direction/interpretation columns are NOT consumed by any current model
--      (leaderboard/profile select named atoms, not direction); filling them is inert until PR2's
--      display. accepted_values/not_null/uniqueness + assert_no_uncatalogued_season_metric apply.
--  layer_rules:
--    - assert_no_uncatalogued_season_metric: every metric column in int_player_season__metrics must
--      have a player catalogue row (metric_id = column). The 13 new columns REQUIRE the 13 rows.
--    - accepted_values: format in {integer,decimal_0,decimal_1,percent,points_fraction,count_fraction}
--      → per-90 use decimal_1. direction in {higher_better,lower_better,neutral}. metric_group in the
--      closed set → each per-90 inherits its base metric's group. lower_is_better not_null → false on
--      all 13 (none are lower-better; neutral metrics carry false + direction=neutral, like the team).
--    - metrics live in the canonical season model; PR2 references them via a macro, like
--      team_benchmark_metrics() references int_team_season__metrics.
--  deploy_order:
--    - shared warehouse; ci-data-build rebuilds seed → int_player_season__metrics (table) → tests.
--      Additive columns + rows + a new non-negative range test; no migration hazard, no nightly tie-in.
--  blast_radius:
--    - int_player_season__metrics: +13 columns. metric_catalogue: +13 rows; +direction/interpretation
--      on 5 existing rate rows. int_team_season.yml: +1 model-level non-negative test for the per-90s.
--      mart_player_profile.sql: header-comment touch-up only (no SQL change).
--    - NO change to mart_player_profile / mart_leaderboards / int_player_career__metrics /
--      mart_player_career output (named selects — verified #506). NO shipped-number change. The per-90
--      columns are unconsumed until PR2 (metric-layer-first split).
-+  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
-+  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
-+  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
-+  blast_radius: NONE — handover text only; no shipped number moves.
+-  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
+-  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
+-  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
+-  blast_radius: NONE — handover text only; no shipped number moves.
++  writers: THREE NEW models only — int_player_season_position__metrics (table; per (player, season,
++    position_code) atoms + 18 in-position metrics from fct_fixture_player_stats + fct_fixture),
++    int_competition_benchmarks__player (table; per (league_code, season_api_year, position_group,
++    metric_key) distribution), mart_competition_benchmarks__player (view; LONG per (player, season,
++    position_group, metric_key)). NO existing model is modified (int_player_season__metrics from #559 is
++    untouched; the position-split model reads the per-fixture leg directly, not that model).
++  downstream: ADDITIVE LEAF. mart_competition_benchmarks__player has no downstream (the v2 export /
++    website is #391-PAUSED, no consumer built). Evidence: `dbt ls --select int_player_season__metrics+
++    --resource-type model` (venv dbt 1.7.19) → int_player_career__metrics, mart_leaderboards,
++    mart_player_career, mart_player_profile — i.e. the #559 model's consumers; this PR touches NONE of
++    them and adds a separate position-split branch. New models compile to leaves (verify post-build with
++    `dbt ls --select mart_competition_benchmarks__player+` → only itself).
++  layer_rules: 4_intermediate = feature aggregation (the per-position metrics + the distribution engine);
++    5_marts = consumption (the ranked LONG mart). All in 4_intermediate/shared + 5_marts/shared (cross-
++    league, league_code partition column flows through; no per-competition files — check_layer_contract
++    stays green). Materialization set in-file (table/table/view); no dbt_project.yml change.
++  deploy_order: purely additive — the three new objects build after their upstream core facts
++    (fct_fixture_player_stats, fct_fixture, dim_player) in the 04:00 nightly DAG; no existing model's
++    build or order changes; nothing breaks pre-merge (new objects only, no contract change to a live model).
++  blast_radius: NONE on shipped numbers — additive; no existing mart SQL changes. Grain evidence PASTED
++    (live BQ, not asserted — §2/A6). position_code coverage at the 270-min qualifier grain, by season
++    (`SELECT season_api_year, COUNT(*) qualifiers, COUNTIF(season_position_code IS NULL) null_poscode FROM
++    season_pos JOIN int_player_season__metrics WHERE minutes>=270` over the modal position_code per
++    player-season):
++      2026: 3435 q / 0 null    2025: 10836 / 0    2024: 11315 / 0    2023: 9993 / 0    2022: 9804 / 0
++      2021: 6293 / 0    2020: 4313 / 0    2019: 4280 / 0    2018: 3628 / 0    2017: 3465 / 0    2016: 2564 / 0
++    => 100% coverage every season (0 null), vs dim_player.player_position null 0.1%/0.5%/5.6%/.../58% (2026..
++    2016) — the premise behind B1. Qualifying (player, season, position) rows = 60,375 single-position +
++    6,561 two-position + 67 three-position (`GROUP BY player,season HAVING COUNTIF(min_in_pos>=270)=N`).
++    Junk position_codes ('-'/'SUB'/null = 142 of 1.67M legs) are excluded (not G/D/M/F).
  
  decisions_taken: >
--  CPO rulings recorded live this session (2026-06-23):
--  - Introduce per-90 player metrics via the proper route (catalogue + football-analytics). The A1
--    anti-pattern was per-90 invented WITHOUT approval (#325). Explicit CPO sign-off given.
--  - 13-metric list CPO-confirmed (the 11 + defensive_actions_per90 + scorer_points_per90, both added
--    on CPO request for parity with the team's aggregate + the leaderboard's scorer_points). Formula =
--    count * 90 / minutes (safe_divide → null when minutes is zero). format=decimal_1.
--  - Direction classified now (ruling "A": "classify them as we did with the other metrics"): output/
--    quality = higher_better (goals/assists/scorer_points/shots_on_target/key_passes/dribbles_success
--    per90 + the 5 rates); volume/style = neutral (passes/tackles/interceptions/blocks/
--    defensive_actions/duels_won per90) — mirrors the team catalogue's classification of the same stats.
--    lower_is_better stays false for all (the team's convention for neutral metrics).
--  - Interpretations written PLAYER-NATIVE (not the team labels) for the website's automated content
--    generation; neutral metrics carry the "style not quality" signal. CPO-approved the full table.
--  - DQ non-negative guard on the 13 per-90 columns (a per-90 can never be negative; catches a
--    formula sign-flip) — addresses the analytics-engineer review. mart_player_profile header comment
--    touched up (its "no per-90 ... await a CPO-approved extension" note is now stale) — addresses
--    the scope-auditor review.
-+  Reflect already-merged facts + the CPO-locked benchmark design only — no NEW design this refresh.
-+  #558 + #559 are merged (main GREEN). The PR2 design block is the set of CPO rulings made live this
-+  session, recorded verbatim so the next chat does not re-decide. The two-track operating model + the
-+  program epics carry forward. This is a status + design-capture refresh, not a re-scope.
+-  Reflect already-merged facts + the CPO-locked benchmark design only — no NEW design this refresh.
+-  #558 + #559 are merged (main GREEN). The PR2 design block is the set of CPO rulings made live this
+-  session, recorded verbatim so the next chat does not re-decide. The two-track operating model + the
+-  program epics carry forward. This is a status + design-capture refresh, not a re-scope.
++  ALL CPO-locked; do not re-litigate (escalations.log 2026-06-23 D1-D8 + the two rulings this session):
++  - Structure mirrors team #512: metrics model -> engine (distribution) -> mart (rank), + a
++    player_benchmark_metrics() macro shared engine<->mart (like team_benchmark_metrics()).
++  - Metric set = 18 (D8): 13 per-90 (goals/assists/scorer_points/shots_on_target/key_passes/
++    dribbles_success/passes/tackles/interceptions/blocks/defensive_actions/duels_won/saves) + 5 rates
++    (pass_accuracy_pct/duels_won_pct/dribbles_success_pct/finishing_efficiency/save_pct). All already in
++    metric_catalogue with direction populated (verified live) — PR2 makes NO catalogue change.
++  - Peers = position group GK/DEF/MID/ATT (D2). SOURCE = season-level position_code from
++    fct_fixture_player_stats (G/D/M/F -> GK/DEF/MID/ATT), NOT dim_player.player_position (CPO ruling this
++    session, "B"): the bio-snapshot null is 0.5% only in 2025 but 18-58% in historical seasons (the
++    "0.5% null" premise held only for 2025); position_code is recorded at match time -> 100% qualifier
++    coverage every season AND is season-accurate (the role actually played that season).
++  - Floor = 270 minutes IN THE POSITION (CPO ruling this session, "Yes, I agree"): the >=270 rule applies
++    per position_code, which both qualifies AND assigns position — NO modal/mode step. A player who clears
++    270 in two positions (~10%) appears in BOTH benchmarks, each on the per-90 he produced IN that role
++    (the value grain is per (player, season, position); the whole-season per-90 in #559 stays the profile
++    metric, it is NOT the benchmark value source). finishing_efficiency ALSO needs shots_on_target >= 10
++    IN the position (D4). save_pct populates only where position = G (null elsewhere -> falls out).
++  - METRIC ELIGIBILITY PER POSITION (CPO ruling this session, "I agree") — Path B (per-position relevant
++    set), NOT compute-all-x-all. Rule: benchmark a metric for a position group only when non-degenerate for
++    that group; because the peer pool is already position-specific, the only dead boards are at the
++    GK<->outfield boundary. MAP: GK = {saves_per90, save_pct, passes_per90, pass_accuracy_pct} (4); DEF =
++    MID = ATT = the other 16 (everything except the 2 GK-only metrics). No finer DEF/MID/ATT split (the
++    peer pool already makes within-outfield comparisons position-relative; splitting would bake display into
++    the benchmark). 52 position x metric boards, not 72. Eligibility lives as a per-metric position list in
++    the player_benchmark_metrics() macro (shared engine<->mart); an ineligible metric x position emits no
++    row (null -> excluded), no schema change.
++  - Carry BOTH rank-of-N AND percentile (D3) + peer_count + minutes + appearances (sample visible).
++  - ALL competitions, no league-only scoping (D5). NO prev-season fallback — each competition-season on
++    its own data (D6). DIRECTION-AGNOSTIC mart — rank by value desc; good/bad read from catalogue
++    direction at display (D7). Two lenses kept separate from leaderboards (coherence ruling).
  
  decisions_reserved:
--  - The per-90 / rate label i18n STRINGS (added at display-wiring time; KEY spelling follows the
--    player-namespace convention, CPO can override).
--  - decimal_2 display precision for per-90 (decimal_2 not in the accepted format set; revisit with
--    bi-analyst if finer precision is wanted).
--  - The benchmark engine + mart + floor (270; finishing also SoT>=10) + position peers + percentile — PR2.
-+  - What the next stretch builds (player benchmark PR2 vs a program tranche vs another product slice) is
-+    the CPO's pick at the start of the fresh chat — the handover records the locked PR2 design + the
-+    open queue, it does not choose.
+-  - What the next stretch builds (player benchmark PR2 vs a program tranche vs another product slice) is
+-    the CPO's pick at the start of the fresh chat — the handover records the locked PR2 design + the
+-    open queue, it does not choose.
++  - The benchmark ELIGIBILITY per position is now LOCKED (the map above). What remains reserved: WHICH of
++    a position's eligible metrics a PAGE surfaces, and in what order, is a page-composition / display
++    decision (§10) — OUT OF SCOPE for PR2. The mart carries all eligible (position, metric) boards;
++    display picks and orders later. Flag, do not decide.
  
  done_when:
--  - `.venv/Scripts/dbt parse` + `compile` clean; `sqlfluff lint` clean on the int model.
--  - metric_catalogue.csv well-formed (13 columns/row); accepted_values satisfied (decimal_1, valid
--    groups, direction in the enum); the 13 new int columns exactly match the 13 new metric_ids.
--  - assert_no_uncatalogued_season_metric green; the new non-negative per-90 test parses.
--  - validate-local passes. The BQ data-build runs in CI.
-+  - active_work.md status line names #558 + #559 (benchmark PR1) MERGED, main GREEN.
-+  - The locked player-benchmark PR2 design is recorded (engine + mart + macro + metric set + floor/
-+    peers/percentile/scope/no-fallback) + the leaderboards-vs-benchmark coherence ruling.
-+  - FIRST-next-session leads with PR2 (build-ready) + carries the open queue.
-+  - Last-updated stamp moved to 2026-06-23 (benchmark-PR1 close).
-+  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
+-  - active_work.md status line names #558 + #559 (benchmark PR1) MERGED, main GREEN.
+-  - The locked player-benchmark PR2 design is recorded (engine + mart + macro + metric set + floor/
+-    peers/percentile/scope/no-fallback) + the leaderboards-vs-benchmark coherence ruling.
+-  - FIRST-next-session leads with PR2 (build-ready) + carries the open queue.
+-  - Last-updated stamp moved to 2026-06-23 (benchmark-PR1 close).
+-  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
++  - `dbt parse` clean; `dbt build --select int_player_season_position__metrics
++    int_competition_benchmarks__player mart_competition_benchmarks__player` green (incl. the new yml tests:
++    unique grain, not_null keys, accepted_values on metric_key + position_group, rank in 1..peer_count).
++  - `dbt ls --select mart_competition_benchmarks__player+ --resource-type model` -> only itself (leaf).
++  - Spot-check (live): a multi-position player shows distinct per-90 per position; a single-position player
++    with NO junk-position legs has a benchmark value equal to his #559 whole-season per-90 (the position
++    filter excludes '-'/'SUB'/null legs, so a player with such legs differs by that fraction — measured: 9
++    of 137,417 single-position seasons); percentile in [0, 1] (percent_rank: 0 = bottom/tied-bottom),
++    rank in 1..peer_count.
++  - SQLFluff clean on the new SQL. Full G3 review cycle: scope-auditor + analytics-engineer-reviewer PASS.
  
--amendments:
--  - 2026-06-23: + dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--    (non-negative per-90 DQ test) + dbt_project/models/5_marts/shared/mart_player_profile.sql (stale
--    comment touch-up) — authority: CPO approval this session (2026-06-23, "good now") of the full plan
--    that explicitly named the DQ guard + the comment touch-up (the CPO ruling is also recorded in
--    decisions_taken above); the analytics-engineer + scope-auditor reviews surfaced the need. Clean-
--    tree amendment (the branch was reset to origin/main before this contract was written).
-+amendments: (none)
+ amendments: (none)
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 456a543..c5643a6 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -156,3 +156,8 @@
+   (D7) DIRECTION/INTERPRETATION classified now (ruling "A", detailed in the #559 entry above) — output/quality = higher_better, volume/style = neutral; interpretations player-native for website auto-content.
+   (D8) METRIC SET = 13 per-90 + the 5 existing rates; CPO added defensive_actions_per90 + scorer_points_per90 for parity with the team aggregate + the leaderboard's scorer_points ("We need scorer_points_per90 as well").
+   LEADERBOARDS-vs-BENCHMARK COHERENCE — CPO chose "(a)": keep them as two DELIBERATE lenses (leaderboards = totals/achievements; benchmark = per-90 standing vs position peers), NOT merged. The same metric can rank differently across them (Golden Boot vs efficiency; fbref carries both). Only alignment: finishing% uses the same floor on both. Leaderboard count boards STAY totals (do not convert to per-90).
++
++2026-06-23 player competition benchmark PR2 (engine + mart) — TWO build-time CPO rulings (premise correction + floor refinement). Both decided live this session before the contract was written; they REFINE the D2/D4 design above on facts established from the live warehouse (the "establish facts from the source of record before proposing" rule).
++  (B1) POSITION SOURCE = season-level position_code from fct_fixture_player_stats, NOT dim_player.player_position — CPO: "B". PREMISE CORRECTION: D2/the handover recorded peers "from dim_player.player_position; ~0.5% null among 270-min qualifiers". Querying the live table showed the 0.5% holds ONLY for 2025; dim_player.player_position is a CURRENT-bio snapshot (latest /players/profiles), so historical qualifiers lose their position — null is 0.1% (2026), 0.5% (2025), 5.6% (2024), 18% (2022), 35% (2019), 50% (2017), 58% (2016). Under D5 (all seasons / deep backfill) that would silently drop ~40-58% of old-season benchmarks. fct_fixture_player_stats.position_code is recorded AT MATCH TIME (G/D/M/F -> GK/DEF/MID/ATT): 100% coverage at the 270-min qualifier grain in EVERY season 2016-2026 (0 null), and season-accurate (the role the player actually played that season, not a current-bio tag). The position-group CONCEPT (D2) is unchanged; only the source changes.
++  (B2) FLOOR = 270 minutes IN THE POSITION (per position_code), which both QUALIFIES and ASSIGNS — no modal/mode step — CPO: "We already have a rule, it's >= 270 minutes. Now it means in this position" / "Yes, I agree". The benchmark VALUE grain becomes per (player, season, position): the per-90 a player produced IN that role, built from the per-fixture legs grouped by position_code — NOT the #559 whole-season per-90 (which stays the profile metric). ~10% of qualifiers clear 270 in two positions (6,561 of ~67,003) and appear in BOTH benchmarks, each on their in-role per-90 (honest; modal would have polluted one pool with the other role's stats). finishing_efficiency also needs shots_on_target >= 10 IN the position (D4 carried through).
++  (B3) METRIC ELIGIBILITY PER POSITION = Path B (per-position relevant set), NOT compute-all-x-all — CPO: "I agree" (the CPO flagged this was decided for the TEAM benchmark — curate-at-macro + show-subset-at-display, but the curation was GLOBAL because team metrics aren't position-bound — and was NOT decided for players). Player metrics ARE position-bound (live data: 100% of GKs record a save, 0.0% of any outfield group; 81% ATT / 55% MID / 32% DEF score vs 0.3% of GKs), so compute-all-x-all yields degenerate boards (every outfielder tied at saves/90=0; GKs ~0 on attacking). RULE: benchmark a metric for a position only when non-degenerate; because the peer pool is already position-specific the only dead boards are at the GK<->outfield boundary, so eligibility is essentially binary. MAP (CPO-approved): GK = {saves_per90, save_pct, passes_per90, pass_accuracy_pct} (4 — GK distribution is a real fbref-style axis); DEF = MID = ATT = the other 16. NO finer DEF/MID/ATT split (the peer pool already makes within-outfield comparisons position-relative; e.g. a CB's goals_per90 is ranked only vs other CBs, surfacing attacking CBs honestly; splitting would bake DISPLAY into the benchmark). 52 position x metric boards, not 72. Eligibility lives as a per-metric position list in player_benchmark_metrics() (shared engine<->mart). RESERVED (still §10, downstream): which of a position's ELIGIBLE metrics a PAGE surfaces + their order = page-composition.
+diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
+new file mode 100644
+index 0000000..21f788d
+--- /dev/null
++++ b/dbt_project/macros/player_benchmark_metrics.sql
+@@ -0,0 +1,40 @@
++{% macro player_benchmark_metrics() %}
++{#
++  The 18 player season metrics the competition benchmark covers, with per-metric POSITION ELIGIBILITY.
++  Single source so the benchmark intermediate (the per-position distribution) and the mart (per-player
++  value + rank + percentile) cannot drift apart — the player analog of team_benchmark_metrics().
++
++  Each entry: key = the metric_catalogue metric_id; col = the column in int_player_season_position__metrics;
++  pos = the position groups this metric is benchmarked for (eligibility — CPO ruling 2026-06-23 B3); floor
++  (optional) = an extra per-row qualifier on top of the global minutes >= 270 (finishing needs >= 10 shots
++  on target in the position).
++
++  Eligibility rule (CPO B3): benchmark a metric for a position only when non-degenerate for that group.
++  Because the peer pool is already position-specific, the only dead boards are at the GK<->outfield
++  boundary, so eligibility is essentially binary: GK = the 4 keeper metrics (shot-stopping + distribution);
++  DEF = MID = ATT = the other 16. No finer outfield split — a CB's goals_per90 is ranked only vs other CBs.
++#}
++    {% set outfield = ['DEF', 'MID', 'ATT'] %}
++    {% set all_pos = ['GK', 'DEF', 'MID', 'ATT'] %}
++    {% set metrics = [
++        {'key': 'saves_per90', 'col': 'saves_per90', 'pos': ['GK']},
++        {'key': 'save_pct', 'col': 'save_pct', 'pos': ['GK']},
++        {'key': 'passes_per90', 'col': 'passes_per90', 'pos': all_pos},
++        {'key': 'pass_accuracy_pct', 'col': 'pass_accuracy_pct', 'pos': all_pos},
++        {'key': 'goals_per90', 'col': 'goals_per90', 'pos': outfield},
++        {'key': 'assists_per90', 'col': 'assists_per90', 'pos': outfield},
++        {'key': 'scorer_points_per90', 'col': 'scorer_points_per90', 'pos': outfield},
++        {'key': 'shots_on_target_per90', 'col': 'shots_on_target_per90', 'pos': outfield},
++        {'key': 'key_passes_per90', 'col': 'key_passes_per90', 'pos': outfield},
++        {'key': 'finishing_efficiency', 'col': 'finishing_efficiency', 'pos': outfield, 'floor': 'shots_on_target >= 10'},
++        {'key': 'dribbles_success_per90', 'col': 'dribbles_success_per90', 'pos': outfield},
++        {'key': 'dribbles_success_pct', 'col': 'dribbles_success_pct', 'pos': outfield},
++        {'key': 'duels_won_per90', 'col': 'duels_won_per90', 'pos': outfield},
++        {'key': 'duels_won_pct', 'col': 'duels_won_pct', 'pos': outfield},
++        {'key': 'defensive_actions_per90', 'col': 'defensive_actions_per90', 'pos': outfield},
++        {'key': 'tackles_per90', 'col': 'tackles_per90', 'pos': outfield},
++        {'key': 'interceptions_per90', 'col': 'interceptions_per90', 'pos': outfield},
++        {'key': 'blocks_per90', 'col': 'blocks_per90', 'pos': outfield}
++    ] %}
++    {{ return(metrics) }}
++{% endmacro %}
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index 8f3b938..311b89e 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -35,3 +35,49 @@ models:
+         description: "25th-percentile team value (the distribution spread)."
+       - name: league_p75
+         description: "75th-percentile team value (the distribution spread)."
++
++  - name: int_competition_benchmarks__player
++    description: >
++      Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
++      the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric,
++      over players with >= 270 minutes IN the position (finishing also >= 10 shots on target). Median-led.
++      mart_competition_benchmarks__player ranks each player against this. Metric x position eligibility is the
++      player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16).
++      Grain: (league_code, season_api_year, position_group, metric_key).
++    config:
++      tags: ["intermediate", "football", "benchmark"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, position_group, metric_key]
++    columns:
++      - name: league_code
++        tests: [not_null]
++      - name: season_api_year
++        tests: [not_null]
++      - name: position_group
++        description: "The peer pool — GK/DEF/MID/ATT."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["GK", "DEF", "MID", "ATT"]
++      - name: metric_key
++        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_target_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
++      - name: player_count
++        description: "Players with a non-null value for this metric in this league-season-position — the N for rank-of-N / percentile."
++        tests: [not_null]
++      - name: peer_median
++        description: "Median peer value (robust central tendency — the typical player in this position)."
++        tests: [not_null]
++      - name: peer_mean
++        description: "Mean peer value (skew-sensitive)."
++        tests: [not_null]
++      - name: peer_p25
++        description: "25th-percentile peer value (distribution spread)."
++        tests: [not_null]
++      - name: peer_p75
++        description: "75th-percentile peer value (distribution spread)."
++        tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
+new file mode 100644
+index 0000000..b032709
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
+@@ -0,0 +1,56 @@
++{{ config(materialized='table') }}
++
++{#
++  Competition benchmark engine (player). Per (league_code, season_api_year, position_group, metric_key): the
++  distribution of each benchmarked metric over the position's qualifying players, so a player's per-90 can be
++  read against his positional peers in that competition-season. Median-led (robust) with the p25/p75 spread;
++  the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
++  and percentile display. The player analog of int_competition_benchmarks__team.
++
++  Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
++  finishing_efficiency, also >= 10 shots on target in the position (its denominator is shots, not minutes —
++  D4). Metric x position eligibility comes from player_benchmark_metrics() (CPO B3): a metric ineligible for
++  a position (e.g. saves for an outfielder) yields a null value and is not counted.
++
++  Grain: (league_code, season_api_year, position_group, metric_key). All competitions, each season on its own
++  data (no league scoping, no prev-season fallback — D5/D6).
++#}
++
++with season as (
++    select * from {{ ref('int_player_season_position__metrics') }}
++    where minutes >= 270
++),
++
++unpivoted as (
++    {% for m in player_benchmark_metrics() %}
++    select
++        league_code,
++        season_api_year,
++        position_group,
++        '{{ m.key }}' as metric_key,
++        case
++            when
++                position_group in ('{{ m.pos | join("', '") }}')
++                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
++                then {{ m.col }}
++        end as metric_value
++    from season
++    {% if not loop.last %}
++    union all
++    {% endif %}
++    {% endfor %}
++)
++
++select
++    league_code,
++    season_api_year,
++    position_group,
++    metric_key,
++    count(metric_value) as player_count,
++    avg(metric_value) as peer_mean,
++    approx_quantiles(metric_value, 4)[offset(1)] as peer_p25,
++    approx_quantiles(metric_value, 4)[offset(2)] as peer_median,
++    approx_quantiles(metric_value, 4)[offset(3)] as peer_p75
++from unpivoted
++where metric_value is not null
++group by league_code, season_api_year, position_group, metric_key
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+new file mode 100644
+index 0000000..3bc1e04
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -0,0 +1,43 @@
++version: 2
++
++models:
++  - name: int_player_season_position__metrics
++    description: >
++      Per (player, competition-season, position) aggregate over finished matches — the position-split
++      sibling of int_player_season__metrics, built for the player competition benchmark. Splits a player's
++      legs by the position played (fct_fixture_player_stats.position_code G/D/M/F -> GK/DEF/MID/ATT) and
++      aggregates each role separately; the 18 benchmark metrics (per-90 + rates) are computed in-position.
++      Atom formulas mirror int_player_season__metrics, so a single-position player's per-90 matches his
++      whole-season per-90 there. No floor here — the benchmark filters minutes >= 270.
++      Grain: (player_sk, season_sk, position_group).
++    config:
++      tags: ["intermediate", "football", "player"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [player_sk, season_sk, position_group]
++    columns:
++      - name: player_sk
++        description: "FK to dim_player."
++        tests: [not_null]
++      - name: season_sk
++        description: "FK to dim_competition_season (encodes the competition-season)."
++        tests: [not_null]
++      - name: league_sk
++        tests: [not_null]
++      - name: league_code
++        description: "Partition key."
++        tests: [not_null]
++      - name: season_api_year
++        tests: [not_null]
++      - name: position_group
++        description: "GK/DEF/MID/ATT, mapped from the match-time position_code (G/D/M/F)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["GK", "DEF", "MID", "ATT"]
++      - name: minutes
++        description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor)."
++        tests: [not_null]
++      - name: appearances
++        description: "Finished player-stat rows IN this position this competition-season."
++        tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+new file mode 100644
+index 0000000..6ed9a11
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -0,0 +1,153 @@
++{{ config(materialized='table') }}
++
++{#
++  Per (player, competition-season, POSITION) aggregate over all finished matches — the position-split
++  sibling of int_player_season__metrics, built for the player competition benchmark (content_architecture
++  §6). Where int_player_season__metrics pools the whole season, this splits a player's legs by the position
++  he played that match (fct_fixture_player_stats.position_code, recorded at match time) and aggregates each
++  role separately. A player who logged minutes in two positions gets two rows, each carrying the per-90 he
++  produced IN that role — so a multi-position player is benchmarked honestly per position, and the minutes
++  >= 270 floor applied downstream both qualifies and assigns the position (CPO ruling 2026-06-23 B1/B2).
++
++  position_code G/D/M/F -> position_group GK/DEF/MID/ATT; non-canonical codes ('-'/'SUB'/null, ~142 of
++  1.67M legs) are dropped (they cannot be assigned a position). Atom formulas mirror int_player_season__
++  metrics exactly, so a single-position player's per-90 here equals his whole-season per-90 there.
++
++  Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart filter
++  minutes >= 270. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
++  macro (shared with int_competition_benchmarks__player + mart_competition_benchmarks__player).
++#}
++
++with player_stats as (
++    select * from {{ ref('fct_fixture_player_stats') }}
++),
++
++finished as (
++    select
++        fixture_sk,
++        league_sk,
++        season_sk,
++        league_code,
++        season_api_year
++    from {{ ref('fct_fixture') }}
++    where status_short in ('FT', 'AET', 'PEN')
++),
++
++per_fixture as (
++    select
++        s.player_sk,
++        f.league_sk,
++        f.season_sk,
++        f.league_code,
++        f.season_api_year,
++        s.minutes_played,
++        s.goals_total,
++        s.goals_assists,
++        s.goals_saves,
++        s.goals_conceded,
++        s.shots_on,
++        s.passes_total,
++        s.passes_key,
++        s.passes_accuracy_percent,
++        s.tackles_total,
++        s.tackles_interceptions,
++        s.tackles_blocks,
++        s.duels_total,
++        s.duels_won,
++        s.dribbles_attempts,
++        s.dribbles_success,
++        case s.position_code
++            when 'G' then 'GK'
++            when 'D' then 'DEF'
++            when 'M' then 'MID'
++            when 'F' then 'ATT'
++        end as position_group
++    from player_stats as s
++    inner join finished as f
++        on s.fixture_sk = f.fixture_sk
++    where s.position_code in ('G', 'D', 'M', 'F')
++),
++
++aggregated as (
++    select
++        player_sk,
++        league_sk,
++        season_sk,
++        league_code,
++        season_api_year,
++        position_group,
++        count(*) as appearances,
++        sum(coalesce(minutes_played, 0)) as minutes,
++        sum(coalesce(goals_total, 0)) as goals,
++        sum(coalesce(goals_assists, 0)) as assists,
++        sum(coalesce(shots_on, 0)) as shots_on_target,
++        sum(coalesce(passes_total, 0)) as passes_total,
++        sum(coalesce(passes_key, 0)) as passes_key,
++        sum(
++            cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)
++        ) as passes_accurate,
++        sum(coalesce(tackles_total, 0)) as tackles_total,
++        sum(coalesce(tackles_interceptions, 0)) as tackles_interceptions,
++        sum(coalesce(tackles_blocks, 0)) as tackles_blocks,
++        sum(coalesce(duels_total, 0)) as duels_total,
++        sum(coalesce(duels_won, 0)) as duels_won,
++        sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
++        sum(coalesce(dribbles_success, 0)) as dribbles_success,
++        sum(coalesce(goals_saves, 0)) as goals_saves,
++        sum(coalesce(goals_conceded, 0)) as goals_conceded
++    from per_fixture
++    group by
++        player_sk, league_sk, season_sk, league_code, season_api_year, position_group
++)
++
++select
++    player_sk,
++    league_sk,
++    season_sk,
++    league_code,
++    season_api_year,
++    position_group,
++    appearances,
++    minutes,
++    goals,
++    assists,
++    shots_on_target,
++    passes_total,
++    passes_accurate,
++    passes_key,
++    tackles_total,
++    tackles_interceptions,
++    tackles_blocks,
++    duels_total,
++    duels_won,
++    dribbles_attempts,
++    dribbles_success,
++    goals_saves,
++    goals_conceded,
++    -- count composites (sums of the atoms above) — metric_catalogue rows
++    goals + assists as scorer_points,
++    tackles_total + tackles_interceptions + tackles_blocks as defensive_actions,
++    -- rates: NULL when the denominator is zero (never coerced to 0)
++    safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
++    safe_divide(duels_won, duels_total) as duels_won_pct,
++    safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
++    safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct,
++    -- finishing efficiency: goals per shot on target (uncapped; null when shots_on_target is zero)
++    safe_divide(goals, shots_on_target) as finishing_efficiency,
++    -- per-90 rates IN POSITION: count * 90 / minutes (null when minutes is zero)
++    safe_divide(goals * 90, minutes) as goals_per90,
++    safe_divide(assists * 90, minutes) as assists_per90,
++    safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
++    safe_divide(shots_on_target * 90, minutes) as shots_on_target_per90,
++    safe_divide(passes_key * 90, minutes) as key_passes_per90,
++    safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
++    safe_divide(passes_total * 90, minutes) as passes_per90,
++    safe_divide(tackles_total * 90, minutes) as tackles_per90,
++    safe_divide(tackles_interceptions * 90, minutes) as interceptions_per90,
++    safe_divide(tackles_blocks * 90, minutes) as blocks_per90,
++    safe_divide(
++        (tackles_total + tackles_interceptions + tackles_blocks) * 90, minutes
++    ) as defensive_actions_per90,
++    safe_divide(duels_won * 90, minutes) as duels_won_per90,
++    safe_divide(goals_saves * 90, minutes) as saves_per90
++from aggregated
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
+new file mode 100644
+index 0000000..ca6f71c
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
+@@ -0,0 +1,123 @@
++{{ config(materialized='view') }}
++
++{#
++  Player competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
++  LONG: one row per (player, season, position_group, metric_key). Each row places the player against his
++  positional peers in that competition-season: the player's in-position per-90 (or rate) value, the peer
++  median (+ mean) and p25/p75 spread, his rank (k of peer_count) AND percentile, and value - median. minutes
++  + appearances are carried so the sample is always visible. The player analog of
++  mart_competition_benchmarks__team, extended to peers = position group + a percentile (large player N).
++
++  DIRECTION-AGNOSTIC by design (D7): rank is by value DESC and percentile by value within (league_code,
++  season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
++  catalogue's `direction`. Composes int_player_season_position__metrics + the int_competition_benchmarks__
++  player engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
++  identical). Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-position
++  players appear once per qualifying position, each on their in-role value.
++
++  Grain: (player_sk, season_sk, position_group, metric_key).
++#}
++
++with season as (
++    select * from {{ ref('int_player_season_position__metrics') }}
++    where minutes >= 270
++),
++
++players as (
++    select
++        player_sk,
++        player_name,
++        player_nationality,
++        player_photo_url
++    from {{ ref('dim_player') }}
++),
++
++benchmarks as (
++    select * from {{ ref('int_competition_benchmarks__player') }}
++),
++
++unpivoted as (
++    {% for m in player_benchmark_metrics() %}
++    select
++        player_sk,
++        season_sk,
++        league_sk,
++        league_code,
++        season_api_year,
++        position_group,
++        minutes,
++        appearances,
++        '{{ m.key }}' as metric_key,
++        case
++            when
++                position_group in ('{{ m.pos | join("', '") }}')
++                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
++                then {{ m.col }}
++        end as metric_value
++    from season
++    {% if not loop.last %}
++    union all
++    {% endif %}
++    {% endfor %}
++),
++
++ranked as (
++    select
++        u.player_sk,
++        u.season_sk,
++        u.league_sk,
++        u.league_code,
++        u.season_api_year,
++        u.position_group,
++        u.minutes,
++        u.appearances,
++        u.metric_key,
++        u.metric_value,
++        rank() over (
++            partition by
++                u.league_code, u.season_api_year, u.position_group, u.metric_key
++            order by u.metric_value desc
++        ) as rank,
++        percent_rank() over (
++            partition by
++                u.league_code, u.season_api_year, u.position_group, u.metric_key
++            order by u.metric_value asc
++        ) as percentile
++    from unpivoted as u
++    where u.metric_value is not null
++)
++
++select
++    {{ dbt_utils.generate_surrogate_key([
++        'r.player_sk', 'r.season_sk', 'r.position_group', 'r.metric_key'
++    ]) }} as player_benchmark_sk,
++    r.player_sk,
++    r.season_sk,
++    r.league_sk,
++    r.league_code,
++    r.season_api_year,
++    r.position_group,
++    r.metric_key,
++    p.player_name,
++    p.player_nationality,
++    p.player_photo_url,
++    r.minutes,
++    r.appearances,
++    r.metric_value,
++    b.peer_mean,
++    b.peer_median,
++    b.peer_p25,
++    b.peer_p75,
++    b.player_count as peer_count,
++    r.rank,
++    r.percentile,
++    r.metric_value - b.peer_median as vs_median_delta
++from ranked as r
++inner join benchmarks as b
++    on
++        r.league_code = b.league_code
++        and r.season_api_year = b.season_api_year
++        and r.position_group = b.position_group
++        and r.metric_key = b.metric_key
++left join players as p
++    on r.player_sk = p.player_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 45cc90c..1381140 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1101,6 +1101,109 @@ models:
+       - name: team_logo_url
+         description: "Denormalised from dim_team; nullable."
+ 
++  - name: mart_competition_benchmarks__player
++    description: >
++      Player competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
++      (player, season, position_group, metric_key). Places each player against his positional peers that
++      competition-season: in-position per-90 (or rate) value, peer_median (+ mean), p25/p75 spread, rank
++      (k of peer_count) AND percentile, value - median; minutes + appearances carried (sample visible).
++      DIRECTION-AGNOSTIC (positional) — rank by value desc / percentile by value within (league_code,
++      season_api_year, position_group, metric_key); the good/bad reading comes from the catalogue direction
++      at display. Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-
++      position players appear once per qualifying position. Metric x position eligibility = the
++      player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16). View.
++      Grain: (player_sk, season_sk, position_group, metric_key).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "benchmark"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [player_sk, season_sk, position_group, metric_key]
++      - dbt_utils.expression_is_true:
++          expression: "rank between 1 and peer_count"
++          name: mart_competition_benchmarks_player_rank_in_range
++      - dbt_utils.expression_is_true:
++          expression: "percentile >= 0 and percentile <= 1"
++          name: mart_competition_benchmarks_player_percentile_in_range
++    columns:
++      - name: player_benchmark_sk
++        description: "Surrogate from (player_sk, season_sk, position_group, metric_key)."
++        tests: [not_null, unique]
++      - name: player_sk
++        description: "FK to dim_player."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: season_sk
++        description: "FK to dim_competition_season."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: league_sk
++        description: "FK to dim_league."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
++      - name: league_code
++        description: "Partition key — the app slices by this to retrieve a competition's benchmarks."
++        tests: [not_null]
++      - name: season_api_year
++        tests: [not_null]
++      - name: position_group
++        description: "The peer pool — GK/DEF/MID/ATT (from the match-time position_code)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["GK", "DEF", "MID", "ATT"]
++      - name: metric_key
++        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_target_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
++      - name: metric_value
++        description: "The player's in-position value for this metric (always present — null values are not ranked)."
++        tests: [not_null]
++      - name: peer_mean
++        description: "Mean peer value this league-season-position (skew-sensitive)."
++      - name: peer_median
++        description: "Median peer value this league-season-position (the typical player — the headline reference)."
++      - name: peer_p25
++        description: "25th-percentile peer value (distribution spread)."
++      - name: peer_p75
++        description: "75th-percentile peer value (distribution spread)."
++      - name: peer_count
++        description: "N — players ranked for this metric in this league-season-position."
++        tests: [not_null]
++      - name: rank
++        description: "Rank by value desc (1 = highest), k of peer_count. Positional — orient with the catalogue direction at display."
++        tests: [not_null]
++      - name: percentile
++        description: "percent_rank by value asc in [0, 1] — fraction of peers strictly below this value (0 = lowest or tied-lowest, ~1 = top). Direction-agnostic; orient at display."
++        tests: [not_null]
++      - name: vs_median_delta
++        description: "value - peer_median (always present — both inputs are non-null)."
++        tests: [not_null]
++      - name: minutes
++        description: "Minutes played in the position this season (the sample behind the value)."
++      - name: appearances
++        description: "Appearances in the position this season."
++      - name: player_name
++        description: "Denormalised from dim_player."
++      - name: player_nationality
++        description: "Denormalised from dim_player; nullable."
++      - name: player_photo_url
++        description: "Denormalised from dim_player; nullable."
++
+   - name: mart_player_career
+     description: >
+       Player Career tab: one row per (player, competition) with the player's CAREER totals in that
