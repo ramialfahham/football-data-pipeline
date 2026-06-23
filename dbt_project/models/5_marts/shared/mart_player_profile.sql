@@ -12,9 +12,10 @@
   ranks moved to mart_leaderboards (the LONG single-surface; the 3 rank columns here were retired).
 
   Metric governance (catalogue-only v1): every metric is a metric_catalogue row computed by its
-  catalogue formula — counts + the four catalogued player ratios. NO invented metrics (no per-90, no
-  goal_conversion, no player shot_accuracy). Beyond the catalogue metrics, only raw descriptors are
-  carried: appearances / starts / minutes, identity, modal position.
+  catalogue formula — counts + the four catalogued player ratios. No invented or uncatalogued metrics
+  (no goal_conversion, no player shot_accuracy). Per-90 metrics now exist in the catalogue for the
+  player benchmark, but the profile does not carry them. Beyond the catalogue metrics, only raw
+  descriptors are carried: appearances / starts / minutes, identity, modal position.
 
   Grain: (player_sk, season_sk). A player active in two competitions in one season has one row per
   competition-season. Only finished matches with a player-stats row contribute (honest absence).

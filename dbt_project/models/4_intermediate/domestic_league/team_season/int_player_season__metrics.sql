@@ -160,5 +160,22 @@ select
     -- finishing efficiency: goals per shot on target. Uncapped (mirrors the team metric):
     -- rarely the source logs more goals than on-target shots, so it can exceed 100%.
     -- Null when shots_on_target is zero. (#506)
-    safe_divide(goals, shots_on_target) as finishing_efficiency
+    safe_divide(goals, shots_on_target) as finishing_efficiency,
+    -- per-90 rates: count * 90 / minutes (minutes-normalised; null when minutes is zero).
+    -- The comparison layer for the player competition benchmark; metric_catalogue rows.
+    safe_divide(goals * 90, minutes) as goals_per90,
+    safe_divide(assists * 90, minutes) as assists_per90,
+    safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
+    safe_divide(shots_on_target * 90, minutes) as shots_on_target_per90,
+    safe_divide(passes_key * 90, minutes) as key_passes_per90,
+    safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
+    safe_divide(passes_total * 90, minutes) as passes_per90,
+    safe_divide(tackles_total * 90, minutes) as tackles_per90,
+    safe_divide(tackles_interceptions * 90, minutes) as interceptions_per90,
+    safe_divide(tackles_blocks * 90, minutes) as blocks_per90,
+    safe_divide(
+        (tackles_total + tackles_interceptions + tackles_blocks) * 90, minutes
+    ) as defensive_actions_per90,
+    safe_divide(duels_won * 90, minutes) as duels_won_per90,
+    safe_divide(goals_saves * 90, minutes) as saves_per90
 from aggregated
