@@ -16,9 +16,12 @@ version: 2
 # selecting the latest per league_code (which would silently drop players landed on earlier
 # backfill days). This is a faithful flatten (no dedup); base assembles current-per-player. The
 # "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables; squads
-# (re-fetched in full every run) follows it, profiles/teams do not. (check_layer_contract.py
-# permits omitting the snapshot select — it only forbids non-league_code partitions, distinct,
-# group by, aggregation and cross-domain joins.)
+# (re-fetched in full every run) follows it, profiles/teams do not. RAW_APIF_COACHES is a
+# COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league) — a CPO
+# entity-preservation ruling (escalations.log 2026-06-23): latest-per-league would drop coaches whose
+# teams later leave a league's pull, so all snapshots are read and base dedups to one coach entity.
+# (check_layer_contract.py permits omitting the snapshot select — it only forbids non-league_code
+# partitions, distinct, group by, aggregation and cross-domain joins.)
 
 models:
   - name: stg_apif__fixtures_next
@@ -233,5 +236,35 @@ models:
         tests: [not_null]
       - name: team_id
         tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__coaches
+    description: >
+      Coach entity flatten from RAW_APIF_COACHES response[].coach (identity / bio). RAW_APIF_COACHES
+      is a complete snapshot per (league_code, run); staging reads ALL snapshots faithfully (NOT
+      latest-per-league) — CPO-ruled to preserve every coach ever seen (mirrors dim_player/dim_team);
+      cross-league + cross-snapshot entity dedup is in base, so no unique test here.
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: coach_id
+        tests: [not_null]
+      - name: raw_ingested_at
+        tests: [not_null]
+
+  - name: stg_apif__coach_career
+    description: >
+      Coach managerial-history flatten: one row per (coach, career stint) from
+      RAW_APIF_COACHES response[].coach.career[]. Faithful unnest; base dedups the stints. team.id is
+      PROVIDER-NULLABLE (~6k career stints carry a team name with a null team.id) — faithful staging
+      passes them through and base_apif__coach_career drops them (mirrors the standings team_id pattern).
+    columns:
+      - name: league_code
+        tests: [not_null]
+      - name: coach_id
+        tests: [not_null]
+      - name: team_id
+        # provider-nullable (see description); base filters null team_id, so no staging not_null test
       - name: raw_ingested_at
         tests: [not_null]

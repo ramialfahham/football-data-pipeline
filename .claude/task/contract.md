@@ -1,82 +1,87 @@
-# Task contract — mart_player_career (Player Career tab)
+# Task contract — dim_coach + dim_coach_team_mapping (Coach entity)
 
 objective: >
-  Build the player career surface (content_architecture: Player "Career" tab = clubs + per-competition
-  totals + caps; powers `mart_player_career`, on the backfill). Two NEW additive models:
-  (1) int_player_career__metrics — across-seasons rollup of int_player_season__metrics, one row per
-  (player, competition): career appearances / goals / assists (NO minutes — CPO), first/last season,
-  seasons_played. (2) mart_player_career — consumption: + dim_player identity + competition entity_type
-  (club/national). National-entity rows = the honest "national appearances in covered competitions"
-  (NOT true career caps — we only ingest a subset of national comps); the per-player national total is
-  computed in dbt (denormalized onto the mart), never derived in the export. Clubs list stays with the
-  existing dim_player_team_season_mapping — not duplicated here.
+  Build the coach entity surface from the ALREADY-INGESTED RAW_APIF_COACHES (no new ingest, no cost
+  gate). Mirror the dim_player/dim_team entity/affiliation split:
+  (1) dim_coach — pure coach ENTITY (one row per coach; identity: name/nationality/birth/photo; NO
+      league_code).
+  (2) dim_coach_team_mapping — coach<->team AFFILIATION from the coach `career[]` stints (one row per
+      (coach, team, stint) with start/end dates). The "clubs managed" history; current-coach-per-team
+      is derivable from the open/latest stint (left to the deferred consumption PR).
+  Chain: sources.yml + staging (entity flatten + career unnest) + base (dedup x2) + core (the 2 dims).
+  Data-forced design: career[] clubs EXCEED our dim_team set (youth/reserve/untracked sides), so the
+  mapping carries the provider team_id + team_name and team_sk is a SOFT link (no strict FK) — keep
+  full history over a strict link. Affiliation source = career[] (authoritative), NOT coach.team
+  (the fetch-context provenance team).
 
 refs: >
-  content_architecture.md §3 (block↔mart: mart_player_career) + §4 (Player Career tab) + §7 (new-mart
-  list). CPO this session: career first (then coaches); grain per (player, competition); counts only,
-  no minutes; "national appearances" not "caps". Website #391 PAUSED — this builds the DATA, not UI copy.
+  content_architecture.md (Coach thin SEO entity: header chip + Team History + Coach page Overview =
+  current club + clubs managed). CPO this session: coaches after the career mart (done); names
+  dim_coach + dim_coach_team_mapping (incl start/end); entity + affiliation this PR, defer the
+  consumption (website #391 PAUSED). Pattern: project_player_model_redesign / project_team_model_redesign.
 
 scope_paths:
-  - dbt_project/models/4_intermediate/shared/int_player_career__metrics.sql
-  - dbt_project/models/4_intermediate/shared/int_player_career.yml
-  - dbt_project/models/5_marts/shared/mart_player_career.sql
-  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/models/1_staging/api_football/sources.yml
+  - dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
+  - dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
+  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+  - dbt_project/models/2_base/api_football/base_apif__coaches.sql
+  - dbt_project/models/2_base/api_football/base_apif__coach_career.sql
+  - dbt_project/models/2_base/api_football/base.yml
+  - dbt_project/models/3_core/dim_coach.sql
+  - dbt_project/models/3_core/dim_coach_team_mapping.sql
+  - dbt_project/models/3_core/core.yml
   - dbt_project/docs/layering.md
   - .claude/task/**
 
 impact_map: >
-  writers: TWO NEW models, both additive. int_player_career__metrics (4_intermediate/shared) groups
-    int_player_season__metrics by (player_sk, league_code, league_sk) and sums appearances/goals/assists
-    + min/max season + count(distinct season_sk). mart_player_career (5_marts/shared) reads that +
-    dim_player (identity) + competition_registry -> competition_types (entity_type club/national), and
-    denormalises a per-player national_appearances_total. NO existing model is modified.
-  downstream: NONE — both are new LEAF models; nothing ref()s them (the website that will consume them is
-    PAUSED, #391). `dbt ls --select mart_player_career+` would return only itself once built. Sources
-    (all exist, verified this session): int_player_season__metrics, dim_player, competition_registry,
-    competition_types.
-  layer_rules: the across-seasons rollup (aggregation) belongs in 4_intermediate — mirrors
-    int_player_season__metrics (the season-level agg) per the #480 pattern; the mart is 5_marts
-    consumption (entity lookup + denormalisation + identity). league_code flows through; no
-    per-competition business logic. No staging/core touched. check_layer_contract unaffected.
-  deploy_order: purely additive — two NEW relations, no existing model changed, nothing depends on them,
-    so no ordering risk and no shipped-number change. ci-data-build creates them.
-  blast_radius: NONE — additive only; no existing mart/number moves. New data = player career rollups.
-    Source depth confirmed this session (int_player_season__metrics: 10-season career for top leagues +
-    continental; national comps WC/WCQ/EURO/AFCON/CNL present for the national-appearances rows).
-    source evidence (bq, this session): per-league player-season counts — top leagues at 10-season
-    depth (PD/SA/L1/PL/BL1 2016-2025; UCL/UEL 2017-2025); national comps present (WC 1242, WCQEU 1966,
-    CNL 2405, AFCON 652, EURO 621 player-seasons); and the new grain is unique — 0 league_codes map to
-    >1 league_sk, so (player_sk, league_code) is safe (re-run after the GROUP-BY alignment).
+  writers: 6 NEW additive models reading the existing RAW_APIF_COACHES (newly declared as a dbt source)
+    + dim_team (soft team_sk link in the mapping). stg_apif__coaches (flatten $.response[].coach),
+    stg_apif__coach_career (unnest coach.career[]); base_apif__coaches (dedup -> 1 row/coach_api_id),
+    base_apif__coach_career (dedup stints); dim_coach (pure entity, no league_code, mirrors dim_player),
+    dim_coach_team_mapping (coach<->team stints + start/end, soft team_sk). NO existing model modified.
+  downstream: NONE — new LEAF dims; nothing ref()s them (Coach page/chip consumption deferred, website
+    #391 PAUSED). `dbt ls --select dim_coach+ dim_coach_team_mapping+` would return only themselves once
+    built. Source: RAW_APIF_COACHES (629 rows / 45 leagues, verified this session); dim_team read for the
+    soft team link.
+  layer_rules: staging = raw flatten/unnest (one source -> two grains, exactly like RAW_APIF_FIXTURE_DETAILS
+    -> stg events/players/statistics); base = dedup + entity resolution; core = canonical dims. dim_coach
+    is a pure entity (drops league_code, mirrors dim_player). league_code flows through staging/base. No
+    per-competition logic; check_layer_contract unaffected.
+  deploy_order: additive — 6 new relations, no existing model changed, nothing depends on them. ci-data-build
+    creates them. No shipped-number change.
+  blast_radius: NONE — additive only; no existing mart/number moves. New data = coach entity + career
+    mapping. The mapping's team_sk is a SOFT link (no strict relationships test) because career[] clubs
+    (youth/reserve/foreign-untracked) exceed dim_team — a strict FK would fail on untracked clubs.
 
 decisions_taken: >
-  CPO this session: (a) sequence — mart_player_career first, dim_coach/coaches second; (b) grain = one
-  row per (player, competition); (c) counts only — appearances, goals, assists — explicitly NO minutes;
-  (d) the national figure is labelled honestly as national appearances in covered competitions, NOT
-  "caps" (DQ — we don't ingest a player's full international history); (e) int + mart layering. The
-  consumption-layer rule ([[feedback-consumption-layer-contract]]): the per-player national total is a
-  fact computed in dbt (denormalised), never summed in the export.
-  Catalogue governance: NO new/uncatalogued metric. `appearances` is an exempt playing-time FACT
-  (assert_no_uncatalogued_season_metric exempts it as "dimensions, not metrics"); `goals`/`assists`
-  are catalogued player metrics (metric_catalogue.csv), and the catalogue is WINDOW-AGNOSTIC (metric
-  ids carry no window suffix) — so career totals are the SAME catalogued atoms over a career window,
-  exactly as int_player_season__metrics exposes them at season grain and mart_team_season at team. The
-  new career model is a fresh surface, not added to the season drift-test (that governs only the two
-  SEASON canonical models).
+  CPO this session: (a) coaches ingest ALREADY exists (RAW_APIF_COACHES) — no new ingest / no cost gate;
+  (b) NAMES = dim_coach (entity) + dim_coach_team_mapping (affiliation, incl start/end dates); (c) scope =
+  entity + affiliation this PR, defer the Coach page mart + the team-header current-coach chip (website
+  #391 PAUSED). Pattern = the dim_player/dim_team entity/affiliation split. Affiliation source = career[]
+  (authoritative coach history), NOT coach.team (fetch-context provenance). The mapping carries provider
+  team_id + team_name; team_sk soft-links to dim_team where tracked, NO strict FK (career clubs exceed our
+  tracked set — data-forced, keeps full history).
+  base_apif__coach_career guards `start_date is not null` (currently 0 rows; prevents a future
+  null-start surrogate-key collision / not_null CI break). The staging snapshot rule (read-all vs
+  latest-per-league) was a §10 escalated + ruled this session — see decisions_reserved + escalations.log.
 
 decisions_reserved:
-  - Career tab DISPLAY copy / i18n (the "national appearances" wording, the tab layout) is a
-    bi-analyst / §10 display-contract item — deferred (website #391 PAUSED); this PR is data-only.
-  - Career-long RATES (pass% etc.) excluded by CPO (counts only); a follow-up if ever wanted.
-  - The "team-history equivalent" (content_architecture §3) is a separate later mart, not this PR.
+  - SNAPSHOT RULE (§10, ESCALATED + RULED this session): read-all vs latest-per-league for the
+    complete-snapshot RAW_APIF_COACHES — the two reviewers split. Put to the CPO with the ~120-coach
+    delta evidence (no anchoring). CPO ANSWER: read-all / all-time ("all") — preserve every coach ever
+    seen (mirrors dim_player/dim_team). Durable record: escalations.log (2026-06-23) + review.md.
+  - The Coach consumption (thin page Overview = current club + clubs managed; the team-header current-coach
+    chip + its "open/latest stint" derivation) is a later mart — website #391 PAUSED, not this PR.
+  - Display enrichment (dim_team-resolved names vs the provider team_name on the mapping) is the consumption
+    PR's call.
 
 done_when:
-  - int_player_career__metrics: grain (player_sk, league_code) unique-tested; appearances/goals/assists
-    summed across seasons; first_season/last_season/seasons_played present.
-  - mart_player_career: one row per (player, competition) with entity_type + national_appearances_total;
-    player identity from dim_player; documented in shared.yml with grain + not-null + relationship tests.
-  - validate-local (sqlfluff + dbt parse) green; ci-data-build green (new models build, tests pass).
+  - sources.yml declares raw_apif_coaches; stg_apif__coaches + stg_apif__coach_career flatten/unnest cleanly.
+  - base_apif__coaches: one row per coach_api_id; base_apif__coach_career: one row per (coach, team, start).
+  - dim_coach: pure entity (coach_sk + identity), grain coach_sk unique+not_null; dim_coach_team_mapping:
+    (coach_sk, team_api_id, start_date) grain unique, start/end dates, coach_sk relationship to dim_coach.
+  - layering.md dimension inventory lists dim_coach + dim_coach_team_mapping.
+  - validate-local (dbt parse + sqlfluff + check_layer_contract) green; ci-data-build green (build + tests).
 
-amendments:
-  - 2026-06-23: + dbt_project/docs/layering.md — authority: analytics-engineer reviewer FAIL (the
-    "Canonical mart inventory (exhaustive)" in layering.md must list every mart) + the standing
-    doc-sync rule. Content: add the mart_player_career row to the §5_marts inventory table.
+amendments: (none)

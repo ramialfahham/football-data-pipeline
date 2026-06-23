@@ -1,34 +1,35 @@
-# Review — feat/mart-player-career — 2026-06-23
+# Review — feat/dim-coach — 2026-06-23
 
-diff_sha256: 98da1b18c08c99ffa9a027c94de9c81dde2a3156120390f07ee918ae52a68e85
+diff_sha256: 2b32c24a282c269586f5220fca26e23375c64e23e64a7552b02f864dba52236e
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Cross-model column existence + grain: verified every column int_player_career__metrics reads from
-  int_player_season__metrics (player_sk, league_code, league_sk, season_sk, season_api_year,
-  appearances, goals, assists) and every column mart_player_career reads from the rollup / dim_player /
-  the seeds exists. The GROUP BY (player_sk, league_code) matches the surrogate-key grain exactly;
-  any_value(league_sk) is safe (0 league_codes map to >1 league_sk, BQ-verified); unique_combination
-  test guards it. No fan-out.
-- Catalogue governance: NO new/uncatalogued metric — `appearances` is an exempt playing-time fact (drift
-  test exempt list); `goals`/`assists` are catalogued player metrics and the catalogue is window-agnostic,
-  so career totals are the same atoms over a career window. `national_appearances_total` is a denormalised
-  fact computed in dbt (window sum), not in the export — consumption-layer rule honoured. mart_player_career
-  is correctly added to layering.md's "exhaustive" mart inventory. (Non-blocking: a not_null guard on
-  entity_type would harden against an unmapped competition; bounded — all active comps are registered.)
+- FK reachability for coach_sk -> dim_coach: both stg_apif__coaches and stg_apif__coach_career unnest
+  the same $.response[] coach element of RAW_APIF_COACHES, so any coach with career stints always
+  produces an entity row — the relationships test resolves. Cross-model columns all exist; the grain
+  (coach_sk, team_api_id, start_date) is null-safe (base drops null coach_id/team_id/start_date).
+- Staging not_null placement on provider-nullable fields: stg_apif__coach_career correctly carries NO
+  not_null on team_id (provider-nullable — ~6k career stints have a null team.id, verified in RAW;
+  faithful staging passes them, base filters them), mirroring the standings team_id pattern.
+  stg_apif__coaches keeps not_null on coach_id (the entity grain key, 0 nulls verified). dim_coach has
+  not_null on coach_sk + coach_name; soft team_sk link correctly has no relationships test.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Rollup grain safety: int_player_career__metrics aggregates int_player_season__metrics (one row per
-  player-season) by (player_sk, league_code), summing appearances/goals/assists across seasons — no hidden
-  duplication; the unique_combination test enforces one row per grain.
-- Denormalisation without double-count: national_appearances_total is a window sum over (partition by
-  player_sk); the intermediate's grain uniqueness prevents double-counting. Scope is honest — additive
-  only (no existing model/number changed); the impact_map pastes source-depth evidence; the layering.md
-  addition is a recorded clean-tree amendment (authority: the reviewer FAIL + the exhaustive-inventory rule);
-  the national figure is honestly labelled "national appearances in covered competitions", not caps.
+- Snapshot-rule §10 recorded correctly: read-all (not latest-per-league) for the complete-snapshot
+  RAW_APIF_COACHES is in decisions_reserved + escalations.log (2026-06-23) with the CPO ANSWER ("all",
+  entity preservation, 120-coach delta evidence); the code implements it and the stg header documents
+  the exception. Additive only — no existing model/number changed; diff within scope_paths.
+- Soft team_sk link integrity: dim_coach_team_mapping intentionally omits a strict FK on team_sk
+  (career clubs exceed dim_team), preserving provider team_api_id + team_name for recovery; documented
+  in the contract + core.yml. The enforceable FK (coach_sk -> dim_coach) IS tested. No coverage cut.
 
 ## escalations
-(none)
+- question: RAW_APIF_COACHES is complete-snapshot per (league, run). Staging snapshot rule —
+  read-all (preserve every coach ever seen, all-time, mirrors dim_player/dim_team) vs
+  latest-per-league (current only)? The two reviewers split; ~120-coach delta. (Put to the CPO with
+  evidence, no anchoring.)
+  CPO ANSWER: read-all / all-time — "all". dim_coach preserves every coach ever seen; the
+  complete-snapshot latest-per-league default is deliberately not applied here. (escalations.log 2026-06-23.)
