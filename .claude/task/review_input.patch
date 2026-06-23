@@ -1,160 +1,177 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 78c5f73..a58c5f7 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,18 +4,20 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: 2026-06-23 (**benchmark-PR2 close**). main GREEN; no open PRs. Two-track operating model live.
+-**Merged this session:** **#561** (**player benchmark PR2** — the engine + mart + macro:
+-`int_player_season_position__metrics` (per (player,season,position) in-role aggregate) →
+-`int_competition_benchmarks__player` (per (league,season,position_group,metric) distribution) →
+-`mart_competition_benchmarks__player` (LONG: in-position value, distribution, rank + percentile + peer_count,
+-vs-median) + `player_benchmark_metrics()` macro; three build-time CPO refinements to the locked design — see
+-the benchmark section below). The player competition benchmark is now COMPLETE (PR1 #559 metric layer + PR2
+-#561 engine/mart). Governance G1-G4 LIVE. **Website #391 PAUSED.**
+-OPEN (no item is "next" until the CPO picks): the **Coach + career CONSUMPTION marts** (#391-gated) + player
+-**opponent-context** (v1.x flagship — weights opponents via the #561 benchmark engine) + program epics
+-**#545/#546/#547** + the **#549/#550** designs + carryovers **#484/#510/#500-column-align/#483/#521** +
+-**wiring the benchmark into an export/display** (deferred with #391)._
++_Last updated: 2026-06-23 (**deserved-redesign queued**). main GREEN; no open PRs. Two-track operating model live.
++**Merged this session:** **#561** (player benchmark PR2 — engine + mart + macro; player competition benchmark
++now COMPLETE — PR1 #559 + PR2 #561; see the benchmark section below); **#562** (handover refresh); **#563**
++(**REMOVED the unapproved `performance_vs_results_gap` metric** from `mart_team_profile` — an uncatalogued
++"deserved-vs-actual" gap = `shot_share_season − points_capture_season` invented in #324 before the G3 review
++existed, never CPO-approved; surgical removal, the two catalogued inputs retained; see the deserved-vs-actual
++section below). Governance G1-G4 LIVE. **Website #391 PAUSED.**
++**NEXT SESSION (CPO-directed, new chat tomorrow): discuss the TEAM deserved-vs-actual REDESIGN** (a DESIGN
++discussion, NOT a build; **players are OUT of this round** — CPO). See the deserved-vs-actual section below.
++OTHER OPEN (CPO picks when ready): the **Coach + career CONSUMPTION marts** (#391-gated) + player
++**opponent-context** (v1.x — weights opponents via the #561 benchmark engine) + program epics
++**#545/#546/#547** + the **#549/#550** designs + **#530** (catalogue-first CI enforcement — the gap that let
++#324 slip) + carryovers **#484/#510/#500-column-align/#483/#521** + **wiring the benchmark into an export**
++(deferred with #391)._
+ 
+ ## How work is organized — two tracks (NEW 2026-06-23)
+ - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
+@@ -67,11 +69,40 @@ same metric can rank differently across them — INTENDED (Golden Boot vs effici
+ alignment: finishing% uses the SAME floor on both (minutes>=270 AND SoT>=10). The leaderboard count boards stay
+ TOTALS — do NOT convert them to per-90.
+ 
++## Deserved-vs-actual REDESIGN — TEAM only (NEXT SESSION's design discussion; do NOT build yet)
++The flagship "how you PLAY vs what you GET" read (`content_architecture.md` §6). **This is a DESIGN
++discussion, not a build** — football-analytics owns the metric definition (§10). **TEAM only this round —
++the CPO explicitly excluded the player analog.**
++
++**What happened (context, do not re-litigate):** the prior team implementation —
++`mart_team_profile.performance_vs_results_gap = shot_share_season − points_capture_season` — was REMOVED in
++#563. It was uncatalogued + never approved (a #324 governance violation), AND substantively crude: it
++subtracted two **non-commensurable [0,1] shares with different baselines** (shot_share ≈ 0.50, points_capture
++≈ 0.44), so the gap had no meaningful zero. CPO called it correctly. shot_share_season + points_capture_season
++remain in the mart as plain catalogued metrics.
++
++**The framing we settled this session (carry into the discussion — don't re-derive):**
++- The real failure was **comparability**. The fix = compare deserved and actual in a **common space**.
++- **Candidate (my lean, NOT decided): percentile-space gap via the #511/#512 benchmark engine** — deserved =
++  the team's percentile on the *underlying-play* metrics, actual = its percentile on the *results* metrics,
++  gap = the difference (both 0–1, same meaning → interpretable). The benchmark engine already produces these
++  percentiles. The narrative target: *"creating like a top-2 side, sitting 7th → likely to climb."*
++- **Alternative:** a non-xG "deserved-goals/points" composite, then gap vs actuals (richer; a new composite
++  football-analytics must define + validate). **Explicitly NO xG** (north-star constraint).
++- **RESERVED for the discussion (football-analytics + CPO):** (1) the comparability METHOD (percentile-space
++  vs composite); (2) the "deserved" input set (shot_share / danger_zone_ratio / shots_on_target / finishing /
++  chance creation); (3) the "actual" set (points_capture / rank / goals).
++- **Process — catalogue-first this time:** define the metric(s) as `metric_catalogue` rows with football-
++  analytics + CPO approval BEFORE building (the #324 lesson). The football-analytics-expert-reviewer gates the
++  catalogue rows.
++
+ ## FIRST next session (do this first)
+-- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. The player competition benchmark is COMPLETE
+-  (PR1 #559 + PR2 #561). **No item is pre-selected as "next" — the CPO picks the next slice** from the open
+-  queue below (a program tranche, opponent-context v1.x, Coach/career marts, #500 column-align, or wiring the
+-  benchmark into an export/display). Do NOT infer the next task from an issue title.
++- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. **FIRST TOPIC (CPO-directed): the TEAM
++  deserved-vs-actual REDESIGN discussion** — see the section directly above; it is a DESIGN discussion (settle
++  the method + inputs, catalogue-first), NOT a build, and NOT for players this round. Do not jump to code.
++- The player competition benchmark is COMPLETE (PR1 #559 + PR2 #561). Other open items (CPO picks after the
++  deserved-vs-actual discussion): a program tranche (#545/#546/#547), opponent-context v1.x, Coach/career
++  marts, #530 (catalogue-first CI enforcement), #500 column-align, or wiring the benchmark into an export.
+ - **PROGRAMS — pick the cut, then build:**
+   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
+     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6781e97..1741fb0 100644
+index 1741fb0..e61f235 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,44 +1,56 @@
--# Task contract — session handover refresh (2026-06-23, benchmark PR2 close)
-+# Task contract — remove the unapproved performance_vs_results_gap metric
+@@ -1,56 +1,50 @@
+-# Task contract — remove the unapproved performance_vs_results_gap metric
++# Task contract — session handover refresh (2026-06-23, deserved-vs-actual redesign queued)
  
  objective: >
--  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session built +
--  merged #561 (player benchmark PR2 — the engine + mart + macro), with three build-time CPO refinements to
--  the originally-locked design (B1 position source, B2 per-position floor/grain, B3 per-position metric
--  eligibility). Record: the merge; those refinements; the re-pointed open queue (PR2 no longer "next"). No
--  code; handover doc only.
-+  Remove the uncatalogued, unapproved `performance_vs_results_gap` metric from mart_team_profile. It is a
-+  derived "deserved-vs-actual" gap (= shot_share_season − points_capture_season) introduced in #324
-+  (commit 296f449, 2026-06-10 — BEFORE the G3 review cycle existed) that was never added to
-+  metric_catalogue and never CPO-approved — a metric-catalogue governance violation, and substantively a
-+  crude proxy (two non-commensurable [0,1] shares with different baselines). CPO ordered immediate removal.
-+  Keep the two catalogued input metrics (shot_share_season, points_capture_season) as plain season metrics;
-+  de-claim the "deserved vs actual" framing in the mart doc + drop its yml column doc and range test.
+-  Remove the uncatalogued, unapproved `performance_vs_results_gap` metric from mart_team_profile. It is a
+-  derived "deserved-vs-actual" gap (= shot_share_season − points_capture_season) introduced in #324
+-  (commit 296f449, 2026-06-10 — BEFORE the G3 review cycle existed) that was never added to
+-  metric_catalogue and never CPO-approved — a metric-catalogue governance violation, and substantively a
+-  crude proxy (two non-commensurable [0,1] shares with different baselines). CPO ordered immediate removal.
+-  Keep the two catalogued input metrics (shot_share_season, points_capture_season) as plain season metrics;
+-  de-claim the "deserved vs actual" framing in the mart doc + drop its yml column doc and range test.
++  Refresh .claude/active_work.md so the next chat continues from the CURRENT state. After the benchmark-PR2
++  close, this session also: merged #563 (REMOVED the unapproved, uncatalogued performance_vs_results_gap
++  metric from mart_team_profile), and queued the deserved-vs-actual REDESIGN as the next discussion. Record:
++  the #563 removal; the deserved-vs-actual redesign as the next session's DESIGN discussion — TEAM ONLY (the
++  CPO explicitly excluded players for now) — with the framing we developed (so it is not re-derived); and the
++  #530 catalogue-first-enforcement governance gap surfaced this session. No code; handover doc only.
  refs: >
--  CPO directed "Refresh handover & close" after merging #561. The PR2 build-time rulings are logged in
--  `.claude/task/escalations.log` (2026-06-23 "player competition benchmark PR2" B1/B2/B3). Pattern: prior
--  handover refreshes (e.g. the benchmark-PR1 close this morning).
-+  CPO directive this session ("Remove it immediately. ... I didn't approve this."). Violates
-+  metric-catalogue governance ([[feedback-metric-catalogue-governance]] — never invent a metric in a mart;
-+  catalogue-first). The missing CI enforcement is tracked by #530. The proper deserved-vs-actual REDESIGN
-+  is a SEPARATE design thread (not this PR).
+-  CPO directive this session ("Remove it immediately. ... I didn't approve this."). Violates
+-  metric-catalogue governance ([[feedback-metric-catalogue-governance]] — never invent a metric in a mart;
+-  catalogue-first). The missing CI enforcement is tracked by #530. The proper deserved-vs-actual REDESIGN
+-  is a SEPARATE design thread (not this PR).
++  CPO directive: "do the refresh. we'll discuss deserved vs actual for teams (not players) tomorrow in a new
++  chat." The #563 removal landed this session (the catalogue-governance violation from #324). Pattern: prior
++  handover refreshes.
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
++  - .claude/active_work.md
    - .claude/task/**
  
  impact_map: >
--  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
--  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
--  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
--  blast_radius: NONE — handover text only; no shipped number moves.
-+  writers: mart_team_profile (MODIFY — drop the single derived column performance_vs_results_gap + its doc;
-+    no other model writes it).
-+  downstream: mart_team_profile is a LEAF dbt model — `dbt ls --select mart_team_profile+ --resource-type
-+    model` (venv dbt 1.7.19) → only itself. The sole consumer is scripts/export_site_data.py, which does
-+    `select * from mart_team_profile` (line 342) but NEVER references performance_vs_results_gap by name
-+    (`grep -rn performance_vs_results scripts/` → no match), so the exported payload is unaffected; the v2
-+    site (#391) is PAUSED regardless.
-+  layer_rules: 5_marts consumption; no layer change. The two retained inputs stay catalogued metrics.
-+  deploy_order: mart is a view — dropping a column rebuilds on the next run; the export `select *` simply
-+    returns one fewer column. No migration ordering risk; nothing breaks pre-merge.
-+  blast_radius: removes ONE uncatalogued column + its range test + doc lines. shot_share_season and
-+    points_capture_season (both catalogued, approved) are RETAINED. No catalogued number changes; no
-+    user-facing surface today (site paused). Reversible.
+-  writers: mart_team_profile (MODIFY — drop the single derived column performance_vs_results_gap + its doc;
+-    no other model writes it).
+-  downstream: mart_team_profile is a LEAF dbt model — `dbt ls --select mart_team_profile+ --resource-type
+-    model` (venv dbt 1.7.19) → only itself. The sole consumer is scripts/export_site_data.py, which does
+-    `select * from mart_team_profile` (line 342) but NEVER references performance_vs_results_gap by name
+-    (`grep -rn performance_vs_results scripts/` → no match), so the exported payload is unaffected; the v2
+-    site (#391) is PAUSED regardless.
+-  layer_rules: 5_marts consumption; no layer change. The two retained inputs stay catalogued metrics.
+-  deploy_order: mart is a view — dropping a column rebuilds on the next run; the export `select *` simply
+-    returns one fewer column. No migration ordering risk; nothing breaks pre-merge.
+-  blast_radius: removes ONE uncatalogued column + its range test + doc lines. shot_share_season and
+-    points_capture_season (both catalogued, approved) are RETAINED. No catalogued number changes; no
+-    user-facing surface today (site paused). Reversible.
++  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
++  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
++  layer_rules: n/a. deploy_order: n/a — doc merge to main; nothing builds.
++  blast_radius: NONE — handover text only; no shipped number moves.
  
  decisions_taken: >
--  Reflect already-merged facts only — no NEW design this refresh. #561 (PR2) is merged (main GREEN). The
--  benchmark section is rewritten from "PR2 build-ready" to "PR2 MERGED" + the three B1/B2/B3 refinements
--  (position_code source, 270-min-in-position floor + in-position value grain, per-position eligibility map,
--  percent_rank percentile). The two-track operating model + program epics carry forward. Status + design-
--  capture refresh, not a re-scope.
-+  CPO ordered the removal. SURGICAL scope: remove ONLY the uncatalogued derived gap + its doc/test + the
-+  "deserved vs actual" framing in the mart header comment. Do NOT remove shot_share_season /
-+  points_capture_season (they are catalogued, approved season metrics — removing them would be scope creep).
-+  Do NOT touch metric_catalogue.csv (no catalogue row to remove; the inputs' rows stay). Do NOT redesign
-+  deserved-vs-actual here.
+-  CPO ordered the removal. SURGICAL scope: remove ONLY the uncatalogued derived gap + its doc/test + the
+-  "deserved vs actual" framing in the mart header comment. Do NOT remove shot_share_season /
+-  points_capture_season (they are catalogued, approved season metrics — removing them would be scope creep).
+-  Do NOT touch metric_catalogue.csv (no catalogue row to remove; the inputs' rows stay). Do NOT redesign
+-  deserved-vs-actual here.
++  Reflect merged facts + the CPO's directive only — NO new design decided. #563 merged (performance_vs_
++  results_gap removed; shot_share_season + points_capture_season retained as catalogued metrics). The next
++  session's first topic is the TEAM deserved-vs-actual redesign (a DESIGN discussion, NOT a build) — players
++  are explicitly OUT of this round per the CPO. The framing developed this session is captured so it is not
++  re-derived (the old metric's failure = comparability of non-commensurable shares; the candidate fix =
++  percentile-space gap via the benchmark engine; no xG; catalogue-first; football-analytics owns the
++  definition). The deserved-vs-actual METHOD + input set remain RESERVED for that discussion.
  
  decisions_reserved:
--  - What the next stretch builds (a program tranche, opponent-context v1.x, Coach/career marts, #500
--    column-align, or wiring the benchmark into an export) is the CPO's pick at the start of the next chat —
--    the handover records the merged state + the open queue, it does not choose.
-+  - The proper deserved-vs-actual REDESIGN (deepen the team signal beyond raw shot_share into a real,
-+    catalogued chance-quality composite; the player analog) is a §10 + football-analytics-owned design
-+    thread, to be scoped in its own issue. NOT decided or built in this PR.
+-  - The proper deserved-vs-actual REDESIGN (deepen the team signal beyond raw shot_share into a real,
+-    catalogued chance-quality composite; the player analog) is a §10 + football-analytics-owned design
+-    thread, to be scoped in its own issue. NOT decided or built in this PR.
++  - The deserved-vs-actual definition (comparability method — percentile-space vs deserved-goals composite —
++    the "deserved" input set, the "actual" set) is the TEAM design discussion tomorrow; football-analytics-
++    owned §10. The handover records the framing + candidates, it does NOT decide.
++  - Whether/when to prioritise #530 (CI-enforce catalogue-first traceability — the gap that let the #324
++    metric slip) is the CPO's call.
  
  done_when:
--  - active_work.md status line names #561 (player benchmark PR2) MERGED, main GREEN, no open PRs.
--  - The benchmark section records PR2 as MERGED with the B1/B2/B3 refinements (and the new models
--    int_player_season_position__metrics / int_competition_benchmarks__player / mart_competition_benchmarks__player).
--  - FIRST-next-session no longer says "build PR2"; the open queue is re-pointed.
--  - Last-updated stamp moved to 2026-06-23 (benchmark-PR2 close).
--  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
-+  - `grep -rn performance_vs_results_gap dbt_project/ scripts/` → no matches (outside target/).
-+  - `dbt build --select mart_team_profile` green (model rebuilds; the dropped column's range test is gone).
-+  - mart header comment no longer claims a "deserved vs actual" differentiator; shared.yml mart description
-+    + the column doc + the range test for performance_vs_results_gap are removed.
-+  - SQLFluff clean. Full G3 review: scope-auditor + analytics-engineer-reviewer PASS.
+-  - `grep -rn performance_vs_results_gap dbt_project/ scripts/` → no matches (outside target/).
+-  - `dbt build --select mart_team_profile` green (model rebuilds; the dropped column's range test is gone).
+-  - mart header comment no longer claims a "deserved vs actual" differentiator; shared.yml mart description
+-    + the column doc + the range test for performance_vs_results_gap are removed.
+-  - SQLFluff clean. Full G3 review: scope-auditor + analytics-engineer-reviewer PASS.
++  - active_work.md status line names #563 (performance_vs_results_gap REMOVED) merged, main GREEN, no open PRs.
++  - A deserved-vs-actual-redesign section captures: TEAM-only scope (players excluded this round), the
++    comparability framing + the percentile-space candidate, no-xG, catalogue-first, football-analytics-owned.
++  - FIRST-next-session LEADS with "discuss the TEAM deserved-vs-actual redesign (DESIGN, not build)".
++  - #530 (catalogue-first enforcement gap) noted as the systemic governance follow-up.
++  - Last-updated stamp moved to 2026-06-23 (deserved-redesign queued).
++  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
  
  amendments: (none)
-diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index 91b48ea..32940f2 100644
---- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -13,10 +13,6 @@
-     - season metric rates  int_team_season__metrics
- 
-   Differentiators:
--    - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
--      dominance) shown against points_capture_season + latest_rank (actual
--      achievement), with a transparent performance_vs_results_gap. Two real
--      ratios and their difference, NOT a fabricated composite score.
-     - Vs own history — matchday-aligned year-over-year (this season vs last,
-       through the same matchday), domestic leagues only, from
-       int_team_profile__yoy. NULL for non-domestic competitions and where the
-@@ -100,7 +96,7 @@ select
-     m.duels_per_match_season,
-     m.duels_won_pct_season,
-     m.defensive_actions_per_match_season,
--    -- deserved vs actual: dominance (shot_share) vs achievement (points_capture)
-+    -- shooting dominance + results efficiency (catalogued season metrics)
-     m.shot_share_season,
-     m.points_capture_season,
-     -- year-over-year (domestic only; NULL otherwise / when prior season absent)
-@@ -119,10 +115,7 @@ select
-     s.win_run,
-     s.winless_run,
-     s.clean_sheet_run,
--    s.scoring_run,
--    -- transparent over/under-performance signal (positive = dominates play more
--    -- than results reward; both inputs are real [0,1] shares, no composite score)
--    m.shot_share_season - m.points_capture_season as performance_vs_results_gap
-+    s.scoring_run
- from metrics as m
- left join team_season as ts
-     on m.team_season_sk = ts.team_season_sk
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 1381140..d38632d 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -250,9 +250,8 @@ models:
-     description: >
-       Team profile (#324). One row per (team, competition-season): identity + record +
-       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
--      (int_team_season__metrics) + two signature differentiators and a streaks
--      layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
--      transparent performance_vs_results_gap (no composite score). Year-over-year columns
-+      (int_team_season__metrics, incl. shot_share_season + points_capture_season) + a
-+      year-over-year differentiator and a streaks layer. Year-over-year columns
-       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
-       domestic-league only — NULL elsewhere and where the prior season is not ingested.
-       Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
-@@ -265,9 +264,6 @@ models:
-       - dbt_utils.expression_is_true:
-           expression: "points_capture_season is null or (points_capture_season between 0 and 1)"
-           name: team_profile_points_capture_in_range
--      - dbt_utils.expression_is_true:
--          expression: "performance_vs_results_gap is null or (performance_vs_results_gap between -1 and 1)"
--          name: team_profile_perf_gap_in_range
-       # GAP-13 season variant of the duel win rate — same-window ratio bound
-       - dbt_utils.expression_is_true:
-           expression: "duels_won_pct_season is null or (duels_won_pct_season between 0 and 1)"
-@@ -286,8 +282,6 @@ models:
-         tests: [not_null]
-       - name: competition_type
-         description: "From the registry; YoY columns are populated only for domestic_league."
--      - name: performance_vs_results_gap
--        description: "shot_share_season - points_capture_season. Positive = dominates play more than results reward; both inputs are real [0,1] shares (transparent, not a composite score)."
-       - name: points_delta_yoy
-         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
- 

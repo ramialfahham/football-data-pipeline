@@ -1,25 +1,21 @@
-# Review — fix/remove-unapproved-performance-gap — 2026-06-23
+# Review — chore/handover-2026-06-23-deserved-redesign — 2026-06-23
 
-> CPO-ordered removal of the uncatalogued, unapproved `performance_vs_results_gap` metric
-> (= shot_share_season − points_capture_season) from mart_team_profile. Surgical: one
-> derived column + its yml column-doc + its range test + the "deserved vs actual" doc
-> framing. The two catalogued input metrics (shot_share_season, points_capture_season) are
-> retained; metric_catalogue.csv untouched.
+> Doc-only handover refresh: records #563 (performance_vs_results_gap removed) and queues the
+> next session's TEAM deserved-vs-actual redesign discussion (players excluded — CPO). Changes
+> .claude/active_work.md + .claude/task/contract.md only. Not artifact-exempt because contract.md
+> is hashed; scope-auditor required, analytics-engineer-reviewer DORMANT (no dbt_project/** paths).
 
-diff_sha256: 86bca24ed6b45884f4e0ab3d264410466d09d494694c42f5609ef303c5a8bc6a
+diff_sha256: 50dfaad49b0eebebb5ef2776cc37c88a9a2a77fa1ea8c0d23310a1a16214c664
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope creep on the catalogued inputs: verified shot_share_season + points_capture_season remain in the SELECT and keep their range tests; metric_catalogue.csv is untouched. Removing them would have been a silent §10 change beyond the CPO's surgical order.
-- Incomplete/inconsistent removal: verified the removal is complete and consistent across the SQL (column + comment + header doc), the yml (range test + column doc + description reframed), with zero remaining references in dbt_project/ or scripts/; the redesign is correctly reserved as a separate thread (not smuggled into a removal PR).
+- Candidate-to-consensus (A2 guard): verified the percentile-space method is framed "my lean, NOT decided" with the deserved-goals composite presented as an equal alternative, and the three core design items (comparability method, "deserved" input set, "actual" set) explicitly marked RESERVED for the football-analytics/CPO discussion — the builder's opinion is surfaced candidly but not presented as direction.
+- Undeclared §10 decision smuggling (metric definition): verified the handover adds no metric_catalogue row, names no final metric, decides no input set, and only constrains "no xG"; "catalogue-first" is recorded as a process lesson (#324), not a decision made in the handover.
+- (Reviewer also raised a possible "#561 not merged" discrepancy — DISPROVEN by the orchestrator against the source of record: `git log origin/main` shows #561 (fba341a), #562 (f930e41), #563 (2c65245) all merged, and the PR2 mart is present in main. The flag came from the stale session-start git snapshot; the handover's merge claims are accurate.)
 
 ## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- SQL last-SELECT-item validity: the removed expression was the final SELECT column; post-removal `s.scoring_run` is the new final item with no trailing comma, immediately followed by `from metrics as m` — syntactically valid (model builds, 9 tests pass).
-- Downstream export breakage: `scripts/export_site_data.py:342` does `select *` and never names the dropped column (grep: 0 hits in scripts/), so the payload loses one key silently with no consumer break; mart_team_profile is a leaf (no dbt downstream).
-- NOTE (non-blocking, deferred): stale references remain in docs OUTSIDE scope — `docs/content_architecture.md` (still claims the team deserved-vs-actual is "Built"), `docs/wireframes/02_team_profile.md`, `docs/audits/2026-06_alignment_audit.md`. Not executable, not in scope_paths/done_when; to be handled in the deserved-vs-actual redesign thread.
+DORMANT — no dbt_project/** paths in the diff (handover-doc-only).
 
 ## escalations
 (none)
