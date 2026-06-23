@@ -1,288 +1,267 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index d3663ec..e5d57c5 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,20 +4,18 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: 2026-06-23 (**session-close refresh**). main GREEN; no open PRs. Two-track operating model live.
+-**Merged this session:** **#551** (fixture-event team-attribution fix → **#526 CLOSED**); **#500** (team-season
+-rollup consolidation + rename `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded —
+-benchmark #512 refs updated); **#555** (`mart_player_career` — player career-by-competition surface, counts only,
+-no minutes); **#556** (`dim_coach` + `dim_coach_team_mapping` — Coach entity/affiliation split from
+-RAW_APIF_COACHES, read-all snapshot per CPO ruling, soft team_sk link). **Filed:** **#549** (the proposal phase is
+-ungated — the #526 mis-diagnosis was an unverified premise NO gate caught) + **#550** (automated DQ-triage design:
+-detect → evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix; nests under #546). **#526 durable
+-lesson:** identity must be verified EXTERNALLY, never inferred from internal name similarity
+-([[feedback-verify-real-world-identity]]) — the 38 wrong-team events were TWO opposite classes (Togo
+-ASC≠ASKO mis-attribution vs Riga duplicate-id), healed by the CPO-owned `fixture_event_team_overrides` seed + the
+-permanent `assert_event_team_in_fixture_participants` test (now 0, was 38). Governance G1-G4 LIVE.
+-**Website #391 PAUSED.** OPEN: the **Coach + career CONSUMPTION marts** (deferred, #391-gated) + the **#500
+-column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#547** + the **#549/#550** designs._
++_Last updated: 2026-06-23 (**benchmark-PR1 close**). main GREEN; no open PRs. Two-track operating model live.
++**Merged this session:** **#558** (`mart_leaderboards` v1.x — the 5 RATE boards pass%/duels%/dribble%/finishing%/
++save%, with the CPO qualification rule: minutes>=270 + position scope (outfield, save=GK) + finishing also
++SoT>=10; `finishing_efficiency` extended to the player entity; **#506 CLOSED**); **#559** (**player benchmark
++PR1** — the metric layer: 13 per-90 player metrics computed in `int_player_season__metrics` + catalogue rows,
++AND `direction`+`interpretation` classified on those 13 + the 5 existing benchmark rates, interpretations written
++player-native for website auto-content; per-90 reintroduced the PROPER way via the catalogue, reversing the A1
++unapproved-invention anti-pattern). **NEXT = player benchmark PR2** (the engine + mart — FULLY DESIGNED this
++session; see the LOCKED block below — do NOT re-litigate). Governance G1-G4 LIVE. **Website #391 PAUSED.**
++OPEN: **benchmark PR2** (build-ready) + the **Coach + career CONSUMPTION marts** (#391-gated) + player
++**opponent-context** (v1.x) + program epics **#545/#546/#547** + the **#549/#550** designs + carryovers
++**#484/#510/#500-column-align/#483/#521**._
+ 
+ ## How work is organized — two tracks (NEW 2026-06-23)
+ - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
+@@ -33,8 +31,50 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
+     expansion lands.
+ - **One board + `stream:*` labels** group everything; the **CPO sets the per-stretch mix** (default = product).
+ 
++## Player competition benchmark — PR1 MERGED (#559); PR2 is the build-ready next slice
++The vs-benchmark engine for PLAYERS (`content_architecture.md` §6), the player analog of the team benchmark
++(#511/#512). **PR1 (#559, MERGED)** = the metric layer (13 per-90 metrics in `int_player_season__metrics` +
++catalogue rows + direction/interpretation on those 13 and the 5 existing benchmark rates). **PR2 = the benchmark
++itself — FULLY DESIGNED this session, CPO-locked, do NOT re-litigate** (the CPO design rulings are logged
++verbatim in `.claude/task/escalations.log`, 2026-06-23 "player competition benchmark — up-front CPO design
++rulings"):
++- **Structure (mirror #512):** `int_competition_benchmarks__player` (engine: per (league_code, season_api_year,
++  **position_group**, metric_key) distribution — count/mean/p25/median/p75) + `mart_competition_benchmarks__player`
++  (LONG, one row per (player, season, metric_key): value, distribution, **rank + peer_count + percentile**,
++  value−median) + a **`player_benchmark_metrics()`** macro (metric list, shared engine↔mart, like
++  `team_benchmark_metrics()`).
++- **Metric set (18, all catalogued with direction+interpretation):** the 13 per-90 (goals/assists/scorer_points/
++  shots_on_target/key_passes/dribbles_success/passes/tackles/interceptions/blocks/defensive_actions/duels_won/
++  saves) + the 5 rates (pass_accuracy_pct/duels_won_pct/dribbles_success_pct/finishing_efficiency/save_pct).
++- **Peers = position group** (GK/DEF/MID/ATT from `dim_player.player_position`; ~0.5% null among 270-min
++  qualifiers). Benchmark is per (competition, season, **position**) — compare within position (raw per-90 is
++  position-bound, e.g. defender goals/90 ≈ 0).
++- **Floor = `minutes >= 270`** (≈3 matches) for ALL metrics; **finishing_efficiency ALSO needs
++  `shots_on_target >= 10`** (its denominator is shots, not minutes — same floor as the leaderboard finishing
++  board). save% uses the GK position scope.
++- **Carry BOTH rank-of-N and percentile** (large player N makes percentile the intuitive read; rank stays honest
++  in small leagues). Carry `minutes` + `appearances` so the sample is always visible.
++- **ALL competitions — NO league-only scoping.** Percentiles are descriptive/relative, so tournaments compare
++  players within their own edition; single-match comps (e.g. Super Cup) fall out below the 270 floor naturally.
++- **NO prev-season fallback.** Each competition-season is benchmarked on its own data; the live current season
++  fills in honestly as players cross the floor (quiet ~2 months early; completed seasons are full now). Display
++  shows the season — never relabel last season as this (CPO rejected the fallback as confusing mid-season).
++- **Direction-agnostic mart** (like #512): rank by value desc; the good/bad reading comes from the catalogue
++  `direction` at display (now populated for these 18 player metrics).
++- **Floor evidence (locked):** settled against 2025 distributions — 450 too low (cameos like Awoniyi 502min/4g
++  spiked), 720/900 too slow; per-90 amplifies small samples, so 270 + sample-visible + robust median is the call.
++
++## Leaderboards vs benchmark — coherence ruling (CPO, this session)
++TWO deliberate lenses, kept separate (CPO chose this over merging): **leaderboards = totals/achievements** (top
++scorer; the count boards rank season TOTALS) · **benchmark = per-90 standing vs position peers** (percentile). The
++same metric can rank differently across them — INTENDED (Golden Boot vs efficiency; fbref carries both). The only
++alignment: finishing% uses the SAME floor on both (minutes>=270 AND SoT>=10). The leaderboard count boards stay
++TOTALS — do NOT convert them to per-90.
++
+ ## FIRST next session (do this first)
+-- **Nothing pending-merge** (`git fetch` + ff main). main GREEN.
++- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. **Immediate next = player benchmark PR2** (the
++  engine + mart — see the LOCKED design block above; mirrors team #512, consumes the #559 per-90/rate metrics via
++  a new `player_benchmark_metrics()` macro). CPO directs whether to build PR2 now or pick another slice.
+ - **PROGRAMS — pick the cut, then build:**
+   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
+     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
+@@ -46,11 +86,12 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
+     a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
+     merge-on-internal-similarity.
+   - **#547 (cost):** size BQ build cost before the expansion scales.
+-- **PRODUCT (primary):** the content_architecture roadmap — **`mart_player_career` (#555) + coaches (#556) now
+-  DONE.** Next product slices: the **Coach + career CONSUMPTION marts** (Coach page Overview = current club +
+-  clubs managed; the team-header current-coach chip — both DEFERRED, website #391 PAUSED); player **benchmark /
+-  opponent-context** (v1.x); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves) + **#506**
+-  (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
++- **PRODUCT (primary):** the content_architecture roadmap — **#506 leaderboards rate boards (#558) + player
++  benchmark PR1 (#559) now DONE.** Next product slices: **player benchmark PR2** (build-ready — the LOCKED block
++  above); the **Coach + career CONSUMPTION marts** (Coach page Overview / team-header current-coach chip — both
++  DEFERRED, website #391 PAUSED); the **opponent-context** flagship (v1.x — weights opponents via the benchmark
++  engine); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves). **Read
++  `docs/content_architecture.md` §8/§9 first.**
+ - **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
+ - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
+   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
+@@ -136,10 +177,10 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
+    ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
+ 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
+    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
+-3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
+-   semantic + #512 mart_competition_benchmarks__team; median-led, rank-of-N, direction-agnostic). **Player
+-   benchmark + percentile-vs-peers = v1.x** (needs per-90 — a NEW catalogue metric — + position-aware peers +
+-   a minutes floor). The **opponent/schedule-context flagship** (weights opponents via this engine) is also v1.x.
++3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 + #512). **PLAYER benchmark:
++   PR1 (the metric layer — per-90 metrics + direction/interpretation) DONE 2026-06-23 (#559); PR2 (engine + mart)
++   is the build-ready next slice** — see the LOCKED design block near the top of this file. The **opponent/
++   schedule-context flagship** (weights opponents via this engine) is v1.x, after the benchmark.
+ 4. ~~**Coaches + `dim_coach`**; **`mart_player_career`** for the Career/History tabs~~ — **DONE 2026-06-23**
+    (#555 `mart_player_career`, counts only; #556 `dim_coach` + `dim_coach_team_mapping`). The **Coach + career
+    CONSUMPTION marts** (page Overview / team-header current-coach chip) remain DEFERRED — website #391 PAUSED.
+@@ -157,8 +198,8 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
+ - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
+   the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned).
+ - **#483** — qualifying-type cumulative window (GAP-18 follow-up).
+-- **#506** — leaderboards v1.x: the 5 RATE boards (pass% / duels% / dribble% / save% / finishing) + a new
+-  `finishing_efficiency` (uncapped) + the per-denominator qualification floor (deferred from the v1 count boards).
++- ~~**#506**~~ — leaderboards rate boards **DONE 2026-06-23 (#558)**: the 5 RATE boards + the CPO qualification
++  rule (minutes>=270 + position scope + finishing SoT>=10); `finishing_efficiency` extended to the player entity.
+ - **Pilot PR2 (slugs)** — STILL BLOCKED on the two BLINDED §10 rulings E2/E3 (do NOT pre-decide).
+ 
+ ## Key specs to read before building (the source of truth)
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 9a3853f..4a7f195 100644
+index 4a7f195..376cf9a 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,90 +1,98 @@
--# Task contract — leaderboards rate boards + qualification rule (#506)
-+# Task contract — player per-90 metrics + benchmark-metric classification (benchmark PR1)
+@@ -1,98 +1,45 @@
+-# Task contract — player per-90 metrics + benchmark-metric classification (benchmark PR1)
++# Task contract — session handover refresh (2026-06-23, benchmark PR1 close)
  
  objective: >
--  Add the 5 deferred RATE boards to mart_leaderboards (pass% / duels% / dribble% /
--  finishing% / save%), with a CPO-set qualification rule that keeps boards populated
--  early-season yet sample-safe. Warehouse-only (mart + metric layer); export wiring is
--  out of scope per the issue (and #391 paused).
-+  Add the 13 per-90 player metrics (the minutes-normalised comparison layer) to the
-+  metric_catalogue + compute them in int_player_season__metrics; classify direction +
-+  interpretation for those 13 AND the 5 existing benchmark rate metrics, so the whole
-+  player-benchmark metric set carries good/bad semantics and auto-narrative meaning. This is
-+  the metric-layer foundation (PR1) for the player competition benchmark (PR2). Additive only.
+-  Add the 13 per-90 player metrics (the minutes-normalised comparison layer) to the
+-  metric_catalogue + compute them in int_player_season__metrics; classify direction +
+-  interpretation for those 13 AND the 5 existing benchmark rate metrics, so the whole
+-  player-benchmark metric set carries good/bad semantics and auto-narrative meaning. This is
+-  the metric-layer foundation (PR1) for the player competition benchmark (PR2). Additive only.
++  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session merged
++  #558 (leaderboards rate boards → #506 CLOSED) + #559 (player per-90 metric layer = benchmark PR1).
++  Record: those merges; the FULLY LOCKED player-benchmark PR2 design (so the next chat builds without
++  re-litigating a long design); the leaderboards-vs-benchmark two-lens coherence ruling; the open queue.
++  No code; handover doc only.
  refs: >
--  #506. CPO design rulings recorded live this session (2026-06-23): minutes gate,
--  position scoping, finishing sample floor, and "finishing_efficiency is not a new
--  metric — extend the existing one to the player entity".
-+  Player competition benchmark — the per-90 vs-peers surface (content_architecture §6), the v1.x
-+  follow-up to the team benchmark (#511/#512). Designed + ruled live this session (2026-06-23):
-+  per-90 via the proper catalogue route (reverses the A1 unapproved-invention removal); the
-+  13-metric list CPO-confirmed; direction classified (ruling "A": classify now, like the team);
-+  interpretations written player-native for website auto-content generation.
+-  Player competition benchmark — the per-90 vs-peers surface (content_architecture §6), the v1.x
+-  follow-up to the team benchmark (#511/#512). Designed + ruled live this session (2026-06-23):
+-  per-90 via the proper catalogue route (reverses the A1 unapproved-invention removal); the
+-  13-metric list CPO-confirmed; direction classified (ruling "A": classify now, like the team);
+-  interpretations written player-native for website auto-content generation.
++  CPO directed wrapping the session for a fresh chat. The benchmark design was decided live by the CPO
++  this session and is now logged durably in `.claude/task/escalations.log` (2026-06-23 "player
++  competition benchmark — up-front CPO design rulings": per-90 + position-group peers + percentile/rank
++  + floor 270 / finishing SoT>=10 + all-competitions + no prev-season fallback + the leaderboards-vs-
++  benchmark two-lens ruling), per the 2026-06-17 E1 precedent. Pattern: prior handover refreshes.
  
  scope_paths:
-   - dbt_project/seeds/metric_catalogue.csv
-   - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
--  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
--  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - .claude/active_work.md
++  - .claude/task/**
  
  impact_map: >
-   writers:
--    - finishing_efficiency (player) = safe_divide(goals, shots_on_target) — computed ONLY
--      in int_player_season__metrics (alongside the 4 rate columns already there:
--      pass_accuracy_pct, duels_won_pct, dribbles_success_pct, save_pct).
--    - the 5 rate boards — emitted ONLY by mart_leaderboards (the LONG per-board mart).
--  downstream (pasted, `dbt ls`):
--    - int_player_season__metrics+ → int_player_career__metrics, mart_leaderboards,
--      mart_player_career, mart_player_profile. VERIFIED by reading each: mart_player_profile
--      (named SELECT, lines 61-113) and int_player_career__metrics (named sums of
--      appearances/goals/assists, lines 17-31) select named columns — the new
--      finishing_efficiency column does NOT leak into them; their schemas/numbers are
--      unchanged. mart_player_career reads int_player_career__metrics, not the season model.
--    - mart_leaderboards+ → (leaf; no downstream dbt models).
--    - metric_catalogue+ → the catalogue's own accepted_values / not_null / uniqueness tests
--      + assert_no_uncatalogued_season_metric (which REQUIRES the finishing_efficiency player
--      row — see layer_rules).
--  consumption (outside dbt lineage):
--    - scripts/export_site_data.py reads mart_leaderboards but filters metric_key to
--      _LEADERBOARD_METRICS (the 9 count boards). The 5 rate keys are NOT added there, so the
--      live export is unchanged. sort_value widens INT64→FLOAT64 (see blast_radius); value is
--      identical (25 ≡ 25.0), reaches the export only on the next Pages run, JSON-numeric-equal.
--      Export wiring of the rate boards is deferred (out of scope, #391 paused).
-+    - 13 per-90 columns (goals/assists/scorer_points/shots_on_target/key_passes/dribbles_success/
-+      passes/tackles/interceptions/blocks/defensive_actions/duels_won/saves _per90) =
-+      safe_divide(count * 90, minutes) — computed ONLY in int_player_season__metrics (the canonical
-+      player-season model, mirroring the per-match rates in int_team_season__metrics). 13 matching
-+      metric_catalogue rows (entity='player'), each carrying direction + interpretation.
-+    - direction + interpretation also filled on the 5 existing player benchmark RATES
-+      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct) —
-+      additive catalogue-field updates (previously empty), no formula change.
-+  downstream (pasted, `dbt ls --select int_player_season__metrics+`):
-+    - int_player_season__metrics → int_player_career__metrics, mart_leaderboards, mart_player_career,
-+      mart_player_profile. VERIFIED (during #506) all four use named SELECTs — the new per-90 columns
-+      do NOT leak; schemas/numbers unchanged. PR2 (the benchmark) is the intended consumer.
-+    - metric_catalogue: the direction/interpretation columns are NOT consumed by any current model
-+      (leaderboard/profile select named atoms, not direction); filling them is inert until PR2's
-+      display. accepted_values/not_null/uniqueness + assert_no_uncatalogued_season_metric apply.
-   layer_rules:
--    - assert_no_uncatalogued_season_metric: every metric column in int_player_season__metrics
--      must have a metric_catalogue row (entity='player', metric_id=column). Adding the
--      finishing_efficiency column REQUIRES the catalogue row — both land in this PR.
--    - marts are consumption-only: the rates are precomputed in the int model; the mart selects
--      + ranks + floors, it does not derive new facts. No logic in the export.
-+    - assert_no_uncatalogued_season_metric: every metric column in int_player_season__metrics must
-+      have a player catalogue row (metric_id = column). The 13 new columns REQUIRE the 13 rows.
-+    - accepted_values: format in {integer,decimal_0,decimal_1,percent,points_fraction,count_fraction}
-+      → per-90 use decimal_1. direction in {higher_better,lower_better,neutral}. metric_group in the
-+      closed set → each per-90 inherits its base metric's group. lower_is_better not_null → false on
-+      all 13 (none are lower-better; neutral metrics carry false + direction=neutral, like the team).
-+    - metrics live in the canonical season model; PR2 references them via a macro, like
-+      team_benchmark_metrics() references int_team_season__metrics.
-   deploy_order:
--    - shared warehouse; ci-data-build rebuilds seed (metric_catalogue) → int_player_season__metrics
--      (table) → mart_leaderboards (view) → tests, in one run. Additive column + additive rows +
--      new board rows; no migration hazard. Not run against the 04:00 nightly (CI builds on the PR).
-+    - shared warehouse; ci-data-build rebuilds seed → int_player_season__metrics (table) → tests.
-+      Additive columns + rows + a new non-negative range test; no migration hazard, no nightly tie-in.
-   blast_radius:
--    - mart_leaderboards: +5 board types (rate), +5 documented rate columns, metric_key
--      accepted_values +5, sort_value type INT64→FLOAT64 (union of count+rate; value unchanged).
--    - int_player_season__metrics: +1 column (finishing_efficiency).
--    - metric_catalogue: +1 row (finishing_efficiency, player).
--    - NO change to mart_player_profile / int_player_career__metrics / mart_player_career
--      (named selects — verified). NO change to the live export (rate keys not listed).
-+    - int_player_season__metrics: +13 columns. metric_catalogue: +13 rows; +direction/interpretation
-+      on 5 existing rate rows. int_team_season.yml: +1 model-level non-negative test for the per-90s.
-+      mart_player_profile.sql: header-comment touch-up only (no SQL change).
-+    - NO change to mart_player_profile / mart_leaderboards / int_player_career__metrics /
-+      mart_player_career output (named selects — verified #506). NO shipped-number change. The per-90
-+      columns are unconsumed until PR2 (metric-layer-first split).
+-  writers:
+-    - 13 per-90 columns (goals/assists/scorer_points/shots_on_target/key_passes/dribbles_success/
+-      passes/tackles/interceptions/blocks/defensive_actions/duels_won/saves _per90) =
+-      safe_divide(count * 90, minutes) — computed ONLY in int_player_season__metrics (the canonical
+-      player-season model, mirroring the per-match rates in int_team_season__metrics). 13 matching
+-      metric_catalogue rows (entity='player'), each carrying direction + interpretation.
+-    - direction + interpretation also filled on the 5 existing player benchmark RATES
+-      (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct) —
+-      additive catalogue-field updates (previously empty), no formula change.
+-  downstream (pasted, `dbt ls --select int_player_season__metrics+`):
+-    - int_player_season__metrics → int_player_career__metrics, mart_leaderboards, mart_player_career,
+-      mart_player_profile. VERIFIED (during #506) all four use named SELECTs — the new per-90 columns
+-      do NOT leak; schemas/numbers unchanged. PR2 (the benchmark) is the intended consumer.
+-    - metric_catalogue: the direction/interpretation columns are NOT consumed by any current model
+-      (leaderboard/profile select named atoms, not direction); filling them is inert until PR2's
+-      display. accepted_values/not_null/uniqueness + assert_no_uncatalogued_season_metric apply.
+-  layer_rules:
+-    - assert_no_uncatalogued_season_metric: every metric column in int_player_season__metrics must
+-      have a player catalogue row (metric_id = column). The 13 new columns REQUIRE the 13 rows.
+-    - accepted_values: format in {integer,decimal_0,decimal_1,percent,points_fraction,count_fraction}
+-      → per-90 use decimal_1. direction in {higher_better,lower_better,neutral}. metric_group in the
+-      closed set → each per-90 inherits its base metric's group. lower_is_better not_null → false on
+-      all 13 (none are lower-better; neutral metrics carry false + direction=neutral, like the team).
+-    - metrics live in the canonical season model; PR2 references them via a macro, like
+-      team_benchmark_metrics() references int_team_season__metrics.
+-  deploy_order:
+-    - shared warehouse; ci-data-build rebuilds seed → int_player_season__metrics (table) → tests.
+-      Additive columns + rows + a new non-negative range test; no migration hazard, no nightly tie-in.
+-  blast_radius:
+-    - int_player_season__metrics: +13 columns. metric_catalogue: +13 rows; +direction/interpretation
+-      on 5 existing rate rows. int_team_season.yml: +1 model-level non-negative test for the per-90s.
+-      mart_player_profile.sql: header-comment touch-up only (no SQL change).
+-    - NO change to mart_player_profile / mart_leaderboards / int_player_career__metrics /
+-      mart_player_career output (named selects — verified #506). NO shipped-number change. The per-90
+-      columns are unconsumed until PR2 (metric-layer-first split).
++  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
++  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
++  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
++  blast_radius: NONE — handover text only; no shipped number moves.
  
  decisions_taken: >
--  CPO rulings recorded live this session (2026-06-23), grounded in 2025-season distributions
--  pulled from intermediate.int_player_season__metrics:
--  - finishing_efficiency is NOT a new metric: extend the existing (team) metric to the player
--    entity, same definition goals/shots_on_target, uncapped (verbatim: "finishing_efficiency is
--    not a new metric ... we already have this"). New catalogue row entity='player', mirroring the
--    team row; label_i18n_key playerMetrics.finishingEfficiency.label (player-namespace convention).
--  - Qualification rule, all 5 rate boards: minutes >= 270 (3 full matches) — fills boards by
--    ~matchday 3-4 yet sample-safe.
--  - Position scoping: pass% / duels% / dribble% → outfield (player_position not null and
--    != 'Goalkeeper'); finishing% → outfield ("otherwise we would exclude offensive midfielders");
--    save% → player_position = 'Goalkeeper'.
--  - Extra sample floor: finishing% → shots_on_target >= 10 (data: minutes alone leaves 46% of
--    finishing qualifiers at <=3 SoT, top gamed by 100%-on-tiny-sample; SoT>=10 cleans it). save%
--    → GK filter alone, no shots-faced floor.
--  - Scope is warehouse-only per #506 (export wiring deferred).
-+  CPO rulings recorded live this session (2026-06-23):
-+  - Introduce per-90 player metrics via the proper route (catalogue + football-analytics). The A1
-+    anti-pattern was per-90 invented WITHOUT approval (#325). Explicit CPO sign-off given.
-+  - 13-metric list CPO-confirmed (the 11 + defensive_actions_per90 + scorer_points_per90, both added
-+    on CPO request for parity with the team's aggregate + the leaderboard's scorer_points). Formula =
-+    count * 90 / minutes (safe_divide → null when minutes is zero). format=decimal_1.
-+  - Direction classified now (ruling "A": "classify them as we did with the other metrics"): output/
-+    quality = higher_better (goals/assists/scorer_points/shots_on_target/key_passes/dribbles_success
-+    per90 + the 5 rates); volume/style = neutral (passes/tackles/interceptions/blocks/
-+    defensive_actions/duels_won per90) — mirrors the team catalogue's classification of the same stats.
-+    lower_is_better stays false for all (the team's convention for neutral metrics).
-+  - Interpretations written PLAYER-NATIVE (not the team labels) for the website's automated content
-+    generation; neutral metrics carry the "style not quality" signal. CPO-approved the full table.
-+  - DQ non-negative guard on the 13 per-90 columns (a per-90 can never be negative; catches a
-+    formula sign-flip) — addresses the analytics-engineer review. mart_player_profile header comment
-+    touched up (its "no per-90 ... await a CPO-approved extension" note is now stale) — addresses
-+    the scope-auditor review.
+-  CPO rulings recorded live this session (2026-06-23):
+-  - Introduce per-90 player metrics via the proper route (catalogue + football-analytics). The A1
+-    anti-pattern was per-90 invented WITHOUT approval (#325). Explicit CPO sign-off given.
+-  - 13-metric list CPO-confirmed (the 11 + defensive_actions_per90 + scorer_points_per90, both added
+-    on CPO request for parity with the team's aggregate + the leaderboard's scorer_points). Formula =
+-    count * 90 / minutes (safe_divide → null when minutes is zero). format=decimal_1.
+-  - Direction classified now (ruling "A": "classify them as we did with the other metrics"): output/
+-    quality = higher_better (goals/assists/scorer_points/shots_on_target/key_passes/dribbles_success
+-    per90 + the 5 rates); volume/style = neutral (passes/tackles/interceptions/blocks/
+-    defensive_actions/duels_won per90) — mirrors the team catalogue's classification of the same stats.
+-    lower_is_better stays false for all (the team's convention for neutral metrics).
+-  - Interpretations written PLAYER-NATIVE (not the team labels) for the website's automated content
+-    generation; neutral metrics carry the "style not quality" signal. CPO-approved the full table.
+-  - DQ non-negative guard on the 13 per-90 columns (a per-90 can never be negative; catches a
+-    formula sign-flip) — addresses the analytics-engineer review. mart_player_profile header comment
+-    touched up (its "no per-90 ... await a CPO-approved extension" note is now stale) — addresses
+-    the scope-auditor review.
++  Reflect already-merged facts + the CPO-locked benchmark design only — no NEW design this refresh.
++  #558 + #559 are merged (main GREEN). The PR2 design block is the set of CPO rulings made live this
++  session, recorded verbatim so the next chat does not re-decide. The two-track operating model + the
++  program epics carry forward. This is a status + design-capture refresh, not a re-scope.
  
  decisions_reserved:
--  - Export wiring (adding the 5 rate keys to _LEADERBOARD_METRICS / rate columns to _LB_KEEP) —
--    a product/site decision under paused #391; NOT decided here. Flagged to CPO.
--  - The player finishing label STRING/i18n translation — added at export-wiring time (no test binds
--    label_i18n_key today; key declared now). The KEY spelling is a naming detail CPO can override.
-+  - The per-90 / rate label i18n STRINGS (added at display-wiring time; KEY spelling follows the
-+    player-namespace convention, CPO can override).
-+  - decimal_2 display precision for per-90 (decimal_2 not in the accepted format set; revisit with
-+    bi-analyst if finer precision is wanted).
-+  - The benchmark engine + mart + floor (270; finishing also SoT>=10) + position peers + percentile — PR2.
+-  - The per-90 / rate label i18n STRINGS (added at display-wiring time; KEY spelling follows the
+-    player-namespace convention, CPO can override).
+-  - decimal_2 display precision for per-90 (decimal_2 not in the accepted format set; revisit with
+-    bi-analyst if finer precision is wanted).
+-  - The benchmark engine + mart + floor (270; finishing also SoT>=10) + position peers + percentile — PR2.
++  - What the next stretch builds (player benchmark PR2 vs a program tranche vs another product slice) is
++    the CPO's pick at the start of the fresh chat — the handover records the locked PR2 design + the
++    open queue, it does not choose.
  
  done_when:
--  - `.venv/Scripts/dbt parse` clean; `.venv/Scripts/sqlfluff lint` clean on the changed SQL.
--  - mart_leaderboards compiles; metric_key accepted_values lists 14 boards; the 4 bounded rates have
--    0-1 range tests, finishing_efficiency is EXCLUDED from the range test (uncapped, mirrors team).
--  - assert_no_uncatalogued_season_metric still green (finishing_efficiency player row present).
--  - validate-local passes (offline gates + dbt parse + sqlfluff). The BQ data-build runs in CI.
-+  - `.venv/Scripts/dbt parse` + `compile` clean; `sqlfluff lint` clean on the int model.
-+  - metric_catalogue.csv well-formed (13 columns/row); accepted_values satisfied (decimal_1, valid
-+    groups, direction in the enum); the 13 new int columns exactly match the 13 new metric_ids.
-+  - assert_no_uncatalogued_season_metric green; the new non-negative per-90 test parses.
-+  - validate-local passes. The BQ data-build runs in CI.
+-  - `.venv/Scripts/dbt parse` + `compile` clean; `sqlfluff lint` clean on the int model.
+-  - metric_catalogue.csv well-formed (13 columns/row); accepted_values satisfied (decimal_1, valid
+-    groups, direction in the enum); the 13 new int columns exactly match the 13 new metric_ids.
+-  - assert_no_uncatalogued_season_metric green; the new non-negative per-90 test parses.
+-  - validate-local passes. The BQ data-build runs in CI.
++  - active_work.md status line names #558 + #559 (benchmark PR1) MERGED, main GREEN.
++  - The locked player-benchmark PR2 design is recorded (engine + mart + macro + metric set + floor/
++    peers/percentile/scope/no-fallback) + the leaderboards-vs-benchmark coherence ruling.
++  - FIRST-next-session leads with PR2 (build-ready) + carries the open queue.
++  - Last-updated stamp moved to 2026-06-23 (benchmark-PR1 close).
++  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
  
--amendments: (none)
-+amendments:
-+  - 2026-06-23: + dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+    (non-negative per-90 DQ test) + dbt_project/models/5_marts/shared/mart_player_profile.sql (stale
-+    comment touch-up) — authority: CPO approval this session (2026-06-23, "good now") of the full plan
-+    that explicitly named the DQ guard + the comment touch-up (the CPO ruling is also recorded in
-+    decisions_taken above); the analytics-engineer + scope-auditor reviews surfaced the need. Clean-
-+    tree amendment (the branch was reset to origin/main before this contract was written).
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index e1d4a80..402becc 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-@@ -160,5 +160,22 @@ select
-     -- finishing efficiency: goals per shot on target. Uncapped (mirrors the team metric):
-     -- rarely the source logs more goals than on-target shots, so it can exceed 100%.
-     -- Null when shots_on_target is zero. (#506)
--    safe_divide(goals, shots_on_target) as finishing_efficiency
-+    safe_divide(goals, shots_on_target) as finishing_efficiency,
-+    -- per-90 rates: count * 90 / minutes (minutes-normalised; null when minutes is zero).
-+    -- The comparison layer for the player competition benchmark; metric_catalogue rows.
-+    safe_divide(goals * 90, minutes) as goals_per90,
-+    safe_divide(assists * 90, minutes) as assists_per90,
-+    safe_divide((goals + assists) * 90, minutes) as scorer_points_per90,
-+    safe_divide(shots_on_target * 90, minutes) as shots_on_target_per90,
-+    safe_divide(passes_key * 90, minutes) as key_passes_per90,
-+    safe_divide(dribbles_success * 90, minutes) as dribbles_success_per90,
-+    safe_divide(passes_total * 90, minutes) as passes_per90,
-+    safe_divide(tackles_total * 90, minutes) as tackles_per90,
-+    safe_divide(tackles_interceptions * 90, minutes) as interceptions_per90,
-+    safe_divide(tackles_blocks * 90, minutes) as blocks_per90,
-+    safe_divide(
-+        (tackles_total + tackles_interceptions + tackles_blocks) * 90, minutes
-+    ) as defensive_actions_per90,
-+    safe_divide(duels_won * 90, minutes) as duels_won_per90,
-+    safe_divide(goals_saves * 90, minutes) as saves_per90
- from aggregated
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index c5b5070..366d0ee 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -89,6 +89,11 @@ models:
-       - dbt_utils.expression_is_true:
-           expression: "(duels_won_pct is null or duels_won_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct between 0 and 1) and (save_pct is null or save_pct between 0 and 1)"
-           name: int_player_season_ratios_in_range
-+      # per-90 metrics (benchmark inputs) are unbounded above but can never be negative — a sign-flip
-+      # or a bad numerator would trip this. NULL is allowed (minutes = 0).
-+      - dbt_utils.expression_is_true:
-+          expression: "(goals_per90 is null or goals_per90 >= 0) and (assists_per90 is null or assists_per90 >= 0) and (scorer_points_per90 is null or scorer_points_per90 >= 0) and (shots_on_target_per90 is null or shots_on_target_per90 >= 0) and (key_passes_per90 is null or key_passes_per90 >= 0) and (dribbles_success_per90 is null or dribbles_success_per90 >= 0) and (passes_per90 is null or passes_per90 >= 0) and (tackles_per90 is null or tackles_per90 >= 0) and (interceptions_per90 is null or interceptions_per90 >= 0) and (blocks_per90 is null or blocks_per90 >= 0) and (defensive_actions_per90 is null or defensive_actions_per90 >= 0) and (duels_won_per90 is null or duels_won_per90 >= 0) and (saves_per90 is null or saves_per90 >= 0)"
-+          name: int_player_season_per90_non_negative
-     columns:
-       - name: player_sk
-         tests:
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index 7d25340..31e8c86 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -12,9 +12,10 @@
-   ranks moved to mart_leaderboards (the LONG single-surface; the 3 rank columns here were retired).
- 
-   Metric governance (catalogue-only v1): every metric is a metric_catalogue row computed by its
--  catalogue formula — counts + the four catalogued player ratios. NO invented metrics (no per-90, no
--  goal_conversion, no player shot_accuracy). Beyond the catalogue metrics, only raw descriptors are
--  carried: appearances / starts / minutes, identity, modal position.
-+  catalogue formula — counts + the four catalogued player ratios. No invented or uncatalogued metrics
-+  (no goal_conversion, no player shot_accuracy). Per-90 metrics now exist in the catalogue for the
-+  player benchmark, but the profile does not carry them. Beyond the catalogue metrics, only raw
-+  descriptors are carried: appearances / starts / minutes, identity, modal position.
- 
-   Grain: (player_sk, season_sk). A player active in two competitions in one season has one row per
-   competition-season. Only finished matches with a player-stats row contribute (honest absence).
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index f7383c3..4d4fb6e 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -27,17 +27,17 @@ penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.
- shots_on_target,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window.,shots_on,,false,integer,shooting,,1,,
- duels_won,player,playerMetrics.duels.won,Duels won in the form window. A duel is any 1v1 physical contest (ground and aerial pooled).,duels_won,,false,integer,duels,,1,,
- duels_total,player,playerMetrics.duels.total,Total duels contested in the form window.,duels_total,,false,integer,duels,,1,,
--duels_won_pct,player,playerMetrics.duels.label,Duel win rate. Null when duels_total is zero.,duels_won,duels_total,false,percent,duels,,1,,
-+duels_won_pct,player,playerMetrics.duels.label,Duel win rate. Null when duels_total is zero.,duels_won,duels_total,false,percent,duels,,1,higher_better,Share of duels won; high = consistently wins physical contests.
- dribbles_success,player,playerMetrics.dribbles.success,Successful dribbles in the form window.,dribbles_success,,false,integer,duels,,2,,
- dribbles_attempts,player,playerMetrics.dribbles.attempts,Dribble attempts in the form window.,dribbles_attempts,,false,integer,duels,,2,,
--dribbles_success_pct,player,playerMetrics.dribbles.successPct,Dribble success rate. Null when dribbles_attempts is zero.,dribbles_success,dribbles_attempts,false,percent,duels,,2,,
-+dribbles_success_pct,player,playerMetrics.dribbles.successPct,Dribble success rate. Null when dribbles_attempts is zero.,dribbles_success,dribbles_attempts,false,percent,duels,,2,higher_better,Share of take-ons completed; high = a reliable dribbler.
- tackles_total,player,playerMetrics.defensiveActions.tackles,Tackles made in the form window.,tackles_total,,false,integer,defending,,1,,
- tackles_interceptions,player,playerMetrics.defensiveActions.interceptions,Interceptions in the form window.,tackles_interceptions,,false,integer,defending,,1,,
- tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the form window.,tackles_blocks,,false,integer,defending,,1,,
- dribbles_past,player,playerMetrics.dribbles.past,Times dribbled past by an opponent in the form window.,dribbles_past,,true,integer,defending,,,,
- passes_accurate,player,playerMetrics.passAccuracy.accurate,"Accurate passes in the form window. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.",passes_total × passes_accuracy_percent / 100,,false,integer,passing,,1,,
- passes_total,player,playerMetrics.passAccuracy.total,Total passes attempted in the form window.,passes_total,,false,integer,passing,,1,,
--pass_accuracy_pct,player,playerMetrics.passAccuracy.label,Pass completion rate. Null when passes_total is zero.,passes_accurate (derived),passes_total,false,percent,passing,,1,,
-+pass_accuracy_pct,player,playerMetrics.passAccuracy.label,Pass completion rate. Null when passes_total is zero.,passes_accurate (derived),passes_total,false,percent,passing,,1,higher_better,Share of passes completed; high = a secure and reliable passer.
- passes_key,player,playerMetrics.keyPasses.label,"Key passes in the form window. API definition: a pass leading directly to a shot.",passes_key,,false,integer,passing,,2,,
- cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,cards_yellow,,false,integer,discipline,,1,,
- cards_red,player,playerMetrics.cards.red,Red cards in the form window.,cards_red,,false,integer,discipline,,1,,
-@@ -45,12 +45,25 @@ offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.
- penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,penalty_committed,,true,integer,discipline,,,,
- saves,player,playerMetrics.savePct.saves,Saves made in the form window.,goals_saves,,false,integer,goalkeeping,,1,,
- shots_on_target_faced,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,goals_saves + goals_conceded,,false,integer,goalkeeping,,1,,
--save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1,,
-+save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1,higher_better,Share of shots on target saved; high = a strong shot-stopper.
- shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,shots_total,,false,integer,shooting,,,,
--finishing_efficiency,player,playerMetrics.finishingEfficiency.label,"Goals per shot on target in the form window. Aggregated over fixtures with player stats (inherits player-stat coverage gaps, like the other player rates). Shown uncapped: in rare cases the source logs more goals than on-target shots for a player, so the value can exceed 100%. Null when shots_on_target is zero.",goals,shots_on_target,false,percent,shooting,,2,,
-+finishing_efficiency,player,playerMetrics.finishingEfficiency.label,"Goals per shot on target in the form window. Aggregated over fixtures with player stats (inherits player-stat coverage gaps, like the other player rates). Shown uncapped: in rare cases the source logs more goals than on-target shots for a player, so the value can exceed 100%. Null when shots_on_target is zero.",goals,shots_on_target,false,percent,shooting,,2,higher_better,Goals per shot on target; high = a clinical and ruthless finisher.
- goals_conceded,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,,,
- shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
- points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
- scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,goals + assists,,false,integer,goals,,,,
- defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,tackles + interceptions + blocks,,false,integer,defending,,,,
- cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",cards_yellow + cards_red,,false,integer,discipline,,,,
-+goals_per90,player,playerMetrics.goalsPer90.label,Goals per 90 minutes played. Minutes-normalised so playing time does not distort the comparison. Null when minutes is zero.,goals,minutes / 90,false,decimal_1,goals,,1,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.
-+assists_per90,player,playerMetrics.assistsPer90.label,Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,assists,minutes / 90,false,decimal_1,goals,,1,higher_better,How often the player creates goals for others; high = a frequent creator.
-+scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,goals + assists,minutes / 90,false,decimal_1,goals,,1,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.
-+shots_on_target_per90,player,playerMetrics.shotsOnTargetPer90.label,Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.,shots_on_target,minutes / 90,false,decimal_1,shooting,,1,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
-+key_passes_per90,player,playerMetrics.keyPassesPer90.label,Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,passes_key,minutes / 90,false,decimal_1,passing,,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.
-+dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,dribbles_success,minutes / 90,false,decimal_1,duels,,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.
-+passes_per90,player,playerMetrics.passesPer90.label,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,passes_total,minutes / 90,false,decimal_1,passing,,1,neutral,Passing involvement; high = a possession-anchoring role; low = a more direct role. Style not quality.
-+tackles_per90,player,playerMetrics.tacklesPer90.label,Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,tackles_total,minutes / 90,false,decimal_1,defending,,1,neutral,Tackling volume; high = an aggressive ball-winner; low = positional. Style not quality - high can reflect a side often defending.
-+interceptions_per90,player,playerMetrics.interceptionsPer90.label,Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is zero.,tackles_interceptions,minutes / 90,false,decimal_1,defending,,1,neutral,Interception volume; high = reads play and steps into passing lanes. Style not quality.
-+blocks_per90,player,playerMetrics.blocksPer90.label,Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.,tackles_blocks,minutes / 90,false,decimal_1,defending,,1,neutral,Blocks made; high = throws the body in; often a side under pressure. Style not quality.
-+defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,tackles + interceptions + blocks,minutes / 90,false,decimal_1,defending,,1,neutral,Overall defensive workload (tackles + interceptions + blocks); high = a deep block or aggressive press. Style not quality.
-+duels_won_per90,player,playerMetrics.duelsWonPer90.label,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,duels_won,minutes / 90,false,decimal_1,duels,,1,neutral,Physical duels won; high = heavily and successfully involved in duels. Volume - the win rate captures efficiency.
-+saves_per90,player,playerMetrics.savesPer90.label,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,goals_saves,minutes / 90,false,decimal_1,goalkeeping,,1,neutral,Save volume; high = a busy keeper facing many shots; not shot-stopping quality - the save rate captures that.
+-amendments:
+-  - 2026-06-23: + dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-    (non-negative per-90 DQ test) + dbt_project/models/5_marts/shared/mart_player_profile.sql (stale
+-    comment touch-up) — authority: CPO approval this session (2026-06-23, "good now") of the full plan
+-    that explicitly named the DQ guard + the comment touch-up (the CPO ruling is also recorded in
+-    decisions_taken above); the analytics-engineer + scope-auditor reviews surfaced the need. Clean-
+-    tree amendment (the branch was reset to origin/main before this contract was written).
++amendments: (none)

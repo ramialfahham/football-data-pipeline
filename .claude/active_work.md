@@ -4,20 +4,18 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-23 (**session-close refresh**). main GREEN; no open PRs. Two-track operating model live.
-**Merged this session:** **#551** (fixture-event team-attribution fix → **#526 CLOSED**); **#500** (team-season
-rollup consolidation + rename `int_team_season__full_season_metrics` → `int_team_season__metrics`, dedup folded —
-benchmark #512 refs updated); **#555** (`mart_player_career` — player career-by-competition surface, counts only,
-no minutes); **#556** (`dim_coach` + `dim_coach_team_mapping` — Coach entity/affiliation split from
-RAW_APIF_COACHES, read-all snapshot per CPO ruling, soft team_sk link). **Filed:** **#549** (the proposal phase is
-ungated — the #526 mis-diagnosis was an unverified premise NO gate caught) + **#550** (automated DQ-triage design:
-detect → evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix; nests under #546). **#526 durable
-lesson:** identity must be verified EXTERNALLY, never inferred from internal name similarity
-([[feedback-verify-real-world-identity]]) — the 38 wrong-team events were TWO opposite classes (Togo
-ASC≠ASKO mis-attribution vs Riga duplicate-id), healed by the CPO-owned `fixture_event_team_overrides` seed + the
-permanent `assert_event_team_in_fixture_participants` test (now 0, was 38). Governance G1-G4 LIVE.
-**Website #391 PAUSED.** OPEN: the **Coach + career CONSUMPTION marts** (deferred, #391-gated) + the **#500
-column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#547** + the **#549/#550** designs._
+_Last updated: 2026-06-23 (**benchmark-PR1 close**). main GREEN; no open PRs. Two-track operating model live.
+**Merged this session:** **#558** (`mart_leaderboards` v1.x — the 5 RATE boards pass%/duels%/dribble%/finishing%/
+save%, with the CPO qualification rule: minutes>=270 + position scope (outfield, save=GK) + finishing also
+SoT>=10; `finishing_efficiency` extended to the player entity; **#506 CLOSED**); **#559** (**player benchmark
+PR1** — the metric layer: 13 per-90 player metrics computed in `int_player_season__metrics` + catalogue rows,
+AND `direction`+`interpretation` classified on those 13 + the 5 existing benchmark rates, interpretations written
+player-native for website auto-content; per-90 reintroduced the PROPER way via the catalogue, reversing the A1
+unapproved-invention anti-pattern). **NEXT = player benchmark PR2** (the engine + mart — FULLY DESIGNED this
+session; see the LOCKED block below — do NOT re-litigate). Governance G1-G4 LIVE. **Website #391 PAUSED.**
+OPEN: **benchmark PR2** (build-ready) + the **Coach + career CONSUMPTION marts** (#391-gated) + player
+**opponent-context** (v1.x) + program epics **#545/#546/#547** + the **#549/#550** designs + carryovers
+**#484/#510/#500-column-align/#483/#521**._
 
 ## How work is organized — two tracks (NEW 2026-06-23)
 - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
@@ -33,8 +31,50 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
     expansion lands.
 - **One board + `stream:*` labels** group everything; the **CPO sets the per-stretch mix** (default = product).
 
+## Player competition benchmark — PR1 MERGED (#559); PR2 is the build-ready next slice
+The vs-benchmark engine for PLAYERS (`content_architecture.md` §6), the player analog of the team benchmark
+(#511/#512). **PR1 (#559, MERGED)** = the metric layer (13 per-90 metrics in `int_player_season__metrics` +
+catalogue rows + direction/interpretation on those 13 and the 5 existing benchmark rates). **PR2 = the benchmark
+itself — FULLY DESIGNED this session, CPO-locked, do NOT re-litigate** (the CPO design rulings are logged
+verbatim in `.claude/task/escalations.log`, 2026-06-23 "player competition benchmark — up-front CPO design
+rulings"):
+- **Structure (mirror #512):** `int_competition_benchmarks__player` (engine: per (league_code, season_api_year,
+  **position_group**, metric_key) distribution — count/mean/p25/median/p75) + `mart_competition_benchmarks__player`
+  (LONG, one row per (player, season, metric_key): value, distribution, **rank + peer_count + percentile**,
+  value−median) + a **`player_benchmark_metrics()`** macro (metric list, shared engine↔mart, like
+  `team_benchmark_metrics()`).
+- **Metric set (18, all catalogued with direction+interpretation):** the 13 per-90 (goals/assists/scorer_points/
+  shots_on_target/key_passes/dribbles_success/passes/tackles/interceptions/blocks/defensive_actions/duels_won/
+  saves) + the 5 rates (pass_accuracy_pct/duels_won_pct/dribbles_success_pct/finishing_efficiency/save_pct).
+- **Peers = position group** (GK/DEF/MID/ATT from `dim_player.player_position`; ~0.5% null among 270-min
+  qualifiers). Benchmark is per (competition, season, **position**) — compare within position (raw per-90 is
+  position-bound, e.g. defender goals/90 ≈ 0).
+- **Floor = `minutes >= 270`** (≈3 matches) for ALL metrics; **finishing_efficiency ALSO needs
+  `shots_on_target >= 10`** (its denominator is shots, not minutes — same floor as the leaderboard finishing
+  board). save% uses the GK position scope.
+- **Carry BOTH rank-of-N and percentile** (large player N makes percentile the intuitive read; rank stays honest
+  in small leagues). Carry `minutes` + `appearances` so the sample is always visible.
+- **ALL competitions — NO league-only scoping.** Percentiles are descriptive/relative, so tournaments compare
+  players within their own edition; single-match comps (e.g. Super Cup) fall out below the 270 floor naturally.
+- **NO prev-season fallback.** Each competition-season is benchmarked on its own data; the live current season
+  fills in honestly as players cross the floor (quiet ~2 months early; completed seasons are full now). Display
+  shows the season — never relabel last season as this (CPO rejected the fallback as confusing mid-season).
+- **Direction-agnostic mart** (like #512): rank by value desc; the good/bad reading comes from the catalogue
+  `direction` at display (now populated for these 18 player metrics).
+- **Floor evidence (locked):** settled against 2025 distributions — 450 too low (cameos like Awoniyi 502min/4g
+  spiked), 720/900 too slow; per-90 amplifies small samples, so 270 + sample-visible + robust median is the call.
+
+## Leaderboards vs benchmark — coherence ruling (CPO, this session)
+TWO deliberate lenses, kept separate (CPO chose this over merging): **leaderboards = totals/achievements** (top
+scorer; the count boards rank season TOTALS) · **benchmark = per-90 standing vs position peers** (percentile). The
+same metric can rank differently across them — INTENDED (Golden Boot vs efficiency; fbref carries both). The only
+alignment: finishing% uses the SAME floor on both (minutes>=270 AND SoT>=10). The leaderboard count boards stay
+TOTALS — do NOT convert them to per-90.
+
 ## FIRST next session (do this first)
-- **Nothing pending-merge** (`git fetch` + ff main). main GREEN.
+- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. **Immediate next = player benchmark PR2** (the
+  engine + mart — see the LOCKED design block above; mirrors team #512, consumes the #559 per-90/rate metrics via
+  a new `player_benchmark_metrics()` macro). CPO directs whether to build PR2 now or pick another slice.
 - **PROGRAMS — pick the cut, then build:**
   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
@@ -46,11 +86,12 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
     a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
     merge-on-internal-similarity.
   - **#547 (cost):** size BQ build cost before the expansion scales.
-- **PRODUCT (primary):** the content_architecture roadmap — **`mart_player_career` (#555) + coaches (#556) now
-  DONE.** Next product slices: the **Coach + career CONSUMPTION marts** (Coach page Overview = current club +
-  clubs managed; the team-header current-coach chip — both DEFERRED, website #391 PAUSED); player **benchmark /
-  opponent-context** (v1.x); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves) + **#506**
-  (leaderboards rate boards). **Read `docs/content_architecture.md` §8/§9 first.**
+- **PRODUCT (primary):** the content_architecture roadmap — **#506 leaderboards rate boards (#558) + player
+  benchmark PR1 (#559) now DONE.** Next product slices: **player benchmark PR2** (build-ready — the LOCKED block
+  above); the **Coach + career CONSUMPTION marts** (Coach page Overview / team-header current-coach chip — both
+  DEFERRED, website #391 PAUSED); the **opponent-context** flagship (v1.x — weights opponents via the benchmark
+  engine); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves). **Read
+  `docs/content_architecture.md` §8/§9 first.**
 - **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
 - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
@@ -136,10 +177,10 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
    ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
-3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 direction/interpretation
-   semantic + #512 mart_competition_benchmarks__team; median-led, rank-of-N, direction-agnostic). **Player
-   benchmark + percentile-vs-peers = v1.x** (needs per-90 — a NEW catalogue metric — + position-aware peers +
-   a minutes floor). The **opponent/schedule-context flagship** (weights opponents via this engine) is also v1.x.
+3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 + #512). **PLAYER benchmark:
+   PR1 (the metric layer — per-90 metrics + direction/interpretation) DONE 2026-06-23 (#559); PR2 (engine + mart)
+   is the build-ready next slice** — see the LOCKED design block near the top of this file. The **opponent/
+   schedule-context flagship** (weights opponents via this engine) is v1.x, after the benchmark.
 4. ~~**Coaches + `dim_coach`**; **`mart_player_career`** for the Career/History tabs~~ — **DONE 2026-06-23**
    (#555 `mart_player_career`, counts only; #556 `dim_coach` + `dim_coach_team_mapping`). The **Coach + career
    CONSUMPTION marts** (page Overview / team-header current-coach chip) remain DEFERRED — website #391 PAUSED.
@@ -157,8 +198,8 @@ column-alignment** follow-up + **#506/#517/#521** + program epics **#545/#546/#5
 - **Display-contract amendment** — record the appearance/playing-time block + the no-framing ruling into
   the locked `docs/wireframes/metrics_display.md` (bi-analyst-owned).
 - **#483** — qualifying-type cumulative window (GAP-18 follow-up).
-- **#506** — leaderboards v1.x: the 5 RATE boards (pass% / duels% / dribble% / save% / finishing) + a new
-  `finishing_efficiency` (uncapped) + the per-denominator qualification floor (deferred from the v1 count boards).
+- ~~**#506**~~ — leaderboards rate boards **DONE 2026-06-23 (#558)**: the 5 RATE boards + the CPO qualification
+  rule (minutes>=270 + position scope + finishing SoT>=10); `finishing_efficiency` extended to the player entity.
 - **Pilot PR2 (slugs)** — STILL BLOCKED on the two BLINDED §10 rulings E2/E3 (do NOT pre-decide).
 
 ## Key specs to read before building (the source of truth)
