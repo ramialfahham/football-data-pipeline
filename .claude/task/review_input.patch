@@ -1,290 +1,160 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index e5d57c5..78c5f73 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,18 +4,18 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-23 (**benchmark-PR1 close**). main GREEN; no open PRs. Two-track operating model live.
--**Merged this session:** **#558** (`mart_leaderboards` v1.x — the 5 RATE boards pass%/duels%/dribble%/finishing%/
--save%, with the CPO qualification rule: minutes>=270 + position scope (outfield, save=GK) + finishing also
--SoT>=10; `finishing_efficiency` extended to the player entity; **#506 CLOSED**); **#559** (**player benchmark
--PR1** — the metric layer: 13 per-90 player metrics computed in `int_player_season__metrics` + catalogue rows,
--AND `direction`+`interpretation` classified on those 13 + the 5 existing benchmark rates, interpretations written
--player-native for website auto-content; per-90 reintroduced the PROPER way via the catalogue, reversing the A1
--unapproved-invention anti-pattern). **NEXT = player benchmark PR2** (the engine + mart — FULLY DESIGNED this
--session; see the LOCKED block below — do NOT re-litigate). Governance G1-G4 LIVE. **Website #391 PAUSED.**
--OPEN: **benchmark PR2** (build-ready) + the **Coach + career CONSUMPTION marts** (#391-gated) + player
--**opponent-context** (v1.x) + program epics **#545/#546/#547** + the **#549/#550** designs + carryovers
--**#484/#510/#500-column-align/#483/#521**._
-+_Last updated: 2026-06-23 (**benchmark-PR2 close**). main GREEN; no open PRs. Two-track operating model live.
-+**Merged this session:** **#561** (**player benchmark PR2** — the engine + mart + macro:
-+`int_player_season_position__metrics` (per (player,season,position) in-role aggregate) →
-+`int_competition_benchmarks__player` (per (league,season,position_group,metric) distribution) →
-+`mart_competition_benchmarks__player` (LONG: in-position value, distribution, rank + percentile + peer_count,
-+vs-median) + `player_benchmark_metrics()` macro; three build-time CPO refinements to the locked design — see
-+the benchmark section below). The player competition benchmark is now COMPLETE (PR1 #559 metric layer + PR2
-+#561 engine/mart). Governance G1-G4 LIVE. **Website #391 PAUSED.**
-+OPEN (no item is "next" until the CPO picks): the **Coach + career CONSUMPTION marts** (#391-gated) + player
-+**opponent-context** (v1.x flagship — weights opponents via the #561 benchmark engine) + program epics
-+**#545/#546/#547** + the **#549/#550** designs + carryovers **#484/#510/#500-column-align/#483/#521** +
-+**wiring the benchmark into an export/display** (deferred with #391)._
- 
- ## How work is organized — two tracks (NEW 2026-06-23)
- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
-@@ -31,38 +31,34 @@ OPEN: **benchmark PR2** (build-ready) + the **Coach + career CONSUMPTION marts**
-     expansion lands.
- - **One board + `stream:*` labels** group everything; the **CPO sets the per-stretch mix** (default = product).
- 
--## Player competition benchmark — PR1 MERGED (#559); PR2 is the build-ready next slice
-+## Player competition benchmark — COMPLETE (PR1 #559 + PR2 #561, both MERGED)
- The vs-benchmark engine for PLAYERS (`content_architecture.md` §6), the player analog of the team benchmark
--(#511/#512). **PR1 (#559, MERGED)** = the metric layer (13 per-90 metrics in `int_player_season__metrics` +
--catalogue rows + direction/interpretation on those 13 and the 5 existing benchmark rates). **PR2 = the benchmark
--itself — FULLY DESIGNED this session, CPO-locked, do NOT re-litigate** (the CPO design rulings are logged
--verbatim in `.claude/task/escalations.log`, 2026-06-23 "player competition benchmark — up-front CPO design
--rulings"):
--- **Structure (mirror #512):** `int_competition_benchmarks__player` (engine: per (league_code, season_api_year,
--  **position_group**, metric_key) distribution — count/mean/p25/median/p75) + `mart_competition_benchmarks__player`
--  (LONG, one row per (player, season, metric_key): value, distribution, **rank + peer_count + percentile**,
--  value−median) + a **`player_benchmark_metrics()`** macro (metric list, shared engine↔mart, like
--  `team_benchmark_metrics()`).
--- **Metric set (18, all catalogued with direction+interpretation):** the 13 per-90 (goals/assists/scorer_points/
--  shots_on_target/key_passes/dribbles_success/passes/tackles/interceptions/blocks/defensive_actions/duels_won/
--  saves) + the 5 rates (pass_accuracy_pct/duels_won_pct/dribbles_success_pct/finishing_efficiency/save_pct).
--- **Peers = position group** (GK/DEF/MID/ATT from `dim_player.player_position`; ~0.5% null among 270-min
--  qualifiers). Benchmark is per (competition, season, **position**) — compare within position (raw per-90 is
--  position-bound, e.g. defender goals/90 ≈ 0).
--- **Floor = `minutes >= 270`** (≈3 matches) for ALL metrics; **finishing_efficiency ALSO needs
--  `shots_on_target >= 10`** (its denominator is shots, not minutes — same floor as the leaderboard finishing
--  board). save% uses the GK position scope.
--- **Carry BOTH rank-of-N and percentile** (large player N makes percentile the intuitive read; rank stays honest
--  in small leagues). Carry `minutes` + `appearances` so the sample is always visible.
--- **ALL competitions — NO league-only scoping.** Percentiles are descriptive/relative, so tournaments compare
--  players within their own edition; single-match comps (e.g. Super Cup) fall out below the 270 floor naturally.
--- **NO prev-season fallback.** Each competition-season is benchmarked on its own data; the live current season
--  fills in honestly as players cross the floor (quiet ~2 months early; completed seasons are full now). Display
--  shows the season — never relabel last season as this (CPO rejected the fallback as confusing mid-season).
--- **Direction-agnostic mart** (like #512): rank by value desc; the good/bad reading comes from the catalogue
--  `direction` at display (now populated for these 18 player metrics).
--- **Floor evidence (locked):** settled against 2025 distributions — 450 too low (cameos like Awoniyi 502min/4g
--  spiked), 720/900 too slow; per-90 amplifies small samples, so 270 + sample-visible + robust median is the call.
-+(#511/#512). **PR1 (#559)** = the metric layer (13 per-90 metrics in `int_player_season__metrics` + catalogue
-+rows + direction/interpretation). **PR2 (#561)** = the engine + mart: `int_player_season_position__metrics`
-+(per (player,season,position) in-role aggregate from the per-fixture leg) → `int_competition_benchmarks__player`
-+(per (league_code,season_api_year,**position_group**,metric_key) distribution count/mean/p25/median/p75) →
-+`mart_competition_benchmarks__player` (LONG, per (player,season,**position_group**,metric_key): in-position
-+value, distribution, **rank + percentile + peer_count**, vs-median, minutes/appearances) + a
-+`player_benchmark_metrics()` macro (18-metric set + per-position eligibility, shared engine↔mart).
-+
-+**THREE build-time CPO refinements that DEVIATED from the original D1-D8 lock** (logged
-+`.claude/task/escalations.log` 2026-06-23 "player competition benchmark PR2" B1/B2/B3 — each discovered by
-+querying RAW before building, NOT by re-litigating the design):
-+- **B1 — peers from match-time `position_code` (G/D/M/F→GK/DEF/MID/ATT), NOT `dim_player.player_position`.**
-+  The "~0.5% null" premise held ONLY for 2025; the current-bio snapshot is 18-58% null in old seasons (it loses
-+  retired players' positions). `position_code` is 100% qualifier-covered EVERY season + season-accurate. (A
-+  premise-correction escalation, not a re-design.)
-+- **B2 — floor = 270 minutes IN the position** (per `position_code`), which both QUALIFIES and ASSIGNS — no
-+  modal step. The per-90 VALUE is per-(player,season,position) [in-role], NOT the #559 whole-season per-90 (that
-+  stays the profile metric). Multi-position players (~10%) appear once per qualifying role; ~4.2% of whole-season
-+  qualifiers split out (no single position ≥270) — by design. finishing also needs SoT≥10 in-position.
-+- **B3 — per-position metric ELIGIBILITY** (NOT compute-all-×-all like team): GK = {saves_per90, save_pct,
-+  passes_per90, pass_accuracy_pct}; DEF=MID=ATT = the other 16. Kills degenerate boards (outfield saves=0, GK
-+  goals~0); no finer outfield split (the peer pool already makes within-outfield comparisons position-relative).
-+  52 boards not 72. **RESERVED (still §10):** which eligible metrics a PAGE surfaces + their order = display.
-+- **percentile = `percent_rank`** (fraction strictly below), NOT cume_dist — so a 0-goal defender reads 0th not
-+  87th. 18 metrics, all pre-catalogued (no catalogue change). Direction-agnostic. ALL competitions, no
-+  prev-season fallback (D5/D6 carried).
- 
- ## Leaderboards vs benchmark — coherence ruling (CPO, this session)
- TWO deliberate lenses, kept separate (CPO chose this over merging): **leaderboards = totals/achievements** (top
-@@ -72,9 +68,10 @@ alignment: finishing% uses the SAME floor on both (minutes>=270 AND SoT>=10). Th
- TOTALS — do NOT convert them to per-90.
- 
- ## FIRST next session (do this first)
--- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. **Immediate next = player benchmark PR2** (the
--  engine + mart — see the LOCKED design block above; mirrors team #512, consumes the #559 per-90/rate metrics via
--  a new `player_benchmark_metrics()` macro). CPO directs whether to build PR2 now or pick another slice.
-+- **Nothing pending-merge** (`git fetch` + ff main). main GREEN. The player competition benchmark is COMPLETE
-+  (PR1 #559 + PR2 #561). **No item is pre-selected as "next" — the CPO picks the next slice** from the open
-+  queue below (a program tranche, opponent-context v1.x, Coach/career marts, #500 column-align, or wiring the
-+  benchmark into an export/display). Do NOT infer the next task from an issue title.
- - **PROGRAMS — pick the cut, then build:**
-   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
-     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
-@@ -86,12 +83,12 @@ TOTALS — do NOT convert them to per-90.
-     a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
-     merge-on-internal-similarity.
-   - **#547 (cost):** size BQ build cost before the expansion scales.
--- **PRODUCT (primary):** the content_architecture roadmap — **#506 leaderboards rate boards (#558) + player
--  benchmark PR1 (#559) now DONE.** Next product slices: **player benchmark PR2** (build-ready — the LOCKED block
--  above); the **Coach + career CONSUMPTION marts** (Coach page Overview / team-header current-coach chip — both
--  DEFERRED, website #391 PAUSED); the **opponent-context** flagship (v1.x — weights opponents via the benchmark
--  engine); the deferred **#500 column-alignment** (`_season`-suffix / goals_saves). **Read
--  `docs/content_architecture.md` §8/§9 first.**
-+- **PRODUCT (primary):** the content_architecture roadmap — **#506 leaderboards rate boards (#558) + the player
-+  competition benchmark (PR1 #559 + PR2 #561) now DONE.** Next product slices: the **Coach + career CONSUMPTION
-+  marts** (Coach page Overview / team-header current-coach chip — both DEFERRED, website #391 PAUSED); the
-+  **opponent-context** flagship (v1.x — weights opponents via the #561 benchmark engine); **wiring the benchmark
-+  into an export/display** (deferred with #391); the deferred **#500 column-alignment** (`_season`-suffix /
-+  goals_saves). **Read `docs/content_architecture.md` §8/§9 first.**
- - **#521** (phantom-current-season parity — `history_seasons`+1, a registry depth decision; deferred, NOT a fetch gap).
- - **To backfill a league (post-#520):** set its `history_seasons` in the registry — AUTHORITATIVE, no V1 cap —
-   then run a `full`-profile scoped ingest (`LEAGUE_CODES=<code>`, `INGEST_FORCE_FULL=1`, `LOG_QUOTA=1`), measure
-@@ -177,10 +174,10 @@ TOTALS — do NOT convert them to per-90.
-    ~10x cheaper than `fixtures × 4` (batched sub-endpoints).
- 2. ~~**`mart_leaderboards`** + **`mart_roster`**~~ — **DONE 2026-06-19** (#503 roster, #507 composites, #508 mart
-    + full consolidation). The 5 rate boards + the qualification floor are deferred → **#506**.
--3. ~~**`mart_competition_benchmarks`** (team)~~ — **TEAM DONE 2026-06-19** (#511 + #512). **PLAYER benchmark:
--   PR1 (the metric layer — per-90 metrics + direction/interpretation) DONE 2026-06-23 (#559); PR2 (engine + mart)
--   is the build-ready next slice** — see the LOCKED design block near the top of this file. The **opponent/
--   schedule-context flagship** (weights opponents via this engine) is v1.x, after the benchmark.
-+3. ~~**`mart_competition_benchmarks`** (team + player)~~ — **TEAM DONE 2026-06-19** (#511 + #512); **PLAYER DONE
-+   2026-06-23 — PR1 metric layer (#559) + PR2 engine/mart (#561)** (see the benchmark section near the top for the
-+   B1/B2/B3 build-time refinements). The **opponent/schedule-context flagship** (weights opponents via the #561
-+   engine) is v1.x, the next benchmark-adjacent product slice.
- 4. ~~**Coaches + `dim_coach`**; **`mart_player_career`** for the Career/History tabs~~ — **DONE 2026-06-23**
-    (#555 `mart_player_career`, counts only; #556 `dim_coach` + `dim_coach_team_mapping`). The **Coach + career
-    CONSUMPTION marts** (page Overview / team-header current-coach chip) remain DEFERRED — website #391 PAUSED.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1ae01f9..6781e97 100644
+index 6781e97..1741fb0 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,108 +1,44 @@
--# Task contract — player competition benchmark PR2 (engine + mart)
--
--> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), Appendix A.
-+# Task contract — session handover refresh (2026-06-23, benchmark PR2 close)
+@@ -1,44 +1,56 @@
+-# Task contract — session handover refresh (2026-06-23, benchmark PR2 close)
++# Task contract — remove the unapproved performance_vs_results_gap metric
  
  objective: >
--  Build the player competition benchmark (content_architecture §6 — the per-90 vs-position-peers engine;
--  player analog of the team benchmark #511/#512). Composes the #559 per-90/rate metrics into a per-position
--  distribution and ranks each qualifying (player, season, position) against its competition peers
--  (rank + percentile + value-median). Three additive models + one macro; modifies NO existing model.
-+  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session built +
-+  merged #561 (player benchmark PR2 — the engine + mart + macro), with three build-time CPO refinements to
-+  the originally-locked design (B1 position source, B2 per-position floor/grain, B3 per-position metric
-+  eligibility). Record: the merge; those refinements; the re-pointed open queue (PR2 no longer "next"). No
-+  code; handover doc only.
+-  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session built +
+-  merged #561 (player benchmark PR2 — the engine + mart + macro), with three build-time CPO refinements to
+-  the originally-locked design (B1 position source, B2 per-position floor/grain, B3 per-position metric
+-  eligibility). Record: the merge; those refinements; the re-pointed open queue (PR2 no longer "next"). No
+-  code; handover doc only.
++  Remove the uncatalogued, unapproved `performance_vs_results_gap` metric from mart_team_profile. It is a
++  derived "deserved-vs-actual" gap (= shot_share_season − points_capture_season) introduced in #324
++  (commit 296f449, 2026-06-10 — BEFORE the G3 review cycle existed) that was never added to
++  metric_catalogue and never CPO-approved — a metric-catalogue governance violation, and substantively a
++  crude proxy (two non-commensurable [0,1] shares with different baselines). CPO ordered immediate removal.
++  Keep the two catalogued input metrics (shot_share_season, points_capture_season) as plain season metrics;
++  de-claim the "deserved vs actual" framing in the mart doc + drop its yml column doc and range test.
  refs: >
--  content_architecture.md §6; player analog of #511/#512; consumes the #559 metric layer.
--  CPO design rulings: .claude/task/escalations.log 2026-06-23 ("player competition benchmark — UP-FRONT
--  CPO DESIGN RULINGS" D1-D8 + the two source/floor rulings logged this session).
-+  CPO directed "Refresh handover & close" after merging #561. The PR2 build-time rulings are logged in
-+  `.claude/task/escalations.log` (2026-06-23 "player competition benchmark PR2" B1/B2/B3). Pattern: prior
-+  handover refreshes (e.g. the benchmark-PR1 close this morning).
+-  CPO directed "Refresh handover & close" after merging #561. The PR2 build-time rulings are logged in
+-  `.claude/task/escalations.log` (2026-06-23 "player competition benchmark PR2" B1/B2/B3). Pattern: prior
+-  handover refreshes (e.g. the benchmark-PR1 close this morning).
++  CPO directive this session ("Remove it immediately. ... I didn't approve this."). Violates
++  metric-catalogue governance ([[feedback-metric-catalogue-governance]] — never invent a metric in a mart;
++  catalogue-first). The missing CI enforcement is tracked by #530. The proper deserved-vs-actual REDESIGN
++  is a SEPARATE design thread (not this PR).
  
  scope_paths:
--  - dbt_project/macros/player_benchmark_metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
--  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
--  - dbt_project/models/5_marts/shared/shared.yml
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
    - .claude/task/**
  
  impact_map: >
--  writers: THREE NEW models only — int_player_season_position__metrics (table; per (player, season,
--    position_code) atoms + 18 in-position metrics from fct_fixture_player_stats + fct_fixture),
--    int_competition_benchmarks__player (table; per (league_code, season_api_year, position_group,
--    metric_key) distribution), mart_competition_benchmarks__player (view; LONG per (player, season,
--    position_group, metric_key)). NO existing model is modified (int_player_season__metrics from #559 is
--    untouched; the position-split model reads the per-fixture leg directly, not that model).
--  downstream: ADDITIVE LEAF. mart_competition_benchmarks__player has no downstream (the v2 export /
--    website is #391-PAUSED, no consumer built). Evidence: `dbt ls --select int_player_season__metrics+
--    --resource-type model` (venv dbt 1.7.19) → int_player_career__metrics, mart_leaderboards,
--    mart_player_career, mart_player_profile — i.e. the #559 model's consumers; this PR touches NONE of
--    them and adds a separate position-split branch. New models compile to leaves (verify post-build with
--    `dbt ls --select mart_competition_benchmarks__player+` → only itself).
--  layer_rules: 4_intermediate = feature aggregation (the per-position metrics + the distribution engine);
--    5_marts = consumption (the ranked LONG mart). All in 4_intermediate/shared + 5_marts/shared (cross-
--    league, league_code partition column flows through; no per-competition files — check_layer_contract
--    stays green). Materialization set in-file (table/table/view); no dbt_project.yml change.
--  deploy_order: purely additive — the three new objects build after their upstream core facts
--    (fct_fixture_player_stats, fct_fixture, dim_player) in the 04:00 nightly DAG; no existing model's
--    build or order changes; nothing breaks pre-merge (new objects only, no contract change to a live model).
--  blast_radius: NONE on shipped numbers — additive; no existing mart SQL changes. Grain evidence PASTED
--    (live BQ, not asserted — §2/A6). position_code coverage at the 270-min qualifier grain, by season
--    (`SELECT season_api_year, COUNT(*) qualifiers, COUNTIF(season_position_code IS NULL) null_poscode FROM
--    season_pos JOIN int_player_season__metrics WHERE minutes>=270` over the modal position_code per
--    player-season):
--      2026: 3435 q / 0 null    2025: 10836 / 0    2024: 11315 / 0    2023: 9993 / 0    2022: 9804 / 0
--      2021: 6293 / 0    2020: 4313 / 0    2019: 4280 / 0    2018: 3628 / 0    2017: 3465 / 0    2016: 2564 / 0
--    => 100% coverage every season (0 null), vs dim_player.player_position null 0.1%/0.5%/5.6%/.../58% (2026..
--    2016) — the premise behind B1. Qualifying (player, season, position) rows = 60,375 single-position +
--    6,561 two-position + 67 three-position (`GROUP BY player,season HAVING COUNTIF(min_in_pos>=270)=N`).
--    Junk position_codes ('-'/'SUB'/null = 142 of 1.67M legs) are excluded (not G/D/M/F).
-+  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
-+  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
-+  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
-+  blast_radius: NONE — handover text only; no shipped number moves.
+-  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
+-  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
+-  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
+-  blast_radius: NONE — handover text only; no shipped number moves.
++  writers: mart_team_profile (MODIFY — drop the single derived column performance_vs_results_gap + its doc;
++    no other model writes it).
++  downstream: mart_team_profile is a LEAF dbt model — `dbt ls --select mart_team_profile+ --resource-type
++    model` (venv dbt 1.7.19) → only itself. The sole consumer is scripts/export_site_data.py, which does
++    `select * from mart_team_profile` (line 342) but NEVER references performance_vs_results_gap by name
++    (`grep -rn performance_vs_results scripts/` → no match), so the exported payload is unaffected; the v2
++    site (#391) is PAUSED regardless.
++  layer_rules: 5_marts consumption; no layer change. The two retained inputs stay catalogued metrics.
++  deploy_order: mart is a view — dropping a column rebuilds on the next run; the export `select *` simply
++    returns one fewer column. No migration ordering risk; nothing breaks pre-merge.
++  blast_radius: removes ONE uncatalogued column + its range test + doc lines. shot_share_season and
++    points_capture_season (both catalogued, approved) are RETAINED. No catalogued number changes; no
++    user-facing surface today (site paused). Reversible.
  
  decisions_taken: >
--  ALL CPO-locked; do not re-litigate (escalations.log 2026-06-23 D1-D8 + the two rulings this session):
--  - Structure mirrors team #512: metrics model -> engine (distribution) -> mart (rank), + a
--    player_benchmark_metrics() macro shared engine<->mart (like team_benchmark_metrics()).
--  - Metric set = 18 (D8): 13 per-90 (goals/assists/scorer_points/shots_on_target/key_passes/
--    dribbles_success/passes/tackles/interceptions/blocks/defensive_actions/duels_won/saves) + 5 rates
--    (pass_accuracy_pct/duels_won_pct/dribbles_success_pct/finishing_efficiency/save_pct). All already in
--    metric_catalogue with direction populated (verified live) — PR2 makes NO catalogue change.
--  - Peers = position group GK/DEF/MID/ATT (D2). SOURCE = season-level position_code from
--    fct_fixture_player_stats (G/D/M/F -> GK/DEF/MID/ATT), NOT dim_player.player_position (CPO ruling this
--    session, "B"): the bio-snapshot null is 0.5% only in 2025 but 18-58% in historical seasons (the
--    "0.5% null" premise held only for 2025); position_code is recorded at match time -> 100% qualifier
--    coverage every season AND is season-accurate (the role actually played that season).
--  - Floor = 270 minutes IN THE POSITION (CPO ruling this session, "Yes, I agree"): the >=270 rule applies
--    per position_code, which both qualifies AND assigns position — NO modal/mode step. A player who clears
--    270 in two positions (~10%) appears in BOTH benchmarks, each on the per-90 he produced IN that role
--    (the value grain is per (player, season, position); the whole-season per-90 in #559 stays the profile
--    metric, it is NOT the benchmark value source). finishing_efficiency ALSO needs shots_on_target >= 10
--    IN the position (D4). save_pct populates only where position = G (null elsewhere -> falls out).
--  - METRIC ELIGIBILITY PER POSITION (CPO ruling this session, "I agree") — Path B (per-position relevant
--    set), NOT compute-all-x-all. Rule: benchmark a metric for a position group only when non-degenerate for
--    that group; because the peer pool is already position-specific, the only dead boards are at the
--    GK<->outfield boundary. MAP: GK = {saves_per90, save_pct, passes_per90, pass_accuracy_pct} (4); DEF =
--    MID = ATT = the other 16 (everything except the 2 GK-only metrics). No finer DEF/MID/ATT split (the
--    peer pool already makes within-outfield comparisons position-relative; splitting would bake display into
--    the benchmark). 52 position x metric boards, not 72. Eligibility lives as a per-metric position list in
--    the player_benchmark_metrics() macro (shared engine<->mart); an ineligible metric x position emits no
--    row (null -> excluded), no schema change.
--  - Carry BOTH rank-of-N AND percentile (D3) + peer_count + minutes + appearances (sample visible).
--  - ALL competitions, no league-only scoping (D5). NO prev-season fallback — each competition-season on
--    its own data (D6). DIRECTION-AGNOSTIC mart — rank by value desc; good/bad read from catalogue
--    direction at display (D7). Two lenses kept separate from leaderboards (coherence ruling).
-+  Reflect already-merged facts only — no NEW design this refresh. #561 (PR2) is merged (main GREEN). The
-+  benchmark section is rewritten from "PR2 build-ready" to "PR2 MERGED" + the three B1/B2/B3 refinements
-+  (position_code source, 270-min-in-position floor + in-position value grain, per-position eligibility map,
-+  percent_rank percentile). The two-track operating model + program epics carry forward. Status + design-
-+  capture refresh, not a re-scope.
+-  Reflect already-merged facts only — no NEW design this refresh. #561 (PR2) is merged (main GREEN). The
+-  benchmark section is rewritten from "PR2 build-ready" to "PR2 MERGED" + the three B1/B2/B3 refinements
+-  (position_code source, 270-min-in-position floor + in-position value grain, per-position eligibility map,
+-  percent_rank percentile). The two-track operating model + program epics carry forward. Status + design-
+-  capture refresh, not a re-scope.
++  CPO ordered the removal. SURGICAL scope: remove ONLY the uncatalogued derived gap + its doc/test + the
++  "deserved vs actual" framing in the mart header comment. Do NOT remove shot_share_season /
++  points_capture_season (they are catalogued, approved season metrics — removing them would be scope creep).
++  Do NOT touch metric_catalogue.csv (no catalogue row to remove; the inputs' rows stay). Do NOT redesign
++  deserved-vs-actual here.
  
  decisions_reserved:
--  - The benchmark ELIGIBILITY per position is now LOCKED (the map above). What remains reserved: WHICH of
--    a position's eligible metrics a PAGE surfaces, and in what order, is a page-composition / display
--    decision (§10) — OUT OF SCOPE for PR2. The mart carries all eligible (position, metric) boards;
--    display picks and orders later. Flag, do not decide.
-+  - What the next stretch builds (a program tranche, opponent-context v1.x, Coach/career marts, #500
-+    column-align, or wiring the benchmark into an export) is the CPO's pick at the start of the next chat —
-+    the handover records the merged state + the open queue, it does not choose.
+-  - What the next stretch builds (a program tranche, opponent-context v1.x, Coach/career marts, #500
+-    column-align, or wiring the benchmark into an export) is the CPO's pick at the start of the next chat —
+-    the handover records the merged state + the open queue, it does not choose.
++  - The proper deserved-vs-actual REDESIGN (deepen the team signal beyond raw shot_share into a real,
++    catalogued chance-quality composite; the player analog) is a §10 + football-analytics-owned design
++    thread, to be scoped in its own issue. NOT decided or built in this PR.
  
  done_when:
--  - `dbt parse` clean; `dbt build --select int_player_season_position__metrics
--    int_competition_benchmarks__player mart_competition_benchmarks__player` green (incl. the new yml tests:
--    unique grain, not_null keys, accepted_values on metric_key + position_group, rank in 1..peer_count).
--  - `dbt ls --select mart_competition_benchmarks__player+ --resource-type model` -> only itself (leaf).
--  - Spot-check (live): a multi-position player shows distinct per-90 per position; a single-position player
--    with NO junk-position legs has a benchmark value equal to his #559 whole-season per-90 (the position
--    filter excludes '-'/'SUB'/null legs, so a player with such legs differs by that fraction — measured: 9
--    of 137,417 single-position seasons); percentile in [0, 1] (percent_rank: 0 = bottom/tied-bottom),
--    rank in 1..peer_count.
--  - SQLFluff clean on the new SQL. Full G3 review cycle: scope-auditor + analytics-engineer-reviewer PASS.
-+  - active_work.md status line names #561 (player benchmark PR2) MERGED, main GREEN, no open PRs.
-+  - The benchmark section records PR2 as MERGED with the B1/B2/B3 refinements (and the new models
-+    int_player_season_position__metrics / int_competition_benchmarks__player / mart_competition_benchmarks__player).
-+  - FIRST-next-session no longer says "build PR2"; the open queue is re-pointed.
-+  - Last-updated stamp moved to 2026-06-23 (benchmark-PR2 close).
-+  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
+-  - active_work.md status line names #561 (player benchmark PR2) MERGED, main GREEN, no open PRs.
+-  - The benchmark section records PR2 as MERGED with the B1/B2/B3 refinements (and the new models
+-    int_player_season_position__metrics / int_competition_benchmarks__player / mart_competition_benchmarks__player).
+-  - FIRST-next-session no longer says "build PR2"; the open queue is re-pointed.
+-  - Last-updated stamp moved to 2026-06-23 (benchmark-PR2 close).
+-  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
++  - `grep -rn performance_vs_results_gap dbt_project/ scripts/` → no matches (outside target/).
++  - `dbt build --select mart_team_profile` green (model rebuilds; the dropped column's range test is gone).
++  - mart header comment no longer claims a "deserved vs actual" differentiator; shared.yml mart description
++    + the column doc + the range test for performance_vs_results_gap are removed.
++  - SQLFluff clean. Full G3 review: scope-auditor + analytics-engineer-reviewer PASS.
  
  amendments: (none)
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index 91b48ea..32940f2 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -13,10 +13,6 @@
+     - season metric rates  int_team_season__metrics
+ 
+   Differentiators:
+-    - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
+-      dominance) shown against points_capture_season + latest_rank (actual
+-      achievement), with a transparent performance_vs_results_gap. Two real
+-      ratios and their difference, NOT a fabricated composite score.
+     - Vs own history — matchday-aligned year-over-year (this season vs last,
+       through the same matchday), domestic leagues only, from
+       int_team_profile__yoy. NULL for non-domestic competitions and where the
+@@ -100,7 +96,7 @@ select
+     m.duels_per_match_season,
+     m.duels_won_pct_season,
+     m.defensive_actions_per_match_season,
+-    -- deserved vs actual: dominance (shot_share) vs achievement (points_capture)
++    -- shooting dominance + results efficiency (catalogued season metrics)
+     m.shot_share_season,
+     m.points_capture_season,
+     -- year-over-year (domestic only; NULL otherwise / when prior season absent)
+@@ -119,10 +115,7 @@ select
+     s.win_run,
+     s.winless_run,
+     s.clean_sheet_run,
+-    s.scoring_run,
+-    -- transparent over/under-performance signal (positive = dominates play more
+-    -- than results reward; both inputs are real [0,1] shares, no composite score)
+-    m.shot_share_season - m.points_capture_season as performance_vs_results_gap
++    s.scoring_run
+ from metrics as m
+ left join team_season as ts
+     on m.team_season_sk = ts.team_season_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 1381140..d38632d 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -250,9 +250,8 @@ models:
+     description: >
+       Team profile (#324). One row per (team, competition-season): identity + record +
+       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
+-      (int_team_season__metrics) + two signature differentiators and a streaks
+-      layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
+-      transparent performance_vs_results_gap (no composite score). Year-over-year columns
++      (int_team_season__metrics, incl. shot_share_season + points_capture_season) + a
++      year-over-year differentiator and a streaks layer. Year-over-year columns
+       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
+       domestic-league only — NULL elsewhere and where the prior season is not ingested.
+       Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
+@@ -265,9 +264,6 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "points_capture_season is null or (points_capture_season between 0 and 1)"
+           name: team_profile_points_capture_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "performance_vs_results_gap is null or (performance_vs_results_gap between -1 and 1)"
+-          name: team_profile_perf_gap_in_range
+       # GAP-13 season variant of the duel win rate — same-window ratio bound
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct_season is null or (duels_won_pct_season between 0 and 1)"
+@@ -286,8 +282,6 @@ models:
+         tests: [not_null]
+       - name: competition_type
+         description: "From the registry; YoY columns are populated only for domestic_league."
+-      - name: performance_vs_results_gap
+-        description: "shot_share_season - points_capture_season. Positive = dominates play more than results reward; both inputs are real [0,1] shares (transparent, not a composite score)."
+       - name: points_delta_yoy
+         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
+ 

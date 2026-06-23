@@ -1,44 +1,56 @@
-# Task contract — session handover refresh (2026-06-23, benchmark PR2 close)
+# Task contract — remove the unapproved performance_vs_results_gap metric
 
 objective: >
-  Refresh .claude/active_work.md so a fresh chat continues from the CURRENT state. This session built +
-  merged #561 (player benchmark PR2 — the engine + mart + macro), with three build-time CPO refinements to
-  the originally-locked design (B1 position source, B2 per-position floor/grain, B3 per-position metric
-  eligibility). Record: the merge; those refinements; the re-pointed open queue (PR2 no longer "next"). No
-  code; handover doc only.
+  Remove the uncatalogued, unapproved `performance_vs_results_gap` metric from mart_team_profile. It is a
+  derived "deserved-vs-actual" gap (= shot_share_season − points_capture_season) introduced in #324
+  (commit 296f449, 2026-06-10 — BEFORE the G3 review cycle existed) that was never added to
+  metric_catalogue and never CPO-approved — a metric-catalogue governance violation, and substantively a
+  crude proxy (two non-commensurable [0,1] shares with different baselines). CPO ordered immediate removal.
+  Keep the two catalogued input metrics (shot_share_season, points_capture_season) as plain season metrics;
+  de-claim the "deserved vs actual" framing in the mart doc + drop its yml column doc and range test.
 refs: >
-  CPO directed "Refresh handover & close" after merging #561. The PR2 build-time rulings are logged in
-  `.claude/task/escalations.log` (2026-06-23 "player competition benchmark PR2" B1/B2/B3). Pattern: prior
-  handover refreshes (e.g. the benchmark-PR1 close this morning).
+  CPO directive this session ("Remove it immediately. ... I didn't approve this."). Violates
+  metric-catalogue governance ([[feedback-metric-catalogue-governance]] — never invent a metric in a mart;
+  catalogue-first). The missing CI enforcement is tracked by #530. The proper deserved-vs-actual REDESIGN
+  is a SEPARATE design thread (not this PR).
 
 scope_paths:
-  - .claude/active_work.md
+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+  - dbt_project/models/5_marts/shared/shared.yml
   - .claude/task/**
 
 impact_map: >
-  writers: NONE — documentation/handover only. No dbt model, seed, script, registry, or CI change.
-  downstream: the next chat's SessionStart hook reads .claude/active_work.md; no warehouse/build impact.
-  layer_rules: n/a (no model touched). deploy_order: n/a — doc merge to main; nothing builds.
-  blast_radius: NONE — handover text only; no shipped number moves.
+  writers: mart_team_profile (MODIFY — drop the single derived column performance_vs_results_gap + its doc;
+    no other model writes it).
+  downstream: mart_team_profile is a LEAF dbt model — `dbt ls --select mart_team_profile+ --resource-type
+    model` (venv dbt 1.7.19) → only itself. The sole consumer is scripts/export_site_data.py, which does
+    `select * from mart_team_profile` (line 342) but NEVER references performance_vs_results_gap by name
+    (`grep -rn performance_vs_results scripts/` → no match), so the exported payload is unaffected; the v2
+    site (#391) is PAUSED regardless.
+  layer_rules: 5_marts consumption; no layer change. The two retained inputs stay catalogued metrics.
+  deploy_order: mart is a view — dropping a column rebuilds on the next run; the export `select *` simply
+    returns one fewer column. No migration ordering risk; nothing breaks pre-merge.
+  blast_radius: removes ONE uncatalogued column + its range test + doc lines. shot_share_season and
+    points_capture_season (both catalogued, approved) are RETAINED. No catalogued number changes; no
+    user-facing surface today (site paused). Reversible.
 
 decisions_taken: >
-  Reflect already-merged facts only — no NEW design this refresh. #561 (PR2) is merged (main GREEN). The
-  benchmark section is rewritten from "PR2 build-ready" to "PR2 MERGED" + the three B1/B2/B3 refinements
-  (position_code source, 270-min-in-position floor + in-position value grain, per-position eligibility map,
-  percent_rank percentile). The two-track operating model + program epics carry forward. Status + design-
-  capture refresh, not a re-scope.
+  CPO ordered the removal. SURGICAL scope: remove ONLY the uncatalogued derived gap + its doc/test + the
+  "deserved vs actual" framing in the mart header comment. Do NOT remove shot_share_season /
+  points_capture_season (they are catalogued, approved season metrics — removing them would be scope creep).
+  Do NOT touch metric_catalogue.csv (no catalogue row to remove; the inputs' rows stay). Do NOT redesign
+  deserved-vs-actual here.
 
 decisions_reserved:
-  - What the next stretch builds (a program tranche, opponent-context v1.x, Coach/career marts, #500
-    column-align, or wiring the benchmark into an export) is the CPO's pick at the start of the next chat —
-    the handover records the merged state + the open queue, it does not choose.
+  - The proper deserved-vs-actual REDESIGN (deepen the team signal beyond raw shot_share into a real,
+    catalogued chance-quality composite; the player analog) is a §10 + football-analytics-owned design
+    thread, to be scoped in its own issue. NOT decided or built in this PR.
 
 done_when:
-  - active_work.md status line names #561 (player benchmark PR2) MERGED, main GREEN, no open PRs.
-  - The benchmark section records PR2 as MERGED with the B1/B2/B3 refinements (and the new models
-    int_player_season_position__metrics / int_competition_benchmarks__player / mart_competition_benchmarks__player).
-  - FIRST-next-session no longer says "build PR2"; the open queue is re-pointed.
-  - Last-updated stamp moved to 2026-06-23 (benchmark-PR2 close).
-  - check_task_artifacts passes; scope-auditor PASS; diff within scope_paths.
+  - `grep -rn performance_vs_results_gap dbt_project/ scripts/` → no matches (outside target/).
+  - `dbt build --select mart_team_profile` green (model rebuilds; the dropped column's range test is gone).
+  - mart header comment no longer claims a "deserved vs actual" differentiator; shared.yml mart description
+    + the column doc + the range test for performance_vs_results_gap are removed.
+  - SQLFluff clean. Full G3 review: scope-auditor + analytics-engineer-reviewer PASS.
 
 amendments: (none)

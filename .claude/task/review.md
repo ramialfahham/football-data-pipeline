@@ -1,20 +1,25 @@
-# Review — chore/handover-2026-06-23-benchmark-pr2 — 2026-06-23
+# Review — fix/remove-unapproved-performance-gap — 2026-06-23
 
-> Doc-only handover refresh after merging PR #561 (player competition benchmark PR2).
-> Changes .claude/active_work.md + .claude/task/contract.md only. Not artifact-exempt
-> because contract.md is hashed (artifact_only_never); scope-auditor required,
-> analytics-engineer-reviewer DORMANT (no dbt_project/** paths in the diff).
+> CPO-ordered removal of the uncatalogued, unapproved `performance_vs_results_gap` metric
+> (= shot_share_season − points_capture_season) from mart_team_profile. Surgical: one
+> derived column + its yml column-doc + its range test + the "deserved vs actual" doc
+> framing. The two catalogued input metrics (shot_share_season, points_capture_season) are
+> retained; metric_catalogue.csv untouched.
 
-diff_sha256: f4d29eba62a1a76283ab2b01f10cb2957b269dbd1bf4c0ee114809dd79df9458
+diff_sha256: 86bca24ed6b45884f4e0ab3d264410466d09d494694c42f5609ef303c5a8bc6a
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- B1/B2/B3 premise fidelity: verified the three build-time CPO refinements logged in escalations.log (position_code source; 270-min-in-position floor + in-position value grain; per-position metric eligibility; percent_rank) are captured in the handover with correct data (100% position_code qualifier coverage every season vs 18-58% null on dim_player.player_position in old seasons; 52-board count). A distorted premise would make the next session re-litigate settled design or build on false facts.
-- decisions_reserved integrity + staleness removal: verified all "build-ready"/"next = PR2"/"do NOT re-litigate" language is excised, the benchmark is stated COMPLETE (PR1 #559 + PR2 #561), PAGE-composition stays reserved to the CPO, and NO next item is pre-selected from the open queue. A leftover "build-ready" claim or a pre-selected next task would usurp the CPO's authority over the queue.
+- Scope creep on the catalogued inputs: verified shot_share_season + points_capture_season remain in the SELECT and keep their range tests; metric_catalogue.csv is untouched. Removing them would have been a silent §10 change beyond the CPO's surgical order.
+- Incomplete/inconsistent removal: verified the removal is complete and consistent across the SQL (column + comment + header doc), the yml (range test + column doc + description reframed), with zero remaining references in dbt_project/ or scripts/; the redesign is correctly reserved as a separate thread (not smuggled into a removal PR).
 
 ## analytics-engineer-reviewer
-DORMANT — no dbt_project/** paths in the diff (handover-doc-only).
+VERDICT: PASS
+risks_checked:
+- SQL last-SELECT-item validity: the removed expression was the final SELECT column; post-removal `s.scoring_run` is the new final item with no trailing comma, immediately followed by `from metrics as m` — syntactically valid (model builds, 9 tests pass).
+- Downstream export breakage: `scripts/export_site_data.py:342` does `select *` and never names the dropped column (grep: 0 hits in scripts/), so the payload loses one key silently with no consumer break; mart_team_profile is a leaf (no dbt downstream).
+- NOTE (non-blocking, deferred): stale references remain in docs OUTSIDE scope — `docs/content_architecture.md` (still claims the team deserved-vs-actual is "Built"), `docs/wireframes/02_team_profile.md`, `docs/audits/2026-06_alignment_audit.md`. Not executable, not in scope_paths/done_when; to be handled in the deserved-vs-actual redesign thread.
 
 ## escalations
 (none)

@@ -13,10 +13,6 @@
     - season metric rates  int_team_season__metrics
 
   Differentiators:
-    - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
-      dominance) shown against points_capture_season + latest_rank (actual
-      achievement), with a transparent performance_vs_results_gap. Two real
-      ratios and their difference, NOT a fabricated composite score.
     - Vs own history — matchday-aligned year-over-year (this season vs last,
       through the same matchday), domestic leagues only, from
       int_team_profile__yoy. NULL for non-domestic competitions and where the
@@ -100,7 +96,7 @@ select
     m.duels_per_match_season,
     m.duels_won_pct_season,
     m.defensive_actions_per_match_season,
-    -- deserved vs actual: dominance (shot_share) vs achievement (points_capture)
+    -- shooting dominance + results efficiency (catalogued season metrics)
     m.shot_share_season,
     m.points_capture_season,
     -- year-over-year (domestic only; NULL otherwise / when prior season absent)
@@ -119,10 +115,7 @@ select
     s.win_run,
     s.winless_run,
     s.clean_sheet_run,
-    s.scoring_run,
-    -- transparent over/under-performance signal (positive = dominates play more
-    -- than results reward; both inputs are real [0,1] shares, no composite score)
-    m.shot_share_season - m.points_capture_season as performance_vs_results_gap
+    s.scoring_run
 from metrics as m
 left join team_season as ts
     on m.team_season_sk = ts.team_season_sk
