@@ -58,6 +58,9 @@ aggregated_season as (
                 else 0
             end
         ) as points_won_sum_season,
+        countif(upper(trim(result)) = 'W') as wins_sum_season,
+        countif(upper(trim(result)) = 'D') as draws_sum_season,
+        countif(upper(trim(result)) = 'L') as losses_sum_season,
         sum(goals_for) as goals_for_sum_season,
         sum(goals_against) as goals_against_sum_season,
         sum(shots_total) as total_shots_sum_season,
@@ -93,6 +96,10 @@ select
     stat_coverage_season_games,
     player_stat_coverage_season_games,
     points_won_sum_season,
+    wins_sum_season,
+    draws_sum_season,
+    losses_sum_season,
+    clean_sheets_count_season as clean_sheets_sum_season,
     goals_for_sum_season,
     goals_against_sum_season,
     total_shots_sum_season,

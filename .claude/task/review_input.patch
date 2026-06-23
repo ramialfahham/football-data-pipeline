@@ -1,185 +1,2353 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index e0ae9f8..ea40671 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,16 +4,22 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
--investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
--2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
--loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
--realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
--real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
--labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
--duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
--(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
--OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
-+_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
-+fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
-+complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
-+EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
-+are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
-+Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
-+**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
-+had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
-+Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
-+base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
-+`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
-+LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
-+proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
-+escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
-+**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
-+**Website #391 PAUSED.**_
- 
- ## How work is organized — two tracks (NEW 2026-06-23)
- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
-@@ -35,12 +41,12 @@ OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4
-   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
-     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
-     onboard (registry, zero-file), `verify-competition-ingest`.
--  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
--    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
--    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
--    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
--    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
--    standing DQ scan (template for the class).
-+  - **#546 (data-quality):** the **#526 fix LANDED (#551, merged)** — `assert_event_team_in_fixture_participants`
-+    (event team ∈ {home, away}) is the generic detector and `fixture_event_team_overrides` is the CPO-owned
-+    correction seed. NEXT: (a) generalise the detector into the standing all-league DQ scan; (b) the **#550**
-+    automated-triage design (detect → gather-evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix) —
-+    a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
-+    merge-on-internal-similarity.
-   - **#547 (cost):** size BQ build cost before the expansion scales.
- - **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
-   **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index fee2034..28a45c9 100644
+index 28a45c9..0fa488f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,103 +1,36 @@
--# Task contract — #526 event team mis-attribution + duplicate-id correction (Path A)
-+# Task contract — Handover refresh (#526 closeout, 2026-06-23)
+@@ -1,36 +1,98 @@
+-# Task contract — Handover refresh (#526 closeout, 2026-06-23)
++# Task contract — #500 team-season consolidation (Option A: rename + mart dedup)
  
  objective: >
--  Correct the two confirmed fixture-event team-attribution defects (CPO-approved Path A),
--  via a base-layer CPO-owned override seed, and ship a permanent integrity guard:
--  (a) Riga FC — provider duplicate id: alias event team 2263 -> 10124 (one club, two ids).
--  (b) ASC Kara / ASKO Kara — mis-attribution: re-attribute event team 6424 -> 25274 ONLY in
--      fixtures where 25274 is a participant and 6424 is not (ASC Kara's own 2019/2025 events,
--      where 6424 IS the participant, stay 6424). The two ids are DISTINCT real clubs — never
--      merged. Then add an integrity test (event team in {home, away}) as a permanent ERROR guard.
-+  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
-+  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
-+  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
-+  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
-+  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
-+  Doc / bookkeeping only — no code, no product decision.
+-  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
+-  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
+-  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
+-  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
+-  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
+-  Doc / bookkeeping only — no code, no product decision.
++  #500 Option A (CPO: "Then it's A" + "Rename + fold that dedup"). (1) Rename
++  int_team_season__full_season_metrics -> int_team_season__metrics, parallel to
++  int_player_season__metrics (#480); keep the per-match record (int_season_record__team) and
++  standings (int_team_season__standings_primary) as distinct surfaces, mirroring the player side.
++  (2) Fold the one real redundancy: mart_team_season re-aggregates season W/D/L/goals from
++  int_legs__team_match that the rollup already sums — add wins/draws/losses_sum_season to the
++  rollup and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical
++  refactor — NO shipped-number change. Defer the `_season`-suffix / goals_saves COLUMN alignment
++  (a larger separate cascade) to a follow-up.
  
  refs: >
--  #526 (defect + full triple-verified diagnosis this session). Seeds the #546 DQ standing scan
--  (the integrity test is the generic detector). #549 (proposal-gate) / #550 (automation design)
--  are separate follow-ups, not built here.
-+  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
-+  feedback-verify-real-world-identity.
+-  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
+-  feedback-verify-real-world-identity.
++  #500 (team analog of #480). The catalogue drift-test comment earmarks the `_season`/goals_saves
++  column alignment for #500 — deferred here (see decisions_reserved).
  
  scope_paths:
--  - dbt_project/seeds/fixture_event_team_overrides.csv        # NEW seed (name reserved, see below)
--  - dbt_project/seeds/schema.yml                              # document/test the seed
--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/3_core/fct_fixture_event.sql           # extend self-heal to reprocess the fixtures
--  - dbt_project/tests/assert_event_team_in_fixture_participants.sql  # NEW integrity test (name reserved)
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/5_marts/shared/mart_team_season.sql
++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++  - dbt_project/macros/team_benchmark_metrics.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++  - docs/metric_layer.md
    - .claude/task/**
  
--impact_map: >
--  writers: base_apif__fixture_events derives event team_id from RAW_APIF_FIXTURE_DETAILS
--    $.events[].team.id (via stg_apif__fixture_events), today with a null-team_id recovery clause.
--    This task adds a seed-driven OVERRIDE of team_id in that base model. To evaluate the
--    `reattribute_if_cohabiting` mode it joins base_apif__fixtures_next (fixture participants:
--    home_team_id/away_team_id) on fixture_id. NO ingestion/raw writer change — provider data is
--    left faithful; the correction lives in transform. The `alias` mode is unconditional.
--  downstream: (dbt ls --select base_apif__fixture_events+ --resource-type model, this session)
--    base_apif__fixture_events
--    base_apif__players
--    dim_player
--    fct_fixture_event
--    mart_fixture_stats__player
--    mart_leaderboards
--    mart_momentum_window__team
--    mart_player_match_log
--    mart_player_profile
--    mart_roster
--  layer_rules: the correction is "entity alignment", which the layer contract places in 2_base
--    (1_staging is raw-cleanup-only; 3_core is canonical facts). Seed = seeds-as-configuration.
--    No per-competition files; league_code flows through. check_layer_contract unaffected.
--  deploy_order: base_apif__fixture_events is a VIEW (recomputes on read). fct_fixture_event is
--    INCREMENTAL on raw_ingested_at and will NOT reprocess already-committed rows for a changed
--    (non-null -> non-null) team_id. Chosen reprocessing: extend fct_fixture_event's existing
--    self-heal clause to also re-run fixtures listed in the override seed (bounded, self-limiting;
--    mirrors the #527 null-team_sk self-heal) -- NO --full-refresh. Idempotent; ci-data-build on the
--    PR rebuilds and applies it; nothing is broken between merge and rebuild.
--  blast_radius: the corrected team_id lands ONLY in fct_fixture_event.team_sk/team_api_id, and
--    fct_fixture_event is a LEAF -- `dbt ls --select fct_fixture_event+` returns only itself and NO
--    model ref()s it (grep over models/ this session). So NO mart number changes. The marts in the
--    base_apif__fixture_events+ closure (mart_leaderboards / mart_roster / mart_player_profile /
--    mart_player_match_log / mart_fixture_stats__player / mart_momentum_window__team) sit downstream
--    of BASE via base_apif__players -> dim_player (player identity) and fct_fixture_player_stats
--    (player match stats) — neither reads the event team_id. Change is bounded to 38 fct_fixture_event
--    rows across 3 clubs (25274 ASKO Kara, 6424 ASC Kara, 10124/2263 Riga FC) in 15 fixtures (13 CAFCL
--    2020-24 + 2 UEL 2018) -- RAW count this session: event team NOT IN (home,away) = 38 / 15 fixtures;
--    recent-season baseline 0. All 15 fixtures ARE present in base_apif__fixtures_next / fct_fixture
--    (verified: fct_fixture carries their home/away participants), so the reattribute_if_cohabiting
--    path fires and the integrity test covers them.
--
++impact_map: >
++  writers: int_team_season__metrics (renamed from __full_season_metrics) — SAME aggregation over
++    int_legs__team_match + int_legs__team_from_players, PLUS three new counts
++    wins_sum_season/draws_sum_season/losses_sum_season + the previously-internal clean-sheet count
++    now EXPOSED in the final select as clean_sheets_sum_season (the `_sum_season` convention keeps
++    them catalogue-exempt). mart_team_season — now COMPOSES int_team_season__metrics for the season
++    counts (played=season_games_played, goals_for/against=*_sum_season, points=points_won_sum_season,
++    clean_sheets=clean_sheets_sum_season, +W/D/L) and DROPS its own int_legs__team_match
++    aggregation; keeps the dim_team + int_team_season__standings_primary joins.
++  downstream: pasted from `dbt ls` this session (raw --output name):
++    $ dbt ls --select int_team_season__full_season_metrics+ --resource-type model --output name
++        int_competition_benchmarks__team
++        int_team_season__full_season_metrics
++        mart_competition_benchmarks__team
++        mart_team_profile
++        mart_team_season_insights
++    $ dbt ls --select mart_team_season+ --resource-type model --output name
++        mart_team_profile
++        mart_team_season
++        mart_team_season_insights
++    (team_benchmark_metrics macro NAMES the model in a comment only — no ref(), confirmed by grep.)
++  layer_rules: the rename is name-only. The dedup moves leg-aggregation OUT of the mart and makes
++    the mart a consumer of the intermediate rollup — logic moves UP the layers (correct direction).
++    No staging/core touched. check_layer_contract unaffected.
++  deploy_order: all tables/views; ci-data-build does a full rebuild so int_team_season__metrics is
++    created under the new name. The old int_team_season__full_season_metrics relation is orphaned in
++    the shared warehouse (dbt does not drop a renamed model's old table) — harmless, swept by the
++    next full-refresh; no consumer references it post-rename.
++  blast_radius: NO shipped-number change intended. The rename is name-only. The mart_team_season
++    dedup is byte-identical: the rollup's sums equal mart_team_season's prior agg over the SAME legs
++    (SUM ignores nulls == SUM(coalesce(.,0)); finished legs carry non-null goals, so
++    clean_sheets_count_season == countif(coalesce(goals_against,0)=0); count(distinct fixture_sk) ==
++    count(*) at the one-row-per-(team,fixture) leg grain). wins/draws/losses are newly RELOCATED
++    from the mart into the rollup. Byte-identity is established PRE-HOC by the column-equivalence
++    reasoning above (each composed column maps 1:1 to an existing rollup sum); ci-data-build
++    before/after = 0 diff on mart_team_season + mart_team_profile + mart_team_season_insights is the
++    done_when CONFIRMATION gate (runs on the PR, not yet executed). The benchmark engine reads only
++    the rate columns (unchanged), so int_competition_benchmarks__team / mart_competition_benchmarks__team
++    are inert.
++
  decisions_taken: >
--  Path A approved by the CPO this session ("Path A seems reasonable" + "yes ... open the #526 Path A
--  task" + "Option 1"). Identity triple-verified and CPO-accepted this session (external Togo
--  championship/CAF records mapping 1:1 to the participant id; disjoint squads across the ASC vs ASKO
--  windows; intra-payload RAW trace; Riga players appearing under BOTH ids across seasons): 6424 ASC
--  Kara and 25274 ASKO Kara are TWO DISTINCT clubs (Togo = mis-attribution, NEVER merge); 2263/10124
--  are ONE club, Riga FC (genuine duplicate id). Mechanism = Option 1: a SINGLE override seed with a
--  `mode` column -- `alias` (unconditional id replacement) for Riga; `reattribute_if_cohabiting`
--  (replace only where the correct id is a participant and the wrong id is not) for Togo -- applied in
--  base_apif__fixture_events. Scope = events-only; dim_team left untouched (CPO-approved; the 2263
--  orphan is harmless). Reprocessing = extend the existing fct_fixture_event self-heal (the #527
--  pattern), not a full-refresh. Dropping events (coverage-cut) and merging the two Togo clubs (option
--  B) are both ruled out by the CPO. CPO confirmed the proposed naming (seed
--  fixture_event_team_overrides; columns wrong_team_api_id/correct_team_api_id/mode/note; test
--  assert_event_team_in_fixture_participants) and ERROR severity on review this session ("do it") —
--  the test carries an explicit config(severity='error').
-+  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
-+  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
-+  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
-+  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
-+  merge, the #549/#550 filings).
+-  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
+-  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
+-  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
+-  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
+-  merge, the #549/#550 filings).
++  Option A approved by the CPO this session ("Then it's A"; "Rename + fold that dedup"). Mirror
++  #480: int_team_season__metrics is the canonical season rollup; the per-match record and standings
++  stay as separate surfaces (not merged). The mart_team_season aggregation dedup is folded in and
++  must be byte-identical. New W/D/L counts use the `_sum_season` suffix (catalogue-exempt, matching
++  the existing raw-sum columns).
  
  decisions_reserved:
--  - Fallback only: if extending the self-heal cannot reach the committed rows, a one-time
--    --full-refresh of fct_fixture_event is CPO cost-authorization — do NOT run unprompted.
--  - Seed governance is manual BY DESIGN: a false row (a duplicate inferred from internal name
--    similarity) would corrupt attribution until caught. Accepted control = the `note`-column
--    external-evidence rule + the integrity test catching NEW violations; automating the
--    detect-evidence-escalate loop is tracked by #546 / #550, not built here.
-+  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
-+    automation remain open on their own issues — not decided here.
+-  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
+-    automation remain open on their own issues — not decided here.
++  - The `_season`-suffix / goals_saves COLUMN-name alignment (catalogue-test comment ties it to #500)
++    is DEFERRED — a large separate cascade (the benchmark engine + marts + metric layer). CPO scoped
++    THIS PR to rename + dedup. The drift-test keeps its `_season`/goals_saves normalisation until that
++    follow-up.
++  - If ci-data-build shows ANY delta on mart_team_season or its downstream, the dedup is NOT
++    byte-identical -> stop and reconcile before merge; never ship a silent number change (§10).
  
  done_when:
--  - Override seed carries exactly the 2 confirmed rows (2263->10124 alias; 6424->25274
--    reattribute_if_cohabiting); `dbt seed` loads it.
--  - base_apif__fixture_events applies the override; for the 15 fixtures the event team_id resolves
--    to the correct club; ASC Kara's own 2019/2025 events (participant 6424) are untouched.
--  - fct_fixture_event reprocesses the override fixtures (self-heal); team_sk corrected.
--  - assert_event_team_in_fixture_participants returns 0 rows across ALL leagues (was 38).
--  - dim_player row count + values unchanged (team_id is not a player-identity input).
--  - validate-local passes (sqlfluff + dbt parse); ci-validate + ci-data-build green on the PR;
--    no mart deltas expected (fct_fixture_event is a leaf) -- ci-data-build confirms the integrity
--    test returns 0 rows and that no mart output changed.
-+  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
-+    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
-+  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+-  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
+-    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
+-  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
+-  - Tree matches the contract (only active_work.md + .claude/task/**).
++  - int_team_season__metrics exists; int_team_season__full_season_metrics gone; every ref updated
++    (int_competition_benchmarks__team, mart_competition_benchmarks__team, mart_team_profile,
++    mart_team_season_insights, the drift-test depends_on + model tuple); dbt parse + sqlfluff clean.
++  - mart_team_season composes the rollup, no longer reads int_legs__team_match; same output columns
++    + grain.
++  - assert_no_uncatalogued_season_metric passes (W/D/L exempt via `_sum_season`).
++  - validate-local passes; ci-data-build green; before/after diff on mart_team_season +
++    mart_team_profile + mart_team_season_insights = 0 rows changed.
  
  amendments: (none)
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 584ef62..6aac6ba 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -124,3 +124,13 @@
+       CPO ANSWER (conversation, 2026-06-21): "The fix: remove that staging-layer test." -> APPROVED removing the mis-placed staging not_null test; DQ preserved at the cleaned layer.
+   (Q2 — self-heal safety, scope-auditor; answered by builder, NOT §10) Does the API guarantee finished fixtures' events are immutable so the self-heal stays self-limiting? ANSWER: yes — fct_fixture_event's design comment relies on "once a fixture is FINISHED its event list does not change"; the self-heal inherits that invariant. Verifiable fact, not a CPO call.
+   Pre-existing + separately filed: the 38 non-null events whose team is not one of the fixture's two teams (#526); the broad "event team in fixture's teams" integrity test deferred there.
++
++2026-06-23 refactor/500-team-season-consolidation — #500 team-season consolidation (Option A). CPO up-front design approval (this conversation, 2026-06-23), logged per the E1 ruling above. Investigation established the three "redundant" team-season models are actually DISTINCT surfaces (standings from fct_standings / the full-season rate rollup / the per-match cumulative record) — mirroring the player side, where #480 kept int_player_season__metrics + int_season_record__player separate. The only real duplication: mart_team_season re-aggregates season W/D/L/goals from int_legs__team_match that the rollup already sums.
++  CPO DESIGN RULINGS (conversation, 2026-06-23 — options presented with a recommendation, CPO deciding):
++  (A) ALTITUDE = Option A (CPO: "Then it's A"): rename int_team_season__full_season_metrics -> int_team_season__metrics (parallel to int_player_season__metrics); KEEP the record + standings as separate surfaces (mirror #480); Option B (merge record↔rollup) REJECTED — breaks team/player symmetry.
++  (B) SCOPE = rename + fold the dedup (CPO: "Rename + fold that dedup"): add wins/draws/losses_sum_season to the rollup (the _sum_season convention keeps them catalogue-exempt) and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical refactor, no shipped-number change.
++  (C) DEFERRED: the `_season`-suffix / goals_saves COLUMN-name alignment (the catalogue drift-test comment earmarks it for #500) — a larger separate cascade (benchmark engine + marts + metric layer); CPO scoped THIS PR to rename + dedup.
++  REVIEW-CYCLE RULINGS (2026-06-23):
++  - analytics-engineer-reviewer PASS (both rounds): independently verified byte-identity — count(*)==count(distinct fixture_sk) at the int_legs__team_match grain; sum==sum(coalesce(.,0)) and clean_sheets identical (int_legs filters non-null goals); W/D/L identical (result is CASE-emitted 'W'/'D'/'L', accepted_values-tested, so the defensive upper(trim) is a no-op); rename complete (zero stale refs); W/D/L exempt via _sum_season.
++  - scope-auditor round 1 FAIL (NON-§10): impact_map downstream summarised not pasted as raw dbt ls → fixed (verbatim dbt ls pasted). Round 2 FAIL (NON-§10): blast_radius said "Verified by ci-data-build" (past tense) for a post-commit check → reworded (byte-identity established pre-hoc by the column-equivalence reasoning; ci-data-build before/after=0 is the done_when confirmation gate).
++  - (§10, scope-auditor round-2 ESCALATE) The contract claimed "Option A approved this session" but no escalations.log entry existed and memory recorded "keep as-is for now" (2026-06-18, metric-layer Phase 1). CPO ANSWER (conversation, 2026-06-23): Option A IS approved this session — "Then it's A" + "Rename + fold that dedup"; the 2026-06-18 parking is SUPERSEDED. This entry is the durable record.
+diff --git a/.claude/task/review.md b/.claude/task/review.md
+index 87fd9c4..2e4226e 100644
+--- a/.claude/task/review.md
++++ b/.claude/task/review.md
+@@ -1,20 +1,34 @@
+-# Review — chore/handover-526-closeout — 2026-06-23
++# Review — refactor/500-team-season-consolidation — 2026-06-23
+ 
+-diff_sha256: 27efc8444941bbf84901687ea58c23d0cb8ad4f4ac040ee541776f61115e3c81
++diff_sha256: beab59a1f3fe8fd1a6be094f8adba6e95b8e222455501ee59aa1aecc74268b69
+ 
+ ## scope-auditor
+ VERDICT: PASS
+ risks_checked:
+-- Scope + doc-only: the diff touches ONLY `.claude/active_work.md` + `.claude/task/**` (the
+-  contract's scope_paths); no code, no §10 decision is made in prose — it DESCRIBES this session's
+-  already-CPO-actioned #526 re-diagnosis + the #551 merge + the #549/#550 filings, it does not
+-  decide anything new. Confirmed against `feedback-verify-real-world-identity` memory + the prior
+-  build contract.
+-- Internal consistency / no fabricated agreement: the corrected two-class finding in the status
+-  paragraph matches the prior build contract's `decisions_taken` and the memory lesson; the
+-  "this session" wording is accurate (re-diagnosis, #551 build+merge, #549/#550 all occurred this
+-  same 2026-06-23 session). The prior 186-line build contract's architectural detail is preserved
+-  in git history (artifact-only overwrite is permitted, working_agreement §2).
++- Grain uniqueness at the mart: `int_legs__team_match` is one row per (fixture_sk, team_sk);
++  `int_team_season__metrics` aggregates to one row per (league_code, season_api_year, team_sk);
++  `mart_team_season` joins on (team_sk, season_sk) to dim_team + standings — deterministic lookups,
++  and the yml `unique_combination_of_columns: [team_sk, season_sk]` guards against row multiplication.
++- Byte-identity + evidence: the `impact_map` downstream is pasted verbatim `dbt ls` output; the
++  byte-identity is established pre-hoc by the column-equivalence reasoning (count(*) == count(distinct
++  fixture_sk); SUM == SUM(coalesce(.,0)) since int_legs filters non-null goals) and the pre-existing
++  `wins+draws+losses=played` test; ci-data-build before/after=0 is the done_when confirmation gate.
++  No scope creep; the `_season`-column alignment is honestly deferred. The §10 Option-A approval is
++  recorded in escalations.log (no open decision).
++
++## analytics-engineer-reviewer
++VERDICT: PASS
++risks_checked:
++- clean_sheets NULL-path: old mart `countif(coalesce(goals_against,0)=0)` vs new rollup
++  `countif(goals_against=0)` — traced `goals_against` to `int_legs__team_match` (filters
++  `goals_home/away is not null`), so the coalesce was a defensive no-op; identical counts.
++- `team_season_sk` hash identity: old inline `generate_surrogate_key(['agg.team_sk','agg.season_sk'])`
++  vs new `m.team_season_sk` from the rollup's `generate_surrogate_key(['team_sk','season_sk'])` — same
++  inputs, same order, same macro → byte-identical SKs, no FK break. Rename complete (zero stale refs);
++  W/D/L exempt via `_sum_season`.
+ 
+ ## escalations
+-(none)
++- question: Was #500 Option A (rename + fold the dedup) approved this session, given memory recorded
++  "keep as-is for now" (2026-06-18, metric-layer Phase 1)?
++  CPO ANSWER: Approved this session — "Then it's A" + "Rename + fold that dedup"; the 2026-06-18
++  parking is superseded. Durable record in `.claude/task/escalations.log` (2026-06-23 entry).
+diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+index 79e10cc..4ed95e1 100644
+--- a/.claude/task/review_input.patch
++++ b/.claude/task/review_input.patch
+@@ -1,185 +1,1669 @@
+-diff --git a/.claude/active_work.md b/.claude/active_work.md
+-index e0ae9f8..ea40671 100644
+---- a/.claude/active_work.md
+-+++ b/.claude/active_work.md
+-@@ -4,16 +4,22 @@
+- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+- 
+--_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
+--investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
+--2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
+--loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
+--realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
+--real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
+--labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
+--duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
+--(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
+--OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+-+_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
+-+fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
+-+complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
+-+EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
+-+are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
+-+Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
+-+**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
+-+had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
+-+Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
+-+base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
+-+`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
+-+LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
+-+proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
+-+escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
+-+**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
+-+**Website #391 PAUSED.**_
+- 
+- ## How work is organized — two tracks (NEW 2026-06-23)
+- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
+-@@ -35,12 +41,12 @@ OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4
+-   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
+-     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
+-     onboard (registry, zero-file), `verify-competition-ingest`.
+--  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
+--    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
+--    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
+--    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
+--    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
+--    standing DQ scan (template for the class).
+-+  - **#546 (data-quality):** the **#526 fix LANDED (#551, merged)** — `assert_event_team_in_fixture_participants`
+-+    (event team ∈ {home, away}) is the generic detector and `fixture_event_team_overrides` is the CPO-owned
+-+    correction seed. NEXT: (a) generalise the detector into the standing all-league DQ scan; (b) the **#550**
+-+    automated-triage design (detect → gather-evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix) —
+-+    a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
+-+    merge-on-internal-similarity.
+-   - **#547 (cost):** size BQ build cost before the expansion scales.
+- - **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
+-   **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
+ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+-index fee2034..28a45c9 100644
++index 28a45c9..5e9afbc 100644
+ --- a/.claude/task/contract.md
+ +++ b/.claude/task/contract.md
+-@@ -1,103 +1,36 @@
+--# Task contract — #526 event team mis-attribution + duplicate-id correction (Path A)
+-+# Task contract — Handover refresh (#526 closeout, 2026-06-23)
++@@ -1,36 +1,97 @@
++-# Task contract — Handover refresh (#526 closeout, 2026-06-23)
+++# Task contract — #500 team-season consolidation (Option A: rename + mart dedup)
+  
+  objective: >
+--  Correct the two confirmed fixture-event team-attribution defects (CPO-approved Path A),
+--  via a base-layer CPO-owned override seed, and ship a permanent integrity guard:
+--  (a) Riga FC — provider duplicate id: alias event team 2263 -> 10124 (one club, two ids).
+--  (b) ASC Kara / ASKO Kara — mis-attribution: re-attribute event team 6424 -> 25274 ONLY in
+--      fixtures where 25274 is a participant and 6424 is not (ASC Kara's own 2019/2025 events,
+--      where 6424 IS the participant, stay 6424). The two ids are DISTINCT real clubs — never
+--      merged. Then add an integrity test (event team in {home, away}) as a permanent ERROR guard.
+-+  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
+-+  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
+-+  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
+-+  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
+-+  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
+-+  Doc / bookkeeping only — no code, no product decision.
++-  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
++-  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
++-  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
++-  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
++-  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
++-  Doc / bookkeeping only — no code, no product decision.
+++  #500 Option A (CPO: "Then it's A" + "Rename + fold that dedup"). (1) Rename
+++  int_team_season__full_season_metrics -> int_team_season__metrics, parallel to
+++  int_player_season__metrics (#480); keep the per-match record (int_season_record__team) and
+++  standings (int_team_season__standings_primary) as distinct surfaces, mirroring the player side.
+++  (2) Fold the one real redundancy: mart_team_season re-aggregates season W/D/L/goals from
+++  int_legs__team_match that the rollup already sums — add wins/draws/losses_sum_season to the
+++  rollup and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical
+++  refactor — NO shipped-number change. Defer the `_season`-suffix / goals_saves COLUMN alignment
+++  (a larger separate cascade) to a follow-up.
+  
+  refs: >
+--  #526 (defect + full triple-verified diagnosis this session). Seeds the #546 DQ standing scan
+--  (the integrity test is the generic detector). #549 (proposal-gate) / #550 (automation design)
+--  are separate follow-ups, not built here.
+-+  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
+-+  feedback-verify-real-world-identity.
++-  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
++-  feedback-verify-real-world-identity.
+++  #500 (team analog of #480). The catalogue drift-test comment earmarks the `_season`/goals_saves
+++  column alignment for #500 — deferred here (see decisions_reserved).
+  
+  scope_paths:
+--  - dbt_project/seeds/fixture_event_team_overrides.csv        # NEW seed (name reserved, see below)
+--  - dbt_project/seeds/schema.yml                              # document/test the seed
+--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+--  - dbt_project/models/2_base/api_football/base.yml
+--  - dbt_project/models/3_core/fct_fixture_event.sql           # extend self-heal to reprocess the fixtures
+--  - dbt_project/tests/assert_event_team_in_fixture_participants.sql  # NEW integrity test (name reserved)
+-+  - .claude/active_work.md
++-  - .claude/active_work.md
+++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+++  - dbt_project/models/5_marts/shared/mart_team_season.sql
+++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++  - dbt_project/macros/team_benchmark_metrics.sql
+++  - dbt_project/models/5_marts/shared/shared.yml
+++  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+++  - docs/metric_layer.md
+    - .claude/task/**
+  
+--impact_map: >
+--  writers: base_apif__fixture_events derives event team_id from RAW_APIF_FIXTURE_DETAILS
+--    $.events[].team.id (via stg_apif__fixture_events), today with a null-team_id recovery clause.
+--    This task adds a seed-driven OVERRIDE of team_id in that base model. To evaluate the
+--    `reattribute_if_cohabiting` mode it joins base_apif__fixtures_next (fixture participants:
+--    home_team_id/away_team_id) on fixture_id. NO ingestion/raw writer change — provider data is
+--    left faithful; the correction lives in transform. The `alias` mode is unconditional.
+--  downstream: (dbt ls --select base_apif__fixture_events+ --resource-type model, this session)
+--    base_apif__fixture_events
+--    base_apif__players
+--    dim_player
+--    fct_fixture_event
+--    mart_fixture_stats__player
+--    mart_leaderboards
+--    mart_momentum_window__team
+--    mart_player_match_log
+--    mart_player_profile
+--    mart_roster
+--  layer_rules: the correction is "entity alignment", which the layer contract places in 2_base
+--    (1_staging is raw-cleanup-only; 3_core is canonical facts). Seed = seeds-as-configuration.
+--    No per-competition files; league_code flows through. check_layer_contract unaffected.
+--  deploy_order: base_apif__fixture_events is a VIEW (recomputes on read). fct_fixture_event is
+--    INCREMENTAL on raw_ingested_at and will NOT reprocess already-committed rows for a changed
+--    (non-null -> non-null) team_id. Chosen reprocessing: extend fct_fixture_event's existing
+--    self-heal clause to also re-run fixtures listed in the override seed (bounded, self-limiting;
+--    mirrors the #527 null-team_sk self-heal) -- NO --full-refresh. Idempotent; ci-data-build on the
+--    PR rebuilds and applies it; nothing is broken between merge and rebuild.
+--  blast_radius: the corrected team_id lands ONLY in fct_fixture_event.team_sk/team_api_id, and
+--    fct_fixture_event is a LEAF -- `dbt ls --select fct_fixture_event+` returns only itself and NO
+--    model ref()s it (grep over models/ this session). So NO mart number changes. The marts in the
+--    base_apif__fixture_events+ closure (mart_leaderboards / mart_roster / mart_player_profile /
+--    mart_player_match_log / mart_fixture_stats__player / mart_momentum_window__team) sit downstream
+--    of BASE via base_apif__players -> dim_player (player identity) and fct_fixture_player_stats
+--    (player match stats) — neither reads the event team_id. Change is bounded to 38 fct_fixture_event
+--    rows across 3 clubs (25274 ASKO Kara, 6424 ASC Kara, 10124/2263 Riga FC) in 15 fixtures (13 CAFCL
+--    2020-24 + 2 UEL 2018) -- RAW count this session: event team NOT IN (home,away) = 38 / 15 fixtures;
+--    recent-season baseline 0. All 15 fixtures ARE present in base_apif__fixtures_next / fct_fixture
+--    (verified: fct_fixture carries their home/away participants), so the reattribute_if_cohabiting
+--    path fires and the integrity test covers them.
+--
+++impact_map: >
+++  writers: int_team_season__metrics (renamed from __full_season_metrics) — SAME aggregation over
+++    int_legs__team_match + int_legs__team_from_players, PLUS three new counts
+++    wins_sum_season/draws_sum_season/losses_sum_season (the `_sum_season` convention keeps them
+++    catalogue-exempt). mart_team_season — now COMPOSES int_team_season__metrics for the season
+++    counts (played=season_games_played, goals_for/against=*_sum_season, points=points_won_sum_season,
+++    clean_sheets=clean_sheets_count_season, +W/D/L) and DROPS its own int_legs__team_match
+++    aggregation; keeps the dim_team + int_team_season__standings_primary joins.
+++  downstream: pasted from `dbt ls` this session (raw --output name):
+++    $ dbt ls --select int_team_season__full_season_metrics+ --resource-type model --output name
+++        int_competition_benchmarks__team
+++        int_team_season__full_season_metrics
+++        mart_competition_benchmarks__team
+++        mart_team_profile
+++        mart_team_season_insights
+++    $ dbt ls --select mart_team_season+ --resource-type model --output name
+++        mart_team_profile
+++        mart_team_season
+++        mart_team_season_insights
+++    (team_benchmark_metrics macro NAMES the model in a comment only — no ref(), confirmed by grep.)
+++  layer_rules: the rename is name-only. The dedup moves leg-aggregation OUT of the mart and makes
+++    the mart a consumer of the intermediate rollup — logic moves UP the layers (correct direction).
+++    No staging/core touched. check_layer_contract unaffected.
+++  deploy_order: all tables/views; ci-data-build does a full rebuild so int_team_season__metrics is
+++    created under the new name. The old int_team_season__full_season_metrics relation is orphaned in
+++    the shared warehouse (dbt does not drop a renamed model's old table) — harmless, swept by the
+++    next full-refresh; no consumer references it post-rename.
+++  blast_radius: NO shipped-number change intended. The rename is name-only. The mart_team_season
+++    dedup is byte-identical: the rollup's sums equal mart_team_season's prior agg over the SAME legs
+++    (SUM ignores nulls == SUM(coalesce(.,0)); finished legs carry non-null goals, so
+++    clean_sheets_count_season == countif(coalesce(goals_against,0)=0); count(distinct fixture_sk) ==
+++    count(*) at the one-row-per-(team,fixture) leg grain). wins/draws/losses are newly RELOCATED
+++    from the mart into the rollup. Byte-identity is established PRE-HOC by the column-equivalence
+++    reasoning above (each composed column maps 1:1 to an existing rollup sum); ci-data-build
+++    before/after = 0 diff on mart_team_season + mart_team_profile + mart_team_season_insights is the
+++    done_when CONFIRMATION gate (runs on the PR, not yet executed). The benchmark engine reads only
+++    the rate columns (unchanged), so int_competition_benchmarks__team / mart_competition_benchmarks__team
+++    are inert.
+++
+  decisions_taken: >
+--  Path A approved by the CPO this session ("Path A seems reasonable" + "yes ... open the #526 Path A
+--  task" + "Option 1"). Identity triple-verified and CPO-accepted this session (external Togo
+--  championship/CAF records mapping 1:1 to the participant id; disjoint squads across the ASC vs ASKO
+--  windows; intra-payload RAW trace; Riga players appearing under BOTH ids across seasons): 6424 ASC
+--  Kara and 25274 ASKO Kara are TWO DISTINCT clubs (Togo = mis-attribution, NEVER merge); 2263/10124
+--  are ONE club, Riga FC (genuine duplicate id). Mechanism = Option 1: a SINGLE override seed with a
+--  `mode` column -- `alias` (unconditional id replacement) for Riga; `reattribute_if_cohabiting`
+--  (replace only where the correct id is a participant and the wrong id is not) for Togo -- applied in
+--  base_apif__fixture_events. Scope = events-only; dim_team left untouched (CPO-approved; the 2263
+--  orphan is harmless). Reprocessing = extend the existing fct_fixture_event self-heal (the #527
+--  pattern), not a full-refresh. Dropping events (coverage-cut) and merging the two Togo clubs (option
+--  B) are both ruled out by the CPO. CPO confirmed the proposed naming (seed
+--  fixture_event_team_overrides; columns wrong_team_api_id/correct_team_api_id/mode/note; test
+--  assert_event_team_in_fixture_participants) and ERROR severity on review this session ("do it") —
+--  the test carries an explicit config(severity='error').
+-+  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
+-+  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
+-+  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
+-+  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
+-+  merge, the #549/#550 filings).
++-  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
++-  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
++-  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
++-  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
++-  merge, the #549/#550 filings).
+++  Option A approved by the CPO this session ("Then it's A"; "Rename + fold that dedup"). Mirror
+++  #480: int_team_season__metrics is the canonical season rollup; the per-match record and standings
+++  stay as separate surfaces (not merged). The mart_team_season aggregation dedup is folded in and
+++  must be byte-identical. New W/D/L counts use the `_sum_season` suffix (catalogue-exempt, matching
+++  the existing raw-sum columns).
+  
+  decisions_reserved:
+--  - Fallback only: if extending the self-heal cannot reach the committed rows, a one-time
+--    --full-refresh of fct_fixture_event is CPO cost-authorization — do NOT run unprompted.
+--  - Seed governance is manual BY DESIGN: a false row (a duplicate inferred from internal name
+--    similarity) would corrupt attribution until caught. Accepted control = the `note`-column
+--    external-evidence rule + the integrity test catching NEW violations; automating the
+--    detect-evidence-escalate loop is tracked by #546 / #550, not built here.
+-+  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
+-+    automation remain open on their own issues — not decided here.
++-  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
++-    automation remain open on their own issues — not decided here.
+++  - The `_season`-suffix / goals_saves COLUMN-name alignment (catalogue-test comment ties it to #500)
+++    is DEFERRED — a large separate cascade (the benchmark engine + marts + metric layer). CPO scoped
+++    THIS PR to rename + dedup. The drift-test keeps its `_season`/goals_saves normalisation until that
+++    follow-up.
+++  - If ci-data-build shows ANY delta on mart_team_season or its downstream, the dedup is NOT
+++    byte-identical -> stop and reconcile before merge; never ship a silent number change (§10).
+  
+  done_when:
+--  - Override seed carries exactly the 2 confirmed rows (2263->10124 alias; 6424->25274
+--    reattribute_if_cohabiting); `dbt seed` loads it.
+--  - base_apif__fixture_events applies the override; for the 15 fixtures the event team_id resolves
+--    to the correct club; ASC Kara's own 2019/2025 events (participant 6424) are untouched.
+--  - fct_fixture_event reprocesses the override fixtures (self-heal); team_sk corrected.
+--  - assert_event_team_in_fixture_participants returns 0 rows across ALL leagues (was 38).
+--  - dim_player row count + values unchanged (team_id is not a player-identity input).
+--  - validate-local passes (sqlfluff + dbt parse); ci-validate + ci-data-build green on the PR;
+--    no mart deltas expected (fct_fixture_event is a leaf) -- ci-data-build confirms the integrity
+--    test returns 0 rows and that no mart output changed.
+-+  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
+-+    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
+-+  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
+-+  - Tree matches the contract (only active_work.md + .claude/task/**).
++-  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
++-    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
++-  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
++-  - Tree matches the contract (only active_work.md + .claude/task/**).
+++  - int_team_season__metrics exists; int_team_season__full_season_metrics gone; every ref updated
+++    (int_competition_benchmarks__team, mart_competition_benchmarks__team, mart_team_profile,
+++    mart_team_season_insights, the drift-test depends_on + model tuple); dbt parse + sqlfluff clean.
+++  - mart_team_season composes the rollup, no longer reads int_legs__team_match; same output columns
+++    + grain.
+++  - assert_no_uncatalogued_season_metric passes (W/D/L exempt via `_sum_season`).
+++  - validate-local passes; ci-data-build green; before/after diff on mart_team_season +
+++    mart_team_profile + mart_team_season_insights = 0 rows changed.
+  
+  amendments: (none)
++diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
++index 584ef62..6aac6ba 100644
++--- a/.claude/task/escalations.log
+++++ b/.claude/task/escalations.log
++@@ -124,3 +124,13 @@
++       CPO ANSWER (conversation, 2026-06-21): "The fix: remove that staging-layer test." -> APPROVED removing the mis-placed staging not_null test; DQ preserved at the cleaned layer.
++   (Q2 — self-heal safety, scope-auditor; answered by builder, NOT §10) Does the API guarantee finished fixtures' events are immutable so the self-heal stays self-limiting? ANSWER: yes — fct_fixture_event's design comment relies on "once a fixture is FINISHED its event list does not change"; the self-heal inherits that invariant. Verifiable fact, not a CPO call.
++   Pre-existing + separately filed: the 38 non-null events whose team is not one of the fixture's two teams (#526); the broad "event team in fixture's teams" integrity test deferred there.
+++
+++2026-06-23 refactor/500-team-season-consolidation — #500 team-season consolidation (Option A). CPO up-front design approval (this conversation, 2026-06-23), logged per the E1 ruling above. Investigation established the three "redundant" team-season models are actually DISTINCT surfaces (standings from fct_standings / the full-season rate rollup / the per-match cumulative record) — mirroring the player side, where #480 kept int_player_season__metrics + int_season_record__player separate. The only real duplication: mart_team_season re-aggregates season W/D/L/goals from int_legs__team_match that the rollup already sums.
+++  CPO DESIGN RULINGS (conversation, 2026-06-23 — options presented with a recommendation, CPO deciding):
+++  (A) ALTITUDE = Option A (CPO: "Then it's A"): rename int_team_season__full_season_metrics -> int_team_season__metrics (parallel to int_player_season__metrics); KEEP the record + standings as separate surfaces (mirror #480); Option B (merge record↔rollup) REJECTED — breaks team/player symmetry.
+++  (B) SCOPE = rename + fold the dedup (CPO: "Rename + fold that dedup"): add wins/draws/losses_sum_season to the rollup (the _sum_season convention keeps them catalogue-exempt) and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical refactor, no shipped-number change.
+++  (C) DEFERRED: the `_season`-suffix / goals_saves COLUMN-name alignment (the catalogue drift-test comment earmarks it for #500) — a larger separate cascade (benchmark engine + marts + metric layer); CPO scoped THIS PR to rename + dedup.
+++  REVIEW-CYCLE RULINGS (2026-06-23):
+++  - analytics-engineer-reviewer PASS (both rounds): independently verified byte-identity — count(*)==count(distinct fixture_sk) at the int_legs__team_match grain; sum==sum(coalesce(.,0)) and clean_sheets identical (int_legs filters non-null goals); W/D/L identical (result is CASE-emitted 'W'/'D'/'L', accepted_values-tested, so the defensive upper(trim) is a no-op); rename complete (zero stale refs); W/D/L exempt via _sum_season.
+++  - scope-auditor round 1 FAIL (NON-§10): impact_map downstream summarised not pasted as raw dbt ls → fixed (verbatim dbt ls pasted). Round 2 FAIL (NON-§10): blast_radius said "Verified by ci-data-build" (past tense) for a post-commit check → reworded (byte-identity established pre-hoc by the column-equivalence reasoning; ci-data-build before/after=0 is the done_when confirmation gate).
+++  - (§10, scope-auditor round-2 ESCALATE) The contract claimed "Option A approved this session" but no escalations.log entry existed and memory recorded "keep as-is for now" (2026-06-18, metric-layer Phase 1). CPO ANSWER (conversation, 2026-06-23): Option A IS approved this session — "Then it's A" + "Rename + fold that dedup"; the 2026-06-18 parking is SUPERSEDED. This entry is the durable record.
++diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
++index 79e10cc..74abd97 100644
++--- a/.claude/task/review_input.patch
+++++ b/.claude/task/review_input.patch
++@@ -1,185 +1,1039 @@
++-diff --git a/.claude/active_work.md b/.claude/active_work.md
++-index e0ae9f8..ea40671 100644
++---- a/.claude/active_work.md
++-+++ b/.claude/active_work.md
++-@@ -4,16 +4,22 @@
++- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
++- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
++- 
++--_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
++--investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
++--2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
++--loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
++--realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
++--real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
++--labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
++--duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
++--(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
++--OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
++-+_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
++-+fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
++-+complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
++-+EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
++-+are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
++-+Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
++-+**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
++-+had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
++-+Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
++-+base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
++-+`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
++-+LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
++-+proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
++-+escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
++-+**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
++-+**Website #391 PAUSED.**_
++- 
++- ## How work is organized — two tracks (NEW 2026-06-23)
++- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
++-@@ -35,12 +41,12 @@ OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4
++-   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
++-     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
++-     onboard (registry, zero-file), `verify-competition-ingest`.
++--  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
++--    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
++--    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
++--    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
++--    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
++--    standing DQ scan (template for the class).
++-+  - **#546 (data-quality):** the **#526 fix LANDED (#551, merged)** — `assert_event_team_in_fixture_participants`
++-+    (event team ∈ {home, away}) is the generic detector and `fixture_event_team_overrides` is the CPO-owned
++-+    correction seed. NEXT: (a) generalise the detector into the standing all-league DQ scan; (b) the **#550**
++-+    automated-triage design (detect → gather-evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix) —
++-+    a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
++-+    merge-on-internal-similarity.
++-   - **#547 (cost):** size BQ build cost before the expansion scales.
++- - **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
++-   **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
++ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
++-index fee2034..28a45c9 100644
+++index 28a45c9..a668c34 100644
++ --- a/.claude/task/contract.md
++ +++ b/.claude/task/contract.md
++-@@ -1,103 +1,36 @@
++--# Task contract — #526 event team mis-attribution + duplicate-id correction (Path A)
++-+# Task contract — Handover refresh (#526 closeout, 2026-06-23)
+++@@ -1,36 +1,94 @@
+++-# Task contract — Handover refresh (#526 closeout, 2026-06-23)
++++# Task contract — #500 team-season consolidation (Option A: rename + mart dedup)
++  
++  objective: >
++--  Correct the two confirmed fixture-event team-attribution defects (CPO-approved Path A),
++--  via a base-layer CPO-owned override seed, and ship a permanent integrity guard:
++--  (a) Riga FC — provider duplicate id: alias event team 2263 -> 10124 (one club, two ids).
++--  (b) ASC Kara / ASKO Kara — mis-attribution: re-attribute event team 6424 -> 25274 ONLY in
++--      fixtures where 25274 is a participant and 6424 is not (ASC Kara's own 2019/2025 events,
++--      where 6424 IS the participant, stay 6424). The two ids are DISTINCT real clubs — never
++--      merged. Then add an integrity test (event team in {home, away}) as a permanent ERROR guard.
++-+  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
++-+  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
++-+  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
++-+  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
++-+  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
++-+  Doc / bookkeeping only — no code, no product decision.
+++-  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
+++-  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
+++-  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
+++-  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
+++-  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
+++-  Doc / bookkeeping only — no code, no product decision.
++++  #500 Option A (CPO: "Then it's A" + "Rename + fold that dedup"). (1) Rename
++++  int_team_season__full_season_metrics -> int_team_season__metrics, parallel to
++++  int_player_season__metrics (#480); keep the per-match record (int_season_record__team) and
++++  standings (int_team_season__standings_primary) as distinct surfaces, mirroring the player side.
++++  (2) Fold the one real redundancy: mart_team_season re-aggregates season W/D/L/goals from
++++  int_legs__team_match that the rollup already sums — add wins/draws/losses_sum_season to the
++++  rollup and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical
++++  refactor — NO shipped-number change. Defer the `_season`-suffix / goals_saves COLUMN alignment
++++  (a larger separate cascade) to a follow-up.
++  
++  refs: >
++--  #526 (defect + full triple-verified diagnosis this session). Seeds the #546 DQ standing scan
++--  (the integrity test is the generic detector). #549 (proposal-gate) / #550 (automation design)
++--  are separate follow-ups, not built here.
++-+  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
++-+  feedback-verify-real-world-identity.
+++-  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
+++-  feedback-verify-real-world-identity.
++++  #500 (team analog of #480). The catalogue drift-test comment earmarks the `_season`/goals_saves
++++  column alignment for #500 — deferred here (see decisions_reserved).
++  
++  scope_paths:
++--  - dbt_project/seeds/fixture_event_team_overrides.csv        # NEW seed (name reserved, see below)
++--  - dbt_project/seeds/schema.yml                              # document/test the seed
++--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++--  - dbt_project/models/2_base/api_football/base.yml
++--  - dbt_project/models/3_core/fct_fixture_event.sql           # extend self-heal to reprocess the fixtures
++--  - dbt_project/tests/assert_event_team_in_fixture_participants.sql  # NEW integrity test (name reserved)
++-+  - .claude/active_work.md
+++-  - .claude/active_work.md
++++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++  - dbt_project/models/5_marts/shared/mart_team_season.sql
++++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++++  - dbt_project/macros/team_benchmark_metrics.sql
++++  - dbt_project/models/5_marts/shared/shared.yml
++++  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++  - docs/metric_layer.md
++    - .claude/task/**
++  
++--impact_map: >
++--  writers: base_apif__fixture_events derives event team_id from RAW_APIF_FIXTURE_DETAILS
++--    $.events[].team.id (via stg_apif__fixture_events), today with a null-team_id recovery clause.
++--    This task adds a seed-driven OVERRIDE of team_id in that base model. To evaluate the
++--    `reattribute_if_cohabiting` mode it joins base_apif__fixtures_next (fixture participants:
++--    home_team_id/away_team_id) on fixture_id. NO ingestion/raw writer change — provider data is
++--    left faithful; the correction lives in transform. The `alias` mode is unconditional.
++--  downstream: (dbt ls --select base_apif__fixture_events+ --resource-type model, this session)
++--    base_apif__fixture_events
++--    base_apif__players
++--    dim_player
++--    fct_fixture_event
++--    mart_fixture_stats__player
++--    mart_leaderboards
++--    mart_momentum_window__team
++--    mart_player_match_log
++--    mart_player_profile
++--    mart_roster
++--  layer_rules: the correction is "entity alignment", which the layer contract places in 2_base
++--    (1_staging is raw-cleanup-only; 3_core is canonical facts). Seed = seeds-as-configuration.
++--    No per-competition files; league_code flows through. check_layer_contract unaffected.
++--  deploy_order: base_apif__fixture_events is a VIEW (recomputes on read). fct_fixture_event is
++--    INCREMENTAL on raw_ingested_at and will NOT reprocess already-committed rows for a changed
++--    (non-null -> non-null) team_id. Chosen reprocessing: extend fct_fixture_event's existing
++--    self-heal clause to also re-run fixtures listed in the override seed (bounded, self-limiting;
++--    mirrors the #527 null-team_sk self-heal) -- NO --full-refresh. Idempotent; ci-data-build on the
++--    PR rebuilds and applies it; nothing is broken between merge and rebuild.
++--  blast_radius: the corrected team_id lands ONLY in fct_fixture_event.team_sk/team_api_id, and
++--    fct_fixture_event is a LEAF -- `dbt ls --select fct_fixture_event+` returns only itself and NO
++--    model ref()s it (grep over models/ this session). So NO mart number changes. The marts in the
++--    base_apif__fixture_events+ closure (mart_leaderboards / mart_roster / mart_player_profile /
++--    mart_player_match_log / mart_fixture_stats__player / mart_momentum_window__team) sit downstream
++--    of BASE via base_apif__players -> dim_player (player identity) and fct_fixture_player_stats
++--    (player match stats) — neither reads the event team_id. Change is bounded to 38 fct_fixture_event
++--    rows across 3 clubs (25274 ASKO Kara, 6424 ASC Kara, 10124/2263 Riga FC) in 15 fixtures (13 CAFCL
++--    2020-24 + 2 UEL 2018) -- RAW count this session: event team NOT IN (home,away) = 38 / 15 fixtures;
++--    recent-season baseline 0. All 15 fixtures ARE present in base_apif__fixtures_next / fct_fixture
++--    (verified: fct_fixture carries their home/away participants), so the reattribute_if_cohabiting
++--    path fires and the integrity test covers them.
++--
++++impact_map: >
++++  writers: int_team_season__metrics (renamed from __full_season_metrics) — SAME aggregation over
++++    int_legs__team_match + int_legs__team_from_players, PLUS three new counts
++++    wins_sum_season/draws_sum_season/losses_sum_season (the `_sum_season` convention keeps them
++++    catalogue-exempt). mart_team_season — now COMPOSES int_team_season__metrics for the season
++++    counts (played=season_games_played, goals_for/against=*_sum_season, points=points_won_sum_season,
++++    clean_sheets=clean_sheets_count_season, +W/D/L) and DROPS its own int_legs__team_match
++++    aggregation; keeps the dim_team + int_team_season__standings_primary joins.
++++  downstream: pasted from `dbt ls` this session (raw --output name):
++++    $ dbt ls --select int_team_season__full_season_metrics+ --resource-type model --output name
++++        int_competition_benchmarks__team
++++        int_team_season__full_season_metrics
++++        mart_competition_benchmarks__team
++++        mart_team_profile
++++        mart_team_season_insights
++++    $ dbt ls --select mart_team_season+ --resource-type model --output name
++++        mart_team_profile
++++        mart_team_season
++++        mart_team_season_insights
++++    (team_benchmark_metrics macro NAMES the model in a comment only — no ref(), confirmed by grep.)
++++  layer_rules: the rename is name-only. The dedup moves leg-aggregation OUT of the mart and makes
++++    the mart a consumer of the intermediate rollup — logic moves UP the layers (correct direction).
++++    No staging/core touched. check_layer_contract unaffected.
++++  deploy_order: all tables/views; ci-data-build does a full rebuild so int_team_season__metrics is
++++    created under the new name. The old int_team_season__full_season_metrics relation is orphaned in
++++    the shared warehouse (dbt does not drop a renamed model's old table) — harmless, swept by the
++++    next full-refresh; no consumer references it post-rename.
++++  blast_radius: NO shipped-number change intended. The rename is name-only. The mart_team_season
++++    dedup is byte-identical: the rollup's sums equal mart_team_season's prior agg over the SAME legs
++++    (SUM ignores nulls == SUM(coalesce(.,0)); finished legs carry non-null goals, so
++++    clean_sheets_count_season == countif(coalesce(goals_against,0)=0); count(distinct fixture_sk) ==
++++    count(*) at the one-row-per-(team,fixture) leg grain). wins/draws/losses are newly RELOCATED
++++    from the mart into the rollup. Verified by ci-data-build before/after = 0 diff on mart_team_season
++++    + mart_team_profile + mart_team_season_insights. The benchmark engine reads only the rate columns
++++    (unchanged), so int_competition_benchmarks__team / mart_competition_benchmarks__team are inert.
++++
++  decisions_taken: >
++--  Path A approved by the CPO this session ("Path A seems reasonable" + "yes ... open the #526 Path A
++--  task" + "Option 1"). Identity triple-verified and CPO-accepted this session (external Togo
++--  championship/CAF records mapping 1:1 to the participant id; disjoint squads across the ASC vs ASKO
++--  windows; intra-payload RAW trace; Riga players appearing under BOTH ids across seasons): 6424 ASC
++--  Kara and 25274 ASKO Kara are TWO DISTINCT clubs (Togo = mis-attribution, NEVER merge); 2263/10124
++--  are ONE club, Riga FC (genuine duplicate id). Mechanism = Option 1: a SINGLE override seed with a
++--  `mode` column -- `alias` (unconditional id replacement) for Riga; `reattribute_if_cohabiting`
++--  (replace only where the correct id is a participant and the wrong id is not) for Togo -- applied in
++--  base_apif__fixture_events. Scope = events-only; dim_team left untouched (CPO-approved; the 2263
++--  orphan is harmless). Reprocessing = extend the existing fct_fixture_event self-heal (the #527
++--  pattern), not a full-refresh. Dropping events (coverage-cut) and merging the two Togo clubs (option
++--  B) are both ruled out by the CPO. CPO confirmed the proposed naming (seed
++--  fixture_event_team_overrides; columns wrong_team_api_id/correct_team_api_id/mode/note; test
++--  assert_event_team_in_fixture_participants) and ERROR severity on review this session ("do it") —
++--  the test carries an explicit config(severity='error').
++-+  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
++-+  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
++-+  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
++-+  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
++-+  merge, the #549/#550 filings).
+++-  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
+++-  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
+++-  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
+++-  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
+++-  merge, the #549/#550 filings).
++++  Option A approved by the CPO this session ("Then it's A"; "Rename + fold that dedup"). Mirror
++++  #480: int_team_season__metrics is the canonical season rollup; the per-match record and standings
++++  stay as separate surfaces (not merged). The mart_team_season aggregation dedup is folded in and
++++  must be byte-identical. New W/D/L counts use the `_sum_season` suffix (catalogue-exempt, matching
++++  the existing raw-sum columns).
++  
++  decisions_reserved:
++--  - Fallback only: if extending the self-heal cannot reach the committed rows, a one-time
++--    --full-refresh of fct_fixture_event is CPO cost-authorization — do NOT run unprompted.
++--  - Seed governance is manual BY DESIGN: a false row (a duplicate inferred from internal name
++--    similarity) would corrupt attribution until caught. Accepted control = the `note`-column
++--    external-evidence rule + the integrity test catching NEW violations; automating the
++--    detect-evidence-escalate loop is tracked by #546 / #550, not built here.
++-+  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
++-+    automation remain open on their own issues — not decided here.
+++-  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
+++-    automation remain open on their own issues — not decided here.
++++  - The `_season`-suffix / goals_saves COLUMN-name alignment (catalogue-test comment ties it to #500)
++++    is DEFERRED — a large separate cascade (the benchmark engine + marts + metric layer). CPO scoped
++++    THIS PR to rename + dedup. The drift-test keeps its `_season`/goals_saves normalisation until that
++++    follow-up.
++++  - If ci-data-build shows ANY delta on mart_team_season or its downstream, the dedup is NOT
++++    byte-identical -> stop and reconcile before merge; never ship a silent number change (§10).
++  
++  done_when:
++--  - Override seed carries exactly the 2 confirmed rows (2263->10124 alias; 6424->25274
++--    reattribute_if_cohabiting); `dbt seed` loads it.
++--  - base_apif__fixture_events applies the override; for the 15 fixtures the event team_id resolves
++--    to the correct club; ASC Kara's own 2019/2025 events (participant 6424) are untouched.
++--  - fct_fixture_event reprocesses the override fixtures (self-heal); team_sk corrected.
++--  - assert_event_team_in_fixture_participants returns 0 rows across ALL leagues (was 38).
++--  - dim_player row count + values unchanged (team_id is not a player-identity input).
++--  - validate-local passes (sqlfluff + dbt parse); ci-validate + ci-data-build green on the PR;
++--    no mart deltas expected (fct_fixture_event is a leaf) -- ci-data-build confirms the integrity
++--    test returns 0 rows and that no mart output changed.
++-+  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
++-+    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
++-+  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
++-+  - Tree matches the contract (only active_work.md + .claude/task/**).
+++-  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
+++-    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
+++-  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
+++-  - Tree matches the contract (only active_work.md + .claude/task/**).
++++  - int_team_season__metrics exists; int_team_season__full_season_metrics gone; every ref updated
++++    (int_competition_benchmarks__team, mart_competition_benchmarks__team, mart_team_profile,
++++    mart_team_season_insights, the drift-test depends_on + model tuple); dbt parse + sqlfluff clean.
++++  - mart_team_season composes the rollup, no longer reads int_legs__team_match; same output columns
++++    + grain.
++++  - assert_no_uncatalogued_season_metric passes (W/D/L exempt via `_sum_season`).
++++  - validate-local passes; ci-data-build green; before/after diff on mart_team_season +
++++    mart_team_profile + mart_team_season_insights = 0 rows changed.
++  
++  amendments: (none)
+++diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+++index 79e10cc..422e1a5 100644
+++--- a/.claude/task/review_input.patch
++++++ b/.claude/task/review_input.patch
+++@@ -1,185 +1,430 @@
+++-diff --git a/.claude/active_work.md b/.claude/active_work.md
+++-index e0ae9f8..ea40671 100644
+++---- a/.claude/active_work.md
+++-+++ b/.claude/active_work.md
+++-@@ -4,16 +4,22 @@
+++- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+++- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+++- 
+++--_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
+++--investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
+++--2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
+++--loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
+++--realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
+++--real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
+++--labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
+++--duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
+++--(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
+++--OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+++-+_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
+++-+fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
+++-+complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
+++-+EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
+++-+are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
+++-+Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
+++-+**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
+++-+had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
+++-+Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
+++-+base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
+++-+`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
+++-+LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
+++-+proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
+++-+escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
+++-+**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
+++-+**Website #391 PAUSED.**_
+++- 
+++- ## How work is organized — two tracks (NEW 2026-06-23)
+++- - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
+++-@@ -35,12 +41,12 @@ OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4
+++-   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
+++-     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
+++-     onboard (registry, zero-file), `verify-competition-ingest`.
+++--  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
+++--    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
+++--    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
+++--    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
+++--    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
+++--    standing DQ scan (template for the class).
+++-+  - **#546 (data-quality):** the **#526 fix LANDED (#551, merged)** — `assert_event_team_in_fixture_participants`
+++-+    (event team ∈ {home, away}) is the generic detector and `fixture_event_team_overrides` is the CPO-owned
+++-+    correction seed. NEXT: (a) generalise the detector into the standing all-league DQ scan; (b) the **#550**
+++-+    automated-triage design (detect → gather-evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix) —
+++-+    a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
+++-+    merge-on-internal-similarity.
+++-   - **#547 (cost):** size BQ build cost before the expansion scales.
+++- - **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
+++-   **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
+++ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+++-index fee2034..28a45c9 100644
++++index 28a45c9..1608ab1 100644
+++ --- a/.claude/task/contract.md
+++ +++ b/.claude/task/contract.md
+++-@@ -1,103 +1,36 @@
+++--# Task contract — #526 event team mis-attribution + duplicate-id correction (Path A)
+++-+# Task contract — Handover refresh (#526 closeout, 2026-06-23)
++++@@ -1,36 +1,87 @@
++++-# Task contract — Handover refresh (#526 closeout, 2026-06-23)
+++++# Task contract — #500 team-season consolidation (Option A: rename + mart dedup)
+++  
+++  objective: >
+++--  Correct the two confirmed fixture-event team-attribution defects (CPO-approved Path A),
+++--  via a base-layer CPO-owned override seed, and ship a permanent integrity guard:
+++--  (a) Riga FC — provider duplicate id: alias event team 2263 -> 10124 (one club, two ids).
+++--  (b) ASC Kara / ASKO Kara — mis-attribution: re-attribute event team 6424 -> 25274 ONLY in
+++--      fixtures where 25274 is a participant and 6424 is not (ASC Kara's own 2019/2025 events,
+++--      where 6424 IS the participant, stay 6424). The two ids are DISTINCT real clubs — never
+++--      merged. Then add an integrity test (event team in {home, away}) as a permanent ERROR guard.
+++-+  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
+++-+  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
+++-+  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
+++-+  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
+++-+  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
+++-+  Doc / bookkeeping only — no code, no product decision.
++++-  Refresh .claude/active_work.md after the #526 closeout: PR #551 MERGED (the fixture-event
++++-  team-attribution fix; resolves #526, now CLOSED), and the FALSIFIED "provider duplicate-team-id
++++-  quirk; data complete/uncorrupted" framing corrected to the verified two-class finding
++++-  (Togo 6424/25274 = two distinct clubs / mis-attribution; Riga 2263/10124 = one club / duplicate
++++-  id). Record the new follow-ups #549 (proposal-phase gate) + #550 (automated DQ triage design).
++++-  Doc / bookkeeping only — no code, no product decision.
+++++  #500 Option A (CPO: "Then it's A" + "Rename + fold that dedup"). (1) Rename
+++++  int_team_season__full_season_metrics -> int_team_season__metrics, parallel to
+++++  int_player_season__metrics (#480); keep the per-match record (int_season_record__team) and
+++++  standings (int_team_season__standings_primary) as distinct surfaces, mirroring the player side.
+++++  (2) Fold the one real redundancy: mart_team_season re-aggregates season W/D/L/goals from
+++++  int_legs__team_match that the rollup already sums — add wins/draws/losses_sum_season to the
+++++  rollup and have mart_team_season COMPOSE the rollup instead of re-aggregating. Byte-identical
+++++  refactor — NO shipped-number change. Defer the `_season`-suffix / goals_saves COLUMN alignment
+++++  (a larger separate cascade) to a follow-up.
+++  
+++  refs: >
+++--  #526 (defect + full triple-verified diagnosis this session). Seeds the #546 DQ standing scan
+++--  (the integrity test is the generic detector). #549 (proposal-gate) / #550 (automation design)
+++--  are separate follow-ups, not built here.
+++-+  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
+++-+  feedback-verify-real-world-identity.
++++-  This session 2026-06-23. Merged #551 (resolves #526). Filed #549, #550. Memory:
++++-  feedback-verify-real-world-identity.
+++++  #500 (team analog of #480). The catalogue drift-test comment earmarks the `_season`/goals_saves
+++++  column alignment for #500 — deferred here (see decisions_reserved).
+++  
+++  scope_paths:
+++--  - dbt_project/seeds/fixture_event_team_overrides.csv        # NEW seed (name reserved, see below)
+++--  - dbt_project/seeds/schema.yml                              # document/test the seed
+++--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+++--  - dbt_project/models/2_base/api_football/base.yml
+++--  - dbt_project/models/3_core/fct_fixture_event.sql           # extend self-heal to reprocess the fixtures
+++--  - dbt_project/tests/assert_event_team_in_fixture_participants.sql  # NEW integrity test (name reserved)
+++-+  - .claude/active_work.md
++++-  - .claude/active_work.md
+++++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+++++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+++++  - dbt_project/models/5_marts/shared/mart_team_season.sql
+++++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+++++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++++  - dbt_project/macros/team_benchmark_metrics.sql
+++++  - dbt_project/models/5_marts/shared/shared.yml
+++++  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+++++  - docs/metric_layer.md
+++    - .claude/task/**
+++  
+++--impact_map: >
+++--  writers: base_apif__fixture_events derives event team_id from RAW_APIF_FIXTURE_DETAILS
+++--    $.events[].team.id (via stg_apif__fixture_events), today with a null-team_id recovery clause.
+++--    This task adds a seed-driven OVERRIDE of team_id in that base model. To evaluate the
+++--    `reattribute_if_cohabiting` mode it joins base_apif__fixtures_next (fixture participants:
+++--    home_team_id/away_team_id) on fixture_id. NO ingestion/raw writer change — provider data is
+++--    left faithful; the correction lives in transform. The `alias` mode is unconditional.
+++--  downstream: (dbt ls --select base_apif__fixture_events+ --resource-type model, this session)
+++--    base_apif__fixture_events
+++--    base_apif__players
+++--    dim_player
+++--    fct_fixture_event
+++--    mart_fixture_stats__player
+++--    mart_leaderboards
+++--    mart_momentum_window__team
+++--    mart_player_match_log
+++--    mart_player_profile
+++--    mart_roster
+++--  layer_rules: the correction is "entity alignment", which the layer contract places in 2_base
+++--    (1_staging is raw-cleanup-only; 3_core is canonical facts). Seed = seeds-as-configuration.
+++--    No per-competition files; league_code flows through. check_layer_contract unaffected.
+++--  deploy_order: base_apif__fixture_events is a VIEW (recomputes on read). fct_fixture_event is
+++--    INCREMENTAL on raw_ingested_at and will NOT reprocess already-committed rows for a changed
+++--    (non-null -> non-null) team_id. Chosen reprocessing: extend fct_fixture_event's existing
+++--    self-heal clause to also re-run fixtures listed in the override seed (bounded, self-limiting;
+++--    mirrors the #527 null-team_sk self-heal) -- NO --full-refresh. Idempotent; ci-data-build on the
+++--    PR rebuilds and applies it; nothing is broken between merge and rebuild.
+++--  blast_radius: the corrected team_id lands ONLY in fct_fixture_event.team_sk/team_api_id, and
+++--    fct_fixture_event is a LEAF -- `dbt ls --select fct_fixture_event+` returns only itself and NO
+++--    model ref()s it (grep over models/ this session). So NO mart number changes. The marts in the
+++--    base_apif__fixture_events+ closure (mart_leaderboards / mart_roster / mart_player_profile /
+++--    mart_player_match_log / mart_fixture_stats__player / mart_momentum_window__team) sit downstream
+++--    of BASE via base_apif__players -> dim_player (player identity) and fct_fixture_player_stats
+++--    (player match stats) — neither reads the event team_id. Change is bounded to 38 fct_fixture_event
+++--    rows across 3 clubs (25274 ASKO Kara, 6424 ASC Kara, 10124/2263 Riga FC) in 15 fixtures (13 CAFCL
+++--    2020-24 + 2 UEL 2018) -- RAW count this session: event team NOT IN (home,away) = 38 / 15 fixtures;
+++--    recent-season baseline 0. All 15 fixtures ARE present in base_apif__fixtures_next / fct_fixture
+++--    (verified: fct_fixture carries their home/away participants), so the reattribute_if_cohabiting
+++--    path fires and the integrity test covers them.
+++--
+++++impact_map: >
+++++  writers: int_team_season__metrics (renamed from __full_season_metrics) — SAME aggregation over
+++++    int_legs__team_match + int_legs__team_from_players, PLUS three new counts
+++++    wins_sum_season/draws_sum_season/losses_sum_season (the `_sum_season` convention keeps them
+++++    catalogue-exempt). mart_team_season — now COMPOSES int_team_season__metrics for the season
+++++    counts (played=season_games_played, goals_for/against=*_sum_season, points=points_won_sum_season,
+++++    clean_sheets=clean_sheets_count_season, +W/D/L) and DROPS its own int_legs__team_match
+++++    aggregation; keeps the dim_team + int_team_season__standings_primary joins.
+++++  downstream: (dbt ls, this session)
+++++    int_team_season__full_season_metrics+ -> int_competition_benchmarks__team,
+++++      mart_competition_benchmarks__team, mart_team_profile, mart_team_season_insights
+++++    mart_team_season+ -> mart_team_profile, mart_team_season_insights
+++++    (the benchmark macro team_benchmark_metrics only NAMES the model in a comment — no ref().)
+++++  layer_rules: the rename is name-only. The dedup moves leg-aggregation OUT of the mart and makes
+++++    the mart a consumer of the intermediate rollup — logic moves UP the layers (correct direction).
+++++    No staging/core touched. check_layer_contract unaffected.
+++++  deploy_order: all tables/views; ci-data-build does a full rebuild so int_team_season__metrics is
+++++    created under the new name. The old int_team_season__full_season_metrics relation is orphaned in
+++++    the shared warehouse (dbt does not drop a renamed model's old table) — harmless, swept by the
+++++    next full-refresh; no consumer references it post-rename.
+++++  blast_radius: NO shipped-number change intended. The rename is name-only. The mart_team_season
+++++    dedup is byte-identical: the rollup's sums equal mart_team_season's prior agg over the SAME legs
+++++    (SUM ignores nulls == SUM(coalesce(.,0)); finished legs carry non-null goals, so
+++++    clean_sheets_count_season == countif(coalesce(goals_against,0)=0); count(distinct fixture_sk) ==
+++++    count(*) at the one-row-per-(team,fixture) leg grain). wins/draws/losses are newly RELOCATED
+++++    from the mart into the rollup. Verified by ci-data-build before/after = 0 diff on mart_team_season
+++++    + mart_team_profile + mart_team_season_insights. The benchmark engine reads only the rate columns
+++++    (unchanged), so int_competition_benchmarks__team / mart_competition_benchmarks__team are inert.
+++++
+++  decisions_taken: >
+++--  Path A approved by the CPO this session ("Path A seems reasonable" + "yes ... open the #526 Path A
+++--  task" + "Option 1"). Identity triple-verified and CPO-accepted this session (external Togo
+++--  championship/CAF records mapping 1:1 to the participant id; disjoint squads across the ASC vs ASKO
+++--  windows; intra-payload RAW trace; Riga players appearing under BOTH ids across seasons): 6424 ASC
+++--  Kara and 25274 ASKO Kara are TWO DISTINCT clubs (Togo = mis-attribution, NEVER merge); 2263/10124
+++--  are ONE club, Riga FC (genuine duplicate id). Mechanism = Option 1: a SINGLE override seed with a
+++--  `mode` column -- `alias` (unconditional id replacement) for Riga; `reattribute_if_cohabiting`
+++--  (replace only where the correct id is a participant and the wrong id is not) for Togo -- applied in
+++--  base_apif__fixture_events. Scope = events-only; dim_team left untouched (CPO-approved; the 2263
+++--  orphan is harmless). Reprocessing = extend the existing fct_fixture_event self-heal (the #527
+++--  pattern), not a full-refresh. Dropping events (coverage-cut) and merging the two Togo clubs (option
+++--  B) are both ruled out by the CPO. CPO confirmed the proposed naming (seed
+++--  fixture_event_team_overrides; columns wrong_team_api_id/correct_team_api_id/mode/note; test
+++--  assert_event_team_in_fixture_participants) and ERROR severity on review this session ("do it") —
+++--  the test carries an explicit config(severity='error').
+++-+  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
+++-+  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
+++-+  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
+++-+  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
+++-+  merge, the #549/#550 filings).
++++-  Documentation-only handover refresh. No code, no §10. The commit carries contract.md (hashed, not
++++-  artifact-exempt) so it needs review; routing for active_work.md + .claude/task/** is scope-auditor
++++-  only. active_work.md is hash-excluded (artifact). All facts recorded were established and
++++-  CPO-actioned this session (the #526 re-diagnosis verified externally + triple-confirmed, the #551
++++-  merge, the #549/#550 filings).
+++++  Option A approved by the CPO this session ("Then it's A"; "Rename + fold that dedup"). Mirror
+++++  #480: int_team_season__metrics is the canonical season rollup; the per-match record and standings
+++++  stay as separate surfaces (not merged). The mart_team_season aggregation dedup is folded in and
+++++  must be byte-identical. New W/D/L counts use the `_sum_season` suffix (catalogue-exempt, matching
+++++  the existing raw-sum columns).
+++  
+++  decisions_reserved:
+++--  - Fallback only: if extending the self-heal cannot reach the committed rows, a one-time
+++--    --full-refresh of fct_fixture_event is CPO cost-authorization — do NOT run unprompted.
+++--  - Seed governance is manual BY DESIGN: a false row (a duplicate inferred from internal name
+++--    similarity) would corrupt attribution until caught. Accepted control = the `note`-column
+++--    external-evidence rule + the integrity test catching NEW violations; automating the
+++--    detect-evidence-escalate loop is tracked by #546 / #550, not built here.
+++-+  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
+++-+    automation remain open on their own issues — not decided here.
++++-  - none. Pure handover bookkeeping. The #545 tranche cut, the #549/#550 designs, and the #546
++++-    automation remain open on their own issues — not decided here.
+++++  - The `_season`-suffix / goals_saves COLUMN-name alignment (catalogue-test comment ties it to #500)
+++++    is DEFERRED — a large separate cascade (the benchmark engine + marts + metric layer). CPO scoped
+++++    THIS PR to rename + dedup. The drift-test keeps its `_season`/goals_saves normalisation until that
+++++    follow-up.
+++++  - If ci-data-build shows ANY delta on mart_team_season or its downstream, the dedup is NOT
+++++    byte-identical -> stop and reconcile before merge; never ship a silent number change (§10).
+++  
+++  done_when:
+++--  - Override seed carries exactly the 2 confirmed rows (2263->10124 alias; 6424->25274
+++--    reattribute_if_cohabiting); `dbt seed` loads it.
+++--  - base_apif__fixture_events applies the override; for the 15 fixtures the event team_id resolves
+++--    to the correct club; ASC Kara's own 2019/2025 events (participant 6424) are untouched.
+++--  - fct_fixture_event reprocesses the override fixtures (self-heal); team_sk corrected.
+++--  - assert_event_team_in_fixture_participants returns 0 rows across ALL leagues (was 38).
+++--  - dim_player row count + values unchanged (team_id is not a player-identity input).
+++--  - validate-local passes (sqlfluff + dbt parse); ci-validate + ci-data-build green on the PR;
+++--    no mart deltas expected (fct_fixture_event is a leaf) -- ci-data-build confirms the integrity
+++--    test returns 0 rows and that no mart output changed.
+++-+  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
+++-+    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
+++-+  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
+++-+  - Tree matches the contract (only active_work.md + .claude/task/**).
++++-  - active_work.md status reflects: #551 MERGED / #526 CLOSED; the corrected two-class #526 finding
++++-    (NOT a duplicate-id quirk); #549 + #550 filed; main GREEN.
++++-  - The stale "provider duplicate-team-id quirk; data complete/uncorrupted" framing is removed.
++++-  - Tree matches the contract (only active_work.md + .claude/task/**).
+++++  - int_team_season__metrics exists; int_team_season__full_season_metrics gone; every ref updated
+++++    (int_competition_benchmarks__team, mart_competition_benchmarks__team, mart_team_profile,
+++++    mart_team_season_insights, the drift-test depends_on + model tuple); dbt parse + sqlfluff clean.
+++++  - mart_team_season composes the rollup, no longer reads int_legs__team_match; same output columns
+++++    + grain.
+++++  - assert_no_uncatalogued_season_metric passes (W/D/L exempt via `_sum_season`).
+++++  - validate-local passes; ci-data-build green; before/after diff on mart_team_season +
+++++    mart_team_profile + mart_team_season_insights = 0 rows changed.
+++  
+++  amendments: (none)
++++diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
++++index eb249ac..f916deb 100644
++++--- a/dbt_project/macros/team_benchmark_metrics.sql
+++++++ b/dbt_project/macros/team_benchmark_metrics.sql
++++@@ -2,7 +2,7 @@
++++ {#
++++   The 20 team season metrics the competition benchmark covers, as (metric_key, season_column) pairs.
++++   metric_key is the metric_catalogue id; season_column is the column in
++++-  int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
+++++  int_team_season__metrics. Single source so the benchmark intermediate (the league
++++   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
++++   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
++++   (non-metrics), and dribbles_success_pct (retired team-side, #510).
++++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++index 630ad06..c5b5070 100644
++++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+++++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++@@ -32,11 +32,13 @@ models:
++++       - name: group_description
++++         description: "Standings group/stage label from the chosen row."
++++ 
++++-  - name: int_team_season__full_season_metrics
+++++  - name: int_team_season__metrics
++++     description: >
++++-      Per (league_code, season_api_year, team_sk) advanced metrics aggregated over all finished legs
++++-      in that season. Same sum/rate semantics as int_matchday__team_form_metrics without a five-game cap.
++++-      mart_team_season_insights exposes only the latest season_api_year per league_code.
+++++      Canonical per (league_code, season_api_year, team_sk) season rollup — advanced metrics
+++++      aggregated over all finished legs (same sum/rate semantics as int_matchday__team_form_metrics
+++++      without a five-game cap), plus the W/D/L counts (wins/draws/losses_sum_season) that
+++++      mart_team_season composes instead of re-aggregating (#500). mart_team_season_insights exposes
+++++      only the latest season_api_year per league_code.
++++     config:
++++       tags: ["intermediate", "football", "team_season"]
++++     tests:
++++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++similarity index 96%
++++rename from dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++++rename to dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++index eb8882a..d922ab3 100644
++++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+++++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++@@ -58,6 +58,9 @@ aggregated_season as (
++++                 else 0
++++             end
++++         ) as points_won_sum_season,
+++++        countif(upper(trim(result)) = 'W') as wins_sum_season,
+++++        countif(upper(trim(result)) = 'D') as draws_sum_season,
+++++        countif(upper(trim(result)) = 'L') as losses_sum_season,
++++         sum(goals_for) as goals_for_sum_season,
++++         sum(goals_against) as goals_against_sum_season,
++++         sum(shots_total) as total_shots_sum_season,
++++@@ -93,6 +96,9 @@ select
++++     stat_coverage_season_games,
++++     player_stat_coverage_season_games,
++++     points_won_sum_season,
+++++    wins_sum_season,
+++++    draws_sum_season,
+++++    losses_sum_season,
++++     goals_for_sum_season,
++++     goals_against_sum_season,
++++     total_shots_sum_season,
++++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++++index e9d8add..3e49485 100644
++++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++++@@ -10,13 +10,13 @@
++++   cannot skew the median/percentiles. Metrics with no value for a team (e.g. player-stat coverage gaps)
++++   are excluded per metric (metric_value is null -> not counted).
++++ 
++++-  Window: season-to-date (W2), from int_team_season__full_season_metrics. The 20-metric list lives in
+++++  Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
++++   the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
++++   Grain: (league_code, season_api_year, metric_key).
++++ #}
++++ 
++++ with season as (
++++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++++    select * from {{ ref('int_team_season__metrics') }}
++++     where season_games_played >= 3
++++ ),
++++ 
++++diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++index 14b51bd..80ae01c 100644
++++--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++@@ -6,21 +6,21 @@
++++   round (off-season) or before matchday 1 of the next season.
++++ #}
++++ 
++++-with import_int_team_season__full_season_metrics as (
++++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++++with import_int_team_season__metrics as (
+++++    select * from {{ ref('int_team_season__metrics') }}
++++ ),
++++ 
++++ latest_season_per_league as (
++++     select
++++         league_code,
++++         max(season_api_year) as season_api_year
++++-    from import_int_team_season__full_season_metrics
+++++    from import_int_team_season__metrics
++++     group by league_code
++++ ),
++++ 
++++ latest_season_metrics as (
++++     select m.*
++++-    from import_int_team_season__full_season_metrics as m
+++++    from import_int_team_season__metrics as m
++++     inner join latest_season_per_league as ls
++++         on
++++             m.league_code = ls.league_code
++++diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++++index 718f44d..a9984e6 100644
++++--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++++++ b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++++@@ -10,7 +10,7 @@
++++   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
++++   reading is supplied at display from the catalogue's `direction` (joined there), since most football
++++   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
++++-  int_team_season__full_season_metrics + the int_competition_benchmarks__team engine (the shared
+++++  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
++++   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
++++ 
++++   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
++++@@ -18,7 +18,7 @@
++++ #}
++++ 
++++ with season as (
++++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++++    select * from {{ ref('int_team_season__metrics') }}
++++     where season_games_played >= 3
++++ ),
++++ 
++++diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++index d4469a9..91b48ea 100644
++++--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
+++++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++@@ -10,7 +10,7 @@
++++     - record / rank / form  mart_team_season (same-layer ref, the documented
++++                             layering exception — mart_team_season_insights does
++++                             the same)
++++-    - season metric rates  int_team_season__full_season_metrics
+++++    - season metric rates  int_team_season__metrics
++++ 
++++   Differentiators:
++++     - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
++++@@ -28,7 +28,7 @@
++++ #}
++++ 
++++ with metrics as (
++++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++++    select * from {{ ref('int_team_season__metrics') }}
++++ ),
++++ 
++++ team_season as (
++++diff --git a/dbt_project/models/5_marts/shared/mart_team_season.sql b/dbt_project/models/5_marts/shared/mart_team_season.sql
++++index 1af12df..b8e1e33 100644
++++--- a/dbt_project/models/5_marts/shared/mart_team_season.sql
+++++++ b/dbt_project/models/5_marts/shared/mart_team_season.sql
++++@@ -1,14 +1,15 @@
++++ {{ config(materialized='table') }}
++++ 
++++ {#
++++-    Per-team, per-season rollup. Counts derive from finished matches only
++++-    (FT/AET/PEN, null goals excluded) via int_legs__team_match.
++++-    latest_rank, latest_form, and standings_group_description join from
++++-    int_team_season__standings_primary; teams absent from standings get nulls.
+++++    Per-team, per-season rollup for table display and marts. The season counts COMPOSE the
+++++    canonical rollup int_team_season__metrics (finished matches only via int_legs__team_match) —
+++++    the same aggregation, not recomputed (#500 dedup). latest_rank, latest_form and
+++++    standings_group_description join from int_team_season__standings_primary; teams absent from
+++++    standings get nulls.
++++ #}
++++ 
++++-with team_legs as (
++++-    select * from {{ ref('int_legs__team_match') }}
+++++with season_metrics as (
+++++    select * from {{ ref('int_team_season__metrics') }}
++++ ),
++++ 
++++ dim_team as (
++++@@ -17,71 +18,32 @@ dim_team as (
++++ 
++++ import_int_team_season__standings_primary as (
++++     select * from {{ ref('int_team_season__standings_primary') }}
++++-),
++++-
++++-legs as (
++++-    select
++++-        team_sk,
++++-        league_sk,
++++-        season_sk,
++++-        league_code,
++++-        season_api_year,
++++-        fixture_sk,
++++-        goals_for,
++++-        goals_against,
++++-        result
++++-    from team_legs
++++-),
++++-
++++-agg as (
++++-    select
++++-        team_sk,
++++-        league_sk,
++++-        season_sk,
++++-        league_code,
++++-        season_api_year,
++++-        count(*) as played,
++++-        countif(result = 'W') as wins,
++++-        countif(result = 'D') as draws,
++++-        countif(result = 'L') as losses,
++++-        sum(coalesce(goals_for, 0)) as goals_for,
++++-        sum(coalesce(goals_against, 0)) as goals_against,
++++-        sum(coalesce(goals_for, 0)) - sum(coalesce(goals_against, 0)) as goal_diff,
++++-        countif(result = 'W') * 3 + countif(result = 'D') as points,
++++-        countif(coalesce(goals_against, 0) = 0) as clean_sheets
++++-    from legs
++++-    group by
++++-        team_sk,
++++-        league_sk,
++++-        season_sk,
++++-        league_code,
++++-        season_api_year
++++ )
++++ 
++++ select
++++-    {{ dbt_utils.generate_surrogate_key(['agg.team_sk', 'agg.season_sk']) }} as team_season_sk,
++++-    agg.team_sk,
++++-    agg.season_sk,
++++-    agg.league_sk,
++++-    agg.league_code,
++++-    agg.season_api_year,
+++++    m.team_season_sk,
+++++    m.team_sk,
+++++    m.season_sk,
+++++    m.league_sk,
+++++    m.league_code,
+++++    m.season_api_year,
++++     t.team_name,
++++     t.team_code,
++++     t.team_country,
++++     t.team_logo_url,
++++-    agg.played,
++++-    agg.wins,
++++-    agg.draws,
++++-    agg.losses,
++++-    agg.goals_for,
++++-    agg.goals_against,
++++-    agg.goal_diff,
++++-    agg.points,
++++-    agg.clean_sheets,
+++++    m.season_games_played as played,
+++++    m.wins_sum_season as wins,
+++++    m.draws_sum_season as draws,
+++++    m.losses_sum_season as losses,
+++++    m.goals_for_sum_season as goals_for,
+++++    m.goals_against_sum_season as goals_against,
+++++    m.points_won_sum_season as points,
+++++    m.clean_sheets_count_season as clean_sheets,
++++     st.standing_rank as latest_rank,
++++     st.form as latest_form,
++++-    st.group_description as standings_group_description
++++-from agg
++++-left join dim_team as t on agg.team_sk = t.team_sk
+++++    st.group_description as standings_group_description,
+++++    m.goals_for_sum_season - m.goals_against_sum_season as goal_diff
+++++from season_metrics as m
+++++left join dim_team as t on m.team_sk = t.team_sk
++++ left join import_int_team_season__standings_primary as st
++++-    on agg.team_sk = st.team_sk and agg.season_sk = st.season_sk
+++++    on m.team_sk = st.team_sk and m.season_sk = st.season_sk
++++diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
++++index 34e44db..91c1cff 100644
++++--- a/dbt_project/models/5_marts/shared/shared.yml
+++++++ b/dbt_project/models/5_marts/shared/shared.yml
++++@@ -250,7 +250,7 @@ models:
++++     description: >
++++       Team profile (#324). One row per (team, competition-season): identity + record +
++++       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
++++-      (int_team_season__full_season_metrics) + two signature differentiators and a streaks
+++++      (int_team_season__metrics) + two signature differentiators and a streaks
++++       layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
++++       transparent performance_vs_results_gap (no composite score). Year-over-year columns
++++       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
++++diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++index babba8d..030de7b 100644
++++--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+++++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++@@ -17,11 +17,11 @@
++++ -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
++++ -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
++++ -- depends_on: {{ ref('int_player_season__metrics') }}
++++--- depends_on: {{ ref('int_team_season__full_season_metrics') }}
+++++-- depends_on: {{ ref('int_team_season__metrics') }}
++++ 
++++ {% set models = [
++++     ('int_player_season__metrics', 'player'),
++++-    ('int_team_season__full_season_metrics', 'team')
+++++    ('int_team_season__metrics', 'team')
++++ ] %}
++++ 
++++ {% set exempt = [
++++diff --git a/docs/metric_layer.md b/docs/metric_layer.md
++++index 6d0fd67..77050c3 100644
++++--- a/docs/metric_layer.md
+++++++ b/docs/metric_layer.md
++++@@ -5,7 +5,7 @@
++++ ## The three parts
++++ 
++++ 1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
++++-   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__full_season_metrics`
+++++   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
++++    for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
++++    *implementation* drift — the same metric computed three different ways.
++++ 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
+++diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
+++index eb249ac..f916deb 100644
+++--- a/dbt_project/macros/team_benchmark_metrics.sql
++++++ b/dbt_project/macros/team_benchmark_metrics.sql
+++@@ -2,7 +2,7 @@
+++ {#
+++   The 20 team season metrics the competition benchmark covers, as (metric_key, season_column) pairs.
+++   metric_key is the metric_catalogue id; season_column is the column in
+++-  int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
++++  int_team_season__metrics. Single source so the benchmark intermediate (the league
+++   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
+++   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
+++   (non-metrics), and dribbles_success_pct (retired team-side, #510).
+++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+++index 630ad06..c5b5070 100644
+++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+++@@ -32,11 +32,13 @@ models:
+++       - name: group_description
+++         description: "Standings group/stage label from the chosen row."
+++ 
+++-  - name: int_team_season__full_season_metrics
++++  - name: int_team_season__metrics
+++     description: >
+++-      Per (league_code, season_api_year, team_sk) advanced metrics aggregated over all finished legs
+++-      in that season. Same sum/rate semantics as int_matchday__team_form_metrics without a five-game cap.
+++-      mart_team_season_insights exposes only the latest season_api_year per league_code.
++++      Canonical per (league_code, season_api_year, team_sk) season rollup — advanced metrics
++++      aggregated over all finished legs (same sum/rate semantics as int_matchday__team_form_metrics
++++      without a five-game cap), plus the W/D/L counts (wins/draws/losses_sum_season) that
++++      mart_team_season composes instead of re-aggregating (#500). mart_team_season_insights exposes
++++      only the latest season_api_year per league_code.
+++     config:
+++       tags: ["intermediate", "football", "team_season"]
+++     tests:
+++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++similarity index 96%
+++rename from dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+++rename to dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++index eb8882a..d922ab3 100644
+++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++@@ -58,6 +58,9 @@ aggregated_season as (
+++                 else 0
+++             end
+++         ) as points_won_sum_season,
++++        countif(upper(trim(result)) = 'W') as wins_sum_season,
++++        countif(upper(trim(result)) = 'D') as draws_sum_season,
++++        countif(upper(trim(result)) = 'L') as losses_sum_season,
+++         sum(goals_for) as goals_for_sum_season,
+++         sum(goals_against) as goals_against_sum_season,
+++         sum(shots_total) as total_shots_sum_season,
+++@@ -93,6 +96,9 @@ select
+++     stat_coverage_season_games,
+++     player_stat_coverage_season_games,
+++     points_won_sum_season,
++++    wins_sum_season,
++++    draws_sum_season,
++++    losses_sum_season,
+++     goals_for_sum_season,
+++     goals_against_sum_season,
+++     total_shots_sum_season,
+++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++index e9d8add..3e49485 100644
+++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++@@ -10,13 +10,13 @@
+++   cannot skew the median/percentiles. Metrics with no value for a team (e.g. player-stat coverage gaps)
+++   are excluded per metric (metric_value is null -> not counted).
+++ 
+++-  Window: season-to-date (W2), from int_team_season__full_season_metrics. The 20-metric list lives in
++++  Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
+++   the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
+++   Grain: (league_code, season_api_year, metric_key).
+++ #}
+++ 
+++ with season as (
+++-    select * from {{ ref('int_team_season__full_season_metrics') }}
++++    select * from {{ ref('int_team_season__metrics') }}
+++     where season_games_played >= 3
+++ ),
+++ 
+++diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++index 14b51bd..80ae01c 100644
+++--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++@@ -6,21 +6,21 @@
+++   round (off-season) or before matchday 1 of the next season.
+++ #}
+++ 
+++-with import_int_team_season__full_season_metrics as (
+++-    select * from {{ ref('int_team_season__full_season_metrics') }}
++++with import_int_team_season__metrics as (
++++    select * from {{ ref('int_team_season__metrics') }}
+++ ),
+++ 
+++ latest_season_per_league as (
+++     select
+++         league_code,
+++         max(season_api_year) as season_api_year
+++-    from import_int_team_season__full_season_metrics
++++    from import_int_team_season__metrics
+++     group by league_code
+++ ),
+++ 
+++ latest_season_metrics as (
+++     select m.*
+++-    from import_int_team_season__full_season_metrics as m
++++    from import_int_team_season__metrics as m
+++     inner join latest_season_per_league as ls
+++         on
+++             m.league_code = ls.league_code
+++diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++index 718f44d..a9984e6 100644
+++--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++++++ b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++@@ -10,7 +10,7 @@
+++   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
+++   reading is supplied at display from the catalogue's `direction` (joined there), since most football
+++   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
+++-  int_team_season__full_season_metrics + the int_competition_benchmarks__team engine (the shared
++++  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
+++   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
+++ 
+++   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
+++@@ -18,7 +18,7 @@
+++ #}
+++ 
+++ with season as (
+++-    select * from {{ ref('int_team_season__full_season_metrics') }}
++++    select * from {{ ref('int_team_season__metrics') }}
+++     where season_games_played >= 3
+++ ),
+++ 
+++diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+++index d4469a9..91b48ea 100644
+++--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+++@@ -10,7 +10,7 @@
+++     - record / rank / form  mart_team_season (same-layer ref, the documented
+++                             layering exception — mart_team_season_insights does
+++                             the same)
+++-    - season metric rates  int_team_season__full_season_metrics
++++    - season metric rates  int_team_season__metrics
+++ 
+++   Differentiators:
+++     - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
+++@@ -28,7 +28,7 @@
+++ #}
+++ 
+++ with metrics as (
+++-    select * from {{ ref('int_team_season__full_season_metrics') }}
++++    select * from {{ ref('int_team_season__metrics') }}
+++ ),
+++ 
+++ team_season as (
+++diff --git a/dbt_project/models/5_marts/shared/mart_team_season.sql b/dbt_project/models/5_marts/shared/mart_team_season.sql
+++index 1af12df..b8e1e33 100644
+++--- a/dbt_project/models/5_marts/shared/mart_team_season.sql
++++++ b/dbt_project/models/5_marts/shared/mart_team_season.sql
+++@@ -1,14 +1,15 @@
+++ {{ config(materialized='table') }}
+++ 
+++ {#
+++-    Per-team, per-season rollup. Counts derive from finished matches only
+++-    (FT/AET/PEN, null goals excluded) via int_legs__team_match.
+++-    latest_rank, latest_form, and standings_group_description join from
+++-    int_team_season__standings_primary; teams absent from standings get nulls.
++++    Per-team, per-season rollup for table display and marts. The season counts COMPOSE the
++++    canonical rollup int_team_season__metrics (finished matches only via int_legs__team_match) —
++++    the same aggregation, not recomputed (#500 dedup). latest_rank, latest_form and
++++    standings_group_description join from int_team_season__standings_primary; teams absent from
++++    standings get nulls.
+++ #}
+++ 
+++-with team_legs as (
+++-    select * from {{ ref('int_legs__team_match') }}
++++with season_metrics as (
++++    select * from {{ ref('int_team_season__metrics') }}
+++ ),
+++ 
+++ dim_team as (
+++@@ -17,71 +18,32 @@ dim_team as (
+++ 
+++ import_int_team_season__standings_primary as (
+++     select * from {{ ref('int_team_season__standings_primary') }}
+++-),
+++-
+++-legs as (
+++-    select
+++-        team_sk,
+++-        league_sk,
+++-        season_sk,
+++-        league_code,
+++-        season_api_year,
+++-        fixture_sk,
+++-        goals_for,
+++-        goals_against,
+++-        result
+++-    from team_legs
+++-),
+++-
+++-agg as (
+++-    select
+++-        team_sk,
+++-        league_sk,
+++-        season_sk,
+++-        league_code,
+++-        season_api_year,
+++-        count(*) as played,
+++-        countif(result = 'W') as wins,
+++-        countif(result = 'D') as draws,
+++-        countif(result = 'L') as losses,
+++-        sum(coalesce(goals_for, 0)) as goals_for,
+++-        sum(coalesce(goals_against, 0)) as goals_against,
+++-        sum(coalesce(goals_for, 0)) - sum(coalesce(goals_against, 0)) as goal_diff,
+++-        countif(result = 'W') * 3 + countif(result = 'D') as points,
+++-        countif(coalesce(goals_against, 0) = 0) as clean_sheets
+++-    from legs
+++-    group by
+++-        team_sk,
+++-        league_sk,
+++-        season_sk,
+++-        league_code,
+++-        season_api_year
+++ )
+++ 
+++ select
+++-    {{ dbt_utils.generate_surrogate_key(['agg.team_sk', 'agg.season_sk']) }} as team_season_sk,
+++-    agg.team_sk,
+++-    agg.season_sk,
+++-    agg.league_sk,
+++-    agg.league_code,
+++-    agg.season_api_year,
++++    m.team_season_sk,
++++    m.team_sk,
++++    m.season_sk,
++++    m.league_sk,
++++    m.league_code,
++++    m.season_api_year,
+++     t.team_name,
+++     t.team_code,
+++     t.team_country,
+++     t.team_logo_url,
+++-    agg.played,
+++-    agg.wins,
+++-    agg.draws,
+++-    agg.losses,
+++-    agg.goals_for,
+++-    agg.goals_against,
+++-    agg.goal_diff,
+++-    agg.points,
+++-    agg.clean_sheets,
++++    m.season_games_played as played,
++++    m.wins_sum_season as wins,
++++    m.draws_sum_season as draws,
++++    m.losses_sum_season as losses,
++++    m.goals_for_sum_season as goals_for,
++++    m.goals_against_sum_season as goals_against,
++++    m.points_won_sum_season as points,
++++    m.clean_sheets_count_season as clean_sheets,
+++     st.standing_rank as latest_rank,
+++     st.form as latest_form,
+++-    st.group_description as standings_group_description
+++-from agg
+++-left join dim_team as t on agg.team_sk = t.team_sk
++++    st.group_description as standings_group_description,
++++    m.goals_for_sum_season - m.goals_against_sum_season as goal_diff
++++from season_metrics as m
++++left join dim_team as t on m.team_sk = t.team_sk
+++ left join import_int_team_season__standings_primary as st
+++-    on agg.team_sk = st.team_sk and agg.season_sk = st.season_sk
++++    on m.team_sk = st.team_sk and m.season_sk = st.season_sk
+++diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+++index 34e44db..91c1cff 100644
+++--- a/dbt_project/models/5_marts/shared/shared.yml
++++++ b/dbt_project/models/5_marts/shared/shared.yml
+++@@ -250,7 +250,7 @@ models:
+++     description: >
+++       Team profile (#324). One row per (team, competition-season): identity + record +
+++       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
+++-      (int_team_season__full_season_metrics) + two signature differentiators and a streaks
++++      (int_team_season__metrics) + two signature differentiators and a streaks
+++       layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
+++       transparent performance_vs_results_gap (no composite score). Year-over-year columns
+++       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
+++diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+++index babba8d..030de7b 100644
+++--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+++@@ -17,11 +17,11 @@
+++ -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
+++ -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
+++ -- depends_on: {{ ref('int_player_season__metrics') }}
+++--- depends_on: {{ ref('int_team_season__full_season_metrics') }}
++++-- depends_on: {{ ref('int_team_season__metrics') }}
+++ 
+++ {% set models = [
+++     ('int_player_season__metrics', 'player'),
+++-    ('int_team_season__full_season_metrics', 'team')
++++    ('int_team_season__metrics', 'team')
+++ ] %}
+++ 
+++ {% set exempt = [
+++diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+++index 6d0fd67..77050c3 100644
+++--- a/docs/metric_layer.md
++++++ b/docs/metric_layer.md
+++@@ -5,7 +5,7 @@
+++ ## The three parts
+++ 
+++ 1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
+++-   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__full_season_metrics`
++++   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
+++    for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
+++    *implementation* drift — the same metric computed three different ways.
+++ 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
++diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
++index eb249ac..f916deb 100644
++--- a/dbt_project/macros/team_benchmark_metrics.sql
+++++ b/dbt_project/macros/team_benchmark_metrics.sql
++@@ -2,7 +2,7 @@
++ {#
++   The 20 team season metrics the competition benchmark covers, as (metric_key, season_column) pairs.
++   metric_key is the metric_catalogue id; season_column is the column in
++-  int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
+++  int_team_season__metrics. Single source so the benchmark intermediate (the league
++   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
++   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
++   (non-metrics), and dribbles_success_pct (retired team-side, #510).
++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++index 630ad06..c5b5070 100644
++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++@@ -32,11 +32,13 @@ models:
++       - name: group_description
++         description: "Standings group/stage label from the chosen row."
++ 
++-  - name: int_team_season__full_season_metrics
+++  - name: int_team_season__metrics
++     description: >
++-      Per (league_code, season_api_year, team_sk) advanced metrics aggregated over all finished legs
++-      in that season. Same sum/rate semantics as int_matchday__team_form_metrics without a five-game cap.
++-      mart_team_season_insights exposes only the latest season_api_year per league_code.
+++      Canonical per (league_code, season_api_year, team_sk) season rollup — advanced metrics
+++      aggregated over all finished legs (same sum/rate semantics as int_matchday__team_form_metrics
+++      without a five-game cap), plus the W/D/L counts (wins/draws/losses_sum_season) that
+++      mart_team_season composes instead of re-aggregating (#500). mart_team_season_insights exposes
+++      only the latest season_api_year per league_code.
++     config:
++       tags: ["intermediate", "football", "team_season"]
++     tests:
++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++similarity index 96%
++rename from dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++rename to dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++index eb8882a..d922ab3 100644
++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++@@ -58,6 +58,9 @@ aggregated_season as (
++                 else 0
++             end
++         ) as points_won_sum_season,
+++        countif(upper(trim(result)) = 'W') as wins_sum_season,
+++        countif(upper(trim(result)) = 'D') as draws_sum_season,
+++        countif(upper(trim(result)) = 'L') as losses_sum_season,
++         sum(goals_for) as goals_for_sum_season,
++         sum(goals_against) as goals_against_sum_season,
++         sum(shots_total) as total_shots_sum_season,
++@@ -93,6 +96,9 @@ select
++     stat_coverage_season_games,
++     player_stat_coverage_season_games,
++     points_won_sum_season,
+++    wins_sum_season,
+++    draws_sum_season,
+++    losses_sum_season,
++     goals_for_sum_season,
++     goals_against_sum_season,
++     total_shots_sum_season,
++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++index e9d8add..3e49485 100644
++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++@@ -10,13 +10,13 @@
++   cannot skew the median/percentiles. Metrics with no value for a team (e.g. player-stat coverage gaps)
++   are excluded per metric (metric_value is null -> not counted).
++ 
++-  Window: season-to-date (W2), from int_team_season__full_season_metrics. The 20-metric list lives in
+++  Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
++   the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
++   Grain: (league_code, season_api_year, metric_key).
++ #}
++ 
++ with season as (
++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++    select * from {{ ref('int_team_season__metrics') }}
++     where season_games_played >= 3
++ ),
++ 
++diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++index 14b51bd..80ae01c 100644
++--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++@@ -6,21 +6,21 @@
++   round (off-season) or before matchday 1 of the next season.
++ #}
++ 
++-with import_int_team_season__full_season_metrics as (
++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++with import_int_team_season__metrics as (
+++    select * from {{ ref('int_team_season__metrics') }}
++ ),
++ 
++ latest_season_per_league as (
++     select
++         league_code,
++         max(season_api_year) as season_api_year
++-    from import_int_team_season__full_season_metrics
+++    from import_int_team_season__metrics
++     group by league_code
++ ),
++ 
++ latest_season_metrics as (
++     select m.*
++-    from import_int_team_season__full_season_metrics as m
+++    from import_int_team_season__metrics as m
++     inner join latest_season_per_league as ls
++         on
++             m.league_code = ls.league_code
++diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++index 718f44d..a9984e6 100644
++--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++++ b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++@@ -10,7 +10,7 @@
++   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
++   reading is supplied at display from the catalogue's `direction` (joined there), since most football
++   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
++-  int_team_season__full_season_metrics + the int_competition_benchmarks__team engine (the shared
+++  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
++   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
++ 
++   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
++@@ -18,7 +18,7 @@
++ #}
++ 
++ with season as (
++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++    select * from {{ ref('int_team_season__metrics') }}
++     where season_games_played >= 3
++ ),
++ 
++diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
++index d4469a9..91b48ea 100644
++--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
++@@ -10,7 +10,7 @@
++     - record / rank / form  mart_team_season (same-layer ref, the documented
++                             layering exception — mart_team_season_insights does
++                             the same)
++-    - season metric rates  int_team_season__full_season_metrics
+++    - season metric rates  int_team_season__metrics
++ 
++   Differentiators:
++     - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
++@@ -28,7 +28,7 @@
++ #}
++ 
++ with metrics as (
++-    select * from {{ ref('int_team_season__full_season_metrics') }}
+++    select * from {{ ref('int_team_season__metrics') }}
++ ),
++ 
++ team_season as (
++diff --git a/dbt_project/models/5_marts/shared/mart_team_season.sql b/dbt_project/models/5_marts/shared/mart_team_season.sql
++index 1af12df..b8e1e33 100644
++--- a/dbt_project/models/5_marts/shared/mart_team_season.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_season.sql
++@@ -1,14 +1,15 @@
++ {{ config(materialized='table') }}
++ 
++ {#
++-    Per-team, per-season rollup. Counts derive from finished matches only
++-    (FT/AET/PEN, null goals excluded) via int_legs__team_match.
++-    latest_rank, latest_form, and standings_group_description join from
++-    int_team_season__standings_primary; teams absent from standings get nulls.
+++    Per-team, per-season rollup for table display and marts. The season counts COMPOSE the
+++    canonical rollup int_team_season__metrics (finished matches only via int_legs__team_match) —
+++    the same aggregation, not recomputed (#500 dedup). latest_rank, latest_form and
+++    standings_group_description join from int_team_season__standings_primary; teams absent from
+++    standings get nulls.
++ #}
++ 
++-with team_legs as (
++-    select * from {{ ref('int_legs__team_match') }}
+++with season_metrics as (
+++    select * from {{ ref('int_team_season__metrics') }}
++ ),
++ 
++ dim_team as (
++@@ -17,71 +18,32 @@ dim_team as (
++ 
++ import_int_team_season__standings_primary as (
++     select * from {{ ref('int_team_season__standings_primary') }}
++-),
++-
++-legs as (
++-    select
++-        team_sk,
++-        league_sk,
++-        season_sk,
++-        league_code,
++-        season_api_year,
++-        fixture_sk,
++-        goals_for,
++-        goals_against,
++-        result
++-    from team_legs
++-),
++-
++-agg as (
++-    select
++-        team_sk,
++-        league_sk,
++-        season_sk,
++-        league_code,
++-        season_api_year,
++-        count(*) as played,
++-        countif(result = 'W') as wins,
++-        countif(result = 'D') as draws,
++-        countif(result = 'L') as losses,
++-        sum(coalesce(goals_for, 0)) as goals_for,
++-        sum(coalesce(goals_against, 0)) as goals_against,
++-        sum(coalesce(goals_for, 0)) - sum(coalesce(goals_against, 0)) as goal_diff,
++-        countif(result = 'W') * 3 + countif(result = 'D') as points,
++-        countif(coalesce(goals_against, 0) = 0) as clean_sheets
++-    from legs
++-    group by
++-        team_sk,
++-        league_sk,
++-        season_sk,
++-        league_code,
++-        season_api_year
++ )
++ 
++ select
++-    {{ dbt_utils.generate_surrogate_key(['agg.team_sk', 'agg.season_sk']) }} as team_season_sk,
++-    agg.team_sk,
++-    agg.season_sk,
++-    agg.league_sk,
++-    agg.league_code,
++-    agg.season_api_year,
+++    m.team_season_sk,
+++    m.team_sk,
+++    m.season_sk,
+++    m.league_sk,
+++    m.league_code,
+++    m.season_api_year,
++     t.team_name,
++     t.team_code,
++     t.team_country,
++     t.team_logo_url,
++-    agg.played,
++-    agg.wins,
++-    agg.draws,
++-    agg.losses,
++-    agg.goals_for,
++-    agg.goals_against,
++-    agg.goal_diff,
++-    agg.points,
++-    agg.clean_sheets,
+++    m.season_games_played as played,
+++    m.wins_sum_season as wins,
+++    m.draws_sum_season as draws,
+++    m.losses_sum_season as losses,
+++    m.goals_for_sum_season as goals_for,
+++    m.goals_against_sum_season as goals_against,
+++    m.points_won_sum_season as points,
+++    m.clean_sheets_count_season as clean_sheets,
++     st.standing_rank as latest_rank,
++     st.form as latest_form,
++-    st.group_description as standings_group_description
++-from agg
++-left join dim_team as t on agg.team_sk = t.team_sk
+++    st.group_description as standings_group_description,
+++    m.goals_for_sum_season - m.goals_against_sum_season as goal_diff
+++from season_metrics as m
+++left join dim_team as t on m.team_sk = t.team_sk
++ left join import_int_team_season__standings_primary as st
++-    on agg.team_sk = st.team_sk and agg.season_sk = st.season_sk
+++    on m.team_sk = st.team_sk and m.season_sk = st.season_sk
++diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
++index 34e44db..91c1cff 100644
++--- a/dbt_project/models/5_marts/shared/shared.yml
+++++ b/dbt_project/models/5_marts/shared/shared.yml
++@@ -250,7 +250,7 @@ models:
++     description: >
++       Team profile (#324). One row per (team, competition-season): identity + record +
++       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
++-      (int_team_season__full_season_metrics) + two signature differentiators and a streaks
+++      (int_team_season__metrics) + two signature differentiators and a streaks
++       layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
++       transparent performance_vs_results_gap (no composite score). Year-over-year columns
++       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
++diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++index babba8d..030de7b 100644
++--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++@@ -17,11 +17,11 @@
++ -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
++ -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
++ -- depends_on: {{ ref('int_player_season__metrics') }}
++--- depends_on: {{ ref('int_team_season__full_season_metrics') }}
+++-- depends_on: {{ ref('int_team_season__metrics') }}
++ 
++ {% set models = [
++     ('int_player_season__metrics', 'player'),
++-    ('int_team_season__full_season_metrics', 'team')
+++    ('int_team_season__metrics', 'team')
++ ] %}
++ 
++ {% set exempt = [
++diff --git a/docs/metric_layer.md b/docs/metric_layer.md
++index 6d0fd67..77050c3 100644
++--- a/docs/metric_layer.md
+++++ b/docs/metric_layer.md
++@@ -5,7 +5,7 @@
++ ## The three parts
++ 
++ 1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
++-   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__full_season_metrics`
+++   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
++    for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
++    *implementation* drift — the same metric computed three different ways.
++ 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
+diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
+index eb249ac..f916deb 100644
+--- a/dbt_project/macros/team_benchmark_metrics.sql
++++ b/dbt_project/macros/team_benchmark_metrics.sql
+@@ -2,7 +2,7 @@
+ {#
+   The 20 team season metrics the competition benchmark covers, as (metric_key, season_column) pairs.
+   metric_key is the metric_catalogue id; season_column is the column in
+-  int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
++  int_team_season__metrics. Single source so the benchmark intermediate (the league
+   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
+   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
+   (non-metrics), and dribbles_success_pct (retired team-side, #510).
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 630ad06..c5b5070 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -32,11 +32,13 @@ models:
+       - name: group_description
+         description: "Standings group/stage label from the chosen row."
+ 
+-  - name: int_team_season__full_season_metrics
++  - name: int_team_season__metrics
+     description: >
+-      Per (league_code, season_api_year, team_sk) advanced metrics aggregated over all finished legs
+-      in that season. Same sum/rate semantics as int_matchday__team_form_metrics without a five-game cap.
+-      mart_team_season_insights exposes only the latest season_api_year per league_code.
++      Canonical per (league_code, season_api_year, team_sk) season rollup — advanced metrics
++      aggregated over all finished legs (same sum/rate semantics as int_matchday__team_form_metrics
++      without a five-game cap), plus the W/D/L counts (wins/draws/losses_sum_season) that
++      mart_team_season composes instead of re-aggregating (#500). mart_team_season_insights exposes
++      only the latest season_api_year per league_code.
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+similarity index 95%
+rename from dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
+rename to dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+index eb8882a..3e2ebd4 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+@@ -58,6 +58,9 @@ aggregated_season as (
+                 else 0
+             end
+         ) as points_won_sum_season,
++        countif(upper(trim(result)) = 'W') as wins_sum_season,
++        countif(upper(trim(result)) = 'D') as draws_sum_season,
++        countif(upper(trim(result)) = 'L') as losses_sum_season,
+         sum(goals_for) as goals_for_sum_season,
+         sum(goals_against) as goals_against_sum_season,
+         sum(shots_total) as total_shots_sum_season,
+@@ -93,6 +96,10 @@ select
+     stat_coverage_season_games,
+     player_stat_coverage_season_games,
+     points_won_sum_season,
++    wins_sum_season,
++    draws_sum_season,
++    losses_sum_season,
++    clean_sheets_count_season as clean_sheets_sum_season,
+     goals_for_sum_season,
+     goals_against_sum_season,
+     total_shots_sum_season,
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+index e9d8add..3e49485 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+@@ -10,13 +10,13 @@
+   cannot skew the median/percentiles. Metrics with no value for a team (e.g. player-stat coverage gaps)
+   are excluded per metric (metric_value is null -> not counted).
+ 
+-  Window: season-to-date (W2), from int_team_season__full_season_metrics. The 20-metric list lives in
++  Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
+   the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
+   Grain: (league_code, season_api_year, metric_key).
+ #}
+ 
+ with season as (
+-    select * from {{ ref('int_team_season__full_season_metrics') }}
++    select * from {{ ref('int_team_season__metrics') }}
+     where season_games_played >= 3
+ ),
+ 
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+index 14b51bd..80ae01c 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+@@ -6,21 +6,21 @@
+   round (off-season) or before matchday 1 of the next season.
+ #}
+ 
+-with import_int_team_season__full_season_metrics as (
+-    select * from {{ ref('int_team_season__full_season_metrics') }}
++with import_int_team_season__metrics as (
++    select * from {{ ref('int_team_season__metrics') }}
+ ),
+ 
+ latest_season_per_league as (
+     select
+         league_code,
+         max(season_api_year) as season_api_year
+-    from import_int_team_season__full_season_metrics
++    from import_int_team_season__metrics
+     group by league_code
+ ),
+ 
+ latest_season_metrics as (
+     select m.*
+-    from import_int_team_season__full_season_metrics as m
++    from import_int_team_season__metrics as m
+     inner join latest_season_per_league as ls
+         on
+             m.league_code = ls.league_code
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+index 718f44d..a9984e6 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+@@ -10,7 +10,7 @@
+   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
+   reading is supplied at display from the catalogue's `direction` (joined there), since most football
+   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
+-  int_team_season__full_season_metrics + the int_competition_benchmarks__team engine (the shared
++  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
+   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
+ 
+   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
+@@ -18,7 +18,7 @@
+ #}
+ 
+ with season as (
+-    select * from {{ ref('int_team_season__full_season_metrics') }}
++    select * from {{ ref('int_team_season__metrics') }}
+     where season_games_played >= 3
+ ),
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index d4469a9..91b48ea 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -10,7 +10,7 @@
+     - record / rank / form  mart_team_season (same-layer ref, the documented
+                             layering exception — mart_team_season_insights does
+                             the same)
+-    - season metric rates  int_team_season__full_season_metrics
++    - season metric rates  int_team_season__metrics
+ 
+   Differentiators:
+     - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
+@@ -28,7 +28,7 @@
+ #}
+ 
+ with metrics as (
+-    select * from {{ ref('int_team_season__full_season_metrics') }}
++    select * from {{ ref('int_team_season__metrics') }}
+ ),
+ 
+ team_season as (
+diff --git a/dbt_project/models/5_marts/shared/mart_team_season.sql b/dbt_project/models/5_marts/shared/mart_team_season.sql
+index 1af12df..a7a65d7 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_season.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_season.sql
+@@ -1,14 +1,15 @@
+ {{ config(materialized='table') }}
+ 
+ {#
+-    Per-team, per-season rollup. Counts derive from finished matches only
+-    (FT/AET/PEN, null goals excluded) via int_legs__team_match.
+-    latest_rank, latest_form, and standings_group_description join from
+-    int_team_season__standings_primary; teams absent from standings get nulls.
++    Per-team, per-season rollup for table display and marts. The season counts COMPOSE the
++    canonical rollup int_team_season__metrics (finished matches only via int_legs__team_match) —
++    the same aggregation, not recomputed (#500 dedup). latest_rank, latest_form and
++    standings_group_description join from int_team_season__standings_primary; teams absent from
++    standings get nulls.
+ #}
+ 
+-with team_legs as (
+-    select * from {{ ref('int_legs__team_match') }}
++with season_metrics as (
++    select * from {{ ref('int_team_season__metrics') }}
+ ),
+ 
+ dim_team as (
+@@ -17,71 +18,32 @@ dim_team as (
+ 
+ import_int_team_season__standings_primary as (
+     select * from {{ ref('int_team_season__standings_primary') }}
+-),
+-
+-legs as (
+-    select
+-        team_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year,
+-        fixture_sk,
+-        goals_for,
+-        goals_against,
+-        result
+-    from team_legs
+-),
+-
+-agg as (
+-    select
+-        team_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year,
+-        count(*) as played,
+-        countif(result = 'W') as wins,
+-        countif(result = 'D') as draws,
+-        countif(result = 'L') as losses,
+-        sum(coalesce(goals_for, 0)) as goals_for,
+-        sum(coalesce(goals_against, 0)) as goals_against,
+-        sum(coalesce(goals_for, 0)) - sum(coalesce(goals_against, 0)) as goal_diff,
+-        countif(result = 'W') * 3 + countif(result = 'D') as points,
+-        countif(coalesce(goals_against, 0) = 0) as clean_sheets
+-    from legs
+-    group by
+-        team_sk,
+-        league_sk,
+-        season_sk,
+-        league_code,
+-        season_api_year
+ )
+ 
+ select
+-    {{ dbt_utils.generate_surrogate_key(['agg.team_sk', 'agg.season_sk']) }} as team_season_sk,
+-    agg.team_sk,
+-    agg.season_sk,
+-    agg.league_sk,
+-    agg.league_code,
+-    agg.season_api_year,
++    m.team_season_sk,
++    m.team_sk,
++    m.season_sk,
++    m.league_sk,
++    m.league_code,
++    m.season_api_year,
+     t.team_name,
+     t.team_code,
+     t.team_country,
+     t.team_logo_url,
+-    agg.played,
+-    agg.wins,
+-    agg.draws,
+-    agg.losses,
+-    agg.goals_for,
+-    agg.goals_against,
+-    agg.goal_diff,
+-    agg.points,
+-    agg.clean_sheets,
++    m.season_games_played as played,
++    m.wins_sum_season as wins,
++    m.draws_sum_season as draws,
++    m.losses_sum_season as losses,
++    m.goals_for_sum_season as goals_for,
++    m.goals_against_sum_season as goals_against,
++    m.points_won_sum_season as points,
++    m.clean_sheets_sum_season as clean_sheets,
+     st.standing_rank as latest_rank,
+     st.form as latest_form,
+-    st.group_description as standings_group_description
+-from agg
+-left join dim_team as t on agg.team_sk = t.team_sk
++    st.group_description as standings_group_description,
++    m.goals_for_sum_season - m.goals_against_sum_season as goal_diff
++from season_metrics as m
++left join dim_team as t on m.team_sk = t.team_sk
+ left join import_int_team_season__standings_primary as st
+-    on agg.team_sk = st.team_sk and agg.season_sk = st.season_sk
++    on m.team_sk = st.team_sk and m.season_sk = st.season_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 34e44db..91c1cff 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -250,7 +250,7 @@ models:
+     description: >
+       Team profile (#324). One row per (team, competition-season): identity + record +
+       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
+-      (int_team_season__full_season_metrics) + two signature differentiators and a streaks
++      (int_team_season__metrics) + two signature differentiators and a streaks
+       layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
+       transparent performance_vs_results_gap (no composite score). Year-over-year columns
+       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
+diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+index babba8d..030de7b 100644
+--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+@@ -17,11 +17,11 @@
+ -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
+ -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
+ -- depends_on: {{ ref('int_player_season__metrics') }}
+--- depends_on: {{ ref('int_team_season__full_season_metrics') }}
++-- depends_on: {{ ref('int_team_season__metrics') }}
+ 
+ {% set models = [
+     ('int_player_season__metrics', 'player'),
+-    ('int_team_season__full_season_metrics', 'team')
++    ('int_team_season__metrics', 'team')
+ ] %}
+ 
+ {% set exempt = [
+diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+index 6d0fd67..77050c3 100644
+--- a/docs/metric_layer.md
++++ b/docs/metric_layer.md
+@@ -5,7 +5,7 @@
+ ## The three parts
+ 
+ 1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
+-   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__full_season_metrics`
++   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
+    for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
+    *implementation* drift — the same metric computed three different ways.
+ 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list

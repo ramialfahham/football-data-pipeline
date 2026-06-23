@@ -10,7 +10,7 @@
     - record / rank / form  mart_team_season (same-layer ref, the documented
                             layering exception — mart_team_season_insights does
                             the same)
-    - season metric rates  int_team_season__full_season_metrics
+    - season metric rates  int_team_season__metrics
 
   Differentiators:
     - Deserved vs actual — shot_share_season + danger_zone_ratio_season (chance
@@ -28,7 +28,7 @@
 #}
 
 with metrics as (
-    select * from {{ ref('int_team_season__full_season_metrics') }}
+    select * from {{ ref('int_team_season__metrics') }}
 ),
 
 team_season as (

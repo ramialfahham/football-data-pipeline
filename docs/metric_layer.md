@@ -5,7 +5,7 @@
 ## The three parts
 
 1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
-   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__full_season_metrics`
+   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
    for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
    *implementation* drift — the same metric computed three different ways.
 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list

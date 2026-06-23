@@ -17,11 +17,11 @@
 -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
 -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
 -- depends_on: {{ ref('int_player_season__metrics') }}
--- depends_on: {{ ref('int_team_season__full_season_metrics') }}
+-- depends_on: {{ ref('int_team_season__metrics') }}
 
 {% set models = [
     ('int_player_season__metrics', 'player'),
-    ('int_team_season__full_season_metrics', 'team')
+    ('int_team_season__metrics', 'team')
 ] %}
 
 {% set exempt = [

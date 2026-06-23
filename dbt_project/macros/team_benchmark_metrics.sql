@@ -2,7 +2,7 @@
 {#
   The 20 team season metrics the competition benchmark covers, as (metric_key, season_column) pairs.
   metric_key is the metric_catalogue id; season_column is the column in
-  int_team_season__full_season_metrics. Single source so the benchmark intermediate (the league
+  int_team_season__metrics. Single source so the benchmark intermediate (the league
   distribution) and the mart (per-team value + rank) cannot drift apart. Excludes shot_share +
   points_capture (deserved-vs-actual inputs, structurally fixed league means), league_rank + points_won
   (non-metrics), and dribbles_success_pct (retired team-side, #510).

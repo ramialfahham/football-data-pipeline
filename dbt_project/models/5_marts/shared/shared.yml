@@ -250,7 +250,7 @@ models:
     description: >
       Team profile (#324). One row per (team, competition-season): identity + record +
       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
-      (int_team_season__full_season_metrics) + two signature differentiators and a streaks
+      (int_team_season__metrics) + two signature differentiators and a streaks
       layer. Deserved-vs-actual surfaces shot_share_season and points_capture_season with a
       transparent performance_vs_results_gap (no composite score). Year-over-year columns
       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
