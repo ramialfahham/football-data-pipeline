@@ -1,28 +1,24 @@
-# Review — chore/handover-2026-06-23-benchmark-pr1 — 2026-06-23
+# Review — feat/player-competition-benchmark — 2026-06-23
 
-diff_sha256: cb5c8a8a6957da923eafa7e70832bbf017f2858f83a7718827c249e16f28a7f4
+> Player competition benchmark PR2 (engine + mart + macro). Three additive dbt models +
+> one macro; no existing model modified. Reviewed after addressing a first-round FAIL
+> (added not_null guards on the engine distribution columns + mart vs_median_delta;
+> corrected the contract done_when percentile range to [0,1] + junk-leg caveat; pasted
+> the position_code coverage evidence into the impact_map).
 
-(Hashed surface = contract.md only; active_work.md + escalations.log are hash-excluded bookkeeping
-artifacts per review_routing.json. The scope-auditor assessed the full active_work.md + escalations.log
-content for substance.)
+diff_sha256: 1554427e90b02af649d44a8df119ed9c68610ac4a9ffd29c89de772a1e1954f1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Governance artifact citation drift — verified active_work.md's locked PR2 design block (structure /
-  metric set / peers / floor / method / scope / fallback / direction) against the escalations.log
-  D1-D8 rulings; each design point matches its corresponding CPO ruling with zero contradictions, so a
-  fresh chat inherits a consistent design record. The prior A2/E1 finding (design recorded as locked
-  without a durable escalations.log entry) is resolved — the entry now exists with verbatim CPO quotes,
-  and both the contract refs and the handover cite it.
-- Leaderboards-vs-benchmark coherence (A3 boundary) — the two systems are recorded as deliberate
-  separate lenses in both the handover and escalations.log, with an explicit "do NOT convert leaderboard
-  count boards to per-90" constraint that blocks a future unilateral merge; no §10 smuggled in; every
-  staged path (active_work.md + contract.md) is in scope_paths.
+- Leaderboard↔benchmark finishing-floor coherence: the contract asserts "finishing% uses the same floor on both" (CPO coherence ruling). Verified this is by-design — both lenses apply the same SoT>=10 threshold at their own natural grain (leaderboard = whole-season totals, benchmark = in-position per-90); for single-position players they coincide, for multi-position they differ, which is the intended two-lens separation. Leaderboards correctly out of scope (not modified).
+- Edge case — players with only junk position_codes ('-'/'SUB'/null) in a season produce no benchmark row (no assignable position). Verified the magnitude live: 8 of 69,926 whole-season qualifiers (0.01%) — negligible and correct by design. Also confirmed every §10 decision (B1/B2/B3, D1–D8) is recorded in escalations.log + contract decisions_taken (not builder-decided); the diff stays inside scope_paths; no existing model/number changed (additive); impact_map pastes real BQ coverage evidence rather than asserting it.
 
 ## analytics-engineer-reviewer
-DORMANT — no dbt_project/** paths in the diff (handover-doc-only).
+VERDICT: PASS
+risks_checked:
+- Same-window rule for the finishing_efficiency floor: `shots_on_target >= 10` is applied in byte-identical CASE expressions in both the engine distribution CTE and the mart ranking CTE, both sourcing `int_player_season_position__metrics` after the same `minutes >= 270` filter; the engine `peer_count` equals the mart ranked-N for the metric by construction. Traced both CTEs line-by-line — no window mismatch.
+- Grain uniqueness under the multi-position split: `per_fixture` groups by `(player_sk, league_sk, season_sk, league_code, season_api_year, position_group)`, producing genuinely disjoint per-role aggregates; a two-position player gets two rows with separate stat sums, enforced by the mart unique_combination on `(player_sk, season_sk, position_group, metric_key)`. No fan-out double-count. Also verified: all 18 metric formulas mirror `int_player_season__metrics` atom-for-atom and match the catalogue; no catalogue change (A1 clear); no intermediate→mart ref; no hardcoded competition identifier; not_null coverage now present on the engine distribution columns + the mart vs_median_delta.
 
 ## escalations
-(none — the player-benchmark design rulings are recorded as up-front CPO design approvals in
-escalations.log per the 2026-06-17 E1 precedent, not as a review-cycle escalation.)
+(none)
