@@ -4,16 +4,22 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-23 (**two-track operating model adopted** — see the next section). **Today:** deep #526
-investigation. The wrong-team events are a provider **duplicate-team-id** quirk (6424 ASC Kara ↔ 25274 ASKO Kara;
-2263 Riga FC ↔ 10124 Riga), and the data is **complete / uncorrupted** (raw=core: fixtures 63=63, events 731=731 — NO
-loss). The clubs only LOOK thin because we ingest them solely via continental cups, not their domestic leagues. That
-realisation seeded three program epics: **coverage expansion #545** (~146 missing domestic leagues; scoped — API-cheap,
-real cost is DQ-at-scale), **data-quality routines #546** (seeded by #526), **cost optimization #547**. `stream:*`
-labels + epics now structure the work. #526's own fix is **STILL OPEN** — decision pending on where/how to canonicalize
-duplicate team ids (no canonicalization layer exists today). Prior merged: **#540** (impact-map gate, #518), **#542**
-(#539 read-all staging codify), **#544** (#510 team-dribbles retire); **#510/#539 CLOSED**. main GREEN.
-OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 LIVE. **Website #391 PAUSED.**_
+_Last updated: 2026-06-23 (**#526 closeout**; two-track operating model still live). **PR #551 MERGED** — the
+fixture-event team-attribution fix; **#526 CLOSED**. The earlier "provider **duplicate-team-id** quirk; data
+complete/uncorrupted" diagnosis was **FALSIFIED** (see [[feedback-verify-real-world-identity]]). Re-verified
+EXTERNALLY (Togo championship + CAF records, squad continuity, intra-payload RAW trace): the 38 wrong-team events
+are **two OPPOSITE classes** the old diagnosis wrongly merged — **6424 ASC Kara ≠ 25274 ASKO Kara are two DISTINCT
+Togo clubs** (events MIS-ATTRIBUTED to the rival id in 13 CAFCL 2020–24 fixtures → re-attribute, NEVER merge), and
+**2263/10124 Riga FC is ONE club, duplicate id** (→ alias). The SAME internal shape (`event team ∉ participants`)
+had opposite ground truths — identity must be verified externally, never inferred from internal name similarity.
+Fix: a CPO-owned `fixture_event_team_overrides` seed (`alias` / `reattribute_if_cohabiting`) in
+base_apif__fixture_events + a self-heal in fct_fixture_event + a permanent integrity test
+`assert_event_team_in_fixture_participants` (ERROR); data-build GREEN, test now 0 (was 38); fct_fixture_event is a
+LEAF so NO mart deltas. New follow-ups: **#549** (the diagnosis was an unverified premise that NO gate caught — the
+proposal phase is ungated) + **#550** (automated DQ triage design: detect → gather-evidence + externally verify →
+escalate; human decides; NO auto-fix; nests under #546). Prior merged this stretch: **#540/#542/#544**;
+**#510/#539 CLOSED**. main GREEN. OPEN: #500/#506/#517/#521 + program epics #545/#546/#547. Governance G1-G4 LIVE.
+**Website #391 PAUSED.**_
 
 ## How work is organized — two tracks (NEW 2026-06-23)
 - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
@@ -35,12 +41,12 @@ OPEN: #500/#506/#517/#521/#526 + program epics #545/#546/#547. Governance G1-G4 
   - **#545 (coverage):** CPO picks the first tranche (by confederation, or highest-club-count-first). Then build that
     tranche's exact league list + `provider_league_id` discovery (**search-first** — 4 wrong IDs happened before),
     onboard (registry, zero-file), `verify-competition-ingest`.
-  - **#546 (data-quality):** (a) land the **#526 fix — STILL OPEN**, decision pending on where/how to canonicalize the
-    duplicate team ids. Map facts to resume from: NO team-canonicalization layer exists (`team_sk = cast(team_api_id)`,
-    minted at ~8 points); the events carry a club's ALIAS id while the fixture uses its canonical id; a global merge
-    would break 4 legit events unless the fixtures are canonicalized too; CPO said **"not core"** — fix at team
-    identity (base), not a fct patch. The complete map is in #526's thread. (b) Generalise the #526 detection into the
-    standing DQ scan (template for the class).
+  - **#546 (data-quality):** the **#526 fix LANDED (#551, merged)** — `assert_event_team_in_fixture_participants`
+    (event team ∈ {home, away}) is the generic detector and `fixture_event_team_overrides` is the CPO-owned
+    correction seed. NEXT: (a) generalise the detector into the standing all-league DQ scan; (b) the **#550**
+    automated-triage design (detect → gather-evidence + EXTERNALLY verify → escalate; human decides; NO auto-fix) —
+    a §10 design awaiting CPO scope. Triage rule holds: diagnose-to-root, never coverage-cut, never
+    merge-on-internal-similarity.
   - **#547 (cost):** size BQ build cost before the expansion scales.
 - **PRODUCT (primary):** the content_architecture roadmap — **coaches + `mart_player_career`** (unblocked), player
   **benchmark / opponent-context** (v1.x), carryovers **#500** (team season-model consolidation + rename) / **#506**
