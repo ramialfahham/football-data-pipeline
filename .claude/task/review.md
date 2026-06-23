@@ -1,35 +1,29 @@
-# Review — feat/dim-coach — 2026-06-23
+# Review — chore/handover-2026-06-23-session — 2026-06-23
 
-diff_sha256: 2b32c24a282c269586f5220fca26e23375c64e23e64a7552b02f864dba52236e
+diff_sha256: 0e8e9897b547fcd24f5c63fc99e922265461ea8f58ffef4b146344ad1d49e4f5
 
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- FK reachability for coach_sk -> dim_coach: both stg_apif__coaches and stg_apif__coach_career unnest
-  the same $.response[] coach element of RAW_APIF_COACHES, so any coach with career stints always
-  produces an entity row — the relationships test resolves. Cross-model columns all exist; the grain
-  (coach_sk, team_api_id, start_date) is null-safe (base drops null coach_id/team_id/start_date).
-- Staging not_null placement on provider-nullable fields: stg_apif__coach_career correctly carries NO
-  not_null on team_id (provider-nullable — ~6k career stints have a null team.id, verified in RAW;
-  faithful staging passes them, base filters them), mirroring the standings team_id pattern.
-  stg_apif__coaches keeps not_null on coach_id (the entity grain key, 0 nulls verified). dim_coach has
-  not_null on coach_sk + coach_name; soft team_sk link correctly has no relationships test.
+(Hashed surface = contract.md only; active_work.md is a hash-excluded bookkeeping
+artifact per review_routing.json. Reviewer assessed the full active_work.md diff for substance.)
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Snapshot-rule §10 recorded correctly: read-all (not latest-per-league) for the complete-snapshot
-  RAW_APIF_COACHES is in decisions_reserved + escalations.log (2026-06-23) with the CPO ANSWER ("all",
-  entity preservation, 120-coach delta evidence); the code implements it and the stg header documents
-  the exception. Additive only — no existing model/number changed; diff within scope_paths.
-- Soft team_sk link integrity: dim_coach_team_mapping intentionally omits a strict FK on team_sk
-  (career clubs exceed dim_team), preserving provider team_api_id + team_name for recovery; documented
-  in the contract + core.yml. The enforceable FK (coach_sk -> dim_coach) IS tested. No coverage cut.
+- Product/UX restatement vs. NEW scope: the refreshed handover re-states the Coach + career
+  CONSUMPTION marts scope ("Coach page Overview = current club + clubs managed; team-header
+  current-coach chip") — verified it matches the prior #556 build contract's content_architecture.md
+  design citation. No new user-visible feature scope introduced under cover of a status update; the
+  deferral (website #391 PAUSED) is carried as existing state, not newly decided.
+- Coverage-cut vs. honest residual: #500 is marked DONE (consolidation + rename
+  int_team_season__full_season_metrics → int_team_season__metrics) while the `_season`/goals_saves
+  column-alignment is marked RESIDUAL (deferred, logged). Traced against the old handover language
+  ("bundled with the model-naming fix") — the atomic rename deliverable is complete; the
+  column-alignment is a separate logged follow-up, NOT a coverage-cut concealing an incomplete #500.
+- Scope: every changed path is inside scope_paths (.claude/active_work.md + .claude/task/**); no
+  code/model/seed/script/registry/CI change smuggled in. Doc-only refresh.
+
+## analytics-engineer-reviewer
+DORMANT — no dbt_project/** paths in the diff (handover-doc-only).
 
 ## escalations
-- question: RAW_APIF_COACHES is complete-snapshot per (league, run). Staging snapshot rule —
-  read-all (preserve every coach ever seen, all-time, mirrors dim_player/dim_team) vs
-  latest-per-league (current only)? The two reviewers split; ~120-coach delta. (Put to the CPO with
-  evidence, no anchoring.)
-  CPO ANSWER: read-all / all-time — "all". dim_coach preserves every coach ever seen; the
-  complete-snapshot latest-per-league default is deliberately not applied here. (escalations.log 2026-06-23.)
+- none. No §10-class choice made; the refresh carries forward merged facts + prior-session decisions
+  (two-track model, #391-paused consumption deferral) without re-deciding any of them.
