@@ -270,3 +270,35 @@ models:
       - name: league_code
         description: "Ingest provenance (the tracked league whose team pull surfaced the move, pinned deterministically), NOT a semantic partition — transfers are global."
         tests: [not_null]
+
+  - name: base_apif__coaches
+    description: >
+      Coach identity (global entity): one row per coach_api_id from stg_apif__coaches, latest ingest.
+      Identity / bio only — no league_code. Feeds dim_coach. Grain: coach_api_id.
+    config:
+      tags: ["base", "api_football", "coach_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [coach_api_id]
+    columns:
+      - name: coach_api_id
+        tests: [not_null]
+
+  - name: base_apif__coach_career
+    description: >
+      Coach↔team career stints, deduped one row per (coach, team, start_date) from
+      stg_apif__coach_career — the "clubs managed" history. The career team set exceeds dim_team
+      (untracked clubs), so the team link stays on the provider id. Feeds dim_coach_team_mapping.
+      Grain: (coach_api_id, team_api_id, start_date).
+    config:
+      tags: ["base", "api_football", "coach_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [coach_api_id, team_api_id, start_date]
+    columns:
+      - name: coach_api_id
+        tests: [not_null]
+      - name: team_api_id
+        tests: [not_null]
+      - name: start_date
+        tests: [not_null]

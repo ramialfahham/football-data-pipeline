@@ -780,3 +780,42 @@ models:
       - name: league_code
         description: "Ingest provenance (the tracked league whose team pull surfaced the move), NOT a semantic partition — transfers are global player events; don't filter affiliation by it expecting completeness."
         tests: [not_null]
+
+  - name: dim_coach
+    description: >
+      Pure coach entity: one row per coach_api_id (identity / bio only; no league_code — mirrors
+      dim_player / dim_team). Managerial career lives in dim_coach_team_mapping. Grain: coach_sk.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [coach_sk]
+    columns:
+      - name: coach_sk
+        tests: [not_null, unique]
+      - name: coach_api_id
+        tests: [not_null]
+      - name: coach_name
+        description: "Coach display name from API-Football."
+        tests: [not_null]
+
+  - name: dim_coach_team_mapping
+    description: >
+      Coach↔team affiliation (managerial career stints) with start/end dates, from
+      base_apif__coach_career. team_sk is a SOFT link to dim_team — the career team set (youth /
+      reserve / untracked clubs) exceeds our tracked set, so NO strict relationships test on team_sk;
+      the provider team_api_id + team_name are kept for display. Grain: (coach_sk, team_api_id, start_date).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [coach_sk, team_api_id, start_date]
+    columns:
+      - name: coach_team_stint_sk
+        tests: [not_null, unique]
+      - name: coach_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_coach')
+              field: coach_sk
+      - name: team_api_id
+        tests: [not_null]
+      - name: start_date
+        tests: [not_null]
