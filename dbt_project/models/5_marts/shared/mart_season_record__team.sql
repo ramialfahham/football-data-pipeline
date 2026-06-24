@@ -189,7 +189,7 @@ select
     safe_divide(shots_total, games_with_team_stats) as shots_per_match,
     safe_divide(shots_on_goal, shots_total) as shot_accuracy,
     safe_divide(shots_inside_box, shots_total) as danger_zone_ratio,
-    safe_divide(shots_on_goal, games_with_sot_stats) as shots_on_target_per_match,
+    safe_divide(shots_on_goal, games_with_sot_stats) as shots_on_goal_per_match,
     -- finishing efficiency (CPO Option A): open-play conversion =
     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless fully
     -- shot-covered AND the numerator is valid [0, shots_on_goal] — never partial, never >100%.

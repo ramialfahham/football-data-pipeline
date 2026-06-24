@@ -23,7 +23,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_target_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
       - name: team_count
         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
         tests: [not_null]
@@ -65,7 +65,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_target_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
       - name: player_count
         description: "Players with a non-null value for this metric in this league-season-position — the N for rank-of-N / percentile."
         tests: [not_null]

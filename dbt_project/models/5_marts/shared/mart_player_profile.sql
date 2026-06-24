@@ -7,7 +7,7 @@
   #480 consolidation: the per-season aggregation now COMPOSES the shared
   int_player_season__metrics (the single player-season rollup) instead of re-aggregating
   fct_fixture_player_stats inline. Identity (dim_player), the modal season position, and the GK
-  full-triple (saves / shots_on_target_faced) are assembled here. Numbers are unchanged — the shared
+  full-triple (saves / shots_on_goal_against) are assembled here. Numbers are unchanged — the shared
   int reproduces the catalogue (ROUND-weighted) computations this mart used. Per-board leaderboard
   ranks moved to mart_leaderboards (the LONG single-surface; the 3 rank columns here were retired).
 
@@ -87,7 +87,7 @@ select
     -- catalogue count metrics
     a.goals,
     a.assists,
-    a.shots_on_target,
+    a.shots_on_goal,
     a.passes_total,
     a.passes_key,
     a.passes_accurate,
@@ -105,8 +105,8 @@ select
     a.penalty_won,
     a.penalty_committed,
     -- GK atomics (GAP-12): the save full-triple — saves of shots faced
-    a.goals_saves as saves,
-    a.goals_saves + a.goals_conceded as shots_on_target_faced,
+    a.saves,
+    a.saves + a.goals_against as shots_on_goal_against,
     -- catalogue ratio metrics (catalogue formula; null when denom 0)
     a.pass_accuracy_pct,
     a.duels_won_pct,
