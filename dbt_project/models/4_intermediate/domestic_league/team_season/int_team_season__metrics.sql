@@ -156,7 +156,7 @@ select
     -- (the window marts' same-window rule): shots over stat-covered games,
     -- player-derived over player-stat-covered games.
     safe_divide(shots_on_goal_sum_season, stat_coverage_season_games)
-        as shots_on_target_per_match_season,
+        as shots_on_goal_per_match_season,
     safe_divide(key_passes_sum_season, player_stat_coverage_season_games)
         as key_passes_per_match_season,
     safe_divide(duels_total_sum_season, player_stat_coverage_season_games)

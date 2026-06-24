@@ -14,7 +14,7 @@
         ('shots_per_match', 'shots_per_match_season'),
         ('shot_accuracy', 'shot_accuracy_season'),
         ('danger_zone_ratio', 'danger_zone_ratio_season'),
-        ('shots_on_target_per_match', 'shots_on_target_per_match_season'),
+        ('shots_on_goal_per_match', 'shots_on_goal_per_match_season'),
         ('finishing_efficiency', 'finishing_efficiency_season'),
         ('duels_per_match', 'duels_per_match_season'),
         ('duels_won_pct', 'duels_won_pct_season'),

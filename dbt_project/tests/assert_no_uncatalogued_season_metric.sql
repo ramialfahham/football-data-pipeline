@@ -10,8 +10,10 @@
   minutes) which are dimensions, not metrics.
 
   Naming is normalised to the catalogue's metric_id: the team season model carries a `_season`
-  suffix, and `goals_saves` is the model column for catalogue `saves`. Those two normalisations
-  exist only until #500 aligns the model column names; they are deliberately NOT a binding-map.
+  suffix (stripped here). That normalisation exists only until #500 Stage 2 renames the team-season
+  columns; it is deliberately NOT a binding-map. (The goals_saves->saves normalisation was removed
+  once Stage 1 renamed the player model column to `saves`.) A `team and player` catalogue row
+  satisfies both the team and the player model checks.
 #}
 
 -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
@@ -37,7 +39,6 @@
             {% set name = col.name | lower %}
             {% if name not in exempt and not name.endswith('_sum_season') and not name.endswith('_sk') %}
                 {% set norm = name[:-7] if name.endswith('_season') else name %}
-                {% set norm = 'saves' if norm == 'goals_saves' else norm %}
                 {% do rows.append(
                     "select '" ~ entity ~ "' as entity, '" ~ name ~ "' as model_column, '" ~ norm ~ "' as metric_id"
                 ) %}
@@ -68,5 +69,7 @@ select
     m.metric_id
 from model_metric_columns as m
 left join catalogue as c
-    on m.entity = c.entity and m.metric_id = c.metric_id
+    on
+        m.metric_id = c.metric_id
+        and (c.entity = m.entity or c.entity = 'team and player')
 where c.metric_id is null

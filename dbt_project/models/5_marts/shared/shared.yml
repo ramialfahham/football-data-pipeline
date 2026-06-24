@@ -574,7 +574,7 @@ models:
       are carried (appearances/starts/minutes, identity, position). pass_accuracy_pct
       uses the catalogue's derived passes_accurate (per-fixture round then sum). save_pct
       is only meaningful for goalkeepers (position_code = 'G'); saves and
-      shots_on_target_faced (GAP-12) carry its numerator/denominator for the GK
+      shots_on_goal_against (GAP-12) carry its numerator/denominator for the GK
       full-triple display. Grain: (player_sk, season_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -593,7 +593,7 @@ models:
           name: player_profile_save_pct_in_range
       # GK full-triple (GAP-12): saves can never exceed shots on target faced
       - dbt_utils.expression_is_true:
-          expression: "saves <= shots_on_target_faced"
+          expression: "saves <= shots_on_goal_against"
           name: player_profile_saves_lte_faced
     columns:
       - name: player_season_sk
@@ -753,14 +753,14 @@ models:
     description: >
       Per-board player leaderboards (the Leaderboards block; content_architecture §3). LONG — one row
       per (player, board): the player's rank on that board within its competition-season. Generalises
-      the retired mart_top_scorers to 14 boards: 9 COUNT (goals, scorer_points, shots_on_target,
+      the retired mart_top_scorers to 14 boards: 9 COUNT (goals, scorer_points, shots_on_goal,
       dribbles_success, passes_total, passes_key, duels_won, defensive_actions, cards_total) + 5 RATE
       (pass_accuracy_pct, duels_won_pct, dribbles_success_pct, finishing_efficiency, save_pct).
       Season-to-date, composed from int_player_season__metrics + dim_player. rank = DENSE_RANK over the
       board's metric desc within (league_code, season_api_year): ties share a rank, top-10 inclusive of
       ties; only positive-value players are ranked. RATE boards add a qualification rule (#506) so a tiny
       sample can't game a rate: minutes >= 270, a position scope (pass/duels/dribble/finishing = outfield,
-      save = GK), plus shots_on_target >= 10 for finishing. sort_value is FLOAT64 (holds the counts and
+      save = GK), plus shots_on_goal >= 10 for finishing. sort_value is FLOAT64 (holds the counts and
       the 0-1 rates). View. Grain: (player_sk, season_sk, metric_key).
     meta:
       owner: "data-platform"
@@ -804,7 +804,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "scorer_points", "shots_on_target", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
+              values: ["goals", "scorer_points", "shots_on_goal", "dribbles_success", "passes_total", "passes_key", "duels_won", "defensive_actions", "cards_total", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -848,7 +848,7 @@ models:
       - name: minutes
       - name: goals
       - name: assists
-      - name: shots_on_target
+      - name: shots_on_goal
       - name: dribbles_attempts
       - name: dribbles_success
       - name: passes_total
@@ -1077,7 +1077,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_target_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]
@@ -1176,7 +1176,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_target_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "key_passes_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "pass_accuracy_pct", "duels_won_pct", "dribbles_success_pct", "finishing_efficiency", "save_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]

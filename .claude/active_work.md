@@ -4,73 +4,46 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-24 (**TWO streams in flight — read this block first**). **Website #391 PAUSED. Live MVP must NOT break.**
+_Last updated: 2026-06-24 (**#500 PR-a OPEN as PR #567 — catalogue restructure + metric-layer renames; PR-b/c/d remain**).
+main GREEN. **PR #567 (PR-a) OPEN, awaiting CPO merge — do NOT self-merge.** **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
 
-## ⚠️ CURRENT STATE (2026-06-24) — two branches, read before anything
+### ⚠️ 2026-06-25 CORRECTION — read this; it OVERRIDES any "later / #391-gated / combine later" framing in `contract.md`
+The metric-layer merge is **NOT deferred and NOT gated on #391.** Do the FULL consolidation now. `contract.md`
+currently files the live merge under a "Stage 4 / #391-gated" / "leave the live website alone, combine the seeds
+later" scope — **that gating is the bug; disregard it.** The merge IS the deliverable.
+- **One list, now:** `metric_definitions.csv` (the LIVE list) is a thin **UI-binding manifest** over the SAME metric
+  identities the catalogue already holds (per-metric: `home_`/`away_`/`single_column` bindings + `context`
+  match_preview/wc_pretournament + `_recent`/`_pretournament` window). So consolidate = the **catalogue is the single
+  registry**, the **live build derives its binding from the catalogue** (the `home_`/`away_` prefix + window are
+  mechanical; the surface/context is a tiny map), then **delete `metric_definitions.csv`**.
+- **Sequence (both now, neither waiting for the new site):** (1) v2/player naming cleanup — already started in the
+  tree (catalogue + `int_team_season__metrics` partial); (2) the live-MVP merge onto the catalogue.
+- **MVP-safety gate at every step:** the generated `site/match-preview/metric_definitions.json` must stay
+  **byte-identical** to today's. If it moves, the step is wrong. That is how the MVP is protected — not by gating.
+- WIP is in the working tree on `refactor/500-metric-layer-naming` (catalogue + `int_team_season__metrics` renames,
+  + a `contract.md` whose staging is wrong on the gating). Fresh chat: rewrite `contract.md` to this non-gated scope
+  on a clean-ish tree, keep the good blast-radius/impact_map analysis, drop the #391 gate.
 
-### STATUS — finishing open-play conversion DONE → PR #569 OPEN (2026-06-25), awaiting CPO merge
-The whole Option-A build is done end-to-end, validated, G3-reviewed (scope+analytics-eng+football-analytics
-all PASS), committed (1 substantive commit 632873d), pushed, and on **PR #569**
-(https://github.com/ramialfahham/football-data-pipeline/pull/569). Do NOT re-do it; do NOT self-merge.
-- Next action = CPO: review/merge #569. After it merges, **PR-a (#567) rebases on main** (the #500 renames
-  replay on top; its blocked momentum [0,1] test is now fixed by this branch) — [[feedback-sibling-pr-rebase-rebind]].
-- Reviewer-driven scope amendment this session (in contract.md): added int_player_season_position.yml + its
-  [0,1] finishing test (analytics-eng FAIL); also fixed a real build bug the reviewer caught —
-  int_season_record__team's legs CTE wasn't projecting tl.goals_penalty/tl.goals_own (compile passed, build
-  would have failed). CPO authorised a temporary stash for the clean-tree amendment.
-- FOLLOW-UP (out of scope, flagged): docs/wireframes/metrics_display.md still says finishing "can exceed 100%"
-  (bi-analyst-owned display doc, deferred per D2) — update to open-play [0,1] before any glossary UI copy.
-**Stream 1 — PR-a (#500 naming) = PR #567 OPEN** on `refactor/500-metric-layer-naming`. Catalogue restructure +
-metric-layer renames (shots_on_goal/saves/_against) + v2 consumers. 4× reviewer PASS. **BLOCKED by CI**: the
-`momentum_team_finishing_efficiency_in_range` data test fails because finishing reads >100% (pre-existing bug).
-PR-a rebases AFTER stream 2 merges. Do NOT merge yourself.
+## ⭐ #500 metric-layer consolidation — STATUS (PR-a OPEN; non-gated 4-PR sequence)
+Goal: **ONE metric layer (the catalogue), end-to-end, zero ambiguity** — the merge IS the deliverable, NOT
+#391-gated. MVP-safety = byte-identical `site/match-preview/metric_definitions.json` at every step, not deferral.
+The PR sequence is locked in `contract.md`'s reference block; each PR gets its own contract.
 
-**Stream 2 — finishing → open-play conversion (CPO Option A) — IN PROGRESS on `fix/finishing-open-play-conversion`
-(off main, lands BEFORE PR-a, fixes its blocked test). FULL DESIGN: `.claude/task/contract.md` (read FIRST).**
-CPO-locked: finishing_efficiency = open-play conversion. numerator `goals_open_play = goals − goals_penalty −
-goals_own` (player: `goals − goals_penalty`), `goals` = authoritative scoreline/goals_total, components from
-`fct_fixture_event` (Penalty / Own Goal). denominator shots_on_goal. NULL ("—") unless fully shot-covered AND
-numerator ∈ [0, shots_on_goal]. New CATALOGUED metrics `goals_penalty`/`goals_own`/`goals_open_play` (`goals_`
-naming, CPO-approved). Event data verified clean (99.3% reconcile). Changes LIVE numbers → before/after deltas + review.
-- **ALL DONE (committed + pushed):** team chains (legs + momentum + season-record), `int_team_season__metrics`
-  (goals_penalty/own _sum_season → goals_penalty_season/goals_own_season/goals_open_play_season + finishing full-
-  coverage + [0,1]), player chains (`int_player_season__metrics` + `int_player_season_position__metrics` derive
-  goals_penalty from `fct_fixture_event` Penalty events; finishing = (goals−goals_penalty)/shots_on, [0,shots] bound),
-  catalogue (5 rows: goals_penalty team+player, goals_own team, goals_open_play team+player + both finishing rows
-  rewritten to numerator=goals_open_play, "uncapped" deleted), `[0,1]` finishing tests added on every surface
-  (int_team_season, int_player_season, mart_team_profile, mart_team_season_insights, mart_leaderboards [exemption
-  removed], mart_competition_benchmarks__player filtered) + the pre-existing momentum/season-record/matchday tests.
-- **The 8 passthrough marts needed NO SQL change** (verified by trace + compile): mart_team_profile,
-  mart_team_season_insights, mart_matchday_insights, mart_player_profile (no finishing col), mart_competition_
-  benchmarks__player all inherit finishing; only finishing TESTS/docs were added. mart_player_profile had NO
-  "uncapped" exemption (it carries no finishing column) — nothing to remove there.
-- **Validation green:** dbt parse + compile (all touched), sqlfluff lint (all touched), catalogue CSV well-formed
-  (74 rows / 13 fields). No-drift guard verified by inspection (only new non-exempt cols are the catalogued
-  goals_penalty/own/open_play). **Before/after deltas (from core facts, no clobber):** season grain ≥2023
-  (6592 team-seasons) avg finishing 0.305→0.261 (−0.044), 646 partial-coverage seasons now NULL, 0 over-100%;
-  live bug `mart_momentum__team` had 10 rows >100% (max 1.25) → now bounded/NULL (this unblocks PR-a's failing test).
-
-### VALIDATE → REVIEW → PR (after the remaining steps)
-- Local gates: `dbt parse` + `dbt compile` + `sqlfluff lint models` (touched models) + the no-drift guard
-  `assert_no_uncatalogued_season_metric` MUST pass (the new season-model columns must be catalogued).
-- BEFORE/AFTER deltas (this changes LIVE numbers): `dbt show` old-vs-new finishing on `mart_matchday_insights`
-  + `mart_team_season_insights`; record them for the reviewers.
-- G3 review cycle (working_agreement §2): scope-auditor + analytics-engineer + football-analytics (catalogue rows).
-  Open the PR. **CPO merges — never self-merge.**
-
-### DO-NOT
-- Do NOT lose/reset the uncommitted WIP (see FIRST STEPS). Do NOT re-derive the design — it is LOCKED in contract.md.
-- Do NOT merge any PR. PR-a (#567) rebases AFTER this branch merges ([[feedback-sibling-pr-rebase-rebind]]).
-- Do NOT use a "team and player" catalogue entity here — this branch is PRE-PR-a, so the no-drift guard needs an
-  EXACT entity match; split goals_penalty / goals_open_play into separate team + player rows (5 rows total).
-
----
-_Earlier handover (stream 1 / #500 context) below — superseded by the block above for current state._
-
-## ⭐ NEXT SESSION — #500 metric-layer foundation refactor (CPO-directed 2026-06-24). FULL SPEC: `.claude/task/contract.md` (read it FIRST; do NOT re-derive)
-This session pivoted from "add team SoT-difference metrics" into the foundational metric-layer cleanup the CPO
-directed. Goal: **ONE metric layer, end-to-end, zero ambiguity** — the ambiguity was actively causing drift, so
-removing it IS the deliverable. The target is LOCKED in `contract.md`.
+- **PR-a — OPEN as PR #567** (this session): catalogue restructure (entity values + CPO-locked de-dup) +
+  metric-layer renames (`shots_on_goal`/`saves`/`goals_against` + per90/_per_match variants) across the catalogue,
+  int metric models, benchmark macros, v2 marts + yml, the no-drift guard, tests, the v2 export refs. Also fixed a
+  CSV-corruption bug the prior WIP left (two merged rows). ZERO live-chain/atom edits → live MVP byte-identical.
+  Validated (dbt parse/compile + sqlfluff models + no-drift guard static PASS + 4× reviewer PASS). **Awaiting CPO merge.**
+- **PR-b — NEXT (after PR-a merges, off updated main):** model FILE renames → `int_<entity>_<window>__metrics` +
+  team-season consolidation + the deep atom renames (staging/base/core `goals_saves→saves`, `goals_conceded→goals_against`,
+  team `shots_on_target→shots_on_goal`) + drop the no-drift guard's `_season` strip.
+- **PR-c:** doc consolidation — one `metric_layer.md`; retire/fold `player_metrics_catalogue.md` + `metrics_display.md`.
+- **PR-d (the live merge — non-gated, NOW in this stream):** consolidate `metric_definitions.csv` INTO the catalogue;
+  repoint `export_metric_definitions_json.py` at the catalogue; delete `metric_definitions.csv` + legacy
+  `*_recent`/`*_pretournament` i18n; `corners_conceded→corners_against` END-TO-END (the only live-shared rename);
+  reconcile i18n onto `label_i18n_key`; register `qualifier_games_played` (a LIVE metric not yet catalogued).
+  **§10s to escalate in PR-d's contract:** the single i18n key scheme; corners naming on the live surface;
+  registering `qualifier_games_played`. Genuine CPO-class — do NOT pre-decide.
 
 **THE CRITICAL DISCOVERY (do not miss):** there are **TWO metric-definition SEEDS / two parallel systems** —
 `metric_catalogue.csv` (v2; `export_site_data.py` → the PAUSED v2 site) and `metric_definitions.csv` (LEGACY MVP;
