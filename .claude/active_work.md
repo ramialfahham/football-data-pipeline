@@ -4,20 +4,47 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-23 (**deserved-redesign queued**). main GREEN; no open PRs. Two-track operating model live.
-**Merged this session:** **#561** (player benchmark PR2 — engine + mart + macro; player competition benchmark
-now COMPLETE — PR1 #559 + PR2 #561; see the benchmark section below); **#562** (handover refresh); **#563**
-(**REMOVED the unapproved `performance_vs_results_gap` metric** from `mart_team_profile` — an uncatalogued
-"deserved-vs-actual" gap = `shot_share_season − points_capture_season` invented in #324 before the G3 review
-existed, never CPO-approved; surgical removal, the two catalogued inputs retained; see the deserved-vs-actual
-section below). Governance G1-G4 LIVE. **Website #391 PAUSED.**
-**NEXT SESSION (CPO-directed, new chat tomorrow): discuss the TEAM deserved-vs-actual REDESIGN** (a DESIGN
-discussion, NOT a build; **players are OUT of this round** — CPO). See the deserved-vs-actual section below.
-OTHER OPEN (CPO picks when ready): the **Coach + career CONSUMPTION marts** (#391-gated) + player
-**opponent-context** (v1.x — weights opponents via the #561 benchmark engine) + program epics
-**#545/#546/#547** + the **#549/#550** designs + **#530** (catalogue-first CI enforcement — the gap that let
-#324 slip) + carryovers **#484/#510/#500-column-align/#483/#521** + **wiring the benchmark into an export**
-(deferred with #391)._
+_Last updated: 2026-06-24 (**#500 metric-layer FOUNDATION refactor LOCKED — execute next session, full context**).
+main GREEN; no open PRs. **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
+
+## ⭐ NEXT SESSION — #500 metric-layer foundation refactor (CPO-directed 2026-06-24). FULL SPEC: `.claude/task/contract.md` (read it FIRST; do NOT re-derive)
+This session pivoted from "add team SoT-difference metrics" into the foundational metric-layer cleanup the CPO
+directed. Goal: **ONE metric layer, end-to-end, zero ambiguity** — the ambiguity was actively causing drift, so
+removing it IS the deliverable. The target is LOCKED in `contract.md`.
+
+**THE CRITICAL DISCOVERY (do not miss):** there are **TWO metric-definition SEEDS / two parallel systems** —
+`metric_catalogue.csv` (v2; `export_site_data.py` → the PAUSED v2 site) and `metric_definitions.csv` (LEGACY MVP;
+`build_match_preview_site.sh` + `site/match-preview` + `site/team-season` = the LIVE site; window-suffixed ids
+like `goals_per_match_recent`; `*_recent`/`*_pretournament` i18n). That split IS the "2-3 metric layers". "One
+layer" = consolidate `metric_definitions.csv` INTO `metric_catalogue.csv`, migrate the LIVE MVP onto the catalogue,
+retire the legacy seed + its build + legacy i18n — WITHOUT breaking the live MVP.
+
+**LOCKED decisions (CPO 2026-06-24; full block in contract.md):**
+- One seed (the catalogue); `metric_id` **==** model column; one explainer doc (`metric_layer.md`); retire/fold
+  `player_metrics_catalogue.md` + `metrics_display.md` (group/tier/order are already catalogue columns).
+- `entity ∈ {team, player, team and player}` — de-dup the only 2 dual rows (`duels_won_pct`, `finishing_efficiency`).
+- Naming, one term per stat (provider term kept when good football language): **`shots_on_goal`** (not shots_on_target),
+  **`saves`** (not goals_saves), **`_against`** for every conceded stat → `goals_against`, `corners_against`,
+  `shots_on_goal_against` (`_conceded`/`_faced` retired).
+- Models named **`int_<entity>_<window>__metrics`** (int_team_season__metrics, int_team_momentum__metrics,
+  int_player_season__metrics, int_player_momentum__metrics) + consolidate the 3 redundant team-season models.
+- **End-to-end, no translation layer:** dbt + catalogue + export + LIVE site + i18n + docs all use the one name.
+- Staged sequence (contract.md): (1) end-to-end naming + catalogue restructure + seed consolidation; (2) model-file
+  renames + team-season consolidation; (3) doc consolidation. Each its own reviewed PR; MVP-safe throughout.
+
+**Branch:** `refactor/500-metric-layer-naming` (from origin/main, --no-track) — created; **NO code edits yet**
+(contract.md only; tree clean). Blast radius mapped in contract.md (shots_on_goal/goals_saves/corners_conceded each
+span ~15-20 source files incl. macros, marts, export, the no-drift guard, tests; goals_saves runs staging→marts;
+corners_conceded + i18n reach the LIVE site). Validate with `.venv/Scripts/dbt parse|compile` + sqlfluff + the
+no-drift guard before review.
+
+**PARKED (resume AFTER #500, on the consistent base):**
+- Team **SoT-difference** metrics build is **STASHED** (`git stash list` → "sot-difference WIP (paused for #500)").
+  Design is settled: Camp 2, `sot_difference` = SoT for − against (the non-xG "deserved" primitive), observational
+  (no pseudo-accuracy / no predictions), TEAM only. Re-add cleanly after #500.
+- **Analytics Corner ideas = issue #565** (deserved-vs-actual scatter; observational; live-season after MD3 + historical).
+- OTHER OPEN: #545/#546/#547 programs; #530 (catalogue-first CI enforcement); opponent-context v1.x; Coach/career
+  marts (#391-gated)._
 
 ## How work is organized — two tracks (NEW 2026-06-23)
 - **PRODUCT (primary track)** — the `docs/content_architecture.md` roadmap (entity pages, blocks, marts, the website).
