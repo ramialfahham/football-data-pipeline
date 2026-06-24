@@ -8,10 +8,18 @@ _Last updated: 2026-06-24 (**TWO streams in flight — read this block first**).
 
 ## ⚠️ CURRENT STATE (2026-06-24) — two branches, read before anything
 
-### STATUS — finishing open-play conversion BUILD COMPLETE (2026-06-24), PR opened, awaiting CPO merge
-The whole Option-A build is done end-to-end, validated, reviewed (G3), and on a PR. Do NOT re-do it.
-If picking up: `git checkout fix/finishing-open-play-conversion`; the work is committed (one commit) + pushed.
-Next action belongs to the CPO (merge), then PR-a (#567) rebases on the merged main.
+### STATUS — finishing open-play conversion DONE → PR #569 OPEN (2026-06-25), awaiting CPO merge
+The whole Option-A build is done end-to-end, validated, G3-reviewed (scope+analytics-eng+football-analytics
+all PASS), committed (1 substantive commit 632873d), pushed, and on **PR #569**
+(https://github.com/ramialfahham/football-data-pipeline/pull/569). Do NOT re-do it; do NOT self-merge.
+- Next action = CPO: review/merge #569. After it merges, **PR-a (#567) rebases on main** (the #500 renames
+  replay on top; its blocked momentum [0,1] test is now fixed by this branch) — [[feedback-sibling-pr-rebase-rebind]].
+- Reviewer-driven scope amendment this session (in contract.md): added int_player_season_position.yml + its
+  [0,1] finishing test (analytics-eng FAIL); also fixed a real build bug the reviewer caught —
+  int_season_record__team's legs CTE wasn't projecting tl.goals_penalty/tl.goals_own (compile passed, build
+  would have failed). CPO authorised a temporary stash for the clean-tree amendment.
+- FOLLOW-UP (out of scope, flagged): docs/wireframes/metrics_display.md still says finishing "can exceed 100%"
+  (bi-analyst-owned display doc, deferred per D2) — update to open-play [0,1] before any glossary UI copy.
 **Stream 1 — PR-a (#500 naming) = PR #567 OPEN** on `refactor/500-metric-layer-naming`. Catalogue restructure +
 metric-layer renames (shots_on_goal/saves/_against) + v2 consumers. 4× reviewer PASS. **BLOCKED by CI**: the
 `momentum_team_finishing_efficiency_in_range` data test fails because finishing reads >100% (pre-existing bug).
