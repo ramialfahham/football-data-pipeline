@@ -63,6 +63,10 @@ aggregated_season as (
         countif(upper(trim(result)) = 'L') as losses_sum_season,
         sum(goals_for) as goals_for_sum_season,
         sum(goals_against) as goals_against_sum_season,
+        -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
+        -- − goals_own. Event-derived components subtracted from the authoritative scoreline.
+        sum(goals_penalty) as goals_penalty_sum_season,
+        sum(goals_own) as goals_own_sum_season,
         sum(shots_total) as total_shots_sum_season,
         sum(opponent_shots_total) as opponent_total_shots_sum_season,
         sum(shots_inside_box) as shots_inside_box_sum_season,
@@ -102,6 +106,11 @@ select
     clean_sheets_count_season as clean_sheets_sum_season,
     goals_for_sum_season,
     goals_against_sum_season,
+    -- open-play goal components as season-total counts (catalogued metrics; CPO Option A)
+    goals_penalty_sum_season as goals_penalty_season,
+    goals_own_sum_season as goals_own_season,
+    goals_for_sum_season - goals_penalty_sum_season - goals_own_sum_season
+        as goals_open_play_season,
     total_shots_sum_season,
     opponent_total_shots_sum_season,
     shots_inside_box_sum_season,
@@ -121,10 +130,19 @@ select
     ) as shot_share_season,
     safe_divide(shots_inside_box_sum_season, total_shots_sum_season) as danger_zone_ratio_season,
     safe_divide(shots_on_goal_sum_season, total_shots_sum_season) as shot_accuracy_season,
+    -- finishing efficiency (CPO Option A): open-play conversion =
+    -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the season is
+    -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never partial, never >100%.
     case
-        when shots_on_goal_sum_season is null or shots_on_goal_sum_season = 0 then null
-        when goals_for_sum_season > shots_on_goal_sum_season then null
-        else safe_divide(goals_for_sum_season, shots_on_goal_sum_season)
+        when stat_coverage_season_games < season_games_played then null
+        when (goals_for_sum_season - goals_penalty_sum_season - goals_own_sum_season) < 0 then null
+        when
+            (goals_for_sum_season - goals_penalty_sum_season - goals_own_sum_season)
+            > shots_on_goal_sum_season then null
+        else safe_divide(
+            goals_for_sum_season - goals_penalty_sum_season - goals_own_sum_season,
+            shots_on_goal_sum_season
+        )
     end as finishing_efficiency_season,
     safe_divide(passes_accurate_sum_season, passes_total_sum_season) as pass_accuracy_season,
     safe_divide(passes_total_sum_season, season_games_played) as passes_per_match_season,

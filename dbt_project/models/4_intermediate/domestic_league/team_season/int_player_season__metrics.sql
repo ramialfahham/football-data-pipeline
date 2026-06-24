@@ -34,6 +34,21 @@ finished as (
     where status_short in ('FT', 'AET', 'PEN')
 ),
 
+-- Penalty goals per (fixture, player) from match events, for the open-play numerator
+-- (CPO Option A). event_detail='Penalty' = a scored penalty by this player; the remaining
+-- goals_total is open play. goals_total stays the authoritative player goal count; only the
+-- penalty component is event-derived. (A player's goals_total already excludes own goals, so
+-- the player numerator subtracts penalties only — no goals_own term.)
+events as (
+    select
+        fixture_sk,
+        player_sk,
+        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals
+    from {{ ref('fct_fixture_event') }}
+    where player_sk is not null
+    group by fixture_sk, player_sk
+),
+
 per_fixture as (
     select
         s.player_sk,
@@ -67,10 +82,13 @@ per_fixture as (
         s.cards_yellow,
         s.cards_red,
         s.penalty_won,
-        s.penalty_committed
+        s.penalty_committed,
+        coalesce(ev.penalty_goals, 0) as goals_penalty
     from player_stats as s
     inner join finished as f
         on s.fixture_sk = f.fixture_sk
+    left join events as ev
+        on s.fixture_sk = ev.fixture_sk and s.player_sk = ev.player_sk
 ),
 
 aggregated as (
@@ -89,6 +107,7 @@ aggregated as (
         countif(coalesce(is_substitute, false)) as substitute_appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
         sum(coalesce(goals_total, 0)) as goals,
+        sum(goals_penalty) as goals_penalty,
         sum(coalesce(goals_assists, 0)) as assists,
         sum(coalesce(shots_total, 0)) as shots_total,
         sum(coalesce(shots_on, 0)) as shots_on_target,
@@ -128,6 +147,7 @@ select
     substitute_appearances,
     minutes,
     goals,
+    goals_penalty,
     assists,
     shots_total,
     shots_on_target,
@@ -149,6 +169,7 @@ select
     penalty_committed,
     goals_saves,
     goals_conceded,
+    goals - goals_penalty as goals_open_play,
     -- count composites (leaderboard sort keys; sums of the atoms above) — metric_catalogue rows
     goals + assists as scorer_points,
     tackles_total + tackles_interceptions + tackles_blocks as defensive_actions,
@@ -157,10 +178,14 @@ select
     safe_divide(duels_won, duels_total) as duels_won_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
     safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct,
-    -- finishing efficiency: goals per shot on target. Uncapped (mirrors the team metric):
-    -- rarely the source logs more goals than on-target shots, so it can exceed 100%.
-    -- Null when shots_on_target is zero. (#506)
-    safe_divide(goals, shots_on_target) as finishing_efficiency,
+    -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty) /
+    -- shots_on_target. NULL ('—') when shots_on_target is zero or the numerator falls outside
+    -- [0, shots_on_target] (rare broken-stat rows) — never >100%. (#506)
+    case
+        when (goals - goals_penalty) < 0 then null
+        when (goals - goals_penalty) > shots_on_target then null
+        else safe_divide(goals - goals_penalty, shots_on_target)
+    end as finishing_efficiency,
     -- per-90 rates: count * 90 / minutes (minutes-normalised; null when minutes is zero).
     -- The comparison layer for the player competition benchmark; metric_catalogue rows.
     safe_divide(goals * 90, minutes) as goals_per90,
