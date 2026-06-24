@@ -268,6 +268,10 @@ models:
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct_season is null or (duels_won_pct_season between 0 and 1)"
           name: team_profile_duels_won_pct_season_in_range
+      # finishing_efficiency_season is open-play conversion in [0,1] (CPO Option A)
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency_season is null or (finishing_efficiency_season between 0 and 1)"
+          name: team_profile_finishing_efficiency_in_range
     columns:
       - name: team_sk
         tests:
@@ -773,9 +777,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "sort_value > 0"
           name: mart_leaderboards_sort_value_positive
-      # RATE-board ratios are bounded [0,1] (same-window guard). finishing_efficiency is
-      # deliberately EXCLUDED — it is uncapped (penalties can push goals/SoT > 1), mirroring
-      # the team finishing_efficiency. Rates are null when their denominator is zero.
+      # RATE-board ratios are all bounded [0,1]. finishing_efficiency is now open-play
+      # conversion in [0,1] (CPO Option A), so it is range-checked here like the other rates.
+      # Rates are null when their denominator is zero.
       - dbt_utils.expression_is_true:
           expression: "pass_accuracy_pct is null or (pass_accuracy_pct between 0 and 1)"
           name: mart_leaderboards_pass_accuracy_pct_in_range
@@ -788,6 +792,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "save_pct is null or (save_pct between 0 and 1)"
           name: mart_leaderboards_save_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
+          name: mart_leaderboards_finishing_efficiency_in_range
     columns:
       - name: player_leaderboard_sk
         description: "Surrogate from (player_sk, season_sk, metric_key)."
@@ -870,7 +877,7 @@ models:
       - name: save_pct
         description: "Goalkeeper save rate — the 'save_pct' board's ranked value."
       - name: finishing_efficiency
-        description: "Goals per shot on target, uncapped — the 'finishing_efficiency' board's ranked value."
+        description: "Open-play goal conversion (open-play goals per shot on target, in [0, 1]) — the 'finishing_efficiency' board's ranked value."
 
   - name: mart_team_market_value
     description: >
@@ -1122,6 +1129,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: "percentile >= 0 and percentile <= 1"
           name: mart_competition_benchmarks_player_percentile_in_range
+      # finishing_efficiency is the one bounded metric in the LONG metric_value column (the
+      # per-90 metrics are unbounded). It is open-play conversion in [0,1] (CPO Option A) —
+      # range-check the finishing rows; this is the only finishing surface on the player benchmark.
+      - dbt_utils.expression_is_true:
+          expression: "metric_key != 'finishing_efficiency' or metric_value is null or (metric_value between 0 and 1)"
+          name: mart_competition_benchmarks_player_finishing_in_range
     columns:
       - name: player_benchmark_sk
         description: "Surrogate from (player_sk, season_sk, position_group, metric_key)."

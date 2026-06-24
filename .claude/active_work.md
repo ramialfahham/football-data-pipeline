@@ -4,8 +4,60 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-24 (**#500 metric-layer FOUNDATION refactor LOCKED — execute next session, full context**).
-main GREEN; no open PRs. **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
+_Last updated: 2026-06-24 (**TWO streams in flight — read this block first**). **Website #391 PAUSED. Live MVP must NOT break.**
+
+## ⚠️ CURRENT STATE (2026-06-24) — two branches, read before anything
+
+### STATUS — finishing open-play conversion BUILD COMPLETE (2026-06-24), PR opened, awaiting CPO merge
+The whole Option-A build is done end-to-end, validated, reviewed (G3), and on a PR. Do NOT re-do it.
+If picking up: `git checkout fix/finishing-open-play-conversion`; the work is committed (one commit) + pushed.
+Next action belongs to the CPO (merge), then PR-a (#567) rebases on the merged main.
+**Stream 1 — PR-a (#500 naming) = PR #567 OPEN** on `refactor/500-metric-layer-naming`. Catalogue restructure +
+metric-layer renames (shots_on_goal/saves/_against) + v2 consumers. 4× reviewer PASS. **BLOCKED by CI**: the
+`momentum_team_finishing_efficiency_in_range` data test fails because finishing reads >100% (pre-existing bug).
+PR-a rebases AFTER stream 2 merges. Do NOT merge yourself.
+
+**Stream 2 — finishing → open-play conversion (CPO Option A) — IN PROGRESS on `fix/finishing-open-play-conversion`
+(off main, lands BEFORE PR-a, fixes its blocked test). FULL DESIGN: `.claude/task/contract.md` (read FIRST).**
+CPO-locked: finishing_efficiency = open-play conversion. numerator `goals_open_play = goals − goals_penalty −
+goals_own` (player: `goals − goals_penalty`), `goals` = authoritative scoreline/goals_total, components from
+`fct_fixture_event` (Penalty / Own Goal). denominator shots_on_goal. NULL ("—") unless fully shot-covered AND
+numerator ∈ [0, shots_on_goal]. New CATALOGUED metrics `goals_penalty`/`goals_own`/`goals_open_play` (`goals_`
+naming, CPO-approved). Event data verified clean (99.3% reconcile). Changes LIVE numbers → before/after deltas + review.
+- **ALL DONE (committed + pushed):** team chains (legs + momentum + season-record), `int_team_season__metrics`
+  (goals_penalty/own _sum_season → goals_penalty_season/goals_own_season/goals_open_play_season + finishing full-
+  coverage + [0,1]), player chains (`int_player_season__metrics` + `int_player_season_position__metrics` derive
+  goals_penalty from `fct_fixture_event` Penalty events; finishing = (goals−goals_penalty)/shots_on, [0,shots] bound),
+  catalogue (5 rows: goals_penalty team+player, goals_own team, goals_open_play team+player + both finishing rows
+  rewritten to numerator=goals_open_play, "uncapped" deleted), `[0,1]` finishing tests added on every surface
+  (int_team_season, int_player_season, mart_team_profile, mart_team_season_insights, mart_leaderboards [exemption
+  removed], mart_competition_benchmarks__player filtered) + the pre-existing momentum/season-record/matchday tests.
+- **The 8 passthrough marts needed NO SQL change** (verified by trace + compile): mart_team_profile,
+  mart_team_season_insights, mart_matchday_insights, mart_player_profile (no finishing col), mart_competition_
+  benchmarks__player all inherit finishing; only finishing TESTS/docs were added. mart_player_profile had NO
+  "uncapped" exemption (it carries no finishing column) — nothing to remove there.
+- **Validation green:** dbt parse + compile (all touched), sqlfluff lint (all touched), catalogue CSV well-formed
+  (74 rows / 13 fields). No-drift guard verified by inspection (only new non-exempt cols are the catalogued
+  goals_penalty/own/open_play). **Before/after deltas (from core facts, no clobber):** season grain ≥2023
+  (6592 team-seasons) avg finishing 0.305→0.261 (−0.044), 646 partial-coverage seasons now NULL, 0 over-100%;
+  live bug `mart_momentum__team` had 10 rows >100% (max 1.25) → now bounded/NULL (this unblocks PR-a's failing test).
+
+### VALIDATE → REVIEW → PR (after the remaining steps)
+- Local gates: `dbt parse` + `dbt compile` + `sqlfluff lint models` (touched models) + the no-drift guard
+  `assert_no_uncatalogued_season_metric` MUST pass (the new season-model columns must be catalogued).
+- BEFORE/AFTER deltas (this changes LIVE numbers): `dbt show` old-vs-new finishing on `mart_matchday_insights`
+  + `mart_team_season_insights`; record them for the reviewers.
+- G3 review cycle (working_agreement §2): scope-auditor + analytics-engineer + football-analytics (catalogue rows).
+  Open the PR. **CPO merges — never self-merge.**
+
+### DO-NOT
+- Do NOT lose/reset the uncommitted WIP (see FIRST STEPS). Do NOT re-derive the design — it is LOCKED in contract.md.
+- Do NOT merge any PR. PR-a (#567) rebases AFTER this branch merges ([[feedback-sibling-pr-rebase-rebind]]).
+- Do NOT use a "team and player" catalogue entity here — this branch is PRE-PR-a, so the no-drift guard needs an
+  EXACT entity match; split goals_penalty / goals_open_play into separate team + player rows (5 rows total).
+
+---
+_Earlier handover (stream 1 / #500 context) below — superseded by the block above for current state._
 
 ## ⭐ NEXT SESSION — #500 metric-layer foundation refactor (CPO-directed 2026-06-24). FULL SPEC: `.claude/task/contract.md` (read it FIRST; do NOT re-derive)
 This session pivoted from "add team SoT-difference metrics" into the foundational metric-layer cleanup the CPO

@@ -52,9 +52,16 @@ select
     safe_divide(b.shots_inside_box, b.shots_total) as danger_zone_ratio,
     safe_divide(b.shots_on_goal, b.games_with_sot_stats)
         as shots_on_target_per_match,
-    -- finishing: goals restricted to shot-covered games keeps it same-window
-    safe_divide(b.goals_for_in_shot_games, b.shots_on_goal)
-        as finishing_efficiency,
+    -- finishing efficiency (CPO Option A): open-play conversion =
+    -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
+    -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never a partial-window
+    -- value and never >100% (penalties + own goals removed; a stray inconsistency nulls out).
+    case
+        when b.games_with_sot_stats < b.games_in_window then null
+        when (b.goals_for - b.goals_penalty - b.goals_own) < 0 then null
+        when (b.goals_for - b.goals_penalty - b.goals_own) > b.shots_on_goal then null
+        else safe_divide(b.goals_for - b.goals_penalty - b.goals_own, b.shots_on_goal)
+    end as finishing_efficiency,
     -- passing (team-stat window)
     safe_divide(b.passes_total, b.games_with_team_stats) as passes_per_match,
     safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy,

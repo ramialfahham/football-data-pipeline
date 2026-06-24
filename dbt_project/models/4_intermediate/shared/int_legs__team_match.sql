@@ -28,6 +28,22 @@ types as (
     select * from {{ ref('competition_types') }}
 ),
 
+-- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
+-- (CPO Option A, 2026-06-24). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
+-- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
+-- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
+-- the components are event-derived; goals_for stays the authoritative scoreline.
+events as (
+    select
+        fixture_sk,
+        team_sk,
+        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals,
+        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals_scored
+    from {{ ref('fct_fixture_event') }}
+    where team_sk is not null
+    group by fixture_sk, team_sk
+),
+
 -- Each finished match as two team legs: the home side's perspective and the away side's.
 legs as (
     select
@@ -107,12 +123,21 @@ with_stats as (
         opp.shots_on_goal as opponent_shots_on_goal,
         opp.shots_total as opponent_shots_total,
         opp.shots_inside_box as opponent_shots_inside_box,
-        opp.corner_kicks as opponent_corner_kicks
+        opp.corner_kicks as opponent_corner_kicks,
+        -- open-play goal split (CPO Option A): goals_for stays the authoritative scoreline; this
+        -- team's penalties and the own goals credited to it (the OPPONENT's own-goal events) are
+        -- subtracted downstream to get goals_open_play. Catalogued as goals_penalty / goals_own.
+        coalesce(ev_own.penalty_goals, 0) as goals_penalty,
+        coalesce(ev_opp.own_goals_scored, 0) as goals_own
     from legs as l
     left join team_stats as own
         on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
     left join team_stats as opp
         on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
+    left join events as ev_own
+        on l.fixture_sk = ev_own.fixture_sk and l.team_sk = ev_own.team_sk
+    left join events as ev_opp
+        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
 )
 
 select

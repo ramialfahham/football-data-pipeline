@@ -41,8 +41,10 @@ models:
       - name: games_with_opp_stats
         description: "Count of window legs with opponent team stats present. Denominator for corners_conceded_per_match."
         tests: [not_null]
-      - name: goals_for_in_shot_games
-        description: "Goals scored summed only over legs with shots_on_goal present; keeps finishing_efficiency same-window."
+      - name: goals_penalty
+        description: "Penalty goals scored by the team over the window (from match events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
+      - name: goals_own
+        description: "Own goals credited to the team over the window (the opponents' own-goal events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
       - name: goals_against_in_save_games
         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps save_ratio same-window."
       - name: contributing_competitions

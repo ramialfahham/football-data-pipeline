@@ -42,6 +42,8 @@ legs as (
         tl.round_order,
         tl.goals_for,
         tl.goals_against,
+        tl.goals_penalty,
+        tl.goals_own,
         tl.shots_total,
         tl.shots_on_goal,
         tl.shots_inside_box,
@@ -92,9 +94,12 @@ select
         as games_with_sot_stats,
     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
         as games_with_opp_stats,
-    -- coverage-restricted scoreline sums keep finishing/save same-window
-    sum(if(shots_on_goal is not null, goals_for, null)) over w
-        as goals_for_in_shot_games,
+    -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
+    -- − goals_own (computed in the mart). Full cumulative sums — finishing is NULL unless the
+    -- window is fully shot-covered, so no coverage-restricted goals sum is needed.
+    sum(goals_penalty) over w as goals_penalty,
+    sum(goals_own) over w as goals_own,
+    -- coverage-restricted scoreline sum keeps save_ratio same-window with its denominator
     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
         as goals_against_in_save_games,
     -- team stats (cumulative)

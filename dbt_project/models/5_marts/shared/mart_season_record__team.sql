@@ -83,7 +83,8 @@ matched as (
         sf.clean_sheet_games,
         sf.goals_for,
         sf.goals_against,
-        sf.goals_for_in_shot_games,
+        sf.goals_penalty,
+        sf.goals_own,
         sf.goals_against_in_save_games,
         sf.shots_total,
         sf.shots_on_goal,
@@ -129,7 +130,8 @@ matched as (
         sf.clean_sheet_games,
         sf.goals_for,
         sf.goals_against,
-        sf.goals_for_in_shot_games,
+        sf.goals_penalty,
+        sf.goals_own,
         sf.goals_against_in_save_games,
         sf.shots_total,
         sf.shots_on_goal,
@@ -188,7 +190,15 @@ select
     safe_divide(shots_on_goal, shots_total) as shot_accuracy,
     safe_divide(shots_inside_box, shots_total) as danger_zone_ratio,
     safe_divide(shots_on_goal, games_with_sot_stats) as shots_on_target_per_match,
-    safe_divide(goals_for_in_shot_games, shots_on_goal) as finishing_efficiency,
+    -- finishing efficiency (CPO Option A): open-play conversion =
+    -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless fully
+    -- shot-covered AND the numerator is valid [0, shots_on_goal] — never partial, never >100%.
+    case
+        when games_with_sot_stats < games_played then null
+        when (goals_for - goals_penalty - goals_own) < 0 then null
+        when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
+        else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
+    end as finishing_efficiency,
     -- passing (team-stat window)
     safe_divide(passes_total, games_with_team_stats) as passes_per_match,
     safe_divide(passes_accurate, passes_total) as pass_accuracy,

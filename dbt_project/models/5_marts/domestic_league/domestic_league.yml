@@ -27,6 +27,11 @@ models:
           combination_of_columns:
             - league_code
             - team_sk
+      # finishing_efficiency_season is open-play conversion in [0,1] (CPO Option A); passthrough
+      # from int_team_season__metrics — range-checked here as the consumer-contract guard.
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency_season is null or (finishing_efficiency_season between 0 and 1)"
+          name: tsi_finishing_efficiency_in_range
     columns:
       - name: team_season_sk
         tests: [not_null, unique]
@@ -218,9 +223,9 @@ models:
       - name: away_danger_zone_ratio_recent
         description: "Away: shots inside box / total shots."
       - name: home_finishing_efficiency_recent
-        description: "Home: goals / shots on target, same-window (goals restricted to shot-covered games)."
+        description: "Home: open-play goal conversion — open-play goals (goals − penalties − own goals) / shots on goal over a fully shot-covered window, in [0, 1] (CPO Option A)."
       - name: away_finishing_efficiency_recent
-        description: "Away: goals / shots on target, same-window."
+        description: "Away: open-play goal conversion (open-play goals / shots on goal, in [0, 1])."
       - name: home_pass_accuracy_recent
         description: "Home: accurate passes / total passes."
       - name: away_pass_accuracy_recent

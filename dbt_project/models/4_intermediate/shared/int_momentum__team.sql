@@ -59,10 +59,13 @@ team_agg as (
         sum(goals_against) as goals_against,
         -- scoreline-based, full window (clean sheets display as x of games)
         countif(goals_against = 0) as clean_sheet_games,
-        -- coverage-restricted scoreline sums keep finishing_efficiency and
-        -- save_ratio same-window with their stat denominators
-        sum(if(shots_on_goal is not null, goals_for, null))
-            as goals_for_in_shot_games,
+        -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
+        -- − goals_own (computed in the mart). Full-window sums — finishing is NULL unless the
+        -- window is fully shot-covered (games_with_sot_stats = games_in_window), so there is no
+        -- coverage-restricted goals sum to keep.
+        sum(goals_penalty) as goals_penalty,
+        sum(goals_own) as goals_own,
+        -- coverage-restricted scoreline sum keeps save_ratio same-window with its denominator
         sum(if(goalkeeper_saves is not null, goals_against, null))
             as goals_against_in_save_games,
         sum(shots_total) as shots_total,
@@ -119,7 +122,8 @@ select
     ta.goals_for,
     ta.goals_against,
     ta.clean_sheet_games,
-    ta.goals_for_in_shot_games,
+    ta.goals_penalty,
+    ta.goals_own,
     ta.goals_against_in_save_games,
     ta.shots_total,
     ta.shots_on_goal,

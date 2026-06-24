@@ -14,7 +14,8 @@
   RATE boards add a qualification rule (CPO, #506) so a tiny sample can't game a rate: minutes >= 270
   (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
   dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
-  shots_on_target >= 10 (minutes don't bound shot count, and finishing_efficiency is uncapped).
+  shots_on_target >= 10 (minutes don't bound shot count, so a 1-shot 1-goal player would otherwise
+  read a perfect rate). finishing_efficiency is now open-play conversion in [0, 1] (CPO Option A).
   sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
 
   Each row carries the union of the boards' display atoms so the export selects per board (marts contain

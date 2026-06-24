@@ -33,6 +33,19 @@ finished as (
     where status_short in ('FT', 'AET', 'PEN')
 ),
 
+-- Penalty goals per (fixture, player) from match events, for the open-play finishing
+-- numerator (CPO Option A). goals_total stays authoritative; only the penalty component is
+-- event-derived. (Player goals_total already excludes own goals.)
+events as (
+    select
+        fixture_sk,
+        player_sk,
+        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals
+    from {{ ref('fct_fixture_event') }}
+    where player_sk is not null
+    group by fixture_sk, player_sk
+),
+
 per_fixture as (
     select
         s.player_sk,
@@ -56,6 +69,7 @@ per_fixture as (
         s.duels_won,
         s.dribbles_attempts,
         s.dribbles_success,
+        coalesce(ev.penalty_goals, 0) as goals_penalty,
         case s.position_code
             when 'G' then 'GK'
             when 'D' then 'DEF'
@@ -65,6 +79,8 @@ per_fixture as (
     from player_stats as s
     inner join finished as f
         on s.fixture_sk = f.fixture_sk
+    left join events as ev
+        on s.fixture_sk = ev.fixture_sk and s.player_sk = ev.player_sk
     where s.position_code in ('G', 'D', 'M', 'F')
 ),
 
@@ -79,6 +95,7 @@ aggregated as (
         count(*) as appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
         sum(coalesce(goals_total, 0)) as goals,
+        sum(goals_penalty) as goals_penalty,
         sum(coalesce(goals_assists, 0)) as assists,
         sum(coalesce(shots_on, 0)) as shots_on_target,
         sum(coalesce(passes_total, 0)) as passes_total,
@@ -132,8 +149,14 @@ select
     safe_divide(duels_won, duels_total) as duels_won_pct,
     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
     safe_divide(goals_saves, nullif(goals_saves + goals_conceded, 0)) as save_pct,
-    -- finishing efficiency: goals per shot on target (uncapped; null when shots_on_target is zero)
-    safe_divide(goals, shots_on_target) as finishing_efficiency,
+    -- finishing efficiency (CPO Option A): open-play conversion = (goals − goals_penalty) /
+    -- shots_on_target. NULL when shots_on_target is zero or the numerator falls outside
+    -- [0, shots_on_target] — never >100%.
+    case
+        when (goals - goals_penalty) < 0 then null
+        when (goals - goals_penalty) > shots_on_target then null
+        else safe_divide(goals - goals_penalty, shots_on_target)
+    end as finishing_efficiency,
     -- per-90 rates IN POSITION: count * 90 / minutes (null when minutes is zero)
     safe_divide(goals * 90, minutes) as goals_per90,
     safe_divide(assists * 90, minutes) as assists_per90,
