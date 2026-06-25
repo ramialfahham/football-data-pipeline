@@ -396,12 +396,12 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
     }
     w1 = {
         (int(r["upcoming_fixture_sk"]), int(r["team_sk"])): r
-        for r in _query(client, f"select * from `{marts}.mart_momentum__team` "
+        for r in _query(client, f"select * from `{marts}.mart_team_momentum` "
                                 f"where upcoming_fixture_sk in ({fid_in})")
     }
     w2 = {
         (int(r["upcoming_fixture_sk"]), int(r["team_sk"])): r
-        for r in _query(client, f"select * from `{marts}.mart_season_record__team` "
+        for r in _query(client, f"select * from `{marts}.mart_team_season_record` "
                                 f"where upcoming_fixture_sk in ({fid_in})")
     }
     ctx = {

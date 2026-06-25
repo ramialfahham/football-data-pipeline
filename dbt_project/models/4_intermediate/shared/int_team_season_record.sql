@@ -3,8 +3,12 @@
 {#
   W2 season-record builder — team. Cumulative running totals over a team's finished
   matches within one competition+season, one row per match played (the totals THROUGH
-  that match). The complement to int_momentum__team (W1 = last 5): this answers
+  that match). The complement to int_team_momentum__metrics (W1 = last 5): this answers
   "what have they done in this competition this season?".
+
+  The whole-season rollup int_team_season__metrics is the FINAL ROW of this model (one
+  season aggregation, not two — #500 PR1), so this carries league_sk / season_sk and the
+  cumulative opponent_shots_total it needs.
 
   Grain: (team_sk, league_code, season_api_year, fixture_sk).
 
@@ -37,6 +41,8 @@ legs as (
         tl.team_sk,
         tl.league_code,
         tl.season_api_year,
+        tl.league_sk,
+        tl.season_sk,
         tl.entity_type,
         tl.kickoff_datetime,
         tl.round_order,
@@ -51,6 +57,7 @@ legs as (
         tl.passes_accurate,
         tl.corner_kicks,
         tl.opponent_corner_kicks,
+        tl.opponent_shots_total,
         tl.goalkeeper_saves,
         pl.key_passes,
         pl.tackles,
@@ -70,6 +77,8 @@ legs as (
 
 select
     team_sk,
+    league_sk,
+    season_sk,
     league_code,
     season_api_year,
     fixture_sk,
@@ -114,6 +123,7 @@ select
     sum(passes_accurate) over w as passes_accurate,
     sum(corner_kicks) over w as corner_kicks,
     sum(opponent_corner_kicks) over w as opponent_corner_kicks,
+    sum(opponent_shots_total) over w as opponent_shots_total,
     sum(goalkeeper_saves) over w as goalkeeper_saves,
     -- player-derived team stats (cumulative; inherit player-stat coverage gaps)
     sum(case when has_player_stats then 1 else 0 end) over w

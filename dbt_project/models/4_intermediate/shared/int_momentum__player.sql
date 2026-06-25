@@ -91,7 +91,7 @@ upcoming_sides as (
     from upcoming_with_type
 ),
 
--- Identify the team's last 5 match fixture_sks (mirrors int_momentum__team logic)
+-- Identify the team's last 5 match fixture_sks (mirrors int_team_momentum__metrics logic)
 ranked_team_legs as (
     select
         s.upcoming_fixture_sk,

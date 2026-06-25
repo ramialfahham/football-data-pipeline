@@ -3,7 +3,7 @@
 {#
   W1 momentum mart — team.
 
-  Computes final displayed metrics from the raw sums in int_momentum__team. The window
+  Computes final displayed metrics from the raw sums in int_team_momentum__metrics. The window
   is last-5 for most competitions and cumulative for tournament fixtures (window_type,
   GAP-18); every rate divides over games_in_window or the matching coverage count, so it
   is correct for any window size. All divisions live here — none in the builder. Returns
@@ -17,7 +17,7 @@
 #}
 
 with builder as (
-    select * from {{ ref('int_momentum__team') }}
+    select * from {{ ref('int_team_momentum__metrics') }}
 ),
 
 fixtures as (

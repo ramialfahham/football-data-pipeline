@@ -4,7 +4,7 @@
   W1 momentum-window selection — team.
 
   One row per (upcoming fixture side, window leg), kept UN-aggregated so the momentum aggregate
-  (int_momentum__team) and its drill-down list (mart_momentum_window__team) consume the same
+  (int_team_momentum__metrics) and its drill-down list (mart_momentum_window__team) consume the same
   selection and cannot drift (extracted in #323).
 
   Default window (window_type='last_5'): the team's last 5 finished matches before the upcoming

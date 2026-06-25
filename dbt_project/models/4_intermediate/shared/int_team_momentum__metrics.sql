@@ -9,7 +9,7 @@
   cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
   window_type carried from the selection says which, and games_in_window is the actual
   count (1–5 for last_5, unbounded for tournament windows). No ratios — those are
-  computed in mart_momentum__team.
+  computed in mart_team_momentum.
 
   Grain: (upcoming_fixture_sk, team_sk).
 

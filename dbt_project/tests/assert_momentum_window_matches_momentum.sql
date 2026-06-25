@@ -1,5 +1,5 @@
 -- The momentum-window list (mart_momentum_window__team) and the momentum aggregate
--- (mart_momentum__team) must describe the same matches: for every upcoming
+-- (mart_team_momentum) must describe the same matches: for every upcoming
 -- fixture side, the number of rows in the list must equal games_in_window,
 -- and neither surface may have a side the other lacks. Both consume
 -- int_momentum_window__team, so a mismatch means a build-order or join bug.
@@ -20,7 +20,7 @@ momentum as (
         upcoming_fixture_sk,
         team_sk,
         games_in_window
-    from {{ ref('mart_momentum__team') }}
+    from {{ ref('mart_team_momentum') }}
 )
 
 select

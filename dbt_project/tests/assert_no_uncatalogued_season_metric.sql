@@ -29,7 +29,8 @@
 {% set exempt = [
     'team_sk', 'player_sk', 'league_sk', 'season_sk', 'league_code', 'season_api_year',
     'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
-    'player_stat_coverage_season_games', 'appearances', 'starts', 'substitute_appearances', 'minutes'
+    'player_stat_coverage_season_games', 'games_with_team_stats', 'entity_type',
+    'appearances', 'starts', 'substitute_appearances', 'minutes'
 ] %}
 
 {% set rows = [] %}
