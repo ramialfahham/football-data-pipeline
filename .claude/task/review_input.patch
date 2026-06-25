@@ -1,836 +1,656 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index c3ade01..7448553 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,8 +4,14 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-25 (**#569 finishing-open-play MERGED; #500 PR-a = PR #567 REBASED on the new main + re-reviewed + force-pushed; PR-b/c/d remain**).
--main GREEN (carries #569). **PR #567 (PR-a) OPEN, awaiting CPO merge — do NOT self-merge.** **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
-+_Last updated: 2026-06-25 (**#569 + #567 BOTH MERGED; starting the universal incomplete-data→NULL task on branch `fix/incomplete-data-null`**).
-+main GREEN at 34f94c6 — carries #569 (finishing→open-play) + #567 (PR-a metric-layer renames). **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; run the full review cycle → open PR; **CPO merges, never self-merge.**
-+
-+### FIRST STEPS (cold chat — do in order)
-+1. `git checkout fix/incomplete-data-null` (off main). This handover commit is the ONLY commit on it — clean tree, NO code or contract yet. Bash only; never PowerShell.
-+2. The 🔴 section directly below is the full spec for the task. Write `.claude/task/contract.md` from it (objective, scope_paths, impact_map, decisions_taken, decisions_reserved, done_when) on the clean tree BEFORE touching any model — the impact-map gate denies the first `dbt_project/models/**` edit until a real impact_map is present.
-+3. **ESCALATE the two open questions in the spec (counts/per-90 reach; the #320 reversal) in PLAIN language and get CPO answers BEFORE building** — they set the blast radius. The CPO is firm the RULE is settled (do not re-ask the rule); these are reach/consequence confirmations, not the rule.
-+4. Implement → validate (`.venv/Scripts/dbt parse|compile` + `sqlfluff lint models`) → before/after deltas (this moves LIVE numbers — record old-vs-new on the affected marts) → G3 review (scope-auditor + analytics-engineer; + football-analytics only if the catalogue changes) → open the PR. CPO merges.
- 
- ## 🔴 NEXT CPO-DIRECTED TASK (locked this session) — universal "incomplete data → NULL" for EVERY metric
- CPO rule, stated firmly (2026-06-25): **every metric, team AND player, is NULL when the data to calculate it is
-@@ -23,6 +29,41 @@ Target: replace coalesce-to-0 and average-over-covered-games with a per-metric c
- any game in the window is missing that metric's input (the team finishing_efficiency CASE is the reference pattern).
- Big blast radius (most rates, team + player, every window) → its own design + before/after deltas + G3 review.
- 
-+**Design / approach (carry into the contract):**
-+- Each metric NULLs against ITS OWN input's coverage: shot metrics on shot-stat coverage, passing on team-stat
-+  coverage, player-derived team metrics on player-stat coverage, GK on save coverage. Scoreline-based metrics
-+  (goals_for/against per match, points_won/capture, clean_sheets, W/D/L) are ALWAYS covered for finished matches
-+  → they never NULL from this rule. So the change hits the STATS-based metrics, not the scoreline ones.
-+- Pattern: the team finishing CASE is the template — `when <coverage_count> < <window_games> then null … else
-+  safe_divide(...)`. The team builders ALREADY carry the coverage counts (games_with_team_stats, games_with_sot_stats,
-+  games_with_opp_stats, games_with_player_stats; season: stat_coverage_season_games, player_stat_coverage_season_games)
-+  — today the marts DIVIDE by them (average-over-covered); the change is to ALSO gate: NULL when count < games_in_window
-+  (momentum) / games_played (season-record) / season_games_played (season). The PLAYER season models have NO coverage
-+  counts yet (they coalesce(field,0)) — ADD per-stat coverage counts (countif(field is not null)) and gate the same way.
-+- Surfaces (from this session's trace): TEAM — mart_momentum__team, mart_season_record__team, int_team_season__metrics
-+  (+ the live passthroughs mart_matchday_insights, mart_team_season_insights inherit). PLAYER — int_player_season__metrics,
-+  int_player_season_position__metrics, int_momentum__player + mart_momentum__player (+ mart_player_profile, mart_leaderboards,
-+  the benchmarks inherit). Confirm the full list with `dbt ls` when writing the impact_map.
-+
-+**OPEN QUESTIONS — escalate (plain language) + get CPO answers BEFORE building:**
-+- (Q1) Reach: does "incomplete → NULL" apply to COUNT metrics (e.g. a player's shots_on_goal/goals total over the
-+  window) and PER-90s too, or only to per-match averages and ratios? CONSEQUENCE if yes: a player/team with ANY
-+  window game missing the stat drops off the COUNT leaderboards (their total goes "—"). That's a real product effect
-+  worth confirming — not re-asking the rule, confirming its reach to counts/per-90 leaderboard totals.
-+- (Q2) This REVERSES the #320 "average over the covered games + show a coverage caption" design for the team
-+  per-match rates (they go NULL on any partial coverage instead of averaging). Confirm #320 is being replaced (the CPO
-+  rule says yes; flag it so it's a recorded, deliberate reversal, not silent).
-+
-+**done_when:** every stats-based metric (team + player, every window) is NULL when its input is not present in all
-+window games; coverage-gate added to the player season + momentum models; team marts gate (not just divide); [0,1]/
-+range + a "no partial-coverage value" assertion where sensible; dbt parse|compile + sqlfluff(models) clean; the
-+no-drift guard + existing range tests pass; before/after deltas recorded on the live marts (mart_matchday_insights +
-+mart_team_season_insights); G3 review; PR opened; CPO merges.
-+
-+**do-NOTs:** don't re-ask whether the rule applies (it's universal — settled); don't NULL the scoreline-based metrics
-+(they're always covered); don't fold this into a rename/other PR (it moves live numbers — own PR + deltas); don't
-+self-merge.
-+
- ### ⚠️ 2026-06-25 CORRECTION — read this; it OVERRIDES any "later / #391-gated / combine later" framing in `contract.md`
- The metric-layer merge is **NOT deferred and NOT gated on #391.** Do the FULL consolidation now. `contract.md`
- currently files the live merge under a "Stage 4 / #391-gated" / "leave the live website alone, combine the seeds
-@@ -40,7 +81,9 @@ later" scope — **that gating is the bug; disregard it.** The merge IS the deli
-   + a `contract.md` whose staging is wrong on the gating). Fresh chat: rewrite `contract.md` to this non-gated scope
-   on a clean-ish tree, keep the good blast-radius/impact_map analysis, drop the #391 gate.
- 
--## ⭐ #500 metric-layer consolidation — STATUS (PR-a OPEN; non-gated 4-PR sequence)
-+## ⭐ #500 metric-layer consolidation — STATUS (PR-a MERGED 2026-06-25; PR-b/c/d remain; non-gated sequence)
-+> NOTE: PR-a (#567) is MERGED. The "OPEN / awaiting merge / force-pushed" wording in the PR-a bullet below is
-+> historical. PR-b/c/d are the remaining #500 work (after the universal-NULL task above, per CPO sequencing).
- Goal: **ONE metric layer (the catalogue), end-to-end, zero ambiguity** — the merge IS the deliverable, NOT
- #391-gated. MVP-safety = byte-identical `site/match-preview/metric_definitions.json` at every step, not deferral.
- The PR sequence is locked in `contract.md`'s reference block; each PR gets its own contract.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4c5e961..71a7de9 100644
+index 71a7de9..23d8018 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,233 +1,162 @@
--# Task contract — #500 metric-layer consolidation — PR-a (catalogue restructure + metric-layer naming, MVP-safe)
-+# Task contract — incomplete team-feed data → NULL (team-feed stats only)
+@@ -1,162 +1,132 @@
+-# Task contract — incomplete team-feed data → NULL (team-feed stats only)
++# Task contract — #500 PR-b1: deep atom renames (saves / goals_against / shots_on_goal)
  
--> This is PR-a of the NON-GATED full #500 consolidation. The end-state (locked target
--> below) is ONE metric layer — the catalogue as the single registry, the LIVE MVP migrated
--> onto it, the legacy seed deleted. NONE of it is #391-gated. The merge IS the deliverable
--> and happens in this same work stream (PR-d), not "later". The work is sequenced into
--> reviewed PRs purely for reviewability and MVP-safety, not deferral. MVP-safety is enforced
--> by a CHECK, not by gating: at every step the generated `site/match-preview/metric_definitions.json`
--> must stay BYTE-IDENTICAL to today's. PR-a touches ZERO live-chain files, so it is trivially safe.
-+> CPO-directed, 2026-06-25. Brings the TEAM-FEED stats metrics into compliance with the
-+> universal "incomplete data → NULL" rule: a team-feed stat metric is "—" (NULL) unless every
-+> game in its window carries that stat. Two source-of-record findings reshaped the original
-+> spec (both proven from the warehouse, recorded in escalations.log):
-+>   1. PLAYER stat nulls mean ZERO, not missing (95.88% scoreline reconciliation) → the player
-+>      models are CORRECT as-is (coalesce-to-0); the player side is DROPPED. CPO: "for player
-+>      treat NULL as zero is correct. Do it."
-+>   2. Missing PLAYER data must NOT affect TEAM stats (CPO, 2026-06-25). Team metrics split by
-+>      source: team-feed stats (shots/passes/corners/saves) gate on team-feed coverage; the
-+>      player-DERIVED team metrics (tackles/key_passes/duels) are player data and keep their
-+>      current average-over-covered behaviour — a player-data hole never blanks a team stat.
-+> So this task is TEAM-FEED ONLY. See docs/working_agreement.md §2/§7/§10/§11.
+-> CPO-directed, 2026-06-25. Brings the TEAM-FEED stats metrics into compliance with the
+-> universal "incomplete data → NULL" rule: a team-feed stat metric is "—" (NULL) unless every
+-> game in its window carries that stat. Two source-of-record findings reshaped the original
+-> spec (both proven from the warehouse, recorded in escalations.log):
+->   1. PLAYER stat nulls mean ZERO, not missing (95.88% scoreline reconciliation) → the player
+->      models are CORRECT as-is (coalesce-to-0); the player side is DROPPED. CPO: "for player
+->      treat NULL as zero is correct. Do it."
+->   2. Missing PLAYER data must NOT affect TEAM stats (CPO, 2026-06-25). Team metrics split by
+->      source: team-feed stats (shots/passes/corners/saves) gate on team-feed coverage; the
+->      player-DERIVED team metrics (tackles/key_passes/duels) are player data and keep their
+->      current average-over-covered behaviour — a player-data hole never blanks a team stat.
+-> So this task is TEAM-FEED ONLY. See docs/working_agreement.md §2/§7/§10/§11.
++> Sliced from PR-b per CPO 2026-06-25 ("go ahead as recommended" — atom renames FIRST as one
++> reviewable PR; the file renames + `_season`-suffix + team-season consolidation are a SEPARATE
++> follow-up once the int_<entity>_<window>__metrics mapping is pinned). This PR is a pure 1:1
++> COLUMN rename — no formula, grain, filter, or value change. See working_agreement §2/§7/§10/§11.
  
  objective: >
--  Apply the locked one-name scheme to the metric layer across the metric_catalogue / v2 consumers
--  (catalogue seed, the int metric models, the benchmark macros, the v2 marts, the no-drift guard,
--  tests, the v2 export refs) and restructure the catalogue (entity-value normalisation + the
--  CPO-locked de-dup). Rename the player-side & v2-benchmark metric ids/columns at the metric-layer
--  OUTPUT (shots_on_target -> shots_on_goal, goals_saves -> saves, goals_conceded -> goals_against,
--  + per90/per_match variants). Repair the CSV corruption the prior WIP introduced (two merged rows).
--  The ONE rename shared with the LIVE site (corners_conceded -> corners_against) lands in PR-d (the
--  live merge), where the live chain is touched — sequencing, not gating. So PR-a leaves the live MVP
--  byte-identical.
-+  Replace the #320 "average over the covered games" behaviour with a coverage gate that NULLs a
-+  TEAM-FEED stat metric whenever any game in its window is missing that stat (reverse #320, CPO Q2).
-+  The reference is the existing finishing_efficiency CASE: `when <coverage_count> < <window_games>
-+  then null … else <safe_divide / sum>`. Each metric gates on ITS OWN team-feed coverage bucket:
-+  shots/passes/corners/danger-zone → team-stat coverage (games_with_team_stats); shots_on_goal →
-+  sot coverage (games_with_sot_stats); opponent corners → opp coverage (games_with_opp_stats);
-+  goalkeeper saves → save coverage (games_with_save_stats, NEW). Scoreline metrics (goals/against,
-+  points, W-D-L, clean sheets) are always covered → never gated. Player-DERIVED team metrics
-+  (key_passes/tackles/interceptions/blocks/defensive_actions/duels/duels_won_pct) are LEFT UNCHANGED
-+  (player data — CPO ruling 2; keep average-over-player-covered). All individual player models are
-+  LEFT UNCHANGED (null=zero is correct).
+-  Replace the #320 "average over the covered games" behaviour with a coverage gate that NULLs a
+-  TEAM-FEED stat metric whenever any game in its window is missing that stat (reverse #320, CPO Q2).
+-  The reference is the existing finishing_efficiency CASE: `when <coverage_count> < <window_games>
+-  then null … else <safe_divide / sum>`. Each metric gates on ITS OWN team-feed coverage bucket:
+-  shots/passes/corners/danger-zone → team-stat coverage (games_with_team_stats); shots_on_goal →
+-  sot coverage (games_with_sot_stats); opponent corners → opp coverage (games_with_opp_stats);
+-  goalkeeper saves → save coverage (games_with_save_stats, NEW). Scoreline metrics (goals/against,
+-  points, W-D-L, clean sheets) are always covered → never gated. Player-DERIVED team metrics
+-  (key_passes/tackles/interceptions/blocks/defensive_actions/duels/duels_won_pct) are LEFT UNCHANGED
+-  (player data — CPO ruling 2; keep average-over-player-covered). All individual player models are
+-  LEFT UNCHANGED (null=zero is correct).
++  Apply the CPO-locked one-term-per-stat naming to the DEEP ATOMS end-to-end, eliminating the
++  PR-a (#567) split-brain (the season __metrics models already OUTPUT saves/goals_against/
++  shots_on_goal, but the underlying atoms + the momentum/season-record/legs/position models + the
++  catalogue formula columns still use the API-path names):
++  - player `goals_saves` -> `saves` (API path `$.goals.saves`; rename the column alias, keep the path)
++  - player `goals_conceded` -> `goals_against`
++  - team `shots_on_target_per_match` (the one remaining mart output alias) -> `shots_on_goal_per_match`
++  Pure rename; the value each renamed column carries is identical.
  refs: >
--  #500; the 2026-06-24 CPO lock (target block below); the 2026-06-25 CPO correction in
--  `.claude/active_work.md` ("the merge is NOT deferred / NOT #391-gated; do the full consolidation now;
--  MVP-safety = byte-identical metric_definitions.json, not deferral"); content_architecture.md §10.
--  SoT-difference work (#565) is STASHED ("sot-difference WIP (paused for #500)"), re-added after #500.
--
--# =====================================================================================
--# REFERENCE — CPO-LOCKED TARGET (2026-06-24; the END-STATE, achieved across the PR sequence)
--# =====================================================================================
--# 0. ONE seed: consolidate metric_definitions.csv (legacy MVP) INTO metric_catalogue.csv; migrate the
--#    live MVP onto it; retire the legacy seed + build + *_recent/*_pretournament i18n. (PR-d — NOW, not gated.)
--# 1. metric_catalogue.csv is the single source of truth. metric_id == the model column that computes it.
--# 2. entity values: team | player | team and player. De-dup the two dual rows (duels_won_pct,
--#    finishing_efficiency) -> one "team and player" row each. [PR-a — CPO-locked; see D2.]
--# 3. One term per stat (provider term kept when it is good football language):
--#    - shots_on_goal  (NOT shots_on_target)
--#    - saves          (NOT goals_saves — that is the API path, not football language)
--#    - _against for every conceded stat: goals_against, corners_against (was corners_conceded),
--#      shots_on_goal_against (was shots_on_target_faced / the team shots_on_target_against). _conceded/_faced retired.
--# 4. Models named int_<entity>_<window>__metrics + consolidate the redundant team-season models. (PR-b.)
--# 5. label_i18n_key in the catalogue is the single display spine; reconcile site i18n to it. (PR-d.)
--# 6. One explainer doc (metric_layer.md); retire/fold player_metrics_catalogue.md + metrics_display.md. (PR-c.)
--#
--# CRITICAL DISCOVERY (2026-06-24, re-verified from source this session): there are TWO metric SEEDS /
--# two parallel systems —
--#   metric_catalogue.csv (v2; export_site_data.py + the v2 models; the v2 site #391 is PAUSED) and
--#   metric_definitions.csv (LEGACY MVP; export_metric_definitions_json.py + build_match_preview_site +
--#     site/match-preview + site/team-season = the LIVE site). metric_definitions.csv is a thin
--#   UI-BINDING MANIFEST over the SAME metric identities the catalogue holds (per metric: home_/away_/
--#   single_column bindings + a window suffix _recent/_pretournament/_form + a context match_preview/
--#   wc_pretournament). That split IS the "2-3 metric layers". Never judge the metric layer from one seed.
--#   PR-d facts (verified): the live JSON carries NO labels (format/context/columns only -> the byte check
--#   is i18n-independent); live i18n keys are window-suffixed (metrics.<id>_recent) vs the catalogue's
--#   metrics.<base>.label / playerMetrics.* (a real reconciliation); `qualifier_games_played` is a LIVE
--#   metric NOT yet in the catalogue (PR-d must register it).
--#
--# PR SEQUENCE (each = its own PR + contract; ALL non-gated, executed in this work stream):
--#   PR-a (THIS): catalogue restructure (entity values + de-dup) + the CSV-corruption repair + player/
--#     v2-benchmark metric-id & column renames at the metric-layer OUTPUT + v2 consumers + no-drift guard
--#     + tests + v2 export refs. corners_conceded -> PR-d. NO live-chain edits, NO model-file renames,
--#     NO staging/base/core atom renames.
--#   PR-b: model FILE renames -> int_<entity>_<window>__metrics + team-season consolidation + the deep
--#     atom renames (staging/base/core goals_saves -> saves, goals_conceded -> goals_against) + drop the
--#     no-drift guard's _season strip.
--#   PR-c: doc consolidation (metric_layer.md; retire/fold player_metrics_catalogue.md + metrics_display.md).
--#   PR-d (the merge — NOW): consolidate metric_definitions.csv INTO the catalogue; repoint
--#     export_metric_definitions_json.py at the catalogue; delete metric_definitions.csv + the legacy
--#     *_recent/*_pretournament i18n; corners_conceded -> corners_against END-TO-END on the live side;
--#     reconcile i18n onto label_i18n_key; register qualifier_games_played. MVP-safety = byte-identical
--#     metric_definitions.json at every step.
--
--# =====================================================================================
--# PR-a EXECUTION
--# =====================================================================================
-+  CPO rule LOCKED 2026-06-25 + the two source-of-record rulings (escalations.log 2026-06-25):
-+  player null=zero (drop player side) and "missing player stats must not affect team stats"
-+  (team-feed only). Q2 = reverse #320 (AskUserQuestion 2026-06-25). The finishing_efficiency CASE
-+  (int_team_season__metrics / mart_momentum__team / mart_season_record__team, #506/#569) is the
-+  template. CLAUDE.md: DQ non-negotiable; live MVP must not break (a metric showing "—" is the
-+  intended product behaviour — the export already renders NULL as "—" for finishing_efficiency).
+-  CPO rule LOCKED 2026-06-25 + the two source-of-record rulings (escalations.log 2026-06-25):
+-  player null=zero (drop player side) and "missing player stats must not affect team stats"
+-  (team-feed only). Q2 = reverse #320 (AskUserQuestion 2026-06-25). The finishing_efficiency CASE
+-  (int_team_season__metrics / mart_momentum__team / mart_season_record__team, #506/#569) is the
+-  template. CLAUDE.md: DQ non-negotiable; live MVP must not break (a metric showing "—" is the
+-  intended product behaviour — the export already renders NULL as "—" for finishing_efficiency).
++  #500 PR-b (sliced); CPO-locked naming (active_work.md ⭐#500 block + the PR-a reference block:
++  `saves` not goals_saves, `_against` for conceded -> goals_against, `shots_on_goal` not shots_on_target).
++  PR-a (#567) renamed the metric-layer OUTPUT but explicitly left the deep atoms + momentum/record/legs
++  models to PR-b ("the core ATOM goals_conceded stays until PR-b").
  
  scope_paths:
    - .claude/task/**
    - .claude/active_work.md
--  # --- the catalogue (source of truth) ---
--  - dbt_project/seeds/metric_catalogue.csv
--  # --- the metric-layer writers (int models that OUTPUT the renamed columns) ---
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+  # --- TEAM builders (unguarded): add the missing save-coverage count to OUTPUT ---
-+  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
-+  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
-+  # --- TEAM season model (self-contained): team-feed coverage inline, gate team-feed metrics ---
-   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum__player.sql
--  - dbt_project/models/4_intermediate/shared/int_season_record__player.sql
--  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
--  # --- the macros (single-source metric->column maps the benchmarks read) ---
--  - dbt_project/macros/player_benchmark_metrics.sql
--  - dbt_project/macros/team_benchmark_metrics.sql
--  # --- the v2 marts that select the renamed columns ---
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
--  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
--  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
--  - dbt_project/models/5_marts/shared/mart_season_record__player.sql
--  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
--  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
--  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
--  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
--  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-+  # --- TEAM marts: gate each team-feed rate (not just divide); leave player-derived untouched ---
-+  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
-   - dbt_project/models/5_marts/shared/mart_season_record__team.sql
--  # --- the schema/yml docs for the above models ---
+-  # --- TEAM builders (unguarded): add the missing save-coverage count to OUTPUT ---
+-  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
+-  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
+-  # --- TEAM season model (self-contained): team-feed coverage inline, gate team-feed metrics ---
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+-  # --- TEAM marts: gate each team-feed rate (not just divide); leave player-derived untouched ---
++  # --- the atom origin: staging -> base -> core fact (+ schema doc) ---
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/3_core/fct_fixture_player_stats.sql
++  - dbt_project/models/3_core/core.yml
++  # --- intermediate consumers (aligning the internal atom refs to the new name) ---
++  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++  - dbt_project/models/4_intermediate/shared/int_momentum__player.sql
++  - dbt_project/models/4_intermediate/shared/int_season_record__player.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  # --- player marts (renamed columns) ---
++  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
++  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
++  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
++  - dbt_project/models/5_marts/shared/mart_season_record__player.sql
++  # --- the one team residual: mart output alias shots_on_target_per_match -> shots_on_goal_per_match ---
+   - dbt_project/models/5_marts/shared/mart_momentum__team.sql
+-  - dbt_project/models/5_marts/shared/mart_season_record__team.sql
+-  # --- schema docs for the touched models (document the new games_with_save_stats column;
+-  #     the existing range tests already cover the gated ratios with NULL tolerance, so no test
+-  #     additions are needed — verified at build 2026-06-25) ---
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 -  - dbt_project/models/5_marts/shared/shared.yml
-+  # --- schema docs for the touched models (document the new games_with_save_stats column;
-+  #     the existing range tests already cover the gated ratios with NULL tolerance, so no test
-+  #     additions are needed — verified at build 2026-06-25) ---
-+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
--  # --- the no-drift guard (drops the goals_saves->saves normalisation; keeps the _season strip for PR-b) ---
--  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
--  # --- the v2 export literal refs (NOT a shim — see D4) ---
--  - scripts/export_site_data.py
--  # NOTE: the exact per-file occurrence list is confirmed during build by `dbt compile` + the no-drift
--  # guard + sqlfluff + the catalogue conformance/uniqueness tests. Any file found to need a metric-layer
--  # edit but not listed here is added by a clean-tree amendment, never edited silently. docs/metric_layer.md
--  # reference-text is intentionally LEFT to PR-c (doc consolidation) unless a reviewer rules the stale ids
--  # must not ship — see D5.
-+  - dbt_project/models/5_marts/shared/shared.yml
++  # --- the catalogue: align the numerator/denominator FORMULA columns to the renamed atoms ---
++  - dbt_project/seeds/metric_catalogue.csv
  
--# EXPLICITLY OUT OF SCOPE (do not edit in PR-a):
--#   LIVE chain (PR-d): site/**, dbt_project/seeds/metric_definitions.csv, scripts/build_match_preview_site.*,
--#     scripts/export_metric_definitions_json.py, scripts/export_pages_data.py, scripts/export_matchday_json.py,
--#     scripts/export_team_season_json.py, .github/workflows/{pages-match-preview,ci-ui}.yml, site/i18n/*.
--#   LIVE-shared team marts (corners_conceded carrier — PR-d): mart_momentum__team, int_momentum__team,
--#     mart_matchday_insights, mart_team_season_insights, int_momentum.yml, domestic_league.yml.
--#   ATOM layer (PR-b): stg_apif__fixture_players, base_apif__fixture_players, fct_fixture_player_stats,
--#     fct_fixture_team_stats, base_apif__fixture_statistics, int_legs__team_match, core.yml.
-+# EXPLICITLY OUT OF SCOPE:
-+#   - ALL player models (int_player_season__metrics, int_player_season_position__metrics,
-+#     int_momentum__player, mart_momentum__player) and the player downstream — player null=zero is
-+#     correct, proven (escalations.log 2026-06-25). NO player edits.
-+#   - the player-DERIVED team metrics (key_passes/tackles/interceptions/blocks/defensive_actions/
-+#     duels/duels_won_pct in the team marts + int_team_season__metrics) — player-sourced; LEFT on
-+#     average-over-covered (CPO: missing player stats must not affect team stats).
-+#   - metric_catalogue.csv — no metric added/redefined; only NULL behaviour. football-analytics
-+#     reviewer NOT required.
-+#   - assert_no_uncatalogued_season_metric.sql (no-drift guard) — UNTOUCHED. int_team_season__metrics
-+#     outputs NO new columns (team-feed coverage computed inline in the CTE, consumed in the same
-+#     model's final SELECT). Verified by build.
-+#   - downstream team consumers (mart_team_profile, mart_team_season, int_competition_benchmarks__team,
-+#     mart_competition_benchmarks__team, mart_matchday_insights, mart_team_season_insights) — INHERIT
-+#     the NULLs (pure passthrough / no re-derivation, verified). No edits.
-+#   - atom / staging / base / core — unchanged.
+-# EXPLICITLY OUT OF SCOPE:
+-#   - ALL player models (int_player_season__metrics, int_player_season_position__metrics,
+-#     int_momentum__player, mart_momentum__player) and the player downstream — player null=zero is
+-#     correct, proven (escalations.log 2026-06-25). NO player edits.
+-#   - the player-DERIVED team metrics (key_passes/tackles/interceptions/blocks/defensive_actions/
+-#     duels/duels_won_pct in the team marts + int_team_season__metrics) — player-sourced; LEFT on
+-#     average-over-covered (CPO: missing player stats must not affect team stats).
+-#   - metric_catalogue.csv — no metric added/redefined; only NULL behaviour. football-analytics
+-#     reviewer NOT required.
+-#   - assert_no_uncatalogued_season_metric.sql (no-drift guard) — UNTOUCHED. int_team_season__metrics
+-#     outputs NO new columns (team-feed coverage computed inline in the CTE, consumed in the same
+-#     model's final SELECT). Verified by build.
+-#   - downstream team consumers (mart_team_profile, mart_team_season, int_competition_benchmarks__team,
+-#     mart_competition_benchmarks__team, mart_matchday_insights, mart_team_season_insights) — INHERIT
+-#     the NULLs (pure passthrough / no re-derivation, verified). No edits.
+-#   - atom / staging / base / core — unchanged.
++# EXPLICITLY OUT OF SCOPE (deferred per the locked sequence):
++#   - model FILE renames (int_<entity>_<window>__metrics), team-season consolidation, the `_season`
++#     suffix drop + the no-drift guard's `_season` strip — the SECOND PR-b slice (mapping not yet pinned).
++#   - catalogue `label_i18n_key` + `description` prose (still say "shots on target"/"goals conceded") —
++#     display/i18n, reconciled in PR-c (docs) / PR-d (i18n). PR-b1 touches only the machine-readable
++#     numerator/denominator atom references.
++#   - the no-drift guard: its ONLY `goals_saves` mention is a historical comment (accurate) — left.
++#   - the LIVE chain + team-feed atoms (shots_total etc.) — untouched.
  
  impact_map: >
--  writers (models that OUTPUT a renamed metric column):
--    - int_player_season__metrics: shots_on_target -> shots_on_goal; goals_saves -> saves;
--      goals_conceded -> goals_against; shots_on_target_per90 -> shots_on_goal_per90.
--    - int_player_season_position__metrics: same player renames (shots_on_target, goals_saves, +per90).
--    - int_team_season__metrics: shots_on_target_per_match_season -> shots_on_goal_per_match_season
--      (v2-benchmark column; NOT live — see boundary). corners_conceded_per_match_season LEFT (PR-d).
--  downstream (dbt MCP `list int_player_season__metrics+ int_team_season__metrics+
--    int_player_season_position__metrics+`, models only — PASTED evidence; re-confirmed by grep this session):
--      int_competition_benchmarks__player, int_competition_benchmarks__team, int_player_career__metrics,
--      mart_competition_benchmarks__player, mart_competition_benchmarks__team, mart_leaderboards,
--      mart_player_career, mart_player_profile, mart_team_profile, mart_team_season, mart_team_season_insights.
--    Of these: int_player_career__metrics selects only appearances/goals/assists (NOT a renamed column) — no edit.
--    mart_team_season + mart_team_season_insights carry corners_conceded/atoms only (PR-d/atom) — NOT edited.
--    The rest select renamed player/v2 columns -> edited (listed in scope_paths).
--    Grep confirms goals_saves/goals_conceded also flow through int_momentum__player, int_season_record__player,
--    int_legs__player_match and their player marts; those models alias their OWN output and only the SEASON
--    models are catalogue-guarded, so the atom name (goals_saves/goals_conceded) survives there until PR-b
--    (a deliberate, compile-clean split-brain — each model is internally consistent).
--  LIVE BOUNDARY (the load-bearing finding):
--    - The live MVP = match-preview (mart_matchday_insights) + team-season (mart_team_season_insights),
--      registered by metric_definitions.csv, which carries TEAM metrics ONLY (no shots_on_target, no player
--      metrics). Evidence: metric_definitions.csv rows + mart selects.
--    - Of all locked renames, ONLY corners_conceded is live-shared (mart_momentum__team -> mart_matchday_insights
--      live alias *_corners_conceded_per_match_recent; int_team_season__metrics -> mart_team_season_insights
--      passthrough corners_conceded_per_match_season -> site/team-season). Landing it in PR-d (with the rest of
--      the live merge) = zero live-chain edits in PR-a.
--    - The player renames (shots_on_target/goals_saves/goals_conceded) and the team v2 shots_on_target_per_match
--      reach ONLY v2/benchmark/leaderboard surfaces (export_site_data.py, gitignored v2 output), never the live MVP.
--    - export_site_data.py is the v2 export (docstring: "does not touch ... the live Pages deploy; Output is a
--      build artifact, gitignored"). So its two literal refs (shots_on_target at lines ~47/~52) are updated, no
--      shim (D4). The live MVP is protected by leaving metric_definitions.csv + its chain untouched.
--  layer_rules: check_layer_contract (no new per-competition staging dir — N/A); check_registry_var_sync
--    (N/A, no registry change); the no-drift test assert_no_uncatalogued_season_metric (UPDATED: player season
--    model now outputs `saves`, so its goals_saves->saves normalisation is removed; the _season strip stays for
--    PR-b; a `team and player` catalogue row now satisfies both entity checks). Atoms unchanged, so
--    staging/base/core layer rules untouched.
--  deploy_order: single dbt build rebuilds the renamed models + their v2 downstream together (one run); no
--    cross-deploy window. The live chain is untouched, so the 04:00 nightly's live export is unaffected.
--    export_site_data.py output is gitignored / not committed (#391 paused), so no committed-artifact churn.
--  blast_radius: NUMBERS = NONE. Every change is a column-alias / metric_id-string / metric_key-value rename
--    (+ the CSV-corruption repair, which RESTORES two rows the WIP accidentally hid — no value change); no
--    formula, denominator, or filter changes. The atoms feeding each renamed column are identical. Verified by:
--    the renames are 1:1 string substitutions at the metric layer; dbt compile + the no-drift guard confirm
--    every renamed column still resolves to the same catalogue id and the same upstream atom; the live byte
--    check is moot (no live-chain file touched).
-+  WRITERS (edited — each team-feed metric gated against its own team-feed coverage; scoreline +
-+  player-derived never gated by this task):
-+    - int_momentum__team (builder, last_5/tournament window): ADD games_with_save_stats =
-+      countif(goalkeeper_saves is not null) to OUTPUT (the only team-feed coverage count missing;
-+      games_with_team_stats / games_with_sot_stats / games_with_opp_stats already present). No gating
-+      here (builder emits raw sums + counts).
-+    - int_season_record__team (builder, cumulative): ADD cumulative games_with_save_stats =
-+      sum(case when goalkeeper_saves is not null then 1 else 0 end) over w.
-+    - int_team_season__metrics (full-season, self-contained): compute team-stat / opp / save coverage
-+      counts INLINE in aggregated_season (sot coverage already there as stat_coverage_season_games),
-+      then GATE the team-feed outputs — the per-match rates (shots_per_match_season,
-+      passes_per_match_season, corner_kicks_per_match_season, corners_conceded_per_match_season,
-+      shots_on_goal_per_match_season), the ratios (shot_share_season, danger_zone_ratio_season,
-+      shot_accuracy_season, pass_accuracy_season, save_ratio_season), AND the team-feed stat-count
-+      totals shown on the live team-season site (total_shots_sum_season, opponent_total_shots_sum_season,
-+      shots_inside_box_sum_season, shots_on_goal_sum_season, corner_kicks_sum_season,
-+      opponent_corner_kicks_sum_season, passes_accurate_sum_season, passes_total_sum_season,
-+      goalkeeper_saves_sum_season). finishing_efficiency_season already gated. The player-derived
-+      per-match rates (key_passes/duels/defensive_actions/tackles/interceptions/blocks_per_match_season,
-+      duels_won_pct_season) are LEFT unchanged. Scoreline rates (points_capture, goals_per_match,
-+      goals_against_per_match, clean_sheets) unchanged.
-+    - mart_momentum__team + mart_season_record__team: GATE each team-feed rate — NULL when its
-+      coverage count < the window total (games_in_window / games_played): shots_per_match,
-+      shot_accuracy, danger_zone_ratio, shots_on_*_per_match, passes_per_match, pass_accuracy,
-+      corner_kicks_per_match, corners_conceded_per_match, save_ratio (on the new games_with_save_stats).
-+      finishing already gated. key_passes/tackles/interceptions/blocks/defensive_actions/
-+      duels_per_match + duels_won_pct LEFT unchanged (player-derived). goals_per_match /
-+      goals_against_per_match / clean_sheets / points_won / W-D-L = scoreline → unchanged.
-+  DOWNSTREAM (dbt ls --select int_team_season__metrics+ mart_momentum__team+ mart_season_record__team+
-+    --resource-type model, PASTED 2026-06-25): int_competition_benchmarks__team,
-+    mart_competition_benchmarks__team, mart_matchday_insights, mart_team_profile, mart_team_season,
-+    mart_team_season_insights. ALL inherit — verified no re-derivation: mart_matchday_insights /
-+    mart_team_season_insights SELECT the rate/count columns straight through; the benchmark uses
-+    `where metric_value is not null`. NO downstream edit.
-+  LAYER_RULES: check_layer_contract (no new staging dir — N/A); check_registry_var_sync (N/A); base
-+    models stay views; assert_no_uncatalogued_season_metric UNTOUCHED (no new output columns on the
-+    season model). No atom/staging/base/core change.
-+  DEPLOY_ORDER: one dbt build rebuilds the writers + their downstream (incl. the two live marts) in a
-+    single run — no cross-deploy window. Runs in ci-data-build on the shared BQ; do NOT local-build.
-+  BLAST_RADIUS (measured from the live warehouse, 2026-06-25): the change flips PARTIALLY-covered
-+    windows from a shown value to "—"; fully-covered and already-zero-coverage windows are unchanged.
-+    LIVE season page (mart_team_season_insights, 2400 latest-season teams): ~12% (296) flip their
-+    team-feed shot/passes/corners rates + totals to "—" (47.5% already "—" today = no feed; 40% fully
-+    covered = unchanged). LIVE match preview (mart_matchday_insights last-5 form): ~17% of windows
-+    flip. All flips are genuine team-feed gaps — player data is quarantined. Scoreline + player-derived
-+    metrics unchanged. Before/after deltas captured on both live marts per done_when.
+-  WRITERS (edited — each team-feed metric gated against its own team-feed coverage; scoreline +
+-  player-derived never gated by this task):
+-    - int_momentum__team (builder, last_5/tournament window): ADD games_with_save_stats =
+-      countif(goalkeeper_saves is not null) to OUTPUT (the only team-feed coverage count missing;
+-      games_with_team_stats / games_with_sot_stats / games_with_opp_stats already present). No gating
+-      here (builder emits raw sums + counts).
+-    - int_season_record__team (builder, cumulative): ADD cumulative games_with_save_stats =
+-      sum(case when goalkeeper_saves is not null then 1 else 0 end) over w.
+-    - int_team_season__metrics (full-season, self-contained): compute team-stat / opp / save coverage
+-      counts INLINE in aggregated_season (sot coverage already there as stat_coverage_season_games),
+-      then GATE the team-feed outputs — the per-match rates (shots_per_match_season,
+-      passes_per_match_season, corner_kicks_per_match_season, corners_conceded_per_match_season,
+-      shots_on_goal_per_match_season), the ratios (shot_share_season, danger_zone_ratio_season,
+-      shot_accuracy_season, pass_accuracy_season, save_ratio_season), AND the team-feed stat-count
+-      totals shown on the live team-season site (total_shots_sum_season, opponent_total_shots_sum_season,
+-      shots_inside_box_sum_season, shots_on_goal_sum_season, corner_kicks_sum_season,
+-      opponent_corner_kicks_sum_season, passes_accurate_sum_season, passes_total_sum_season,
+-      goalkeeper_saves_sum_season). finishing_efficiency_season already gated. The player-derived
+-      per-match rates (key_passes/duels/defensive_actions/tackles/interceptions/blocks_per_match_season,
+-      duels_won_pct_season) are LEFT unchanged. Scoreline rates (points_capture, goals_per_match,
+-      goals_against_per_match, clean_sheets) unchanged.
+-    - mart_momentum__team + mart_season_record__team: GATE each team-feed rate — NULL when its
+-      coverage count < the window total (games_in_window / games_played): shots_per_match,
+-      shot_accuracy, danger_zone_ratio, shots_on_*_per_match, passes_per_match, pass_accuracy,
+-      corner_kicks_per_match, corners_conceded_per_match, save_ratio (on the new games_with_save_stats).
+-      finishing already gated. key_passes/tackles/interceptions/blocks/defensive_actions/
+-      duels_per_match + duels_won_pct LEFT unchanged (player-derived). goals_per_match /
+-      goals_against_per_match / clean_sheets / points_won / W-D-L = scoreline → unchanged.
+-  DOWNSTREAM (dbt ls --select int_team_season__metrics+ mart_momentum__team+ mart_season_record__team+
+-    --resource-type model, PASTED 2026-06-25): int_competition_benchmarks__team,
+-    mart_competition_benchmarks__team, mart_matchday_insights, mart_team_profile, mart_team_season,
+-    mart_team_season_insights. ALL inherit — verified no re-derivation: mart_matchday_insights /
+-    mart_team_season_insights SELECT the rate/count columns straight through; the benchmark uses
+-    `where metric_value is not null`. NO downstream edit.
+-  LAYER_RULES: check_layer_contract (no new staging dir — N/A); check_registry_var_sync (N/A); base
+-    models stay views; assert_no_uncatalogued_season_metric UNTOUCHED (no new output columns on the
+-    season model). No atom/staging/base/core change.
+-  DEPLOY_ORDER: one dbt build rebuilds the writers + their downstream (incl. the two live marts) in a
+-    single run — no cross-deploy window. Runs in ci-data-build on the shared BQ; do NOT local-build.
+-  BLAST_RADIUS (measured from the live warehouse, 2026-06-25): the change flips PARTIALLY-covered
+-    windows from a shown value to "—"; fully-covered and already-zero-coverage windows are unchanged.
+-    LIVE season page (mart_team_season_insights, 2400 latest-season teams): ~12% (296) flip their
+-    team-feed shot/passes/corners rates + totals to "—" (47.5% already "—" today = no feed; 40% fully
+-    covered = unchanged). LIVE match preview (mart_matchday_insights last-5 form): ~17% of windows
+-    flip. All flips are genuine team-feed gaps — player data is quarantined. Scoreline + player-derived
+-    metrics unchanged. Before/after deltas captured on both live marts per done_when.
++  WRITERS (atom origin): the alias is set at the staging extraction
++  stg_apif__fixture_players (`$.goals.saves as saves`, `$.goals.conceded as goals_against` — JSON
++  path unchanged, only the column alias) -> base_apif__fixture_players -> fct_fixture_player_stats
++  (core fact; INCREMENTAL, on_schema_change='sync_all_columns') + core.yml.
++  DOWNSTREAM (renamed in lockstep; full source occurrence set from grep, PASTED 2026-06-25):
++    goals_saves = 15 source files, goals_conceded = 14, shots_on_target = 2 (excl. target/ + logs/
++    build artifacts). Consumers: int_legs__player_match, int_momentum__player, int_season_record__player,
++    int_player_season_position__metrics, int_player_season__metrics; marts mart_fixture_stats__player,
++    mart_momentum__player, mart_player_match_log, mart_season_record__player. (These already OUTPUT
++    saves/goals_against from PR-a but referenced the OLD atom internally — PR-b1 aligns the internal
++    refs so one name flows end-to-end.) Plus mart_momentum__team's lone output alias
++    shots_on_target_per_match -> shots_on_goal_per_match. Plus metric_catalogue.csv numerator/denominator.
++    No orphan references — `dbt compile` resolves every ref; grep for the old names returns clean
++    (excl. the deferred i18n-key/description prose + the guard's historical comment).
++  LIVE BOUNDARY (zero live-MVP impact): goals_saves/goals_conceded are PLAYER GK atoms that feed ONLY
++    the v2/paused player surfaces. The live MVP is team-only — mart_matchday_insights (team form, via
++    int_legs__team_from_players which aggregates key_passes/tackles/duels, NOT goals_saves/conceded) +
++    mart_team_season_insights. shots_on_target_per_match is a v2 mart alias NOT selected by
++    mart_matchday_insights (the live preview reads goals/shots/shot_accuracy/.../save_ratio, not it),
++    and the v2 export is gitignored/paused. So NO live number or column moves.
++  LAYER_RULES: check_layer_contract (no new staging dir — N/A); the no-drift guard
++    (assert_no_uncatalogued_season_metric) is unaffected — the two guarded season __metrics models
++    already OUTPUT saves/goals_against (PR-a), so the internal atom rename changes no OUTPUT column.
++    base stays a view; the core fact stays incremental.
++  DEPLOY_ORDER (the load-bearing note): ci-data-build runs `target: ci` -> dataset dbt_analytics
++    (ISOLATED from prod) on PRs, so the PR's data-build does NOT touch the prod incremental fact.
++    PROD is built by the scheduled run (dbt-scheduled, 04:00). fct_fixture_player_stats is incremental
++    with on_schema_change='sync_all_columns' -> a normal incremental run after this rename would DROP
++    goals_saves/goals_conceded and ADD saves/goals_against as NULL for all HISTORICAL rows (only new
++    rows populated). So the deploy REQUIRES a one-time `dbt run --full-refresh --select
++    fct_fixture_player_stats` at/after merge (the downstream tables/views then rebuild clean from the
++    refreshed fact). WITHOUT the full-refresh, historical player saves/goals_conceded silently go NULL.
++    This is flagged prominently in the PR body for the CPO to coordinate with the merge.
++  BLAST_RADIUS: NUMBERS = NONE — pure 1:1 column rename (same JSON source path, same formula, same
++    grain, same filters). Every renamed column resolves to the identical atom value. Verified by:
++    the change is a token substitution; `dbt compile` resolves all refs; the live boundary is untouched.
  
  decisions_taken: >
--  The 2026-06-24 CPO target block (points 0-6) is approved. The 2026-06-25 CPO correction
--  (.claude/active_work.md) fixed the scope: the merge is NOT deferred / NOT #391-gated — the full
--  consolidation runs now, sequenced into reviewed MVP-safe PRs. Pre-approved for PR-a: the player +
--  v2-benchmark metric-id/column renames (shots_on_target -> shots_on_goal, goals_saves -> saves at the
--  metric-layer boundary, shots_on_target_per90/_per_match variants, shots_on_target_faced ->
--  shots_on_goal_against); entity-value normalisation to {team, player, team and player}; the CPO-locked
--  de-dup of the two dual rows; updating the v2 consumers + the no-drift guard. These are mechanical
--  applications of the lock. Repairing the prior WIP's CSV corruption (re-splitting the two merged rows so
--  dribbles_success and goals_against are their own rows again) is a defect fix inside this scope.
-+  Q2 = REVERSE #320 for TEAM-FEED rates (AskUserQuestion 2026-06-25): NULL on partial team-feed
-+  coverage instead of averaging over the covered subset; a deliberate, recorded reversal. Q1 =
-+  include counts (so the team-feed stat-count totals gate too). Player side DROPPED — player null=zero
-+  proven correct (escalations.log 2026-06-25), no player edits. Player-DERIVED team metrics LEFT on
-+  average-over-covered — CPO: "missing player stats must not affect the team stats" — so the player-
-+  data gap is quarantined to those player-sourced metrics and never blanks a team-feed stat. DESIGN:
-+  each team-feed metric gates against its own coverage bucket (team-stat / sot / opp / save), modelled
-+  on the finishing CASE; coverage computed inline in the season model (no new output columns → no-drift
-+  guard untouched), output by the momentum/record builders (unguarded) for their marts to consume. No
-+  metric created/redefined → catalogue untouched, football-analytics review not required.
+-  Q2 = REVERSE #320 for TEAM-FEED rates (AskUserQuestion 2026-06-25): NULL on partial team-feed
+-  coverage instead of averaging over the covered subset; a deliberate, recorded reversal. Q1 =
+-  include counts (so the team-feed stat-count totals gate too). Player side DROPPED — player null=zero
+-  proven correct (escalations.log 2026-06-25), no player edits. Player-DERIVED team metrics LEFT on
+-  average-over-covered — CPO: "missing player stats must not affect the team stats" — so the player-
+-  data gap is quarantined to those player-sourced metrics and never blanks a team-feed stat. DESIGN:
+-  each team-feed metric gates against its own coverage bucket (team-stat / sot / opp / save), modelled
+-  on the finishing CASE; coverage computed inline in the season model (no new output columns → no-drift
+-  guard untouched), output by the momentum/record builders (unguarded) for their marts to consume. No
+-  metric created/redefined → catalogue untouched, football-analytics review not required.
++  The rename TARGETS are CPO-locked (saves / goals_against / shots_on_goal — active_work.md ⭐#500 +
++  the PR-a reference block). The slice (atom renames first, file renames deferred) is the CPO's
++  2026-06-25 "go ahead as recommended". This PR is mechanical: rename the column identifiers end-to-end
++  and align the catalogue's numerator/denominator FORMULA columns (machine-readable atom refs) to the
++  new names. The catalogue label_i18n_key + descriptions (display) and the model FILE renames /
++  `_season` suffix / consolidation are DEFERRED per the locked sequence. No formula/grain/value change,
++  so the football-analytics review is of a pure rename (no metric redefinition).
++  COLLISION RULING (CPO 2026-06-25, escalations.log): in mart_player_match_log the locked player rename
++  goals_conceded->goals_against clashes with an EXISTING goals_against = the team match-scoreline (used
++  for W/D/L), a distinct concept. The player goals_conceded there is the goalkeeper's conceded, which in
++  a per-match log equals the match goals_against already shown -> the CPO ruled DROP the redundant player
++  goals_conceded column from mart_player_match_log (keep the keeper's saves [goals_saves->saves] + the
++  unchanged match goals_against). NO new identifier invented. This is the ONLY file with the collision.
  
  decisions_reserved:
--  - D1 (corners_conceded -> corners_against — sequenced to PR-d, decided-with-rationale; CPO may pull forward):
--    corners_conceded is the ONLY locked rename shared with the LIVE site. Renaming it requires editing the
--    live-boundary marts (mart_matchday_insights, mart_team_season_insights) + the live i18n. Those edits are
--    exactly the live merge, so corners_conceded rides PR-d (the merge), keeping the live-chain churn in ONE
--    reviewed PR rather than splitting it. This is sequencing, NOT the old "leave the live website alone /
--    combine later" gating. Net: the catalogue keeps id `corners_conceded_per_match` for the PR-a/b/c window
--    (deliberate, recorded). Flag if the CPO wants it pulled into PR-a.
--  - D2 (de-dup — DECIDED by the CPO lock 2026-06-24, NOT re-opened): merging duels_won_pct and
--    finishing_efficiency to one "team and player" row each is the CPO lock (active_work.md / prompt step 4:
--    "de-dup the two dual rows to one team and player row each"). The WIP implements it: the player-specific
--    rows are removed, the team rows become `team and player`, finishing_efficiency numerator goals_for ->
--    goals (generic term reading correctly for both entities; the catalogue numerator is documentation, the
--    formula lives in the models). RESIDUAL (recorded, not escalated — the lock says do not re-open): a single
--    merged row carries ONE label_i18n_key; the WIP keeps the team key (metrics.finishing_efficiency.label /
--    metrics.duels_won_pct.label) and drops the player key (playerMetrics.*). These are v2 i18n pointers on the
--    PAUSED surface; the whole key scheme is reconciled in PR-d, so no live or test impact now. The no-drift
--    guard's new `team and player` clause makes both the team and the player model columns map to the merged row.
--  - D3 (goals_conceded -> goals_against, player — CONFIRMED in PR-a): the lock says "_against for every
--    conceded stat: goals_against". The player metric_id/column goals_conceded is renamed to goals_against at
--    the int-model OUTPUT + the catalogue id now. The core ATOM goals_conceded (staging/base/core/fct + the
--    momentum/season-record/legs int models) stays until PR-b. WIP applied the int-model output rename.
--  - D4 (no export shim — premise confirmed from source): export_site_data.py is the v2 export (docstring:
--    "does not touch ... the live Pages deploy; Output is a build artifact, gitignored"; #391 paused), NOT the
--    live boundary. So no "translate new->old" shim; PR-a just updates its two literal metric refs
--    (_LEADERBOARD_METRICS / _LB_KEEP: shots_on_target -> shots_on_goal). The live MVP is protected by leaving
--    metric_definitions.csv + its chain untouched. This keeps "no translation layer" intact.
--  - D5 (docs/metric_layer.md text — PR-c vs now): the explainer references some renamed ids. Default: leave
--    to PR-c (doc consolidation). If a reviewer rules stale ids must not ship, fold the reference-only updates
--    into PR-a via a clean-tree amendment.
-+  - D1 (DQ assertion in done_when): the invariant is enforced by construction (the CASE gate); a test
-+    that re-derives coverage to assert NULL would be CIRCULAR (cf. the 2026-06-17 near-circular test
-+    FAIL). Satisfy DQ via non-circular range tests (ratios in [0,1], rates/counts >= 0) on the gated
-+    team-feed metrics; do not add a circular assertion unilaterally. Flag if a stronger guard is wanted.
-+  - D2 (partial-coverage policy — A/B/C): the CPO chose A (strict NULL / reverse #320) for team-feed
-+    rates; the measured live impact is ~12% season / ~17% form flips (recorded blast_radius). B (keep
-+    average-over-covered + caption) and C (coverage threshold) were presented and not chosen. Recorded
-+    so the decision is locatable; not re-opened.
+-  - D1 (DQ assertion in done_when): the invariant is enforced by construction (the CASE gate); a test
+-    that re-derives coverage to assert NULL would be CIRCULAR (cf. the 2026-06-17 near-circular test
+-    FAIL). Satisfy DQ via non-circular range tests (ratios in [0,1], rates/counts >= 0) on the gated
+-    team-feed metrics; do not add a circular assertion unilaterally. Flag if a stronger guard is wanted.
+-  - D2 (partial-coverage policy — A/B/C): the CPO chose A (strict NULL / reverse #320) for team-feed
+-    rates; the measured live impact is ~12% season / ~17% form flips (recorded blast_radius). B (keep
+-    average-over-covered + caption) and C (coverage threshold) were presented and not chosen. Recorded
+-    so the decision is locatable; not re-opened.
++  - D1 (DEPLOY, flagged — not a §10 product decision): the incremental-fact column rename needs a
++    one-time `--full-refresh` of fct_fixture_player_stats at/after merge (see deploy_order). Standard
++    rebuild of an existing fact (not a history/cadence/scope change), so no cost-gate escalation; but
++    it MUST be coordinated with the merge or it NULLs historical player GK data. Flagged in the PR.
++  - D2 (file-rename mapping — DEFERRED to the next slice, genuinely §10): which current files map to
++    int_<entity>_<window>__metrics (do the momentum BUILDERS rename? do int_season_record__* / the
++    position model rename?), the `_season`-suffix disposition, and what consolidation remains. NOT
++    decided here — to be pinned with the CPO before the second slice.
  
  done_when:
--  - The CSV corruption is repaired: dribbles_success (player) and goals_against (player) are each their own
--    row again; every catalogue row has the correct column count; the seed parses.
--  - metric_catalogue.csv restructured (entity values normalised to {team, player, team and player}; renames
--    applied; de-dup per D2) and every renamed model column / metric_key value aligned to the new ids across
--    the in-scope files (the v2 marts + yml docs + benchmark macros + export refs).
--  - `.venv/Scripts/dbt parse` and `dbt compile` clean; sqlfluff clean on the touched SQL; the no-drift guard
--    (assert_no_uncatalogued_season_metric) passes — every metric column in the two season models maps to a
--    catalogue (entity, metric_id); the catalogue uniqueness test and any benchmark/leaderboard catalogue-
--    conformance test pass (confirm the deleted player rows do not break a metric_key conformance check; if one
--    needs the `team and player` clause, that is a defect fix in scope).
--  - `git diff --stat` shows ZERO changes under the OUT-OF-SCOPE live chain and atom layer (proof the live MVP
--    is untouched), and the byte-identical metric_definitions.json holds trivially (metric_definitions.csv +
--    its build untouched).
--  - The G3 review cycle passes (Scope-Auditor + analytics-engineer + football-analytics for the catalogue rows);
--    PR opened; CPO merges.
-+  - Every TEAM-FEED stat metric (momentum, season-record, full-season) is NULL when its team-feed input
-+    is not present in all window games; player-derived team metrics + individual player metrics + scoreline
-+    metrics unchanged. int_momentum__team / int_season_record__team carry games_with_save_stats; the team
-+    marts + season model GATE the team-feed metrics (not just divide).
-+  - `.venv/Scripts/dbt parse` + `dbt compile` clean (--project-dir dbt_project --profiles-dir "$HOME/.dbt");
-+    `.venv/Scripts/sqlfluff lint` clean on the touched SQL; the no-drift guard + existing range/non-negative
-+    tests pass; any added range tests pass. NO local full BQ build (shared warehouse → ci-data-build).
-+  - Before/after deltas recorded on mart_matchday_insights + mart_team_season_insights (old vs new),
-+    proving the team-feed stats that flip are exactly the partial-coverage ones and scoreline +
-+    player-derived metrics are unchanged.
-+  - G3 review (Scope-Auditor + analytics-engineer-reviewer; football-analytics NOT required); PR opened;
-+    CPO merges (never self-merge).
+-  - Every TEAM-FEED stat metric (momentum, season-record, full-season) is NULL when its team-feed input
+-    is not present in all window games; player-derived team metrics + individual player metrics + scoreline
+-    metrics unchanged. int_momentum__team / int_season_record__team carry games_with_save_stats; the team
+-    marts + season model GATE the team-feed metrics (not just divide).
+-  - `.venv/Scripts/dbt parse` + `dbt compile` clean (--project-dir dbt_project --profiles-dir "$HOME/.dbt");
+-    `.venv/Scripts/sqlfluff lint` clean on the touched SQL; the no-drift guard + existing range/non-negative
+-    tests pass; any added range tests pass. NO local full BQ build (shared warehouse → ci-data-build).
+-  - Before/after deltas recorded on mart_matchday_insights + mart_team_season_insights (old vs new),
+-    proving the team-feed stats that flip are exactly the partial-coverage ones and scoreline +
+-    player-derived metrics are unchanged.
+-  - G3 review (Scope-Auditor + analytics-engineer-reviewer; football-analytics NOT required); PR opened;
+-    CPO merges (never self-merge).
++  - goals_saves->saves, goals_conceded->goals_against applied end-to-end across staging/base/core/int/
++    marts + the catalogue numerator/denominator; mart_momentum__team's shots_on_target_per_match ->
++    shots_on_goal_per_match. `grep -rn 'goals_saves\|goals_conceded' dbt_project/models dbt_project/seeds`
++    returns clean (excl. the guard's historical comment); shots_on_target remains only in the deferred
++    catalogue i18n-key/description prose.
++  - `.venv/Scripts/dbt parse` + `dbt compile` clean; `sqlfluff lint` clean on touched SQL; the no-drift
++    guard + the catalogue uniqueness/conformance tests pass; the catalogue numerator/denominator
++    reference only existing columns. NO local full BQ build (shared warehouse).
++  - The PR body PROMINENTLY flags the --full-refresh deploy requirement for fct_fixture_player_stats.
++  - G3 review (scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer for the
++    catalogue); PR opened; CPO merges + coordinates the full-refresh. Never self-merge.
  
--amendments: (none)
-+amendments:
-+  - 2026-06-25: + dbt_project/models/4_intermediate/shared/int_season_record.yml — authority: the
-+    contract's CPO-approved scope category "schema docs for the touched models" (scope_paths above).
-+    int_season_record.yml is the schema doc for the touched builder int_season_record__team, omitted
-+    from the explicit scope list by oversight; surfaced by the scope-auditor's blinded FAIL. content:
-+    document the new games_with_save_stats output column alongside the sibling coverage columns
-+    (mirrors the int_momentum.yml edit). No new logic, no metric change.
+-amendments:
+-  - 2026-06-25: + dbt_project/models/4_intermediate/shared/int_season_record.yml — authority: the
+-    contract's CPO-approved scope category "schema docs for the touched models" (scope_paths above).
+-    int_season_record.yml is the schema doc for the touched builder int_season_record__team, omitted
+-    from the explicit scope list by oversight; surfaced by the scope-auditor's blinded FAIL. content:
+-    document the new games_with_save_stats output column alongside the sibling coverage columns
+-    (mirrors the int_momentum.yml edit). No new logic, no metric change.
++amendments: (none)
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 31ba0b3..b7004ba 100644
+index b7004ba..5996b75 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -163,3 +163,17 @@
-   (B3) METRIC ELIGIBILITY PER POSITION = Path B (per-position relevant set), NOT compute-all-x-all — CPO: "I agree" (the CPO flagged this was decided for the TEAM benchmark — curate-at-macro + show-subset-at-display, but the curation was GLOBAL because team metrics aren't position-bound — and was NOT decided for players). Player metrics ARE position-bound (live data: 100% of GKs record a save, 0.0% of any outfield group; 81% ATT / 55% MID / 32% DEF score vs 0.3% of GKs), so compute-all-x-all yields degenerate boards (every outfielder tied at saves/90=0; GKs ~0 on attacking). RULE: benchmark a metric for a position only when non-degenerate; because the peer pool is already position-specific the only dead boards are at the GK<->outfield boundary, so eligibility is essentially binary. MAP (CPO-approved): GK = {saves_per90, save_pct, passes_per90, pass_accuracy_pct} (4 — GK distribution is a real fbref-style axis); DEF = MID = ATT = the other 16. NO finer DEF/MID/ATT split (the peer pool already makes within-outfield comparisons position-relative; e.g. a CB's goals_per90 is ranked only vs other CBs, surfacing attacking CBs honestly; splitting would bake DISPLAY into the benchmark). 52 position x metric boards, not 72. Eligibility lives as a per-metric position list in player_benchmark_metrics() (shared engine<->mart). RESERVED (still §10, downstream): which of a position's ELIGIBLE metrics a PAGE surfaces + their order = page-composition.
- 
- 2026-06-25 #567 (PR-a metric-layer naming) rebased onto main after #569 (finishing open-play) merged — football-analytics ESCALATE: the merged "team and player" finishing_efficiency catalogue row has one description whose null clause is team-centric ("Null when the window is not fully shot-covered"); for players the current code nulls only when there are no shots on goal. CPO ANSWER (this conversation): the incomplete-data->NULL rule is UNIVERSAL — every metric, team and player, is NULL when its inputs are not 100% available. The description states the correct INTENDED rule for both entities, so no reword. The actual defect is the player IMPLEMENTATION: it coalesces missing per-game stats to 0 and computes anyway (e.g. int_player_season__metrics `sum(coalesce(shots_on, 0))`), and the team per-match rates average over only the covered games (the older #320 design) rather than nulling on partial coverage. Bringing EVERY metric (team + player) into compliance with the universal rule — NULL whenever any game in the window is missing the stat, replacing coalesce-to-0 and average-over-covered-games — is a separate CPO-directed task (changes shipped numbers broadly; own before/after deltas + review). It is NOT part of #567, which is rename-only and inherits today's behaviour.
+@@ -177,3 +177,6 @@
+   - The genuine player incompleteness is FIXTURE-LEVEL: 21,246 of 106,984 finished team-fixtures (19.9%) have NO player data at all.
+   So the spec's per-FIELD player coverage gate would NULL ~92% of players (empty leaderboards) — invalid. Put to the CPO with the evidence + the concrete example (no anchoring).
+       CPO RULING (conversation, 2026-06-25): "So for player treat NULL as zero is correct? Do it." → the PLAYER models are LEFT AS-IS (null=zero / coalesce-to-0 is correct); the per-field player gate is DROPPED. The ~20%-of-matches fixture-level player-data gap is LEFT ALONE (not handled in this task). The TEAM side proceeds unchanged (team stat nulls genuinely = missing): reverse #320 — NULL team per-match rates + stat-count totals + the team player-DERIVED per-match metrics (key_passes/tackles/duels — these inherit the fixture-level player-data gap, tracked by games_with_player_stats) on partial coverage. Q1 (include counts + per-90s) now applies to the TEAM stat-count totals only. The task is therefore TEAM-ONLY.
 +
-+2026-06-25 fix/incomplete-data-null — universal incomplete-data->NULL task. The RULE is LOCKED (every metric, team AND player, is NULL when its inputs are not 100% available across the window; recorded 2026-06-25 above). Two REACH/CONSEQUENCE questions raised BLINDED (working_agreement §11, two paths each, no recommendation) BEFORE writing any model — they set the blast radius, not the rule. Both put to the CPO in plain language (AskUserQuestion, 2026-06-25):
-+  (Q1 — reach to counts/per-90s) Does the rule apply to COUNT totals (a player's season goals/shots/tackles that drive the leaderboards; any team stat-sum totals shown as counts) and PER-90s too, or only to per-match averages + ratios? Path A = include counts + per-90s (maximally consistent; any entity with one uncovered window game drops off the count leaderboards / loses its per-90s — boards can be sparse early-season / low-coverage). Path B = only averages + ratios (counts/per-90s stay honest best-effort sums; leaderboards stay populated but totals can understate uncovered players + aren't strictly comparable).
-+      CPO ANSWER (AskUserQuestion, 2026-06-25): **Path A — include counts + per-90s.** Every stats-based metric NULLs on any uncovered window game; count totals and per-90s included. The leaderboard drop-off (handled by mart_leaderboards' existing `where <metric> > 0`, which excludes a NULL count) is the accepted, intended consequence.
-+  (Q2 — #320 reversal) Confirm this deliberately REVERSES the #320 "average over the covered games (+ caption)" design for the TEAM per-match rates (they go NULL on any partial coverage instead of averaging over the covered subset). Path A = reverse #320 (consistent; partial-window team averages become '—'; moves live numbers). Path B = keep #320 for team rates (stays populated but the codebase keeps two incompleteness rules — the inconsistency this task removes).
-+      CPO ANSWER (AskUserQuestion, 2026-06-25): **Path A — reverse #320.** Team per-match rates NULL on partial coverage; this is a deliberate, recorded reversal of the #320 same-window-average design (the marts today divide each rate by its coverage count — games_with_team_stats / games_with_sot_stats / games_with_opp_stats / games_with_player_stats — and the change ALSO gates: NULL when that count < the window total). Scoreline-based metrics (goals/points/W-D-L/clean sheets) stay always-covered → never NULL from this rule.
-+
-+2026-06-25 fix/incomplete-data-null — PREMISE CORRECTION (player side) + CPO ruling, BEFORE any model code. The spec said the player models "coalesce missing per-game stats to 0 and compute anyway" and prescribed adding per-stat coverage counts (countif(field is not null)) gated vs appearances. A source-of-record check (read-only BQ, per Appendix A6 "measure before asserting") REFUTED that premise:
-+  - Player stat nulls predominantly mean ZERO, not missing: of 1.29M player rows with minutes>0, 91.7% have null goals_total; saves null 95.1% overall. (Team stat nulls, by contrast, are 0.6-3.7% → genuinely missing.)
-+  - PROOF via ground truth (the scoreline): summing player goals_total (null→0) per team-fixture reconciles EXACTLY with the actual match score in 95.88% of the 85,738 finished team-fixtures that have player data (~all the rest off by exactly 1 = own goals, which aren't in any player's goals_total). If null meant "missing", this reconciliation would be near-zero. So null=zero is proven; each recorded player appearance is COMPLETE and coalesce-to-0 is correct.
-+  - Concrete example: a Liverpool 4-goal match — Mané 2 + Salah 1 + Sturridge 1 = 4 = score; every other player's goals = null while playing ~90 min with full passing data (null = didn't score, not missing).
-+  - The genuine player incompleteness is FIXTURE-LEVEL: 21,246 of 106,984 finished team-fixtures (19.9%) have NO player data at all.
-+  So the spec's per-FIELD player coverage gate would NULL ~92% of players (empty leaderboards) — invalid. Put to the CPO with the evidence + the concrete example (no anchoring).
-+      CPO RULING (conversation, 2026-06-25): "So for player treat NULL as zero is correct? Do it." → the PLAYER models are LEFT AS-IS (null=zero / coalesce-to-0 is correct); the per-field player gate is DROPPED. The ~20%-of-matches fixture-level player-data gap is LEFT ALONE (not handled in this task). The TEAM side proceeds unchanged (team stat nulls genuinely = missing): reverse #320 — NULL team per-match rates + stat-count totals + the team player-DERIVED per-match metrics (key_passes/tackles/duels — these inherit the fixture-level player-data gap, tracked by games_with_player_stats) on partial coverage. Q1 (include counts + per-90s) now applies to the TEAM stat-count totals only. The task is therefore TEAM-ONLY.
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-index dafcdc5..ff8e06e 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-@@ -9,8 +9,13 @@
-   player_stat_coverage_season_games, the same-window rule).
-   Grain: (league_code, season_api_year, team_sk). mart_team_season_insights keeps latest season per league.
++2026-06-25 refactor/500-pr-b — #500 PR-b sliced + a §10 naming-collision ruling. (1) SLICE: the CPO ("go ahead as recommended") split PR-b into PR-b1 = the deep ATOM renames first (goals_saves->saves, goals_conceded->goals_against, shots_on_target->shots_on_goal end-to-end), with the model FILE renames (int_<entity>_<window>__metrics) + the _season-suffix drop + team-season consolidation DEFERRED to a second slice once the file-rename MAPPING is pinned (genuinely §10 + underspecified: do the momentum builders rename? do int_season_record__*/the position model rename?). (2) COLLISION (§10 naming, surfaced during PR-b1 scoping): in mart_player_match_log the locked player rename goals_conceded->goals_against clashes with an EXISTING goals_against = the team match-scoreline (the team's goals conceded that match, used for W/D/L) — two distinct concepts, two goals_against columns in one SELECT. Established from the source of record that the player goals_conceded is the GOALKEEPER's conceded (in a sample match only the keeper carried the value=2; all 10 outfielders=0; saves are GK-only too), which for a full-match keeper EQUALS the team match goals_against. Builder first suggested inventing team_goals_for/team_goals_against; CPO flagged that introduces a NEW metric (a §10 invention) — withdrawn. Builder then recommended dropping the redundant player column (in a per-match log the match goals_against already shows what was conceded; the player figure differs only for subbed keepers).
++      CPO RULING (conversation, 2026-06-25): "drop the redundant player goals_conceded column from mart_player_match_log." -> mart_player_match_log DROPS the player goals_conceded column (keeps the keeper's saves [from goals_saves->saves] + the unchanged match goals_against). No new identifier invented; the player goals_against metric still lives in the player season/momentum models + the catalogue (paired with saves for save_pct). This is the ONLY file with the collision; all other files apply the locked rename straight.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+index c43e1b7..2403796 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+@@ -51,9 +51,9 @@ flattened as (
+         safe_cast(json_value(stats_el, '$.shots.total') as int64) as shots_total,
+         safe_cast(json_value(stats_el, '$.shots.on') as int64) as shots_on,
+         safe_cast(json_value(stats_el, '$.goals.total') as int64) as goals_total,
+-        safe_cast(json_value(stats_el, '$.goals.conceded') as int64) as goals_conceded,
++        safe_cast(json_value(stats_el, '$.goals.conceded') as int64) as goals_against,
+         safe_cast(json_value(stats_el, '$.goals.assists') as int64) as goals_assists,
+-        safe_cast(json_value(stats_el, '$.goals.saves') as int64) as goals_saves,
++        safe_cast(json_value(stats_el, '$.goals.saves') as int64) as saves,
+         safe_cast(json_value(stats_el, '$.passes.total') as int64) as passes_total,
+         safe_cast(json_value(stats_el, '$.passes.key') as int64) as passes_key,
+         safe_cast(
+@@ -100,9 +100,9 @@ select
+     shots_total,
+     shots_on,
+     goals_total,
+-    goals_conceded,
++    goals_against,
+     goals_assists,
+-    goals_saves,
++    saves,
+     passes_total,
+     passes_key,
+     passes_accuracy_percent,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index d34003d..8b91192 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -13,9 +13,9 @@ with src as (
+         shots_total,
+         shots_on,
+         goals_total,
+-        goals_conceded,
++        goals_against,
+         goals_assists,
+-        goals_saves,
++        saves,
+         passes_total,
+         passes_key,
+         tackles_total,
+@@ -64,9 +64,9 @@ select
+     shots_total,
+     shots_on,
+     goals_total,
+-    goals_conceded,
++    goals_against,
+     goals_assists,
+-    goals_saves,
++    saves,
+     passes_total,
+     passes_key,
+     passes_accuracy_percent,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 4deed89..9c24890 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -630,9 +630,9 @@ models:
+       - name: shots_total
+       - name: shots_on
+       - name: goals_total
+-      - name: goals_conceded
++      - name: goals_against
+       - name: goals_assists
+-      - name: goals_saves
++      - name: saves
+       - name: passes_total
+       - name: passes_key
+       - name: passes_accuracy_percent
+diff --git a/dbt_project/models/3_core/fct_fixture_player_stats.sql b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+index 4dbd931..fe00804 100644
+--- a/dbt_project/models/3_core/fct_fixture_player_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+@@ -45,9 +45,9 @@ select
+     shots_total,
+     shots_on,
+     goals_total,
+-    goals_conceded,
++    goals_against,
+     goals_assists,
+-    goals_saves,
++    saves,
+     passes_total,
+     passes_key,
+     passes_accuracy_percent,
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index feccee0..7c94388 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -63,8 +63,8 @@ per_fixture as (
+         s.is_substitute,
+         s.goals_total,
+         s.goals_assists,
+-        s.goals_saves,
+-        s.goals_conceded,
++        s.saves,
++        s.goals_against,
+         s.shots_total,
+         s.shots_on,
+         s.passes_total,
+@@ -129,8 +129,8 @@ aggregated as (
+         sum(coalesce(cards_red, 0)) as cards_red,
+         sum(coalesce(penalty_won, 0)) as penalty_won,
+         sum(coalesce(penalty_committed, 0)) as penalty_committed,
+-        sum(coalesce(goals_saves, 0)) as saves,
+-        sum(coalesce(goals_conceded, 0)) as goals_against
++        sum(coalesce(saves, 0)) as saves,
++        sum(coalesce(goals_against, 0)) as goals_against
+     from per_fixture
+     group by player_sk, league_sk, season_sk, league_code, season_api_year
+ )
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+index a671549..e1672cb 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+@@ -59,9 +59,9 @@ select
+     ps.shots_total,
+     ps.shots_on,
+     ps.goals_total,
+-    ps.goals_conceded,
++    ps.goals_against,
+     ps.goals_assists,
+-    ps.goals_saves,
++    ps.saves,
+     ps.passes_total,
+     ps.passes_key,
+     ps.passes_accuracy_percent,
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum__player.sql b/dbt_project/models/4_intermediate/shared/int_momentum__player.sql
+index 28261b5..f2c079a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum__player.sql
++++ b/dbt_project/models/4_intermediate/shared/int_momentum__player.sql
+@@ -25,7 +25,7 @@
+   passes_accurate is derived per fixture as ROUND(passes_total *
+   passes_accuracy_percent / 100) then summed; inherits small rounding error.
  
--  Note: the original per-match rates divide by season_games_played (pre-coverage-rule
--  convention, consumed by the live MVP) — left unchanged deliberately; see GAP-17.
-+  Incomplete-data → NULL (CPO 2026-06-25; reverse #320): each TEAM-FEED stat-count total is gated in
-+  season_gated to NULL ('—') unless the season is fully covered for that stat's bucket (team-stat /
-+  SoT / opp / save). The per-match rates / ratios divide by season_games_played and inherit that NULL
-+  by propagation, so a partially-covered season shows '—' for the affected team-feed metric rather
-+  than a partial-window value. Player-derived metrics (key_passes/tackles/duels) are LEFT on
-+  average-over-player-covered — player data is quarantined (missing player stats must not blank a
-+  team stat, CPO); scoreline metrics are always covered. Supersedes the GAP-17 "left unchanged" note.
+-  save_pct requires goals_conceded which is not currently carried in
++  save_pct requires goals_against which is not currently carried in
+   int_legs__player_match — mart_momentum__player will emit null for that metric.
  #}
  
- with legs as (
-@@ -51,6 +56,14 @@ aggregated_season as (
-             as stat_coverage_season_games,
-         count(distinct case when has_player_stats then fixture_sk end)
-             as player_stat_coverage_season_games,
-+        -- team-feed coverage buckets (for the incomplete-data → NULL gate in season_gated below;
-+        -- each team-feed metric NULLs unless its own stat is present in every season game).
-+        count(distinct case when shots_total is not null then fixture_sk end)
-+            as team_stat_coverage_season_games,
-+        count(distinct case when opponent_corner_kicks is not null then fixture_sk end)
-+            as opp_stat_coverage_season_games,
-+        count(distinct case when goalkeeper_saves is not null then fixture_sk end)
-+            as save_stat_coverage_season_games,
-         sum(
-             case upper(trim(result))
-                 when 'W' then 3
-@@ -86,6 +99,73 @@ aggregated_season as (
-         countif(goals_against = 0) as clean_sheets_count_season
-     from joined
-     group by league_code, season_api_year, team_sk
-+),
-+
-+-- incomplete-data → NULL gate (CPO 2026-06-25; reverse #320): each TEAM-FEED stat-count total is
-+-- NULL ('—') unless the season is fully covered for that stat's bucket. Every team-feed per-match
-+-- rate / ratio in the final select inherits the NULL by propagation (safe_divide of a null sum is
-+-- null), so the gate lives in one place. Player-derived sums (key_passes/tackles/duels) + scoreline
-+-- sums are NOT gated — player data is quarantined (missing player stats must not blank a team stat,
-+-- CPO), and scoreline is always covered for finished matches.
-+season_gated as (
-+    select
-+        * except (
-+            total_shots_sum_season,
-+            opponent_total_shots_sum_season,
-+            shots_inside_box_sum_season,
-+            shots_on_goal_sum_season,
-+            corner_kicks_sum_season,
-+            opponent_corner_kicks_sum_season,
-+            passes_accurate_sum_season,
-+            passes_total_sum_season,
-+            goalkeeper_saves_sum_season
-+        ),
-+        case
-+            when team_stat_coverage_season_games < season_games_played
-+                then null
-+            else total_shots_sum_season
-+        end as total_shots_sum_season,
-+        case
-+            when opp_stat_coverage_season_games < season_games_played
-+                then null
-+            else opponent_total_shots_sum_season
-+        end as opponent_total_shots_sum_season,
-+        case
-+            when team_stat_coverage_season_games < season_games_played
-+                then null
-+            else shots_inside_box_sum_season
-+        end as shots_inside_box_sum_season,
-+        case
-+            when stat_coverage_season_games < season_games_played
-+                then null
-+            else shots_on_goal_sum_season
-+        end as shots_on_goal_sum_season,
-+        case
-+            when team_stat_coverage_season_games < season_games_played
-+                then null
-+            else corner_kicks_sum_season
-+        end as corner_kicks_sum_season,
-+        case
-+            when opp_stat_coverage_season_games < season_games_played
-+                then null
-+            else opponent_corner_kicks_sum_season
-+        end as opponent_corner_kicks_sum_season,
-+        case
-+            when team_stat_coverage_season_games < season_games_played
-+                then null
-+            else passes_accurate_sum_season
-+        end as passes_accurate_sum_season,
-+        case
-+            when team_stat_coverage_season_games < season_games_played
-+                then null
-+            else passes_total_sum_season
-+        end as passes_total_sum_season,
-+        case
-+            when save_stat_coverage_season_games < season_games_played
-+                then null
-+            else goalkeeper_saves_sum_season
-+        end as goalkeeper_saves_sum_season
-+    from aggregated_season
- )
+@@ -140,9 +140,9 @@ player_agg as (
+         count(*) as games_in_window,
+         any_value(p.position_code) as position_code,
+         sum(p.goals_total) as goals_total,
+-        sum(p.goals_conceded) as goals_conceded,
++        sum(p.goals_against) as goals_against,
+         sum(p.goals_assists) as goals_assists,
+-        sum(p.goals_saves) as goals_saves,
++        sum(p.saves) as saves,
+         sum(p.shots_total) as shots_total,
+         sum(p.shots_on) as shots_on,
+         sum(p.passes_total) as passes_total,
+@@ -189,9 +189,9 @@ select
+     games_in_window,
+     position_code,
+     goals_total,
+-    goals_conceded,
++    goals_against,
+     goals_assists,
+-    goals_saves,
++    saves,
+     shots_total,
+     shots_on,
+     passes_total,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index 13a1013..59caff2 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -56,8 +56,8 @@ per_fixture as (
+         s.minutes_played,
+         s.goals_total,
+         s.goals_assists,
+-        s.goals_saves,
+-        s.goals_conceded,
++        s.saves,
++        s.goals_against,
+         s.shots_on,
+         s.passes_total,
+         s.passes_key,
+@@ -110,8 +110,8 @@ aggregated as (
+         sum(coalesce(duels_won, 0)) as duels_won,
+         sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
+         sum(coalesce(dribbles_success, 0)) as dribbles_success,
+-        sum(coalesce(goals_saves, 0)) as saves,
+-        sum(coalesce(goals_conceded, 0)) as goals_against
++        sum(coalesce(saves, 0)) as saves,
++        sum(coalesce(goals_against, 0)) as goals_against
+     from per_fixture
+     group by
+         player_sk, league_sk, season_sk, league_code, season_api_year, position_group
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record__player.sql b/dbt_project/models/4_intermediate/shared/int_season_record__player.sql
+index 31841c5..335e091 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record__player.sql
++++ b/dbt_project/models/4_intermediate/shared/int_season_record__player.sql
+@@ -36,9 +36,9 @@ select
+     row_number() over w_seq as match_number,
+     row_number() over w_seq as games_played,
+     sum(goals_total) over w as goals_total,
+-    sum(goals_conceded) over w as goals_conceded,
++    sum(goals_against) over w as goals_against,
+     sum(goals_assists) over w as goals_assists,
+-    sum(goals_saves) over w as goals_saves,
++    sum(saves) over w as saves,
+     sum(shots_total) over w as shots_total,
+     sum(shots_on) over w as shots_on,
+     sum(passes_total) over w as passes_total,
+diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql b/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+index fc3e5b8..d5707cc 100644
+--- a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
++++ b/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+@@ -66,9 +66,9 @@ select
+     s.shots_total,
+     s.shots_on,
+     s.goals_total,
+-    s.goals_conceded,
++    s.goals_against,
+     s.goals_assists,
+-    s.goals_saves,
++    s.saves,
+     s.passes_total,
+     s.passes_key,
+     s.passes_accuracy_percent,
+diff --git a/dbt_project/models/5_marts/shared/mart_momentum__player.sql b/dbt_project/models/5_marts/shared/mart_momentum__player.sql
+index cb53462..0c7bec3 100644
+--- a/dbt_project/models/5_marts/shared/mart_momentum__player.sql
++++ b/dbt_project/models/5_marts/shared/mart_momentum__player.sql
+@@ -12,7 +12,7 @@
  
- select
-@@ -174,4 +254,4 @@ select
-     safe_divide(interceptions_sum_season, player_stat_coverage_season_games)
-         as interceptions_per_match_season,
-     safe_divide(blocks_sum_season, player_stat_coverage_season_games) as blocks_per_match_season
--from aggregated_season
-+from season_gated
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index c36840e..f09e73e 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -36,10 +36,13 @@ models:
-         description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows."
-         tests: [not_null]
-       - name: games_with_team_stats
--        description: "Count of window legs with team stats present (shots/passes/corners/saves). Denominator for per-match team-stat rates and finishing_efficiency."
-+        description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency."
-         tests: [not_null]
-       - name: games_with_opp_stats
--        description: "Count of window legs with opponent team stats present. Denominator for corners_conceded_per_match."
-+        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_conceded_per_match."
-+        tests: [not_null]
-+      - name: games_with_save_stats
-+        description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
-         tests: [not_null]
-       - name: goals_penalty
-         description: "Penalty goals scored by the team over the window (from match events); subtracted from goals_for for the open-play finishing numerator (CPO Option A)."
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum__team.sql b/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
-index 87511e8..5bb6e6f 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum__team.sql
-@@ -51,6 +51,9 @@ team_agg as (
-         -- its own coverage count (same-window rule)
-         countif(shots_on_goal is not null) as games_with_sot_stats,
-         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
-+        -- save coverage: save_ratio is a team-feed (goalkeeper) metric, so it needs its own
-+        -- coverage count to NULL on partial coverage (universal incomplete-data rule)
-+        countif(goalkeeper_saves is not null) as games_with_save_stats,
-         array_agg(distinct leg_league_code order by leg_league_code)
-             as contributing_competitions,
-         sum(case result when 'W' then 3 when 'D' then 1 else 0 end)
-@@ -117,6 +120,7 @@ select
-     ta.games_with_team_stats,
-     ta.games_with_sot_stats,
-     ta.games_with_opp_stats,
-+    ta.games_with_save_stats,
-     ta.contributing_competitions,
-     ta.points_won,
-     ta.goals_for,
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index c935b34..6561b97 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -35,6 +35,9 @@ models:
-       - name: games_with_team_stats
-         description: "Cumulative count of those matches with team stats present; denominator for per-match team-stat rates."
-         tests: [not_null]
-+      - name: games_with_save_stats
-+        description: "Cumulative count of those matches with goalkeeper_saves present — save_ratio's own coverage bucket, used to NULL save_ratio on partial coverage."
-+        tests: [not_null]
-       - name: round_order
-         description: "Matchday number parsed from round_name (null if non-numeric). For deferred year-over-year alignment."
-       - name: match_number
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record__team.sql b/dbt_project/models/4_intermediate/shared/int_season_record__team.sql
-index a12e800..9af3df9 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record__team.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record__team.sql
-@@ -94,6 +94,10 @@ select
-         as games_with_sot_stats,
-     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
-         as games_with_opp_stats,
-+    -- save coverage (cumulative): save_ratio is a team-feed (goalkeeper) metric, so it needs its
-+    -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
-+    sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
-+        as games_with_save_stats,
-     -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
-     -- − goals_own (computed in the mart). Full cumulative sums — finishing is NULL unless the
-     -- window is fully shot-covered, so no coverage-restricted goals sum is needed.
+   save_pct is only meaningful for goalkeepers (position_code = 'G'); the column
+   is present for all players but will be NULL for outfield players whose
+-  goals_saves and goals_conceded are both zero/null.
++  saves and goals_against are both zero/null.
+ #}
+ 
+ with builder as (
+@@ -40,7 +40,7 @@ select
+     -- raw counts
+     b.goals_total,
+     b.goals_assists,
+-    b.goals_saves,
++    b.saves,
+     b.shots_on,
+     b.passes_key,
+     b.passes_accurate,
+@@ -61,7 +61,7 @@ select
+     -- calculations
+     b.team_sk = f.home_team_sk as is_home,
+     -- ratios
+-    safe_divide(b.goals_saves, b.goals_saves + b.goals_conceded) as save_pct,
++    safe_divide(b.saves, b.saves + b.goals_against) as save_pct,
+     safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct,
+     safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy_pct,
+     safe_divide(b.duels_won, b.duels_total) as duels_won_pct,
 diff --git a/dbt_project/models/5_marts/shared/mart_momentum__team.sql b/dbt_project/models/5_marts/shared/mart_momentum__team.sql
-index edbea00..dd06f7a 100644
+index dd06f7a..70daaa0 100644
 --- a/dbt_project/models/5_marts/shared/mart_momentum__team.sql
 +++ b/dbt_project/models/5_marts/shared/mart_momentum__team.sql
-@@ -46,11 +46,24 @@ select
-     -- goals (scoreline — always present, divide over the full window)
-     safe_divide(b.goals_for, b.games_in_window) as goals_per_match,
-     safe_divide(b.goals_against, b.games_in_window) as goals_against_per_match,
--    -- shots (team-stat window)
--    safe_divide(b.shots_total, b.games_with_team_stats) as shots_per_match,
--    safe_divide(b.shots_on_goal, b.shots_total) as shot_accuracy,
--    safe_divide(b.shots_inside_box, b.shots_total) as danger_zone_ratio,
--    safe_divide(b.shots_on_goal, b.games_with_sot_stats)
-+    -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
-+    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shot_accuracy / danger_zone
-+    -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
-+    case
-+        when b.games_with_team_stats < b.games_in_window then null
-+        else safe_divide(b.shots_total, b.games_with_team_stats)
-+    end as shots_per_match,
-+    case
-+        when b.games_with_sot_stats < b.games_in_window then null
-+        else safe_divide(b.shots_on_goal, b.shots_total)
-+    end as shot_accuracy,
-+    case
-+        when b.games_with_team_stats < b.games_in_window then null
-+        else safe_divide(b.shots_inside_box, b.shots_total)
-+    end as danger_zone_ratio,
-+    case
-+        when b.games_with_sot_stats < b.games_in_window then null
-+        else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
-         as shots_on_target_per_match,
+@@ -64,7 +64,7 @@ select
+     case
+         when b.games_with_sot_stats < b.games_in_window then null
+         else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
+-        as shots_on_target_per_match,
++        as shots_on_goal_per_match,
      -- finishing efficiency (CPO Option A): open-play conversion =
      -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
-@@ -62,17 +75,35 @@ select
-         when (b.goals_for - b.goals_penalty - b.goals_own) > b.shots_on_goal then null
-         else safe_divide(b.goals_for - b.goals_penalty - b.goals_own, b.shots_on_goal)
-     end as finishing_efficiency,
--    -- passing (team-stat window)
--    safe_divide(b.passes_total, b.games_with_team_stats) as passes_per_match,
--    safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy,
--    -- set pieces (team-stat window; conceded uses opponent-stat coverage)
--    safe_divide(b.corner_kicks, b.games_with_team_stats) as corner_kicks_per_match,
--    safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats)
-+    -- passing (team-stat window): NULL on partial coverage
-+    case
-+        when b.games_with_team_stats < b.games_in_window then null
-+        else safe_divide(b.passes_total, b.games_with_team_stats)
-+    end as passes_per_match,
-+    case
-+        when b.games_with_team_stats < b.games_in_window then null
-+        else safe_divide(b.passes_accurate, b.passes_total)
-+    end as pass_accuracy,
-+    -- set pieces (team-stat window; conceded uses opponent-stat coverage): NULL on partial coverage
-+    case
-+        when b.games_with_team_stats < b.games_in_window then null
-+        else safe_divide(b.corner_kicks, b.games_with_team_stats)
-+    end as corner_kicks_per_match,
-+    case
-+        when b.games_with_opp_stats < b.games_in_window then null
-+        else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
-         as corners_conceded_per_match,
--    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded
--    safe_divide(b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games)
--        as save_ratio,
--    -- player-derived team metrics (player-stat window; null when unavailable)
-+    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded.
-+    -- NULL on partial save coverage (the new games_with_save_stats).
-+    case
-+        when b.games_with_save_stats < b.games_in_window then null
-+        else safe_divide(
-+            b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
-+        )
-+    end as save_ratio,
-+    -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
-+    -- gated) — these are player data, and missing player stats must not blank a team stat
-+    -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
-     safe_divide(b.key_passes, b.games_with_player_stats) as key_passes_per_match,
-     safe_divide(b.tackles, b.games_with_player_stats) as tackles_per_match,
-     safe_divide(b.interceptions, b.games_with_player_stats)
-diff --git a/dbt_project/models/5_marts/shared/mart_season_record__team.sql b/dbt_project/models/5_marts/shared/mart_season_record__team.sql
-index e5e29f1..8d86699 100644
---- a/dbt_project/models/5_marts/shared/mart_season_record__team.sql
-+++ b/dbt_project/models/5_marts/shared/mart_season_record__team.sql
-@@ -75,6 +75,7 @@ matched as (
-         sf.games_with_team_stats,
-         sf.games_with_sot_stats,
-         sf.games_with_opp_stats,
-+        sf.games_with_save_stats,
-         sf.games_with_player_stats,
-         sf.points_won,
-         sf.wins,
-@@ -122,6 +123,7 @@ matched as (
-         sf.games_with_team_stats,
-         sf.games_with_sot_stats,
-         sf.games_with_opp_stats,
-+        sf.games_with_save_stats,
-         sf.games_with_player_stats,
-         sf.points_won,
-         sf.wins,
-@@ -185,11 +187,25 @@ select
-     -- goals (scoreline window)
-     safe_divide(goals_for, games_played) as goals_per_match,
-     safe_divide(goals_against, games_played) as goals_against_per_match,
--    -- shots (team-stat window)
--    safe_divide(shots_total, games_with_team_stats) as shots_per_match,
--    safe_divide(shots_on_goal, shots_total) as shot_accuracy,
--    safe_divide(shots_inside_box, shots_total) as danger_zone_ratio,
--    safe_divide(shots_on_goal, games_with_sot_stats) as shots_on_goal_per_match,
-+    -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
-+    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shot_accuracy / danger_zone
-+    -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(shots_total, games_with_team_stats)
-+    end as shots_per_match,
-+    case
-+        when games_with_sot_stats < games_played then null
-+        else safe_divide(shots_on_goal, shots_total)
-+    end as shot_accuracy,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(shots_inside_box, shots_total)
-+    end as danger_zone_ratio,
-+    case
-+        when games_with_sot_stats < games_played then null
-+        else safe_divide(shots_on_goal, games_with_sot_stats)
-+    end as shots_on_goal_per_match,
-     -- finishing efficiency (CPO Option A): open-play conversion =
-     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless fully
-     -- shot-covered AND the numerator is valid [0, shots_on_goal] — never partial, never >100%.
-@@ -199,17 +215,33 @@ select
-         when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
-         else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
-     end as finishing_efficiency,
--    -- passing (team-stat window)
--    safe_divide(passes_total, games_with_team_stats) as passes_per_match,
--    safe_divide(passes_accurate, passes_total) as pass_accuracy,
--    -- set pieces
--    safe_divide(corner_kicks, games_with_team_stats) as corner_kicks_per_match,
--    safe_divide(opponent_corner_kicks, games_with_opp_stats)
-+    -- passing (team-stat window): NULL on partial coverage
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(passes_total, games_with_team_stats)
-+    end as passes_per_match,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(passes_accurate, passes_total)
-+    end as pass_accuracy,
-+    -- set pieces (conceded uses opponent-stat coverage): NULL on partial coverage
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(corner_kicks, games_with_team_stats)
-+    end as corner_kicks_per_match,
-+    case
-+        when games_with_opp_stats < games_played then null
-+        else safe_divide(opponent_corner_kicks, games_with_opp_stats) end
-         as corners_conceded_per_match,
--    -- goalkeeper: self-bounding (saves / (saves + goals conceded in save-covered games))
--    safe_divide(goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games)
--        as save_ratio,
--    -- player-derived team metrics (player-stat window; null when unavailable)
-+    -- goalkeeper: self-bounding (saves / (saves + goals conceded in save-covered games)).
-+    -- NULL on partial save coverage (the new games_with_save_stats).
-+    case
-+        when games_with_save_stats < games_played then null
-+        else safe_divide(goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games)
-+    end as save_ratio,
-+    -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
-+    -- gated) — these are player data, and missing player stats must not blank a team stat
-+    -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
-     safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
-     safe_divide(tackles, games_with_player_stats) as tackles_per_match,
-     safe_divide(interceptions, games_with_player_stats) as interceptions_per_match,
+     -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never a partial-window
+diff --git a/dbt_project/models/5_marts/shared/mart_player_match_log.sql b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+index 55a4900..0302446 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_match_log.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+@@ -67,8 +67,7 @@ joined as (
+         s.is_substitute,
+         s.goals_total,
+         s.goals_assists,
+-        s.goals_conceded,
+-        s.goals_saves,
++        s.saves,
+         s.shots_total,
+         s.shots_on,
+         s.passes_total,
+@@ -118,8 +117,7 @@ select
+     j.is_substitute,
+     j.goals_total,
+     j.goals_assists,
+-    j.goals_conceded,
+-    j.goals_saves,
++    j.saves,
+     j.shots_total,
+     j.shots_on,
+     j.passes_total,
+diff --git a/dbt_project/models/5_marts/shared/mart_season_record__player.sql b/dbt_project/models/5_marts/shared/mart_season_record__player.sql
+index 290e5f7..fb66099 100644
+--- a/dbt_project/models/5_marts/shared/mart_season_record__player.sql
++++ b/dbt_project/models/5_marts/shared/mart_season_record__player.sql
+@@ -69,9 +69,9 @@ matched as (
+         sf.position_code,
+         sf.games_played,
+         sf.goals_total,
+-        sf.goals_conceded,
++        sf.goals_against,
+         sf.goals_assists,
+-        sf.goals_saves,
++        sf.saves,
+         sf.shots_on,
+         sf.passes_key,
+         sf.passes_accurate,
+@@ -111,9 +111,9 @@ matched as (
+         sf.position_code,
+         sf.games_played,
+         sf.goals_total,
+-        sf.goals_conceded,
++        sf.goals_against,
+         sf.goals_assists,
+-        sf.goals_saves,
++        sf.saves,
+         sf.shots_on,
+         sf.passes_key,
+         sf.passes_accurate,
+@@ -163,7 +163,7 @@ select
+     -- raw cumulative counts
+     goals_total,
+     goals_assists,
+-    goals_saves,
++    saves,
+     shots_on,
+     passes_key,
+     passes_accurate,
+@@ -182,7 +182,7 @@ select
+     cards_yellow,
+     cards_red,
+     -- ratios
+-    safe_divide(goals_saves, goals_saves + goals_conceded) as save_pct,
++    safe_divide(saves, saves + goals_against) as save_pct,
+     safe_divide(dribbles_success, dribbles_attempts) as dribbles_success_pct,
+     safe_divide(passes_accurate, passes_total) as pass_accuracy_pct,
+     safe_divide(duels_won, duels_total) as duels_won_pct
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 9c5441f..8ab9987 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -47,11 +47,11 @@ cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,
+ cards_red,player,playerMetrics.cards.red,Red cards in the form window.,cards_red,,false,integer,discipline,,1,,
+ offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.,offsides,,true,integer,discipline,,,,
+ penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,penalty_committed,,true,integer,discipline,,,,
+-saves,player,playerMetrics.savePct.saves,Saves made in the form window.,goals_saves,,false,integer,goalkeeping,,1,,
+-shots_on_goal_against,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,goals_saves + goals_conceded,,false,integer,goalkeeping,,1,,
+-save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,goals_saves,goals_saves + goals_conceded,false,percent,goalkeeping,,1,higher_better,Share of shots on target saved; high = a strong shot-stopper.
++saves,player,playerMetrics.savePct.saves,Saves made in the form window.,saves,,false,integer,goalkeeping,,1,,
++shots_on_goal_against,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,saves + goals_against,,false,integer,goalkeeping,,1,,
++save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,saves,saves + goals_against,false,percent,goalkeeping,,1,higher_better,Share of shots on target saved; high = a strong shot-stopper.
+ shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,shots_total,,false,integer,shooting,,,,
+-goals_against,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_conceded,,true,integer,goalkeeping,,,,
++goals_against,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,goals_against,,true,integer,goalkeeping,,,,
+ shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,shots_total,shots_total + opponent_shots_total,false,percent,shooting,,,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
+ points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,points_won,3 * games,false,percent,,,,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
+ scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,goals + assists,,false,integer,goals,,,,
+@@ -69,4 +69,4 @@ interceptions_per90,player,playerMetrics.interceptionsPer90.label,Interceptions
+ blocks_per90,player,playerMetrics.blocksPer90.label,Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.,tackles_blocks,minutes / 90,false,decimal_1,defending,,1,neutral,Blocks made; high = throws the body in; often a side under pressure. Style not quality.
+ defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,tackles + interceptions + blocks,minutes / 90,false,decimal_1,defending,,1,neutral,Overall defensive workload (tackles + interceptions + blocks); high = a deep block or aggressive press. Style not quality.
+ duels_won_per90,player,playerMetrics.duelsWonPer90.label,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,duels_won,minutes / 90,false,decimal_1,duels,,1,neutral,Physical duels won; high = heavily and successfully involved in duels. Volume - the win rate captures efficiency.
+-saves_per90,player,playerMetrics.savesPer90.label,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,goals_saves,minutes / 90,false,decimal_1,goalkeeping,,1,neutral,Save volume; high = a busy keeper facing many shots; not shot-stopping quality - the save rate captures that.
++saves_per90,player,playerMetrics.savesPer90.label,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,saves,minutes / 90,false,decimal_1,goalkeeping,,1,neutral,Save volume; high = a busy keeper facing many shots; not shot-stopping quality - the save rate captures that.

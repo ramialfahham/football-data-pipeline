@@ -12,7 +12,7 @@
 
   save_pct is only meaningful for goalkeepers (position_code = 'G'); the column
   is present for all players but will be NULL for outfield players whose
-  goals_saves and goals_conceded are both zero/null.
+  saves and goals_against are both zero/null.
 #}
 
 with builder as (
@@ -40,7 +40,7 @@ select
     -- raw counts
     b.goals_total,
     b.goals_assists,
-    b.goals_saves,
+    b.saves,
     b.shots_on,
     b.passes_key,
     b.passes_accurate,
@@ -61,7 +61,7 @@ select
     -- calculations
     b.team_sk = f.home_team_sk as is_home,
     -- ratios
-    safe_divide(b.goals_saves, b.goals_saves + b.goals_conceded) as save_pct,
+    safe_divide(b.saves, b.saves + b.goals_against) as save_pct,
     safe_divide(b.dribbles_success, b.dribbles_attempts) as dribbles_success_pct,
     safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy_pct,
     safe_divide(b.duels_won, b.duels_total) as duels_won_pct,

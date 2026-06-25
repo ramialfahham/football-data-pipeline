@@ -25,7 +25,7 @@
   passes_accurate is derived per fixture as ROUND(passes_total *
   passes_accuracy_percent / 100) then summed; inherits small rounding error.
 
-  save_pct requires goals_conceded which is not currently carried in
+  save_pct requires goals_against which is not currently carried in
   int_legs__player_match — mart_momentum__player will emit null for that metric.
 #}
 
@@ -140,9 +140,9 @@ player_agg as (
         count(*) as games_in_window,
         any_value(p.position_code) as position_code,
         sum(p.goals_total) as goals_total,
-        sum(p.goals_conceded) as goals_conceded,
+        sum(p.goals_against) as goals_against,
         sum(p.goals_assists) as goals_assists,
-        sum(p.goals_saves) as goals_saves,
+        sum(p.saves) as saves,
         sum(p.shots_total) as shots_total,
         sum(p.shots_on) as shots_on,
         sum(p.passes_total) as passes_total,
@@ -189,9 +189,9 @@ select
     games_in_window,
     position_code,
     goals_total,
-    goals_conceded,
+    goals_against,
     goals_assists,
-    goals_saves,
+    saves,
     shots_total,
     shots_on,
     passes_total,

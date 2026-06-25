@@ -64,7 +64,7 @@ select
     case
         when b.games_with_sot_stats < b.games_in_window then null
         else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
-        as shots_on_target_per_match,
+        as shots_on_goal_per_match,
     -- finishing efficiency (CPO Option A): open-play conversion =
     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
     -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never a partial-window

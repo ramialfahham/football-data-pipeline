@@ -56,8 +56,8 @@ per_fixture as (
         s.minutes_played,
         s.goals_total,
         s.goals_assists,
-        s.goals_saves,
-        s.goals_conceded,
+        s.saves,
+        s.goals_against,
         s.shots_on,
         s.passes_total,
         s.passes_key,
@@ -110,8 +110,8 @@ aggregated as (
         sum(coalesce(duels_won, 0)) as duels_won,
         sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
         sum(coalesce(dribbles_success, 0)) as dribbles_success,
-        sum(coalesce(goals_saves, 0)) as saves,
-        sum(coalesce(goals_conceded, 0)) as goals_against
+        sum(coalesce(saves, 0)) as saves,
+        sum(coalesce(goals_against, 0)) as goals_against
     from per_fixture
     group by
         player_sk, league_sk, season_sk, league_code, season_api_year, position_group
