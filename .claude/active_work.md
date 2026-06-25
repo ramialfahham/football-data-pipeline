@@ -4,8 +4,14 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-25 (**#569 finishing-open-play MERGED; #500 PR-a = PR #567 REBASED on the new main + re-reviewed + force-pushed; PR-b/c/d remain**).
-main GREEN (carries #569). **PR #567 (PR-a) OPEN, awaiting CPO merge — do NOT self-merge.** **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
+_Last updated: 2026-06-25 (**#569 + #567 BOTH MERGED; starting the universal incomplete-data→NULL task on branch `fix/incomplete-data-null`**).
+main GREEN at 34f94c6 — carries #569 (finishing→open-play) + #567 (PR-a metric-layer renames). **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; run the full review cycle → open PR; **CPO merges, never self-merge.**
+
+### FIRST STEPS (cold chat — do in order)
+1. `git checkout fix/incomplete-data-null` (off main). This handover commit is the ONLY commit on it — clean tree, NO code or contract yet. Bash only; never PowerShell.
+2. The 🔴 section directly below is the full spec for the task. Write `.claude/task/contract.md` from it (objective, scope_paths, impact_map, decisions_taken, decisions_reserved, done_when) on the clean tree BEFORE touching any model — the impact-map gate denies the first `dbt_project/models/**` edit until a real impact_map is present.
+3. **ESCALATE the two open questions in the spec (counts/per-90 reach; the #320 reversal) in PLAIN language and get CPO answers BEFORE building** — they set the blast radius. The CPO is firm the RULE is settled (do not re-ask the rule); these are reach/consequence confirmations, not the rule.
+4. Implement → validate (`.venv/Scripts/dbt parse|compile` + `sqlfluff lint models`) → before/after deltas (this moves LIVE numbers — record old-vs-new on the affected marts) → G3 review (scope-auditor + analytics-engineer; + football-analytics only if the catalogue changes) → open the PR. CPO merges.
 
 ## 🔴 NEXT CPO-DIRECTED TASK (locked this session) — universal "incomplete data → NULL" for EVERY metric
 CPO rule, stated firmly (2026-06-25): **every metric, team AND player, is NULL when the data to calculate it is
@@ -22,6 +28,41 @@ numbers broadly → before/after deltas + review; NOT folded into #567):
 Target: replace coalesce-to-0 and average-over-covered-games with a per-metric coverage gate that NULLs whenever
 any game in the window is missing that metric's input (the team finishing_efficiency CASE is the reference pattern).
 Big blast radius (most rates, team + player, every window) → its own design + before/after deltas + G3 review.
+
+**Design / approach (carry into the contract):**
+- Each metric NULLs against ITS OWN input's coverage: shot metrics on shot-stat coverage, passing on team-stat
+  coverage, player-derived team metrics on player-stat coverage, GK on save coverage. Scoreline-based metrics
+  (goals_for/against per match, points_won/capture, clean_sheets, W/D/L) are ALWAYS covered for finished matches
+  → they never NULL from this rule. So the change hits the STATS-based metrics, not the scoreline ones.
+- Pattern: the team finishing CASE is the template — `when <coverage_count> < <window_games> then null … else
+  safe_divide(...)`. The team builders ALREADY carry the coverage counts (games_with_team_stats, games_with_sot_stats,
+  games_with_opp_stats, games_with_player_stats; season: stat_coverage_season_games, player_stat_coverage_season_games)
+  — today the marts DIVIDE by them (average-over-covered); the change is to ALSO gate: NULL when count < games_in_window
+  (momentum) / games_played (season-record) / season_games_played (season). The PLAYER season models have NO coverage
+  counts yet (they coalesce(field,0)) — ADD per-stat coverage counts (countif(field is not null)) and gate the same way.
+- Surfaces (from this session's trace): TEAM — mart_momentum__team, mart_season_record__team, int_team_season__metrics
+  (+ the live passthroughs mart_matchday_insights, mart_team_season_insights inherit). PLAYER — int_player_season__metrics,
+  int_player_season_position__metrics, int_momentum__player + mart_momentum__player (+ mart_player_profile, mart_leaderboards,
+  the benchmarks inherit). Confirm the full list with `dbt ls` when writing the impact_map.
+
+**OPEN QUESTIONS — escalate (plain language) + get CPO answers BEFORE building:**
+- (Q1) Reach: does "incomplete → NULL" apply to COUNT metrics (e.g. a player's shots_on_goal/goals total over the
+  window) and PER-90s too, or only to per-match averages and ratios? CONSEQUENCE if yes: a player/team with ANY
+  window game missing the stat drops off the COUNT leaderboards (their total goes "—"). That's a real product effect
+  worth confirming — not re-asking the rule, confirming its reach to counts/per-90 leaderboard totals.
+- (Q2) This REVERSES the #320 "average over the covered games + show a coverage caption" design for the team
+  per-match rates (they go NULL on any partial coverage instead of averaging). Confirm #320 is being replaced (the CPO
+  rule says yes; flag it so it's a recorded, deliberate reversal, not silent).
+
+**done_when:** every stats-based metric (team + player, every window) is NULL when its input is not present in all
+window games; coverage-gate added to the player season + momentum models; team marts gate (not just divide); [0,1]/
+range + a "no partial-coverage value" assertion where sensible; dbt parse|compile + sqlfluff(models) clean; the
+no-drift guard + existing range tests pass; before/after deltas recorded on the live marts (mart_matchday_insights +
+mart_team_season_insights); G3 review; PR opened; CPO merges.
+
+**do-NOTs:** don't re-ask whether the rule applies (it's universal — settled); don't NULL the scoreline-based metrics
+(they're always covered); don't fold this into a rename/other PR (it moves live numbers — own PR + deltas); don't
+self-merge.
 
 ### ⚠️ 2026-06-25 CORRECTION — read this; it OVERRIDES any "later / #391-gated / combine later" framing in `contract.md`
 The metric-layer merge is **NOT deferred and NOT gated on #391.** Do the FULL consolidation now. `contract.md`
@@ -40,7 +81,9 @@ later" scope — **that gating is the bug; disregard it.** The merge IS the deli
   + a `contract.md` whose staging is wrong on the gating). Fresh chat: rewrite `contract.md` to this non-gated scope
   on a clean-ish tree, keep the good blast-radius/impact_map analysis, drop the #391 gate.
 
-## ⭐ #500 metric-layer consolidation — STATUS (PR-a OPEN; non-gated 4-PR sequence)
+## ⭐ #500 metric-layer consolidation — STATUS (PR-a MERGED 2026-06-25; PR-b/c/d remain; non-gated sequence)
+> NOTE: PR-a (#567) is MERGED. The "OPEN / awaiting merge / force-pushed" wording in the PR-a bullet below is
+> historical. PR-b/c/d are the remaining #500 work (after the universal-NULL task above, per CPO sequencing).
 Goal: **ONE metric layer (the catalogue), end-to-end, zero ambiguity** — the merge IS the deliverable, NOT
 #391-gated. MVP-safety = byte-identical `site/match-preview/metric_definitions.json` at every step, not deferral.
 The PR sequence is locked in `contract.md`'s reference block; each PR gets its own contract.
