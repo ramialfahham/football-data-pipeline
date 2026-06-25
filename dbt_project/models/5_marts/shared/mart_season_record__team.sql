@@ -75,6 +75,7 @@ matched as (
         sf.games_with_team_stats,
         sf.games_with_sot_stats,
         sf.games_with_opp_stats,
+        sf.games_with_save_stats,
         sf.games_with_player_stats,
         sf.points_won,
         sf.wins,
@@ -122,6 +123,7 @@ matched as (
         sf.games_with_team_stats,
         sf.games_with_sot_stats,
         sf.games_with_opp_stats,
+        sf.games_with_save_stats,
         sf.games_with_player_stats,
         sf.points_won,
         sf.wins,
@@ -185,11 +187,25 @@ select
     -- goals (scoreline window)
     safe_divide(goals_for, games_played) as goals_per_match,
     safe_divide(goals_against, games_played) as goals_against_per_match,
-    -- shots (team-stat window)
-    safe_divide(shots_total, games_with_team_stats) as shots_per_match,
-    safe_divide(shots_on_goal, shots_total) as shot_accuracy,
-    safe_divide(shots_inside_box, shots_total) as danger_zone_ratio,
-    safe_divide(shots_on_goal, games_with_sot_stats) as shots_on_goal_per_match,
+    -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
+    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shot_accuracy / danger_zone
+    -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
+    case
+        when games_with_team_stats < games_played then null
+        else safe_divide(shots_total, games_with_team_stats)
+    end as shots_per_match,
+    case
+        when games_with_sot_stats < games_played then null
+        else safe_divide(shots_on_goal, shots_total)
+    end as shot_accuracy,
+    case
+        when games_with_team_stats < games_played then null
+        else safe_divide(shots_inside_box, shots_total)
+    end as danger_zone_ratio,
+    case
+        when games_with_sot_stats < games_played then null
+        else safe_divide(shots_on_goal, games_with_sot_stats)
+    end as shots_on_goal_per_match,
     -- finishing efficiency (CPO Option A): open-play conversion =
     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless fully
     -- shot-covered AND the numerator is valid [0, shots_on_goal] — never partial, never >100%.
@@ -199,17 +215,33 @@ select
         when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
         else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
     end as finishing_efficiency,
-    -- passing (team-stat window)
-    safe_divide(passes_total, games_with_team_stats) as passes_per_match,
-    safe_divide(passes_accurate, passes_total) as pass_accuracy,
-    -- set pieces
-    safe_divide(corner_kicks, games_with_team_stats) as corner_kicks_per_match,
-    safe_divide(opponent_corner_kicks, games_with_opp_stats)
+    -- passing (team-stat window): NULL on partial coverage
+    case
+        when games_with_team_stats < games_played then null
+        else safe_divide(passes_total, games_with_team_stats)
+    end as passes_per_match,
+    case
+        when games_with_team_stats < games_played then null
+        else safe_divide(passes_accurate, passes_total)
+    end as pass_accuracy,
+    -- set pieces (conceded uses opponent-stat coverage): NULL on partial coverage
+    case
+        when games_with_team_stats < games_played then null
+        else safe_divide(corner_kicks, games_with_team_stats)
+    end as corner_kicks_per_match,
+    case
+        when games_with_opp_stats < games_played then null
+        else safe_divide(opponent_corner_kicks, games_with_opp_stats) end
         as corners_conceded_per_match,
-    -- goalkeeper: self-bounding (saves / (saves + goals conceded in save-covered games))
-    safe_divide(goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games)
-        as save_ratio,
-    -- player-derived team metrics (player-stat window; null when unavailable)
+    -- goalkeeper: self-bounding (saves / (saves + goals conceded in save-covered games)).
+    -- NULL on partial save coverage (the new games_with_save_stats).
+    case
+        when games_with_save_stats < games_played then null
+        else safe_divide(goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games)
+    end as save_ratio,
+    -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
+    -- gated) — these are player data, and missing player stats must not blank a team stat
+    -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
     safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
     safe_divide(tackles, games_with_player_stats) as tackles_per_match,
     safe_divide(interceptions, games_with_player_stats) as interceptions_per_match,

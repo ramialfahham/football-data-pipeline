@@ -4,65 +4,47 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-25 (**#569 + #567 BOTH MERGED; starting the universal incomplete-data→NULL task on branch `fix/incomplete-data-null`**).
-main GREEN at 34f94c6 — carries #569 (finishing→open-play) + #567 (PR-a metric-layer renames). **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; run the full review cycle → open PR; **CPO merges, never self-merge.**
+_Last updated: 2026-06-25 (**incomplete-data→NULL IMPLEMENTED on `fix/incomplete-data-null` — both reviewers PASS, PR being opened, awaiting CI + CPO merge. Narrowed to TEAM-FEED ONLY after two source-of-record findings; see the ✅ block below.**).
+main GREEN at 34f94c6 — carries #569 + #567. **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.**
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout fix/incomplete-data-null` (off main). This handover commit is the ONLY commit on it — clean tree, NO code or contract yet. Bash only; never PowerShell.
-2. The 🔴 section directly below is the full spec for the task. Write `.claude/task/contract.md` from it (objective, scope_paths, impact_map, decisions_taken, decisions_reserved, done_when) on the clean tree BEFORE touching any model — the impact-map gate denies the first `dbt_project/models/**` edit until a real impact_map is present.
-3. **ESCALATE the two open questions in the spec (counts/per-90 reach; the #320 reversal) in PLAIN language and get CPO answers BEFORE building** — they set the blast radius. The CPO is firm the RULE is settled (do not re-ask the rule); these are reach/consequence confirmations, not the rule.
-4. Implement → validate (`.venv/Scripts/dbt parse|compile` + `sqlfluff lint models`) → before/after deltas (this moves LIVE numbers — record old-vs-new on the affected marts) → G3 review (scope-auditor + analytics-engineer; + football-analytics only if the catalogue changes) → open the PR. CPO merges.
+1. The `fix/incomplete-data-null` branch is DONE (PR open, awaiting CPO merge) — do NOT reopen it. The NEXT task is **#500 PR-b** (see the ⭐ #500 status block below): once this PR merges, `git checkout main && git pull`, branch off, and start PR-b.
+2. Bash only; never PowerShell. Write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any model (the impact-map gate enforces it).
 
-## 🔴 NEXT CPO-DIRECTED TASK (locked this session) — universal "incomplete data → NULL" for EVERY metric
-CPO rule, stated firmly (2026-06-25): **every metric, team AND player, is NULL when the data to calculate it is
-not 100% available.** A metric computed from a partially-covered window is NOT allowed — it must be "—" (NULL).
-Today this is HONOURED only by team finishing_efficiency (#569). The violations to fix (own task — changes shipped
-numbers broadly → before/after deltas + review; NOT folded into #567):
-- **Player ratios + counts** coalesce missing per-game stats to 0 and compute anyway — e.g.
-  `int_player_season__metrics` / `int_player_season_position__metrics`: `sum(coalesce(shots_on, 0))`,
-  `sum(coalesce(passes_total,0))` etc. → finishing/pass_accuracy_pct/duels_won_pct/dribbles_success_pct/save_pct
-  and the count + per-90 metrics all compute from incomplete data instead of NULL.
-- **Team per-match rates** (`mart_momentum__team`, `mart_season_record__team`, `int_team_season__metrics`:
-  shots_per_match, passes_per_match, corners, defensive actions, …) divide by a coverage COUNT and average over
-  only the covered games (the older #320 "same-window" design) — they do NOT NULL on partial coverage.
-Target: replace coalesce-to-0 and average-over-covered-games with a per-metric coverage gate that NULLs whenever
-any game in the window is missing that metric's input (the team finishing_efficiency CASE is the reference pattern).
-Big blast radius (most rates, team + player, every window) → its own design + before/after deltas + G3 review.
+## ✅ DONE — incomplete-data→NULL (TEAM-FEED ONLY) — PR open on `fix/incomplete-data-null`, awaiting CPO merge
+The universal rule ("a metric over a partially-covered window is '—', never a value from partial data") was applied
+to **TEAM-FEED stats only**, after measuring the source of record before building (Appendix A6). Two CPO rulings
+reshaped the original "every metric, team + player" spec (all in `escalations.log` 2026-06-25):
+- **Q1 = include counts + per-90s; Q2 = reverse #320** (AskUserQuestion).
+- **PLAYER side DROPPED — null=zero is CORRECT, PROVEN.** Player stat nulls mean ZERO, not missing: of 1.29M
+  played-minutes rows, 91.7% have null `goals_total` (team-stat nulls are only 1–3%). Decisive proof = scoreline
+  reconciliation: summing player goals (null→0) per team-fixture equals the actual match score in **95.88%** of the
+  85,738 finished team-fixtures that have player data (the rest off by exactly 1 = own goals). So `coalesce(field,0)`
+  is correct and the spec's per-field player gate would have NULLed ~92% of players. CPO: "for player treat NULL as
+  zero is correct. Do it." → **NO player-model edits.**
+- **"Missing player stats must not affect the team stats" (CPO).** Team metrics split by source: genuine team-feed
+  stats (shots/passes/corners/saves) get the NULL-on-partial gate; player-DERIVED team metrics (key_passes/tackles/
+  duels) are LEFT on average-over-player-covered (player data quarantined).
+- **The real player gap (~20% of finished team-fixtures have NO player data at all) is LEFT ALONE** per the CPO — a
+  player in a no-data match is silently undercounted; NULLing their whole season would hide almost everyone.
 
-**Design / approach (carry into the contract):**
-- Each metric NULLs against ITS OWN input's coverage: shot metrics on shot-stat coverage, passing on team-stat
-  coverage, player-derived team metrics on player-stat coverage, GK on save coverage. Scoreline-based metrics
-  (goals_for/against per match, points_won/capture, clean_sheets, W/D/L) are ALWAYS covered for finished matches
-  → they never NULL from this rule. So the change hits the STATS-based metrics, not the scoreline ones.
-- Pattern: the team finishing CASE is the template — `when <coverage_count> < <window_games> then null … else
-  safe_divide(...)`. The team builders ALREADY carry the coverage counts (games_with_team_stats, games_with_sot_stats,
-  games_with_opp_stats, games_with_player_stats; season: stat_coverage_season_games, player_stat_coverage_season_games)
-  — today the marts DIVIDE by them (average-over-covered); the change is to ALSO gate: NULL when count < games_in_window
-  (momentum) / games_played (season-record) / season_games_played (season). The PLAYER season models have NO coverage
-  counts yet (they coalesce(field,0)) — ADD per-stat coverage counts (countif(field is not null)) and gate the same way.
-- Surfaces (from this session's trace): TEAM — mart_momentum__team, mart_season_record__team, int_team_season__metrics
-  (+ the live passthroughs mart_matchday_insights, mart_team_season_insights inherit). PLAYER — int_player_season__metrics,
-  int_player_season_position__metrics, int_momentum__player + mart_momentum__player (+ mart_player_profile, mart_leaderboards,
-  the benchmarks inherit). Confirm the full list with `dbt ls` when writing the impact_map.
+**What shipped (the diff, 6 dbt files + 2 yml):** `int_momentum__team` + `int_season_record__team` add a
+`games_with_save_stats` coverage count; `mart_momentum__team` + `mart_season_record__team` gate each team-feed rate
+(`case when <coverage_count> < <window> then null else safe_divide(...)`); `int_team_season__metrics` computes
+team-feed coverage buckets inline and gates the team-feed stat-count totals in a `season_gated` CTE so all team-feed
+rates inherit the NULL by propagation. Scoreline metrics + player-derived team metrics + ALL player models UNCHANGED.
+yml docs for the new column in `int_momentum.yml` + `int_season_record.yml` (the latter added by a recorded contract
+amendment under the approved "schema docs for the touched models" category).
 
-**OPEN QUESTIONS — escalate (plain language) + get CPO answers BEFORE building:**
-- (Q1) Reach: does "incomplete → NULL" apply to COUNT metrics (e.g. a player's shots_on_goal/goals total over the
-  window) and PER-90s too, or only to per-match averages and ratios? CONSEQUENCE if yes: a player/team with ANY
-  window game missing the stat drops off the COUNT leaderboards (their total goes "—"). That's a real product effect
-  worth confirming — not re-asking the rule, confirming its reach to counts/per-90 leaderboard totals.
-- (Q2) This REVERSES the #320 "average over the covered games + show a coverage caption" design for the team
-  per-match rates (they go NULL on any partial coverage instead of averaging). Confirm #320 is being replaced (the CPO
-  rule says yes; flag it so it's a recorded, deliberate reversal, not silent).
+**Validated:** `dbt parse`/`compile` clean (88 models); sqlfluff clean; the existing range tests already tolerate the
+new NULLs (`X is null or X between 0 and 1`), so NO new tests were needed; no-drift guard untouched (the 3 coverage
+buckets never reach the season model's output). **Before/after (measured live, in `git diff`/PR body):** season page
+~12% of latest-season teams flip a team-feed rate to "—" (292/2400 shots-passes-corners; 296 SoT; 340 save), match
+preview ~14% (270/1972) — all genuine team-stat gaps; scoreline + player-derived unchanged. **G3 review: scope-auditor
++ analytics-engineer-reviewer BOTH PASS** (`review.md`, `diff_sha256` d448a8a8…).
 
-**done_when:** every stats-based metric (team + player, every window) is NULL when its input is not present in all
-window games; coverage-gate added to the player season + momentum models; team marts gate (not just divide); [0,1]/
-range + a "no partial-coverage value" assertion where sensible; dbt parse|compile + sqlfluff(models) clean; the
-no-drift guard + existing range tests pass; before/after deltas recorded on the live marts (mart_matchday_insights +
-mart_team_season_insights); G3 review; PR opened; CPO merges.
-
-**do-NOTs:** don't re-ask whether the rule applies (it's universal — settled); don't NULL the scoreline-based metrics
-(they're always covered); don't fold this into a rename/other PR (it moves live numbers — own PR + deltas); don't
-self-merge.
+**do-NOTs:** don't reopen the player side (null=zero settled, proven); don't gate scoreline or player-derived team
+metrics; don't fold this into another PR; don't self-merge.
 
 ### ⚠️ 2026-06-25 CORRECTION — read this; it OVERRIDES any "later / #391-gated / combine later" framing in `contract.md`
 The metric-layer merge is **NOT deferred and NOT gated on #391.** Do the FULL consolidation now. `contract.md`

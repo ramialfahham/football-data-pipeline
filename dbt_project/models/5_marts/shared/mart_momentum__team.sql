@@ -46,11 +46,24 @@ select
     -- goals (scoreline — always present, divide over the full window)
     safe_divide(b.goals_for, b.games_in_window) as goals_per_match,
     safe_divide(b.goals_against, b.games_in_window) as goals_against_per_match,
-    -- shots (team-stat window)
-    safe_divide(b.shots_total, b.games_with_team_stats) as shots_per_match,
-    safe_divide(b.shots_on_goal, b.shots_total) as shot_accuracy,
-    safe_divide(b.shots_inside_box, b.shots_total) as danger_zone_ratio,
-    safe_divide(b.shots_on_goal, b.games_with_sot_stats)
+    -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
+    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shot_accuracy / danger_zone
+    -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
+    case
+        when b.games_with_team_stats < b.games_in_window then null
+        else safe_divide(b.shots_total, b.games_with_team_stats)
+    end as shots_per_match,
+    case
+        when b.games_with_sot_stats < b.games_in_window then null
+        else safe_divide(b.shots_on_goal, b.shots_total)
+    end as shot_accuracy,
+    case
+        when b.games_with_team_stats < b.games_in_window then null
+        else safe_divide(b.shots_inside_box, b.shots_total)
+    end as danger_zone_ratio,
+    case
+        when b.games_with_sot_stats < b.games_in_window then null
+        else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
         as shots_on_target_per_match,
     -- finishing efficiency (CPO Option A): open-play conversion =
     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
@@ -62,17 +75,35 @@ select
         when (b.goals_for - b.goals_penalty - b.goals_own) > b.shots_on_goal then null
         else safe_divide(b.goals_for - b.goals_penalty - b.goals_own, b.shots_on_goal)
     end as finishing_efficiency,
-    -- passing (team-stat window)
-    safe_divide(b.passes_total, b.games_with_team_stats) as passes_per_match,
-    safe_divide(b.passes_accurate, b.passes_total) as pass_accuracy,
-    -- set pieces (team-stat window; conceded uses opponent-stat coverage)
-    safe_divide(b.corner_kicks, b.games_with_team_stats) as corner_kicks_per_match,
-    safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats)
+    -- passing (team-stat window): NULL on partial coverage
+    case
+        when b.games_with_team_stats < b.games_in_window then null
+        else safe_divide(b.passes_total, b.games_with_team_stats)
+    end as passes_per_match,
+    case
+        when b.games_with_team_stats < b.games_in_window then null
+        else safe_divide(b.passes_accurate, b.passes_total)
+    end as pass_accuracy,
+    -- set pieces (team-stat window; conceded uses opponent-stat coverage): NULL on partial coverage
+    case
+        when b.games_with_team_stats < b.games_in_window then null
+        else safe_divide(b.corner_kicks, b.games_with_team_stats)
+    end as corner_kicks_per_match,
+    case
+        when b.games_with_opp_stats < b.games_in_window then null
+        else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
         as corners_conceded_per_match,
-    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded
-    safe_divide(b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games)
-        as save_ratio,
-    -- player-derived team metrics (player-stat window; null when unavailable)
+    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded.
+    -- NULL on partial save coverage (the new games_with_save_stats).
+    case
+        when b.games_with_save_stats < b.games_in_window then null
+        else safe_divide(
+            b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
+        )
+    end as save_ratio,
+    -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
+    -- gated) — these are player data, and missing player stats must not blank a team stat
+    -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
     safe_divide(b.key_passes, b.games_with_player_stats) as key_passes_per_match,
     safe_divide(b.tackles, b.games_with_player_stats) as tackles_per_match,
     safe_divide(b.interceptions, b.games_with_player_stats)
