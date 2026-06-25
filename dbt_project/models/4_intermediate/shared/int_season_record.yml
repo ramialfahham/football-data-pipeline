@@ -35,6 +35,9 @@ models:
       - name: games_with_team_stats
         description: "Cumulative count of those matches with team stats present; denominator for per-match team-stat rates."
         tests: [not_null]
+      - name: games_with_save_stats
+        description: "Cumulative count of those matches with goalkeeper_saves present — save_ratio's own coverage bucket, used to NULL save_ratio on partial coverage."
+        tests: [not_null]
       - name: round_order
         description: "Matchday number parsed from round_name (null if non-numeric). For deferred year-over-year alignment."
       - name: match_number

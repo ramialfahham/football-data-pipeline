@@ -1,233 +1,162 @@
-# Task contract — #500 metric-layer consolidation — PR-a (catalogue restructure + metric-layer naming, MVP-safe)
+# Task contract — incomplete team-feed data → NULL (team-feed stats only)
 
-> This is PR-a of the NON-GATED full #500 consolidation. The end-state (locked target
-> below) is ONE metric layer — the catalogue as the single registry, the LIVE MVP migrated
-> onto it, the legacy seed deleted. NONE of it is #391-gated. The merge IS the deliverable
-> and happens in this same work stream (PR-d), not "later". The work is sequenced into
-> reviewed PRs purely for reviewability and MVP-safety, not deferral. MVP-safety is enforced
-> by a CHECK, not by gating: at every step the generated `site/match-preview/metric_definitions.json`
-> must stay BYTE-IDENTICAL to today's. PR-a touches ZERO live-chain files, so it is trivially safe.
+> CPO-directed, 2026-06-25. Brings the TEAM-FEED stats metrics into compliance with the
+> universal "incomplete data → NULL" rule: a team-feed stat metric is "—" (NULL) unless every
+> game in its window carries that stat. Two source-of-record findings reshaped the original
+> spec (both proven from the warehouse, recorded in escalations.log):
+>   1. PLAYER stat nulls mean ZERO, not missing (95.88% scoreline reconciliation) → the player
+>      models are CORRECT as-is (coalesce-to-0); the player side is DROPPED. CPO: "for player
+>      treat NULL as zero is correct. Do it."
+>   2. Missing PLAYER data must NOT affect TEAM stats (CPO, 2026-06-25). Team metrics split by
+>      source: team-feed stats (shots/passes/corners/saves) gate on team-feed coverage; the
+>      player-DERIVED team metrics (tackles/key_passes/duels) are player data and keep their
+>      current average-over-covered behaviour — a player-data hole never blanks a team stat.
+> So this task is TEAM-FEED ONLY. See docs/working_agreement.md §2/§7/§10/§11.
 
 objective: >
-  Apply the locked one-name scheme to the metric layer across the metric_catalogue / v2 consumers
-  (catalogue seed, the int metric models, the benchmark macros, the v2 marts, the no-drift guard,
-  tests, the v2 export refs) and restructure the catalogue (entity-value normalisation + the
-  CPO-locked de-dup). Rename the player-side & v2-benchmark metric ids/columns at the metric-layer
-  OUTPUT (shots_on_target -> shots_on_goal, goals_saves -> saves, goals_conceded -> goals_against,
-  + per90/per_match variants). Repair the CSV corruption the prior WIP introduced (two merged rows).
-  The ONE rename shared with the LIVE site (corners_conceded -> corners_against) lands in PR-d (the
-  live merge), where the live chain is touched — sequencing, not gating. So PR-a leaves the live MVP
-  byte-identical.
+  Replace the #320 "average over the covered games" behaviour with a coverage gate that NULLs a
+  TEAM-FEED stat metric whenever any game in its window is missing that stat (reverse #320, CPO Q2).
+  The reference is the existing finishing_efficiency CASE: `when <coverage_count> < <window_games>
+  then null … else <safe_divide / sum>`. Each metric gates on ITS OWN team-feed coverage bucket:
+  shots/passes/corners/danger-zone → team-stat coverage (games_with_team_stats); shots_on_goal →
+  sot coverage (games_with_sot_stats); opponent corners → opp coverage (games_with_opp_stats);
+  goalkeeper saves → save coverage (games_with_save_stats, NEW). Scoreline metrics (goals/against,
+  points, W-D-L, clean sheets) are always covered → never gated. Player-DERIVED team metrics
+  (key_passes/tackles/interceptions/blocks/defensive_actions/duels/duels_won_pct) are LEFT UNCHANGED
+  (player data — CPO ruling 2; keep average-over-player-covered). All individual player models are
+  LEFT UNCHANGED (null=zero is correct).
 refs: >
-  #500; the 2026-06-24 CPO lock (target block below); the 2026-06-25 CPO correction in
-  `.claude/active_work.md` ("the merge is NOT deferred / NOT #391-gated; do the full consolidation now;
-  MVP-safety = byte-identical metric_definitions.json, not deferral"); content_architecture.md §10.
-  SoT-difference work (#565) is STASHED ("sot-difference WIP (paused for #500)"), re-added after #500.
-
-# =====================================================================================
-# REFERENCE — CPO-LOCKED TARGET (2026-06-24; the END-STATE, achieved across the PR sequence)
-# =====================================================================================
-# 0. ONE seed: consolidate metric_definitions.csv (legacy MVP) INTO metric_catalogue.csv; migrate the
-#    live MVP onto it; retire the legacy seed + build + *_recent/*_pretournament i18n. (PR-d — NOW, not gated.)
-# 1. metric_catalogue.csv is the single source of truth. metric_id == the model column that computes it.
-# 2. entity values: team | player | team and player. De-dup the two dual rows (duels_won_pct,
-#    finishing_efficiency) -> one "team and player" row each. [PR-a — CPO-locked; see D2.]
-# 3. One term per stat (provider term kept when it is good football language):
-#    - shots_on_goal  (NOT shots_on_target)
-#    - saves          (NOT goals_saves — that is the API path, not football language)
-#    - _against for every conceded stat: goals_against, corners_against (was corners_conceded),
-#      shots_on_goal_against (was shots_on_target_faced / the team shots_on_target_against). _conceded/_faced retired.
-# 4. Models named int_<entity>_<window>__metrics + consolidate the redundant team-season models. (PR-b.)
-# 5. label_i18n_key in the catalogue is the single display spine; reconcile site i18n to it. (PR-d.)
-# 6. One explainer doc (metric_layer.md); retire/fold player_metrics_catalogue.md + metrics_display.md. (PR-c.)
-#
-# CRITICAL DISCOVERY (2026-06-24, re-verified from source this session): there are TWO metric SEEDS /
-# two parallel systems —
-#   metric_catalogue.csv (v2; export_site_data.py + the v2 models; the v2 site #391 is PAUSED) and
-#   metric_definitions.csv (LEGACY MVP; export_metric_definitions_json.py + build_match_preview_site +
-#     site/match-preview + site/team-season = the LIVE site). metric_definitions.csv is a thin
-#   UI-BINDING MANIFEST over the SAME metric identities the catalogue holds (per metric: home_/away_/
-#   single_column bindings + a window suffix _recent/_pretournament/_form + a context match_preview/
-#   wc_pretournament). That split IS the "2-3 metric layers". Never judge the metric layer from one seed.
-#   PR-d facts (verified): the live JSON carries NO labels (format/context/columns only -> the byte check
-#   is i18n-independent); live i18n keys are window-suffixed (metrics.<id>_recent) vs the catalogue's
-#   metrics.<base>.label / playerMetrics.* (a real reconciliation); `qualifier_games_played` is a LIVE
-#   metric NOT yet in the catalogue (PR-d must register it).
-#
-# PR SEQUENCE (each = its own PR + contract; ALL non-gated, executed in this work stream):
-#   PR-a (THIS): catalogue restructure (entity values + de-dup) + the CSV-corruption repair + player/
-#     v2-benchmark metric-id & column renames at the metric-layer OUTPUT + v2 consumers + no-drift guard
-#     + tests + v2 export refs. corners_conceded -> PR-d. NO live-chain edits, NO model-file renames,
-#     NO staging/base/core atom renames.
-#   PR-b: model FILE renames -> int_<entity>_<window>__metrics + team-season consolidation + the deep
-#     atom renames (staging/base/core goals_saves -> saves, goals_conceded -> goals_against) + drop the
-#     no-drift guard's _season strip.
-#   PR-c: doc consolidation (metric_layer.md; retire/fold player_metrics_catalogue.md + metrics_display.md).
-#   PR-d (the merge — NOW): consolidate metric_definitions.csv INTO the catalogue; repoint
-#     export_metric_definitions_json.py at the catalogue; delete metric_definitions.csv + the legacy
-#     *_recent/*_pretournament i18n; corners_conceded -> corners_against END-TO-END on the live side;
-#     reconcile i18n onto label_i18n_key; register qualifier_games_played. MVP-safety = byte-identical
-#     metric_definitions.json at every step.
-
-# =====================================================================================
-# PR-a EXECUTION
-# =====================================================================================
+  CPO rule LOCKED 2026-06-25 + the two source-of-record rulings (escalations.log 2026-06-25):
+  player null=zero (drop player side) and "missing player stats must not affect team stats"
+  (team-feed only). Q2 = reverse #320 (AskUserQuestion 2026-06-25). The finishing_efficiency CASE
+  (int_team_season__metrics / mart_momentum__team / mart_season_record__team, #506/#569) is the
+  template. CLAUDE.md: DQ non-negotiable; live MVP must not break (a metric showing "—" is the
+  intended product behaviour — the export already renders NULL as "—" for finishing_efficiency).
 
 scope_paths:
   - .claude/task/**
   - .claude/active_work.md
-  # --- the catalogue (source of truth) ---
-  - dbt_project/seeds/metric_catalogue.csv
-  # --- the metric-layer writers (int models that OUTPUT the renamed columns) ---
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+  # --- TEAM builders (unguarded): add the missing save-coverage count to OUTPUT ---
+  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
+  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
+  # --- TEAM season model (self-contained): team-feed coverage inline, gate team-feed metrics ---
   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-  - dbt_project/models/4_intermediate/shared/int_momentum__player.sql
-  - dbt_project/models/4_intermediate/shared/int_season_record__player.sql
-  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
-  # --- the macros (single-source metric->column maps the benchmarks read) ---
-  - dbt_project/macros/player_benchmark_metrics.sql
-  - dbt_project/macros/team_benchmark_metrics.sql
-  # --- the v2 marts that select the renamed columns ---
-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
-  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
-  - dbt_project/models/5_marts/shared/mart_season_record__player.sql
-  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
-  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
-  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
-  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+  # --- TEAM marts: gate each team-feed rate (not just divide); leave player-derived untouched ---
+  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
   - dbt_project/models/5_marts/shared/mart_season_record__team.sql
-  # --- the schema/yml docs for the above models ---
-  - dbt_project/models/5_marts/shared/shared.yml
+  # --- schema docs for the touched models (document the new games_with_save_stats column;
+  #     the existing range tests already cover the gated ratios with NULL tolerance, so no test
+  #     additions are needed — verified at build 2026-06-25) ---
+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-  # --- the no-drift guard (drops the goals_saves->saves normalisation; keeps the _season strip for PR-b) ---
-  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
-  # --- the v2 export literal refs (NOT a shim — see D4) ---
-  - scripts/export_site_data.py
-  # NOTE: the exact per-file occurrence list is confirmed during build by `dbt compile` + the no-drift
-  # guard + sqlfluff + the catalogue conformance/uniqueness tests. Any file found to need a metric-layer
-  # edit but not listed here is added by a clean-tree amendment, never edited silently. docs/metric_layer.md
-  # reference-text is intentionally LEFT to PR-c (doc consolidation) unless a reviewer rules the stale ids
-  # must not ship — see D5.
+  - dbt_project/models/5_marts/shared/shared.yml
 
-# EXPLICITLY OUT OF SCOPE (do not edit in PR-a):
-#   LIVE chain (PR-d): site/**, dbt_project/seeds/metric_definitions.csv, scripts/build_match_preview_site.*,
-#     scripts/export_metric_definitions_json.py, scripts/export_pages_data.py, scripts/export_matchday_json.py,
-#     scripts/export_team_season_json.py, .github/workflows/{pages-match-preview,ci-ui}.yml, site/i18n/*.
-#   LIVE-shared team marts (corners_conceded carrier — PR-d): mart_momentum__team, int_momentum__team,
-#     mart_matchday_insights, mart_team_season_insights, int_momentum.yml, domestic_league.yml.
-#   ATOM layer (PR-b): stg_apif__fixture_players, base_apif__fixture_players, fct_fixture_player_stats,
-#     fct_fixture_team_stats, base_apif__fixture_statistics, int_legs__team_match, core.yml.
+# EXPLICITLY OUT OF SCOPE:
+#   - ALL player models (int_player_season__metrics, int_player_season_position__metrics,
+#     int_momentum__player, mart_momentum__player) and the player downstream — player null=zero is
+#     correct, proven (escalations.log 2026-06-25). NO player edits.
+#   - the player-DERIVED team metrics (key_passes/tackles/interceptions/blocks/defensive_actions/
+#     duels/duels_won_pct in the team marts + int_team_season__metrics) — player-sourced; LEFT on
+#     average-over-covered (CPO: missing player stats must not affect team stats).
+#   - metric_catalogue.csv — no metric added/redefined; only NULL behaviour. football-analytics
+#     reviewer NOT required.
+#   - assert_no_uncatalogued_season_metric.sql (no-drift guard) — UNTOUCHED. int_team_season__metrics
+#     outputs NO new columns (team-feed coverage computed inline in the CTE, consumed in the same
+#     model's final SELECT). Verified by build.
+#   - downstream team consumers (mart_team_profile, mart_team_season, int_competition_benchmarks__team,
+#     mart_competition_benchmarks__team, mart_matchday_insights, mart_team_season_insights) — INHERIT
+#     the NULLs (pure passthrough / no re-derivation, verified). No edits.
+#   - atom / staging / base / core — unchanged.
 
 impact_map: >
-  writers (models that OUTPUT a renamed metric column):
-    - int_player_season__metrics: shots_on_target -> shots_on_goal; goals_saves -> saves;
-      goals_conceded -> goals_against; shots_on_target_per90 -> shots_on_goal_per90.
-    - int_player_season_position__metrics: same player renames (shots_on_target, goals_saves, +per90).
-    - int_team_season__metrics: shots_on_target_per_match_season -> shots_on_goal_per_match_season
-      (v2-benchmark column; NOT live — see boundary). corners_conceded_per_match_season LEFT (PR-d).
-  downstream (dbt MCP `list int_player_season__metrics+ int_team_season__metrics+
-    int_player_season_position__metrics+`, models only — PASTED evidence; re-confirmed by grep this session):
-      int_competition_benchmarks__player, int_competition_benchmarks__team, int_player_career__metrics,
-      mart_competition_benchmarks__player, mart_competition_benchmarks__team, mart_leaderboards,
-      mart_player_career, mart_player_profile, mart_team_profile, mart_team_season, mart_team_season_insights.
-    Of these: int_player_career__metrics selects only appearances/goals/assists (NOT a renamed column) — no edit.
-    mart_team_season + mart_team_season_insights carry corners_conceded/atoms only (PR-d/atom) — NOT edited.
-    The rest select renamed player/v2 columns -> edited (listed in scope_paths).
-    Grep confirms goals_saves/goals_conceded also flow through int_momentum__player, int_season_record__player,
-    int_legs__player_match and their player marts; those models alias their OWN output and only the SEASON
-    models are catalogue-guarded, so the atom name (goals_saves/goals_conceded) survives there until PR-b
-    (a deliberate, compile-clean split-brain — each model is internally consistent).
-  LIVE BOUNDARY (the load-bearing finding):
-    - The live MVP = match-preview (mart_matchday_insights) + team-season (mart_team_season_insights),
-      registered by metric_definitions.csv, which carries TEAM metrics ONLY (no shots_on_target, no player
-      metrics). Evidence: metric_definitions.csv rows + mart selects.
-    - Of all locked renames, ONLY corners_conceded is live-shared (mart_momentum__team -> mart_matchday_insights
-      live alias *_corners_conceded_per_match_recent; int_team_season__metrics -> mart_team_season_insights
-      passthrough corners_conceded_per_match_season -> site/team-season). Landing it in PR-d (with the rest of
-      the live merge) = zero live-chain edits in PR-a.
-    - The player renames (shots_on_target/goals_saves/goals_conceded) and the team v2 shots_on_target_per_match
-      reach ONLY v2/benchmark/leaderboard surfaces (export_site_data.py, gitignored v2 output), never the live MVP.
-    - export_site_data.py is the v2 export (docstring: "does not touch ... the live Pages deploy; Output is a
-      build artifact, gitignored"). So its two literal refs (shots_on_target at lines ~47/~52) are updated, no
-      shim (D4). The live MVP is protected by leaving metric_definitions.csv + its chain untouched.
-  layer_rules: check_layer_contract (no new per-competition staging dir — N/A); check_registry_var_sync
-    (N/A, no registry change); the no-drift test assert_no_uncatalogued_season_metric (UPDATED: player season
-    model now outputs `saves`, so its goals_saves->saves normalisation is removed; the _season strip stays for
-    PR-b; a `team and player` catalogue row now satisfies both entity checks). Atoms unchanged, so
-    staging/base/core layer rules untouched.
-  deploy_order: single dbt build rebuilds the renamed models + their v2 downstream together (one run); no
-    cross-deploy window. The live chain is untouched, so the 04:00 nightly's live export is unaffected.
-    export_site_data.py output is gitignored / not committed (#391 paused), so no committed-artifact churn.
-  blast_radius: NUMBERS = NONE. Every change is a column-alias / metric_id-string / metric_key-value rename
-    (+ the CSV-corruption repair, which RESTORES two rows the WIP accidentally hid — no value change); no
-    formula, denominator, or filter changes. The atoms feeding each renamed column are identical. Verified by:
-    the renames are 1:1 string substitutions at the metric layer; dbt compile + the no-drift guard confirm
-    every renamed column still resolves to the same catalogue id and the same upstream atom; the live byte
-    check is moot (no live-chain file touched).
+  WRITERS (edited — each team-feed metric gated against its own team-feed coverage; scoreline +
+  player-derived never gated by this task):
+    - int_momentum__team (builder, last_5/tournament window): ADD games_with_save_stats =
+      countif(goalkeeper_saves is not null) to OUTPUT (the only team-feed coverage count missing;
+      games_with_team_stats / games_with_sot_stats / games_with_opp_stats already present). No gating
+      here (builder emits raw sums + counts).
+    - int_season_record__team (builder, cumulative): ADD cumulative games_with_save_stats =
+      sum(case when goalkeeper_saves is not null then 1 else 0 end) over w.
+    - int_team_season__metrics (full-season, self-contained): compute team-stat / opp / save coverage
+      counts INLINE in aggregated_season (sot coverage already there as stat_coverage_season_games),
+      then GATE the team-feed outputs — the per-match rates (shots_per_match_season,
+      passes_per_match_season, corner_kicks_per_match_season, corners_conceded_per_match_season,
+      shots_on_goal_per_match_season), the ratios (shot_share_season, danger_zone_ratio_season,
+      shot_accuracy_season, pass_accuracy_season, save_ratio_season), AND the team-feed stat-count
+      totals shown on the live team-season site (total_shots_sum_season, opponent_total_shots_sum_season,
+      shots_inside_box_sum_season, shots_on_goal_sum_season, corner_kicks_sum_season,
+      opponent_corner_kicks_sum_season, passes_accurate_sum_season, passes_total_sum_season,
+      goalkeeper_saves_sum_season). finishing_efficiency_season already gated. The player-derived
+      per-match rates (key_passes/duels/defensive_actions/tackles/interceptions/blocks_per_match_season,
+      duels_won_pct_season) are LEFT unchanged. Scoreline rates (points_capture, goals_per_match,
+      goals_against_per_match, clean_sheets) unchanged.
+    - mart_momentum__team + mart_season_record__team: GATE each team-feed rate — NULL when its
+      coverage count < the window total (games_in_window / games_played): shots_per_match,
+      shot_accuracy, danger_zone_ratio, shots_on_*_per_match, passes_per_match, pass_accuracy,
+      corner_kicks_per_match, corners_conceded_per_match, save_ratio (on the new games_with_save_stats).
+      finishing already gated. key_passes/tackles/interceptions/blocks/defensive_actions/
+      duels_per_match + duels_won_pct LEFT unchanged (player-derived). goals_per_match /
+      goals_against_per_match / clean_sheets / points_won / W-D-L = scoreline → unchanged.
+  DOWNSTREAM (dbt ls --select int_team_season__metrics+ mart_momentum__team+ mart_season_record__team+
+    --resource-type model, PASTED 2026-06-25): int_competition_benchmarks__team,
+    mart_competition_benchmarks__team, mart_matchday_insights, mart_team_profile, mart_team_season,
+    mart_team_season_insights. ALL inherit — verified no re-derivation: mart_matchday_insights /
+    mart_team_season_insights SELECT the rate/count columns straight through; the benchmark uses
+    `where metric_value is not null`. NO downstream edit.
+  LAYER_RULES: check_layer_contract (no new staging dir — N/A); check_registry_var_sync (N/A); base
+    models stay views; assert_no_uncatalogued_season_metric UNTOUCHED (no new output columns on the
+    season model). No atom/staging/base/core change.
+  DEPLOY_ORDER: one dbt build rebuilds the writers + their downstream (incl. the two live marts) in a
+    single run — no cross-deploy window. Runs in ci-data-build on the shared BQ; do NOT local-build.
+  BLAST_RADIUS (measured from the live warehouse, 2026-06-25): the change flips PARTIALLY-covered
+    windows from a shown value to "—"; fully-covered and already-zero-coverage windows are unchanged.
+    LIVE season page (mart_team_season_insights, 2400 latest-season teams): ~12% (296) flip their
+    team-feed shot/passes/corners rates + totals to "—" (47.5% already "—" today = no feed; 40% fully
+    covered = unchanged). LIVE match preview (mart_matchday_insights last-5 form): ~17% of windows
+    flip. All flips are genuine team-feed gaps — player data is quarantined. Scoreline + player-derived
+    metrics unchanged. Before/after deltas captured on both live marts per done_when.
 
 decisions_taken: >
-  The 2026-06-24 CPO target block (points 0-6) is approved. The 2026-06-25 CPO correction
-  (.claude/active_work.md) fixed the scope: the merge is NOT deferred / NOT #391-gated — the full
-  consolidation runs now, sequenced into reviewed MVP-safe PRs. Pre-approved for PR-a: the player +
-  v2-benchmark metric-id/column renames (shots_on_target -> shots_on_goal, goals_saves -> saves at the
-  metric-layer boundary, shots_on_target_per90/_per_match variants, shots_on_target_faced ->
-  shots_on_goal_against); entity-value normalisation to {team, player, team and player}; the CPO-locked
-  de-dup of the two dual rows; updating the v2 consumers + the no-drift guard. These are mechanical
-  applications of the lock. Repairing the prior WIP's CSV corruption (re-splitting the two merged rows so
-  dribbles_success and goals_against are their own rows again) is a defect fix inside this scope.
+  Q2 = REVERSE #320 for TEAM-FEED rates (AskUserQuestion 2026-06-25): NULL on partial team-feed
+  coverage instead of averaging over the covered subset; a deliberate, recorded reversal. Q1 =
+  include counts (so the team-feed stat-count totals gate too). Player side DROPPED — player null=zero
+  proven correct (escalations.log 2026-06-25), no player edits. Player-DERIVED team metrics LEFT on
+  average-over-covered — CPO: "missing player stats must not affect the team stats" — so the player-
+  data gap is quarantined to those player-sourced metrics and never blanks a team-feed stat. DESIGN:
+  each team-feed metric gates against its own coverage bucket (team-stat / sot / opp / save), modelled
+  on the finishing CASE; coverage computed inline in the season model (no new output columns → no-drift
+  guard untouched), output by the momentum/record builders (unguarded) for their marts to consume. No
+  metric created/redefined → catalogue untouched, football-analytics review not required.
 
 decisions_reserved:
-  - D1 (corners_conceded -> corners_against — sequenced to PR-d, decided-with-rationale; CPO may pull forward):
-    corners_conceded is the ONLY locked rename shared with the LIVE site. Renaming it requires editing the
-    live-boundary marts (mart_matchday_insights, mart_team_season_insights) + the live i18n. Those edits are
-    exactly the live merge, so corners_conceded rides PR-d (the merge), keeping the live-chain churn in ONE
-    reviewed PR rather than splitting it. This is sequencing, NOT the old "leave the live website alone /
-    combine later" gating. Net: the catalogue keeps id `corners_conceded_per_match` for the PR-a/b/c window
-    (deliberate, recorded). Flag if the CPO wants it pulled into PR-a.
-  - D2 (de-dup — DECIDED by the CPO lock 2026-06-24, NOT re-opened): merging duels_won_pct and
-    finishing_efficiency to one "team and player" row each is the CPO lock (active_work.md / prompt step 4:
-    "de-dup the two dual rows to one team and player row each"). The WIP implements it: the player-specific
-    rows are removed, the team rows become `team and player`, finishing_efficiency numerator goals_for ->
-    goals (generic term reading correctly for both entities; the catalogue numerator is documentation, the
-    formula lives in the models). RESIDUAL (recorded, not escalated — the lock says do not re-open): a single
-    merged row carries ONE label_i18n_key; the WIP keeps the team key (metrics.finishing_efficiency.label /
-    metrics.duels_won_pct.label) and drops the player key (playerMetrics.*). These are v2 i18n pointers on the
-    PAUSED surface; the whole key scheme is reconciled in PR-d, so no live or test impact now. The no-drift
-    guard's new `team and player` clause makes both the team and the player model columns map to the merged row.
-  - D3 (goals_conceded -> goals_against, player — CONFIRMED in PR-a): the lock says "_against for every
-    conceded stat: goals_against". The player metric_id/column goals_conceded is renamed to goals_against at
-    the int-model OUTPUT + the catalogue id now. The core ATOM goals_conceded (staging/base/core/fct + the
-    momentum/season-record/legs int models) stays until PR-b. WIP applied the int-model output rename.
-  - D4 (no export shim — premise confirmed from source): export_site_data.py is the v2 export (docstring:
-    "does not touch ... the live Pages deploy; Output is a build artifact, gitignored"; #391 paused), NOT the
-    live boundary. So no "translate new->old" shim; PR-a just updates its two literal metric refs
-    (_LEADERBOARD_METRICS / _LB_KEEP: shots_on_target -> shots_on_goal). The live MVP is protected by leaving
-    metric_definitions.csv + its chain untouched. This keeps "no translation layer" intact.
-  - D5 (docs/metric_layer.md text — PR-c vs now): the explainer references some renamed ids. Default: leave
-    to PR-c (doc consolidation). If a reviewer rules stale ids must not ship, fold the reference-only updates
-    into PR-a via a clean-tree amendment.
+  - D1 (DQ assertion in done_when): the invariant is enforced by construction (the CASE gate); a test
+    that re-derives coverage to assert NULL would be CIRCULAR (cf. the 2026-06-17 near-circular test
+    FAIL). Satisfy DQ via non-circular range tests (ratios in [0,1], rates/counts >= 0) on the gated
+    team-feed metrics; do not add a circular assertion unilaterally. Flag if a stronger guard is wanted.
+  - D2 (partial-coverage policy — A/B/C): the CPO chose A (strict NULL / reverse #320) for team-feed
+    rates; the measured live impact is ~12% season / ~17% form flips (recorded blast_radius). B (keep
+    average-over-covered + caption) and C (coverage threshold) were presented and not chosen. Recorded
+    so the decision is locatable; not re-opened.
 
 done_when:
-  - The CSV corruption is repaired: dribbles_success (player) and goals_against (player) are each their own
-    row again; every catalogue row has the correct column count; the seed parses.
-  - metric_catalogue.csv restructured (entity values normalised to {team, player, team and player}; renames
-    applied; de-dup per D2) and every renamed model column / metric_key value aligned to the new ids across
-    the in-scope files (the v2 marts + yml docs + benchmark macros + export refs).
-  - `.venv/Scripts/dbt parse` and `dbt compile` clean; sqlfluff clean on the touched SQL; the no-drift guard
-    (assert_no_uncatalogued_season_metric) passes — every metric column in the two season models maps to a
-    catalogue (entity, metric_id); the catalogue uniqueness test and any benchmark/leaderboard catalogue-
-    conformance test pass (confirm the deleted player rows do not break a metric_key conformance check; if one
-    needs the `team and player` clause, that is a defect fix in scope).
-  - `git diff --stat` shows ZERO changes under the OUT-OF-SCOPE live chain and atom layer (proof the live MVP
-    is untouched), and the byte-identical metric_definitions.json holds trivially (metric_definitions.csv +
-    its build untouched).
-  - The G3 review cycle passes (Scope-Auditor + analytics-engineer + football-analytics for the catalogue rows);
-    PR opened; CPO merges.
+  - Every TEAM-FEED stat metric (momentum, season-record, full-season) is NULL when its team-feed input
+    is not present in all window games; player-derived team metrics + individual player metrics + scoreline
+    metrics unchanged. int_momentum__team / int_season_record__team carry games_with_save_stats; the team
+    marts + season model GATE the team-feed metrics (not just divide).
+  - `.venv/Scripts/dbt parse` + `dbt compile` clean (--project-dir dbt_project --profiles-dir "$HOME/.dbt");
+    `.venv/Scripts/sqlfluff lint` clean on the touched SQL; the no-drift guard + existing range/non-negative
+    tests pass; any added range tests pass. NO local full BQ build (shared warehouse → ci-data-build).
+  - Before/after deltas recorded on mart_matchday_insights + mart_team_season_insights (old vs new),
+    proving the team-feed stats that flip are exactly the partial-coverage ones and scoreline +
+    player-derived metrics are unchanged.
+  - G3 review (Scope-Auditor + analytics-engineer-reviewer; football-analytics NOT required); PR opened;
+    CPO merges (never self-merge).
 
-amendments: (none)
+amendments:
+  - 2026-06-25: + dbt_project/models/4_intermediate/shared/int_season_record.yml — authority: the
+    contract's CPO-approved scope category "schema docs for the touched models" (scope_paths above).
+    int_season_record.yml is the schema doc for the touched builder int_season_record__team, omitted
+    from the explicit scope list by oversight; surfaced by the scope-auditor's blinded FAIL. content:
+    document the new games_with_save_stats output column alongside the sibling coverage columns
+    (mirrors the int_momentum.yml edit). No new logic, no metric change.

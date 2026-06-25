@@ -51,6 +51,9 @@ team_agg as (
         -- its own coverage count (same-window rule)
         countif(shots_on_goal is not null) as games_with_sot_stats,
         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
+        -- save coverage: save_ratio is a team-feed (goalkeeper) metric, so it needs its own
+        -- coverage count to NULL on partial coverage (universal incomplete-data rule)
+        countif(goalkeeper_saves is not null) as games_with_save_stats,
         array_agg(distinct leg_league_code order by leg_league_code)
             as contributing_competitions,
         sum(case result when 'W' then 3 when 'D' then 1 else 0 end)
@@ -117,6 +120,7 @@ select
     ta.games_with_team_stats,
     ta.games_with_sot_stats,
     ta.games_with_opp_stats,
+    ta.games_with_save_stats,
     ta.contributing_competitions,
     ta.points_won,
     ta.goals_for,

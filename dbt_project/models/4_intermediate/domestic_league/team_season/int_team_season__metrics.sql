@@ -9,8 +9,13 @@
   player_stat_coverage_season_games, the same-window rule).
   Grain: (league_code, season_api_year, team_sk). mart_team_season_insights keeps latest season per league.
 
-  Note: the original per-match rates divide by season_games_played (pre-coverage-rule
-  convention, consumed by the live MVP) — left unchanged deliberately; see GAP-17.
+  Incomplete-data → NULL (CPO 2026-06-25; reverse #320): each TEAM-FEED stat-count total is gated in
+  season_gated to NULL ('—') unless the season is fully covered for that stat's bucket (team-stat /
+  SoT / opp / save). The per-match rates / ratios divide by season_games_played and inherit that NULL
+  by propagation, so a partially-covered season shows '—' for the affected team-feed metric rather
+  than a partial-window value. Player-derived metrics (key_passes/tackles/duels) are LEFT on
+  average-over-player-covered — player data is quarantined (missing player stats must not blank a
+  team stat, CPO); scoreline metrics are always covered. Supersedes the GAP-17 "left unchanged" note.
 #}
 
 with legs as (
@@ -51,6 +56,14 @@ aggregated_season as (
             as stat_coverage_season_games,
         count(distinct case when has_player_stats then fixture_sk end)
             as player_stat_coverage_season_games,
+        -- team-feed coverage buckets (for the incomplete-data → NULL gate in season_gated below;
+        -- each team-feed metric NULLs unless its own stat is present in every season game).
+        count(distinct case when shots_total is not null then fixture_sk end)
+            as team_stat_coverage_season_games,
+        count(distinct case when opponent_corner_kicks is not null then fixture_sk end)
+            as opp_stat_coverage_season_games,
+        count(distinct case when goalkeeper_saves is not null then fixture_sk end)
+            as save_stat_coverage_season_games,
         sum(
             case upper(trim(result))
                 when 'W' then 3
@@ -86,6 +99,73 @@ aggregated_season as (
         countif(goals_against = 0) as clean_sheets_count_season
     from joined
     group by league_code, season_api_year, team_sk
+),
+
+-- incomplete-data → NULL gate (CPO 2026-06-25; reverse #320): each TEAM-FEED stat-count total is
+-- NULL ('—') unless the season is fully covered for that stat's bucket. Every team-feed per-match
+-- rate / ratio in the final select inherits the NULL by propagation (safe_divide of a null sum is
+-- null), so the gate lives in one place. Player-derived sums (key_passes/tackles/duels) + scoreline
+-- sums are NOT gated — player data is quarantined (missing player stats must not blank a team stat,
+-- CPO), and scoreline is always covered for finished matches.
+season_gated as (
+    select
+        * except (
+            total_shots_sum_season,
+            opponent_total_shots_sum_season,
+            shots_inside_box_sum_season,
+            shots_on_goal_sum_season,
+            corner_kicks_sum_season,
+            opponent_corner_kicks_sum_season,
+            passes_accurate_sum_season,
+            passes_total_sum_season,
+            goalkeeper_saves_sum_season
+        ),
+        case
+            when team_stat_coverage_season_games < season_games_played
+                then null
+            else total_shots_sum_season
+        end as total_shots_sum_season,
+        case
+            when opp_stat_coverage_season_games < season_games_played
+                then null
+            else opponent_total_shots_sum_season
+        end as opponent_total_shots_sum_season,
+        case
+            when team_stat_coverage_season_games < season_games_played
+                then null
+            else shots_inside_box_sum_season
+        end as shots_inside_box_sum_season,
+        case
+            when stat_coverage_season_games < season_games_played
+                then null
+            else shots_on_goal_sum_season
+        end as shots_on_goal_sum_season,
+        case
+            when team_stat_coverage_season_games < season_games_played
+                then null
+            else corner_kicks_sum_season
+        end as corner_kicks_sum_season,
+        case
+            when opp_stat_coverage_season_games < season_games_played
+                then null
+            else opponent_corner_kicks_sum_season
+        end as opponent_corner_kicks_sum_season,
+        case
+            when team_stat_coverage_season_games < season_games_played
+                then null
+            else passes_accurate_sum_season
+        end as passes_accurate_sum_season,
+        case
+            when team_stat_coverage_season_games < season_games_played
+                then null
+            else passes_total_sum_season
+        end as passes_total_sum_season,
+        case
+            when save_stat_coverage_season_games < season_games_played
+                then null
+            else goalkeeper_saves_sum_season
+        end as goalkeeper_saves_sum_season
+    from aggregated_season
 )
 
 select
@@ -174,4 +254,4 @@ select
     safe_divide(interceptions_sum_season, player_stat_coverage_season_games)
         as interceptions_per_match_season,
     safe_divide(blocks_sum_season, player_stat_coverage_season_games) as blocks_per_match_season
-from aggregated_season
+from season_gated

@@ -94,6 +94,10 @@ select
         as games_with_sot_stats,
     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
         as games_with_opp_stats,
+    -- save coverage (cumulative): save_ratio is a team-feed (goalkeeper) metric, so it needs its
+    -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
+    sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
+        as games_with_save_stats,
     -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
     -- − goals_own (computed in the mart). Full cumulative sums — finishing is NULL unless the
     -- window is fully shot-covered, so no coverage-restricted goals sum is needed.
