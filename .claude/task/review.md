@@ -1,36 +1,84 @@
-# Review — refactor/500-metric-layer-naming — 2026-06-24 (PR-a)
+# Review — refactor/500-metric-layer-naming — 2026-06-25 (PR-a, rebased on main)
 
 > G3 review artifact. PR-a of the non-gated #500 metric-layer consolidation:
 > catalogue restructure + metric-layer renames + v2 consumers + CSV-corruption repair.
-> Four reviewers required by review_routing.json for the staged paths (scope-auditor
-> always; dbt_project/** + scripts/export_*.py + metric_catalogue.csv route the rest).
-> No guard path touched, so cto stays on its pinned model.
+> REBASED onto main after #569 (finishing_efficiency = open-play conversion) merged; the
+> rebase had conflicts, resolved so the branch carries BOTH #567's renames/de-dup AND
+> #569's open-play finishing. Re-reviewed cold on the rebased diff. scope-auditor +
+> analytics-engineer re-run on the merged diff (both PASS). cto-reviewer PASS carried from
+> the pre-rebase review — its surfaces (scripts/export_site_data.py + the no-drift guard
+> test) are byte-identical to its reviewed versions (the rebase did not conflict on them
+> and #569 did not touch them). football-analytics ESCALATEd one wording point; CPO ruled.
 
-diff_sha256: d288b2296fb704ae331604b82dda464a289e12db61cf9df9cd62a42f014c77b9
+diff_sha256: addfa2af20740792c6c2f7002279bd2d1b1f559f7714ed7187162c52b0ed6839
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope drift: every edited file is within `scope_paths`; all out-of-scope live-chain and atom-layer files are untouched; contract.md change carries recorded CPO authority (active_work.md 2026-06-24 lock + 2026-06-25 non-gated correction). No edit exceeds the lock.
-- De-dup entity-join correctness + column-rename traceability: catalogue carries exactly one `finishing_efficiency` and one `duels_won_pct` row (entity `team and player`); the no-drift guard's OR clause resolves each model entity to exactly one row; the 8 renamed columns are consistently updated through int → benchmark macro → mart → export with no stale references and no formula change (Appendix A1–A6 all clear).
+- Scope: every changed file is within PR-a's scope_paths; the merge introduces no new CPO-only
+  decision beyond the two already-locked sets (#567's #500 renames + entity de-dup; #569's
+  open-play finishing, already merged). The new component metrics stay as separate team+player
+  rows (no unauthorised de-dup); the merged finishing row is a single "team and player" row
+  carrying #569's goals_open_play numerator — both locked changes, no third decision.
+- Drift / Appendix A: no metric invented without a catalogue row; no coverage-cut framed as a
+  fix; PR-a itself remains rename-only (the finishing NUMBER change belongs to the already-merged
+  #569). blast_radius honest.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- `mart_momentum__team` (line 54) still emits `shots_on_target_per_match` but reads from `int_momentum__team` (the atom chain), NOT the renamed `int_team_season__metrics`; it is an out-of-scope live-boundary mart whose rename is deferred to PR-d (D1). Not a broken consumer; no BQ break in the PR-a graph.
-- No-drift guard: removing the `goals_saves→saves` normalisation is safe because `int_player_season__metrics` now outputs the literal column `saves`; the `team and player` OR clause covers `finishing_efficiency`/`duels_won_pct` for both passes; CSV repair restores `dribbles_success` and `goals_against` as their own 13-column rows; `save_pct` and `finishing_efficiency` formulas use the same atoms (numbers unchanged — only aliases renamed).
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- `finishing_efficiency` de-dup (numerator `goals_for→goals`, entity → `team and player`): goals/shots-on-target is mathematically identical for team and player; the >100% caveat (penalties/own goals) and the null-when-zero case are retained in the surviving description; no football-meaningful distinction lost. CPO-locked (D2).
-- `goals_against` (player, repair): `lower_is_better=true` is football-correct for a conceded stat; description honest ("GK-relevant"); atom unchanged. `shots_on_goal_against` derived as saves+conceded is the exhaustive partition of SoT faced (`lower_is_better=false` correct for a volume denominator). Stale `label_i18n_key` flagged as the recorded D5 deferral, not a silent error.
+- Rename + finishing coexistence: both player models carry #567's renames (shots_on_goal, saves,
+  goals_against, *_per90) AND #569's finishing (events join → goals_penalty, goals_open_play, the
+  open-play CASE), and the CASE references the RENAMED denominator shots_on_goal — no dangling
+  reference to a renamed-away column (shots_on_target / goals_saves / goals_conceded) anywhere.
+  int_season_record__team's legs CTE projects tl.goals_penalty/tl.goals_own (the #569 build fix
+  survived the rebase).
+- No-drift guard vs catalogue: the guard's `c.entity = m.entity OR c.entity = 'team and player'`
+  clause maps the team model (finishing_efficiency_season → finishing_efficiency; goals_*_season)
+  and the player model (finishing_efficiency, saves, goals_against, shots_on_goal, goals_penalty,
+  goals_open_play) each to a catalogue (entity, metric_id) row — incl. the merged "team and player"
+  finishing row and the separate team/player component rows. Guard passes; uniqueness holds; renamed
+  ids consistent across catalogue + models + macros + benchmark accepted_values.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- `export_site_data.py` is the v2 export, NOT the live Pages deploy: docstring (lines 1–9) states it is gitignored/isolated, and it is absent from `.github/workflows/pages-match-preview.yml` `paths:` (which lists every live-chain script). So the renamed literal refs cannot break the live MVP (premise D4 holds).
-- The two renamed refs (`shots_on_target→shots_on_goal` in `_LEADERBOARD_METRICS`/`_LB_KEEP`) match what `mart_leaderboards` now emits at all three levels (count_boards key, intermediate select, final select); grep finds no other stale metric-id literal; player-profile/match-log paths use `select *` so other renamed columns forward transparently; no workflow file touched.
+- (Carried from the pre-rebase #567 review — these two surfaces are byte-identical to the reviewed
+  versions; the rebase did not conflict on them and #569 did not touch them.)
+- export_site_data.py is the gitignored v2 export, absent from the live pages workflow `paths:`, so
+  its renamed literal refs (shots_on_target→shots_on_goal) cannot break the live MVP (D4 holds).
+- The no-drift guard test change (drop the goals_saves→saves normalisation; keep the _season strip;
+  add the `team and player` clause) is internally consistent with the player model now outputting
+  `saves` and the de-duped catalogue rows.
+
+## football-analytics-expert-reviewer
+VERDICT: ESCALATE
+risks_checked:
+- Numerator/denominator penalty-consistency: shots_on_goal excludes penalty kicks (provider
+  convention, confirmed by the diagnostic); the merged finishing numerator goals_open_play also
+  excludes penalties (and own goals for teams) — both sides penalty-free, [0,1] guarded by the
+  model CASE. Football-correct open-play conversion.
+- goals_own team-only correctness: own goals credited to the benefiting team's scoreline; a
+  player's goals_total already excludes own goals — so the player rows carry goals_penalty +
+  goals_open_play but no goals_own. Descriptions accurate; "uncapped"/">100%" wording removed.
+- ESCALATED: the merged "team and player" finishing row uses one description whose null clause is
+  team-centric ("Null when the window is not fully shot-covered"); for players the current code
+  nulls more simply (no shots on goal). Asked whether the merged description is accurate enough for
+  both entities or needs a player-specific null clause.
+  CPO ANSWER (this conversation, 2026-06-25): the rule is UNIVERSAL — every metric, team and
+  player, is NULL when the data to calculate it is not 100% available. The description "Null when
+  the window is not fully shot-covered …" therefore states the CORRECT intended rule for BOTH
+  entities; no reword needed. What is wrong is the player IMPLEMENTATION (it coalesces missing shot
+  data to 0 and computes anyway, instead of nulling on incomplete coverage). Bringing every metric
+  — team and player — into compliance with the universal incomplete-data→NULL rule is a separate
+  CPO-directed task, NOT part of this rename-only PR (which inherits #569's behaviour unchanged).
 
 ## escalations
-(none)
+- question: The merged "team and player" finishing_efficiency catalogue row carries one description
+  whose null clause is team-centric ("Null when the window is not fully shot-covered"); the player
+  finishing currently nulls only when there are no shots on goal. Is the merged description accurate
+  enough for both entities, or must it carry a player-specific null clause?
+  CPO ANSWER: The incomplete-data→NULL rule is universal across every metric, team and player, so
+  the description states the correct intended rule for both — no reword. The player implementation's
+  coalesce-missing-to-0 is the actual defect; fixing every metric to NULL on incomplete coverage is
+  a separate CPO-directed task, tracked outside this rename-only PR.

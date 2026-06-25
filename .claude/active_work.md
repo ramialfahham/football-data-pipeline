@@ -4,8 +4,24 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-24 (**#500 PR-a OPEN as PR #567 — catalogue restructure + metric-layer renames; PR-b/c/d remain**).
-main GREEN. **PR #567 (PR-a) OPEN, awaiting CPO merge — do NOT self-merge.** **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
+_Last updated: 2026-06-25 (**#569 finishing-open-play MERGED; #500 PR-a = PR #567 REBASED on the new main + re-reviewed + force-pushed; PR-b/c/d remain**).
+main GREEN (carries #569). **PR #567 (PR-a) OPEN, awaiting CPO merge — do NOT self-merge.** **Website #391 PAUSED. The live MVP must NOT break — standing CPO rule.**
+
+## 🔴 NEXT CPO-DIRECTED TASK (locked this session) — universal "incomplete data → NULL" for EVERY metric
+CPO rule, stated firmly (2026-06-25): **every metric, team AND player, is NULL when the data to calculate it is
+not 100% available.** A metric computed from a partially-covered window is NOT allowed — it must be "—" (NULL).
+Today this is HONOURED only by team finishing_efficiency (#569). The violations to fix (own task — changes shipped
+numbers broadly → before/after deltas + review; NOT folded into #567):
+- **Player ratios + counts** coalesce missing per-game stats to 0 and compute anyway — e.g.
+  `int_player_season__metrics` / `int_player_season_position__metrics`: `sum(coalesce(shots_on, 0))`,
+  `sum(coalesce(passes_total,0))` etc. → finishing/pass_accuracy_pct/duels_won_pct/dribbles_success_pct/save_pct
+  and the count + per-90 metrics all compute from incomplete data instead of NULL.
+- **Team per-match rates** (`mart_momentum__team`, `mart_season_record__team`, `int_team_season__metrics`:
+  shots_per_match, passes_per_match, corners, defensive actions, …) divide by a coverage COUNT and average over
+  only the covered games (the older #320 "same-window" design) — they do NOT NULL on partial coverage.
+Target: replace coalesce-to-0 and average-over-covered-games with a per-metric coverage gate that NULLs whenever
+any game in the window is missing that metric's input (the team finishing_efficiency CASE is the reference pattern).
+Big blast radius (most rates, team + player, every window) → its own design + before/after deltas + G3 review.
 
 ### ⚠️ 2026-06-25 CORRECTION — read this; it OVERRIDES any "later / #391-gated / combine later" framing in `contract.md`
 The metric-layer merge is **NOT deferred and NOT gated on #391.** Do the FULL consolidation now. `contract.md`
@@ -29,11 +45,17 @@ Goal: **ONE metric layer (the catalogue), end-to-end, zero ambiguity** — the m
 #391-gated. MVP-safety = byte-identical `site/match-preview/metric_definitions.json` at every step, not deferral.
 The PR sequence is locked in `contract.md`'s reference block; each PR gets its own contract.
 
-- **PR-a — OPEN as PR #567** (this session): catalogue restructure (entity values + CPO-locked de-dup) +
-  metric-layer renames (`shots_on_goal`/`saves`/`goals_against` + per90/_per_match variants) across the catalogue,
-  int metric models, benchmark macros, v2 marts + yml, the no-drift guard, tests, the v2 export refs. Also fixed a
-  CSV-corruption bug the prior WIP left (two merged rows). ZERO live-chain/atom edits → live MVP byte-identical.
-  Validated (dbt parse/compile + sqlfluff models + no-drift guard static PASS + 4× reviewer PASS). **Awaiting CPO merge.**
+- **PR-a — OPEN as PR #567, REBASED on the new main (2026-06-25)**: catalogue restructure (entity values +
+  CPO-locked de-dup) + metric-layer renames (`shots_on_goal`/`saves`/`goals_against` + per90/_per_match variants)
+  across the catalogue, int metric models, benchmark macros, v2 marts + yml, the no-drift guard, tests, the v2
+  export refs. Also fixed a CSV-corruption bug the prior WIP left (two merged rows). ZERO live-chain/atom edits.
+  **#569 (finishing open-play) merged first**, so #567 was rebased on top — conflicts in the catalogue + the player
+  finishing models + shared.yml resolved so the branch carries BOTH #567's renames/de-dup AND #569's open-play
+  finishing (merged finishing_efficiency = one `team and player` row, numerator goals_open_play; my 5 new component
+  rows kept as separate team+player rows). Re-reviewed on the rebased diff: scope-auditor + analytics-engineer PASS,
+  cto PASS (carried — its files byte-identical to the pre-rebase review), football-analytics ESCALATE→CPO-answered
+  (the universal NULL rule above; description states the correct rule, no reword). review.md rebound to the rebased
+  diff (diff_sha256 addfa2af…). Validated (dbt parse/compile + sqlfluff models). Force-pushed. **Awaiting CPO merge.**
 - **PR-b — NEXT (after PR-a merges, off updated main):** model FILE renames → `int_<entity>_<window>__metrics` +
   team-season consolidation + the deep atom renames (staging/base/core `goals_saves→saves`, `goals_conceded→goals_against`,
   team `shots_on_target→shots_on_goal`) + drop the no-drift guard's `_season` strip.
