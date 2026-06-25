@@ -67,7 +67,7 @@ models:
   - name: mart_matchday_insights
     description: >
       Wide fixture-preview mart for pre-match comparison. Grain: one row per upcoming fixture
-      (next round per league_code). Form metrics sourced from mart_momentum__team (same-layer
+      (next round per league_code). Form metrics sourced from mart_team_momentum (same-layer
       ref — deliberate presentation pivot; see layering.md). Cross-competition and cross-type:
       covers all active competitions without per-league hardcoding. Slice by league_code at
       export or in the app.
@@ -86,7 +86,7 @@ models:
       - dbt_utils.expression_is_true:
           expression: "length(trim(away_team_name)) > 0"
       # Ratio bounds [0,1]. Formula/coverage consistency is guarded upstream in
-      # mart_momentum__team; this mart only renames those columns, so range checks
+      # mart_team_momentum; this mart only renames those columns, so range checks
       # are the consumer-contract guard here.
       - dbt_utils.expression_is_true:
           expression: "home_shot_accuracy_recent is null or (home_shot_accuracy_recent between 0 and 1)"

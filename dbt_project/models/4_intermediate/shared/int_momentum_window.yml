@@ -8,7 +8,7 @@ models:
       fixture, cross-competition within the same entity_type, season-capped for clubs and
       recency-only for national teams. Tournament fixtures (GAP-18, matrix §4) instead use a
       cumulative window — tournament_to_date (this tournament so far) or qualifiers (its
-      opener) — uncapped. Extracted from int_momentum__team (#323) so the momentum aggregate
+      opener) — uncapped. Extracted from int_team_momentum__metrics (#323) so the momentum aggregate
       and the drill-down list mart consume the same selection.
       Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
     tests:

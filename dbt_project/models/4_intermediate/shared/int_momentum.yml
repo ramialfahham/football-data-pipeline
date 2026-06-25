@@ -1,12 +1,12 @@
 version: 2
 
 models:
-  - name: int_momentum__team
+  - name: int_team_momentum__metrics
     description: >
       W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
       totals over the window legs selected by int_momentum_window__team (the selection was
       extracted there in #323 so this aggregate and the drill-down list mart consume the
-      same matches). No ratios — those are computed in mart_momentum__team.
+      same matches). No ratios — those are computed in mart_team_momentum.
       Player-derived columns (key_passes, tackles, …) are NULL when player stats are
       unavailable for the window. Grain: (upcoming_fixture_sk, team_sk).
     tests:
@@ -59,7 +59,7 @@ models:
   - name: int_momentum__player
     description: >
       W1 last-5 momentum builder — player. For each upcoming fixture side, identifies the
-      team's last 5 finished matches (same logic as int_momentum__team) and aggregates raw
+      team's last 5 finished matches (same logic as int_team_momentum__metrics) and aggregates raw
       player stat totals for every player who appeared in those matches. No ratios.
       A player absent from some matches contributes stats only for matches they appeared in.
       Grain: (upcoming_fixture_sk, team_sk, player_sk).

@@ -9,7 +9,7 @@
   last season, at the same point" — the only honest comparison while a season is
   running (a part-season vs a full season would mislead).
 
-  Alignment is by GAMES PLAYED (match_number from int_season_record__team), not
+  Alignment is by GAMES PLAYED (match_number from int_team_season_record), not
   by date and not by the round-name number. For fixed-matchday European leagues
   (one match per matchday) games-played == matchday, which is the intended
   comparison. Parsed round numbers are NOT safe to align on: multi-phase domestic
@@ -35,7 +35,7 @@ with std as (
         points_won,
         goals_for,
         goals_against
-    from {{ ref('int_season_record__team') }}
+    from {{ ref('int_team_season_record') }}
 ),
 
 registry as (

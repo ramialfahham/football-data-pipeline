@@ -1,12 +1,13 @@
 version: 2
 
 models:
-  - name: int_season_record__team
+  - name: int_team_season_record
     description: >
       W2 season-record builder — team. Cumulative running totals over int_legs__team_match
       within one competition+season, one row per team-match (totals through that match).
-      Complement to int_momentum__team. Carries round_order + match_number for the deferred
-      year-over-year surface. Raw sums only; ratios live in mart_season_record__team.
+      Complement to int_team_momentum__metrics. Carries round_order + match_number for the deferred
+      year-over-year surface. Raw sums only; ratios live in mart_team_season_record. The
+      whole-season rollup int_team_season__metrics is the final row of this model (#500 PR1).
       Grain: (team_sk, league_code, season_api_year, fixture_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -43,6 +44,14 @@ models:
       - name: match_number
         description: "The team's Nth match that season by kickoff (always present)."
         tests: [not_null]
+      - name: league_sk
+        description: "Competition surrogate key; carried for the int_team_season__metrics projection (#500 PR1)."
+        tests: [not_null]
+      - name: season_sk
+        description: "Competition-season surrogate key; carried for the projection's team_season_sk (#500 PR1)."
+        tests: [not_null]
+      - name: opponent_shots_total
+        description: "Cumulative opponent total shots; feeds shot_share on the whole-season projection (#500 PR1)."
 
   - name: int_season_record__player
     description: >

@@ -11,10 +11,10 @@ version: 2
 #   - one semantic assertion per rollup (e.g. wins + draws + losses = played)
 
 models:
-  - name: mart_momentum__team
+  - name: mart_team_momentum
     description: >
       W1 last-5 momentum mart — team. One row per upcoming fixture side. Computes all
-      final team performance metrics from int_momentum__team raw sums. All ratios and
+      final team performance metrics from int_team_momentum__metrics raw sums. All ratios and
       per-match rates live here; none in the builder. league_rank is excluded — it comes
       from the standings surface (#322). Player-derived metrics (key_passes_per_match
       through duels_won_pct) are NULL when no player stats exist for the window.
@@ -125,7 +125,7 @@ models:
   - name: mart_momentum_window__team
     description: >
       W1 momentum-window list mart — team (#323). The drill-down behind the momentum
-      metrics: the same window matches mart_momentum__team aggregates, exposed
+      metrics: the same window matches mart_team_momentum aggregates, exposed
       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
       is the click-through key into mart_fixture_stats__team / __player; has_team_stats
       and has_player_stats are derived from those detail marts (same-layer refs, the
@@ -289,12 +289,12 @@ models:
       - name: points_delta_yoy
         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
 
-  - name: mart_season_record__team
+  - name: mart_team_season_record
     description: >
       W2 season-record mart — team. One row per upcoming fixture side: the team's
       cumulative record in the fixture's own competition this season (shown beside W1
       momentum). Falls back to the same competition's previous season before the team has
-      played (window_type='prev_season'). Same metric_ids/formulas as mart_momentum__team;
+      played (window_type='prev_season'). Same metric_ids/formulas as mart_team_momentum;
       same-window coverage rule. Grain: (upcoming_fixture_sk, team_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:

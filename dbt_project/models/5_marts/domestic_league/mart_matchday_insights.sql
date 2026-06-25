@@ -3,7 +3,7 @@
 {#
   Wide fixture-preview mart — one row per upcoming fixture (next round per league).
 
-  Reads mart_momentum__team as the form source (same-layer ref — deliberate: this mart
+  Reads mart_team_momentum as the form source (same-layer ref — deliberate: this mart
   is a wide presentation pivot of the normalized momentum mart for the Pages UI consumer;
   see dbt_project/docs/layering.md §cross-layer-consumption-rule). Fixture metadata
   and team/league attributes come from core dims. League rank = the team's position in
@@ -20,12 +20,12 @@
 #}
 
 with momentum_home as (
-    select * from {{ ref('mart_momentum__team') }}
+    select * from {{ ref('mart_team_momentum') }}
     where is_home = true
 ),
 
 momentum_away as (
-    select * from {{ ref('mart_momentum__team') }}
+    select * from {{ ref('mart_team_momentum') }}
     where is_home = false
 ),
 
@@ -141,7 +141,7 @@ select
     -- mart_fixture_standing_context; read straight through.
     home_st.league_rank as home_league_rank,
     away_st.league_rank as away_league_rank,
-    -- home form window (from mart_momentum__team). Rates stay null when a team has
+    -- home form window (from mart_team_momentum). Rates stay null when a team has
     -- no finished matches in the window.
     mh.goals_per_match as home_goals_per_match_recent,
     mh.goals_against_per_match as home_goals_against_per_match_recent,
@@ -154,7 +154,7 @@ select
     mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
     mh.corners_conceded_per_match as home_corners_conceded_per_match_recent,
     mh.save_ratio as home_save_ratio_recent,
-    -- away form window (from mart_momentum__team).
+    -- away form window (from mart_team_momentum).
     ma.goals_per_match as away_goals_per_match_recent,
     ma.goals_against_per_match as away_goals_against_per_match_recent,
     ma.shots_per_match as away_shots_per_match_recent,
