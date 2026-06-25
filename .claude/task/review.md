@@ -1,53 +1,61 @@
-# Review — refactor/500-pr-b — 2026-06-25 (PR-b1: deep atom renames)
+# Review — perf/ci-slim-build — 2026-06-25 (Slim CI: PR builds only changed models)
 
-> G3 Lock artifact. Reviewers spawned cold (blinded) on the cumulative branch diff
-> (`.claude/task/review_input.patch`). Required set for the staged paths (dbt_project/models/**
-> + dbt_project/seeds/metric_catalogue.csv): scope-auditor (always) + analytics-engineer-reviewer
-> (dbt) + football-analytics-expert-reviewer (metric_catalogue.csv). cto-reviewer NOT required
-> (no scripts/tests/hooks/workflows touched).
+> G3 Lock artifact. Reviewers spawned cold (blinded) on the staged branch diff
+> (`.claude/task/review_input.patch`). Required set for the staged paths
+> (.github/workflows/ci-data-build.yml + contract.md): scope-auditor (always) +
+> cto-reviewer (.github/workflows/** — PROTECTED guard path, reviewed on the opus floor).
+> No analytics-engineer/data-engineer/bi-analyst/football-analytics (no dbt model, seed,
+> ingestion, wireframe, or catalogue path touched).
 
-diff_sha256: cbb5a40fccc4e2c2a1d82fd4a9b89de8d78db2656712230e61ddae48e1e11b29
+diff_sha256: 73f7db255510309ef9c0e632e98b54be7d24d23138b940b0309638fd4ce5ae6f
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Incremental-fact column-rename deploy hazard: fct_fixture_player_stats is materialized=incremental
-  with on_schema_change='sync_all_columns', so a normal incremental run after the rename would DROP
-  goals_saves/goals_conceded and ADD saves/goals_against as NULL for all historical rows. The contract
-  flags the one-time `--full-refresh` requirement in deploy_order + decisions_reserved D1 + done_when,
-  for CPO coordination at merge. Risk is structural (inherent to the rename), correctly owned/documented.
-- Collision-resolution soundness (mart_player_match_log DROP): the dropped player goals_conceded is a
-  GK-exclusive atom (escalations.log records the source-of-record finding — only the keeper carried a
-  non-zero value, outfielders 0; catalogue row 54 labels it GK-relevant; code pairs it with saves). In a
-  per-match log it is redundant with the match-scoreline goals_against already shown. The CPO ruling
-  (drop) is recorded in escalations.log; scope (the slice, the rename targets) is CPO-authorised.
+- Scope adherence: the diff touches ONLY `.github/workflows/ci-data-build.yml` (the sole
+  scope_paths entry) plus the hashed contract.md — no out-of-scope drift.
+- Protected-path discipline: `.github/workflows/**` is PROTECTED; the contract carries a
+  `protected_override` naming the CPO approval ("A with Option 2", 2026-06-25) and the change
+  is confined to that approved intent (slim CI, Option 2) — no smuggled changes.
+- Freshness-exclude honoring (workflow `--select state:modified+ --exclude tag:freshness_check`
+  vs selectors.yml): dbt honours `--exclude` with `--select` (only a named `--selector` drops
+  it); selectors.yml documents the same rule; the freshness-tagged tests stay excluded on PR.
+- Shared-warehouse dataset integrity (generate_schema_name.sql vs the CI profile): the macro
+  returns the bare schema regardless of target, so CI and prod write the same datasets; the
+  slim build rebuilds only touched models into the shared dataset and unchanged upstreams'
+  ref()s resolve — no --defer needed, matching the contract's claim.
+- §10 / DQ: no CPO-class decision taken silently — the slim-CI mechanism is the pre-authorized
+  change; the full singular DQ suite still runs on every build; the isolation question is
+  explicitly RESERVED, not folded in.
 
-## analytics-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- mart_player_match_log collision: the player goals_conceded is gone from BOTH the joined CTE and the
-  final SELECT; the scoreline goals_against (if home/away from fct_fixture) is independent and UNTOUCHED;
-  the W/D/L CASE references the scoreline goals_against only; no duplicate goals_against column. Verified
-  on disk.
-- Rename completeness + no-drift guard: grep for goals_saves/goals_conceded/shots_on_target across model
-  .sql + .yml returns zero matches in business logic (only the guard's historical comment, exempted); the
-  JSON extraction paths ($.goals.saves / $.goals.conceded) are unchanged (alias-only rename); the guarded
-  season models output the SAME column set (saves/goals_against are the pre-existing PR-a aliases; only
-  internal atoms renamed) so assert_no_uncatalogued_season_metric is unaffected; the incremental
-  --full-refresh requirement is correctly identified and all downstream models are tables/views.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- Identity preservation of the derived GK formulas: shots_on_goal_against numerator saves + goals_against
-  still equals shots-on-target faced; save_pct = saves / (saves + goals_against) is unchanged and
-  self-bounded to [0,1] (safe_divide handles the zero-denominator no-shots-on-target case); saves_per90 /
-  the player goals_against row are renamed atoms, same quantity. Every catalogue formula is algebraically
-  identical to the pre-rename version — a rename, not a redefinition.
-- Football correctness + deferral honesty: the player goals_against (goals conceded while the GK was on
-  the pitch) is a correct GK stat paired with saves; lower_is_better=true is correct. The description /
-  label_i18n_key prose retaining legacy wording ("goals conceded", "shots on target") is the deliberately
-  DEFERRED display/i18n work (PR-c/PR-d per the locked sequence), not an un-deferred redefinition.
+- Guard integrity / authorization (contract protected_override + routing `.github/workflows/**`
+  → cto-reviewer): authorization present and correctly scoped to the one workflow file plus the
+  hashed contract; no unquoted new mechanism.
+- PR-vs-push gating completeness (ci-data-build.yml): the four build steps partition the three
+  triggers cleanly — `pull_request` → compile-baseline + slim build; `push:main` and
+  `workflow_dispatch` → full staging+downstream (`!= 'pull_request'`). Exact complements: exactly
+  one build path per trigger. The terminal `gate` job and the `changes` path filter are untouched.
+- Empty-selection no-op for model-free PRs (dbt 1.7 pinned): `dbt build --select state:modified+`
+  on a PR that changes no dbt nodes matches nothing and exits 0 with a "nothing to do" warning
+  (not an error); the full singular-test step still runs. Holds for this very (workflow-only) PR.
+- Baseline compile prerequisites & working-directory: the `/tmp/main-src/dbt_project` subshell
+  inherits the profile (~/.dbt, default profiles-dir) and runner-global WIF auth (done earlier),
+  runs its own `dbt deps`, and `git -C "$GITHUB_WORKSPACE"` targets repo root (overriding
+  working-directory: dbt_project). `git worktree add --detach FETCH_HEAD` after `fetch --depth=1`
+  is a known-good shallow-clone pattern; `--target-path /tmp/main-state` matches the `--state` consumer.
+- state:modified+ correctness on the shared warehouse with no defer: generate_schema_name returns
+  the bare `+schema` regardless of target, so unchanged upstreams' ref()s resolve to existing prod
+  tables; modified nodes + ALL descendants build; no missing-upstream case. The 3 incremental facts
+  rebuild incrementally only when their lineage changed — identical to today; net prod churn decreases.
+- Freshness exclusion + DQ gate preserved: slim path uses CLI `--exclude tag:freshness_check` with
+  `--select` (honoured); the full `test_type:singular` DQ suite is unchanged and runs on every trigger.
+- Scheduled prod run isolation: dbt-scheduled.yml is not in the diff; it still runs the full `dbt
+  build` after 04:00 ingestion (freshness included); the slim logic lives entirely in the
+  ci-data-build `pull_request` branch and cannot reach the scheduled refresh. No permission/credential
+  change (permissions block unchanged).
 
 ## escalations
 (none)

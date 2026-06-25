@@ -150,15 +150,44 @@ jobs:
           export PYTHONPATH=.
           python -m ingestion.api_football.main
 
-      - name: Build staging
+      # --- Build strategy -------------------------------------------------------
+      # PULL REQUESTS build only what the PR changed + downstream children + tests
+      # (dbt state:modified+), diffed against a baseline manifest compiled from `main`
+      # at PR time (Option 2 — no stored state, no BigQuery scan; CPO-approved
+      # 2026-06-25). Unchanged upstreams (the heavy dims, transfers, unrelated marts)
+      # are NOT rebuilt — their ref()s resolve to the tables already in the shared
+      # datasets, so no --defer is needed. main-push and workflow_dispatch keep the
+      # FULL build (prod must stay complete and serve as the always-compilable baseline).
+
+      - name: Compile baseline manifest from main (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          git -C "$GITHUB_WORKSPACE" fetch --no-tags --depth=1 origin main
+          git -C "$GITHUB_WORKSPACE" worktree add --detach /tmp/main-src FETCH_HEAD
+          # Compile main's project into a state dir (manifest only — no model execution).
+          ( cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target-path /tmp/main-state )
+
+      - name: Build changed models + children (PR — slim)
+        if: github.event_name == 'pull_request'
+        # CLI --exclude IS honoured with --select (only a named --selector drops it),
+        # so freshness_check stays excluded as on the full path. An empty selection
+        # (a PR that changes no models) is a no-op success.
+        run: dbt build --select state:modified+ --exclude tag:freshness_check --state /tmp/main-state
+
+      - name: Build staging (full — main push / dispatch)
+        if: github.event_name != 'pull_request'
         run: dbt build --selector staging
 
-      - name: Build base through marts
+      - name: Build base through marts (full — main push / dispatch)
+        if: github.event_name != 'pull_request'
         # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
         # dbt ignores a CLI --exclude when --selector is supplied.
         run: dbt build --selector downstream
 
       - name: Run singular data quality tests
+        # DQ is non-negotiable: the full singular suite runs on every build (PR + push),
+        # validating the warehouse (prod state + this PR's rebuilt models). Slimming
+        # applies to model BUILDS only, never to the DQ gate.
         run: dbt test --select test_type:singular --exclude tag:freshness_check
 
   # Terminal gate: always runs, reports a single deterministic pass/fail that
