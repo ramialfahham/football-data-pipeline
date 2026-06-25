@@ -4,11 +4,11 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-25 (**incomplete-data→NULL IMPLEMENTED on `fix/incomplete-data-null` — both reviewers PASS, PR being opened, awaiting CI + CPO merge. Narrowed to TEAM-FEED ONLY after two source-of-record findings; see the ✅ block below.**).
-main GREEN at 34f94c6 — carries #569 + #567. **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.**
+_Last updated: 2026-06-25 (**#571 (incomplete-data→NULL, team-feed) MERGED. NOW: #500 PR-b1 (deep atom renames) IMPLEMENTED on `refactor/500-pr-b` — 3 reviewers PASS, PR being opened, awaiting CI + CPO merge. PR-b was SLICED: PR-b1 = atom renames; PR-b2 = file renames / `_season` / consolidation (mapping to pin first).**).
+main carries #569 + #567 + #571. **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.**
 
 ### FIRST STEPS (cold chat — do in order)
-1. The `fix/incomplete-data-null` branch is DONE (PR open, awaiting CPO merge) — do NOT reopen it. The NEXT task is **#500 PR-b** (see the ⭐ #500 status block below): once this PR merges, `git checkout main && git pull`, branch off, and start PR-b.
+1. #571 (incomplete-null) MERGED. The `refactor/500-pr-b` branch (PR-b1 = deep atom renames) is DONE (PR open, awaiting CPO merge) — do NOT reopen it. NEXT after it merges: **#500 PR-b2** = the model FILE renames → `int_<entity>_<window>__metrics` + the `_season`-suffix drop + team-season consolidation. The file-rename MAPPING is §10 + underspecified — PIN it with the CPO FIRST (do the momentum builders rename? int_season_record__* / the position model?). Then PR-c (docs), PR-d (live merge). See the ⭐ #500 block.
 2. Bash only; never PowerShell. Write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any model (the impact-map gate enforces it).
 
 ## ✅ DONE — incomplete-data→NULL (TEAM-FEED ONLY) — PR open on `fix/incomplete-data-null`, awaiting CPO merge
@@ -81,9 +81,18 @@ The PR sequence is locked in `contract.md`'s reference block; each PR gets its o
   cto PASS (carried — its files byte-identical to the pre-rebase review), football-analytics ESCALATE→CPO-answered
   (the universal NULL rule above; description states the correct rule, no reword). review.md rebound to the rebased
   diff (diff_sha256 addfa2af…). Validated (dbt parse/compile + sqlfluff models). Force-pushed. **Awaiting CPO merge.**
-- **PR-b — NEXT (after PR-a merges, off updated main):** model FILE renames → `int_<entity>_<window>__metrics` +
-  team-season consolidation + the deep atom renames (staging/base/core `goals_saves→saves`, `goals_conceded→goals_against`,
-  team `shots_on_target→shots_on_goal`) + drop the no-drift guard's `_season` strip.
+- **PR-b1 — IMPLEMENTED on `refactor/500-pr-b`, PR open (2026-06-25):** the deep ATOM renames end-to-end —
+  player `goals_saves→saves`, `goals_conceded→goals_against` (staging→base→core fct+yml→5 int→4 player marts→
+  catalogue numerators) + team `shots_on_target_per_match→shots_on_goal_per_match` (one mart alias). Pure 1:1
+  rename, NUMBERS=NONE. COLLISION handled: mart_player_match_log DROPS the redundant player goals_conceded (it
+  clashed with the match-scoreline goals_against; CPO ruling — it's the GK's conceded, redundant in a per-match log).
+  3 reviewers PASS. **DEPLOY: fct_fixture_player_stats is incremental (sync_all_columns) → needs a one-time
+  `dbt run --full-refresh --select fct_fixture_player_stats` at/after merge, else historical player GK data NULLs.**
+- **PR-b2 — NEXT (after PR-b1 merges):** the model FILE renames → `int_<entity>_<window>__metrics` + the
+  `_season`-suffix drop (+ the no-drift guard's `_season` strip) + team-season consolidation. The MAPPING is
+  §10 + underspecified — PIN with the CPO BEFORE building: do the momentum BUILDERS (int_momentum__{team,player})
+  rename? do int_season_record__* / int_player_season_position__metrics rename? what consolidation remains (the
+  2026-06-23 ruling already did rename + W/D/L-fold)?
 - **PR-c:** doc consolidation — one `metric_layer.md`; retire/fold `player_metrics_catalogue.md` + `metrics_display.md`.
 - **PR-d (the live merge — non-gated, NOW in this stream):** consolidate `metric_definitions.csv` INTO the catalogue;
   repoint `export_metric_definitions_json.py` at the catalogue; delete `metric_definitions.csv` + legacy

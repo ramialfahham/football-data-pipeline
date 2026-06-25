@@ -1,47 +1,53 @@
-# Review — fix/incomplete-data-null — 2026-06-25
+# Review — refactor/500-pr-b — 2026-06-25 (PR-b1: deep atom renames)
 
-> Governance G3 Lock artifact. Reviewers spawned cold (blinded) on the cumulative
-> branch diff (`.claude/task/review_input.patch`). Required set for the staged paths
-> (dbt_project/**): scope-auditor (always) + analytics-engineer-reviewer. cto-reviewer
-> not required (no scripts/tests/hooks/workflows); football-analytics not required
-> (the metric_catalogue is untouched — only NULL behaviour changes, no metric created
-> or redefined).
+> G3 Lock artifact. Reviewers spawned cold (blinded) on the cumulative branch diff
+> (`.claude/task/review_input.patch`). Required set for the staged paths (dbt_project/models/**
+> + dbt_project/seeds/metric_catalogue.csv): scope-auditor (always) + analytics-engineer-reviewer
+> (dbt) + football-analytics-expert-reviewer (metric_catalogue.csv). cto-reviewer NOT required
+> (no scripts/tests/hooks/workflows touched).
 
-diff_sha256: d448a8a800982c920ffc62eb92dc51d97eb434d11ed96d0eee8bf406d8f5ddcf
+diff_sha256: cbb5a40fccc4e2c2a1d82fd4a9b89de8d78db2656712230e61ddae48e1e11b29
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Team-feed vs player-derived boundary preserved: the diff gates only the genuine team-feed
-  stats (shots/passes/corners/saves + their season count totals) on their own coverage buckets,
-  and DELIBERATELY leaves the player-derived team metrics (key_passes/tackles/interceptions/
-  blocks/defensive_actions/duels/duels_won_pct) ungated on games_with_player_stats in both
-  marts — exactly the CPO ruling "missing player stats must not affect the team stats". The
-  downstream live marts (mart_matchday_insights, mart_team_season_insights) are not edited →
-  pure inheritance, no re-derivation.
-- §10 decisions all recorded before implementation: Q2 (reverse #320 — a shipped-numbers change)
-  and Q1 (include counts) are CPO-answered in escalations.log (AskUserQuestion 2026-06-25); the
-  player side is DROPPED on the proven null=zero premise; no metric is created or redefined, so
-  the catalogue is untouched and football-analytics review is not required. The int_season_record.yml
-  scope addition rode in via a recorded amendment whose authority is the contract's approved scope
-  category "schema docs for the touched models" (not reviewer-FAIL authority).
+- Incremental-fact column-rename deploy hazard: fct_fixture_player_stats is materialized=incremental
+  with on_schema_change='sync_all_columns', so a normal incremental run after the rename would DROP
+  goals_saves/goals_conceded and ADD saves/goals_against as NULL for all historical rows. The contract
+  flags the one-time `--full-refresh` requirement in deploy_order + decisions_reserved D1 + done_when,
+  for CPO coordination at merge. Risk is structural (inherent to the rename), correctly owned/documented.
+- Collision-resolution soundness (mart_player_match_log DROP): the dropped player goals_conceded is a
+  GK-exclusive atom (escalations.log records the source-of-record finding — only the keeper carried a
+  non-zero value, outfielders 0; catalogue row 54 labels it GK-relevant; code pairs it with saves). In a
+  per-match log it is redundant with the match-scoreline goals_against already shown. The CPO ruling
+  (drop) is recorded in escalations.log; scope (the slice, the rename targets) is CPO-authorised.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- No-drift guard safety: the three new coverage-bucket columns (team_stat_coverage_season_games,
-  opp_stat_coverage_season_games, save_stat_coverage_season_games) are computed in aggregated_season
-  and pass through season_gated's `select *`, but the model's final SELECT (int_team_season__metrics
-  lines 171-257) is a fully enumerated column list that contains none of them — so the materialised
-  output schema gains no columns and assert_no_uncatalogued_season_metric is not tripped. Verified
-  against the file.
-- NULL-propagation correctness: gating the 9 team-feed sum columns in season_gated NULLs every
-  dependent team-feed per-match rate/ratio via safe_divide(null, …) (e.g. shots_per_match_season,
-  shot_accuracy_season, save_ratio_season), with no team-feed metric left ungated and no
-  player-derived/scoreline metric wrongly NULLed. games_with_save_stats is correct in both builders
-  (momentum countif; season-record cumulative sum(...) over w) and is carried through
-  mart_season_record__team's matched/chosen to the explicit save_ratio CASE gate. The not_null tests
-  on the new column are valid (countif / windowed 0-1 sum are never null).
+- mart_player_match_log collision: the player goals_conceded is gone from BOTH the joined CTE and the
+  final SELECT; the scoreline goals_against (if home/away from fct_fixture) is independent and UNTOUCHED;
+  the W/D/L CASE references the scoreline goals_against only; no duplicate goals_against column. Verified
+  on disk.
+- Rename completeness + no-drift guard: grep for goals_saves/goals_conceded/shots_on_target across model
+  .sql + .yml returns zero matches in business logic (only the guard's historical comment, exempted); the
+  JSON extraction paths ($.goals.saves / $.goals.conceded) are unchanged (alias-only rename); the guarded
+  season models output the SAME column set (saves/goals_against are the pre-existing PR-a aliases; only
+  internal atoms renamed) so assert_no_uncatalogued_season_metric is unaffected; the incremental
+  --full-refresh requirement is correctly identified and all downstream models are tables/views.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Identity preservation of the derived GK formulas: shots_on_goal_against numerator saves + goals_against
+  still equals shots-on-target faced; save_pct = saves / (saves + goals_against) is unchanged and
+  self-bounded to [0,1] (safe_divide handles the zero-denominator no-shots-on-target case); saves_per90 /
+  the player goals_against row are renamed atoms, same quantity. Every catalogue formula is algebraically
+  identical to the pre-rename version — a rename, not a redefinition.
+- Football correctness + deferral honesty: the player goals_against (goals conceded while the GK was on
+  the pitch) is a correct GK stat paired with saves; lower_is_better=true is correct. The description /
+  label_i18n_key prose retaining legacy wording ("goals conceded", "shots on target") is the deliberately
+  DEFERRED display/i18n work (PR-c/PR-d per the locked sequence), not an un-deferred redefinition.
 
 ## escalations
 (none)
