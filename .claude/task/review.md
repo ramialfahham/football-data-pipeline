@@ -65,7 +65,7 @@ risks_checked:
   team-centric ("Null when the window is not fully shot-covered"); for players the current code
   nulls more simply (no shots on goal). Asked whether the merged description is accurate enough for
   both entities or needs a player-specific null clause.
-  CPO ANSWER (this conversation, 2026-06-25): the rule is UNIVERSAL — every metric, team and
+  CPO ANSWER: (CPO ruling, this conversation 2026-06-25) the rule is UNIVERSAL — every metric, team and
   player, is NULL when the data to calculate it is not 100% available. The description "Null when
   the window is not fully shot-covered …" therefore states the CORRECT intended rule for BOTH
   entities; no reword needed. What is wrong is the player IMPLEMENTATION (it coalesces missing shot
