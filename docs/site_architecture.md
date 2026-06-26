@@ -118,7 +118,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
 | Landing | `landing.json` | landing feed (#365; next rounds, kickoff, trending from `mart_team_profile`) |
 | Competitions index / country hub | `nav.json` (registry-derived) | registry seed + grouping fields |
 | Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
-| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_momentum__team` (W1), `mart_season_record__team` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_momentum__player`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
 | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
 | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log` |
 | Standings | within competition JSON | `mart_standings` (league + group tables, incl. WC group letters) |

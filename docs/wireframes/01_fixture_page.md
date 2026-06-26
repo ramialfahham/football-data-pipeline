@@ -139,7 +139,7 @@ Window header (3a): W1 `w1.games_in_window` + `w1.points_won`; W2 `w2.games_play
 Form display (3b) — **window-correct, ruled 2026-06-11**:
 - W1: the last-5 W/D/L pills, from `form_window[].result` in `recency_rank` order.
 - W2: aggregate counts `10W · 3D · 1L` — pills would misrepresent a full-season
-  window. Needs `wins`/`draws`/`losses` in `mart_season_record__team` (GAP-10);
+  window. Needs `wins`/`draws`/`losses` in `mart_team_season_record` (GAP-10);
   until that ships W2 shows the window header only.
 
 Metric rows (3c) — **the LOCKED team table in
@@ -273,6 +273,6 @@ internal-links footer ➕. (➕ = new vs brief §7 — see 00 census.)
 - [GAP-07](99_gaps_register.md) — no report-state payload for finished fixtures (§6).
 - [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; no localization strategy yet.
 - [GAP-09](99_gaps_register.md) — `metric_group` / `importance_tier` / `group_display_order` catalogue columns (§5.3c grouping).
-- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_season_record__team` (§5.3b).
+- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_team_season_record` (§5.3b).
 - [GAP-11](99_gaps_register.md) — four new team metrics + finishing relabel + description tightenings (§5.3c).
 - [GAP-18](99_gaps_register.md) — tournament window mode + phase descriptor missing from the window marts (§5.3d) — needed before WC 2026.

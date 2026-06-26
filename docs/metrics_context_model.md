@@ -1,5 +1,8 @@
 # Metrics Context & Window Model
 
+> **Metric definitions live in the `metric_catalogue.csv` seed (the SSoT); this doc governs the
+> window / context model only.** See `docs/metric_layer.md` for the map of where each thing lives.
+
 How the platform decides, for a given upcoming fixture, **which past matches form a
 team's or player's performance window, and how to label it**. This is the shared
 foundation every performance-style mart consumes — today the matchday momentum marts,
@@ -210,8 +213,8 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
 Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
 It fixes the one real gap: the player season rollup exists three ways today with divergent
 numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
-in another) because each re-implements its own aggregation. Definitions stay in
-`docs/player_metrics_catalogue.md`; the locked display rows stay in
+in another) because each re-implements its own aggregation. Definitions stay in the
+`metric_catalogue.csv` seed; the locked display rows stay in
 `docs/wireframes/metrics_display.md`. Build follow-ups: **#480** (consolidate to one
 player-season model) and **#484** (player national / tournament context) — not built here.
 
@@ -303,10 +306,10 @@ cumulative. #480/#484 set the final `form_window_kind` enum values in the catalo
 (replacing the superseded `wc_pre_via_domestic`); the **set is fixed by this matrix**, the labels
 are a build-time naming call.
 
-### 8.5 Override of the catalogue's form-window dispatch
+### 8.5 Override of the legacy form-window dispatch
 
-This **supersedes** the "Form-window dispatch" section of `docs/player_metrics_catalogue.md`
-(player WC form drawn from the **domestic club**, qualifiers excluded). That section treated
+This **supersedes** the legacy "Form-window dispatch" rule (player WC form drawn from the
+**domestic club**, qualifiers excluded). That rule treated
 national data as predictive **form** and rejected stale qualifiers in favour of the domestic
 club. Reframing the national surface as **context** (not a prediction of tournament form)
 dissolves its three objections (roster turnover, stale dates, weaker opposition — all

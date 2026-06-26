@@ -10,7 +10,7 @@
   competition). league_sk / league_code / season_api_year carried for downstream slicing. (The
   per-club grain + this/last side-by-side are the deferred §8.3 follow-up; today's grain is kept.)
 
-  Atoms follow docs/player_metrics_catalogue.md exactly:
+  Atoms follow the metric_catalogue.csv seed (the metric-definition SSoT) exactly:
   - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
     (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
   - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
