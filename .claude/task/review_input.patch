@@ -1,409 +1,441 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e6d32b7..6aa82f9 100644
+index 6aa82f9..bd99602 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,36 +1,77 @@
--# Task contract — end-of-session handover refresh (2026-06-26)
-+# Task contract — drop the unused WC-pretournament metric definitions (#500 PR-d, step 1)
+@@ -1,77 +1,73 @@
+-# Task contract — drop the unused WC-pretournament metric definitions (#500 PR-d, step 1)
++# Task contract — point the live match-preview data at the catalogue (#500 PR-d, step 2)
  
  > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
--> Artifact/handover task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
-+> CPO-directed (2026-06-26): the WC-pretournament metric block is dead config — DELETE it,
-+> do not migrate/register it. This overrides the handover's earlier "register
-+> qualifier_games_played" assumption (CPO §10 product ruling: that unbuilt screen is not happening).
+-> CPO-directed (2026-06-26): the WC-pretournament metric block is dead config — DELETE it,
+-> do not migrate/register it. This overrides the handover's earlier "register
+-> qualifier_games_played" assumption (CPO §10 product ruling: that unbuilt screen is not happening).
++> CPO-approved architecture (this session): the metric_catalogue.csv SSoT stays clean (defines
++> metrics); the live display-wiring (which JSON column feeds each number + render context) lives in a
++> small separate file; the export composes the two. Invisible swap — byte-identical output.
  
  objective: >
--  Rewrite `.claude/active_work.md` to current truth and make it friction-free for a fresh chat:
--  main now carries #579 (PR-c metric-definition SSoT) + #580 (entity-first rename sweep); #500's
--  whole NAMING + SSoT effort is COMPLETE (PR1 team / PR2 player / PR-c / rename sweep) and all
--  orphaned BQ relations are dropped; the next #500 unit is PR-d (the §10-heavy live-MVP→catalogue
--  merge). Shed the accumulated merged-work narratives + fix stale model names and the references to
--  the now-deleted `player_metrics_catalogue.md`, while preserving every forward-looking item (PR-d,
--  the TEAM deserved-vs-actual design discussion, programs #545/#546/#547, carryovers, parked state,
--  the pending token/secrets CPO actions, the governance machinery, do-NOTs, and the memory pointers).
--refs: end-of-session handover; #579 (PR-c) + #580 (rename sweep) merged; #500 naming complete.
-+  Remove the 14 unused World Cup "pretournament" stat definitions from the legacy
-+  metric_definitions feed and everywhere they echo. They were set up for a WC preview screen
-+  that was never built and have NO live consumer (the match-preview JS only renders the 13
-+  metrics listed in metric_manifest.json). Purely deletes dead data — no code, no logic moves.
-+  Self-contained low-risk first step of #500 PR-d; the bigger migration (repoint the live site
-+  at metric_catalogue.csv) is a separate later step and is untouched here.
-+
-+refs: #500 PR-d step 1; CPO ruling 2026-06-26 (WC-pretournament block is dead → delete);
-+  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
+-  Remove the 14 unused World Cup "pretournament" stat definitions from the legacy
+-  metric_definitions feed and everywhere they echo. They were set up for a WC preview screen
+-  that was never built and have NO live consumer (the match-preview JS only renders the 13
+-  metrics listed in metric_manifest.json). Purely deletes dead data — no code, no logic moves.
+-  Self-contained low-risk first step of #500 PR-d; the bigger migration (repoint the live site
+-  at metric_catalogue.csv) is a separate later step and is untouched here.
++  Switch the producer of site/match-preview/metric_definitions.json from the legacy
++  metric_definitions.csv seed to (metric_catalogue.csv + a new small bindings file), then delete the
++  legacy seed. The generated JSON must stay byte-for-byte identical to today's. After this, the live
++  match-preview site is fed by the single SSoT (the catalogue) plus a thin UI-wiring file, and the
++  duplicate legacy seed is gone. No visible change; translations + page code untouched; catalogue unchanged.
+ 
+-refs: #500 PR-d step 1; CPO ruling 2026-06-26 (WC-pretournament block is dead → delete);
+-  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
++refs: #500 PR-d step 2 (follows #582 = step 1, WC-block deletion); plan
++  C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/seeds/metric_definitions.csv
-+  - site/match-preview/metric_definitions.json
-+  - site/i18n/en.json
-+  - site/i18n/de.json
-+  - site/i18n/fi.json
-+
-+impact_map: >
-+  WRITERS / LINEAGE:
-+    - dbt_project/seeds/metric_definitions.csv — hand-edited config seed. Consumed ONLY by
-+      scripts/export_metric_definitions_json.py (a pure CSV→JSON transform). Evidence:
-+      `grep -r "ref('metric_definitions')" dbt_project` → ZERO model refs; the seed is loaded
-+      to the warehouse but no dbt model selects it.
-+    - site/match-preview/metric_definitions.json — the ONLY writer is
-+      scripts/export_metric_definitions_json.py. Regenerated from the trimmed seed (NOT
-+      hand-edited). Baseline verified byte-identical to the seed export today.
-+    - site/i18n/{en,de,fi}.json — hand-edited. Carry the `metrics.<id>.label/.description`
-+      entries for the dead rows (orphaned once the rows go).
-+  CONSUMERS / BLAST RADIUS:
-+    - site/match-preview/index.html iterates ONLY metric_manifest.json (the 13 `*_recent`
-+      match_preview metrics) → the 14 `wc_pretournament` rows are NEVER read. Evidence: grep
-+      of index.html for `pretournament|single_column` → no binding logic; grep across site/
-+      for `single_column|pretournament|qualifier_games_played|points_capture` → matches only in
-+      i18n + the generated JSON + the seed, never in render JS.
-+    - scripts/check_ui_i18n_metrics.py validates ONLY that the manifest's 13 ids have i18n
-+      entries (one-directional). Evidence: read of the script — it loops `metric_ids` from the
-+      manifest, never the reverse. Removing unused i18n keys keeps it green.
-+    - tests/test_metric_definitions_seed.py — row-count-agnostic (uniqueness + paired/single
-+      column invariants); removing rows keeps it green.
-+    - build_match_preview_site.{sh,ps1} COPY the committed JSON (do not regenerate) → unaffected.
-+  LAYER RULES: seed = config (not a model); deletion is warehouse-clean (no model dependency).
-+    No new logic, no layer placement decision — data deletion only.
-+  DEPLOY ORDERING: static files; regenerate the JSON in-repo and commit it so the committed
-+    artifact stays in sync with the trimmed seed. No migration / no full-refresh.
-+  EXPLICITLY OUT (live WC previews depend on these — DO NOT TOUCH): i18n
-+    matchPreview.formContextWcQualifiers / formContextWcTournament / footMissingWcDesc,
-+    the wc.groupPrefix labels, and competitions.WC.
++  - site/match-preview/metric_bindings.csv
++  - scripts/export_metric_definitions_json.py
+   - dbt_project/seeds/metric_definitions.csv
+-  - site/match-preview/metric_definitions.json
+-  - site/i18n/en.json
+-  - site/i18n/de.json
+-  - site/i18n/fi.json
++  - dbt_project/seeds/schema.yml
++  - tests/test_metric_definitions_seed.py
++  - tests/test_metric_bindings.py
+ 
+ impact_map: >
+   WRITERS / LINEAGE:
+-    - dbt_project/seeds/metric_definitions.csv — hand-edited config seed. Consumed ONLY by
+-      scripts/export_metric_definitions_json.py (a pure CSV→JSON transform). Evidence:
+-      `grep -r "ref('metric_definitions')" dbt_project` → ZERO model refs; the seed is loaded
+-      to the warehouse but no dbt model selects it.
+-    - site/match-preview/metric_definitions.json — the ONLY writer is
+-      scripts/export_metric_definitions_json.py. Regenerated from the trimmed seed (NOT
+-      hand-edited). Baseline verified byte-identical to the seed export today.
+-    - site/i18n/{en,de,fi}.json — hand-edited. Carry the `metrics.<id>.label/.description`
+-      entries for the dead rows (orphaned once the rows go).
++    - site/match-preview/metric_definitions.json — sole writer is scripts/export_metric_definitions_json.py.
++      Input today = metric_definitions.csv. After = metric_bindings.csv (live ids + column wiring + context)
++      + metric_catalogue.csv (format + lower_is_better/direction). Output unchanged (byte-identical).
++    - VERIFIED catalogue parity: all 13 live ids map to a catalogue row, and format + direction are
++      IDENTICAL for every one (re-checked post-#582; zero mismatches, zero missing).
++  CALLERS OF THE EXPORT (must keep working): pages-match-preview.yml:129 and export_matchday_insights.ps1:14
++    both invoke `python scripts/export_metric_definitions_json.py` with NO args → default-driven. New defaults
++    (--bindings, --catalogue, --out) keep them working; the script's CLI gains args but breaks no caller.
+   CONSUMERS / BLAST RADIUS:
+-    - site/match-preview/index.html iterates ONLY metric_manifest.json (the 13 `*_recent`
+-      match_preview metrics) → the 14 `wc_pretournament` rows are NEVER read. Evidence: grep
+-      of index.html for `pretournament|single_column` → no binding logic; grep across site/
+-      for `single_column|pretournament|qualifier_games_played|points_capture` → matches only in
+-      i18n + the generated JSON + the seed, never in render JS.
+-    - scripts/check_ui_i18n_metrics.py validates ONLY that the manifest's 13 ids have i18n
+-      entries (one-directional). Evidence: read of the script — it loops `metric_ids` from the
+-      manifest, never the reverse. Removing unused i18n keys keeps it green.
+-    - tests/test_metric_definitions_seed.py — row-count-agnostic (uniqueness + paired/single
+-      column invariants); removing rows keeps it green.
+-    - build_match_preview_site.{sh,ps1} COPY the committed JSON (do not regenerate) → unaffected.
+-  LAYER RULES: seed = config (not a model); deletion is warehouse-clean (no model dependency).
+-    No new logic, no layer placement decision — data deletion only.
+-  DEPLOY ORDERING: static files; regenerate the JSON in-repo and commit it so the committed
+-    artifact stays in sync with the trimmed seed. No migration / no full-refresh.
+-  EXPLICITLY OUT (live WC previews depend on these — DO NOT TOUCH): i18n
+-    matchPreview.formContextWcQualifiers / formContextWcTournament / footMissingWcDesc,
+-    the wc.groupPrefix labels, and competitions.WC.
++    - site/match-preview/index.html renders only the 13 ids in metric_manifest.json from the JSON; JSON is
++      byte-identical → zero UI effect. Translations + manifest + page code untouched.
++    - dbt: zero model/test refs to the metric_definitions seed (only its own schema.yml:151 entry; verified
++      clean of target/). Deleting the seed + its schema block is warehouse-clean.
++    - Deploy (pages-match-preview.yml): regenerates the JSON at deploy with no args → byte-identical. The
++      now-stale trigger line `dbt_project/seeds/metric_definitions.csv` is HARMLESS (any real bindings/catalogue
++      edit must change the committed JSON — enforced by the new regen test — and the JSON is itself a trigger,
++      so auto-deploy still fires). Updating the workflow trigger list is a PROTECTED-path follow-up, OUT of scope.
++  LAYER RULES: metric_bindings.csv = UI display-wiring config → lives in site/match-preview/ beside
++    metric_manifest.json (NOT a dbt seed; no model reads it). The export composes catalogue (definition:
++    format/direction) + bindings (wiring: columns/context) and SELECTS/RENAMES into JSON — no fact derivation,
++    no computation (consumption-layer compliant). The catalogue SSoT is read-only here.
++  DEPLOY ORDERING: static files; the export is deterministic; commit the regenerated (identical) JSON so the
++    committed artifact stays in sync. No migration / no full-refresh.
  
  decisions_taken: >
--  Documentation only — no product/code/§10 decision. Records what merged this session and re-points
--  the handover at the next unit (PR-d) as a CPO-directed choice, not a pre-decided build.
-+  Delete the dead WC-pretournament block rather than migrate it (CPO §10 product ruling,
-+  2026-06-26). No metric definitions added or changed; the metric_catalogue.csv SSoT is NOT
-+  touched. The 13 live on-screen metrics are left byte-identical.
+-  Delete the dead WC-pretournament block rather than migrate it (CPO §10 product ruling,
+-  2026-06-26). No metric definitions added or changed; the metric_catalogue.csv SSoT is NOT
+-  touched. The 13 live on-screen metrics are left byte-identical.
++  Execute the CPO-approved swap: catalogue stays the clean metric SSoT (unchanged); live wiring in the new
++  metric_bindings.csv; export composes the two; legacy seed deleted. No metric added/changed; no §10 here —
++  the architecture (catalogue-clean + separate wiring) was decided by the CPO earlier this session.
  
  decisions_reserved:
--  - None new. PR-d (live-MVP→catalogue merge) is §10-heavy and CPO-directed; the TEAM
--    deserved-vs-actual redesign is a design discussion; neither is pre-decided here.
-+  - The bigger #500 PR-d migration (repoint export_metric_definitions_json.py at the catalogue;
-+    single i18n scheme; corners naming; retire the legacy seed) — separate later steps, NOT here.
+-  - The bigger #500 PR-d migration (repoint export_metric_definitions_json.py at the catalogue;
+-    single i18n scheme; corners naming; retire the legacy seed) — separate later steps, NOT here.
++  - The single i18n/labelling scheme (step 3 — CPO decision), corners _conceded→_against rename (step 4),
++    the team-season _season suffix drop (step 5), final teardown of build_match_preview_site + dead labels
++    (step 6). NONE here. The pages-match-preview.yml trigger-list tidy (protected path) is a separate follow-up.
  
  done_when:
--  - active_work.md leads with: #579 + #580 MERGED; #500 naming+SSoT COMPLETE; PR-d the remaining
--    #500 unit (described enough to start cold); the next candidates; the do-NOTs; the governance
--    machinery; bq cleanups all DONE; the new [[project-semantic-layer-ai-ready]] memory; stale model
--    names + the deleted-doc references fixed.
--  - Routes to scope-auditor only (active_work.md is in no routing path); the commit carries
--    contract.md so it is NOT artifact-exempt — scope-auditor must run. CPO merges.
-+  - The 14 `wc_pretournament` rows are gone from metric_definitions.csv; the regenerated
-+    metric_definitions.json contains ONLY the 13 match_preview entries, each byte-identical to
-+    today; the 14 orphaned `metrics.*` keys are gone from en/de/fi.json.
-+  - `git diff site/match-preview/metric_definitions.json` shows only the 14 deletions.
-+  - `python scripts/check_ui_i18n_metrics.py` green; `pytest tests/test_metric_definitions_seed.py`
-+    green; validate-local gates green.
-+  - Routes to: scope-auditor (always) + cto (scripts/site build config touched by the JSON regen
-+    path) + bi-analyst (i18n labels touched). The commit carries contract.md → NOT artifact-exempt.
-+    CPO merges; never self-merge.
+-  - The 14 `wc_pretournament` rows are gone from metric_definitions.csv; the regenerated
+-    metric_definitions.json contains ONLY the 13 match_preview entries, each byte-identical to
+-    today; the 14 orphaned `metrics.*` keys are gone from en/de/fi.json.
+-  - `git diff site/match-preview/metric_definitions.json` shows only the 14 deletions.
+-  - `python scripts/check_ui_i18n_metrics.py` green; `pytest tests/test_metric_definitions_seed.py`
+-    green; validate-local gates green.
+-  - Routes to: scope-auditor (always) + cto (scripts/site build config touched by the JSON regen
+-    path) + bi-analyst (i18n labels touched). The commit carries contract.md → NOT artifact-exempt.
+-    CPO merges; never self-merge.
++  - The export builds the JSON from metric_bindings.csv + metric_catalogue.csv; regenerating yields a
++    byte-identical site/match-preview/metric_definitions.json (`git diff --exit-code` clean).
++  - The legacy metric_definitions.csv + its schema.yml block are gone; tests/test_metric_definitions_seed.py
++    is replaced by tests/test_metric_bindings.py which (a) checks every binding's catalogue id resolves +
++    paired columns, and (b) regenerates the JSON and asserts it equals the committed file (the durable
++    byte-identity guard).
++  - validate-local green (incl. the new test); no dbt model affected.
++  - Routes to: scope-auditor (always) + analytics-engineer (dbt_project/** + scripts/export_*.py) + cto
++    (scripts/export_*.py + tests/**). The commit carries contract.md → NOT artifact-exempt. CPO merges.
  
  amendments: (none)
 diff --git a/dbt_project/seeds/metric_definitions.csv b/dbt_project/seeds/metric_definitions.csv
-index 9d03af1..d7ae60b 100644
+deleted file mode 100644
+index d7ae60b..0000000
 --- a/dbt_project/seeds/metric_definitions.csv
-+++ b/dbt_project/seeds/metric_definitions.csv
-@@ -12,17 +12,3 @@ pass_accuracy_recent,home_pass_accuracy_recent,away_pass_accuracy_recent,,false,
- corner_kicks_per_match_recent,home_corner_kicks_per_match_recent,away_corner_kicks_per_match_recent,,false,decimal_1,match_preview
- corners_conceded_per_match_recent,home_corners_conceded_per_match_recent,away_corners_conceded_per_match_recent,,true,decimal_1,match_preview
- save_ratio_recent,home_save_ratio_recent,away_save_ratio_recent,,false,percent,match_preview
--qualifier_games_played,,,qualifier_games_played,false,integer,wc_pretournament
--points_capture_pretournament,,,points_capture_pretournament,false,percent,wc_pretournament
--goals_per_match_pretournament,,,goals_per_match_pretournament,false,decimal_1,wc_pretournament
--goals_against_per_match_pretournament,,,goals_against_per_match_pretournament,true,decimal_1,wc_pretournament
--shots_per_match_pretournament,,,shots_per_match_pretournament,false,decimal_1,wc_pretournament
--shot_share_pretournament,,,shot_share_pretournament,false,percent,wc_pretournament
--danger_zone_ratio_pretournament,,,danger_zone_ratio_pretournament,false,percent,wc_pretournament
--shot_accuracy_pretournament,,,shot_accuracy_pretournament,false,percent,wc_pretournament
--finishing_efficiency_pretournament,,,finishing_efficiency_pretournament,false,percent,wc_pretournament
--pass_accuracy_pretournament,,,pass_accuracy_pretournament,false,percent,wc_pretournament
--passes_per_match_pretournament,,,passes_per_match_pretournament,false,decimal_1,wc_pretournament
--corner_kicks_per_match_pretournament,,,corner_kicks_per_match_pretournament,false,decimal_1,wc_pretournament
--corners_conceded_per_match_pretournament,,,corners_conceded_per_match_pretournament,true,decimal_1,wc_pretournament
--save_ratio_pretournament,,,save_ratio_pretournament,false,percent,wc_pretournament
-diff --git a/site/i18n/de.json b/site/i18n/de.json
-index 57c68f0..a888f92 100644
---- a/site/i18n/de.json
-+++ b/site/i18n/de.json
-@@ -71,62 +71,6 @@
-     "save_ratio_recent": {
-       "label": "% Gehaltene Torschüsse",
-       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren im Formfenster."
--    },
--    "qualifier_games_played": {
--      "label": "Qualifikationsspiele",
--      "description": "Anzahl abgeschlossener Qualifikationsspiele vor dem WM-Turnier."
--    },
--    "points_capture_pretournament": {
--      "label": "Punkteausbeute Quali",
--      "description": "Anteil der maximal möglichen Punkte in der WM-Qualifikation."
--    },
--    "goals_per_match_pretournament": {
--      "label": "Ø Tore Quali",
--      "description": "Durchschnittlich erzielte Tore pro Qualifikationsspiel."
--    },
--    "goals_against_per_match_pretournament": {
--      "label": "Ø Gegentore Quali",
--      "description": "Durchschnittlich kassierte Tore pro Qualifikationsspiel."
--    },
--    "shots_per_match_pretournament": {
--      "label": "Ø Schüsse Quali",
--      "description": "Durchschnittliche Anzahl aller Abschlüsse pro Qualifikationsspiel."
--    },
--    "shot_share_pretournament": {
--      "label": "Schussanteil Quali",
--      "description": "Anteil der eigenen Schüsse an allen Schüssen beider Mannschaften in der Quali."
--    },
--    "danger_zone_ratio_pretournament": {
--      "label": "Strafraumanteil Quali",
--      "description": "Anteil der Schüsse aus dem Strafraum an allen Schüssen in der Quali."
--    },
--    "shot_accuracy_pretournament": {
--      "label": "Schussgenauigkeit Quali",
--      "description": "Anteil der Schüsse aufs Tor an allen Schüssen in der Quali."
--    },
--    "finishing_efficiency_pretournament": {
--      "label": "Trefferquote Quali",
--      "description": "Tore je Schuss aufs Tor in der Qualifikation."
--    },
--    "pass_accuracy_pretournament": {
--      "label": "Passgenauigkeit Quali",
--      "description": "Anteil genauer Pässe an allen Pässen in der Quali."
--    },
--    "passes_per_match_pretournament": {
--      "label": "Ø Pässe Quali",
--      "description": "Durchschnittliche Anzahl gespielter Pässe pro Qualifikationsspiel."
--    },
--    "corner_kicks_per_match_pretournament": {
--      "label": "Ø Ecken Quali",
--      "description": "Durchschnittliche Anzahl eigener Ecken pro Qualifikationsspiel."
--    },
--    "corners_conceded_per_match_pretournament": {
--      "label": "Ø Ecken gegen Quali",
--      "description": "Durchschnittliche Anzahl zugelassener Ecken pro Qualifikationsspiel."
--    },
--    "save_ratio_pretournament": {
--      "label": "Gehaltene Torschüsse Quali",
--      "description": "Paraden im Verhältnis zu Paraden plus Gegentoren in der Quali."
-     }
-   },
-   "competitions": {
-diff --git a/site/i18n/en.json b/site/i18n/en.json
-index cf4e2c6..1ab3a73 100644
---- a/site/i18n/en.json
-+++ b/site/i18n/en.json
-@@ -71,62 +71,6 @@
-     "save_ratio_recent": {
-       "label": "% Save percentage",
-       "description": "Saves as a share of saves plus goals conceded in the form window."
--    },
--    "qualifier_games_played": {
--      "label": "Qualifier matches",
--      "description": "Completed qualifying matches before the World Cup."
--    },
--    "points_capture_pretournament": {
--      "label": "Qualifier points won",
--      "description": "Share of maximum possible points in World Cup qualifying."
--    },
--    "goals_per_match_pretournament": {
--      "label": "Ø Goals (qualifying)",
--      "description": "Average goals scored per qualifying match."
--    },
--    "goals_against_per_match_pretournament": {
--      "label": "Ø Goals against (qualifying)",
--      "description": "Average goals conceded per qualifying match."
--    },
--    "shots_per_match_pretournament": {
--      "label": "Ø Shots (qualifying)",
--      "description": "Average total shots per qualifying match."
--    },
--    "shot_share_pretournament": {
--      "label": "Shot share (qualifying)",
--      "description": "Share of team shots out of both teams' shots in qualifying."
--    },
--    "danger_zone_ratio_pretournament": {
--      "label": "Box shot share (qualifying)",
--      "description": "Share of shots from inside the box in qualifying."
--    },
--    "shot_accuracy_pretournament": {
--      "label": "Shot accuracy (qualifying)",
--      "description": "Share of shots on target in qualifying."
--    },
--    "finishing_efficiency_pretournament": {
--      "label": "Conversion rate (qualifying)",
--      "description": "Goals per shot on target in qualifying."
--    },
--    "pass_accuracy_pretournament": {
--      "label": "Pass accuracy (qualifying)",
--      "description": "Share of accurate passes in qualifying."
--    },
--    "passes_per_match_pretournament": {
--      "label": "Ø Passes (qualifying)",
--      "description": "Average passes per qualifying match."
--    },
--    "corner_kicks_per_match_pretournament": {
--      "label": "Ø Corners (qualifying)",
--      "description": "Average corners won per qualifying match."
--    },
--    "corners_conceded_per_match_pretournament": {
--      "label": "Ø Corners against (qualifying)",
--      "description": "Average corners conceded per qualifying match."
--    },
--    "save_ratio_pretournament": {
--      "label": "Save percentage (qualifying)",
--      "description": "Saves as a share of saves plus goals conceded in qualifying."
-     }
-   },
-   "competitions": {
-diff --git a/site/i18n/fi.json b/site/i18n/fi.json
-index 1ea6362..8590b00 100644
---- a/site/i18n/fi.json
-+++ b/site/i18n/fi.json
-@@ -71,62 +71,6 @@
-     "save_ratio_recent": {
-       "label": "% Torjuntaosuus",
-       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
--    },
--    "qualifier_games_played": {
--      "label": "Pelatut karsintaottelut",
--      "description": "Pelattujen karsintaottelujen määrä ennen MM-turnausta."
--    },
--    "points_capture_pretournament": {
--      "label": "Pisteosuus (karsinnoissa)",
--      "description": "Saavutettujen pisteiden osuus maksimipisteistä MM-karsinnoissa."
--    },
--    "goals_per_match_pretournament": {
--      "label": "Ø Maalit (karsinnoissa)",
--      "description": "Tehdyt maalit keskimäärin per karsintaottelu."
--    },
--    "goals_against_per_match_pretournament": {
--      "label": "Ø Päästetyt maalit (karsinnoissa)",
--      "description": "Päästetyt maalit keskimäärin per karsintaottelu."
--    },
--    "shots_per_match_pretournament": {
--      "label": "Ø Laukaukset (karsinnoissa)",
--      "description": "Kaikki laukaukset keskimäärin per karsintaottelu."
--    },
--    "shot_share_pretournament": {
--      "label": "% Laukausosuus (karsinnoissa)",
--      "description": "Joukkueen laukauksien osuus molempien joukkueiden kaikista laukauksista karsinnoissa."
--    },
--    "danger_zone_ratio_pretournament": {
--      "label": "% Laukaukset boksista (karsinnoissa)",
--      "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista karsinnoissa."
--    },
--    "shot_accuracy_pretournament": {
--      "label": "% Maalilaukaukset (karsinnoissa)",
--      "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista karsinnoissa."
--    },
--    "finishing_efficiency_pretournament": {
--      "label": "% Viimeistelytehokkuus (karsinnoissa)",
--      "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin karsinnoissa."
--    },
--    "pass_accuracy_pretournament": {
--      "label": "% Syöttötarkkuus (karsinnoissa)",
--      "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä karsinnoissa."
--    },
--    "passes_per_match_pretournament": {
--      "label": "Ø Syötöt (karsinnoissa)",
--      "description": "Syöttöyritykset keskimäärin per karsintaottelu."
--    },
--    "corner_kicks_per_match_pretournament": {
--      "label": "Ø Kulmapotkut (karsinnoissa)",
--      "description": "Voitetut kulmapotkut keskimäärin per karsintaottelu."
--    },
--    "corners_conceded_per_match_pretournament": {
--      "label": "Ø Päästetyt kulmapotkut (karsinnoissa)",
--      "description": "Vastustajalle annetut kulmapotkut keskimäärin per karsintaottelu."
--    },
--    "save_ratio_pretournament": {
--      "label": "% Torjuntaosuus (karsinnoissa)",
--      "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin karsinnoissa."
-     }
-   },
-   "competitions": {
-diff --git a/site/match-preview/metric_definitions.json b/site/match-preview/metric_definitions.json
-index 8e2004f..831a5bf 100644
---- a/site/match-preview/metric_definitions.json
-+++ b/site/match-preview/metric_definitions.json
-@@ -79,77 +79,5 @@
-     "context": "match_preview",
-     "home_column": "home_save_ratio_recent",
-     "away_column": "away_save_ratio_recent"
--  },
--  "qualifier_games_played": {
--    "format": "integer",
--    "context": "wc_pretournament",
--    "single_column": "qualifier_games_played"
--  },
--  "points_capture_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "points_capture_pretournament"
--  },
--  "goals_per_match_pretournament": {
--    "format": "decimal_1",
--    "context": "wc_pretournament",
--    "single_column": "goals_per_match_pretournament"
--  },
--  "goals_against_per_match_pretournament": {
--    "format": "decimal_1",
--    "context": "wc_pretournament",
--    "lower_is_better": true,
--    "single_column": "goals_against_per_match_pretournament"
--  },
--  "shots_per_match_pretournament": {
--    "format": "decimal_1",
--    "context": "wc_pretournament",
--    "single_column": "shots_per_match_pretournament"
--  },
--  "shot_share_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "shot_share_pretournament"
--  },
--  "danger_zone_ratio_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "danger_zone_ratio_pretournament"
--  },
--  "shot_accuracy_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "shot_accuracy_pretournament"
--  },
--  "finishing_efficiency_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "finishing_efficiency_pretournament"
--  },
--  "pass_accuracy_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "pass_accuracy_pretournament"
--  },
--  "passes_per_match_pretournament": {
--    "format": "decimal_1",
--    "context": "wc_pretournament",
--    "single_column": "passes_per_match_pretournament"
--  },
--  "corner_kicks_per_match_pretournament": {
--    "format": "decimal_1",
--    "context": "wc_pretournament",
--    "single_column": "corner_kicks_per_match_pretournament"
--  },
--  "corners_conceded_per_match_pretournament": {
--    "format": "decimal_1",
--    "context": "wc_pretournament",
--    "lower_is_better": true,
--    "single_column": "corners_conceded_per_match_pretournament"
--  },
--  "save_ratio_pretournament": {
--    "format": "percent",
--    "context": "wc_pretournament",
--    "single_column": "save_ratio_pretournament"
-   }
- }
++++ /dev/null
+@@ -1,14 +0,0 @@
+-metric_id,home_column,away_column,single_column,lower_is_better,format,context
+-league_rank,home_league_rank,away_league_rank,,true,integer,match_preview
+-points_won_form,home_points_won_sum_form,away_points_won_sum_form,,false,points_fraction,match_preview
+-goals_per_match_recent,home_goals_per_match_recent,away_goals_per_match_recent,,false,decimal_1,match_preview
+-goals_against_per_match_recent,home_goals_against_per_match_recent,away_goals_against_per_match_recent,,true,decimal_1,match_preview
+-shots_per_match_recent,home_shots_per_match_recent,away_shots_per_match_recent,,false,decimal_1,match_preview
+-shot_accuracy_recent,home_shot_accuracy_recent,away_shot_accuracy_recent,,false,percent,match_preview
+-danger_zone_ratio_recent,home_danger_zone_ratio_recent,away_danger_zone_ratio_recent,,false,percent,match_preview
+-finishing_efficiency_recent,home_finishing_efficiency_recent,away_finishing_efficiency_recent,,false,percent,match_preview
+-passes_per_match_recent,home_passes_per_match_recent,away_passes_per_match_recent,,false,decimal_0,match_preview
+-pass_accuracy_recent,home_pass_accuracy_recent,away_pass_accuracy_recent,,false,percent,match_preview
+-corner_kicks_per_match_recent,home_corner_kicks_per_match_recent,away_corner_kicks_per_match_recent,,false,decimal_1,match_preview
+-corners_conceded_per_match_recent,home_corners_conceded_per_match_recent,away_corners_conceded_per_match_recent,,true,decimal_1,match_preview
+-save_ratio_recent,home_save_ratio_recent,away_save_ratio_recent,,false,percent,match_preview
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index ac8b5c2..268d4a6 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -148,33 +148,6 @@ seeds:
+           value signals — the seed of website auto-narrative. Populated for team metrics; null for
+           player metrics (v1.x).
+ 
+-  - name: metric_definitions
+-    description: >
+-      Canonical metric ids and mart column bindings (no locale-specific copy).
+-      Labels and descriptions live in site/i18n/*.json under metrics.<metric_id>.
+-    config:
+-      +full_refresh: true
+-    columns:
+-      - name: metric_id
+-        description: "Stable semantic metric id (language-neutral)."
+-        tests:
+-          - not_null
+-          - unique
+-      - name: home_column
+-        description: "Mart column for the home team value (match-preview paired metrics)."
+-      - name: away_column
+-        description: "Mart column for the away team value (match-preview paired metrics)."
+-      - name: single_column
+-        description: "Mart column when the metric is not split home/away."
+-      - name: lower_is_better
+-        description: "True when a lower numeric value is better for comparison highlighting."
+-      - name: format
+-        description: "UI format: integer, decimal_0, decimal_1, percent, points_fraction."
+-        tests: [not_null]
+-      - name: context
+-        description: "Where this binding applies: match_preview, wc_pretournament, etc."
+-        tests: [not_null]
+-
+   - name: wc_team_market_value_snapshot
+     description: >
+       Twice-monthly WC national-team squad market value estimates (EUR). team_sk matches dim_team.team_sk
+diff --git a/scripts/export_metric_definitions_json.py b/scripts/export_metric_definitions_json.py
+index b363f83..bfbc6e4 100644
+--- a/scripts/export_metric_definitions_json.py
++++ b/scripts/export_metric_definitions_json.py
+@@ -1,5 +1,16 @@
+ #!/usr/bin/env python3
+-"""Export dbt seed metric_definitions.csv to site JSON for static UI binding."""
++"""Export the live match-preview metric-definitions JSON for static UI binding.
++
++Composes two sources (the catalogue is never modified here):
++  - metric_catalogue.csv  — the single source of truth for each metric. This script reads
++    ONLY `format` and `lower_is_better` (direction) from it.
++  - metric_bindings.csv   — the live display wiring: each windowed live id, the catalogue
++    metric it maps to, the JSON columns that feed it, and the render context.
++
++Output (site/match-preview/metric_definitions.json) is consumed by the static match-preview
++UI. It must stay byte-identical unless a binding or definition deliberately changes; the test
++`tests/test_metric_bindings.py` regenerates and asserts equality against the committed file.
++"""
+ 
+ from __future__ import annotations
+ 
+@@ -9,41 +20,81 @@ import json
+ from pathlib import Path
+ 
+ 
+-def main() -> None:
+-    root = Path(__file__).resolve().parents[1]
+-    parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument(
+-        "--csv",
+-        type=Path,
+-        default=root / "dbt_project" / "seeds" / "metric_definitions.csv",
+-    )
+-    parser.add_argument(
+-        "--out",
+-        type=Path,
+-        default=root / "site" / "match-preview" / "metric_definitions.json",
+-    )
+-    args = parser.parse_args()
++def _truthy(value: str | None) -> bool:
++    return (value or "").strip().lower() in ("true", "1", "yes")
++
+ 
+-    defs: dict[str, dict[str, str | bool]] = {}
+-    with args.csv.open(newline="", encoding="utf-8") as f:
++def load_catalogue(path: Path) -> dict[str, dict[str, object]]:
++    """metric_id -> {format, lower_is_better} from the catalogue SSoT."""
++    catalogue: dict[str, dict[str, object]] = {}
++    with path.open(newline="", encoding="utf-8") as f:
+         for row in csv.DictReader(f):
+             mid = (row.get("metric_id") or "").strip()
+             if not mid:
+                 continue
+-            entry: dict[str, str | bool] = {
++            catalogue[mid] = {
+                 "format": (row.get("format") or "").strip(),
++                "lower_is_better": _truthy(row.get("lower_is_better")),
++            }
++    return catalogue
++
++
++def build_defs(bindings_path: Path, catalogue_path: Path) -> dict[str, dict[str, object]]:
++    """Compose the per-live-id UI binding dict from bindings (wiring) + catalogue (definition)."""
++    catalogue = load_catalogue(catalogue_path)
++    defs: dict[str, dict[str, object]] = {}
++    with bindings_path.open(newline="", encoding="utf-8") as f:
++        for row in csv.DictReader(f):
++            live_id = (row.get("live_id") or "").strip()
++            if not live_id:
++                continue
++            cat_id = (row.get("catalogue_metric_id") or "").strip()
++            cat_row = catalogue.get(cat_id)
++            if cat_row is None:
++                raise SystemExit(
++                    f"metric_bindings: '{live_id}' references unknown catalogue metric '{cat_id}'"
++                )
++            entry: dict[str, object] = {
++                "format": cat_row["format"],
+                 "context": (row.get("context") or "").strip(),
+             }
+-            if (row.get("lower_is_better") or "").strip().lower() in ("true", "1", "yes"):
++            if cat_row["lower_is_better"]:
+                 entry["lower_is_better"] = True
+             for col in ("home_column", "away_column", "single_column"):
+                 val = (row.get(col) or "").strip()
+                 if val:
+                     entry[col] = val
+-            defs[mid] = entry
++            defs[live_id] = entry
++    return defs
++
++
++def render(defs: dict[str, dict[str, object]]) -> str:
++    return json.dumps(defs, ensure_ascii=False, indent=2) + "\n"
++
++
++def main() -> None:
++    root = Path(__file__).resolve().parents[1]
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument(
++        "--bindings",
++        type=Path,
++        default=root / "site" / "match-preview" / "metric_bindings.csv",
++    )
++    parser.add_argument(
++        "--catalogue",
++        type=Path,
++        default=root / "dbt_project" / "seeds" / "metric_catalogue.csv",
++    )
++    parser.add_argument(
++        "--out",
++        type=Path,
++        default=root / "site" / "match-preview" / "metric_definitions.json",
++    )
++    args = parser.parse_args()
+ 
++    defs = build_defs(args.bindings, args.catalogue)
+     args.out.parent.mkdir(parents=True, exist_ok=True)
+-    args.out.write_text(json.dumps(defs, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
++    args.out.write_text(render(defs), encoding="utf-8")
+     print(f"Wrote {len(defs)} metric definitions to {args.out}")
+ 
+ 
+diff --git a/site/match-preview/metric_bindings.csv b/site/match-preview/metric_bindings.csv
+new file mode 100644
+index 0000000..5c2ffd1
+--- /dev/null
++++ b/site/match-preview/metric_bindings.csv
+@@ -0,0 +1,14 @@
++live_id,catalogue_metric_id,home_column,away_column,context
++league_rank,league_rank,home_league_rank,away_league_rank,match_preview
++points_won_form,points_won,home_points_won_sum_form,away_points_won_sum_form,match_preview
++goals_per_match_recent,goals_per_match,home_goals_per_match_recent,away_goals_per_match_recent,match_preview
++goals_against_per_match_recent,goals_against_per_match,home_goals_against_per_match_recent,away_goals_against_per_match_recent,match_preview
++shots_per_match_recent,shots_per_match,home_shots_per_match_recent,away_shots_per_match_recent,match_preview
++shot_accuracy_recent,shot_accuracy,home_shot_accuracy_recent,away_shot_accuracy_recent,match_preview
++danger_zone_ratio_recent,danger_zone_ratio,home_danger_zone_ratio_recent,away_danger_zone_ratio_recent,match_preview
++finishing_efficiency_recent,finishing_efficiency,home_finishing_efficiency_recent,away_finishing_efficiency_recent,match_preview
++passes_per_match_recent,passes_per_match,home_passes_per_match_recent,away_passes_per_match_recent,match_preview
++pass_accuracy_recent,pass_accuracy,home_pass_accuracy_recent,away_pass_accuracy_recent,match_preview
++corner_kicks_per_match_recent,corner_kicks_per_match,home_corner_kicks_per_match_recent,away_corner_kicks_per_match_recent,match_preview
++corners_conceded_per_match_recent,corners_conceded_per_match,home_corners_conceded_per_match_recent,away_corners_conceded_per_match_recent,match_preview
++save_ratio_recent,save_ratio,home_save_ratio_recent,away_save_ratio_recent,match_preview
+diff --git a/tests/test_metric_bindings.py b/tests/test_metric_bindings.py
+new file mode 100644
+index 0000000..8c8646a
+--- /dev/null
++++ b/tests/test_metric_bindings.py
+@@ -0,0 +1,63 @@
++"""metric_bindings: the live match-preview wiring, plus the byte-identity guard for its JSON.
++
++The live match-preview data file (site/match-preview/metric_definitions.json) is generated
++from metric_bindings.csv (wiring) + metric_catalogue.csv (definition). These tests keep the
++wiring well-formed and lock the generated file to a fresh regeneration, so future steps cannot
++silently change what the live site renders.
++"""
++
++from __future__ import annotations
++
++import csv
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++BINDINGS = REPO / "site" / "match-preview" / "metric_bindings.csv"
++CATALOGUE = REPO / "dbt_project" / "seeds" / "metric_catalogue.csv"
++COMMITTED_JSON = REPO / "site" / "match-preview" / "metric_definitions.json"
++EXPORT = REPO / "scripts" / "export_metric_definitions_json.py"
++
++
++def _binding_rows() -> list[dict[str, str]]:
++    with BINDINGS.open(newline="", encoding="utf-8") as f:
++        return list(csv.DictReader(f))
++
++
++def _catalogue_ids() -> set[str]:
++    with CATALOGUE.open(newline="", encoding="utf-8") as f:
++        return {(r.get("metric_id") or "").strip() for r in csv.DictReader(f)}
++
++
++def test_live_ids_unique() -> None:
++    ids = [(r.get("live_id") or "").strip() for r in _binding_rows()]
++    assert ids
++    assert len(ids) == len(set(ids))
++
++
++def test_every_binding_resolves_to_a_catalogue_metric() -> None:
++    catalogue = _catalogue_ids()
++    for row in _binding_rows():
++        cat_id = (row.get("catalogue_metric_id") or "").strip()
++        assert cat_id in catalogue, f"{row.get('live_id')} -> unknown catalogue metric '{cat_id}'"
++
++
++def test_match_preview_bindings_are_paired() -> None:
++    for row in _binding_rows():
++        if (row.get("context") or "").strip() == "match_preview":
++            assert (row.get("home_column") or "").strip(), row.get("live_id")
++            assert (row.get("away_column") or "").strip(), row.get("live_id")
++
++
++def test_regenerated_json_matches_committed() -> None:
++    """Running the export (default sources) must reproduce the committed data file exactly."""
++    with tempfile.TemporaryDirectory() as tmp:
++        out = Path(tmp) / "metric_definitions.json"
++        subprocess.run(
++            [sys.executable, str(EXPORT), "--out", str(out)],
++            check=True,
++            cwd=str(REPO),
++        )
++        assert out.read_text(encoding="utf-8") == COMMITTED_JSON.read_text(encoding="utf-8")
+diff --git a/tests/test_metric_definitions_seed.py b/tests/test_metric_definitions_seed.py
+deleted file mode 100644
+index 162f4fc..0000000
+--- a/tests/test_metric_definitions_seed.py
++++ /dev/null
+@@ -1,29 +0,0 @@
+-"""metric_definitions seed: one row per canonical metric_id."""
+-
+-from __future__ import annotations
+-
+-import csv
+-from pathlib import Path
+-
+-SEED = Path(__file__).resolve().parents[1] / "dbt_project" / "seeds" / "metric_definitions.csv"
+-
+-
+-def _rows() -> list[dict[str, str]]:
+-    with SEED.open(newline="", encoding="utf-8") as f:
+-        return list(csv.DictReader(f))
+-
+-
+-def test_metric_id_unique() -> None:
+-    ids = [r["metric_id"].strip() for r in _rows()]
+-    assert len(ids) == len(set(ids))
+-
+-
+-def test_paired_metrics_have_home_and_away_columns() -> None:
+-    for row in _rows():
+-        home = (row.get("home_column") or "").strip()
+-        away = (row.get("away_column") or "").strip()
+-        single = (row.get("single_column") or "").strip()
+-        if single:
+-            assert not home and not away, row["metric_id"]
+-        elif row["context"] == "match_preview":
+-            assert home and away, row["metric_id"]
