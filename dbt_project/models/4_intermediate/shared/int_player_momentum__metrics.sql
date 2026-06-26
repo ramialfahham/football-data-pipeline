@@ -6,7 +6,7 @@
   For each upcoming fixture side, identifies the team's last 5 finished matches
   (same entity_type, same season_api_year, before this fixture's kickoff) and
   aggregates raw player stat totals for every player who appeared in those matches.
-  No ratios — those are computed in mart_momentum__player.
+  No ratios — those are computed in mart_player_momentum.
 
   Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
@@ -26,7 +26,7 @@
   passes_accuracy_percent / 100) then summed; inherits small rounding error.
 
   save_pct requires goals_against which is not currently carried in
-  int_legs__player_match — mart_momentum__player will emit null for that metric.
+  int_legs__player_match — mart_player_momentum will emit null for that metric.
 #}
 
 with upcoming as (

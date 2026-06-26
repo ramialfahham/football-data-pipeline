@@ -77,7 +77,7 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
-  - name: mart_momentum__player
+  - name: mart_player_momentum
     description: >
       W1 last-5 momentum mart — player. One row per player per upcoming fixture side.
       Raw counts (goals, assists, cards, …) are passed through directly from the builder.
@@ -362,11 +362,11 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
-  - name: mart_season_record__player
+  - name: mart_player_season_record
     description: >
       W2 season-record mart — player. One row per player per upcoming fixture side: the
       player's cumulative record in the fixture's own competition this season (complement to
-      mart_momentum__player). Previous-season fallback before the team has played. Raw counts
+      mart_player_momentum). Previous-season fallback before the team has played. Raw counts
       passed through; ratios via safe_divide. Grain: (upcoming_fixture_sk, team_sk, player_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:

@@ -1,46 +1,78 @@
-# Task contract — name the five-step protocol + adopt plan mode as the Confirm gate
+# Task contract — #500 PR2-player: entity-first renames of the 4 player momentum/season models
 
-> Governance/docs task. Written on a clean tree BEFORE any edit. Non-structural
-> (docs only) — no impact_map required. See docs/working_agreement.md §1, §2, §10.
+> Written on a clean tree BEFORE any edit. See docs/working_agreement.md §1, §2, §10;
+> plan C:\Users\Rami\.claude\plans\quiet-meandering-lerdorf.md (CPO-approved).
 
 objective: >
-  Close the "Confirm" gap: of the five-step ladder Explore -> Plan -> Confirm ->
-  Implement -> Verify, four steps are machine-gated and only "Confirm" (wait for the
-  user's explicit go before implementing) is an unenforced behavioural rule. Per CPO
-  decision 2026-06-26 ("Execute as recommended" -> option b + c1): (b) name the
-  five-step protocol in the guard docs and designate working_agreement.md §1 as the
-  Confirm step; (c1) adopt the harness's native plan mode (EnterPlanMode/ExitPlanMode)
-  as the Confirm gate for any file-touching task. Hold option c2 (a self-attested
-  `cpo_go` contract token + impact-map-gate extension) in RESERVE — do not build it.
-refs: working_agreement.md §1; active_work.md "§1 lesson" 2026-06-25; CPO ruling 2026-06-26.
+  Finish the entity-first naming mirror of #574 (team) on the PLAYER side. Pure rename of
+  four models — int_momentum__player -> int_player_momentum__metrics; int_season_record__player
+  -> int_player_season_record; mart_momentum__player -> mart_player_momentum;
+  mart_season_record__player -> mart_player_season_record — plus the ref()s, the player-half yml
+  entries, in-file comment cross-refs, and the v2 export reference. ZERO logic/number change.
+refs: #500 PR2; CPO ruling 2026-06-26 (both recommended options confirmed); plan quiet-meandering-lerdorf.
 
 scope_paths:
-  - docs/working_agreement.md
-  - CLAUDE.md
+  - dbt_project/models/4_intermediate/shared/int_momentum__player.sql
+  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_season_record__player.sql
+  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+  - dbt_project/models/5_marts/shared/mart_momentum__player.sql
+  - dbt_project/models/5_marts/shared/mart_player_momentum.sql
+  - dbt_project/models/5_marts/shared/mart_season_record__player.sql
+  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+  - dbt_project/models/5_marts/shared/shared.yml
+  - scripts/export_site_data.py
+
+impact_map: >
+  writers: each of the 4 models is its own single SELECT (one writer each); no other model writes them.
+  downstream (EVIDENCE — `dbt ls --select int_momentum__player+ int_season_record__player+
+    mart_momentum__player+ mart_season_record__player+ --resource-type model`, run 2026-06-26 on this
+    branch off main, dbt=1.7.19, 88 models): the closure is EXACTLY the four models themselves —
+      4_intermediate.shared.int_momentum__player
+      4_intermediate.shared.int_season_record__player
+      5_marts.shared.mart_momentum__player
+      5_marts.shared.mart_season_record__player
+    i.e. each int feeds ONLY its own mart; both marts are LEAF (no dbt model downstream). The only
+    non-dbt consumer is scripts/export_site_data.py (the PAUSED v2 export), which reads
+    mart_momentum__player at line ~193 (comment) + ~437 (query) — confirmed by grep; it does NOT read
+    mart_season_record__player or either int builder. The LIVE match-preview build
+    (build_match_preview_site.sh + extract_preview_json.py + export_pages_data.py) reads NONE of them.
+  layer_rules: ints stay in 4_intermediate/shared, marts in 5_marts/shared (no layer move);
+    no per-competition staging touched (check_layer_contract unaffected); each model's
+    config(materialized=…) is preserved (3 tables + mart_season_record=view); a yml `name:` must
+    match its model or `dbt parse` fails (so the 3 yml renames are mandatory, not optional).
+  deploy_order: shared BigQuery. The renamed models build fresh under the new names; the 4 OLD-named
+    relations become orphaned (mirrors #574) -> pending CPO `bq rm` (deny-listed):
+    intermediate.int_momentum__player, intermediate.int_season_record__player,
+    marts.mart_momentum__player, marts.mart_season_record__player. NONE are incremental ->
+    no --full-refresh needed. ci-data-build (state:modified+) builds the renamed set on the PR.
+  blast_radius: NONE — pure rename, no formula/grain/column change. Numbers byte-identical by
+    construction; verified new-vs-prod on both marts (grain upcoming_fixture_sk, team_sk, player_sk),
+    expect 0 mismatches; the two builders are literal 1:1 copies (compile-only). Live MVP untouched
+    (no live consumer); the v2 export emits the same data from the renamed source.
 
 decisions_taken: >
-  CPO ruling 2026-06-26: "Execute as recommended" = options (b) + (c1) as presented this
-  session. (b) = name "Explore -> Plan -> Confirm -> Implement -> Verify" in the guard docs,
-  relabel working_agreement.md §1 as the Confirm gate, keep its three existing behavioural
-  bullets. (c1) = adopt native plan mode as the Confirm mechanism for file-touching tasks;
-  an already-given explicit go for a specific change IS the Confirm (plan mode then optional).
-  (c2) self-attested `cpo_go` token = RESERVED, not built (a new gate must earn its place;
-  no-over-engineering). Documentation only — NO hook/settings/workflow edit (plan mode is
-  native), NO product/metric/§10 decision introduced.
+  CPO ruling 2026-06-26 — both recommended options confirmed: (1) rename all FOUR models incl.
+  int_season_record__player -> int_player_season_record (finish the mirror; the team halves were
+  renamed in #574). (2) RENAMES ONLY — no formula-dedup, no new model, no macro. The two player
+  season models legitimately do NOT merge (int_player_season__metrics is per-(player,season) across
+  clubs + per-90s; the season-record path is per-(team,player,league,season)); all three ratio sites
+  are different grains, so the 4 ratios stay INLINE in both marts (as mart_team_momentum keeps its
+  own). MVP-safe: only the paused v2 export reads these. No product/metric/§10 decision introduced.
 
 decisions_reserved:
-  - None new. This records a CPO decision already made; it does not introduce a product,
-    metric, naming, or cost question. If wording drifts toward a NEW mechanism (e.g. actually
-    wiring c2), stop and escalate — out of scope.
+  - None new — this renames CPO-confirmed names with zero logic change. (Stale old-name mentions in
+    layering.md / site_architecture.md / active_work.md are DEFERRED to the doc-consolidation PR-c per
+    the CPO scope list — not touched here. The orphaned old BQ tables are a CPO `bq rm` action.)
 
 done_when:
-  - docs/working_agreement.md §1 names the five-step protocol, marks Confirm as the human
-    checkpoint, keeps the three existing bullets, and documents plan mode as the Confirm gate
-    with c2 noted as reserved.
-  - CLAUDE.md carries a concise named-protocol pointer (the five steps + Confirm = wait for
-    explicit go + use plan mode for file-touching tasks).
-  - No structural/code path touched; scope_paths limited to the two docs.
-  - Routes to scope-auditor only (neither path is in review_routing paths); review cycle PASS;
-    commit substantive (non-artifact) so scope-auditor must run; CPO merges.
+  - `.venv/Scripts/dbt parse` + `dbt compile` clean (88 models; all renamed ref()s resolve).
+  - sqlfluff clean on the 4 renamed model files.
+  - New-vs-prod byte-identical check: 0 mismatches on mart_player_momentum vs prod mart_momentum__player
+    AND mart_player_season_record vs prod mart_season_record__player (FULL OUTER JOIN on the grain).
+  - Required reviewers PASS: scope-auditor + analytics-engineer-reviewer (dbt_project/**) +
+    cto-reviewer (scripts/export_*.py). CPO merges — never self-merge.
 
 amendments: (none)
