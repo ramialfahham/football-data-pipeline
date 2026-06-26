@@ -1,184 +1,125 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index cfcc8c0..55e6d5c 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,12 +4,26 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: 2026-06-25 (**#571 (incomplete-data→NULL, team-feed) MERGED. NOW: #500 PR-b1 (deep atom renames) IMPLEMENTED on `refactor/500-pr-b` — 3 reviewers PASS, PR being opened, awaiting CI + CPO merge. PR-b was SLICED: PR-b1 = atom renames; PR-b2 = file renames / `_season` / consolidation (mapping to pin first).**).
--main carries #569 + #567 + #571. **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.**
-+_Last updated: 2026-06-25 EOD (**#573 (slim CI) + #574 (#500 PR1: team metric consolidation) MERGED. NEXT: #500 PR2 = the PLAYER side, formula-dedup ONLY — the two player season models do NOT merge.**)._
-+main carries #573 + #574 (on top of #571 / #572 / #569 / #567). **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.** **§1 lesson (this session): plan-back + wait for the CPO's explicit go BEFORE exploring deep or implementing — "Confirm" is a rule, not a hook gate.**
- 
- ### FIRST STEPS (cold chat — do in order)
--1. #571 (incomplete-null) MERGED. The `refactor/500-pr-b` branch (PR-b1 = deep atom renames) is DONE (PR open, awaiting CPO merge) — do NOT reopen it. NEXT after it merges: **#500 PR-b2** = the model FILE renames → `int_<entity>_<window>__metrics` + the `_season`-suffix drop + team-season consolidation. The file-rename MAPPING is §10 + underspecified — PIN it with the CPO FIRST (do the momentum builders rename? int_season_record__* / the position model?). Then PR-c (docs), PR-d (live merge). See the ⭐ #500 block.
--2. Bash only; never PowerShell. Write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any model (the impact-map gate enforces it).
-+1. `git checkout main && git pull` (carries #573 + #574). **NEXT unit: #500 PR2 — the PLAYER metric layer, formula-dedup ONLY.** The two player season models — `int_season_record__player` (per-club, season-to-date) and `int_player_season__metrics` (across-clubs whole-season + per-90s) — **DO NOT merge** (different grain + minutes/per-90s, proven). Apply the team pattern: plain INLINE SQL (NO macro), the COMPOSE pattern where a mart can reuse a rollup, entity-first renames (`int_momentum__player → int_player_momentum__metrics`, `mart_momentum__player → mart_player_momentum`, `mart_season_record__player → mart_player_season_record`). MVP-safe + byte-identical (verify per the recipe below).
-+2. Bash only; never PowerShell. Write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any model (the impact-map gate enforces it). **Read `docs/working_agreement.md` + the memory index first.**
-+
-+### ⭐ THIS SESSION (2026-06-25) — cost diagnosis + slim CI + team consolidation
-+- **Cost diagnosis (measured — INFORMATION_SCHEMA.JOBS_BY_PROJECT, EU):** the cost driver was NOT the metric models — it was the **per-PR full-warehouse rebuild** (heavy full-refresh dims rebuilt on every PR: dim_player ~382 GB/14d, dim_player_team_season_mapping ~237, dim_team ~132 = >½ the spend). **`fct_transfer` is LIVE groundwork** (rebuilt in player-data PR-i `bea45e0`, NOT a zombie — memory was wrong, now corrected; no dbt consumer yet, kept for the affiliation-timeline work). Do NOT call it dead weight.
-+- **#573 (slim CI) MERGED** — the biggest cost lever. `ci-data-build` PR runs now build only `state:modified+` (changed models + downstream), diffed against a baseline compiled from `main` at PR time (Option 2). main-push + scheduled stay FULL builds. (`.github/workflows/**` is PROTECTED — needed protected_override + cto/opus review.)
-+- **#574 (#500 PR1: team consolidation) MERGED** — (a) MERGED the duplicate season aggregation: `int_team_season__metrics` is now the final-row projection of `int_team_season_record` (renamed from int_season_record__team; gained opponent_shots_total/league_sk/season_sk), not a 2nd leg pass; (b) de-duped the shared formulas with **plain inline SQL + the COMPOSE pattern** (mart_team_season_record reuses the projection) — **NO macro** (tried, dropped per CPO — see [[macros-decrease-maintainability-prefer-plain-sql]]); (c) entity-first renames. **MVP-safe + byte-identical: 0/12,537 team-seasons × 48 cols** (the check CAUGHT + fixed 2 subtleties: NULL-gate the 9 displayed team-feed `_sum_season` cols; gate shot_accuracy on team coverage too). The `_season` COLUMN names are KEPT (live JSON keys) — their drop is the later live-surface PR.
-+- **PENDING (CPO action): drop the 4 orphaned old BQ tables** (nothing refs them; `bq rm` is deny-listed so the CPO runs): `bq rm -f -t football-data-pipeline-gcp:intermediate.int_momentum__team` (+ `intermediate.int_season_record__team`, `marts.mart_momentum__team`, `marts.mart_season_record__team`).
-+- **Byte-identical recipe (reuse for PR2):** `dbt compile --select <models>`; inline the compiled SQL with `ref()`s pointed at prod tables; `to_json_string(struct(<ORIGINAL output cols, same order>))` of new-vs-prod, FULL OUTER JOIN on the grain key, count mismatches; run read-only via `bq query ... < file` (write the file with the Write tool, NOT a bash heredoc — the contract gate trips on backticks in `printf`). Watch the original's gating (a `season_gated`-style CTE; SoT vs team coverage).
-+
-+### Naming convention LOCKED (CPO 2026-06-25)
-+Entity-first everywhere: `int_<entity>_<window>__metrics`, `mart_<entity>_<surface>`. Retire the `__team`/`__player` suffix style. (The older #500 PR-a/b/c/d framing below is SUPERSEDED by this session's slim-CI + PR1/PR2 plan.)
-+
-+### Remaining #500 sequence (after PR2)
-+- **PR-d (live-surface):** drop the `_season` column suffix end-to-end (changes the live team_season_insights.json keys → must move in lockstep with the site JS); `corners_conceded → corners_against`; reconcile i18n onto the catalogue; register `qualifier_games_played`. §10s to escalate.
-+- **Mart-rename sweep:** the leftover `__entity` marts (mart_momentum_window__team, mart_fixture_stats__team/player, mart_competition_benchmarks__team/player) → entity-first (v2/paused; updates export_site_data.py).
- 
- ## ✅ DONE — incomplete-data→NULL (TEAM-FEED ONLY) — PR open on `fix/incomplete-data-null`, awaiting CPO merge
- The universal rule ("a metric over a partially-covered window is '—', never a value from partial data") was applied
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1b54fac..c9aa9d9 100644
+index c9aa9d9..164fc48 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,124 +1,32 @@
--# Task contract — #500 PR1: team metric consolidation (season-model merge + inline formulas + compose + entity-first model names)
-+# Task contract — handover refresh (end of session 2026-06-25)
+@@ -1,32 +1,46 @@
+-# Task contract — handover refresh (end of session 2026-06-25)
++# Task contract — name the five-step protocol + adopt plan mode as the Confirm gate
  
--> Governance G2/G3 contract. Written on a clean tree BEFORE any code edit.
--> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation).
-+> Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
-+> Artifact/doc task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
+-> Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
+-> Artifact/doc task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
++> Governance/docs task. Written on a clean tree BEFORE any edit. Non-structural
++> (docs only) — no impact_map required. See docs/working_agreement.md §1, §2, §10.
  
  objective: >
--  Consolidate the TEAM metric layer, MVP-safe and numbers byte-identical:
--  (1) MERGE the duplicate season aggregation — `int_team_season__metrics` (whole season) becomes the
--      FINAL-ROW PROJECTION of the cumulative `int_team_season_record` (renamed from int_season_record__team)
--      instead of re-summing the legs a second time;
--  (2) DE-DUPLICATE the formulas WITHOUT a macro (plain SQL + the compose pattern — CPO 2026-06-25):
--      the whole-season metrics are computed ONCE (plain inline SQL) in int_team_season__metrics, and
--      mart_team_season_record COMPOSES it (reuses the rollup, renames `_season`->display) rather than
--      recomputing; mart_team_momentum keeps its own inline last-5 metrics (a genuinely different window);
--  (3) entity-first MODEL renames (CPO-approved naming): int_momentum__team -> int_team_momentum__metrics,
--      int_season_record__team -> int_team_season_record, mart_momentum__team -> mart_team_momentum,
--      mart_season_record__team -> mart_team_season_record. (Player side = separate PR; the `_season` COLUMN
--      drop = deferred to the live-surface PR because it changes the live JSON contract — see decisions_reserved.)
--refs: #500 (metric-layer consolidation). CPO-approved this split 2026-06-25 ("Do it").
-+  Refresh `.claude/active_work.md` to the current truth: #573 (slim CI) and #574 (#500 PR1, team
-+  metric consolidation) are MERGED; record the cost diagnosis, the no-macro/compose decision, the
-+  pending orphaned-table cleanup, and PR2 (player formula-dedup only) as the next unit — so a cold
-+  chat tomorrow continues frictionlessly.
-+refs: #500; end-of-session handover.
+-  Refresh `.claude/active_work.md` to the current truth: #573 (slim CI) and #574 (#500 PR1, team
+-  metric consolidation) are MERGED; record the cost diagnosis, the no-macro/compose decision, the
+-  pending orphaned-table cleanup, and PR2 (player formula-dedup only) as the next unit — so a cold
+-  chat tomorrow continues frictionlessly.
+-refs: #500; end-of-session handover.
++  Close the "Confirm" gap: of the five-step ladder Explore -> Plan -> Confirm ->
++  Implement -> Verify, four steps are machine-gated and only "Confirm" (wait for the
++  user's explicit go before implementing) is an unenforced behavioural rule. Per CPO
++  decision 2026-06-26 ("Execute as recommended" -> option b + c1): (b) name the
++  five-step protocol in the guard docs and designate working_agreement.md §1 as the
++  Confirm step; (c1) adopt the harness's native plan mode (EnterPlanMode/ExitPlanMode)
++  as the Confirm gate for any file-touching task. Hold option c2 (a self-attested
++  `cpo_go` contract token + impact-map-gate extension) in RESERVE — do not build it.
++refs: working_agreement.md §1; active_work.md "§1 lesson" 2026-06-25; CPO ruling 2026-06-26.
  
  scope_paths:
--  - dbt_project/models/4_intermediate/shared/int_momentum__team.sql
--  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_season_record__team.sql
--  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
--  - dbt_project/models/5_marts/shared/mart_momentum__team.sql
--  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
--  - dbt_project/models/5_marts/shared/mart_season_record__team.sql
--  - dbt_project/models/5_marts/shared/mart_team_season_record.sql
--  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
--  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
--  - dbt_project/tests/assert_tournament_form_window.sql
--  - dbt_project/tests/assert_momentum_window_matches_momentum.sql
--  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum__player.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/docs/layering.md
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - dbt_project/models/4_intermediate/world_championship/wc/int_wc.yml
--  - scripts/export_site_data.py
--
--impact_map: >
--  writers / lineage (from `dbt ls --select int_team_season__metrics+ int_momentum__team+
--  int_season_record__team+` + grep of every ref):
--    - FOUNDATION (unchanged): int_legs__team_match (one row per team per finished match; carries own +
--      opponent stats incl. opponent_shots_total) -> all three window aggregators.
--    - int_momentum__team (last-5 raw sums) -> ONLY mart_momentum__team. Rename -> int_team_momentum__metrics;
--      update that one ref.
--    - int_season_record__team (per-match cumulative raw sums) -> mart_season_record__team + int_team_profile__yoy.
--      Rename -> int_team_season_record; ADD opponent_shots_total + league_sk + season_sk (already in the leg) so
--      the projection can produce everything; update both refs.
--    - int_team_season__metrics (whole-season; today RE-SUMS the legs) -> int_competition_benchmarks__team
--      (via team_benchmark_metrics macro), mart_team_season, mart_team_profile, mart_team_season_insights,
--      assert_no_uncatalogued_season_metric. It BECOMES the final row of int_team_season_record (plus inline
--      formulas); OUTPUT COLUMNS (incl. the `_season` suffix) are UNCHANGED, so ALL its consumers are UNTOUCHED.
--    - mart_momentum__team -> mart_matchday_insights (LIVE), 2 DQ tests, export_site_data.py (v2). Rename ->
--      mart_team_momentum; update those 4 refs. mart_season_record__team -> export_site_data.py (v2) only.
--  layer_rules: check_layer_contract — intermediate may not ref marts (unchanged); base views (untouched).
--    The renamed builders stay intermediate tables; marts stay tables/views as-is.
--  deploy_order: NO incremental facts touched — every model here is a full-refresh table or view, so NO
--    --full-refresh dance. After merge, the renamed models build under their new names; the OLD-named relations
--    (int_momentum__team, int_season_record__team, mart_momentum__team, mart_season_record__team) become
--    ORPHANED tables in BQ (nothing refs them) — harmless, flagged for a one-time manual drop post-merge.
--  blast_radius: NUMBERS BYTE-IDENTICAL. The merge sums the SAME legs (projection = today's whole-season
--    aggregate); the inline formulas match the marts' field-by-field; the renames carry the same data under
--    new names. LIVE JSON UNCHANGED: model names are not in the JSON; mart_matchday_insights output columns
--    are unchanged (ref-rename only); the `_season` COLUMN names are KEPT (the projection still emits them) so
--    mart_team_season_insights -> live team_season_insights.json is byte-identical. PROVED: a row-level JSON
--    value check of the new projection vs prod int_team_season__metrics over ALL 12,537 team-seasons x 48
--    columns = 0 mismatches (after fixing 2 subtleties found by the check: gate the 9 displayed team-feed
--    sum columns on partial coverage; gate shot_accuracy on team coverage too, not just SoT).
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - docs/working_agreement.md
++  - CLAUDE.md
  
  decisions_taken: >
--  - NO macro (CPO 2026-06-25 — macros decrease maintainability). The shared formulas are plain INLINE SQL in
--    the explicit mart form (`case when <coverage> < <games> then null else safe_divide(stat, <coverage>) end`),
--    value-equivalent to the old season model (full coverage => total == coverage; partial => both NULL) —
--    verified byte-identical. De-duplication is by COMPOSITION: mart_team_season_record reuses
--    int_team_season__metrics (renaming `_season`->display) instead of recomputing; only the genuinely-different
--    last-5 window (mart_team_momentum) keeps its own inline copy. int_team_season__metrics exposes two extra
--    NON-metric columns for that compose — entity_type + games_with_team_stats — both exempt in the no-drift guard.
--  - Window-SPECIFIC metrics stay INLINE in their own model (they are not duplicated): shot_share +
--    points_capture (season only), clean_sheets-as-count vs -as-rate.
--  - Naming: entity-first per the CPO-approved convention (2026-06-25). The cumulative base stays a builder
--    name (int_team_season_record, no __metrics). int_team_season__metrics keeps its name (established; correct
--    under the scheme; renaming again = churn).
-+  Documentation only — no product/code/§10 decisions. Records decisions already made this session
-+  (no-macro/compose per CPO; entity-first naming; player models do NOT merge).
+-  Documentation only — no product/code/§10 decisions. Records decisions already made this session
+-  (no-macro/compose per CPO; entity-first naming; player models do NOT merge).
++  CPO ruling 2026-06-26: "Execute as recommended" = options (b) + (c1) as presented this
++  session. (b) = name "Explore -> Plan -> Confirm -> Implement -> Verify" in the guard docs,
++  relabel working_agreement.md §1 as the Confirm gate, keep its three existing behavioural
++  bullets. (c1) = adopt native plan mode as the Confirm mechanism for file-touching tasks;
++  an already-given explicit go for a specific change IS the Confirm (plan mode then optional).
++  (c2) self-attested `cpo_go` token = RESERVED, not built (a new gate must earn its place;
++  no-over-engineering). Documentation only — NO hook/settings/workflow edit (plan mode is
++  native), NO product/metric/§10 decision introduced.
  
  decisions_reserved:
--  - The `_season` COLUMN-suffix drop is DEFERRED to the live-surface PR (PR-d): mart_team_season_insights
--    feeds the live team-season page via `select *`, so the column names ARE the JSON keys; dropping `_season`
--    changes the live data contract and must move in lockstep with the site JS. Do NOT drop it here.
--  - The PLAYER consolidation (formula-dedup only; the two player season models do NOT merge — different grain +
--    minutes/per-90s) is a SEPARATE PR. Not in scope.
--  - The leftover suffix-style mart renames (mart_momentum_window__team, mart_fixture_stats__*,
--    mart_competition_benchmarks__*) + the int_team_season__metrics folder move to shared/ = a follow-up sweep.
--  - Dropping the orphaned old-named BQ tables post-merge (one-time manual `bq rm`) — CPO action, flagged.
-+  - None new. (The orphaned-table drop is a CPO action — bq rm is deny-listed; commands are recorded
-+    for the CPO to run. Formalising an explicit Explore->Plan->Confirm->Implement->Verify protocol in
-+    the guard docs is a CPO decision flagged for tomorrow.)
+-  - None new. (The orphaned-table drop is a CPO action — bq rm is deny-listed; commands are recorded
+-    for the CPO to run. Formalising an explicit Explore->Plan->Confirm->Implement->Verify protocol in
+-    the guard docs is a CPO decision flagged for tomorrow.)
++  - None new. This records a CPO decision already made; it does not introduce a product,
++    metric, naming, or cost question. If wording drifts toward a NEW mechanism (e.g. actually
++    wiring c2), stop and escalate — out of scope.
  
  done_when:
--  - `dbt parse` + `dbt compile` clean; `sqlfluff lint models` clean on the touched models; the no-drift guard
--    (assert_no_uncatalogued_season_metric) still passes (int_team_season__metrics output columns unchanged).
--  - BYTE-IDENTICAL proof: a query comparing the NEW int_team_season__metrics (projection) against the CURRENT
--    prod table joins on (team_sk, season_sk) and asserts every metric column is equal (or both null) for a
--    sample of competition-seasons — zero mismatches. Same spot-check for mart_team_momentum vs mart_momentum__team
--    and mart_team_season_record vs mart_season_record__team.
--  - `python .claude/hooks/git_discipline.py --staged-hash` == review.md diff_sha256; scope-auditor +
--    analytics-engineer-reviewer + cto-reviewer PASS (each >=2 named risks); no FAIL, no open ESCALATE.
-+  - .claude/active_work.md leads with: #573 + #574 MERGED; PR2 (player, formula-dedup only) as the
-+    next build; the do-NOTs (CPO merges; don't drop _season; don't merge the player season models;
-+    Bash only; contract-first); the byte-identical verification recipe; the pending bq rm cleanup.
-+  - Routes to scope-auditor only (active_work.md is in no routing path); PASS; commit is artifact-only
-+    (active_work.md + contract.md) — note contract.md makes it NON-exempt, so scope-auditor must run.
+-  - .claude/active_work.md leads with: #573 + #574 MERGED; PR2 (player, formula-dedup only) as the
+-    next build; the do-NOTs (CPO merges; don't drop _season; don't merge the player season models;
+-    Bash only; contract-first); the byte-identical verification recipe; the pending bq rm cleanup.
+-  - Routes to scope-auditor only (active_work.md is in no routing path); PASS; commit is artifact-only
+-    (active_work.md + contract.md) — note contract.md makes it NON-exempt, so scope-auditor must run.
++  - docs/working_agreement.md §1 names the five-step protocol, marks Confirm as the human
++    checkpoint, keeps the three existing bullets, and documents plan mode as the Confirm gate
++    with c2 noted as reserved.
++  - CLAUDE.md carries a concise named-protocol pointer (the five steps + Confirm = wait for
++    explicit go + use plan mode for file-touching tasks).
++  - No structural/code path touched; scope_paths limited to the two docs.
++  - Routes to scope-auditor only (neither path is in review_routing paths); review cycle PASS;
++    commit substantive (non-artifact) so scope-auditor must run; CPO merges.
  
--amendments:
--  - 2026-06-25: dropped the formula macro (`team_window_metrics`) — authority: CPO ("macros decrease
--    maintainability; drop it"). Replaced by plain inline SQL + the compose pattern (above). + added
--    `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` to scope: int_team_season__metrics now
--    exposes entity_type + games_with_team_stats (so mart_team_season_record can compose it); both are
--    NON-metric (a dimension + a coverage count), so they go in the guard's `exempt` set — consistent with
--    the existing stat_coverage_season_games / player_stat_coverage_season_games exemptions.
--  - 2026-06-25: + int_momentum_window__team.sql, int_momentum__player.sql, int_momentum_window.yml,
--    dbt_project/docs/layering.md — authority: CPO "fold them in". Completing the rename: these 4 carry only PROSE
--    references to the old names (int_momentum__team / mart_momentum__team / mart_season_record__team in
--    comments + the layering.md mart inventory); updated to the new names so no stale mentions remain. No
--    logic change.
-+amendments: (none)
+ amendments: (none)
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 01c4868..e6b0515 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -14,6 +14,8 @@ Read this at the start of every session before doing anything else.
+ 
+ **Read [`docs/working_agreement.md`](docs/working_agreement.md) before doing anything.** It defines what you are and are not allowed to do, quality standards, branch discipline, layer rules, and communication style. Non-negotiable.
+ 
++**Every unit of work runs Explore → Plan → Confirm → Implement → Verify** (§1). Four steps are machine-gated; **Confirm is the human checkpoint — WAIT for the user's explicit go before implementing.** Exploring options or thinking out loud is not a go. For any file-touching task, use **plan mode** so the harness enforces that wait (`EnterPlanMode` → plan-back → the user approves `ExitPlanMode`).
++
+ Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, no recommendation), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, the classification itself is a CPO decision — never decide by analogy.
+ 
+ ## North star
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 0052e41..5cea83c 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -4,12 +4,35 @@ This document governs how any AI agent (Claude, Cursor, or other) operates in th
+ 
+ ---
+ 
+-## 1. Permission to act
++## 1. Permission to act — the five-step protocol
++
++Every unit of work runs **Explore → Plan → Confirm → Implement → Verify**. Four of the
++five are machine-gated; **Confirm is the human checkpoint** and is the subject of this
++section. The asymmetry is the point — three of the steps below gate on an *artifact* a
++hook can read, but "did the user say go?" lives in chat, so Confirm needs its own gate.
++
++| Step | What it is | Gate |
++|------|-----------|------|
++| **Explore** | read-only investigation; trace the system before proposing | impact-map gate (§2) — first structural edit denied until the contract carries the evidenced blast-radius map |
++| **Plan** | the task contract — objective, scope, decisions, done_when | contract gate (§2) — no contract, no edits; out-of-scope path denied |
++| **Confirm** | **WAIT for the user's explicit go before implementing** | THIS section + plan mode (below) |
++| **Implement** | the edits, inside `scope_paths` only | scope + protected-path gates (§2) |
++| **Verify** | done_when + the 4-step review cycle + the commit gate | review cycle + `git_discipline.py` |
+ 
+ - Do **not** edit files, run terminal commands, or start implementation unless the user clearly asked for that action ("implement this", "run it", "commit and push") or replied with an explicit go-ahead after options were presented.
+-- Exploring tradeoffs, asking "what should I do?", or venting frustration are **not** permission to change the repo or run tools. Answer only — options, risks, recommendation — then wait.
++- Exploring tradeoffs, thinking out loud, asking "what should I do?", or venting frustration are **not** permission to change the repo or run tools. Answer only — options, risks, recommendation — then wait.
+ - When in doubt, ask **one** short clarifying question instead of acting.
+ 
++**Confirm gate — plan mode (the mechanism).** For any task that will touch files, enter
++**plan mode** at the Plan step (`EnterPlanMode`): present the plan-back, then the harness
++blocks every edit until the user approves the exit (`ExitPlanMode`). That approval *is*
++the Confirm — a real human checkpoint, not a remembered courtesy. Plan mode is read-only,
++so it fits Explore + Plan exactly. If the user has already given an explicit go for the
++specific change on the table, that go is the Confirm and plan mode is unnecessary. (A
++self-attested `cpo_go` contract token enforced by the impact-map gate was considered and
++**held in reserve** — adopt it only if plan mode proves insufficient; a new gate must earn
++its place over the simplest thing that works.)
++
+ ---
+ 
+ ## 2. Before any non-trivial change — the task contract (machine-gated)

@@ -1,25 +1,28 @@
-# Review — chore/handover-2026-06-25 — handover refresh (end of session)
+# Review — docs/confirm-step-protocol — name the five-step protocol + plan mode as the Confirm gate
 
 > G3 Lock artifact. Reviewer spawned cold (blinded) on the staged diff
-> (`.claude/task/review_input.patch`). Required set for the staged paths (.claude/active_work.md +
-> .claude/task/contract.md): scope-auditor only (no routing path matches; the commit carries
-> contract.md so it is NOT artifact-exempt). Docs/handover-only — no model/seed/script/CI/guard change.
+> (`.claude/task/review_input.patch`). Required set for the staged paths
+> (docs/working_agreement.md + CLAUDE.md + .claude/task/contract.md): scope-auditor only
+> (neither doc is in a review_routing path; the commit carries contract.md so it is NOT
+> artifact-exempt). Docs-only governance change — no model/seed/script/CI/hook/settings edit
+> (plan mode is a native harness feature: EnterPlanMode/ExitPlanMode).
 
-diff_sha256: 67c83e1c51080ef17386728d22218b58e402c5e79793aef67cf8c78a4905e9e4
+diff_sha256: 34c52aca8e2eecfbb4383e03f0d325406a3a87b838c360e85feaf9c98da738dd
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: the diff touches ONLY .claude/active_work.md + .claude/task/contract.md (both in scope_paths);
-  no code/config/guard path smuggled in.
-- §10 decision rights: the handover records only ALREADY-MADE decisions (slim CI #573 + PR1 #574, each
-  approved in its own review; the no-macro/compose + entity-first naming CPO rulings; the player models
-  do-not-merge finding) and explicitly RESERVES future CPO items (the _season drop / PR-d §10s; the
-  orphaned-table drop as a CPO action; formalising the protocol). No new §10 decision is invented.
-- Honesty / consistency: the byte-identical claim carries a specific count (0/12,537 x 48); the cost
-  diagnosis is measured (INFORMATION_SCHEMA.JOBS_BY_PROJECT); the fct_transfer correction is
-  self-annotated with the commit hash; the do-NOTs (CPO merges, don't drop _season yet, Bash only,
-  contract-first) are preserved; the older #500 PR-a/b/c/d framing is marked superseded.
+- Permanent-once-published naming + user-visible wording (§10): the five-step protocol names
+  (Explore → Plan → Confirm → Implement → Verify) and the §1 "Confirm gate" relabel are now in
+  the authoritative working_agreement.md and will guide all future tasks. Verified the CPO
+  pre-approved this exact naming in the recorded ruling (contract decisions_taken: 2026-06-26
+  "Execute as recommended" → (b) name the protocol). The builder documented an already-CPO-approved
+  decision; no new permanent naming invented, no §10 decided unilaterally.
+- Native vs. newly-built mechanism / NEW-mechanism §10 (c1): the diff documents plan mode as a
+  NATIVE harness feature, not a built gate, and wires ZERO code/hooks/settings/workflows; c2
+  (`cpo_go` token) is correctly RESERVED, not built. Confirmed plan mode is native
+  (EnterPlanMode/ExitPlanMode are harness tools), so the "adopt, don't build" claim is honest —
+  no new mechanism smuggled in. Scope clean: only the two in-scope docs (+ hashed contract.md).
 
 ## escalations
 (none)
