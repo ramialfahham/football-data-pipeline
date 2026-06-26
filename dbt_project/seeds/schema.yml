@@ -84,11 +84,11 @@ seeds:
         tests:
           - not_null
       - name: entity
-        description: "Whether this metric describes a team or a player."
+        description: "Whether this metric describes a team, a player, or both."
         tests:
           - not_null
           - accepted_values:
-              values: ["team", "player"]
+              values: ["team", "player", "team and player"]
       - name: label_i18n_key
         description: "i18n key for the human-readable label."
         tests: [not_null]

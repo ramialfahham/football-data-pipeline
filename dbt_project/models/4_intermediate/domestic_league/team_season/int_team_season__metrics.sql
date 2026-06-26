@@ -157,7 +157,7 @@ select
     case
         when games_with_opp_stats < games_played then null
         else safe_divide(opponent_corner_kicks, games_with_opp_stats)
-    end as corners_conceded_per_match_season,
+    end as corners_against_per_match_season,
     -- save_ratio: byte-identical to the prior model (which divided by goals_against TOTAL) — the
     -- gate makes BOTH null on partial save coverage, and when fully covered every game is
     -- save-covered so goals_against_in_save_games == goals_against (verified 0/12537).

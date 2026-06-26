@@ -84,7 +84,7 @@ select
     m.pass_accuracy_season,
     m.passes_per_match_season,
     m.corner_kicks_per_match_season,
-    m.corners_conceded_per_match_season,
+    m.corners_against_per_match_season,
     m.save_ratio_season
 from latest_season_metrics as m
 inner join dim_team as t on m.team_sk = t.team_sk
