@@ -4,14 +4,39 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: 2026-06-25 EOD (**#573 (slim CI) + #574 (#500 PR1: team metric consolidation) MERGED. NEXT: #500 PR2 = the PLAYER side, formula-dedup ONLY — the two player season models do NOT merge.**)._
-main carries #573 + #574 (on top of #571 / #572 / #569 / #567). **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.** **§1 lesson (this session): plan-back + wait for the CPO's explicit go BEFORE exploring deep or implementing — "Confirm" is a rule, not a hook gate.**
+_Last updated: 2026-06-26 EOD (**#576 (Confirm-step protocol) + #577 (#500 PR2: player metric-layer renames) MERGED. The 5-step Explore→Plan→Confirm→Implement→Verify protocol is now LIVE — plan mode is the Confirm gate. NEXT: CPO directs — #500 PR-c/PR-d or another stream; nothing pending-merge.**)._
+main carries #576 + #577 (on top of #573 / #574 / #575). **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.** **Protocol now MECHANISED (#576): for any file-touching task, ENTER PLAN MODE at the Plan step, present the plan-back, and WAIT for the CPO's ExitPlanMode approval (= the Confirm) before editing — UNLESS the CPO already gave an explicit go for the specific change. `working_agreement.md` §1 + CLAUDE.md carry it.**
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull` (carries #573 + #574). **NEXT unit: #500 PR2 — the PLAYER metric layer, formula-dedup ONLY.** The two player season models — `int_season_record__player` (per-club, season-to-date) and `int_player_season__metrics` (across-clubs whole-season + per-90s) — **DO NOT merge** (different grain + minutes/per-90s, proven). Apply the team pattern: plain INLINE SQL (NO macro), the COMPOSE pattern where a mart can reuse a rollup, entity-first renames (`int_momentum__player → int_player_momentum__metrics`, `mart_momentum__player → mart_player_momentum`, `mart_season_record__player → mart_player_season_record`). MVP-safe + byte-identical (verify per the recipe below).
-2. Bash only; never PowerShell. Write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any model (the impact-map gate enforces it). **Read `docs/working_agreement.md` + the memory index first.**
+1. `git checkout main && git pull` (carries #576 + #577). **Nothing is pending-merge; main GREEN.** **The NEXT unit is a CPO direction — do NOT infer it; ASK.** Candidates: #500 PR-c (doc consolidation) or PR-d (the live-surface merge, §10-heavy) — see "Remaining #500 sequence"; the leftover `__entity` mart-rename sweep; the TEAM deserved-vs-actual REDESIGN *discussion*; or a program tranche (#545/#546/#547). My lean: finish #500 (PR-c is cheap and clears doc debt, then PR-d) — but CPO chooses.
+2. Bash only; never PowerShell. For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any model (impact-map gate enforces it) + use **PLAN MODE** for the plan-back. **Read `docs/working_agreement.md` §1 (the 5-step protocol) + the memory index first.**
+3. **PENDING CPO action (verify done):** `bq rm` the orphaned old relations — 4 PLAYER (#577) + 4 TEAM (#574). See "PENDING CPO ACTIONS".
 
-### ⭐ THIS SESSION (2026-06-25) — cost diagnosis + slim CI + team consolidation
+### ⭐ THIS SESSION (2026-06-26) — Confirm-step protocol (#576) + #500 PR2 player renames (#577)
+- **#576 (Confirm-step protocol) MERGED.** Named the **Explore → Plan → Confirm → Implement → Verify**
+  ladder in `working_agreement.md` §1 (+ a CLAUDE.md pointer). **Confirm = the human checkpoint,
+  mechanised via native PLAN MODE** (EnterPlanMode → plan-back → CPO approves ExitPlanMode = the go).
+  Option (c2) a self-attested `cpo_go` contract token was considered + **HELD IN RESERVE** (a new gate
+  must earn its place over the simplest thing). Docs-only; no hook/settings/workflow change.
+- **#577 (#500 PR2: player metric-layer renames) MERGED.** Pure entity-first rename of the 4 player
+  momentum/season models — `int_momentum__player → int_player_momentum__metrics`,
+  `int_season_record__player → int_player_season_record`, `mart_momentum__player → mart_player_momentum`,
+  `mart_season_record__player → mart_player_season_record` — + the 2 ref()s, the player-half yml
+  (int_momentum.yml, int_season_record.yml, shared.yml), comment cross-refs, and the v2 export
+  (export_site_data.py). **RENAMES ONLY** — the two player season models do NOT merge (different
+  grains: int_player_season__metrics is per-(player,season) across clubs + per-90s; the season-record
+  path is per-(team,player,league,season)), so the 4 ratios stay INLINE in both marts (no dedup, no new
+  model, no macro — confirmed by CPO). **MVP-safe + byte-identical: 0 mismatches** (62,288 + 210,929
+  rows new-vs-prod). Rebased onto main after #576 merged first (only `.claude/task/*` conflicted;
+  review.md hash rebound) — [[feedback-sibling-pr-rebase-rebind]].
+- **PENDING (CPO action): `bq rm` the 4 orphaned old PLAYER relations** (+ the 4 TEAM from #574 if not
+  yet done). See "PENDING CPO ACTIONS".
+- **Byte-identical recipe (reuse):** `dbt compile --select <models>`; inline the compiled SQL with
+  `ref()`s pointed at prod tables; `to_json_string(struct(<ORIGINAL output cols, same order>))`
+  new-vs-prod, FULL OUTER JOIN on the grain, count mismatches; read-only `bq query ... < file` (write
+  the file with the Write tool, NOT a heredoc).
+
+### THIS SESSION (2026-06-25, prior) — cost diagnosis + slim CI + team consolidation
 - **Cost diagnosis (measured — INFORMATION_SCHEMA.JOBS_BY_PROJECT, EU):** the cost driver was NOT the metric models — it was the **per-PR full-warehouse rebuild** (heavy full-refresh dims rebuilt on every PR: dim_player ~382 GB/14d, dim_player_team_season_mapping ~237, dim_team ~132 = >½ the spend). **`fct_transfer` is LIVE groundwork** (rebuilt in player-data PR-i `bea45e0`, NOT a zombie — memory was wrong, now corrected; no dbt consumer yet, kept for the affiliation-timeline work). Do NOT call it dead weight.
 - **#573 (slim CI) MERGED** — the biggest cost lever. `ci-data-build` PR runs now build only `state:modified+` (changed models + downstream), diffed against a baseline compiled from `main` at PR time (Option 2). main-push + scheduled stay FULL builds. (`.github/workflows/**` is PROTECTED — needed protected_override + cto/opus review.)
 - **#574 (#500 PR1: team consolidation) MERGED** — (a) MERGED the duplicate season aggregation: `int_team_season__metrics` is now the final-row projection of `int_team_season_record` (renamed from int_season_record__team; gained opponent_shots_total/league_sk/season_sk), not a 2nd leg pass; (b) de-duped the shared formulas with **plain inline SQL + the COMPOSE pattern** (mart_team_season_record reuses the projection) — **NO macro** (tried, dropped per CPO — see [[macros-decrease-maintainability-prefer-plain-sql]]); (c) entity-first renames. **MVP-safe + byte-identical: 0/12,537 team-seasons × 48 cols** (the check CAUGHT + fixed 2 subtleties: NULL-gate the 9 displayed team-feed `_sum_season` cols; gate shot_accuracy on team coverage too). The `_season` COLUMN names are KEPT (live JSON keys) — their drop is the later live-surface PR.
@@ -21,8 +46,9 @@ main carries #573 + #574 (on top of #571 / #572 / #569 / #567). **Website #391 P
 ### Naming convention LOCKED (CPO 2026-06-25)
 Entity-first everywhere: `int_<entity>_<window>__metrics`, `mart_<entity>_<surface>`. Retire the `__team`/`__player` suffix style. (The older #500 PR-a/b/c/d framing below is SUPERSEDED by this session's slim-CI + PR1/PR2 plan.)
 
-### Remaining #500 sequence (after PR2)
-- **PR-d (live-surface):** drop the `_season` column suffix end-to-end (changes the live team_season_insights.json keys → must move in lockstep with the site JS); `corners_conceded → corners_against`; reconcile i18n onto the catalogue; register `qualifier_games_played`. §10s to escalate.
+### Remaining #500 sequence (PR1 #574 + PR2 #577 DONE — these remain)
+- **PR-c (doc consolidation, low-§10):** one `metric_layer.md`; retire/fold `player_metrics_catalogue.md` + `metrics_display.md`. **Also the deferred old-name doc cleanup:** `dbt_project/docs/layering.md` (~lines 288/291) + `docs/site_architecture.md` (~121) still name `mart_momentum__player` / `mart_season_record__player` (renamed in #577 → `mart_player_momentum` / `mart_player_season_record`) — fix in PR-c.
+- **PR-d (live-surface, the big one):** drop the `_season` column suffix end-to-end (changes the live team_season_insights.json keys → must move in lockstep with the site JS); `corners_conceded → corners_against`; consolidate `metric_definitions.csv` INTO the catalogue + repoint `export_metric_definitions_json.py` + delete the legacy seed; reconcile i18n onto the catalogue; register `qualifier_games_played`. **§10-heavy — escalate the naming/i18n/registration decisions blinded.**
 - **Mart-rename sweep:** the leftover `__entity` marts (mart_momentum_window__team, mart_fixture_stats__team/player, mart_competition_benchmarks__team/player) → entity-first (v2/paused; updates export_site_data.py).
 
 ## ✅ DONE — incomplete-data→NULL (TEAM-FEED ONLY) — PR open on `fix/incomplete-data-null`, awaiting CPO merge
@@ -435,8 +461,11 @@ remain in the mart as plain catalogued metrics.
 - #477 historical/per-edition squad membership — overlaps the backfill (NEXT #1) + the Career/History tabs.
 
 ## PENDING CPO ACTIONS (outside the tree — verify if done)
-1. **Set `PROJECT_AUTOMATION_TOKEN`** to the fine-grained least-privilege scope (from #413).
-2. **Remove now-unused secrets** `CURSOR_EXECUTOR_BRIDGE_URL` + `CURSOR_EXECUTOR_BRIDGE_TOKEN` (from #458).
+1. **`bq rm` the orphaned old metric-layer relations** (`bq rm` is deny-listed → the CPO runs them; nothing refs them once #574/#577 are deployed):
+   - PLAYER (#577): `bq rm -f -t football-data-pipeline-gcp:intermediate.int_momentum__player` (+ `intermediate.int_season_record__player`, `marts.mart_momentum__player`, `marts.mart_season_record__player`).
+   - TEAM (#574, if not already done): `intermediate.int_momentum__team`, `intermediate.int_season_record__team`, `marts.mart_momentum__team`, `marts.mart_season_record__team`.
+2. **Set `PROJECT_AUTOMATION_TOKEN`** to the fine-grained least-privilege scope (from #413).
+3. **Remove now-unused secrets** `CURSOR_EXECUTOR_BRIDGE_URL` + `CURSOR_EXECUTOR_BRIDGE_TOKEN` (from #458).
 
 ## Do NOT
 - **No blueprint/feature work while #391 is PAUSED** unless the CPO directs it.
