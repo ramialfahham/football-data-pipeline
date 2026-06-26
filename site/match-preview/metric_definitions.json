@@ -1,5 +1,6 @@
 {
   "league_rank": {
+    "label": "metrics.league_rank.label",
     "format": "integer",
     "context": "match_preview",
     "lower_is_better": true,
@@ -7,18 +8,21 @@
     "away_column": "away_league_rank"
   },
   "points_won_form": {
+    "label": "metrics.points_won.label",
     "format": "points_fraction",
     "context": "match_preview",
     "home_column": "home_points_won_sum_form",
     "away_column": "away_points_won_sum_form"
   },
   "goals_per_match_recent": {
+    "label": "metrics.goals_per_match.label",
     "format": "decimal_1",
     "context": "match_preview",
     "home_column": "home_goals_per_match_recent",
     "away_column": "away_goals_per_match_recent"
   },
   "goals_against_per_match_recent": {
+    "label": "metrics.goals_against_per_match.label",
     "format": "decimal_1",
     "context": "match_preview",
     "lower_is_better": true,
@@ -26,48 +30,56 @@
     "away_column": "away_goals_against_per_match_recent"
   },
   "shots_per_match_recent": {
+    "label": "metrics.shots_per_match.label",
     "format": "decimal_1",
     "context": "match_preview",
     "home_column": "home_shots_per_match_recent",
     "away_column": "away_shots_per_match_recent"
   },
   "shot_accuracy_recent": {
+    "label": "metrics.shot_accuracy.label",
     "format": "percent",
     "context": "match_preview",
     "home_column": "home_shot_accuracy_recent",
     "away_column": "away_shot_accuracy_recent"
   },
   "danger_zone_ratio_recent": {
+    "label": "metrics.danger_zone_ratio.label",
     "format": "percent",
     "context": "match_preview",
     "home_column": "home_danger_zone_ratio_recent",
     "away_column": "away_danger_zone_ratio_recent"
   },
   "finishing_efficiency_recent": {
+    "label": "metrics.finishing_efficiency.label",
     "format": "percent",
     "context": "match_preview",
     "home_column": "home_finishing_efficiency_recent",
     "away_column": "away_finishing_efficiency_recent"
   },
   "passes_per_match_recent": {
+    "label": "metrics.passes_per_match.label",
     "format": "decimal_0",
     "context": "match_preview",
     "home_column": "home_passes_per_match_recent",
     "away_column": "away_passes_per_match_recent"
   },
   "pass_accuracy_recent": {
+    "label": "metrics.pass_accuracy.label",
     "format": "percent",
     "context": "match_preview",
     "home_column": "home_pass_accuracy_recent",
     "away_column": "away_pass_accuracy_recent"
   },
   "corner_kicks_per_match_recent": {
+    "label": "metrics.corner_kicks_per_match.label",
     "format": "decimal_1",
     "context": "match_preview",
     "home_column": "home_corner_kicks_per_match_recent",
     "away_column": "away_corner_kicks_per_match_recent"
   },
   "corners_conceded_per_match_recent": {
+    "label": "metrics.corners_conceded_per_match.label",
     "format": "decimal_1",
     "context": "match_preview",
     "lower_is_better": true,
@@ -75,6 +87,7 @@
     "away_column": "away_corners_conceded_per_match_recent"
   },
   "save_ratio_recent": {
+    "label": "metrics.save_ratio.label",
     "format": "percent",
     "context": "match_preview",
     "home_column": "home_save_ratio_recent",

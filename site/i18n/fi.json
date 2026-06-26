@@ -4,71 +4,56 @@
     "feedback": "Anna palautetta",
     "unavailable": "ei saatavilla"
   },
-  "metric": {
-    "tabellenplatz": "Sarjasijoitus",
-    "punkteausbeute": "Pisteosuus",
-    "tore": "Ø Maalit",
-    "gegentore": "Ø Päästetyt maalit",
-    "schuesse": "Ø Laukaukset",
-    "schuesseAufsTor": "% Maalilaukaukset",
-    "schuesseAusStrafraum": "% Laukaukset boksista",
-    "trefferquote": "% Viimeistelytehokkuus",
-    "paesse": "Ø Syötöt",
-    "angekommenePaesse": "% Syöttötarkkuus",
-    "ecken": "Ø Kulmapotkut",
-    "eckenGegen": "Ø Päästetyt kulmapotkut",
-    "gehalteneTorschuesse": "% Torjuntaosuus"
-  },
   "metrics": {
     "league_rank": {
       "label": "Sarjasijoitus",
       "description": "Sijoitus sarjataulukossa ennen tätä ottelukierrosta (kun saatavilla)."
     },
-    "points_won_form": {
+    "points_won": {
       "label": "Pisteosuus",
       "description": "Saavutettujen sarjapisteiden osuus mahdollisista maksimipisteistä kuntojakson aikana (3 × ottelut)."
     },
-    "goals_per_match_recent": {
+    "goals_per_match": {
       "label": "Ø Maalit",
       "description": "Tehdyt maalit keskimäärin per ottelu kuntojakson aikana."
     },
-    "goals_against_per_match_recent": {
+    "goals_against_per_match": {
       "label": "Ø Päästetyt maalit",
       "description": "Päästetyt maalit keskimäärin per ottelu kuntojakson aikana."
     },
-    "shots_per_match_recent": {
+    "shots_per_match": {
       "label": "Ø Laukaukset",
       "description": "Kaikki laukaukset keskimäärin per ottelu kuntojakson aikana."
     },
-    "shot_accuracy_recent": {
+    "shot_accuracy": {
       "label": "% Maalilaukaukset",
       "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
     },
-    "danger_zone_ratio_recent": {
+    "danger_zone_ratio": {
       "label": "% Laukaukset boksista",
       "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
     },
-    "finishing_efficiency_recent": {
+    "finishing_efficiency": {
       "label": "% Viimeistelytehokkuus",
       "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin kuntojakson aikana."
     },
-    "passes_per_match_recent": {
+    "passes_per_match": {
       "label": "Ø Syötöt",
       "description": "Syöttöyritykset keskimäärin per ottelu kuntojakson aikana."
     },
-    "pass_accuracy_recent": {
+    "pass_accuracy": {
       "label": "% Syöttötarkkuus",
       "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä kuntojakson aikana."
     },
-    "corner_kicks_per_match_recent": {
+    "corner_kicks_per_match": {
       "label": "Ø Kulmapotkut",
       "description": "Voitetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
     },
-    "corners_conceded_per_match_recent": {
+    "corners_conceded_per_match": {
       "label": "Ø Päästetyt kulmapotkut",
       "description": "Vastustajalle annetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
     },
-    "save_ratio_recent": {
+    "save_ratio": {
       "label": "% Torjuntaosuus",
       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
     }

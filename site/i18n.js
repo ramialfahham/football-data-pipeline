@@ -11,7 +11,7 @@
  *   <button data-i18n-attr="aria-label:nav.prev">…</button>
  *
  * Usage in JS:
- *   window.t("metric.tabellenplatz", "Tabellenplatz")  // sync read
+ *   window.t("metrics.league_rank.label", "League position")  // sync read
  *   window.MATCHDAYIQ_I18N_READY.then((strings) => render(data))  // await load
  *
  * Switching:
