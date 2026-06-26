@@ -3,7 +3,7 @@
 {#
   W2 season-record builder — player. Cumulative running totals over a player's finished
   matches within one competition+season, one row per match the player appeared in (totals
-  THROUGH that match). The complement to int_momentum__player (W1 = last 5).
+  THROUGH that match). The complement to int_player_momentum__metrics (W1 = last 5).
 
   Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
 

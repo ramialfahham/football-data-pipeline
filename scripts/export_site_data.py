@@ -190,7 +190,7 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
 
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
     """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
-    (goals -> assists -> key passes, computed in mart_momentum__player; the export
+    (goals -> assists -> key passes, computed in mart_player_momentum; the export
     does not rank). Names/photos joined from dim_player. Relies on the mart column
     being present (ship-the-mart-first); a Python ranking fallback is intentionally
     NOT provided — re-deriving the rank here would violate the consumption-layer
@@ -434,7 +434,7 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
             _drop(r, _FW_DROP)
         )
     mom_players: dict = {}
-    for r in _query(client, f"select * from `{marts}.mart_momentum__player` "
+    for r in _query(client, f"select * from `{marts}.mart_player_momentum` "
                             f"where upcoming_fixture_sk in ({fid_in})"):
         mom_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
     player_names = {

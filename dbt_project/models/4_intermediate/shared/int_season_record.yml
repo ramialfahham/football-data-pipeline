@@ -53,11 +53,11 @@ models:
       - name: opponent_shots_total
         description: "Cumulative opponent total shots; feeds shot_share on the whole-season projection (#500 PR1)."
 
-  - name: int_season_record__player
+  - name: int_player_season_record
     description: >
       W2 season-record builder — player. Cumulative running totals over int_legs__player_match
       within one competition+season, one row per player-match. Complement to
-      int_momentum__player. A leg exists only where player stats are present, so games_played
+      int_player_momentum__metrics. A leg exists only where player stats are present, so games_played
       counts appearances-with-stats and player ratios are same-window by construction.
       Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
     tests:

@@ -3,7 +3,7 @@
 {#
   W1 last-5 momentum mart — player.
 
-  Computes final displayed metrics from the raw sums in int_momentum__player.
+  Computes final displayed metrics from the raw sums in int_player_momentum__metrics.
   Raw counts (goals, assists, cards, …) are passed through directly. Ratios
   (save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct) are
   computed here via safe_divide — NULL when denominator is zero.
@@ -16,7 +16,7 @@
 #}
 
 with builder as (
-    select * from {{ ref('int_momentum__player') }}
+    select * from {{ ref('int_player_momentum__metrics') }}
 ),
 
 fixtures as (
