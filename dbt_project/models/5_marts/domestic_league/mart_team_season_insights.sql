@@ -73,19 +73,19 @@ select
     m.passes_accurate_sum_season,
     m.passes_total_sum_season,
     m.goalkeeper_saves_sum_season,
-    m.points_capture_season,
-    m.goals_per_match_season,
-    m.goals_against_per_match_season,
-    m.shots_per_match_season,
-    m.shot_share_season,
-    m.danger_zone_ratio_season,
-    m.shot_accuracy_season,
-    m.finishing_efficiency_season,
-    m.pass_accuracy_season,
-    m.passes_per_match_season,
-    m.corner_kicks_per_match_season,
-    m.corners_against_per_match_season,
-    m.save_ratio_season
+    m.points_capture,
+    m.goals_per_match,
+    m.goals_against_per_match,
+    m.shots_per_match,
+    m.shot_share,
+    m.danger_zone_ratio,
+    m.shot_accuracy,
+    m.finishing_efficiency,
+    m.pass_accuracy,
+    m.passes_per_match,
+    m.corner_kicks_per_match,
+    m.corners_against_per_match,
+    m.save_ratio
 from latest_season_metrics as m
 inner join dim_team as t on m.team_sk = t.team_sk
 left join mart_team_season as ts

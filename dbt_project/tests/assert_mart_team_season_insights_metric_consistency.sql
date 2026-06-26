@@ -18,20 +18,20 @@ checks as (
         league_code,
 
         case
-            when goals_per_match_season is null or goals_for_sum_season is null then 0
-            else abs(goals_per_match_season * season_games_played - goals_for_sum_season)
+            when goals_per_match is null or goals_for_sum_season is null then 0
+            else abs(goals_per_match * season_games_played - goals_for_sum_season)
         end as goals_per_match_err,
         case
-            when goals_against_per_match_season is null or goals_against_sum_season is null then 0
-            else abs(goals_against_per_match_season * season_games_played - goals_against_sum_season)
+            when goals_against_per_match is null or goals_against_sum_season is null then 0
+            else abs(goals_against_per_match * season_games_played - goals_against_sum_season)
         end as goals_against_per_match_err,
         case
-            when points_capture_season is null or points_won_sum_season is null then 0
-            else abs(points_capture_season * (3 * season_games_played) - points_won_sum_season)
+            when points_capture is null or points_won_sum_season is null then 0
+            else abs(points_capture * (3 * season_games_played) - points_won_sum_season)
         end as points_capture_err,
         case
-            when shots_per_match_season is null or total_shots_sum_season is null then 0
-            else abs(shots_per_match_season * season_games_played - total_shots_sum_season)
+            when shots_per_match is null or total_shots_sum_season is null then 0
+            else abs(shots_per_match * season_games_played - total_shots_sum_season)
         end as shots_per_match_err
     from src
 )

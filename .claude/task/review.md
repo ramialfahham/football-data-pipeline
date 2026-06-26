@@ -1,59 +1,54 @@
-# Review — refactor/500-corners-against — rename corners_conceded → corners_against (+ folded entity-list fix)
+# Review — refactor/500-drop-season-suffix — drop the `_season` suffix from season metric columns
 
 > G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
-> Required set (unchanged): scope-auditor (always) + analytics-engineer (dbt_project/** incl. seeds/schema.yml)
-> + football-analytics (metric_catalogue.csv) + bi-analyst (site/i18n/** + docs/wireframes/**).
+> Required set: dbt_project/** → analytics-engineer; docs/wireframes/** → bi-analyst; always → scope-auditor.
+> #500 PR-d step 5 / Stage 2. dbt parse (via dbt MCP) = OK.
 >
-> AMENDMENT (post first review): ci-data-build surfaced a PRE-EXISTING failure unrelated to corners —
-> accepted_values_metric_catalogue_entity allowed only ["team","player"] but the catalogue carries the
-> locked "team and player" entity. Folded a one-line fix into dbt_project/seeds/schema.yml. scope-auditor +
-> analytics-engineer RE-RAN on the full amended diff (below). football-analytics + bi-analyst PASS CARRIED
-> FORWARD from the corners-only review — their surfaces (metric_catalogue prose / i18n / docs) are
-> byte-unchanged by the schema.yml fix. dbt parse (via dbt MCP) = OK on this working tree.
+> POST-REVIEW DELTA: after the first 3-PASS review, CI's SQLFluff lint flagged 21 × AL09 ("column should
+> not be self-aliased") — the rename had produced `m.<metric> as <metric>` / `goals_penalty as goals_penalty`.
+> A follow-up de-alias fix (`m.<metric> as <metric>` → `m.<metric>`; `goals_penalty as goals_penalty` →
+> `goals_penalty`) in the two already-in-scope files (int_team_season__metrics.sql, mart_team_season_record.sql)
+> resolved all 21 (0 remain). Local sqlfluff couldn't run (needs the warehouse templater). scope-auditor +
+> analytics-engineer RE-RAN on the full amended diff (below). bi-analyst PASS CARRIED FORWARD — its surface
+> (the team-season page reads + the wireframe doc) is byte-unchanged by the SQL de-alias.
+> (Note: `git grep -c "_sum_season"` now returns 53 — the extra is a COMMENT mentioning "_sum_season", not a column.)
 
-diff_sha256: 81751d8b14066f6df61408706c7cc73ba4ae95a7437d59e7c6a89e5fb646b9dc
+diff_sha256: 870f894aaf2d27f26cc755937336d19ed0138c779cdc3236e476f719b8ad25e6
 
 ## scope-auditor  (re-run on amended diff)
 VERDICT: PASS
 risks_checked:
-- Incomplete lineage propagation across the dbt layers → UI → 3 i18n langs: traced the catalogue id through
-  int_team_season__metrics → mart_team_momentum → 5 downstream marts + the macro → bindings → metric_definitions.json
-  → i18n + team-season page; no stray old reference; both accepted_values yml lists carry the new id.
-- Schema.yml amendment scope + integrity: the pre-existing entity test (allowed only team/player) blocks the PR
-  because metric_catalogue.csv is modified; the catalogue legitimately carries "team and player" (finishing_efficiency
-  row 14, duels_won_pct row 16); the one-line fix (entity description + accepted_values adds "team and player") is
-  minimal, tied to the locked value, recorded in contract amendments, schema.yml added to scope. No creep; no new §10.
+- Metric vs intermediate distinction: renamed metric columns cleanly separated from the preserved
+  `*_sum_season` intermediates (zero metric `_season` patterns remain; 52 sum columns + 1 comment = 53). The
+  DQ test validates metrics against their sums; the drift-guard strip is now a defensive no-op. No column masked/lost.
+- De-alias behaviour-preservation + scope: `m.<x> as <x>` → `m.<x>` and `goals_penalty as goals_penalty` →
+  `goals_penalty` both output the same column; zero self-aliases remain; the `m.<sum>_sum_season as <clean>`
+  legitimate renames left intact. The fix touched only the two already-in-scope files (no scope expansion).
+  metric_catalogue.csv untouched; export uses SELECT *; no new §10.
 
 ## analytics-engineer-reviewer  (re-run on amended diff)
 VERDICT: PASS
 risks_checked:
-- accepted_values fix coverage: independently enumerated all catalogue entity values — exactly team×25, player×44,
-  "team and player"×2 (finishing_efficiency, duels_won_pct); the new list ["team","player","team and player"] is
-  neither over-permissive nor incomplete → the failing test will pass. Fix is minimal (entity description + list only).
-- Corners rename warehouse-consistency: full DAG producer→consumer traced (momentum/int_team_season → matchday/
-  season marts + macro + 2 accepted_values lists + UI), zero corners_conceded left in source; no-drift guard strips
-  `_season` generically (no hardcoded corners) → corners_against_per_match_season resolves to the renamed catalogue
-  row; catalogue change is id + label_i18n_key only (formula/description/interpretation byte-identical). dbt parse OK.
+- De-alias output-name preservation: int_team_season__metrics.sql L74-75 are bare column refs (output names
+  unchanged); goals_open_play (L76) is a computed expression with a legitimate alias; mart_team_season_record.sql
+  L73-91 are bare `m.<metric>` pulls — zero AL09 self-aliases survive in either file.
+- Rename completeness across the DAG: grep over all dbt model SQL for `_season` returns only `_sum_season`
+  intermediates, structural names (mart_team_season, points_this_season YoY), and comments — zero live metric
+  `_season` aliases. The benchmark macro pairs are now (X, X); int_/mart_team_competition_benchmarks inherit via
+  the macro. The DQ consistency test refs the renamed metrics + the preserved `_sum_season` denominators (same-window).
+- `clean_sheets_sum_season as clean_sheets` (mart_team_season_record L72) is a PRE-EXISTING design (the W2 mart
+  surfaces a count, not the rate) — unchanged by this PR; the rate metric clean_sheets is not selected there, no collision.
 escalations: none
 
-## football-analytics-expert-reviewer  (PASS carried forward — metric_catalogue content byte-unchanged since)
+## bi-analyst-reviewer  (PASS carried forward — page + wireframe doc byte-unchanged by the SQL de-alias)
 VERDICT: PASS
 risks_checked:
-- Pure rename of the catalogue row: id + label_i18n_key only; numerator (opponent_corner_kicks), denominator (games),
-  description, interpretation, direction (neutral), format (decimal_1), group (set_pieces) all byte-identical — no
-  redefinition of the metric's meaning.
-- Naming + domain correctness: mirrors goals_against exactly (id uses _against while the description prose keeps
-  "conceded"); "corners against" is standard football terminology for opponent corner kicks; the corner_kicks/corners
-  word asymmetry is pre-existing and explicitly out of scope. The amendment touched only seeds/schema.yml's entity
-  test (not the catalogue row content), so this carried-forward verdict is unaffected.
-
-## bi-analyst-reviewer  (PASS carried forward — i18n/docs byte-unchanged since)
-VERDICT: PASS
-risks_checked:
-- Displayed-word preservation: i18n change is key-only; label + description values under corners_against_per_match
-  are byte-identical to the old corners_conceded_per_match entries in en/de/fi. No rendered word changes.
-- Lockstep across manifest → bindings → metric_definitions.json → team-season page → catalogue; i18n guard resolves
-  the renamed key. (The amendment touched only seeds/schema.yml — not i18n or docs/wireframes — so this verdict holds.)
+- Page/mart lockstep — all 11 rendered metric reads: every `row.<key>` the team-season page reads
+  (goals_per_match … save_ratio) exists verbatim in mart_team_season_insights' SELECT; a site-wide grep for
+  `row.<x>_season` returns ZERO — no stale read remains.
+- `_sum_season` preserved + no value change: the suffix dropped only from metric columns; the raw totals are
+  intact + still selected; no label/format/computed value changed (key rename only). The remaining `_season`
+  tokens in the wireframe doc are non-metric YoY/coverage keys, not display metric keys.
 
 ## escalations
 (none)

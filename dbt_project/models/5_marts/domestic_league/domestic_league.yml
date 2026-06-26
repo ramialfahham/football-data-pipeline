@@ -27,10 +27,10 @@ models:
           combination_of_columns:
             - league_code
             - team_sk
-      # finishing_efficiency_season is open-play conversion in [0,1] (CPO Option A); passthrough
+      # finishing_efficiency is open-play conversion in [0,1] (CPO Option A); passthrough
       # from int_team_season__metrics — range-checked here as the consumer-contract guard.
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency_season is null or (finishing_efficiency_season between 0 and 1)"
+          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
           name: tsi_finishing_efficiency_in_range
     columns:
       - name: team_season_sk

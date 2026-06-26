@@ -250,7 +250,7 @@ models:
     description: >
       Team profile (#324). One row per (team, competition-season): identity + record +
       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
-      (int_team_season__metrics, incl. shot_share_season + points_capture_season) + a
+      (int_team_season__metrics, incl. shot_share + points_capture) + a
       year-over-year differentiator and a streaks layer. Year-over-year columns
       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
       domestic-league only — NULL elsewhere and where the prior season is not ingested.
@@ -259,18 +259,18 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, season_sk]
       - dbt_utils.expression_is_true:
-          expression: "shot_share_season is null or (shot_share_season between 0 and 1)"
+          expression: "shot_share is null or (shot_share between 0 and 1)"
           name: team_profile_shot_share_in_range
       - dbt_utils.expression_is_true:
-          expression: "points_capture_season is null or (points_capture_season between 0 and 1)"
+          expression: "points_capture is null or (points_capture between 0 and 1)"
           name: team_profile_points_capture_in_range
       # GAP-13 season variant of the duel win rate — same-window ratio bound
       - dbt_utils.expression_is_true:
-          expression: "duels_won_pct_season is null or (duels_won_pct_season between 0 and 1)"
-          name: team_profile_duels_won_pct_season_in_range
-      # finishing_efficiency_season is open-play conversion in [0,1] (CPO Option A)
+          expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+          name: team_profile_duels_won_pct_in_range
+      # finishing_efficiency is open-play conversion in [0,1] (CPO Option A)
       - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency_season is null or (finishing_efficiency_season between 0 and 1)"
+          expression: "finishing_efficiency is null or (finishing_efficiency between 0 and 1)"
           name: team_profile_finishing_efficiency_in_range
     columns:
       - name: team_sk
