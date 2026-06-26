@@ -286,15 +286,16 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
 | `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 momentum aggregate (team). |
 | `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
-| `mart_momentum_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
+| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
 | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | view | W2 season-record aggregate (team). |
 | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
-| `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
-| `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+| `mart_team_fixture_stats` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
+| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
 | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
 | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
 | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
-| `mart_competition_benchmarks__team` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_competition_benchmarks__team` (the per-metric league distribution). Direction-agnostic (positional). |
+| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmarks` (the per-metric league distribution). Direction-agnostic (positional). |
+| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | view | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
 | `mart_player_career` | (player_sk, league_code) | table | Player Career tab: per-(player, competition) career totals (appearances/goals/assists across seasons) + `entity_type`. Composes `int_player_career__metrics`; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. Clubs list stays with `dim_player_team_season_mapping`. |
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract

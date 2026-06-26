@@ -15,7 +15,7 @@
 
   Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart filter
   minutes >= 270. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
-  macro (shared with int_competition_benchmarks__player + mart_competition_benchmarks__player).
+  macro (shared with int_player_competition_benchmarks + mart_player_competition_benchmarks).
 #}
 
 with player_stats as (

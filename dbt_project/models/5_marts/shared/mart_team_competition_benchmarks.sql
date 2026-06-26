@@ -10,7 +10,7 @@
   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
   reading is supplied at display from the catalogue's `direction` (joined there), since most football
   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
-  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
+  int_team_season__metrics + the int_team_competition_benchmarks engine (the shared
   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
 
   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
@@ -31,7 +31,7 @@ teams as (
 ),
 
 benchmarks as (
-    select * from {{ ref('int_competition_benchmarks__team') }}
+    select * from {{ ref('int_team_competition_benchmarks') }}
 ),
 
 unpivoted as (

@@ -11,7 +11,7 @@
   are excluded per metric (metric_value is null -> not counted).
 
   Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
-  the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
+  the team_benchmark_metrics() macro (shared with mart_team_competition_benchmarks).
   Grain: (league_code, season_api_year, metric_key).
 #}
 

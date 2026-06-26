@@ -5,7 +5,7 @@
   distribution of each benchmarked metric over the position's qualifying players, so a player's per-90 can be
   read against his positional peers in that competition-season. Median-led (robust) with the p25/p75 spread;
   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
-  and percentile display. The player analog of int_competition_benchmarks__team.
+  and percentile display. The player analog of int_team_competition_benchmarks.
 
   Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
   finishing_efficiency, also >= 10 shots on target in the position (its denominator is shots, not minutes —
