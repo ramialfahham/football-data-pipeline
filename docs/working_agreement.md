@@ -4,11 +4,34 @@ This document governs how any AI agent (Claude, Cursor, or other) operates in th
 
 ---
 
-## 1. Permission to act
+## 1. Permission to act — the five-step protocol
+
+Every unit of work runs **Explore → Plan → Confirm → Implement → Verify**. Four of the
+five are machine-gated; **Confirm is the human checkpoint** and is the subject of this
+section. The asymmetry is the point — three of the steps below gate on an *artifact* a
+hook can read, but "did the user say go?" lives in chat, so Confirm needs its own gate.
+
+| Step | What it is | Gate |
+|------|-----------|------|
+| **Explore** | read-only investigation; trace the system before proposing | impact-map gate (§2) — first structural edit denied until the contract carries the evidenced blast-radius map |
+| **Plan** | the task contract — objective, scope, decisions, done_when | contract gate (§2) — no contract, no edits; out-of-scope path denied |
+| **Confirm** | **WAIT for the user's explicit go before implementing** | THIS section + plan mode (below) |
+| **Implement** | the edits, inside `scope_paths` only | scope + protected-path gates (§2) |
+| **Verify** | done_when + the 4-step review cycle + the commit gate | review cycle + `git_discipline.py` |
 
 - Do **not** edit files, run terminal commands, or start implementation unless the user clearly asked for that action ("implement this", "run it", "commit and push") or replied with an explicit go-ahead after options were presented.
-- Exploring tradeoffs, asking "what should I do?", or venting frustration are **not** permission to change the repo or run tools. Answer only — options, risks, recommendation — then wait.
+- Exploring tradeoffs, thinking out loud, asking "what should I do?", or venting frustration are **not** permission to change the repo or run tools. Answer only — options, risks, recommendation — then wait.
 - When in doubt, ask **one** short clarifying question instead of acting.
+
+**Confirm gate — plan mode (the mechanism).** For any task that will touch files, enter
+**plan mode** at the Plan step (`EnterPlanMode`): present the plan-back, then the harness
+blocks every edit until the user approves the exit (`ExitPlanMode`). That approval *is*
+the Confirm — a real human checkpoint, not a remembered courtesy. Plan mode is read-only,
+so it fits Explore + Plan exactly. If the user has already given an explicit go for the
+specific change on the table, that go is the Confirm and plan mode is unnecessary. (A
+self-attested `cpo_go` contract token enforced by the impact-map gate was considered and
+**held in reserve** — adopt it only if plan mode proves insufficient; a new gate must earn
+its place over the simplest thing that works.)
 
 ---
 
