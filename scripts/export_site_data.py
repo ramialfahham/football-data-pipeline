@@ -428,7 +428,7 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
 
     # Drill-down: the last-5 form-window list and top players per side.
     form_window: dict = {}
-    for r in _query(client, f"select * from `{marts}.mart_momentum_window__team` "
+    for r in _query(client, f"select * from `{marts}.mart_team_momentum_window` "
                             f"where upcoming_fixture_sk in ({fid_in})"):
         form_window.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(
             _drop(r, _FW_DROP)
@@ -634,7 +634,7 @@ def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
     fids = sorted({
         int(r["played_fixture_sk"])
         for r in _query(client, f"select distinct played_fixture_sk "
-                                f"from `{marts}.mart_momentum_window__team` "
+                                f"from `{marts}.mart_team_momentum_window` "
                                 f"where played_fixture_sk is not null")
     })
     if sample:
@@ -643,11 +643,11 @@ def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
         return []
     fid_in = ", ".join(str(i) for i in fids)
     team = _group_by(
-        _query(client, f"select * from `{marts}.mart_fixture_stats__team` where fixture_sk in ({fid_in})"),
+        _query(client, f"select * from `{marts}.mart_team_fixture_stats` where fixture_sk in ({fid_in})"),
         "fixture_sk",
     )
     player = _group_by(
-        _query(client, f"select * from `{marts}.mart_fixture_stats__player` where fixture_sk in ({fid_in})"),
+        _query(client, f"select * from `{marts}.mart_player_fixture_stats` where fixture_sk in ({fid_in})"),
         "fixture_sk",
     )
     out = []

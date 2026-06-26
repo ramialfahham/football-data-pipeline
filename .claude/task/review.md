@@ -1,56 +1,73 @@
-# Review — docs/metric-ssot-consolidation — #500 PR-c (metric-definition SSoT consolidation)
+# Review — refactor/500-entity-rename-sweep — #500 entity-first model rename sweep
 
-> G3 Lock artifact. Three reviewers spawned cold (blinded) on the staged diff
+> G3 Lock artifact. Five reviewers spawned cold (blinded) on the staged diff
 > (`.claude/task/review_input.patch`). Required set for the staged paths: scope-auditor (always) +
-> analytics-engineer-reviewer (`dbt_project/**`) + bi-analyst-reviewer (`docs/wireframes/**`). The
-> seed (`metric_catalogue.csv`) is deliberately untouched, so football-analytics-expert is NOT
-> required. Docs + provenance-comment consolidation; the commit carries contract.md (not artifact-exempt).
+> analytics-engineer-reviewer (`dbt_project/**`) + cto-reviewer (`scripts/export_*.py`) +
+> bi-analyst-reviewer (`docs/wireframes/**`) + data-engineer-reviewer (`docs/competition_registry.yml`).
+> scope-auditor + analytics-engineer re-reviewed the final diff (after the CPO-ruled layering row was
+> added); cto / bi-analyst / data-engineer reviewed the prior diff — their owned surfaces
+> (export / wireframes / registry) are byte-identical in the final diff, so their PASS stands.
 
-diff_sha256: ea792d7421dfed9974dc0657adad6eccc7a47c6f646f610c2d25407b8559cbef
+diff_sha256: dcc79163c53e79a09a1463af1f5e49e50d61912a852df74dcf4da387dc433675
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every changed file is within the contract's scope_paths (the 11 docs/model files + contract.md,
-  including the `docs/player_metrics_catalogue.md` deletion); no out-of-scope edit / no drift.
-- §10 decision-rights: no metric definition/formula, product/UX, permanent-naming, or NEW-mechanism
-  decision taken without authority. The seed-crowning + retiring `player_metrics_catalogue.md` are the
-  explicitly CPO-approved core; the mart-name updates are documentation corrections for the already-merged
-  #574/#577 renames, not new naming decisions.
-- CPO-LOCKED `metrics_display.md`: every edit is pointer-only (dead-doc repoint + deferral sharpened to
-  name the seed + one stale model name); all display rulings preserved verbatim (the 8.5 reword in
-  metrics_context_model.md is authorized by the "clear #577/#574 old-name debt" clause and leaves the
-  ruling intact).
-- Impact-map honesty (Appendix A6): the two `dbt_project/models/**` touches are comment/description-only,
-  compiled SQL byte-identical, downstream evidenced via `dbt ls`, no rebuild — verified against the diff.
+- Scope: every changed file is within scope_paths — including the recorded amendment for
+  `mart_player_match_log.sql` and the CPO-ruled `layering.md` player-benchmark row (both in scope).
+  No out-of-scope drift; the `int_legs__*` family is left untouched per decisions_reserved.
+- Pure rename / §10: only file renames + `ref()` retargeting + `name:`/description/comment edits +
+  the one CPO-ruled descriptive doc row; no SQL logic/formula/grain change. The entity-first
+  convention is CPO-locked (execution, not a new decision). The LIVE MVP mart `mart_matchday_insights`
+  is downstream TRANSITIVELY (not a direct ref to a renamed model) → byte-identical; all 8 renamed
+  models are non-incremental (no --full-refresh).
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Provenance repoint accuracy: `dbt_project/seeds/metric_catalogue.csv` carries every player atom the
-  retired doc defined as canonical — scorer_points (goals + assists), save_pct (saves / saves+goals_against),
-  duels_won_pct, pass_accuracy_pct (passes_accurate / passes_total), dribbles_success_pct — each with
-  explicit numerator/denominator. The repoint of the SQL comment + yml description to the seed is therefore
-  accurate; no definition loss.
-- New mart names in `layering.md` map to real model files (`mart_player_momentum.sql`,
-  `mart_player_season_record.sql` confirmed by glob); the old names have zero live source files; the
-  export script already queries the new names → docs are in sync with the deployed state.
-- The two model-file changes are comment/description ONLY — no SQL logic, no `ref()`/DAG change, no
-  materialization change, no metric column added/renamed; the consumption layer (export) is a straight
-  `select *` with no computation.
+- The added `mart_player_competition_benchmarks` row in `layering.md` is ACCURATE: grain
+  `(player_sk, season_sk, position_group, metric_key)`, view, composes `int_player_competition_benchmarks`
+  — cross-checked against the model SQL + its `shared.yml` unique-combination test. The team-benchmark
+  row was renamed correctly alongside it.
+- Pure rename + no leakage: the exact done_when pattern `(int|mart)_(momentum_window|fixture_stats|
+  competition_benchmarks)__(team|player)` returns ZERO in `dbt_project/`, `scripts/`, `docs/`. The two
+  `mart_fixture_stats__{team,player}` / `__*` hits in `content_architecture.md:71` + `99_gaps_register.md:18`
+  are brace/wildcard NOTATION (not the literal suffix) → do not match the criterion. fixture_stats marts
+  show 100% similarity (literal renames); refs resolve (`dbt parse` clean); no intermediate refs a mart.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Consumption-layer contract: the four changed lines in `scripts/export_site_data.py` are pure table-name
+  string substitutions inside f-string query literals (`mart_momentum_window__team`→`mart_team_momentum_window`,
+  fixture_stats team/player → entity-first). The `where`/`select`/`group` shapes, the key-drop sets, and the
+  slug/identity logic are byte-for-byte unchanged — no computation/ranking/derivation introduced.
+- Old-name residue: zero matches for the old mart names in the export; all four call sites use the exact
+  new mart names; rename + export update are atomic, keeping the paused v2 export consistent with the graph.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- The locked team table (16 rows: groups/tiers/order) and the locked player rows table (9 rows: display
-  strings, atomics, groups) are byte-unchanged; the diff only touches prose adjacent to those tables.
-- All 12 rulings-log entries intact; the one changed entry dropped only the dead-doc attribution
-  ("from `player_metrics_catalogue.md`" → "(legacy player catalogue)"); date + ruling substance verbatim.
-- The mart-name fix (`mart_season_record__team` → `mart_team_season_record`) appears in exactly the three
-  permitted locations (metrics_display.md GAP-10, 99_gaps_register.md GAP-10, 01_fixture_page.md §3b + footer)
-  and matches the `layering.md` canonical inventory corrected in the same PR; the old name was the stale one.
-- No i18n key, user-visible label, display format, or new metric/KPI introduced; the deleted doc's
-  `playerMetrics.*` i18n keys were already declared superseded (CPO 2026-06-11, GAP-12).
+- The ONLY change to `docs/wireframes/99_gaps_register.md` is `int_momentum_window__team` →
+  `int_team_momentum_window` in GAP-18 (two occurrences); no GAP ruling, disposition, scope, status, or
+  display-contract item was altered, and no other GAP row was touched.
+- The `int_legs__team_match` reference in GAP-15 is correctly LEFT unchanged (the excluded family).
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- The ONLY change to `docs/competition_registry.yml` is a YAML comment (`int_momentum_window__team` →
+  `int_team_momentum_window`). No registry DATA field — league_code, provider_league_id, history_seasons,
+  ingest_active, parent_competition — was added, removed, or altered.
+- Registry↔seed sync intact: a comment is invisible to the YAML parser, so `active_competition_league_codes`
+  / `check_registry_var_sync` are unaffected; the zero-file + single-source rules hold.
 
 ## escalations
-(none)
+- question: analytics-engineer FAILed (first round) because `dbt_project/docs/layering.md`'s "exhaustive"
+  mart inventory listed the renamed team benchmark but OMITTED a row for the (pre-existing)
+  `mart_player_competition_benchmarks` — a doc gap that predates this PR (the mart was never inventoried,
+  even under its old name), not rename debt. Add the missing row now (complete the surface), or defer it
+  as a separate doc-completeness fix?
+  CPO ANSWER: Add the missing row now (CPO ruling, 2026-06-26). Done — a `mart_player_competition_benchmarks`
+  row was added to the inventory (mirroring the team-benchmark row, derived from the existing model);
+  analytics-engineer re-reviewed the final diff → PASS.

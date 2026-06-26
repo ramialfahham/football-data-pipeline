@@ -7,8 +7,8 @@
   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
   selection; tournament windows are cumulative, so a side can have more than five rows.
 
-  played_fixture_sk is the click-through key into mart_fixture_stats__team /
-  mart_fixture_stats__player. has_team_stats / has_player_stats tell the app
+  played_fixture_sk is the click-through key into mart_team_fixture_stats /
+  mart_player_fixture_stats. has_team_stats / has_player_stats tell the app
   honestly whether that drill-down has data (player stats are missing for a
   meaningful share of matches — the common case, not rare). The flags are
   derived from the detail marts themselves (same-layer refs, the documented
@@ -19,7 +19,7 @@
 #}
 
 with window_legs as (
-    select * from {{ ref('int_momentum_window__team') }}
+    select * from {{ ref('int_team_momentum_window') }}
 ),
 
 fixtures as (
@@ -42,14 +42,14 @@ team_stat_coverage as (
     select distinct
         fixture_sk,
         team_sk
-    from {{ ref('mart_fixture_stats__team') }}
+    from {{ ref('mart_team_fixture_stats') }}
 ),
 
 player_stat_coverage as (
     select distinct
         fixture_sk,
         team_sk
-    from {{ ref('mart_fixture_stats__player') }}
+    from {{ ref('mart_player_fixture_stats') }}
 )
 
 select

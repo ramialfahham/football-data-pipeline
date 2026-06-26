@@ -3,7 +3,7 @@
 {#
   W1 momentum builder — team.
 
-  Aggregates raw totals over the window legs selected by int_momentum_window__team
+  Aggregates raw totals over the window legs selected by int_team_momentum_window
   (the selection was extracted there in #323 so this aggregate and the drill-down list
   mart consume the same matches). The window is last-5 for most competitions and
   cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
@@ -32,7 +32,7 @@
 #}
 
 with window_legs as (
-    select * from {{ ref('int_momentum_window__team') }}
+    select * from {{ ref('int_team_momentum_window') }}
 ),
 
 -- Aggregate raw totals over the window legs

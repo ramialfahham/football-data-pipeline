@@ -4,7 +4,7 @@ models:
   - name: int_team_momentum__metrics
     description: >
       W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
-      totals over the window legs selected by int_momentum_window__team (the selection was
+      totals over the window legs selected by int_team_momentum_window (the selection was
       extracted there in #323 so this aggregate and the drill-down list mart consume the
       same matches). No ratios — those are computed in mart_team_momentum.
       Player-derived columns (key_passes, tackles, …) are NULL when player stats are
@@ -27,7 +27,7 @@ models:
       - name: window_type
         description: >
           The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
-          fixtures (GAP-18). Carried from int_momentum_window__team.
+          fixtures (GAP-18). Carried from int_team_momentum_window.
         tests:
           - not_null
           - accepted_values:

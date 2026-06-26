@@ -6,7 +6,7 @@
   the player's team's perspective). Feeds the match-by-match table on the player
   profile page; the UI orders by kickoff and slices the window (last 5 / season).
 
-  Distinct from mart_fixture_stats__player (#323): that is fixture-detail-shaped
+  Distinct from mart_player_fixture_stats (#323): that is fixture-detail-shaped
   (both teams' lines for one fixture); this is player-history-shaped (one player's
   matches over time, with opponent + result attached).
 

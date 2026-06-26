@@ -122,12 +122,12 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
-  - name: mart_momentum_window__team
+  - name: mart_team_momentum_window
     description: >
       W1 momentum-window list mart — team (#323). The drill-down behind the momentum
       metrics: the same window matches mart_team_momentum aggregates, exposed
       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
-      is the click-through key into mart_fixture_stats__team / __player; has_team_stats
+      is the click-through key into mart_team_fixture_stats / mart_player_fixture_stats; has_team_stats
       and has_player_stats are derived from those detail marts (same-layer refs, the
       documented layering exception), so true literally means the drill-down returns
       rows. Consistency with the momentum aggregate is guarded by
@@ -172,16 +172,16 @@ models:
       - name: opponent_team_sk
         tests: [not_null]
       - name: has_team_stats
-        description: "True when mart_fixture_stats__team has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+        description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
         tests: [not_null]
       - name: has_player_stats
-        description: "True when mart_fixture_stats__player has rows for this played fixture + team. False is the common case — many competitions lack player stats."
+        description: "True when mart_player_fixture_stats has rows for this played fixture + team. False is the common case — many competitions lack player stats."
         tests: [not_null]
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
 
-  - name: mart_fixture_stats__team
+  - name: mart_team_fixture_stats
     description: >
       Per-fixture team stat line (#323) — the match detail view behind the form-window
       list. Pure projection of fct_fixture_team_stats (no derived metrics) plus fixture
@@ -211,7 +211,7 @@ models:
       - name: is_home
         tests: [not_null]
 
-  - name: mart_fixture_stats__player
+  - name: mart_player_fixture_stats
     description: >
       Per-fixture player stat lines (#323) — the player half of the match detail view.
       Pure projection of fct_fixture_player_stats (no derived metrics) plus player and
@@ -629,7 +629,7 @@ models:
       Player match log (#325). One row per (player, finished fixture): the player's stat
       line plus match context (opponent, score, result from the player's team's
       perspective). Player-history-shaped (one player over time), distinct from the
-      fixture-detail-shaped mart_fixture_stats__player (#323). Grain: (player_sk,
+      fixture-detail-shaped mart_player_fixture_stats (#323). Grain: (player_sk,
       fixture_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -1021,7 +1021,7 @@ models:
       - name: player_photo_url
         description: "Player photo URL from dim_player; nullable."
 
-  - name: mart_competition_benchmarks__team
+  - name: mart_team_competition_benchmarks
     description: >
       Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
       (team, season, metric_key) over the 20 team season metrics. Places each team against its league that
@@ -1102,7 +1102,7 @@ models:
       - name: team_logo_url
         description: "Denormalised from dim_team; nullable."
 
-  - name: mart_competition_benchmarks__player
+  - name: mart_player_competition_benchmarks
     description: >
       Player competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
       (player, season, position_group, metric_key). Places each player against his positional peers that

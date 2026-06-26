@@ -1,11 +1,11 @@
 version: 2
 
 models:
-  - name: int_competition_benchmarks__team
+  - name: int_team_competition_benchmarks
     description: >
       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
       distribution (median / mean / p25 / p75 / team_count) of the 20 team season metrics, over teams
-      with >= 3 finished games. Median-led (robust to a dominant team). mart_competition_benchmarks__team
+      with >= 3 finished games. Median-led (robust to a dominant team). mart_team_competition_benchmarks
       ranks each team against this. The 20-metric set is the team_benchmark_metrics() macro.
       Grain: (league_code, season_api_year, metric_key).
     config:
@@ -36,12 +36,12 @@ models:
       - name: league_p75
         description: "75th-percentile team value (the distribution spread)."
 
-  - name: int_competition_benchmarks__player
+  - name: int_player_competition_benchmarks
     description: >
       Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
       the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric,
       over players with >= 270 minutes IN the position (finishing also >= 10 shots on target). Median-led.
-      mart_competition_benchmarks__player ranks each player against this. Metric x position eligibility is the
+      mart_player_competition_benchmarks ranks each player against this. Metric x position eligibility is the
       player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16).
       Grain: (league_code, season_api_year, position_group, metric_key).
     config:

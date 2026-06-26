@@ -1,754 +1,2024 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 52c1170..8262f19 100644
+index 8262f19..760d56d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,33 +1,67 @@
--# Task contract — handover refresh (end of session 2026-06-26)
-+# Task contract — #500 PR-c: crown the metric-definition SSoT (seed); retire the competing prose doc
+@@ -1,67 +1,93 @@
+-# Task contract — #500 PR-c: crown the metric-definition SSoT (seed); retire the competing prose doc
++# Task contract — #500 entity-first rename sweep (remaining `__team`/`__player` int+mart models)
  
  > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
--> Artifact/doc task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
-+> Docs + provenance-comment consolidation; ZERO metric logic/formula change.
+-> Docs + provenance-comment consolidation; ZERO metric logic/formula change.
++> Pure model rename (mirrors #574/#577); ZERO SQL logic change; numbers byte-identical by construction.
  
  objective: >
--  Refresh `.claude/active_work.md` to the current truth: #576 (Confirm-step protocol) and #577
--  (#500 PR2 player metric-layer renames) are MERGED; record the now-live Explore->Plan->Confirm->
--  Implement->Verify protocol (plan mode = the Confirm gate), the #500 status (PR1 team + PR2 player
--  DONE; PR-c docs / PR-d live-merge / mart-rename sweep remain), the new pending bq rm of the 4
--  orphaned old PLAYER relations, and the candidate next units — so a cold chat continues frictionlessly.
--refs: #500; #576; #577; end-of-session handover.
-+  Make the single source of truth for metric definitions unambiguous (the agent kept drifting
-+  because several docs each claimed to define metrics). Crown the `dbt_project/seeds/metric_catalogue.csv`
-+  seed as THE definition SSoT in `docs/metric_layer.md` (which becomes the one map/index), DELETE
-+  the competing claimant `docs/player_metrics_catalogue.md` (it specs the retired
-+  mart_matchday_player_insights, #321), add a one-line deferral header to the other metric docs,
-+  repoint every reference to the retired doc to the seed, and clear the deferred #577 + #574
-+  old-name doc debt. No metric definition/formula/logic changes anywhere.
-+refs: #500 (PR-c); follows #574 (team renames) + #577 (player renames); CPO-approved plan 2026-06-26.
+-  Make the single source of truth for metric definitions unambiguous (the agent kept drifting
+-  because several docs each claimed to define metrics). Crown the `dbt_project/seeds/metric_catalogue.csv`
+-  seed as THE definition SSoT in `docs/metric_layer.md` (which becomes the one map/index), DELETE
+-  the competing claimant `docs/player_metrics_catalogue.md` (it specs the retired
+-  mart_matchday_player_insights, #321), add a one-line deferral header to the other metric docs,
+-  repoint every reference to the retired doc to the seed, and clear the deferred #577 + #574
+-  old-name doc debt. No metric definition/formula/logic changes anywhere.
+-refs: #500 (PR-c); follows #574 (team renames) + #577 (player renames); CPO-approved plan 2026-06-26.
++  Finish #500's entity-first naming: rename the 8 models still on the old entity-suffix pattern
++  (`<surface>__<entity>`) to the CPO-locked `<layer>_<entity>_<surface>` convention, across 3 surfaces
++  (momentum_window, fixture_stats, competition_benchmarks), renaming each surface's int + mart together
++  (mirrors #574/#577). Update every consumer (refs, yml name:, 2 DQ tests, the paused v2 export, docs).
++  Excludes the `int_legs__*` family (separate naming question) and staging/base `*_apif__*` (source separator).
++refs: #500 (entity-rename sweep); follows #574 (team) + #577 (player); CPO-approved plan 2026-06-26.
  
  scope_paths:
--  - .claude/active_work.md
-+  - docs/metric_layer.md
-+  - docs/player_metrics_catalogue.md
-+  - docs/wireframes/metrics_display.md
-+  - docs/metrics_context_model.md
-+  - docs/content_architecture.md
-+  - docs/site_architecture.md
-+  - docs/wireframes/99_gaps_register.md
-+  - docs/wireframes/01_fixture_page.md
+-  - docs/metric_layer.md
+-  - docs/player_metrics_catalogue.md
+-  - docs/wireframes/metrics_display.md
+-  - docs/metrics_context_model.md
+-  - docs/content_architecture.md
++  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
++  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
++  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++  - dbt_project/models/5_marts/shared/mart_fixture_stats__team.sql
++  - dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
++  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
++  - dbt_project/tests/assert_tournament_form_window.sql
++  - dbt_project/tests/assert_momentum_window_matches_momentum.sql
++  - scripts/export_site_data.py
 +  - dbt_project/docs/layering.md
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+
-+impact_map: >
-+  writers: none — the two `dbt_project/models/**` touches change only a code comment
-+    (int_player_season__metrics.sql ~L13) and a yml description (int_team_season.yml ~L74, which
-+    documents the int_player_season__metrics model), both repointing a retired-doc reference
-+    ("Atoms follow docs/player_metrics_catalogue.md") to the metric_catalogue.csv seed. The
-+    compiled SQL of every model is byte-identical; no table content changes.
-+  downstream: EVIDENCE — `.venv/Scripts/dbt ls --project-dir dbt_project --resource-type model
-+    --select int_player_season__metrics+` (run 2026-06-26 on this branch) →
-+    int_player_career__metrics, mart_leaderboards, mart_player_career, mart_player_profile.
-+    None are affected (comment/description only).
-+  layer_rules: none triggered — no model added/moved/rematerialised, no metric column
-+    added/renamed; check_layer_contract + the no-drift season-metric guard are unaffected.
-+  deploy_order: none — comment/description-only; compiled SQL unchanged → no rebuild, no break
-+    to the deployed model; safe at any time vs the 04:00 nightly. The rest of the PR is docs only.
-+  blast_radius: none — zero compiled-SQL change; no mart/number changes anywhere.
+   - docs/site_architecture.md
++  - docs/competition_registry.yml
++  - docs/competitions/wc26.md
+   - docs/wireframes/99_gaps_register.md
+-  - docs/wireframes/01_fixture_page.md
+-  - dbt_project/docs/layering.md
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+ 
+ impact_map: >
+-  writers: none — the two `dbt_project/models/**` touches change only a code comment
+-    (int_player_season__metrics.sql ~L13) and a yml description (int_team_season.yml ~L74, which
+-    documents the int_player_season__metrics model), both repointing a retired-doc reference
+-    ("Atoms follow docs/player_metrics_catalogue.md") to the metric_catalogue.csv seed. The
+-    compiled SQL of every model is byte-identical; no table content changes.
+-  downstream: EVIDENCE — `.venv/Scripts/dbt ls --project-dir dbt_project --resource-type model
+-    --select int_player_season__metrics+` (run 2026-06-26 on this branch) →
+-    int_player_career__metrics, mart_leaderboards, mart_player_career, mart_player_profile.
+-    None are affected (comment/description only).
+-  layer_rules: none triggered — no model added/moved/rematerialised, no metric column
+-    added/renamed; check_layer_contract + the no-drift season-metric guard are unaffected.
+-  deploy_order: none — comment/description-only; compiled SQL unchanged → no rebuild, no break
+-    to the deployed model; safe at any time vs the 04:00 nightly. The rest of the PR is docs only.
+-  blast_radius: none — zero compiled-SQL change; no mart/number changes anywhere.
++  writers: none new — the 8 renamed models write to new-named relations; each model's compiled SQL is
++    byte-identical to its old-named self (pure rename, no logic change). The only edits inside files are
++    the model name (file rename), ref() target updates to sibling renamed models, yml name:, and comments.
++  downstream: EVIDENCE — `.venv/Scripts/dbt ls --project-dir dbt_project --resource-type model --select
++    <the 8 models>+` (run 2026-06-26 on this branch) → the 8 models + int_team_momentum__metrics,
++    mart_team_momentum, and mart_matchday_insights. NB mart_matchday_insights is the LIVE MVP mart; it is
++    downstream TRANSITIVELY (int_momentum_window__team -> int_team_momentum__metrics -> mart_team_momentum /
++    mart_matchday_insights) and does NOT directly ref any renamed model, so updating the single
++    int_team_momentum__metrics ref to int_momentum_window__team keeps it byte-identical. Direct-ref consumers
++    to update: int_team_momentum__metrics.sql; mart_momentum_window (its own int + both fixture_stats marts);
++    the two competition_benchmarks marts (their int builder); the 2 DQ tests; the v2 export.
++  layer_rules: none triggered — no model added/moved across layers; materializations unchanged (all
++    table/view; none incremental); check_layer_contract + the no-drift guard unaffected (no metric column
++    added/renamed; the renamed tests ride with their models).
++  deploy_order: new-named relations built by ci-data-build (state:modified+); the 8 old relations orphan
++    -> pending CPO bq rm (mirrors #574/#577). None incremental -> no --full-refresh. mart_matchday_insights
++    (MVP) rebuilds from the renamed chain but byte-identical, so the live site is unaffected.
++  blast_radius: zero numeric change anywhere (pure rename, byte-identical content); the paused v2 export's
++    queries are updated atomically in this PR so it stays whole; the live MVP build reads MVP artifacts, none
++    of the renamed marts.
  
  decisions_taken: >
--  Documentation only — no product/code/§10 decision. Records decisions already made and merged this
--  session (the protocol b+c1 per CPO 2026-06-26; the PR2 four renames, renames-only).
-+  CPO-approved plan (2026-06-26): the seed is THE metric-definition SSoT; `player_metrics_catalogue.md`
-+  is retired (deleted); `metric_layer.md` becomes the map; `metrics_display.md` (CPO-locked #391)
-+  and `metrics_context_model.md` are KEPT with a one-line deferral header; all references to the
-+  retired doc repoint to the seed; the #577/#574 old-name doc debt is cleared in the same PR.
+-  CPO-approved plan (2026-06-26): the seed is THE metric-definition SSoT; `player_metrics_catalogue.md`
+-  is retired (deleted); `metric_layer.md` becomes the map; `metrics_display.md` (CPO-locked #391)
+-  and `metrics_context_model.md` are KEPT with a one-line deferral header; all references to the
+-  retired doc repoint to the seed; the #577/#574 old-name doc debt is cleared in the same PR.
++  CPO-approved plan (2026-06-26): full Option B — rename all 8 models (3 ints + 5 marts) across the 3
++  surfaces, int+mart together, to the locked entity-first names. Exclude int_legs__* and staging/base.
  
  decisions_reserved:
--  - None new. (The bq rm of the 4 orphaned old player relations — and the still-pending 4 team
--    relations from #574 — are CPO actions, bq rm being deny-listed. The next unit after #500 is a
--    CPO direction, not pre-decided here.)
-+  - metrics_display.md is a CPO-LOCKED contract — edits are pointer-only (repoint dead-doc
-+    references + the deferral header + one stale model name); every ruling is preserved VERBATIM.
-+    If any reword would touch a ruling, stop and escalate (§11) — do not.
-+  - Seed `metric_catalogue.csv` description enrichment (provider-semantics nuances) is OUT of scope
-+    here → a separate football-analytics-expert-reviewed follow-up. (The pass-accuracy rounding
-+    caveat already lives in the int_player_season__metrics comment, so nothing is lost on deletion.)
+-  - metrics_display.md is a CPO-LOCKED contract — edits are pointer-only (repoint dead-doc
+-    references + the deferral header + one stale model name); every ruling is preserved VERBATIM.
+-    If any reword would touch a ruling, stop and escalate (§11) — do not.
+-  - Seed `metric_catalogue.csv` description enrichment (provider-semantics nuances) is OUT of scope
+-    here → a separate football-analytics-expert-reviewed follow-up. (The pass-accuracy rounding
+-    caveat already lives in the int_player_season__metrics comment, so nothing is lost on deletion.)
++  - The int_legs__* family rename (entity-first target is genuinely ambiguous; ~15+ consumers) is a SEPARATE
++    naming-design question, not decided here — flagged out of scope.
++  - Target names are the mechanical application of the locked `<layer>_<entity>_<surface>` convention; if any
++    target reads ambiguously on implementation, stop and escalate (§11) rather than choosing.
  
  done_when:
--  - .claude/active_work.md leads with: #576 + #577 MERGED; the protocol now LIVE (plan mode = Confirm);
--    #500 PR1+PR2 done with PR-c/PR-d/mart-sweep as the remaining sequence; the candidate next units;
--    the do-NOTs (CPO merges; don't break the live MVP; Bash only; contract-first); the pending bq rm.
--  - Routes to scope-auditor only (active_work.md is in no routing path); PASS; commit carries
--    contract.md so it is NOT artifact-exempt — scope-auditor must run. CPO merges.
-+  - `.venv/Scripts/dbt parse` clean (docs/comment/description changes; the model graph is untouched).
-+  - Repo grep returns ZERO: (a) any remaining `player_metrics_catalogue` reference; (b) any old
-+    mart name `mart_momentum__player|mart_season_record__player|mart_momentum__team|mart_season_record__team`.
-+  - No data rebuild (no model logic/formula touched).
-+  - Routes to scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) +
-+    bi-analyst-reviewer (wireframes/display contract). 4-step review cycle → commit gate. CPO merges.
+-  - `.venv/Scripts/dbt parse` clean (docs/comment/description changes; the model graph is untouched).
+-  - Repo grep returns ZERO: (a) any remaining `player_metrics_catalogue` reference; (b) any old
+-    mart name `mart_momentum__player|mart_season_record__player|mart_momentum__team|mart_season_record__team`.
+-  - No data rebuild (no model logic/formula touched).
+-  - Routes to scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) +
+-    bi-analyst-reviewer (wireframes/display contract). 4-step review cycle → commit gate. CPO merges.
++  - `.venv/Scripts/dbt parse` clean (all renamed refs resolve).
++  - Repo grep returns ZERO `(int|mart)_(momentum_window|fixture_stats|competition_benchmarks)__(team|player)`
++    in live content (dbt/scripts/docs).
++  - New-vs-prod byte-identical check on the renamed marts (FULL OUTER JOIN on grain, to_json_string) → 0 mismatches.
++  - Routes to scope-auditor + analytics-engineer-reviewer (dbt_project/**) + cto-reviewer (scripts/export_*.py)
++    + bi-analyst-reviewer (docs/wireframes/**) + data-engineer-reviewer (docs/competition_registry.yml).
++    4-step review cycle → commit gate. CPO merges.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-06-26: + dbt_project/models/5_marts/shared/mart_player_match_log.sql — authority: the
++    CPO-approved plan ("update every consumer; zero remaining old names in live content"). A missed
++    sibling mart whose description names the renamed mart_fixture_stats__player; content = repoint that
++    comment to mart_player_fixture_stats (no logic change). Amended on a code-clean tree (the sweep's code
++    edits were stashed for the amendment, then restored), per the contract-gate clean-tree rule.
+diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+index c0b0258..74fcfec 100644
+--- a/.claude/task/review_input.patch
++++ b/.claude/task/review_input.patch
+@@ -1,754 +1,651 @@
+ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+-index 52c1170..8262f19 100644
++index 8262f19..760d56d 100644
+ --- a/.claude/task/contract.md
+ +++ b/.claude/task/contract.md
+-@@ -1,33 +1,67 @@
+--# Task contract — handover refresh (end of session 2026-06-26)
+-+# Task contract — #500 PR-c: crown the metric-definition SSoT (seed); retire the competing prose doc
++@@ -1,67 +1,93 @@
++-# Task contract — #500 PR-c: crown the metric-definition SSoT (seed); retire the competing prose doc
+++# Task contract — #500 entity-first rename sweep (remaining `__team`/`__player` int+mart models)
+  
+  > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
+--> Artifact/doc task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
+-+> Docs + provenance-comment consolidation; ZERO metric logic/formula change.
++-> Docs + provenance-comment consolidation; ZERO metric logic/formula change.
+++> Pure model rename (mirrors #574/#577); ZERO SQL logic change; numbers byte-identical by construction.
+  
+  objective: >
+--  Refresh `.claude/active_work.md` to the current truth: #576 (Confirm-step protocol) and #577
+--  (#500 PR2 player metric-layer renames) are MERGED; record the now-live Explore->Plan->Confirm->
+--  Implement->Verify protocol (plan mode = the Confirm gate), the #500 status (PR1 team + PR2 player
+--  DONE; PR-c docs / PR-d live-merge / mart-rename sweep remain), the new pending bq rm of the 4
+--  orphaned old PLAYER relations, and the candidate next units — so a cold chat continues frictionlessly.
+--refs: #500; #576; #577; end-of-session handover.
+-+  Make the single source of truth for metric definitions unambiguous (the agent kept drifting
+-+  because several docs each claimed to define metrics). Crown the `dbt_project/seeds/metric_catalogue.csv`
+-+  seed as THE definition SSoT in `docs/metric_layer.md` (which becomes the one map/index), DELETE
+-+  the competing claimant `docs/player_metrics_catalogue.md` (it specs the retired
+-+  mart_matchday_player_insights, #321), add a one-line deferral header to the other metric docs,
+-+  repoint every reference to the retired doc to the seed, and clear the deferred #577 + #574
+-+  old-name doc debt. No metric definition/formula/logic changes anywhere.
+-+refs: #500 (PR-c); follows #574 (team renames) + #577 (player renames); CPO-approved plan 2026-06-26.
++-  Make the single source of truth for metric definitions unambiguous (the agent kept drifting
++-  because several docs each claimed to define metrics). Crown the `dbt_project/seeds/metric_catalogue.csv`
++-  seed as THE definition SSoT in `docs/metric_layer.md` (which becomes the one map/index), DELETE
++-  the competing claimant `docs/player_metrics_catalogue.md` (it specs the retired
++-  mart_matchday_player_insights, #321), add a one-line deferral header to the other metric docs,
++-  repoint every reference to the retired doc to the seed, and clear the deferred #577 + #574
++-  old-name doc debt. No metric definition/formula/logic changes anywhere.
++-refs: #500 (PR-c); follows #574 (team renames) + #577 (player renames); CPO-approved plan 2026-06-26.
+++  Finish #500's entity-first naming: rename the 8 models still on the old entity-suffix pattern
+++  (`<surface>__<entity>`) to the CPO-locked `<layer>_<entity>_<surface>` convention, across 3 surfaces
+++  (momentum_window, fixture_stats, competition_benchmarks), renaming each surface's int + mart together
+++  (mirrors #574/#577). Update every consumer (refs, yml name:, 2 DQ tests, the paused v2 export, docs).
+++  Excludes the `int_legs__*` family (separate naming question) and staging/base `*_apif__*` (source separator).
+++refs: #500 (entity-rename sweep); follows #574 (team) + #577 (player); CPO-approved plan 2026-06-26.
+  
+  scope_paths:
+--  - .claude/active_work.md
+-+  - docs/metric_layer.md
+-+  - docs/player_metrics_catalogue.md
+-+  - docs/wireframes/metrics_display.md
+-+  - docs/metrics_context_model.md
+-+  - docs/content_architecture.md
+-+  - docs/site_architecture.md
+-+  - docs/wireframes/99_gaps_register.md
+-+  - docs/wireframes/01_fixture_page.md
++-  - docs/metric_layer.md
++-  - docs/player_metrics_catalogue.md
++-  - docs/wireframes/metrics_display.md
++-  - docs/metrics_context_model.md
++-  - docs/content_architecture.md
+++  - dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
+++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
+++  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+++  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+++  - dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
+++  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+++  - dbt_project/models/5_marts/shared/mart_fixture_stats__team.sql
+++  - dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+++  - dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+++  - dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
+++  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+++  - dbt_project/models/5_marts/shared/shared.yml
+++  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
+++  - dbt_project/tests/assert_tournament_form_window.sql
+++  - dbt_project/tests/assert_momentum_window_matches_momentum.sql
+++  - scripts/export_site_data.py
+ +  - dbt_project/docs/layering.md
+-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-+
+-+impact_map: >
+-+  writers: none — the two `dbt_project/models/**` touches change only a code comment
+-+    (int_player_season__metrics.sql ~L13) and a yml description (int_team_season.yml ~L74, which
+-+    documents the int_player_season__metrics model), both repointing a retired-doc reference
+-+    ("Atoms follow docs/player_metrics_catalogue.md") to the metric_catalogue.csv seed. The
+-+    compiled SQL of every model is byte-identical; no table content changes.
+-+  downstream: EVIDENCE — `.venv/Scripts/dbt ls --project-dir dbt_project --resource-type model
+-+    --select int_player_season__metrics+` (run 2026-06-26 on this branch) →
+-+    int_player_career__metrics, mart_leaderboards, mart_player_career, mart_player_profile.
+-+    None are affected (comment/description only).
+-+  layer_rules: none triggered — no model added/moved/rematerialised, no metric column
+-+    added/renamed; check_layer_contract + the no-drift season-metric guard are unaffected.
+-+  deploy_order: none — comment/description-only; compiled SQL unchanged → no rebuild, no break
+-+    to the deployed model; safe at any time vs the 04:00 nightly. The rest of the PR is docs only.
+-+  blast_radius: none — zero compiled-SQL change; no mart/number changes anywhere.
++   - docs/site_architecture.md
+++  - docs/competition_registry.yml
+++  - docs/competitions/wc26.md
++   - docs/wireframes/99_gaps_register.md
++-  - docs/wireframes/01_fixture_page.md
++-  - dbt_project/docs/layering.md
++-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++ 
++ impact_map: >
++-  writers: none — the two `dbt_project/models/**` touches change only a code comment
++-    (int_player_season__metrics.sql ~L13) and a yml description (int_team_season.yml ~L74, which
++-    documents the int_player_season__metrics model), both repointing a retired-doc reference
++-    ("Atoms follow docs/player_metrics_catalogue.md") to the metric_catalogue.csv seed. The
++-    compiled SQL of every model is byte-identical; no table content changes.
++-  downstream: EVIDENCE — `.venv/Scripts/dbt ls --project-dir dbt_project --resource-type model
++-    --select int_player_season__metrics+` (run 2026-06-26 on this branch) →
++-    int_player_career__metrics, mart_leaderboards, mart_player_career, mart_player_profile.
++-    None are affected (comment/description only).
++-  layer_rules: none triggered — no model added/moved/rematerialised, no metric column
++-    added/renamed; check_layer_contract + the no-drift season-metric guard are unaffected.
++-  deploy_order: none — comment/description-only; compiled SQL unchanged → no rebuild, no break
++-    to the deployed model; safe at any time vs the 04:00 nightly. The rest of the PR is docs only.
++-  blast_radius: none — zero compiled-SQL change; no mart/number changes anywhere.
+++  writers: none new — the 8 renamed models write to new-named relations; each model's compiled SQL is
+++    byte-identical to its old-named self (pure rename, no logic change). The only edits inside files are
+++    the model name (file rename), ref() target updates to sibling renamed models, yml name:, and comments.
+++  downstream: EVIDENCE — `.venv/Scripts/dbt ls --project-dir dbt_project --resource-type model --select
+++    <the 8 models>+` (run 2026-06-26 on this branch) → the 8 models + int_team_momentum__metrics,
+++    mart_team_momentum, and mart_matchday_insights. NB mart_matchday_insights is the LIVE MVP mart; it is
+++    downstream TRANSITIVELY (int_momentum_window__team -> int_team_momentum__metrics -> mart_team_momentum /
+++    mart_matchday_insights) and does NOT directly ref any renamed model, so updating the single
+++    int_team_momentum__metrics ref to int_momentum_window__team keeps it byte-identical. Direct-ref consumers
+++    to update: int_team_momentum__metrics.sql; mart_momentum_window (its own int + both fixture_stats marts);
+++    the two competition_benchmarks marts (their int builder); the 2 DQ tests; the v2 export.
+++  layer_rules: none triggered — no model added/moved across layers; materializations unchanged (all
+++    table/view; none incremental); check_layer_contract + the no-drift guard unaffected (no metric column
+++    added/renamed; the renamed tests ride with their models).
+++  deploy_order: new-named relations built by ci-data-build (state:modified+); the 8 old relations orphan
+++    -> pending CPO bq rm (mirrors #574/#577). None incremental -> no --full-refresh. mart_matchday_insights
+++    (MVP) rebuilds from the renamed chain but byte-identical, so the live site is unaffected.
+++  blast_radius: zero numeric change anywhere (pure rename, byte-identical content); the paused v2 export's
+++    queries are updated atomically in this PR so it stays whole; the live MVP build reads MVP artifacts, none
+++    of the renamed marts.
+  
+  decisions_taken: >
+--  Documentation only — no product/code/§10 decision. Records decisions already made and merged this
+--  session (the protocol b+c1 per CPO 2026-06-26; the PR2 four renames, renames-only).
+-+  CPO-approved plan (2026-06-26): the seed is THE metric-definition SSoT; `player_metrics_catalogue.md`
+-+  is retired (deleted); `metric_layer.md` becomes the map; `metrics_display.md` (CPO-locked #391)
+-+  and `metrics_context_model.md` are KEPT with a one-line deferral header; all references to the
+-+  retired doc repoint to the seed; the #577/#574 old-name doc debt is cleared in the same PR.
++-  CPO-approved plan (2026-06-26): the seed is THE metric-definition SSoT; `player_metrics_catalogue.md`
++-  is retired (deleted); `metric_layer.md` becomes the map; `metrics_display.md` (CPO-locked #391)
++-  and `metrics_context_model.md` are KEPT with a one-line deferral header; all references to the
++-  retired doc repoint to the seed; the #577/#574 old-name doc debt is cleared in the same PR.
+++  CPO-approved plan (2026-06-26): full Option B — rename all 8 models (3 ints + 5 marts) across the 3
+++  surfaces, int+mart together, to the locked entity-first names. Exclude int_legs__* and staging/base.
+  
+  decisions_reserved:
+--  - None new. (The bq rm of the 4 orphaned old player relations — and the still-pending 4 team
+--    relations from #574 — are CPO actions, bq rm being deny-listed. The next unit after #500 is a
+--    CPO direction, not pre-decided here.)
+-+  - metrics_display.md is a CPO-LOCKED contract — edits are pointer-only (repoint dead-doc
+-+    references + the deferral header + one stale model name); every ruling is preserved VERBATIM.
+-+    If any reword would touch a ruling, stop and escalate (§11) — do not.
+-+  - Seed `metric_catalogue.csv` description enrichment (provider-semantics nuances) is OUT of scope
+-+    here → a separate football-analytics-expert-reviewed follow-up. (The pass-accuracy rounding
+-+    caveat already lives in the int_player_season__metrics comment, so nothing is lost on deletion.)
++-  - metrics_display.md is a CPO-LOCKED contract — edits are pointer-only (repoint dead-doc
++-    references + the deferral header + one stale model name); every ruling is preserved VERBATIM.
++-    If any reword would touch a ruling, stop and escalate (§11) — do not.
++-  - Seed `metric_catalogue.csv` description enrichment (provider-semantics nuances) is OUT of scope
++-    here → a separate football-analytics-expert-reviewed follow-up. (The pass-accuracy rounding
++-    caveat already lives in the int_player_season__metrics comment, so nothing is lost on deletion.)
+++  - The int_legs__* family rename (entity-first target is genuinely ambiguous; ~15+ consumers) is a SEPARATE
+++    naming-design question, not decided here — flagged out of scope.
+++  - Target names are the mechanical application of the locked `<layer>_<entity>_<surface>` convention; if any
+++    target reads ambiguously on implementation, stop and escalate (§11) rather than choosing.
+  
+  done_when:
+--  - .claude/active_work.md leads with: #576 + #577 MERGED; the protocol now LIVE (plan mode = Confirm);
+--    #500 PR1+PR2 done with PR-c/PR-d/mart-sweep as the remaining sequence; the candidate next units;
+--    the do-NOTs (CPO merges; don't break the live MVP; Bash only; contract-first); the pending bq rm.
+--  - Routes to scope-auditor only (active_work.md is in no routing path); PASS; commit carries
+--    contract.md so it is NOT artifact-exempt — scope-auditor must run. CPO merges.
+-+  - `.venv/Scripts/dbt parse` clean (docs/comment/description changes; the model graph is untouched).
+-+  - Repo grep returns ZERO: (a) any remaining `player_metrics_catalogue` reference; (b) any old
+-+    mart name `mart_momentum__player|mart_season_record__player|mart_momentum__team|mart_season_record__team`.
+-+  - No data rebuild (no model logic/formula touched).
+-+  - Routes to scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) +
+-+    bi-analyst-reviewer (wireframes/display contract). 4-step review cycle → commit gate. CPO merges.
+- 
+- amendments: (none)
++-  - `.venv/Scripts/dbt parse` clean (docs/comment/description changes; the model graph is untouched).
++-  - Repo grep returns ZERO: (a) any remaining `player_metrics_catalogue` reference; (b) any old
++-    mart name `mart_momentum__player|mart_season_record__player|mart_momentum__team|mart_season_record__team`.
++-  - No data rebuild (no model logic/formula touched).
++-  - Routes to scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**) +
++-    bi-analyst-reviewer (wireframes/display contract). 4-step review cycle → commit gate. CPO merges.
+++  - `.venv/Scripts/dbt parse` clean (all renamed refs resolve).
+++  - Repo grep returns ZERO `(int|mart)_(momentum_window|fixture_stats|competition_benchmarks)__(team|player)`
+++    in live content (dbt/scripts/docs).
+++  - New-vs-prod byte-identical check on the renamed marts (FULL OUTER JOIN on grain, to_json_string) → 0 mismatches.
+++  - Routes to scope-auditor + analytics-engineer-reviewer (dbt_project/**) + cto-reviewer (scripts/export_*.py)
+++    + bi-analyst-reviewer (docs/wireframes/**) + data-engineer-reviewer (docs/competition_registry.yml).
+++    4-step review cycle → commit gate. CPO merges.
++ 
++-amendments: (none)
+++amendments:
+++  - 2026-06-26: + dbt_project/models/5_marts/shared/mart_player_match_log.sql — authority: the
+++    CPO-approved plan ("update every consumer; zero remaining old names in live content"). A missed
+++    sibling mart whose description names the renamed mart_fixture_stats__player; content = repoint that
+++    comment to mart_player_fixture_stats (no logic change). Amended on a code-clean tree (the sweep's code
+++    edits were stashed for the amendment, then restored), per the contract-gate clean-tree rule.
+ diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+-index b2a22bb..8cfec73 100644
++index 8cfec73..fc156e2 100644
+ --- a/dbt_project/docs/layering.md
+ +++ b/dbt_project/docs/layering.md
+-@@ -285,10 +285,10 @@ Canonical mart inventory (exhaustive) for this project:
+- | `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
++@@ -286,15 +286,15 @@ Canonical mart inventory (exhaustive) for this project:
+  | `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
+  | `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 momentum aggregate (team). |
+--| `mart_momentum__player` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
+-+| `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
+- | `mart_momentum_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
++ | `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
++-| `mart_momentum_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
+++| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
+  | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | view | W2 season-record aggregate (team). |
+--| `mart_season_record__player` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
+-+| `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
+- | `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
+- | `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
++ | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
++-| `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
++-| `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+++| `mart_team_fixture_stats` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
+++| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+  | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
+-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-index 7c94388..bdddbf3 100644
+---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++ | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
++ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
++-| `mart_competition_benchmarks__team` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_competition_benchmarks__team` (the per-metric league distribution). Direction-agnostic (positional). |
+++| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmarks` (the per-metric league distribution). Direction-agnostic (positional). |
++ | `mart_player_career` | (player_sk, league_code) | table | Player Career tab: per-(player, competition) career totals (appearances/goals/assists across seasons) + `entity_type`. Composes `int_player_career__metrics`; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. Clubs list stays with `dim_player_team_season_mapping`. |
++ 
++ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++index d4e694f..b9a39f0 100644
++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++@@ -1,11 +1,11 @@
++ version: 2
++ 
++ models:
++-  - name: int_competition_benchmarks__team
+++  - name: int_team_competition_benchmarks
++     description: >
++       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
++       distribution (median / mean / p25 / p75 / team_count) of the 20 team season metrics, over teams
++-      with >= 3 finished games. Median-led (robust to a dominant team). mart_competition_benchmarks__team
+++      with >= 3 finished games. Median-led (robust to a dominant team). mart_team_competition_benchmarks
++       ranks each team against this. The 20-metric set is the team_benchmark_metrics() macro.
++       Grain: (league_code, season_api_year, metric_key).
++     config:
++@@ -36,12 +36,12 @@ models:
++       - name: league_p75
++         description: "75th-percentile team value (the distribution spread)."
++ 
++-  - name: int_competition_benchmarks__player
+++  - name: int_player_competition_benchmarks
++     description: >
++       Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
++       the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric,
++       over players with >= 270 minutes IN the position (finishing also >= 10 shots on target). Median-led.
++-      mart_competition_benchmarks__player ranks each player against this. Metric x position eligibility is the
+++      mart_player_competition_benchmarks ranks each player against this. Metric x position eligibility is the
++       player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16).
++       Grain: (league_code, season_api_year, position_group, metric_key).
++     config:
++diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
++index 03cf391..770458a 100644
++--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
+++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
++@@ -4,7 +4,7 @@ models:
++   - name: int_team_momentum__metrics
++     description: >
++       W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
++-      totals over the window legs selected by int_momentum_window__team (the selection was
+++      totals over the window legs selected by int_team_momentum_window (the selection was
++       extracted there in #323 so this aggregate and the drill-down list mart consume the
++       same matches). No ratios — those are computed in mart_team_momentum.
++       Player-derived columns (key_passes, tackles, …) are NULL when player stats are
++@@ -27,7 +27,7 @@ models:
++       - name: window_type
++         description: >
++           The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
++-          fixtures (GAP-18). Carried from int_momentum_window__team.
+++          fixtures (GAP-18). Carried from int_team_momentum_window.
++         tests:
++           - not_null
++           - accepted_values:
++diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++index 17bdcfb..9eace69 100644
++--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++@@ -1,7 +1,7 @@
++ version: 2
++ 
++ models:
++-  - name: int_momentum_window__team
+++  - name: int_team_momentum_window
++     description: >
++       W1 momentum-window selection — team. One row per (upcoming fixture side, window leg).
++       Default (window_type='last_5'): the team's last 5 finished matches before the upcoming
++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++similarity index 96%
++rename from dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
++rename to dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++index b032709..ca7edec 100644
++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
+++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++@@ -5,7 +5,7 @@
++   distribution of each benchmarked metric over the position's qualifying players, so a player's per-90 can be
++   read against his positional peers in that competition-season. Median-led (robust) with the p25/p75 spread;
++   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
++-  and percentile display. The player analog of int_competition_benchmarks__team.
+++  and percentile display. The player analog of int_team_competition_benchmarks.
++ 
++   Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
++   finishing_efficiency, also >= 10 shots on target in the position (its denominator is shots, not minutes —
++diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++index 59caff2..771dcc5 100644
++--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++@@ -15,7 +15,7 @@
++ 
++   Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart filter
++   minutes >= 270. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
++-  macro (shared with int_competition_benchmarks__player + mart_competition_benchmarks__player).
+++  macro (shared with int_player_competition_benchmarks + mart_player_competition_benchmarks).
++ #}
++ 
++ with player_stats as (
++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++similarity index 95%
++rename from dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++rename to dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++index 3e49485..c63ca76 100644
++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++@@ -11,7 +11,7 @@
++   are excluded per metric (metric_value is null -> not counted).
++ 
++   Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
++-  the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
+++  the team_benchmark_metrics() macro (shared with mart_team_competition_benchmarks).
++   Grain: (league_code, season_api_year, metric_key).
++ #}
++ 
++diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++index a4d6c94..32ce800 100644
++--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++@@ -3,7 +3,7 @@
++ {#
++   W1 momentum builder — team.
++ 
++-  Aggregates raw totals over the window legs selected by int_momentum_window__team
+++  Aggregates raw totals over the window legs selected by int_team_momentum_window
++   (the selection was extracted there in #323 so this aggregate and the drill-down list
++   mart consume the same matches). The window is last-5 for most competitions and
++   cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
++@@ -32,7 +32,7 @@
++ #}
++ 
++ with window_legs as (
++-    select * from {{ ref('int_momentum_window__team') }}
+++    select * from {{ ref('int_team_momentum_window') }}
++ ),
++ 
++ -- Aggregate raw totals over the window legs
++diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++similarity index 98%
++rename from dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
++rename to dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++index cd36c84..b2e032b 100644
++--- a/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
+++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++@@ -4,7 +4,7 @@
++   W1 momentum-window selection — team.
++ 
++   One row per (upcoming fixture side, window leg), kept UN-aggregated so the momentum aggregate
++-  (int_team_momentum__metrics) and its drill-down list (mart_momentum_window__team) consume the same
+++  (int_team_momentum__metrics) and its drill-down list (mart_team_momentum_window) consume the same
++   selection and cannot drift (extracted in #323).
++ 
++   Default window (window_type='last_5'): the team's last 5 finished matches before the upcoming
++diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++similarity index 91%
++rename from dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
++rename to dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++index ca6f71c..a348555 100644
++--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
+++++ b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++@@ -6,12 +6,12 @@
++   positional peers in that competition-season: the player's in-position per-90 (or rate) value, the peer
++   median (+ mean) and p25/p75 spread, his rank (k of peer_count) AND percentile, and value - median. minutes
++   + appearances are carried so the sample is always visible. The player analog of
++-  mart_competition_benchmarks__team, extended to peers = position group + a percentile (large player N).
+++  mart_team_competition_benchmarks, extended to peers = position group + a percentile (large player N).
++ 
++   DIRECTION-AGNOSTIC by design (D7): rank is by value DESC and percentile by value within (league_code,
++   season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
++-  catalogue's `direction`. Composes int_player_season_position__metrics + the int_competition_benchmarks__
++-  player engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
+++  catalogue's `direction`. Composes int_player_season_position__metrics + the int_player_competition_benchmarks
+++  engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
++   identical). Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-position
++   players appear once per qualifying position, each on their in-role value.
++ 
++@@ -33,7 +33,7 @@ players as (
++ ),
++ 
++ benchmarks as (
++-    select * from {{ ref('int_competition_benchmarks__player') }}
+++    select * from {{ ref('int_player_competition_benchmarks') }}
++ ),
++ 
++ unpivoted as (
++diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++similarity index 100%
++rename from dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
++rename to dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++diff --git a/dbt_project/models/5_marts/shared/mart_player_match_log.sql b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
++index 0302446..d2e2851 100644
++--- a/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+++++ b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
++@@ -6,7 +6,7 @@
++   the player's team's perspective). Feeds the match-by-match table on the player
++   profile page; the UI orders by kickoff and slices the window (last 5 / season).
++ 
++-  Distinct from mart_fixture_stats__player (#323): that is fixture-detail-shaped
+++  Distinct from mart_player_fixture_stats (#323): that is fixture-detail-shaped
++   (both teams' lines for one fixture); this is player-history-shaped (one player's
++   matches over time, with opponent + result attached).
++ 
++diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++similarity index 94%
++rename from dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++rename to dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++index a9984e6..eb4e466 100644
++--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+ @@ -10,7 +10,7 @@
+-   competition). league_sk / league_code / season_api_year carried for downstream slicing. (The
+-   per-club grain + this/last side-by-side are the deferred §8.3 follow-up; today's grain is kept.)
+- 
+--  Atoms follow docs/player_metrics_catalogue.md exactly:
+-+  Atoms follow the metric_catalogue.csv seed (the metric-definition SSoT) exactly:
+-   - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
+-     (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
+-   - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
+-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-index 3bec0b3..ea062a4 100644
+---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-@@ -71,7 +71,7 @@ models:
+-       Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
+-       player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
+-       mart_player_season was retired with the leaderboards consolidation). Atoms follow
+--      docs/player_metrics_catalogue.md: passes_accurate = per-fixture ROUND(passes_total *
+-+      the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
+-       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
+-       nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
+-       denominator is zero. team_sk = the player's last known club that competition-season.
+-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+-index 6979d45..ecfebf5 100644
+---- a/docs/content_architecture.md
+-+++ b/docs/content_architecture.md
+-@@ -8,7 +8,7 @@
+- > This is the IA the wireframes *arrange* and the marts *feed*. It builds on:
+- > - `docs/site_architecture.md` — the v2 site IA (fixtures-first home + browse, epic #361).
+- > - `docs/metrics_context_model.md` §8 — the player performance surface + the shared window/aggregation model.
+--> - `docs/player_metrics_catalogue.md` / `docs/wireframes/metrics_display.md` — metric definitions + the locked display contract.
+-+> - the `metric_catalogue.csv` seed (metric definitions — the SSoT) / `docs/wireframes/metrics_display.md` (the locked display contract).
+- >
+- > SPEC ONLY. Each build named here (the new marts, the backfill, coaches) is its own later PR with its
+- > own review; number-changing builds get analytics-engineer + football-analytics sign-off then.
+-diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+-index 77050c3..07f81ae 100644
+---- a/docs/metric_layer.md
+-+++ b/docs/metric_layer.md
+-@@ -2,12 +2,27 @@
+- 
+- > How the platform keeps its metrics consistent — the dbt-idiomatic way. Short by design.
+- 
+-+## Where each thing lives (read this first)
+-+
+-+**The `dbt_project/seeds/metric_catalogue.csv` seed is the single source of truth for every metric
+-+definition** — `metric_id`, formula (`numerator` / `denominator`), `description`, display `format`,
+-+and the display taxonomy (`metric_group`, `importance_tier`, `group_display_order`, `direction`,
+-+`interpretation`). No prose document defines a metric; docs *reference* the seed, never redefine it.
+-+
+-+| You need… | Go to |
+-+|---|---|
+-+| a metric's definition / formula / units | **the `metric_catalogue.csv` seed** (the SSoT) |
+-+| how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
+-+| which past matches form a window + how it's labelled | `docs/metrics_context_model.md` |
+-+| how the layer stays consistent (compute-once + the drift guard) | this document (below) |
+-+
+- ## The three parts
+- 
+--1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
+--   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
+--   for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
+--   *implementation* drift — the same metric computed three different ways.
+-+1. **Each metric is computed in exactly one place.** The canonical per-grain model
+-+   (`int_player_season__metrics` for player-season; `int_team_season__metrics` for team-season)
+-+   computes it once. Consolidating onto one model (#480 for player; #500 for team) is what prevents
+-+   *implementation* drift — the same metric computed three different ways. (The *definition* lives in
+-+   the seed, above; the model is where it is computed.)
+- 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
+-    of every metric: `metric_id`, label (i18n key), definition, formula (numerator / denominator), display
+-    format, and grouping. The UI glossary (`metrics.json`) is built from it. It documents; it does not compute.
+-diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
+-index ab728ab..94b831d 100644
+---- a/docs/metrics_context_model.md
+-+++ b/docs/metrics_context_model.md
+-@@ -1,5 +1,8 @@
+- # Metrics Context & Window Model
+- 
+-+> **Metric definitions live in the `metric_catalogue.csv` seed (the SSoT); this doc governs the
+-+> window / context model only.** See `docs/metric_layer.md` for the map of where each thing lives.
+-+
+- How the platform decides, for a given upcoming fixture, **which past matches form a
+- team's or player's performance window, and how to label it**. This is the shared
+- foundation every performance-style mart consumes — today the matchday momentum marts,
+-@@ -210,8 +213,8 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
+- Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
+- It fixes the one real gap: the player season rollup exists three ways today with divergent
+- numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
+--in another) because each re-implements its own aggregation. Definitions stay in
+--`docs/player_metrics_catalogue.md`; the locked display rows stay in
+-+in another) because each re-implements its own aggregation. Definitions stay in the
+-+`metric_catalogue.csv` seed; the locked display rows stay in
+- `docs/wireframes/metrics_display.md`. Build follow-ups: **#480** (consolidate to one
+- player-season model) and **#484** (player national / tournament context) — not built here.
+- 
+-@@ -303,10 +306,10 @@ cumulative. #480/#484 set the final `form_window_kind` enum values in the catalo
+- (replacing the superseded `wc_pre_via_domestic`); the **set is fixed by this matrix**, the labels
+- are a build-time naming call.
+- 
+--### 8.5 Override of the catalogue's form-window dispatch
+-+### 8.5 Override of the legacy form-window dispatch
+- 
+--This **supersedes** the "Form-window dispatch" section of `docs/player_metrics_catalogue.md`
+--(player WC form drawn from the **domestic club**, qualifiers excluded). That section treated
+-+This **supersedes** the legacy "Form-window dispatch" rule (player WC form drawn from the
+-+**domestic club**, qualifiers excluded). That rule treated
+- national data as predictive **form** and rejected stale qualifiers in favour of the domestic
+- club. Reframing the national surface as **context** (not a prediction of tournament form)
+- dissolves its three objections (roster turnover, stale dates, weaker opposition — all
+-diff --git a/docs/player_metrics_catalogue.md b/docs/player_metrics_catalogue.md
+-deleted file mode 100644
+-index e9e8ae4..0000000
+---- a/docs/player_metrics_catalogue.md
+-+++ /dev/null
+-@@ -1,399 +0,0 @@
+--# Player Metrics Catalogue
+--
+--Canonical specification for the player insights surface in Matchday IQ. Sits alongside `docs/player_stats_ui_data_modeling_concept.md` and supersedes that document's vague "Threat / Creation / Reliability" metric placeholders.
+--
+--This document is the contract that the analytics engineer, data engineer, and UI engineer build against. No metric, sort, copy, or window reaches production without being defined here.
+--
+--## Surface model
+--
+--Player insights is rendered inside the existing fixture-detail card via the segment control proposed in `player_stats_ui_data_modeling_concept.md` (`Team insights | Player insights`).
+--
+--The player insights view shows **9 leaderboards per side** (home + away), each presenting the **top 5 players on that team** for that leaderboard's metric, ranked over the player's form window.
+--
+--Leaderboards are displayed as an ordered list with no section headings. The order is:
+--
+--1. Scorer points
+--2. Shots on target
+--3. Successful dribbles
+--4. Key passes
+--5. Pass accuracy
+--6. Duels won
+--7. Tackles + Interceptions + Blocks
+--8. Save percentage
+--9. Cards
+--
+--## The 9 leaderboards
+--
+--Each leaderboard surfaces 1–3 **atomic metrics** computed from API-Football fields. The catalog comprises ~18 atomic metrics total.
+--
+--| # | Leaderboard | Atomic metrics surfaced | Sort top 5 by | Section |
+--|---|---|---|---|---|
+--| 1 | Scorer points | `goals`, `assists` | `goals + assists` desc | Offense |
+--| 2 | Shots on target | `shots_on` | `shots_on` desc | Offense |
+--| 3 | Successful dribbles | `dribbles_success`, `dribbles_attempts`, `dribbles_success_pct` (derived) | `dribbles_success` desc | Offense |
+--| 4 | Key passes | `passes_key` | `passes_key` desc | Offense |
+--| 5 | Pass accuracy | `passes_total`, `pass_accuracy_pct` | `pass_accuracy_pct` desc | Possession |
+--| 6 | Duels won | `duels_total`, `duels_won_pct` | `duels_won_pct` desc | Defense |
+--| 7 | Tackles + Interceptions + Blocks | `tackles_total`, `tackles_interceptions`, `tackles_blocks` | `tackles + interceptions + blocks` desc | Defense |
+--| 8 | Save percentage | `save_pct` | `save_pct` desc | Goalkeeping |
+--| 9 | Cards | `cards_yellow`, `cards_red` | `cards_yellow + cards_red` desc | Discipline |
+--
+--Sections are informational (for documentation/categorization purposes) and not rendered as UI groupings.
+--
+--## Atomic metric formulas
+--
+--All sums are computed across the player's form window (see "Form window dispatch" section below).
+--
+--### 1. Scorer points
+--
+--```
+--goals    = sum(goals_total)
+--assists  = sum(goals_assists)
+--```
+--
+--Source fields: `goals_total`, `goals_assists` from `fct_fixture_player_stats`.
+--
+--### 2. Shots on target
+--
+--```
+--shots_on = sum(shots_on)
+--```
+--
+--Source field: `shots_on`.
+--
+--### 3. Successful dribbles
+--
+--```
+--dribbles_success      = sum(dribbles_success)
+--dribbles_attempts     = sum(dribbles_attempts)
+--dribbles_success_pct  = dribbles_success / dribbles_attempts        (when denominator > 0)
+--```
+--
+--Source fields: `dribbles_success`, `dribbles_attempts`.
+--
+--### 4. Key passes
+--
+--```
+--passes_key = sum(passes_key)
+--```
+--
+--Source field: `passes_key`. API definition: a pass that leads directly to a shot (not necessarily a goal). Every assist is a key pass; not every key pass is an assist.
+--
+--### 5. Pass accuracy
+--
+--```
+--passes_accurate    = sum(passes_total * passes_accuracy_percent / 100)
+--passes_total       = sum(passes_total)
+--pass_accuracy_pct  = passes_accurate / passes_total                 (when denominator > 0)
+--```
+--
+--Source fields: `passes_total`, `passes_accuracy_percent`. The `passes_accuracy_percent` field is stored as INTEGER by API-Football, so each per-fixture accurate-pass count inherits a small rounding error (~±1–2 passes); aggregate error over a 5-game window is well under 1 percentage point on the ratio.
+--
+--### 6. Duels won
+--
+--```
+--duels_won      = sum(duels_won)
+--duels_total    = sum(duels_total)
+--duels_won_pct  = duels_won / duels_total                            (when denominator > 0)
+--```
+--
+--Source fields: `duels_total`, `duels_won`. API definition: a duel is any 1v1 physical contest — ground AND aerial pooled. Tackles and duels are tracked independently by the provider; they are not strict subsets.
+--
+--### 7. Tackles + Interceptions + Blocks
+--
+--```
+--tackles                = sum(tackles_total)
+--interceptions          = sum(tackles_interceptions)
+--blocks                 = sum(tackles_blocks)
+--defensive_actions_sum  = tackles + interceptions + blocks           (used for sort only)
+--```
+--
+--Source fields: `tackles_total`, `tackles_interceptions`, `tackles_blocks`.
+--
+--### 8. Save percentage
+--
+--```
+--goals_saves     = sum(goals_saves)
+--goals_conceded  = sum(goals_conceded)
+--save_pct        = goals_saves / (goals_saves + goals_conceded)     (when denominator > 0)
+--```
+--
+--Source fields: `goals_saves`, `goals_conceded`. Denominator = total shots on target faced. Only the percentage is displayed; underlying counts are stored in the mart for DQ tests and future use.
+--
+--### 9. Cards
+--
+--```
+--cards_yellow  = sum(cards_yellow)
+--cards_red     = sum(cards_red)
+--```
+--
+--Source fields: `cards_yellow`, `cards_red`.
+--
+--## Display patterns
+--
+--> **Superseded for v2 (CPO, 2026-06-11):** row order, grouping and the ratio
+--> display strings are now governed by
+--> [`docs/wireframes/metrics_display.md`](wireframes/metrics_display.md) — rows
+--> resequenced into the shared block order, ratio rows standardized to
+--> `{num} of {den} · {pct}%`, GK row gains `saves of shots_on_target_faced`.
+--> The definitions, formulas, windows and the zero-denominator rule below remain
+--> canonical.
+--
+--Each leaderboard row renders: `{rank}. {player_name}    {metric_display}`.
+--
+--| # | Leaderboard | Per-row display | Example |
+--|---|---|---|---|
+--| 1 | Scorer points | `{goals} G · {assists} A` | `3 G · 2 A` |
+--| 2 | Shots on target | `{shots_on}` | `9` |
+--| 3 | Successful dribbles | `{success} of {attempts} · {pct}%` | `12 of 18 · 67%` |
+--| 4 | Key passes | `{count}` | `14` |
+--| 5 | Pass accuracy | `{pct}% · {total} passes` | `92% · 305 passes` |
+--| 6 | Duels won | `{pct}% · {total} duels` | `63% · 51 duels` |
+--| 7 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | `9 T · 5 I · 2 B` |
+--| 8 | Save percentage | `{pct}%` | `82%` |
+--| 9 | Cards | `{Y} Y · {R} R` | `3 Y · 0 R` |
+--
+--## Zero-denominator rule
+--
+--When a ratio's denominator is zero, the **counts are still shown** but the percentage renders as `—`. The user sees the activity volume (zero) clearly; the ratio is honestly declared undefined.
+--
+--Examples:
+--- `Shots 0 · on target 0 · —`
+--- `Dribbles 0 · successful 0 · —`
+--- `Passes 0 · accurate 0 · —`
+--- `Duels 0 · won 0 · —`
+--- `Save % —` (no qualifying shots faced)
+--
+--Never substitute a `0%` or omit the row entirely.
+--
+--## Top-5 rule
+--
+--Each leaderboard shows top 5 players from that side, ranked by the leaderboard's sort logic.
+--
+--Tie-break: `minutes_played` desc. Beyond that, deterministic by `player_sk` asc to ensure stable ordering across builds.
+--
+--If the side has fewer than 5 eligible players for a leaderboard, render the available rows. Do not pad with empty rows.
+--
+--A player is **eligible for a leaderboard** when they have at least one finished match in their form window. A player with zero appearances in the window does not appear on any leaderboard for that team.
+--
+--## Form-window dispatch
+--
+--> **SUPERSEDED (CPO, 2026-06-17) by `docs/metrics_context_model.md` §8.** The national-team
+--> rule below — drawing World Cup pre-tournament player form from the **domestic club** and
+--> excluding qualifiers — is replaced. The national surface is reframed as **context, not form**:
+--> the player's last ≤5 **national-team** appearances pooled across all NT competition types (no
+--> club substitution), with cumulative figures during/after a big tournament. The club rules and
+--> all atomic definitions/formulas above remain canonical. See §8.4–§8.5 for the current matrix
+--> and the override rationale.
+-->
+--> Consequently the `form_window_kind` enum in the **Mart contract** section below is superseded:
+--> `wc_pre_via_domestic` no longer applies; the national-team context-window kinds (per §8.4)
+--> replace it. (The mart it described, `mart_matchday_player_insights`, was retired in #321 — this
+--> is doc hygiene; the rebuilt mart's enum is set by the §8 spec when #480/#484 build.)
+--
+--The window from which atoms are aggregated depends on the fixture context. The dispatch logic mirrors the existing team form-window dispatch where possible, but with one important divergence: for World Cup pre-tournament fixtures, player metrics draw from **domestic club data**, not qualifier data.
+--
+--| Context | Source competition for player | Window | User-facing source copy |
+--|---|---|---|---|
+--| Domestic in-progress | The player's current domestic league (same as the fixture) | Last 5 matches in current season; previous-season fallback before MD1 | "Form window: last 5 {league} matches" |
+--| Domestic ended (season review) | Same | Full ended season | "Form window: full {league} season" |
+--| WC pre-tournament (before GS-MD1) | The player's domestic club's league | Last 5 matches in current or most-recent domestic season | "Form window: player's last 5 {domestic_league} matches before the tournament" |
+--| WC GS-MD1 onward through tournament end | World Cup | Cumulative WC matches played so far (no 5-cap) | "Form window: WC matches so far" |
+--
+--### Why qualifier data is not used for player form
+--
+--This is an explicit divergence from the team-level form rule, with three reasons:
+--
+--1. **Roster turnover.** National squads change between qualification and tournament. Many qualifier participants don't appear at the WC, and many WC players didn't appear in qualifiers.
+--2. **Time gap.** Some qualifying cycles (e.g., CAF for WC 2026) span 2023–2025. A player's 2024 qualifier form is stale by June 2026.
+--3. **Opposition context.** Qualifier opposition is often weaker than tournament opposition; player stats inflate against minnows in ways that don't generalize.
+--
+--Team-level form retains some signal from qualifiers (team identity is more stable than individual form). Player-level form does not.
+--
+--### Form-source mapping for WC pre-tournament
+--
+--The player's domestic league is resolved via the player's current team registration in API-Football's `/players/profiles` data (already ingested via the `/players` and squad endpoints). The mart joins on `player_sk -> current_team_sk -> league_code`.
+--
+--When the player's domestic league is **not in the registry of ingested competitions**, the form source is unavailable for that player and the relevant atoms render as "Not provided" with the unavailability reason recorded on the row.
+--
+--## Data source transparency
+--
+--Every player insights surface must show the user where the data comes from. This is a hard UX requirement, not optional copy.
+--
+--### Fixture-level context line
+--
+--Below the `Player insights` segment header, render one of these copies (i18n-keyed):
+--
+--- `"Form window: last 5 BL1 matches"` *(domestic in-progress)*
+--- `"Form window: full BL1 2024/25 season"` *(domestic ended)*
+--- `"Form window: player's last 5 domestic matches before the World Cup. Sources vary per player and are listed in each row."` *(WC pre-tournament — heterogeneous sources)*
+--- `"Form window: World Cup matches so far"` *(WC tournament from GS-MD1)*
+--
+--### Per-row source indication (WC pre-tournament only)
+--
+--Because each player on a national-team roster may draw from a different domestic league, WC pre-tournament rows include a small source tag visible on hover/tap:
+--
+--```
+--1. Musiala    3 G · 2 A    (Bayern · BL1 · last 5)
+--2. Sané       1 G · 2 A    (Galatasaray · league not yet covered)
+--```
+--
+--For other contexts, the fixture-level line is sufficient — all players share the same source.
+--
+--### "Not provided" copy
+--
+--When a player's domestic league is not ingested OR the player has zero appearances in the window:
+--
+--```
+--{player_name} — Not provided ({reason})
+--```
+--
+--`reason` enum:
+--- `"league_not_covered"` — Player's domestic league is not in the ingestion registry.
+--- `"no_appearances_in_window"` — Player did not feature in any qualifying match.
+--- `"data_unavailable"` — Stats coverage gap at the API level (API returned empty stats for the player's matches).
+--
+--## Mart contract
+--
+--A new mart `mart_matchday_player_insights` is added.
+--
+--Grain: `(fixture_sk, team_sk, player_sk, leaderboard_id)`.
+--
+--Required columns:
+--
+--| Column | Type | Notes |
+--|---|---|---|
+--| `fixture_sk` | INT | Foreign key to `fct_fixture` |
+--| `fixture_api_id` | INT | For UI linking |
+--| `team_sk` | INT | Foreign key to `dim_team` |
+--| `team_api_id` | INT | For UI logo lookup |
+--| `player_sk` | INT | Foreign key to `dim_player` |
+--| `player_api_id` | INT | For UI |
+--| `player_name` | STRING | Denormalized for UI |
+--| `player_position_code` | STRING | Denormalized; informational, not used for filtering |
+--| `league_code` | STRING | The fixture's competition |
+--| `leaderboard_id` | STRING | Enum: `scorer_points`, `shots_on_target`, `dribbles`, `key_passes`, `pass_accuracy`, `duels`, `defensive_actions`, `save_pct`, `cards` |
+--| `rank_for_leaderboard` | INT | 1–5; null if not in top 5 (we still store all eligible rows; UI filters to top 5 at render) |
+--| `sort_score` | FLOAT | The value the rank is computed from (sum or pct depending on leaderboard) |
+--| `goals` | INT | Atom for leaderboard 1 |
+--| `assists` | INT | Atom for leaderboard 1 |
+--| `shots_on` | INT | Atom for leaderboard 2 |
+--| `dribbles_success` | INT | Atom for leaderboard 3 |
+--| `dribbles_attempts` | INT | Atom for leaderboard 3 |
+--| `dribbles_success_pct` | FLOAT | Atom for leaderboard 3; null if denominator zero |
+--| `passes_key` | INT | Atom for leaderboard 4 |
+--| `passes_total` | INT | Atom for leaderboard 5 |
+--| `passes_accurate` | INT | Derived atom for leaderboard 5 |
+--| `pass_accuracy_pct` | FLOAT | Atom for leaderboard 5; null if denominator zero |
+--| `duels_total` | INT | Atom for leaderboard 6 |
+--| `duels_won` | INT | Atom for leaderboard 6 |
+--| `duels_won_pct` | FLOAT | Atom for leaderboard 6; null if denominator zero |
+--| `tackles` | INT | Atom for leaderboard 7 |
+--| `interceptions` | INT | Atom for leaderboard 7 |
+--| `blocks` | INT | Atom for leaderboard 7 |
+--| `goals_saves` | INT | Atom for leaderboard 8 |
+--| `goals_conceded` | INT | Atom for leaderboard 8 |
+--| `save_pct` | FLOAT | Atom for leaderboard 8; null if denominator zero |
+--| `cards_yellow` | INT | Atom for leaderboard 9 |
+--| `cards_red` | INT | Atom for leaderboard 9 |
+--| `minutes_played_window` | INT | Tie-break key |
+--| `matches_in_window` | INT | Sample size for transparency |
+--| `form_source_league_code` | STRING | The competition the window was drawn from (may differ from `league_code` for WC pre-tournament) |
+--| `form_window_kind` | STRING | Enum: `domestic_last_5`, `domestic_full_season`, `domestic_prev_season_fallback`, `wc_pre_via_domestic`, `wc_tournament_cumulative` |
+--| `form_source_unavailable_reason` | STRING | Enum or null; `league_not_covered`, `no_appearances_in_window`, `data_unavailable` |
+--
+--## Data quality tests
+--
+--Hard gates that must pass before any UI surface ships:
+--
+--### Grain
+--- `unique` on `(fixture_sk, team_sk, player_sk, leaderboard_id)`.
+--
+--### Relationships
+--- `player_sk` → `dim_player.player_sk` not_null + relationship
+--- `team_sk` → `dim_team.team_sk` not_null + relationship
+--- `fixture_sk` → `fct_fixture.fixture_sk` not_null + relationship
+--
+--### Range tests (atomic)
+--- All count atoms (`goals`, `assists`, `shots_on`, `dribbles_success`, etc.): `>= 0`.
+--- All percent atoms (`*_pct`): in `[0, 1]` OR null.
+--
+--### Formula consistency
+--- `passes_accurate <= passes_total` (derived numerator never exceeds denominator)
+--- `dribbles_success <= dribbles_attempts`
+--- `duels_won <= duels_total`
+--- `goals_saves + goals_conceded > 0 OR save_pct IS NULL` (no fabricated denominator)
+--
+--### Sort consistency
+--- For each (fixture_sk, team_sk, leaderboard_id), the player with `rank_for_leaderboard = 1` has the highest `sort_score`; rank 2 is second-highest, etc.
+--
+--### Source transparency
+--- `form_source_unavailable_reason IS NOT NULL` implies all atomic metrics on that row are NULL.
+--- `form_window_kind` is never null.
+--
+--## i18n keys
+--
+--All user-facing labels and copy are i18n-keyed under `playerMetrics.*` in `site/i18n/{en,de}.json`. Finnish (`fi.json`) follows once VL onboarding's translation pattern is extended.
+--
+--| Key | EN | DE |
+--|---|---|---|
+--| `playerMetrics.section.title` | Player insights | Spielereinblicke |
+--| `playerMetrics.scorerPoints.label` | Scorer points | Scorerpunkte |
+--| `playerMetrics.scorerPoints.display` | `{{goals}} G · {{assists}} A` | `{{goals}} T · {{assists}} V` |
+--| `playerMetrics.shotsOnTarget.label` | Shots on target | Schüsse aufs Tor |
+--| `playerMetrics.dribbles.label` | Successful dribbles | Erfolgreiche Dribblings |
+--| `playerMetrics.dribbles.display` | `{{success}} of {{attempts}} · {{pct}}%` | `{{success}} von {{attempts}} · {{pct}}%` |
+--| `playerMetrics.keyPasses.label` | Key passes | Schlüsselpässe |
+--| `playerMetrics.passAccuracy.label` | Pass accuracy | Passgenauigkeit |
+--| `playerMetrics.passAccuracy.display` | `{{pct}}% · {{total}} passes` | `{{pct}}% · {{total}} Pässe` |
+--| `playerMetrics.duels.label` | Duels won | Gewonnene Zweikämpfe |
+--| `playerMetrics.duels.display` | `{{pct}}% · {{total}} duels` | `{{pct}}% · {{total}} Zweikämpfe` |
+--| `playerMetrics.defensiveActions.label` | Tackles + Interceptions + Blocks | Tacklings + Abfangaktionen + Blocks |
+--| `playerMetrics.defensiveActions.display` | `{{T}} T · {{I}} I · {{B}} B` | `{{T}} T · {{I}} A · {{B}} B` |
+--| `playerMetrics.savePct.label` | Save percentage | Gehaltene Torschüsse |
+--| `playerMetrics.cards.label` | Cards | Karten |
+--| `playerMetrics.cards.display` | `{{Y}} Y · {{R}} R` | `{{Y}} G · {{R}} R` |
+--| `playerMetrics.zeroDenominator.placeholder` | — | — |
+--| `playerMetrics.formWindow.domesticInProgress` | Form window: last 5 {{league}} matches | Formfenster: letzte 5 {{league}}-Spiele |
+--| `playerMetrics.formWindow.domesticEnded` | Form window: full {{league}} {{season}} season | Formfenster: komplette {{league}} {{season}}-Saison |
+--| `playerMetrics.formWindow.wcPreTournament` | Form window: player's last 5 domestic matches before the World Cup. Sources vary per player. | Formfenster: die letzten 5 Ligaspiele jedes Spielers vor der WM. Quellen können sich je Spieler unterscheiden. |
+--| `playerMetrics.formWindow.wcTournament` | Form window: World Cup matches so far | Formfenster: bisherige WM-Spiele |
+--| `playerMetrics.unavailable.leagueNotCovered` | Player's domestic league not yet covered | Liga des Spielers wird noch nicht abgebildet |
+--| `playerMetrics.unavailable.noAppearancesInWindow` | No appearances in form window | Keine Einsätze im Formfenster |
+--| `playerMetrics.unavailable.dataUnavailable` | Statistics unavailable from data provider | Statistiken vom Datenanbieter nicht verfügbar |
+--
+--## Known limitations (v1)
+--
+--Documented openly here and surfaced in user-facing copy.
+--
+--1. **Domestic coverage.** Currently ingested leagues: BL1, BL2, PL, PD, SA, L1, VL. National-team players whose club plays in Eredivisie, Liga Portugal, Süper Lig, Liga MX, MLS, Saudi Pro League, J-League, K-League, Belgian Pro League etc. have no domestic data → "Not provided".
+--2. **No event-level data.** API-Football aggregates passes/shots/duels per fixture. We do not have pass-by-pass success/failure events, shot locations, or pressure data. Therefore: no xG, no pass-progression metrics, no positional context for actions.
+--3. **API stats coverage gaps.** Some qualifier confederations (notably CAF and OFC) have incomplete fixture-statistics coverage at the API level. This affects WC tournament-phase aggregation when a player has stats-incomplete tournament appearances.
+--4. **Club form as a proxy for international form.** A player's domestic club form correlates with but does not equal their international form. Different teammates, system, role, opposition. Surfaced as a proxy with explicit source labeling; not as ground truth.
+--5. **No leaderboard for goalkeepers beyond Save %.** Save percentage is the only GK-specific leaderboard. Other GK metrics (distribution accuracy, claims, etc.) require fields API-Football does not expose distinctly.
+--
+--## Iteration roadmap (post-v1)
+--
+--1. **More leagues onboarded.** Eredivisie + Liga Portugal first (most non-Big-5 European squad players); then Liga MX + MLS for CONCACAF; then Asian top leagues.
+--2. **Analytics corner / deeper-stats surface.** Holding place for ratio metrics that don't make the 9-leaderboard cut (e.g., key passes per 100 passes, dribble take-on rate by zone if zone data ever lands).
+--3. **Position-aware filtering or weighting.** Currently all players are eligible for all leaderboards. v1.x could filter by position group for goalkeeping-style leaderboards. Out of v1 scope.
+--4. **Cross-competition blending for big-game players.** Currently a single window draws from a single competition. If a player appears in BL1 + UCL, only BL1 is used (because UCL is not ingested). When UCL is onboarded, a separate "club competitive form" view may blend leagues — explicitly opt-in.
+--5. **Player share-surface and tracking.** Per `player_stats_ui_data_modeling_concept.md`, growth surface for player cards is a phase 2 concern.
+--
+--## Implementation chain
+--
+--This catalog unblocks the PR sequence already laid out in `player_stats_ui_data_modeling_concept.md`:
+--
+--1. ~~Metric spec ticket~~ → this document
+--2. Core fixture-player unification (`2_base` + `3_core`)
+--3. Intermediate player insight features (`4_intermediate` + tests)
+--4. Player insights mart + export wiring (`5_marts` + exporter)
+--5. UI integration in fixture detail (segment control + leaderboards + i18n)
+--6. Cross-device QA + regression
+--
+--Each is a separate PR. The catalog stays the source of truth across all of them.
+--
+--## Easy access
+--
+--Repo path: `docs/player_metrics_catalogue.md`.
+--After merge: `https://github.com/ramialfahham/football-data-pipeline/blob/main/docs/player_metrics_catalogue.md`.
++   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
++   reading is supplied at display from the catalogue's `direction` (joined there), since most football
++   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
++-  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
+++  int_team_season__metrics + the int_team_competition_benchmarks engine (the shared
++   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
++ 
++   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
++@@ -31,7 +31,7 @@ teams as (
++ ),
++ 
++ benchmarks as (
++-    select * from {{ ref('int_competition_benchmarks__team') }}
+++    select * from {{ ref('int_team_competition_benchmarks') }}
++ ),
++ 
++ unpivoted as (
++diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__team.sql b/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++similarity index 100%
++rename from dbt_project/models/5_marts/shared/mart_fixture_stats__team.sql
++rename to dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++diff --git a/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++similarity index 88%
++rename from dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
++rename to dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++index 71152b8..25b3994 100644
++--- a/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++@@ -7,8 +7,8 @@
++   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
++   selection; tournament windows are cumulative, so a side can have more than five rows.
++ 
++-  played_fixture_sk is the click-through key into mart_fixture_stats__team /
++-  mart_fixture_stats__player. has_team_stats / has_player_stats tell the app
+++  played_fixture_sk is the click-through key into mart_team_fixture_stats /
+++  mart_player_fixture_stats. has_team_stats / has_player_stats tell the app
++   honestly whether that drill-down has data (player stats are missing for a
++   meaningful share of matches — the common case, not rare). The flags are
++   derived from the detail marts themselves (same-layer refs, the documented
++@@ -19,7 +19,7 @@
++ #}
++ 
++ with window_legs as (
++-    select * from {{ ref('int_momentum_window__team') }}
+++    select * from {{ ref('int_team_momentum_window') }}
++ ),
++ 
++ fixtures as (
++@@ -42,14 +42,14 @@ team_stat_coverage as (
++     select distinct
++         fixture_sk,
++         team_sk
++-    from {{ ref('mart_fixture_stats__team') }}
+++    from {{ ref('mart_team_fixture_stats') }}
++ ),
++ 
++ player_stat_coverage as (
++     select distinct
++         fixture_sk,
++         team_sk
++-    from {{ ref('mart_fixture_stats__player') }}
+++    from {{ ref('mart_player_fixture_stats') }}
++ )
++ 
++ select
++diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
++index cbe6204..5c0cb92 100644
++--- a/dbt_project/models/5_marts/shared/shared.yml
+++++ b/dbt_project/models/5_marts/shared/shared.yml
++@@ -122,12 +122,12 @@ models:
++         description: "True when team_sk is the home side of the upcoming fixture."
++         tests: [not_null]
++ 
++-  - name: mart_momentum_window__team
+++  - name: mart_team_momentum_window
++     description: >
++       W1 momentum-window list mart — team (#323). The drill-down behind the momentum
++       metrics: the same window matches mart_team_momentum aggregates, exposed
++       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
++-      is the click-through key into mart_fixture_stats__team / __player; has_team_stats
+++      is the click-through key into mart_team_fixture_stats / mart_player_fixture_stats; has_team_stats
++       and has_player_stats are derived from those detail marts (same-layer refs, the
++       documented layering exception), so true literally means the drill-down returns
++       rows. Consistency with the momentum aggregate is guarded by
++@@ -172,16 +172,16 @@ models:
++       - name: opponent_team_sk
++         tests: [not_null]
++       - name: has_team_stats
++-        description: "True when mart_fixture_stats__team has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+++        description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
++         tests: [not_null]
++       - name: has_player_stats
++-        description: "True when mart_fixture_stats__player has rows for this played fixture + team. False is the common case — many competitions lack player stats."
+++        description: "True when mart_player_fixture_stats has rows for this played fixture + team. False is the common case — many competitions lack player stats."
++         tests: [not_null]
++       - name: is_home
++         description: "True when team_sk is the home side of the upcoming fixture."
++         tests: [not_null]
++ 
++-  - name: mart_fixture_stats__team
+++  - name: mart_team_fixture_stats
++     description: >
++       Per-fixture team stat line (#323) — the match detail view behind the form-window
++       list. Pure projection of fct_fixture_team_stats (no derived metrics) plus fixture
++@@ -211,7 +211,7 @@ models:
++       - name: is_home
++         tests: [not_null]
++ 
++-  - name: mart_fixture_stats__player
+++  - name: mart_player_fixture_stats
++     description: >
++       Per-fixture player stat lines (#323) — the player half of the match detail view.
++       Pure projection of fct_fixture_player_stats (no derived metrics) plus player and
++@@ -629,7 +629,7 @@ models:
++       Player match log (#325). One row per (player, finished fixture): the player's stat
++       line plus match context (opponent, score, result from the player's team's
++       perspective). Player-history-shaped (one player over time), distinct from the
++-      fixture-detail-shaped mart_fixture_stats__player (#323). Grain: (player_sk,
+++      fixture-detail-shaped mart_player_fixture_stats (#323). Grain: (player_sk,
++       fixture_sk).
++     tests:
++       - dbt_utils.unique_combination_of_columns:
++@@ -1021,7 +1021,7 @@ models:
++       - name: player_photo_url
++         description: "Player photo URL from dim_player; nullable."
++ 
++-  - name: mart_competition_benchmarks__team
+++  - name: mart_team_competition_benchmarks
++     description: >
++       Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
++       (team, season, metric_key) over the 20 team season metrics. Places each team against its league that
++@@ -1102,7 +1102,7 @@ models:
++       - name: team_logo_url
++         description: "Denormalised from dim_team; nullable."
++ 
++-  - name: mart_competition_benchmarks__player
+++  - name: mart_player_competition_benchmarks
++     description: >
++       Player competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
++       (player, season, position_group, metric_key). Places each player against his positional peers that
++diff --git a/dbt_project/tests/assert_momentum_window_matches_momentum.sql b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
++index 3672615..86429bb 100644
++--- a/dbt_project/tests/assert_momentum_window_matches_momentum.sql
+++++ b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
++@@ -1,15 +1,15 @@
++--- The momentum-window list (mart_momentum_window__team) and the momentum aggregate
+++-- The momentum-window list (mart_team_momentum_window) and the momentum aggregate
++ -- (mart_team_momentum) must describe the same matches: for every upcoming
++ -- fixture side, the number of rows in the list must equal games_in_window,
++ -- and neither surface may have a side the other lacks. Both consume
++--- int_momentum_window__team, so a mismatch means a build-order or join bug.
+++-- int_team_momentum_window, so a mismatch means a build-order or join bug.
++ 
++ with list_counts as (
++     select
++         upcoming_fixture_sk,
++         team_sk,
++         count(*) as games_in_list
++-    from {{ ref('mart_momentum_window__team') }}
+++    from {{ ref('mart_team_momentum_window') }}
++     group by
++         upcoming_fixture_sk,
++         team_sk
++diff --git a/dbt_project/tests/assert_tournament_form_window.sql b/dbt_project/tests/assert_tournament_form_window.sql
++index 58f38bc..3a598d7 100644
++--- a/dbt_project/tests/assert_tournament_form_window.sql
+++++ b/dbt_project/tests/assert_tournament_form_window.sql
++@@ -24,7 +24,7 @@ with legs as (
++         league_code as upcoming_league_code,
++         window_type,
++         played_league_code
++-    from {{ ref('mart_momentum_window__team') }}
+++    from {{ ref('mart_team_momentum_window') }}
++ ),
++ 
++ registry as (
++diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
++index 94f6bf3..8e3d4b8 100644
++--- a/docs/competition_registry.yml
+++++ b/docs/competition_registry.yml
++@@ -101,7 +101,7 @@ competitions:
++   # `parent_competition` links a child (qualifier → tournament; domestic cup →
++   # league) to its parent. Curated intent, NOT yet consumed — reserved for the
++   # GAP-18 tournament-window modeling (a Core parent-child dim). Team form is
++-  # recency-based (int_momentum_window__team), so it needs no parent mapping today.
+++  # recency-based (int_team_momentum_window), so it needs no parent mapping today.
++ 
++   - league_code: "WCQEU"
++     name: "WC Qualification Europe"
++diff --git a/docs/competitions/wc26.md b/docs/competitions/wc26.md
++index 48a280c..6e46cf2 100644
++--- a/docs/competitions/wc26.md
+++++ b/docs/competitions/wc26.md
++@@ -6,7 +6,7 @@ This document records WC-specific product/data behavior for the current pipeline
++ 
++ - Internal league code: `WC` (not `WC26`)
++ - API league id: `1`
++-- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`, now synced into the `competition_registry` seed. Team form follows the tournament window (GAP-18, `int_momentum_window__team`): qualifier matches before the team's first WC match, then cumulative WC matches once the tournament is under way — not last-5. The old `wc_supporting_league_codes` seed was retired and replaced by the registry parent link, which the window model reads directly (no separate Core dim).
+++- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`, now synced into the `competition_registry` seed. Team form follows the tournament window (GAP-18, `int_team_momentum_window`): qualifier matches before the team's first WC match, then cumulative WC matches once the tournament is under way — not last-5. The old `wc_supporting_league_codes` seed was retired and replaced by the registry parent link, which the window model reads directly (no separate Core dim).
++ 
++ ## Match preview flow
++ 
++@@ -18,7 +18,7 @@ There is no separate pre-tournament page in the Pages app.
++ 
++ ## WC form window rules
++ 
++-Implemented generically by competition_type in `int_momentum_window__team` (GAP-18) and surfaced
+++Implemented generically by competition_type in `int_team_momentum_window` (GAP-18) and surfaced
++ on the shared momentum marts (the per-type `mart_matchday_insights_wc` was retired in #321):
++ 
++ 1. Group Stage Matchday 1 fixtures use qualifier form (`window_type = 'qualifiers'`):
+ diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+-index 980d291..8b3375b 100644
++index 8b3375b..bdfd5b7 100644
+ --- a/docs/site_architecture.md
+ +++ b/docs/site_architecture.md
+ @@ -118,7 +118,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
+  | Landing | `landing.json` | landing feed (#365; next rounds, kickoff, trending from `mart_team_profile`) |
+  | Competitions index / country hub | `nav.json` (registry-derived) | registry seed + grouping fields |
+  | Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
+--| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_momentum__team` (W1), `mart_season_record__team` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_momentum__player`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+-+| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
++-| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+++| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+  | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
+  | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log` |
+  | Standings | within competition JSON | `mart_standings` (league + group tables, incl. WC group letters) |
+-diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
+-index f290275..6589d8e 100644
+---- a/docs/wireframes/01_fixture_page.md
+-+++ b/docs/wireframes/01_fixture_page.md
+-@@ -139,7 +139,7 @@ Window header (3a): W1 `w1.games_in_window` + `w1.points_won`; W2 `w2.games_play
+- Form display (3b) — **window-correct, ruled 2026-06-11**:
+- - W1: the last-5 W/D/L pills, from `form_window[].result` in `recency_rank` order.
+- - W2: aggregate counts `10W · 3D · 1L` — pills would misrepresent a full-season
+--  window. Needs `wins`/`draws`/`losses` in `mart_season_record__team` (GAP-10);
+-+  window. Needs `wins`/`draws`/`losses` in `mart_team_season_record` (GAP-10);
+-   until that ships W2 shows the window header only.
+- 
+- Metric rows (3c) — **the LOCKED team table in
+-@@ -273,6 +273,6 @@ internal-links footer ➕. (➕ = new vs brief §7 — see 00 census.)
+- - [GAP-07](99_gaps_register.md) — no report-state payload for finished fixtures (§6).
+- - [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; no localization strategy yet.
+- - [GAP-09](99_gaps_register.md) — `metric_group` / `importance_tier` / `group_display_order` catalogue columns (§5.3c grouping).
+--- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_season_record__team` (§5.3b).
+-+- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_team_season_record` (§5.3b).
+- - [GAP-11](99_gaps_register.md) — four new team metrics + finishing relabel + description tightenings (§5.3c).
+- - [GAP-18](99_gaps_register.md) — tournament window mode + phase descriptor missing from the window marts (§5.3d) — needed before WC 2026.
+ diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
+-index d8458b9..4bbfaee 100644
++index 4bbfaee..7c07da2 100644
+ --- a/docs/wireframes/99_gaps_register.md
+ +++ b/docs/wireframes/99_gaps_register.md
+-@@ -18,9 +18,9 @@
+- | GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_fixture_stats__*`), then extend the export | pending | — |
+- | GAP-08 | 01 fixture, 04 hub | content | `round_name` (e.g. "Regular Season - 14", "Group Stage - 1") is a raw provider string rendered as-is — no localization strategy ("Spieltag 14") | i18n strategy decision in #370 (pattern-based round-label translation vs raw); blueprint renders the raw string until then | pending | — |
+- | GAP-09 | all metric screens | catalogue | Metric display needs grouping + importance as data: no `metric_group`, `importance_tier`, `group_display_order` columns in `metric_catalogue` | Add the three columns; values from the locked contract in [`metrics_display.md`](metrics_display.md) — `metric_group` on all atomics (team + player), `importance_tier` team-only (null for player entries) | **approved** (CPO 2026-06-11) | — |
+--| GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_season_record__team` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
+-+| GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_team_season_record` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
+- | GAP-11 | 01 fixture, 02 team | catalogue + mart | Locked team display table needs four metrics that don't exist: `clean_sheets` (x/y, both window marts), `shots_on_target_per_match`, `duels_per_match`, `defensive_actions_per_match` (T+I+B aggregate). Plus: finishing relabel ("% Conversion rate" → "% Goals per shot on target", formula unchanged), description tightenings (coverage denominators, blocked-shots note, >100% finishing caveat) | One catalogue+marts PR: new rows/columns per [`metrics_display.md`](metrics_display.md); `shot_accuracy` stays defined but unrendered | **approved** (CPO 2026-06-11) | — |
+--| GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; `player_metrics_catalogue.md` display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
+-+| GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
+- | GAP-13 | 02 team | mart | Five locked metric rows have no full-season variant: Ø shots on target, Ø duels, % duels won, Ø defensive actions, Ø key passes — `int_team_season__full_season_metrics` predates the player-stat-derived team metrics (W1/W2 have them; those are fixture-anchored and can't serve season pages) | Extend the full-season intermediate + `mart_team_profile` + team export with the five season columns | **approved** (CPO 2026-06-11) | — |
+- | GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11) | — |
++@@ -26,5 +26,5 @@
+  | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
+-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+-index 6c34b0e..eb570c1 100644
+---- a/docs/wireframes/metrics_display.md
+-+++ b/docs/wireframes/metrics_display.md
+-@@ -1,8 +1,9 @@
+- # Metric display contract — groups, tiers, order (#391)
+- 
+- > The CPO-ruled display contract for metric lists everywhere they render (fixture
+--> comparison, team profile, player profile, leaderboards). The metric catalogue
+--> stays the single source of definitions; this document records the **display**
+-+> comparison, team profile, player profile, leaderboards). The
+-+> `metric_catalogue.csv` seed stays the single source of metric definitions (the
+-+> SSoT); this document records the **display**
+- > rulings (grouping, importance tier, order) until they are codified as catalogue
+- > columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
+- > (CPO, 2026-06-11).**
+-@@ -32,8 +33,8 @@ surfaces).
+- - **Context pairs travel together**: a count that contextualizes a percentage
+-   (Ø Duels before % Duels won) shares the percentage's tier — never separated.
+- - **Aggregates with breakdown**: defensive actions render as one number with the
+--  atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the pattern
+--  established in `docs/player_metrics_catalogue.md`).
+-+  atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the player
+-+  defensive-actions bundle pattern).
+- - **Window form display**: W1 shows the last-5 W/D/L pills (from `form_window[]`,
+-   recency order). W2 shows aggregate counts `10W · 3D · 1L` — pills would
+-   misrepresent a 14+-game window (needs GAP-10).
+-@@ -107,16 +108,16 @@ the true value is always shown, never capped.
+- 
+- ## Player rows — LOCKED (CPO, 2026-06-11)
+- 
+--The player display unit is the **bundled row** established in
+--`docs/player_metrics_catalogue.md` (1–3 related atomics per row with a defined
+--display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
+-+The player display unit is the **bundled row** (1–3 related atomics per row with a
+-+defined display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
+- concept: player importance is position-dependent and the provider's metric scope
+- cannot ground a per-position importance claim. Constrained surfaces use
+- **per-surface rules** instead (e.g. the fixture top-players strip ranks
+- goals → assists → key passes, GK variant saves + save %).
+- 
+--Changes vs `player_metrics_catalogue.md` (which stays canonical for definitions,
+--formulas, windows): (1) rows resequenced into the shared block order; (2) every
+-+Changes vs the legacy player rows (definitions / formulas now live in the
+-+`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows
+-+resequenced into the shared block order; (2) every
+- bundle carries the `metric_group` it inherits from its atomics — a bundle never
+- mixes groups; (3) ratio displays standardized to the full triple
+- `{num} of {den} · {pct}%`; (4) the GK row gains the triple (two new atomics).
+-@@ -146,7 +147,7 @@ mixes groups; (3) ratio displays standardized to the full triple
+- - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
+-   `importance_tier` (**team-only** — null for player entries),
+-   `group_display_order` (this document is the source for the values).
+--- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_season_record__team`
+-+- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
+-   (the W2 counts display).
+- - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
+-   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),
+-@@ -154,8 +155,8 @@ mixes groups; (3) ratio displays standardized to the full triple
+-   blocked-shots note, >100% finishing caveat).
+- - **GAP-12** — player additions: `saves` + `shots_on_target_faced` atomics (data
+-   exists as `goals_saves`/`goals_conceded`), display strings standardized to the
+--  full triple (duels, pass accuracy, saves), `player_metrics_catalogue.md`
+--  display table superseded by this document.
+-+  full triple (duels, pass accuracy, saves), the legacy player display table
+-+  superseded by this document.
+- - **GAP-13** — full-season variants of the five player-stat-derived team rows
+-   (shots on target, duels pair, defensive actions, key passes) in the season
+-   rollup + `mart_team_profile` (the team profile renders the same locked table).
+-@@ -171,7 +172,7 @@ mixes groups; (3) ratio displays standardized to the full triple
+- | 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shot_accuracy` unrendered; finishing relabeled (fix "a"). |
+- | 2026-06-11 | Tier 1 = goals, goals against, shots on target, finishing. Duels stay tier 2 (coverage + discrimination + compact-surface budget). |
+- | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
+--| 2026-06-11 | Player display unit = the bundled rows from `player_metrics_catalogue.md`; resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
+-+| 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
+- | 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
+- | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
+- | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
++ | GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11) | — |
++ | GAP-17 | 02 team, MVP | mart | Pre-existing: the season rollup's original per-match rates divide by `season_games_played`, not stat-coverage counts (pre-coverage-rule convention) — understates rates where coverage < played. The five NEW season variants (GAP-13) already use coverage denominators | Align the old denominators with the coverage rule — **changes shipped MVP numbers**, so explicitly a CPO ruling; until then the two conventions coexist, documented in the rollup header | pending | — |
++-| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_momentum_window__team` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **live preview fixed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_momentum_window__team` via the registry parent link, world + continental championship; live match-preview form NUMBERS are cumulative-correct AND the WC form LABEL now switches via `form_from_qualifiers` on `mart_matchday_insights` feeding the existing `formContextLabel` UI + `formContextWc*` i18n. The v2 blueprint drill-down (`form_window[]` cap, separate `phase` column) stays under #391. Deferred: qualifying-type #483, player strip #484 | — |
+++| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_team_momentum_window` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **live preview fixed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_team_momentum_window` via the registry parent link, world + continental championship; live match-preview form NUMBERS are cumulative-correct AND the WC form LABEL now switches via `form_from_qualifiers` on `mart_matchday_insights` feeding the existing `formContextLabel` UI + `formContextWc*` i18n. The v2 blueprint drill-down (`form_window[]` cap, separate `phase` column) stays under #391. Deferred: qualifying-type #483, player strip #484 | — |
++ | GAP-19 | export (all screens) | mart + export | Consumption-layer audit (CPO ruling: ALL logic/transformation in dbt; the export may never compute): the merged export derives five things in Python — (1) leaderboard ranking + zero-exclusion, (2) top-player ranking (goals→assists→key passes), (3) nav taxonomy (`_GROUP_OF_TYPE` competition_type→group dict), (4) H2H canonical pair ordering, (5) **slugs** (published URL identity — must be byte-identical across any frontend) | Migrate each to dbt: rank columns on the player marts (`mart_top_scorers.scorer_rank` is the pattern), a leaderboards mart, `display_group` on the registry/seed, canonical pair key on `mart_head_to_head`, slug columns on the entity marts; export shrinks to selection | **approved** (CPO 2026-06-11) | — |
++diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
++index 0315ec2..3b26d90 100644
++--- a/scripts/export_site_data.py
+++++ b/scripts/export_site_data.py
++@@ -428,7 +428,7 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
++ 
++     # Drill-down: the last-5 form-window list and top players per side.
++     form_window: dict = {}
++-    for r in _query(client, f"select * from `{marts}.mart_momentum_window__team` "
+++    for r in _query(client, f"select * from `{marts}.mart_team_momentum_window` "
++                             f"where upcoming_fixture_sk in ({fid_in})"):
++         form_window.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(
++             _drop(r, _FW_DROP)
++@@ -634,7 +634,7 @@ def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
++     fids = sorted({
++         int(r["played_fixture_sk"])
++         for r in _query(client, f"select distinct played_fixture_sk "
++-                                f"from `{marts}.mart_momentum_window__team` "
+++                                f"from `{marts}.mart_team_momentum_window` "
++                                 f"where played_fixture_sk is not null")
++     })
++     if sample:
++@@ -643,11 +643,11 @@ def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
++         return []
++     fid_in = ", ".join(str(i) for i in fids)
++     team = _group_by(
++-        _query(client, f"select * from `{marts}.mart_fixture_stats__team` where fixture_sk in ({fid_in})"),
+++        _query(client, f"select * from `{marts}.mart_team_fixture_stats` where fixture_sk in ({fid_in})"),
++         "fixture_sk",
++     )
++     player = _group_by(
++-        _query(client, f"select * from `{marts}.mart_fixture_stats__player` where fixture_sk in ({fid_in})"),
+++        _query(client, f"select * from `{marts}.mart_player_fixture_stats` where fixture_sk in ({fid_in})"),
++         "fixture_sk",
++     )
++     out = []
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index b2a22bb..8cfec73 100644
+index 8cfec73..b589bd9 100644
 --- a/dbt_project/docs/layering.md
 +++ b/dbt_project/docs/layering.md
-@@ -285,10 +285,10 @@ Canonical mart inventory (exhaustive) for this project:
- | `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
+@@ -286,15 +286,16 @@ Canonical mart inventory (exhaustive) for this project:
  | `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
  | `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 momentum aggregate (team). |
--| `mart_momentum__player` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
-+| `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
- | `mart_momentum_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
+ | `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
+-| `mart_momentum_window__team` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
++| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
  | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | view | W2 season-record aggregate (team). |
--| `mart_season_record__player` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
-+| `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
- | `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
- | `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+ | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
+-| `mart_fixture_stats__team` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
+-| `mart_fixture_stats__player` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
++| `mart_team_fixture_stats` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
++| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
  | `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index 7c94388..bdddbf3 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
+ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stats (deferred #480 §8.3). |
+-| `mart_competition_benchmarks__team` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_competition_benchmarks__team` (the per-metric league distribution). Direction-agnostic (positional). |
++| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 20 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmarks` (the per-metric league distribution). Direction-agnostic (positional). |
++| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | view | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
+ | `mart_player_career` | (player_sk, league_code) | table | Player Career tab: per-(player, competition) career totals (appearances/goals/assists across seasons) + `entity_type`. Composes `int_player_career__metrics`; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. Clubs list stays with `dim_player_team_season_mapping`. |
+ 
+ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index d4e694f..b9a39f0 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -1,11 +1,11 @@
+ version: 2
+ 
+ models:
+-  - name: int_competition_benchmarks__team
++  - name: int_team_competition_benchmarks
+     description: >
+       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
+       distribution (median / mean / p25 / p75 / team_count) of the 20 team season metrics, over teams
+-      with >= 3 finished games. Median-led (robust to a dominant team). mart_competition_benchmarks__team
++      with >= 3 finished games. Median-led (robust to a dominant team). mart_team_competition_benchmarks
+       ranks each team against this. The 20-metric set is the team_benchmark_metrics() macro.
+       Grain: (league_code, season_api_year, metric_key).
+     config:
+@@ -36,12 +36,12 @@ models:
+       - name: league_p75
+         description: "75th-percentile team value (the distribution spread)."
+ 
+-  - name: int_competition_benchmarks__player
++  - name: int_player_competition_benchmarks
+     description: >
+       Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
+       the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric,
+       over players with >= 270 minutes IN the position (finishing also >= 10 shots on target). Median-led.
+-      mart_competition_benchmarks__player ranks each player against this. Metric x position eligibility is the
++      mart_player_competition_benchmarks ranks each player against this. Metric x position eligibility is the
+       player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16).
+       Grain: (league_code, season_api_year, position_group, metric_key).
+     config:
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 03cf391..770458a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -4,7 +4,7 @@ models:
+   - name: int_team_momentum__metrics
+     description: >
+       W1 last-5 momentum builder — team. For each upcoming fixture side, aggregates raw
+-      totals over the window legs selected by int_momentum_window__team (the selection was
++      totals over the window legs selected by int_team_momentum_window (the selection was
+       extracted there in #323 so this aggregate and the drill-down list mart consume the
+       same matches). No ratios — those are computed in mart_team_momentum.
+       Player-derived columns (key_passes, tackles, …) are NULL when player stats are
+@@ -27,7 +27,7 @@ models:
+       - name: window_type
+         description: >
+           The form window: last_5 (default) or tournament_to_date / qualifiers for tournament
+-          fixtures (GAP-18). Carried from int_momentum_window__team.
++          fixtures (GAP-18). Carried from int_team_momentum_window.
+         tests:
+           - not_null
+           - accepted_values:
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index 17bdcfb..9eace69 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -1,7 +1,7 @@
+ version: 2
+ 
+ models:
+-  - name: int_momentum_window__team
++  - name: int_team_momentum_window
+     description: >
+       W1 momentum-window selection — team. One row per (upcoming fixture side, window leg).
+       Default (window_type='last_5'): the team's last 5 finished matches before the upcoming
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+similarity index 96%
+rename from dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
+rename to dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+index b032709..ca7edec 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__player.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+@@ -5,7 +5,7 @@
+   distribution of each benchmarked metric over the position's qualifying players, so a player's per-90 can be
+   read against his positional peers in that competition-season. Median-led (robust) with the p25/p75 spread;
+   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
+-  and percentile display. The player analog of int_competition_benchmarks__team.
++  and percentile display. The player analog of int_team_competition_benchmarks.
+ 
+   Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
+   finishing_efficiency, also >= 10 shots on target in the position (its denominator is shots, not minutes —
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index 59caff2..771dcc5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -15,7 +15,7 @@
+ 
+   Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart filter
+   minutes >= 270. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
+-  macro (shared with int_competition_benchmarks__player + mart_competition_benchmarks__player).
++  macro (shared with int_player_competition_benchmarks + mart_player_competition_benchmarks).
+ #}
+ 
+ with player_stats as (
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+similarity index 95%
+rename from dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
+rename to dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+index 3e49485..c63ca76 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+@@ -11,7 +11,7 @@
+   are excluded per metric (metric_value is null -> not counted).
+ 
+   Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
+-  the team_benchmark_metrics() macro (shared with mart_competition_benchmarks__team).
++  the team_benchmark_metrics() macro (shared with mart_team_competition_benchmarks).
+   Grain: (league_code, season_api_year, metric_key).
+ #}
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+index a4d6c94..32ce800 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+@@ -3,7 +3,7 @@
+ {#
+   W1 momentum builder — team.
+ 
+-  Aggregates raw totals over the window legs selected by int_momentum_window__team
++  Aggregates raw totals over the window legs selected by int_team_momentum_window
+   (the selection was extracted there in #323 so this aggregate and the drill-down list
+   mart consume the same matches). The window is last-5 for most competitions and
+   cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
+@@ -32,7 +32,7 @@
+ #}
+ 
+ with window_legs as (
+-    select * from {{ ref('int_momentum_window__team') }}
++    select * from {{ ref('int_team_momentum_window') }}
+ ),
+ 
+ -- Aggregate raw totals over the window legs
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+similarity index 98%
+rename from dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
+rename to dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+index cd36c84..b2e032b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+@@ -4,7 +4,7 @@
+   W1 momentum-window selection — team.
+ 
+   One row per (upcoming fixture side, window leg), kept UN-aggregated so the momentum aggregate
+-  (int_team_momentum__metrics) and its drill-down list (mart_momentum_window__team) consume the same
++  (int_team_momentum__metrics) and its drill-down list (mart_team_momentum_window) consume the same
+   selection and cannot drift (extracted in #323).
+ 
+   Default window (window_type='last_5'): the team's last 5 finished matches before the upcoming
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+similarity index 91%
+rename from dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
+rename to dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+index ca6f71c..a348555 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__player.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+@@ -6,12 +6,12 @@
+   positional peers in that competition-season: the player's in-position per-90 (or rate) value, the peer
+   median (+ mean) and p25/p75 spread, his rank (k of peer_count) AND percentile, and value - median. minutes
+   + appearances are carried so the sample is always visible. The player analog of
+-  mart_competition_benchmarks__team, extended to peers = position group + a percentile (large player N).
++  mart_team_competition_benchmarks, extended to peers = position group + a percentile (large player N).
+ 
+   DIRECTION-AGNOSTIC by design (D7): rank is by value DESC and percentile by value within (league_code,
+   season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
+-  catalogue's `direction`. Composes int_player_season_position__metrics + the int_competition_benchmarks__
+-  player engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
++  catalogue's `direction`. Composes int_player_season_position__metrics + the int_player_competition_benchmarks
++  engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
+   identical). Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-position
+   players appear once per qualifying position, each on their in-role value.
+ 
+@@ -33,7 +33,7 @@ players as (
+ ),
+ 
+ benchmarks as (
+-    select * from {{ ref('int_competition_benchmarks__player') }}
++    select * from {{ ref('int_player_competition_benchmarks') }}
+ ),
+ 
+ unpivoted as (
+diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+similarity index 100%
+rename from dbt_project/models/5_marts/shared/mart_fixture_stats__player.sql
+rename to dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+diff --git a/dbt_project/models/5_marts/shared/mart_player_match_log.sql b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+index 0302446..d2e2851 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_match_log.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+@@ -6,7 +6,7 @@
+   the player's team's perspective). Feeds the match-by-match table on the player
+   profile page; the UI orders by kickoff and slices the window (last 5 / season).
+ 
+-  Distinct from mart_fixture_stats__player (#323): that is fixture-detail-shaped
++  Distinct from mart_player_fixture_stats (#323): that is fixture-detail-shaped
+   (both teams' lines for one fixture); this is player-history-shaped (one player's
+   matches over time, with opponent + result attached).
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+similarity index 94%
+rename from dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
+rename to dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+index a9984e6..eb4e466 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_benchmarks__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
 @@ -10,7 +10,7 @@
-   competition). league_sk / league_code / season_api_year carried for downstream slicing. (The
-   per-club grain + this/last side-by-side are the deferred §8.3 follow-up; today's grain is kept.)
+   within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
+   reading is supplied at display from the catalogue's `direction` (joined there), since most football
+   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
+-  int_team_season__metrics + the int_competition_benchmarks__team engine (the shared
++  int_team_season__metrics + the int_team_competition_benchmarks engine (the shared
+   team_benchmark_metrics() macro keeps the metric set identical). >= 3 games to be ranked.
  
--  Atoms follow docs/player_metrics_catalogue.md exactly:
-+  Atoms follow the metric_catalogue.csv seed (the metric-definition SSoT) exactly:
-   - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
-     (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
-   - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 3bec0b3..ea062a4 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -71,7 +71,7 @@ models:
-       Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
-       player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
-       mart_player_season was retired with the leaderboards consolidation). Atoms follow
--      docs/player_metrics_catalogue.md: passes_accurate = per-fixture ROUND(passes_total *
-+      the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
-       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
-       nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
-       denominator is zero. team_sk = the player's last known club that competition-season.
-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
-index 6979d45..ecfebf5 100644
---- a/docs/content_architecture.md
-+++ b/docs/content_architecture.md
-@@ -8,7 +8,7 @@
- > This is the IA the wireframes *arrange* and the marts *feed*. It builds on:
- > - `docs/site_architecture.md` — the v2 site IA (fixtures-first home + browse, epic #361).
- > - `docs/metrics_context_model.md` §8 — the player performance surface + the shared window/aggregation model.
--> - `docs/player_metrics_catalogue.md` / `docs/wireframes/metrics_display.md` — metric definitions + the locked display contract.
-+> - the `metric_catalogue.csv` seed (metric definitions — the SSoT) / `docs/wireframes/metrics_display.md` (the locked display contract).
- >
- > SPEC ONLY. Each build named here (the new marts, the backfill, coaches) is its own later PR with its
- > own review; number-changing builds get analytics-engineer + football-analytics sign-off then.
-diff --git a/docs/metric_layer.md b/docs/metric_layer.md
-index 77050c3..07f81ae 100644
---- a/docs/metric_layer.md
-+++ b/docs/metric_layer.md
-@@ -2,12 +2,27 @@
+   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
+@@ -31,7 +31,7 @@ teams as (
+ ),
  
- > How the platform keeps its metrics consistent — the dbt-idiomatic way. Short by design.
+ benchmarks as (
+-    select * from {{ ref('int_competition_benchmarks__team') }}
++    select * from {{ ref('int_team_competition_benchmarks') }}
+ ),
  
-+## Where each thing lives (read this first)
-+
-+**The `dbt_project/seeds/metric_catalogue.csv` seed is the single source of truth for every metric
-+definition** — `metric_id`, formula (`numerator` / `denominator`), `description`, display `format`,
-+and the display taxonomy (`metric_group`, `importance_tier`, `group_display_order`, `direction`,
-+`interpretation`). No prose document defines a metric; docs *reference* the seed, never redefine it.
-+
-+| You need… | Go to |
-+|---|---|
-+| a metric's definition / formula / units | **the `metric_catalogue.csv` seed** (the SSoT) |
-+| how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
-+| which past matches form a window + how it's labelled | `docs/metrics_context_model.md` |
-+| how the layer stays consistent (compute-once + the drift guard) | this document (below) |
-+
- ## The three parts
+ unpivoted as (
+diff --git a/dbt_project/models/5_marts/shared/mart_fixture_stats__team.sql b/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+similarity index 100%
+rename from dbt_project/models/5_marts/shared/mart_fixture_stats__team.sql
+rename to dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+diff --git a/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+similarity index 88%
+rename from dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
+rename to dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+index 71152b8..25b3994 100644
+--- a/dbt_project/models/5_marts/shared/mart_momentum_window__team.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+@@ -7,8 +7,8 @@
+   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
+   selection; tournament windows are cumulative, so a side can have more than five rows.
  
--1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
--   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
--   for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
--   *implementation* drift — the same metric computed three different ways.
-+1. **Each metric is computed in exactly one place.** The canonical per-grain model
-+   (`int_player_season__metrics` for player-season; `int_team_season__metrics` for team-season)
-+   computes it once. Consolidating onto one model (#480 for player; #500 for team) is what prevents
-+   *implementation* drift — the same metric computed three different ways. (The *definition* lives in
-+   the seed, above; the model is where it is computed.)
- 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
-    of every metric: `metric_id`, label (i18n key), definition, formula (numerator / denominator), display
-    format, and grouping. The UI glossary (`metrics.json`) is built from it. It documents; it does not compute.
-diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
-index ab728ab..94b831d 100644
---- a/docs/metrics_context_model.md
-+++ b/docs/metrics_context_model.md
-@@ -1,5 +1,8 @@
- # Metrics Context & Window Model
+-  played_fixture_sk is the click-through key into mart_fixture_stats__team /
+-  mart_fixture_stats__player. has_team_stats / has_player_stats tell the app
++  played_fixture_sk is the click-through key into mart_team_fixture_stats /
++  mart_player_fixture_stats. has_team_stats / has_player_stats tell the app
+   honestly whether that drill-down has data (player stats are missing for a
+   meaningful share of matches — the common case, not rare). The flags are
+   derived from the detail marts themselves (same-layer refs, the documented
+@@ -19,7 +19,7 @@
+ #}
  
-+> **Metric definitions live in the `metric_catalogue.csv` seed (the SSoT); this doc governs the
-+> window / context model only.** See `docs/metric_layer.md` for the map of where each thing lives.
-+
- How the platform decides, for a given upcoming fixture, **which past matches form a
- team's or player's performance window, and how to label it**. This is the shared
- foundation every performance-style mart consumes — today the matchday momentum marts,
-@@ -210,8 +213,8 @@ old models, the relegation variant, the BL1/BL2/L1 vars, and update product thre
- Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
- It fixes the one real gap: the player season rollup exists three ways today with divergent
- numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
--in another) because each re-implements its own aggregation. Definitions stay in
--`docs/player_metrics_catalogue.md`; the locked display rows stay in
-+in another) because each re-implements its own aggregation. Definitions stay in the
-+`metric_catalogue.csv` seed; the locked display rows stay in
- `docs/wireframes/metrics_display.md`. Build follow-ups: **#480** (consolidate to one
- player-season model) and **#484** (player national / tournament context) — not built here.
+ with window_legs as (
+-    select * from {{ ref('int_momentum_window__team') }}
++    select * from {{ ref('int_team_momentum_window') }}
+ ),
  
-@@ -303,10 +306,10 @@ cumulative. #480/#484 set the final `form_window_kind` enum values in the catalo
- (replacing the superseded `wc_pre_via_domestic`); the **set is fixed by this matrix**, the labels
- are a build-time naming call.
+ fixtures as (
+@@ -42,14 +42,14 @@ team_stat_coverage as (
+     select distinct
+         fixture_sk,
+         team_sk
+-    from {{ ref('mart_fixture_stats__team') }}
++    from {{ ref('mart_team_fixture_stats') }}
+ ),
  
--### 8.5 Override of the catalogue's form-window dispatch
-+### 8.5 Override of the legacy form-window dispatch
+ player_stat_coverage as (
+     select distinct
+         fixture_sk,
+         team_sk
+-    from {{ ref('mart_fixture_stats__player') }}
++    from {{ ref('mart_player_fixture_stats') }}
+ )
  
--This **supersedes** the "Form-window dispatch" section of `docs/player_metrics_catalogue.md`
--(player WC form drawn from the **domestic club**, qualifiers excluded). That section treated
-+This **supersedes** the legacy "Form-window dispatch" rule (player WC form drawn from the
-+**domestic club**, qualifiers excluded). That rule treated
- national data as predictive **form** and rejected stale qualifiers in favour of the domestic
- club. Reframing the national surface as **context** (not a prediction of tournament form)
- dissolves its three objections (roster turnover, stale dates, weaker opposition — all
-diff --git a/docs/player_metrics_catalogue.md b/docs/player_metrics_catalogue.md
-deleted file mode 100644
-index e9e8ae4..0000000
---- a/docs/player_metrics_catalogue.md
-+++ /dev/null
-@@ -1,399 +0,0 @@
--# Player Metrics Catalogue
--
--Canonical specification for the player insights surface in Matchday IQ. Sits alongside `docs/player_stats_ui_data_modeling_concept.md` and supersedes that document's vague "Threat / Creation / Reliability" metric placeholders.
--
--This document is the contract that the analytics engineer, data engineer, and UI engineer build against. No metric, sort, copy, or window reaches production without being defined here.
--
--## Surface model
--
--Player insights is rendered inside the existing fixture-detail card via the segment control proposed in `player_stats_ui_data_modeling_concept.md` (`Team insights | Player insights`).
--
--The player insights view shows **9 leaderboards per side** (home + away), each presenting the **top 5 players on that team** for that leaderboard's metric, ranked over the player's form window.
--
--Leaderboards are displayed as an ordered list with no section headings. The order is:
--
--1. Scorer points
--2. Shots on target
--3. Successful dribbles
--4. Key passes
--5. Pass accuracy
--6. Duels won
--7. Tackles + Interceptions + Blocks
--8. Save percentage
--9. Cards
--
--## The 9 leaderboards
--
--Each leaderboard surfaces 1–3 **atomic metrics** computed from API-Football fields. The catalog comprises ~18 atomic metrics total.
--
--| # | Leaderboard | Atomic metrics surfaced | Sort top 5 by | Section |
--|---|---|---|---|---|
--| 1 | Scorer points | `goals`, `assists` | `goals + assists` desc | Offense |
--| 2 | Shots on target | `shots_on` | `shots_on` desc | Offense |
--| 3 | Successful dribbles | `dribbles_success`, `dribbles_attempts`, `dribbles_success_pct` (derived) | `dribbles_success` desc | Offense |
--| 4 | Key passes | `passes_key` | `passes_key` desc | Offense |
--| 5 | Pass accuracy | `passes_total`, `pass_accuracy_pct` | `pass_accuracy_pct` desc | Possession |
--| 6 | Duels won | `duels_total`, `duels_won_pct` | `duels_won_pct` desc | Defense |
--| 7 | Tackles + Interceptions + Blocks | `tackles_total`, `tackles_interceptions`, `tackles_blocks` | `tackles + interceptions + blocks` desc | Defense |
--| 8 | Save percentage | `save_pct` | `save_pct` desc | Goalkeeping |
--| 9 | Cards | `cards_yellow`, `cards_red` | `cards_yellow + cards_red` desc | Discipline |
--
--Sections are informational (for documentation/categorization purposes) and not rendered as UI groupings.
--
--## Atomic metric formulas
--
--All sums are computed across the player's form window (see "Form window dispatch" section below).
--
--### 1. Scorer points
--
--```
--goals    = sum(goals_total)
--assists  = sum(goals_assists)
--```
--
--Source fields: `goals_total`, `goals_assists` from `fct_fixture_player_stats`.
--
--### 2. Shots on target
--
--```
--shots_on = sum(shots_on)
--```
--
--Source field: `shots_on`.
--
--### 3. Successful dribbles
--
--```
--dribbles_success      = sum(dribbles_success)
--dribbles_attempts     = sum(dribbles_attempts)
--dribbles_success_pct  = dribbles_success / dribbles_attempts        (when denominator > 0)
--```
--
--Source fields: `dribbles_success`, `dribbles_attempts`.
--
--### 4. Key passes
--
--```
--passes_key = sum(passes_key)
--```
--
--Source field: `passes_key`. API definition: a pass that leads directly to a shot (not necessarily a goal). Every assist is a key pass; not every key pass is an assist.
--
--### 5. Pass accuracy
--
--```
--passes_accurate    = sum(passes_total * passes_accuracy_percent / 100)
--passes_total       = sum(passes_total)
--pass_accuracy_pct  = passes_accurate / passes_total                 (when denominator > 0)
--```
--
--Source fields: `passes_total`, `passes_accuracy_percent`. The `passes_accuracy_percent` field is stored as INTEGER by API-Football, so each per-fixture accurate-pass count inherits a small rounding error (~±1–2 passes); aggregate error over a 5-game window is well under 1 percentage point on the ratio.
--
--### 6. Duels won
--
--```
--duels_won      = sum(duels_won)
--duels_total    = sum(duels_total)
--duels_won_pct  = duels_won / duels_total                            (when denominator > 0)
--```
--
--Source fields: `duels_total`, `duels_won`. API definition: a duel is any 1v1 physical contest — ground AND aerial pooled. Tackles and duels are tracked independently by the provider; they are not strict subsets.
--
--### 7. Tackles + Interceptions + Blocks
--
--```
--tackles                = sum(tackles_total)
--interceptions          = sum(tackles_interceptions)
--blocks                 = sum(tackles_blocks)
--defensive_actions_sum  = tackles + interceptions + blocks           (used for sort only)
--```
--
--Source fields: `tackles_total`, `tackles_interceptions`, `tackles_blocks`.
--
--### 8. Save percentage
--
--```
--goals_saves     = sum(goals_saves)
--goals_conceded  = sum(goals_conceded)
--save_pct        = goals_saves / (goals_saves + goals_conceded)     (when denominator > 0)
--```
--
--Source fields: `goals_saves`, `goals_conceded`. Denominator = total shots on target faced. Only the percentage is displayed; underlying counts are stored in the mart for DQ tests and future use.
--
--### 9. Cards
--
--```
--cards_yellow  = sum(cards_yellow)
--cards_red     = sum(cards_red)
--```
--
--Source fields: `cards_yellow`, `cards_red`.
--
--## Display patterns
--
--> **Superseded for v2 (CPO, 2026-06-11):** row order, grouping and the ratio
--> display strings are now governed by
--> [`docs/wireframes/metrics_display.md`](wireframes/metrics_display.md) — rows
--> resequenced into the shared block order, ratio rows standardized to
--> `{num} of {den} · {pct}%`, GK row gains `saves of shots_on_target_faced`.
--> The definitions, formulas, windows and the zero-denominator rule below remain
--> canonical.
--
--Each leaderboard row renders: `{rank}. {player_name}    {metric_display}`.
--
--| # | Leaderboard | Per-row display | Example |
--|---|---|---|---|
--| 1 | Scorer points | `{goals} G · {assists} A` | `3 G · 2 A` |
--| 2 | Shots on target | `{shots_on}` | `9` |
--| 3 | Successful dribbles | `{success} of {attempts} · {pct}%` | `12 of 18 · 67%` |
--| 4 | Key passes | `{count}` | `14` |
--| 5 | Pass accuracy | `{pct}% · {total} passes` | `92% · 305 passes` |
--| 6 | Duels won | `{pct}% · {total} duels` | `63% · 51 duels` |
--| 7 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | `9 T · 5 I · 2 B` |
--| 8 | Save percentage | `{pct}%` | `82%` |
--| 9 | Cards | `{Y} Y · {R} R` | `3 Y · 0 R` |
--
--## Zero-denominator rule
--
--When a ratio's denominator is zero, the **counts are still shown** but the percentage renders as `—`. The user sees the activity volume (zero) clearly; the ratio is honestly declared undefined.
--
--Examples:
--- `Shots 0 · on target 0 · —`
--- `Dribbles 0 · successful 0 · —`
--- `Passes 0 · accurate 0 · —`
--- `Duels 0 · won 0 · —`
--- `Save % —` (no qualifying shots faced)
--
--Never substitute a `0%` or omit the row entirely.
--
--## Top-5 rule
--
--Each leaderboard shows top 5 players from that side, ranked by the leaderboard's sort logic.
--
--Tie-break: `minutes_played` desc. Beyond that, deterministic by `player_sk` asc to ensure stable ordering across builds.
--
--If the side has fewer than 5 eligible players for a leaderboard, render the available rows. Do not pad with empty rows.
--
--A player is **eligible for a leaderboard** when they have at least one finished match in their form window. A player with zero appearances in the window does not appear on any leaderboard for that team.
--
--## Form-window dispatch
--
--> **SUPERSEDED (CPO, 2026-06-17) by `docs/metrics_context_model.md` §8.** The national-team
--> rule below — drawing World Cup pre-tournament player form from the **domestic club** and
--> excluding qualifiers — is replaced. The national surface is reframed as **context, not form**:
--> the player's last ≤5 **national-team** appearances pooled across all NT competition types (no
--> club substitution), with cumulative figures during/after a big tournament. The club rules and
--> all atomic definitions/formulas above remain canonical. See §8.4–§8.5 for the current matrix
--> and the override rationale.
-->
--> Consequently the `form_window_kind` enum in the **Mart contract** section below is superseded:
--> `wc_pre_via_domestic` no longer applies; the national-team context-window kinds (per §8.4)
--> replace it. (The mart it described, `mart_matchday_player_insights`, was retired in #321 — this
--> is doc hygiene; the rebuilt mart's enum is set by the §8 spec when #480/#484 build.)
--
--The window from which atoms are aggregated depends on the fixture context. The dispatch logic mirrors the existing team form-window dispatch where possible, but with one important divergence: for World Cup pre-tournament fixtures, player metrics draw from **domestic club data**, not qualifier data.
--
--| Context | Source competition for player | Window | User-facing source copy |
--|---|---|---|---|
--| Domestic in-progress | The player's current domestic league (same as the fixture) | Last 5 matches in current season; previous-season fallback before MD1 | "Form window: last 5 {league} matches" |
--| Domestic ended (season review) | Same | Full ended season | "Form window: full {league} season" |
--| WC pre-tournament (before GS-MD1) | The player's domestic club's league | Last 5 matches in current or most-recent domestic season | "Form window: player's last 5 {domestic_league} matches before the tournament" |
--| WC GS-MD1 onward through tournament end | World Cup | Cumulative WC matches played so far (no 5-cap) | "Form window: WC matches so far" |
--
--### Why qualifier data is not used for player form
--
--This is an explicit divergence from the team-level form rule, with three reasons:
--
--1. **Roster turnover.** National squads change between qualification and tournament. Many qualifier participants don't appear at the WC, and many WC players didn't appear in qualifiers.
--2. **Time gap.** Some qualifying cycles (e.g., CAF for WC 2026) span 2023–2025. A player's 2024 qualifier form is stale by June 2026.
--3. **Opposition context.** Qualifier opposition is often weaker than tournament opposition; player stats inflate against minnows in ways that don't generalize.
--
--Team-level form retains some signal from qualifiers (team identity is more stable than individual form). Player-level form does not.
--
--### Form-source mapping for WC pre-tournament
--
--The player's domestic league is resolved via the player's current team registration in API-Football's `/players/profiles` data (already ingested via the `/players` and squad endpoints). The mart joins on `player_sk -> current_team_sk -> league_code`.
--
--When the player's domestic league is **not in the registry of ingested competitions**, the form source is unavailable for that player and the relevant atoms render as "Not provided" with the unavailability reason recorded on the row.
--
--## Data source transparency
--
--Every player insights surface must show the user where the data comes from. This is a hard UX requirement, not optional copy.
--
--### Fixture-level context line
--
--Below the `Player insights` segment header, render one of these copies (i18n-keyed):
--
--- `"Form window: last 5 BL1 matches"` *(domestic in-progress)*
--- `"Form window: full BL1 2024/25 season"` *(domestic ended)*
--- `"Form window: player's last 5 domestic matches before the World Cup. Sources vary per player and are listed in each row."` *(WC pre-tournament — heterogeneous sources)*
--- `"Form window: World Cup matches so far"` *(WC tournament from GS-MD1)*
--
--### Per-row source indication (WC pre-tournament only)
--
--Because each player on a national-team roster may draw from a different domestic league, WC pre-tournament rows include a small source tag visible on hover/tap:
--
--```
--1. Musiala    3 G · 2 A    (Bayern · BL1 · last 5)
--2. Sané       1 G · 2 A    (Galatasaray · league not yet covered)
--```
--
--For other contexts, the fixture-level line is sufficient — all players share the same source.
--
--### "Not provided" copy
--
--When a player's domestic league is not ingested OR the player has zero appearances in the window:
--
--```
--{player_name} — Not provided ({reason})
--```
--
--`reason` enum:
--- `"league_not_covered"` — Player's domestic league is not in the ingestion registry.
--- `"no_appearances_in_window"` — Player did not feature in any qualifying match.
--- `"data_unavailable"` — Stats coverage gap at the API level (API returned empty stats for the player's matches).
--
--## Mart contract
--
--A new mart `mart_matchday_player_insights` is added.
--
--Grain: `(fixture_sk, team_sk, player_sk, leaderboard_id)`.
--
--Required columns:
--
--| Column | Type | Notes |
--|---|---|---|
--| `fixture_sk` | INT | Foreign key to `fct_fixture` |
--| `fixture_api_id` | INT | For UI linking |
--| `team_sk` | INT | Foreign key to `dim_team` |
--| `team_api_id` | INT | For UI logo lookup |
--| `player_sk` | INT | Foreign key to `dim_player` |
--| `player_api_id` | INT | For UI |
--| `player_name` | STRING | Denormalized for UI |
--| `player_position_code` | STRING | Denormalized; informational, not used for filtering |
--| `league_code` | STRING | The fixture's competition |
--| `leaderboard_id` | STRING | Enum: `scorer_points`, `shots_on_target`, `dribbles`, `key_passes`, `pass_accuracy`, `duels`, `defensive_actions`, `save_pct`, `cards` |
--| `rank_for_leaderboard` | INT | 1–5; null if not in top 5 (we still store all eligible rows; UI filters to top 5 at render) |
--| `sort_score` | FLOAT | The value the rank is computed from (sum or pct depending on leaderboard) |
--| `goals` | INT | Atom for leaderboard 1 |
--| `assists` | INT | Atom for leaderboard 1 |
--| `shots_on` | INT | Atom for leaderboard 2 |
--| `dribbles_success` | INT | Atom for leaderboard 3 |
--| `dribbles_attempts` | INT | Atom for leaderboard 3 |
--| `dribbles_success_pct` | FLOAT | Atom for leaderboard 3; null if denominator zero |
--| `passes_key` | INT | Atom for leaderboard 4 |
--| `passes_total` | INT | Atom for leaderboard 5 |
--| `passes_accurate` | INT | Derived atom for leaderboard 5 |
--| `pass_accuracy_pct` | FLOAT | Atom for leaderboard 5; null if denominator zero |
--| `duels_total` | INT | Atom for leaderboard 6 |
--| `duels_won` | INT | Atom for leaderboard 6 |
--| `duels_won_pct` | FLOAT | Atom for leaderboard 6; null if denominator zero |
--| `tackles` | INT | Atom for leaderboard 7 |
--| `interceptions` | INT | Atom for leaderboard 7 |
--| `blocks` | INT | Atom for leaderboard 7 |
--| `goals_saves` | INT | Atom for leaderboard 8 |
--| `goals_conceded` | INT | Atom for leaderboard 8 |
--| `save_pct` | FLOAT | Atom for leaderboard 8; null if denominator zero |
--| `cards_yellow` | INT | Atom for leaderboard 9 |
--| `cards_red` | INT | Atom for leaderboard 9 |
--| `minutes_played_window` | INT | Tie-break key |
--| `matches_in_window` | INT | Sample size for transparency |
--| `form_source_league_code` | STRING | The competition the window was drawn from (may differ from `league_code` for WC pre-tournament) |
--| `form_window_kind` | STRING | Enum: `domestic_last_5`, `domestic_full_season`, `domestic_prev_season_fallback`, `wc_pre_via_domestic`, `wc_tournament_cumulative` |
--| `form_source_unavailable_reason` | STRING | Enum or null; `league_not_covered`, `no_appearances_in_window`, `data_unavailable` |
--
--## Data quality tests
--
--Hard gates that must pass before any UI surface ships:
--
--### Grain
--- `unique` on `(fixture_sk, team_sk, player_sk, leaderboard_id)`.
--
--### Relationships
--- `player_sk` → `dim_player.player_sk` not_null + relationship
--- `team_sk` → `dim_team.team_sk` not_null + relationship
--- `fixture_sk` → `fct_fixture.fixture_sk` not_null + relationship
--
--### Range tests (atomic)
--- All count atoms (`goals`, `assists`, `shots_on`, `dribbles_success`, etc.): `>= 0`.
--- All percent atoms (`*_pct`): in `[0, 1]` OR null.
--
--### Formula consistency
--- `passes_accurate <= passes_total` (derived numerator never exceeds denominator)
--- `dribbles_success <= dribbles_attempts`
--- `duels_won <= duels_total`
--- `goals_saves + goals_conceded > 0 OR save_pct IS NULL` (no fabricated denominator)
--
--### Sort consistency
--- For each (fixture_sk, team_sk, leaderboard_id), the player with `rank_for_leaderboard = 1` has the highest `sort_score`; rank 2 is second-highest, etc.
--
--### Source transparency
--- `form_source_unavailable_reason IS NOT NULL` implies all atomic metrics on that row are NULL.
--- `form_window_kind` is never null.
--
--## i18n keys
--
--All user-facing labels and copy are i18n-keyed under `playerMetrics.*` in `site/i18n/{en,de}.json`. Finnish (`fi.json`) follows once VL onboarding's translation pattern is extended.
--
--| Key | EN | DE |
--|---|---|---|
--| `playerMetrics.section.title` | Player insights | Spielereinblicke |
--| `playerMetrics.scorerPoints.label` | Scorer points | Scorerpunkte |
--| `playerMetrics.scorerPoints.display` | `{{goals}} G · {{assists}} A` | `{{goals}} T · {{assists}} V` |
--| `playerMetrics.shotsOnTarget.label` | Shots on target | Schüsse aufs Tor |
--| `playerMetrics.dribbles.label` | Successful dribbles | Erfolgreiche Dribblings |
--| `playerMetrics.dribbles.display` | `{{success}} of {{attempts}} · {{pct}}%` | `{{success}} von {{attempts}} · {{pct}}%` |
--| `playerMetrics.keyPasses.label` | Key passes | Schlüsselpässe |
--| `playerMetrics.passAccuracy.label` | Pass accuracy | Passgenauigkeit |
--| `playerMetrics.passAccuracy.display` | `{{pct}}% · {{total}} passes` | `{{pct}}% · {{total}} Pässe` |
--| `playerMetrics.duels.label` | Duels won | Gewonnene Zweikämpfe |
--| `playerMetrics.duels.display` | `{{pct}}% · {{total}} duels` | `{{pct}}% · {{total}} Zweikämpfe` |
--| `playerMetrics.defensiveActions.label` | Tackles + Interceptions + Blocks | Tacklings + Abfangaktionen + Blocks |
--| `playerMetrics.defensiveActions.display` | `{{T}} T · {{I}} I · {{B}} B` | `{{T}} T · {{I}} A · {{B}} B` |
--| `playerMetrics.savePct.label` | Save percentage | Gehaltene Torschüsse |
--| `playerMetrics.cards.label` | Cards | Karten |
--| `playerMetrics.cards.display` | `{{Y}} Y · {{R}} R` | `{{Y}} G · {{R}} R` |
--| `playerMetrics.zeroDenominator.placeholder` | — | — |
--| `playerMetrics.formWindow.domesticInProgress` | Form window: last 5 {{league}} matches | Formfenster: letzte 5 {{league}}-Spiele |
--| `playerMetrics.formWindow.domesticEnded` | Form window: full {{league}} {{season}} season | Formfenster: komplette {{league}} {{season}}-Saison |
--| `playerMetrics.formWindow.wcPreTournament` | Form window: player's last 5 domestic matches before the World Cup. Sources vary per player. | Formfenster: die letzten 5 Ligaspiele jedes Spielers vor der WM. Quellen können sich je Spieler unterscheiden. |
--| `playerMetrics.formWindow.wcTournament` | Form window: World Cup matches so far | Formfenster: bisherige WM-Spiele |
--| `playerMetrics.unavailable.leagueNotCovered` | Player's domestic league not yet covered | Liga des Spielers wird noch nicht abgebildet |
--| `playerMetrics.unavailable.noAppearancesInWindow` | No appearances in form window | Keine Einsätze im Formfenster |
--| `playerMetrics.unavailable.dataUnavailable` | Statistics unavailable from data provider | Statistiken vom Datenanbieter nicht verfügbar |
--
--## Known limitations (v1)
--
--Documented openly here and surfaced in user-facing copy.
--
--1. **Domestic coverage.** Currently ingested leagues: BL1, BL2, PL, PD, SA, L1, VL. National-team players whose club plays in Eredivisie, Liga Portugal, Süper Lig, Liga MX, MLS, Saudi Pro League, J-League, K-League, Belgian Pro League etc. have no domestic data → "Not provided".
--2. **No event-level data.** API-Football aggregates passes/shots/duels per fixture. We do not have pass-by-pass success/failure events, shot locations, or pressure data. Therefore: no xG, no pass-progression metrics, no positional context for actions.
--3. **API stats coverage gaps.** Some qualifier confederations (notably CAF and OFC) have incomplete fixture-statistics coverage at the API level. This affects WC tournament-phase aggregation when a player has stats-incomplete tournament appearances.
--4. **Club form as a proxy for international form.** A player's domestic club form correlates with but does not equal their international form. Different teammates, system, role, opposition. Surfaced as a proxy with explicit source labeling; not as ground truth.
--5. **No leaderboard for goalkeepers beyond Save %.** Save percentage is the only GK-specific leaderboard. Other GK metrics (distribution accuracy, claims, etc.) require fields API-Football does not expose distinctly.
--
--## Iteration roadmap (post-v1)
--
--1. **More leagues onboarded.** Eredivisie + Liga Portugal first (most non-Big-5 European squad players); then Liga MX + MLS for CONCACAF; then Asian top leagues.
--2. **Analytics corner / deeper-stats surface.** Holding place for ratio metrics that don't make the 9-leaderboard cut (e.g., key passes per 100 passes, dribble take-on rate by zone if zone data ever lands).
--3. **Position-aware filtering or weighting.** Currently all players are eligible for all leaderboards. v1.x could filter by position group for goalkeeping-style leaderboards. Out of v1 scope.
--4. **Cross-competition blending for big-game players.** Currently a single window draws from a single competition. If a player appears in BL1 + UCL, only BL1 is used (because UCL is not ingested). When UCL is onboarded, a separate "club competitive form" view may blend leagues — explicitly opt-in.
--5. **Player share-surface and tracking.** Per `player_stats_ui_data_modeling_concept.md`, growth surface for player cards is a phase 2 concern.
--
--## Implementation chain
--
--This catalog unblocks the PR sequence already laid out in `player_stats_ui_data_modeling_concept.md`:
--
--1. ~~Metric spec ticket~~ → this document
--2. Core fixture-player unification (`2_base` + `3_core`)
--3. Intermediate player insight features (`4_intermediate` + tests)
--4. Player insights mart + export wiring (`5_marts` + exporter)
--5. UI integration in fixture detail (segment control + leaderboards + i18n)
--6. Cross-device QA + regression
--
--Each is a separate PR. The catalog stays the source of truth across all of them.
--
--## Easy access
--
--Repo path: `docs/player_metrics_catalogue.md`.
--After merge: `https://github.com/ramialfahham/football-data-pipeline/blob/main/docs/player_metrics_catalogue.md`.
+ select
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index cbe6204..5c0cb92 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -122,12 +122,12 @@ models:
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
+ 
+-  - name: mart_momentum_window__team
++  - name: mart_team_momentum_window
+     description: >
+       W1 momentum-window list mart — team (#323). The drill-down behind the momentum
+       metrics: the same window matches mart_team_momentum aggregates, exposed
+       un-aggregated — one row per (upcoming fixture side, past match). played_fixture_sk
+-      is the click-through key into mart_fixture_stats__team / __player; has_team_stats
++      is the click-through key into mart_team_fixture_stats / mart_player_fixture_stats; has_team_stats
+       and has_player_stats are derived from those detail marts (same-layer refs, the
+       documented layering exception), so true literally means the drill-down returns
+       rows. Consistency with the momentum aggregate is guarded by
+@@ -172,16 +172,16 @@ models:
+       - name: opponent_team_sk
+         tests: [not_null]
+       - name: has_team_stats
+-        description: "True when mart_fixture_stats__team has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
++        description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+         tests: [not_null]
+       - name: has_player_stats
+-        description: "True when mart_fixture_stats__player has rows for this played fixture + team. False is the common case — many competitions lack player stats."
++        description: "True when mart_player_fixture_stats has rows for this played fixture + team. False is the common case — many competitions lack player stats."
+         tests: [not_null]
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+         tests: [not_null]
+ 
+-  - name: mart_fixture_stats__team
++  - name: mart_team_fixture_stats
+     description: >
+       Per-fixture team stat line (#323) — the match detail view behind the form-window
+       list. Pure projection of fct_fixture_team_stats (no derived metrics) plus fixture
+@@ -211,7 +211,7 @@ models:
+       - name: is_home
+         tests: [not_null]
+ 
+-  - name: mart_fixture_stats__player
++  - name: mart_player_fixture_stats
+     description: >
+       Per-fixture player stat lines (#323) — the player half of the match detail view.
+       Pure projection of fct_fixture_player_stats (no derived metrics) plus player and
+@@ -629,7 +629,7 @@ models:
+       Player match log (#325). One row per (player, finished fixture): the player's stat
+       line plus match context (opponent, score, result from the player's team's
+       perspective). Player-history-shaped (one player over time), distinct from the
+-      fixture-detail-shaped mart_fixture_stats__player (#323). Grain: (player_sk,
++      fixture-detail-shaped mart_player_fixture_stats (#323). Grain: (player_sk,
+       fixture_sk).
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+@@ -1021,7 +1021,7 @@ models:
+       - name: player_photo_url
+         description: "Player photo URL from dim_player; nullable."
+ 
+-  - name: mart_competition_benchmarks__team
++  - name: mart_team_competition_benchmarks
+     description: >
+       Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
+       (team, season, metric_key) over the 20 team season metrics. Places each team against its league that
+@@ -1102,7 +1102,7 @@ models:
+       - name: team_logo_url
+         description: "Denormalised from dim_team; nullable."
+ 
+-  - name: mart_competition_benchmarks__player
++  - name: mart_player_competition_benchmarks
+     description: >
+       Player competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
+       (player, season, position_group, metric_key). Places each player against his positional peers that
+diff --git a/dbt_project/tests/assert_momentum_window_matches_momentum.sql b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
+index 3672615..86429bb 100644
+--- a/dbt_project/tests/assert_momentum_window_matches_momentum.sql
++++ b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
+@@ -1,15 +1,15 @@
+--- The momentum-window list (mart_momentum_window__team) and the momentum aggregate
++-- The momentum-window list (mart_team_momentum_window) and the momentum aggregate
+ -- (mart_team_momentum) must describe the same matches: for every upcoming
+ -- fixture side, the number of rows in the list must equal games_in_window,
+ -- and neither surface may have a side the other lacks. Both consume
+--- int_momentum_window__team, so a mismatch means a build-order or join bug.
++-- int_team_momentum_window, so a mismatch means a build-order or join bug.
+ 
+ with list_counts as (
+     select
+         upcoming_fixture_sk,
+         team_sk,
+         count(*) as games_in_list
+-    from {{ ref('mart_momentum_window__team') }}
++    from {{ ref('mart_team_momentum_window') }}
+     group by
+         upcoming_fixture_sk,
+         team_sk
+diff --git a/dbt_project/tests/assert_tournament_form_window.sql b/dbt_project/tests/assert_tournament_form_window.sql
+index 58f38bc..3a598d7 100644
+--- a/dbt_project/tests/assert_tournament_form_window.sql
++++ b/dbt_project/tests/assert_tournament_form_window.sql
+@@ -24,7 +24,7 @@ with legs as (
+         league_code as upcoming_league_code,
+         window_type,
+         played_league_code
+-    from {{ ref('mart_momentum_window__team') }}
++    from {{ ref('mart_team_momentum_window') }}
+ ),
+ 
+ registry as (
+diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
+index 94f6bf3..8e3d4b8 100644
+--- a/docs/competition_registry.yml
++++ b/docs/competition_registry.yml
+@@ -101,7 +101,7 @@ competitions:
+   # `parent_competition` links a child (qualifier → tournament; domestic cup →
+   # league) to its parent. Curated intent, NOT yet consumed — reserved for the
+   # GAP-18 tournament-window modeling (a Core parent-child dim). Team form is
+-  # recency-based (int_momentum_window__team), so it needs no parent mapping today.
++  # recency-based (int_team_momentum_window), so it needs no parent mapping today.
+ 
+   - league_code: "WCQEU"
+     name: "WC Qualification Europe"
+diff --git a/docs/competitions/wc26.md b/docs/competitions/wc26.md
+index 48a280c..6e46cf2 100644
+--- a/docs/competitions/wc26.md
++++ b/docs/competitions/wc26.md
+@@ -6,7 +6,7 @@ This document records WC-specific product/data behavior for the current pipeline
+ 
+ - Internal league code: `WC` (not `WC26`)
+ - API league id: `1`
+-- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`, now synced into the `competition_registry` seed. Team form follows the tournament window (GAP-18, `int_momentum_window__team`): qualifier matches before the team's first WC match, then cumulative WC matches once the tournament is under way — not last-5. The old `wc_supporting_league_codes` seed was retired and replaced by the registry parent link, which the window model reads directly (no separate Core dim).
++- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`, now synced into the `competition_registry` seed. Team form follows the tournament window (GAP-18, `int_team_momentum_window`): qualifier matches before the team's first WC match, then cumulative WC matches once the tournament is under way — not last-5. The old `wc_supporting_league_codes` seed was retired and replaced by the registry parent link, which the window model reads directly (no separate Core dim).
+ 
+ ## Match preview flow
+ 
+@@ -18,7 +18,7 @@ There is no separate pre-tournament page in the Pages app.
+ 
+ ## WC form window rules
+ 
+-Implemented generically by competition_type in `int_momentum_window__team` (GAP-18) and surfaced
++Implemented generically by competition_type in `int_team_momentum_window` (GAP-18) and surfaced
+ on the shared momentum marts (the per-type `mart_matchday_insights_wc` was retired in #321):
+ 
+ 1. Group Stage Matchday 1 fixtures use qualifier form (`window_type = 'qualifiers'`):
 diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index 980d291..8b3375b 100644
+index 8b3375b..bdfd5b7 100644
 --- a/docs/site_architecture.md
 +++ b/docs/site_architecture.md
 @@ -118,7 +118,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
  | Landing | `landing.json` | landing feed (#365; next rounds, kickoff, trending from `mart_team_profile`) |
  | Competitions index / country hub | `nav.json` (registry-derived) | registry seed + grouping fields |
  | Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
--| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_momentum__team` (W1), `mart_season_record__team` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_momentum__player`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
-+| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+-| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_momentum_window__team`, `mart_fixture_stats__team/__player`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
++| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
  | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
  | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log` |
  | Standings | within competition JSON | `mart_standings` (league + group tables, incl. WC group letters) |
-diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
-index f290275..6589d8e 100644
---- a/docs/wireframes/01_fixture_page.md
-+++ b/docs/wireframes/01_fixture_page.md
-@@ -139,7 +139,7 @@ Window header (3a): W1 `w1.games_in_window` + `w1.points_won`; W2 `w2.games_play
- Form display (3b) — **window-correct, ruled 2026-06-11**:
- - W1: the last-5 W/D/L pills, from `form_window[].result` in `recency_rank` order.
- - W2: aggregate counts `10W · 3D · 1L` — pills would misrepresent a full-season
--  window. Needs `wins`/`draws`/`losses` in `mart_season_record__team` (GAP-10);
-+  window. Needs `wins`/`draws`/`losses` in `mart_team_season_record` (GAP-10);
-   until that ships W2 shows the window header only.
- 
- Metric rows (3c) — **the LOCKED team table in
-@@ -273,6 +273,6 @@ internal-links footer ➕. (➕ = new vs brief §7 — see 00 census.)
- - [GAP-07](99_gaps_register.md) — no report-state payload for finished fixtures (§6).
- - [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; no localization strategy yet.
- - [GAP-09](99_gaps_register.md) — `metric_group` / `importance_tier` / `group_display_order` catalogue columns (§5.3c grouping).
--- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_season_record__team` (§5.3b).
-+- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_team_season_record` (§5.3b).
- - [GAP-11](99_gaps_register.md) — four new team metrics + finishing relabel + description tightenings (§5.3c).
- - [GAP-18](99_gaps_register.md) — tournament window mode + phase descriptor missing from the window marts (§5.3d) — needed before WC 2026.
 diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index d8458b9..4bbfaee 100644
+index 4bbfaee..7c07da2 100644
 --- a/docs/wireframes/99_gaps_register.md
 +++ b/docs/wireframes/99_gaps_register.md
-@@ -18,9 +18,9 @@
- | GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_fixture_stats__*`), then extend the export | pending | — |
- | GAP-08 | 01 fixture, 04 hub | content | `round_name` (e.g. "Regular Season - 14", "Group Stage - 1") is a raw provider string rendered as-is — no localization strategy ("Spieltag 14") | i18n strategy decision in #370 (pattern-based round-label translation vs raw); blueprint renders the raw string until then | pending | — |
- | GAP-09 | all metric screens | catalogue | Metric display needs grouping + importance as data: no `metric_group`, `importance_tier`, `group_display_order` columns in `metric_catalogue` | Add the three columns; values from the locked contract in [`metrics_display.md`](metrics_display.md) — `metric_group` on all atomics (team + player), `importance_tier` team-only (null for player entries) | **approved** (CPO 2026-06-11) | — |
--| GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_season_record__team` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
-+| GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_team_season_record` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
- | GAP-11 | 01 fixture, 02 team | catalogue + mart | Locked team display table needs four metrics that don't exist: `clean_sheets` (x/y, both window marts), `shots_on_target_per_match`, `duels_per_match`, `defensive_actions_per_match` (T+I+B aggregate). Plus: finishing relabel ("% Conversion rate" → "% Goals per shot on target", formula unchanged), description tightenings (coverage denominators, blocked-shots note, >100% finishing caveat) | One catalogue+marts PR: new rows/columns per [`metrics_display.md`](metrics_display.md); `shot_accuracy` stays defined but unrendered | **approved** (CPO 2026-06-11) | — |
--| GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; `player_metrics_catalogue.md` display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
-+| GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
- | GAP-13 | 02 team | mart | Five locked metric rows have no full-season variant: Ø shots on target, Ø duels, % duels won, Ø defensive actions, Ø key passes — `int_team_season__full_season_metrics` predates the player-stat-derived team metrics (W1/W2 have them; those are fixture-anchored and can't serve season pages) | Extend the full-season intermediate + `mart_team_profile` + team export with the five season columns | **approved** (CPO 2026-06-11) | — |
- | GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11) | — |
+@@ -26,5 +26,5 @@
  | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 6c34b0e..eb570c1 100644
---- a/docs/wireframes/metrics_display.md
-+++ b/docs/wireframes/metrics_display.md
-@@ -1,8 +1,9 @@
- # Metric display contract — groups, tiers, order (#391)
+ | GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11) | — |
+ | GAP-17 | 02 team, MVP | mart | Pre-existing: the season rollup's original per-match rates divide by `season_games_played`, not stat-coverage counts (pre-coverage-rule convention) — understates rates where coverage < played. The five NEW season variants (GAP-13) already use coverage denominators | Align the old denominators with the coverage rule — **changes shipped MVP numbers**, so explicitly a CPO ruling; until then the two conventions coexist, documented in the rollup header | pending | — |
+-| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_momentum_window__team` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **live preview fixed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_momentum_window__team` via the registry parent link, world + continental championship; live match-preview form NUMBERS are cumulative-correct AND the WC form LABEL now switches via `form_from_qualifiers` on `mart_matchday_insights` feeding the existing `formContextLabel` UI + `formContextWc*` i18n. The v2 blueprint drill-down (`form_window[]` cap, separate `phase` column) stays under #391. Deferred: qualifying-type #483, player strip #484 | — |
++| GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_team_momentum_window` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **live preview fixed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_team_momentum_window` via the registry parent link, world + continental championship; live match-preview form NUMBERS are cumulative-correct AND the WC form LABEL now switches via `form_from_qualifiers` on `mart_matchday_insights` feeding the existing `formContextLabel` UI + `formContextWc*` i18n. The v2 blueprint drill-down (`form_window[]` cap, separate `phase` column) stays under #391. Deferred: qualifying-type #483, player strip #484 | — |
+ | GAP-19 | export (all screens) | mart + export | Consumption-layer audit (CPO ruling: ALL logic/transformation in dbt; the export may never compute): the merged export derives five things in Python — (1) leaderboard ranking + zero-exclusion, (2) top-player ranking (goals→assists→key passes), (3) nav taxonomy (`_GROUP_OF_TYPE` competition_type→group dict), (4) H2H canonical pair ordering, (5) **slugs** (published URL identity — must be byte-identical across any frontend) | Migrate each to dbt: rank columns on the player marts (`mart_top_scorers.scorer_rank` is the pattern), a leaderboards mart, `display_group` on the registry/seed, canonical pair key on `mart_head_to_head`, slug columns on the entity marts; export shrinks to selection | **approved** (CPO 2026-06-11) | — |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 0315ec2..3b26d90 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -428,7 +428,7 @@ def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
  
- > The CPO-ruled display contract for metric lists everywhere they render (fixture
--> comparison, team profile, player profile, leaderboards). The metric catalogue
--> stays the single source of definitions; this document records the **display**
-+> comparison, team profile, player profile, leaderboards). The
-+> `metric_catalogue.csv` seed stays the single source of metric definitions (the
-+> SSoT); this document records the **display**
- > rulings (grouping, importance tier, order) until they are codified as catalogue
- > columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
- > (CPO, 2026-06-11).**
-@@ -32,8 +33,8 @@ surfaces).
- - **Context pairs travel together**: a count that contextualizes a percentage
-   (Ø Duels before % Duels won) shares the percentage's tier — never separated.
- - **Aggregates with breakdown**: defensive actions render as one number with the
--  atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the pattern
--  established in `docs/player_metrics_catalogue.md`).
-+  atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the player
-+  defensive-actions bundle pattern).
- - **Window form display**: W1 shows the last-5 W/D/L pills (from `form_window[]`,
-   recency order). W2 shows aggregate counts `10W · 3D · 1L` — pills would
-   misrepresent a 14+-game window (needs GAP-10).
-@@ -107,16 +108,16 @@ the true value is always shown, never capped.
- 
- ## Player rows — LOCKED (CPO, 2026-06-11)
- 
--The player display unit is the **bundled row** established in
--`docs/player_metrics_catalogue.md` (1–3 related atomics per row with a defined
--display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
-+The player display unit is the **bundled row** (1–3 related atomics per row with a
-+defined display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
- concept: player importance is position-dependent and the provider's metric scope
- cannot ground a per-position importance claim. Constrained surfaces use
- **per-surface rules** instead (e.g. the fixture top-players strip ranks
- goals → assists → key passes, GK variant saves + save %).
- 
--Changes vs `player_metrics_catalogue.md` (which stays canonical for definitions,
--formulas, windows): (1) rows resequenced into the shared block order; (2) every
-+Changes vs the legacy player rows (definitions / formulas now live in the
-+`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows
-+resequenced into the shared block order; (2) every
- bundle carries the `metric_group` it inherits from its atomics — a bundle never
- mixes groups; (3) ratio displays standardized to the full triple
- `{num} of {den} · {pct}%`; (4) the GK row gains the triple (two new atomics).
-@@ -146,7 +147,7 @@ mixes groups; (3) ratio displays standardized to the full triple
- - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
-   `importance_tier` (**team-only** — null for player entries),
-   `group_display_order` (this document is the source for the values).
--- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_season_record__team`
-+- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
-   (the W2 counts display).
- - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
-   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),
-@@ -154,8 +155,8 @@ mixes groups; (3) ratio displays standardized to the full triple
-   blocked-shots note, >100% finishing caveat).
- - **GAP-12** — player additions: `saves` + `shots_on_target_faced` atomics (data
-   exists as `goals_saves`/`goals_conceded`), display strings standardized to the
--  full triple (duels, pass accuracy, saves), `player_metrics_catalogue.md`
--  display table superseded by this document.
-+  full triple (duels, pass accuracy, saves), the legacy player display table
-+  superseded by this document.
- - **GAP-13** — full-season variants of the five player-stat-derived team rows
-   (shots on target, duels pair, defensive actions, key passes) in the season
-   rollup + `mart_team_profile` (the team profile renders the same locked table).
-@@ -171,7 +172,7 @@ mixes groups; (3) ratio displays standardized to the full triple
- | 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shot_accuracy` unrendered; finishing relabeled (fix "a"). |
- | 2026-06-11 | Tier 1 = goals, goals against, shots on target, finishing. Duels stay tier 2 (coverage + discrimination + compact-surface budget). |
- | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
--| 2026-06-11 | Player display unit = the bundled rows from `player_metrics_catalogue.md`; resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
-+| 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
- | 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
- | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
- | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
+     # Drill-down: the last-5 form-window list and top players per side.
+     form_window: dict = {}
+-    for r in _query(client, f"select * from `{marts}.mart_momentum_window__team` "
++    for r in _query(client, f"select * from `{marts}.mart_team_momentum_window` "
+                             f"where upcoming_fixture_sk in ({fid_in})"):
+         form_window.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(
+             _drop(r, _FW_DROP)
+@@ -634,7 +634,7 @@ def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
+     fids = sorted({
+         int(r["played_fixture_sk"])
+         for r in _query(client, f"select distinct played_fixture_sk "
+-                                f"from `{marts}.mart_momentum_window__team` "
++                                f"from `{marts}.mart_team_momentum_window` "
+                                 f"where played_fixture_sk is not null")
+     })
+     if sample:
+@@ -643,11 +643,11 @@ def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
+         return []
+     fid_in = ", ".join(str(i) for i in fids)
+     team = _group_by(
+-        _query(client, f"select * from `{marts}.mart_fixture_stats__team` where fixture_sk in ({fid_in})"),
++        _query(client, f"select * from `{marts}.mart_team_fixture_stats` where fixture_sk in ({fid_in})"),
+         "fixture_sk",
+     )
+     player = _group_by(
+-        _query(client, f"select * from `{marts}.mart_fixture_stats__player` where fixture_sk in ({fid_in})"),
++        _query(client, f"select * from `{marts}.mart_player_fixture_stats` where fixture_sk in ({fid_in})"),
+         "fixture_sk",
+     )
+     out = []

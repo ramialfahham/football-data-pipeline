@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: int_momentum_window__team
+  - name: int_team_momentum_window
     description: >
       W1 momentum-window selection — team. One row per (upcoming fixture side, window leg).
       Default (window_type='last_5'): the team's last 5 finished matches before the upcoming

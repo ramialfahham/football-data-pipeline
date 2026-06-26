@@ -6,12 +6,12 @@
   positional peers in that competition-season: the player's in-position per-90 (or rate) value, the peer
   median (+ mean) and p25/p75 spread, his rank (k of peer_count) AND percentile, and value - median. minutes
   + appearances are carried so the sample is always visible. The player analog of
-  mart_competition_benchmarks__team, extended to peers = position group + a percentile (large player N).
+  mart_team_competition_benchmarks, extended to peers = position group + a percentile (large player N).
 
   DIRECTION-AGNOSTIC by design (D7): rank is by value DESC and percentile by value within (league_code,
   season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
-  catalogue's `direction`. Composes int_player_season_position__metrics + the int_competition_benchmarks__
-  player engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
+  catalogue's `direction`. Composes int_player_season_position__metrics + the int_player_competition_benchmarks
+  engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
   identical). Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-position
   players appear once per qualifying position, each on their in-role value.
 
@@ -33,7 +33,7 @@ players as (
 ),
 
 benchmarks as (
-    select * from {{ ref('int_competition_benchmarks__player') }}
+    select * from {{ ref('int_player_competition_benchmarks') }}
 ),
 
 unpivoted as (

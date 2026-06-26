@@ -24,7 +24,7 @@ with legs as (
         league_code as upcoming_league_code,
         window_type,
         played_league_code
-    from {{ ref('mart_momentum_window__team') }}
+    from {{ ref('mart_team_momentum_window') }}
 ),
 
 registry as (
