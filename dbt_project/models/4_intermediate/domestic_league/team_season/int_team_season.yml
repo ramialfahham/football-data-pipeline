@@ -71,7 +71,7 @@ models:
       Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
       player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
       mart_player_season was retired with the leaderboards consolidation). Atoms follow
-      docs/player_metrics_catalogue.md: passes_accurate = per-fixture ROUND(passes_total *
+      the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
       nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
       denominator is zero. team_sk = the player's last known club that competition-season.

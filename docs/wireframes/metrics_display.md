@@ -1,8 +1,9 @@
 # Metric display contract — groups, tiers, order (#391)
 
 > The CPO-ruled display contract for metric lists everywhere they render (fixture
-> comparison, team profile, player profile, leaderboards). The metric catalogue
-> stays the single source of definitions; this document records the **display**
+> comparison, team profile, player profile, leaderboards). The
+> `metric_catalogue.csv` seed stays the single source of metric definitions (the
+> SSoT); this document records the **display**
 > rulings (grouping, importance tier, order) until they are codified as catalogue
 > columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
 > (CPO, 2026-06-11).**
@@ -32,8 +33,8 @@ surfaces).
 - **Context pairs travel together**: a count that contextualizes a percentage
   (Ø Duels before % Duels won) shares the percentage's tier — never separated.
 - **Aggregates with breakdown**: defensive actions render as one number with the
-  atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the pattern
-  established in `docs/player_metrics_catalogue.md`).
+  atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the player
+  defensive-actions bundle pattern).
 - **Window form display**: W1 shows the last-5 W/D/L pills (from `form_window[]`,
   recency order). W2 shows aggregate counts `10W · 3D · 1L` — pills would
   misrepresent a 14+-game window (needs GAP-10).
@@ -107,16 +108,16 @@ the true value is always shown, never capped.
 
 ## Player rows — LOCKED (CPO, 2026-06-11)
 
-The player display unit is the **bundled row** established in
-`docs/player_metrics_catalogue.md` (1–3 related atomics per row with a defined
-display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
+The player display unit is the **bundled row** (1–3 related atomics per row with a
+defined display string) — NOT one metric per row, and **no tiers**. Tiers are a team-only
 concept: player importance is position-dependent and the provider's metric scope
 cannot ground a per-position importance claim. Constrained surfaces use
 **per-surface rules** instead (e.g. the fixture top-players strip ranks
 goals → assists → key passes, GK variant saves + save %).
 
-Changes vs `player_metrics_catalogue.md` (which stays canonical for definitions,
-formulas, windows): (1) rows resequenced into the shared block order; (2) every
+Changes vs the legacy player rows (definitions / formulas now live in the
+`metric_catalogue.csv` seed; windows in `docs/metrics_context_model.md`): (1) rows
+resequenced into the shared block order; (2) every
 bundle carries the `metric_group` it inherits from its atomics — a bundle never
 mixes groups; (3) ratio displays standardized to the full triple
 `{num} of {den} · {pct}%`; (4) the GK row gains the triple (two new atomics).
@@ -146,7 +147,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
   `importance_tier` (**team-only** — null for player entries),
   `group_display_order` (this document is the source for the values).
-- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_season_record__team`
+- **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
   (the W2 counts display).
 - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
   `duels_per_match`, `defensive_actions_per_match`, `shots_on_target_per_match`),
@@ -154,8 +155,8 @@ mixes groups; (3) ratio displays standardized to the full triple
   blocked-shots note, >100% finishing caveat).
 - **GAP-12** — player additions: `saves` + `shots_on_target_faced` atomics (data
   exists as `goals_saves`/`goals_conceded`), display strings standardized to the
-  full triple (duels, pass accuracy, saves), `player_metrics_catalogue.md`
-  display table superseded by this document.
+  full triple (duels, pass accuracy, saves), the legacy player display table
+  superseded by this document.
 - **GAP-13** — full-season variants of the five player-stat-derived team rows
   (shots on target, duels pair, defensive actions, key passes) in the season
   rollup + `mart_team_profile` (the team profile renders the same locked table).
@@ -171,7 +172,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shot_accuracy` unrendered; finishing relabeled (fix "a"). |
 | 2026-06-11 | Tier 1 = goals, goals against, shots on target, finishing. Duels stay tier 2 (coverage + discrimination + compact-surface budget). |
 | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
-| 2026-06-11 | Player display unit = the bundled rows from `player_metrics_catalogue.md`; resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
+| 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
 | 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
 | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
 | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |

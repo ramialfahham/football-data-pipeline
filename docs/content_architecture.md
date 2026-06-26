@@ -8,7 +8,7 @@
 > This is the IA the wireframes *arrange* and the marts *feed*. It builds on:
 > - `docs/site_architecture.md` — the v2 site IA (fixtures-first home + browse, epic #361).
 > - `docs/metrics_context_model.md` §8 — the player performance surface + the shared window/aggregation model.
-> - `docs/player_metrics_catalogue.md` / `docs/wireframes/metrics_display.md` — metric definitions + the locked display contract.
+> - the `metric_catalogue.csv` seed (metric definitions — the SSoT) / `docs/wireframes/metrics_display.md` (the locked display contract).
 >
 > SPEC ONLY. Each build named here (the new marts, the backfill, coaches) is its own later PR with its
 > own review; number-changing builds get analytics-engineer + football-analytics sign-off then.

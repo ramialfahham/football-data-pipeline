@@ -2,12 +2,27 @@
 
 > How the platform keeps its metrics consistent — the dbt-idiomatic way. Short by design.
 
+## Where each thing lives (read this first)
+
+**The `dbt_project/seeds/metric_catalogue.csv` seed is the single source of truth for every metric
+definition** — `metric_id`, formula (`numerator` / `denominator`), `description`, display `format`,
+and the display taxonomy (`metric_group`, `importance_tier`, `group_display_order`, `direction`,
+`interpretation`). No prose document defines a metric; docs *reference* the seed, never redefine it.
+
+| You need… | Go to |
+|---|---|
+| a metric's definition / formula / units | **the `metric_catalogue.csv` seed** (the SSoT) |
+| how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
+| which past matches form a window + how it's labelled | `docs/metrics_context_model.md` |
+| how the layer stays consistent (compute-once + the drift guard) | this document (below) |
+
 ## The three parts
 
-1. **The model is the single source of truth.** Each metric is computed in exactly one place — the
-   canonical per-grain model (`int_player_season__metrics` for player-season; `int_team_season__metrics`
-   for team-season). Consolidating onto one model (#480 for player; #500 for team) is what prevents
-   *implementation* drift — the same metric computed three different ways.
+1. **Each metric is computed in exactly one place.** The canonical per-grain model
+   (`int_player_season__metrics` for player-season; `int_team_season__metrics` for team-season)
+   computes it once. Consolidating onto one model (#480 for player; #500 for team) is what prevents
+   *implementation* drift — the same metric computed three different ways. (The *definition* lives in
+   the seed, above; the model is where it is computed.)
 2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
    of every metric: `metric_id`, label (i18n key), definition, formula (numerator / denominator), display
    format, and grouping. The UI glossary (`metrics.json`) is built from it. It documents; it does not compute.
