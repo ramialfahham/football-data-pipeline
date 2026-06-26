@@ -1,73 +1,76 @@
-# Task contract — point the live match-preview data at the catalogue (#500 PR-d, step 2)
+# Task contract — unify the metric label scheme onto the catalogue (#500 PR-d, step 3)
 
 > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
-> CPO-approved architecture (this session): the metric_catalogue.csv SSoT stays clean (defines
-> metrics); the live display-wiring (which JSON column feeds each number + render context) lives in a
-> small separate file; the export composes the two. Invisible swap — byte-identical output.
+> CPO §10 decision (this session): standardize metric labels on the catalogue's label_i18n_key
+> ("Option 1"). The catalogue owns each stat's label key; both live pages + the i18n files use it;
+> the legacy hardcoded `metric.*` scheme is retired. Visible output unchanged (same words).
 
 objective: >
-  Switch the producer of site/match-preview/metric_definitions.json from the legacy
-  metric_definitions.csv seed to (metric_catalogue.csv + a new small bindings file), then delete the
-  legacy seed. The generated JSON must stay byte-for-byte identical to today's. After this, the live
-  match-preview site is fed by the single SSoT (the catalogue) plus a thin UI-wiring file, and the
-  duplicate legacy seed is gone. No visible change; translations + page code untouched; catalogue unchanged.
+  Collapse the three coexisting label schemes to one — the catalogue's `metrics.<id>.label` keys.
+  Re-key the i18n `metrics.<windowed_id>` entries to the official ids (words/descriptions unchanged);
+  delete the legacy `metric.*` block; have the export stamp each stat's official label key into the
+  match-preview data file so the page resolves labels from one source; point both live pages at the
+  official keys; update the i18n CI guard. NOTHING ON SCREEN CHANGES — the two active schemes already
+  render identical words for all 13 stats in all 3 languages (verified).
 
-refs: #500 PR-d step 2 (follows #582 = step 1, WC-block deletion); plan
-  C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
+refs: #500 PR-d step 3 (follows #582 step 1, #583 step 2); CPO Option-1 ruling 2026-06-26;
+  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
 
 scope_paths:
-  - site/match-preview/metric_bindings.csv
+  - site/i18n/en.json
+  - site/i18n/de.json
+  - site/i18n/fi.json
   - scripts/export_metric_definitions_json.py
-  - dbt_project/seeds/metric_definitions.csv
-  - dbt_project/seeds/schema.yml
-  - tests/test_metric_definitions_seed.py
-  - tests/test_metric_bindings.py
+  - site/match-preview/metric_definitions.json
+  - site/match-preview/index.html
+  - site/team-season/index.html
+  - scripts/check_ui_i18n_metrics.py
+  - site/i18n.js
 
 impact_map: >
   WRITERS / LINEAGE:
-    - site/match-preview/metric_definitions.json — sole writer is scripts/export_metric_definitions_json.py.
-      Input today = metric_definitions.csv. After = metric_bindings.csv (live ids + column wiring + context)
-      + metric_catalogue.csv (format + lower_is_better/direction). Output unchanged (byte-identical).
-    - VERIFIED catalogue parity: all 13 live ids map to a catalogue row, and format + direction are
-      IDENTICAL for every one (re-checked post-#582; zero mismatches, zero missing).
-  CALLERS OF THE EXPORT (must keep working): pages-match-preview.yml:129 and export_matchday_insights.ps1:14
-    both invoke `python scripts/export_metric_definitions_json.py` with NO args → default-driven. New defaults
-    (--bindings, --catalogue, --out) keep them working; the script's CLI gains args but breaks no caller.
+    - site/match-preview/metric_definitions.json — sole writer scripts/export_metric_definitions_json.py;
+      gains a per-entry `label` = the catalogue's label_i18n_key (looked up via the binding's
+      catalogue_metric_id). DELIBERATE change to the data file (no longer byte-identical to step 2) —
+      regenerated + committed; the regen test still guards (committed == fresh regen).
+    - site/i18n/{en,de,fi}.json — hand-edited: the `metrics.<windowed_id>` entries are RENAMED to the
+      official id (via site/match-preview/metric_bindings.csv: live_id → catalogue_metric_id); the words
+      + descriptions are MOVED unchanged; the `metric.*` block is deleted.
   CONSUMERS / BLAST RADIUS:
-    - site/match-preview/index.html renders only the 13 ids in metric_manifest.json from the JSON; JSON is
-      byte-identical → zero UI effect. Translations + manifest + page code untouched.
-    - dbt: zero model/test refs to the metric_definitions seed (only its own schema.yml:151 entry; verified
-      clean of target/). Deleting the seed + its schema block is warehouse-clean.
-    - Deploy (pages-match-preview.yml): regenerates the JSON at deploy with no args → byte-identical. The
-      now-stale trigger line `dbt_project/seeds/metric_definitions.csv` is HARMLESS (any real bindings/catalogue
-      edit must change the committed JSON — enforced by the new regen test — and the JSON is itself a trigger,
-      so auto-deploy still fires). Updating the workflow trigger list is a PROTECTED-path follow-up, OUT of scope.
-  LAYER RULES: metric_bindings.csv = UI display-wiring config → lives in site/match-preview/ beside
-    metric_manifest.json (NOT a dbt seed; no model reads it). The export composes catalogue (definition:
-    format/direction) + bindings (wiring: columns/context) and SELECTS/RENAMES into JSON — no fact derivation,
-    no computation (consumption-layer compliant). The catalogue SSoT is read-only here.
-  DEPLOY ORDERING: static files; the export is deterministic; commit the regenerated (identical) JSON so the
-    committed artifact stays in sync. No migration / no full-refresh.
+    - Label resolution today: match-preview index.html `metricLabel()` = `metrics.<windowed>.label` with a
+      `metric.*` fallback (LEGACY_METRIC_LABEL_KEYS, lines 623-643); team-season index.html = 13 hardcoded
+      `t("metric.<short>", ...)` calls (lines 342-354). `metric.*` is used ONLY in those two pages + one
+      doc-comment example in site/i18n.js:14 (verified by grep). After: match-preview reads `def.label`
+      (the official key from the data file); team-season uses `metrics.<official>.label`; the `metric.*`
+      block + LEGACY_METRIC_LABEL_KEYS are deleted.
+    - VERIFIED no wording decision: for all 13 stats × en/de/fi, `metric.<short>` == `metrics.<windowed>.label`
+      (zero mismatches) — so moving the values to the official keys preserves every rendered word.
+    - `metrics.<id>.description` is NOT consumed by any page (only `.label` is read) — descriptions ride
+      along in the rename, no consumer break.
+    - scripts/check_ui_i18n_metrics.py today checks manifest windowed ids against `metrics.<windowed>`;
+      after re-key it must check the OFFICIAL keys (map the shown stats through metric_bindings.csv).
+  LAYER RULES: page label lookup = consumption (select/route a key → t(); NO computation); the export
+    reads label_i18n_key from the catalogue (select, no derivation); i18n files = display copy. Catalogue
+    is READ-ONLY (not modified). Safety property here is VISIBLE-identical (same words), not byte-identical.
+  DEPLOY ORDERING: static files; regenerate + commit the data file; the deploy export runs with no args.
 
 decisions_taken: >
-  Execute the CPO-approved swap: catalogue stays the clean metric SSoT (unchanged); live wiring in the new
-  metric_bindings.csv; export composes the two; legacy seed deleted. No metric added/changed; no §10 here —
-  the architecture (catalogue-clean + separate wiring) was decided by the CPO earlier this session.
+  Execute CPO Option 1 (label SSoT = the catalogue's label_i18n_key). No metric definition changed; no
+  word changed; the catalogue is untouched. The one §10 (which scheme) was decided by the CPO this session.
 
 decisions_reserved:
-  - The single i18n/labelling scheme (step 3 — CPO decision), corners _conceded→_against rename (step 4),
-    the team-season _season suffix drop (step 5), final teardown of build_match_preview_site + dead labels
-    (step 6). NONE here. The pages-match-preview.yml trigger-list tidy (protected path) is a separate follow-up.
+  - corners_conceded → corners_against rename (step 4 — official id stays corners_conceded_per_match here);
+    team-season `_season` column-name drop (step 5); final teardown of build_match_preview_site + any
+    remaining legacy (step 6). NONE here. Dropping the unconsumed `metrics.*.description` copy is NOT done
+    here (out of scope; flag only).
 
 done_when:
-  - The export builds the JSON from metric_bindings.csv + metric_catalogue.csv; regenerating yields a
-    byte-identical site/match-preview/metric_definitions.json (`git diff --exit-code` clean).
-  - The legacy metric_definitions.csv + its schema.yml block are gone; tests/test_metric_definitions_seed.py
-    is replaced by tests/test_metric_bindings.py which (a) checks every binding's catalogue id resolves +
-    paired columns, and (b) regenerates the JSON and asserts it equals the committed file (the durable
-    byte-identity guard).
-  - validate-local green (incl. the new test); no dbt model affected.
-  - Routes to: scope-auditor (always) + analytics-engineer (dbt_project/** + scripts/export_*.py) + cto
-    (scripts/export_*.py + tests/**). The commit carries contract.md → NOT artifact-exempt. CPO merges.
+  - The i18n `metrics` block is keyed by official ids; the `metric.*` block is gone; both pages render via
+    the official keys; the export stamps `label` into the data file; the i18n guard checks official keys.
+  - Proof: the 13 rendered words per language are IDENTICAL before vs after (captured + compared); the
+    updated guard passes; the regen-matches-committed test passes; JSON validity holds.
+  - validate-local green. Routes to: scope-auditor (always) + bi-analyst (site/i18n/**) +
+    analytics-engineer (scripts/export_*.py) + cto (scripts/export_*.py + scripts/** + tests-adjacent).
+    Commit carries contract.md → NOT artifact-exempt. CPO merges; never self-merge.
 
 amendments: (none)

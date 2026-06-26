@@ -4,71 +4,56 @@
     "feedback": "Feedback geben",
     "unavailable": "nicht verfügbar"
   },
-  "metric": {
-    "tabellenplatz": "Tabellenplatz",
-    "punkteausbeute": "Punkteausbeute",
-    "tore": "Ø Tore",
-    "gegentore": "Ø Gegentore",
-    "schuesse": "Ø Schüsse",
-    "schuesseAufsTor": "% Schüsse aufs Tor",
-    "schuesseAusStrafraum": "% Schüsse aus dem Strafraum",
-    "trefferquote": "% Trefferquote",
-    "paesse": "Ø Pässe",
-    "angekommenePaesse": "% Angekommene Pässe",
-    "ecken": "Ø Ecken",
-    "eckenGegen": "Ø Ecken gegen",
-    "gehalteneTorschuesse": "% Gehaltene Torschüsse"
-  },
   "metrics": {
     "league_rank": {
       "label": "Tabellenplatz",
       "description": "Platzierung vor diesem Spieltag (wenn verfügbar)."
     },
-    "points_won_form": {
+    "points_won": {
       "label": "Punkteausbeute",
       "description": "Erzielte Ligapunkte im Formfenster im Verhältnis zu maximal möglichen Punkten (3 × Spiele)."
     },
-    "goals_per_match_recent": {
+    "goals_per_match": {
       "label": "Ø Tore",
       "description": "Durchschnittlich erzielte Tore pro Spiel im Formfenster."
     },
-    "goals_against_per_match_recent": {
+    "goals_against_per_match": {
       "label": "Ø Gegentore",
       "description": "Durchschnittlich kassierte Tore pro Spiel im Formfenster."
     },
-    "shots_per_match_recent": {
+    "shots_per_match": {
       "label": "Ø Schüsse",
       "description": "Durchschnittliche Anzahl aller Abschlüsse pro Spiel im Formfenster."
     },
-    "shot_accuracy_recent": {
+    "shot_accuracy": {
       "label": "% Schüsse aufs Tor",
       "description": "Anteil der Schüsse aufs Tor an allen Schüssen im Formfenster."
     },
-    "danger_zone_ratio_recent": {
+    "danger_zone_ratio": {
       "label": "% Schüsse aus dem Strafraum",
       "description": "Anteil der Schüsse aus dem Strafraum an allen Schüssen im Formfenster."
     },
-    "finishing_efficiency_recent": {
+    "finishing_efficiency": {
       "label": "% Trefferquote",
       "description": "Tore je Schuss aufs Tor im Formfenster."
     },
-    "passes_per_match_recent": {
+    "passes_per_match": {
       "label": "Ø Pässe",
       "description": "Durchschnittliche Anzahl gespielter Pässe pro Spiel im Formfenster."
     },
-    "pass_accuracy_recent": {
+    "pass_accuracy": {
       "label": "% Angekommene Pässe",
       "description": "Anteil genauer Pässe an allen Pässen im Formfenster."
     },
-    "corner_kicks_per_match_recent": {
+    "corner_kicks_per_match": {
       "label": "Ø Ecken",
       "description": "Durchschnittliche Anzahl eigener Ecken pro Spiel im Formfenster."
     },
-    "corners_conceded_per_match_recent": {
+    "corners_conceded_per_match": {
       "label": "Ø Ecken gegen",
       "description": "Durchschnittliche Anzahl zugelassener Ecken pro Spiel im Formfenster."
     },
-    "save_ratio_recent": {
+    "save_ratio": {
       "label": "% Gehaltene Torschüsse",
       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren im Formfenster."
     }

@@ -620,26 +620,10 @@
       return Number.isFinite(n) ? String(n) : "-";
     }
 
-    const LEGACY_METRIC_LABEL_KEYS = {
-      league_rank: "metric.tabellenplatz",
-      points_won_form: "metric.punkteausbeute",
-      goals_per_match_recent: "metric.tore",
-      goals_against_per_match_recent: "metric.gegentore",
-      shots_per_match_recent: "metric.schuesse",
-      shot_accuracy_recent: "metric.schuesseAufsTor",
-      danger_zone_ratio_recent: "metric.schuesseAusStrafraum",
-      finishing_efficiency_recent: "metric.trefferquote",
-      passes_per_match_recent: "metric.paesse",
-      pass_accuracy_recent: "metric.angekommenePaesse",
-      corner_kicks_per_match_recent: "metric.ecken",
-      corners_conceded_per_match_recent: "metric.eckenGegen",
-      save_ratio_recent: "metric.gehalteneTorschuesse",
-    };
-
-    function metricLabel(metricId) {
-      const legacy = LEGACY_METRIC_LABEL_KEYS[metricId];
-      const fallback = legacy ? t(legacy, metricId) : metricId;
-      return t(`metrics.${metricId}.label`, fallback);
+    function metricLabel(def, metricId) {
+      // The metric's i18n label key is stamped into the data file by
+      // scripts/export_metric_definitions_json.py (from the catalogue's label_i18n_key).
+      return def && def.label ? t(def.label, metricId) : metricId;
     }
 
     function escHtml(s) {
@@ -674,7 +658,7 @@
         const homeRaw = def.home_column ? r[def.home_column] : null;
         const awayRaw = def.away_column ? r[def.away_column] : null;
         return {
-          label: metricLabel(metricId),
+          label: metricLabel(def, metricId),
           home: formatDisplay(homeRaw, def.format, "home"),
           away: formatDisplay(awayRaw, def.format, "away"),
           homeNum: compareNum(homeRaw, def.format, "home"),
