@@ -92,7 +92,7 @@ select
     case
         when b.games_with_opp_stats < b.games_in_window then null
         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
-        as corners_conceded_per_match,
+        as corners_against_per_match,
     -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded.
     -- NULL on partial save coverage (the new games_with_save_stats).
     case

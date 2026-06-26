@@ -141,7 +141,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 | Ø Passes | `passes_per_match_season` |
 | % Pass accuracy | `pass_accuracy_season` |
 | Ø Corners | `corner_kicks_per_match_season` |
-| Ø Corners against | `corners_conceded_per_match_season` |
+| Ø Corners against | `corners_against_per_match_season` |
 | % Save percentage | `save_ratio_season` |
 
 **Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,

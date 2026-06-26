@@ -86,7 +86,7 @@ select
     m.pass_accuracy_season,
     m.passes_per_match_season,
     m.corner_kicks_per_match_season,
-    m.corners_conceded_per_match_season,
+    m.corners_against_per_match_season,
     m.save_ratio_season,
     -- GAP-13: locked-contract season variants (player-derived ones inherit
     -- player-stat coverage gaps; caption from player_stat_coverage_season_games)

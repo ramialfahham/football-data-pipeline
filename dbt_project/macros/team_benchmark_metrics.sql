@@ -26,7 +26,7 @@
         ('pass_accuracy', 'pass_accuracy_season'),
         ('key_passes_per_match', 'key_passes_per_match_season'),
         ('corner_kicks_per_match', 'corner_kicks_per_match_season'),
-        ('corners_conceded_per_match', 'corners_conceded_per_match_season'),
+        ('corners_against_per_match', 'corners_against_per_match_season'),
         ('save_ratio', 'save_ratio_season')
     ] %}
     {{ return(metrics) }}

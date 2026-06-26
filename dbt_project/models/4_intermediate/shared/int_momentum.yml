@@ -39,7 +39,7 @@ models:
         description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency."
         tests: [not_null]
       - name: games_with_opp_stats
-        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_conceded_per_match."
+        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_against_per_match."
         tests: [not_null]
       - name: games_with_save_stats
         description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."

@@ -238,9 +238,9 @@ models:
         description: "Home: corners won per game with team stats."
       - name: away_corner_kicks_per_match_recent
         description: "Away: corners won per game with team stats."
-      - name: home_corners_conceded_per_match_recent
+      - name: home_corners_against_per_match_recent
         description: "Home: corners conceded per game with opponent stats."
-      - name: away_corners_conceded_per_match_recent
+      - name: away_corners_against_per_match_recent
         description: "Away: corners conceded per game with opponent stats."
       - name: home_save_ratio_recent
         description: "Home: saves / (saves + goals conceded in save-covered games); self-bounded."

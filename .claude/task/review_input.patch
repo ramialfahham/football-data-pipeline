@@ -1,722 +1,1691 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index bd99602..2cbd64e 100644
+index 2cbd64e..07d80ad 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,73 +1,76 @@
--# Task contract — point the live match-preview data at the catalogue (#500 PR-d, step 2)
-+# Task contract — unify the metric label scheme onto the catalogue (#500 PR-d, step 3)
+@@ -1,76 +1,92 @@
+-# Task contract — unify the metric label scheme onto the catalogue (#500 PR-d, step 3)
++# Task contract — rename corners_conceded → corners_against end-to-end (#500 PR-d, step 4)
  
  > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
--> CPO-approved architecture (this session): the metric_catalogue.csv SSoT stays clean (defines
--> metrics); the live display-wiring (which JSON column feeds each number + render context) lives in a
--> small separate file; the export composes the two. Invisible swap — byte-identical output.
-+> CPO §10 decision (this session): standardize metric labels on the catalogue's label_i18n_key
-+> ("Option 1"). The catalogue owns each stat's label key; both live pages + the i18n files use it;
-+> the legacy hardcoded `metric.*` scheme is retired. Visible output unchanged (same words).
+-> CPO §10 decision (this session): standardize metric labels on the catalogue's label_i18n_key
+-> ("Option 1"). The catalogue owns each stat's label key; both live pages + the i18n files use it;
+-> the legacy hardcoded `metric.*` scheme is retired. Visible output unchanged (same words).
++> Applies the LOCKED `_against` naming convention to its last holdout. No new §10 (the convention is
++> decided; the CPO directed this rename this session). Mirrors the existing `goals_against` exactly.
  
  objective: >
--  Switch the producer of site/match-preview/metric_definitions.json from the legacy
--  metric_definitions.csv seed to (metric_catalogue.csv + a new small bindings file), then delete the
--  legacy seed. The generated JSON must stay byte-for-byte identical to today's. After this, the live
--  match-preview site is fed by the single SSoT (the catalogue) plus a thin UI-wiring file, and the
--  duplicate legacy seed is gone. No visible change; translations + page code untouched; catalogue unchanged.
-+  Collapse the three coexisting label schemes to one — the catalogue's `metrics.<id>.label` keys.
-+  Re-key the i18n `metrics.<windowed_id>` entries to the official ids (words/descriptions unchanged);
-+  delete the legacy `metric.*` block; have the export stamp each stat's official label key into the
-+  match-preview data file so the page resolves labels from one source; point both live pages at the
-+  official keys; update the i18n CI guard. NOTHING ON SCREEN CHANGES — the two active schemes already
-+  render identical words for all 13 stats in all 3 languages (verified).
+-  Collapse the three coexisting label schemes to one — the catalogue's `metrics.<id>.label` keys.
+-  Re-key the i18n `metrics.<windowed_id>` entries to the official ids (words/descriptions unchanged);
+-  delete the legacy `metric.*` block; have the export stamp each stat's official label key into the
+-  match-preview data file so the page resolves labels from one source; point both live pages at the
+-  official keys; update the i18n CI guard. NOTHING ON SCREEN CHANGES — the two active schemes already
+-  render identical words for all 13 stats in all 3 languages (verified).
++  Rename the metric `corners_conceded_per_match` → `corners_against_per_match` across every layer (the
++  catalogue SSoT, ~7 dbt models + their schema yml, the UI wiring, and 2 wireframe docs), plus its derived
++  forms (`*_season`, `*_recent`, `home_*`/`away_*`, the i18n key). Internal naming consistency only —
++  NOTHING ON SCREEN CHANGES (the displayed label already reads "Corners against"). Changes warehouse column
++  names + published JSON keys; all affected models are table/view → normal rebuild, no --full-refresh.
  
--refs: #500 PR-d step 2 (follows #582 = step 1, WC-block deletion); plan
--  C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
-+refs: #500 PR-d step 3 (follows #582 step 1, #583 step 2); CPO Option-1 ruling 2026-06-26;
-+  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
+-refs: #500 PR-d step 3 (follows #582 step 1, #583 step 2); CPO Option-1 ruling 2026-06-26;
+-  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
++refs: #500 PR-d step 4 (follows #582/#583/#584); CPO direction 2026-06-26 ("do it" — finish the locked
++  _against convention); plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
  
  scope_paths:
--  - site/match-preview/metric_bindings.csv
-+  - site/i18n/en.json
-+  - site/i18n/de.json
-+  - site/i18n/fi.json
-   - scripts/export_metric_definitions_json.py
--  - dbt_project/seeds/metric_definitions.csv
--  - dbt_project/seeds/schema.yml
--  - tests/test_metric_definitions_seed.py
--  - tests/test_metric_bindings.py
-+  - site/match-preview/metric_definitions.json
-+  - site/match-preview/index.html
-+  - site/team-season/index.html
-+  - scripts/check_ui_i18n_metrics.py
-+  - site/i18n.js
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
++  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_team_season_record.sql
++  - dbt_project/macros/team_benchmark_metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+   - site/i18n/en.json
+   - site/i18n/de.json
+   - site/i18n/fi.json
+-  - scripts/export_metric_definitions_json.py
++  - site/match-preview/metric_bindings.csv
++  - site/match-preview/metric_manifest.json
+   - site/match-preview/metric_definitions.json
+-  - site/match-preview/index.html
+   - site/team-season/index.html
+-  - scripts/check_ui_i18n_metrics.py
+-  - site/i18n.js
++  - docs/wireframes/02_team_profile.md
++  - docs/wireframes/metrics_display.md
  
  impact_map: >
-   WRITERS / LINEAGE:
--    - site/match-preview/metric_definitions.json — sole writer is scripts/export_metric_definitions_json.py.
--      Input today = metric_definitions.csv. After = metric_bindings.csv (live ids + column wiring + context)
--      + metric_catalogue.csv (format + lower_is_better/direction). Output unchanged (byte-identical).
--    - VERIFIED catalogue parity: all 13 live ids map to a catalogue row, and format + direction are
--      IDENTICAL for every one (re-checked post-#582; zero mismatches, zero missing).
--  CALLERS OF THE EXPORT (must keep working): pages-match-preview.yml:129 and export_matchday_insights.ps1:14
--    both invoke `python scripts/export_metric_definitions_json.py` with NO args → default-driven. New defaults
--    (--bindings, --catalogue, --out) keep them working; the script's CLI gains args but breaks no caller.
-+    - site/match-preview/metric_definitions.json — sole writer scripts/export_metric_definitions_json.py;
-+      gains a per-entry `label` = the catalogue's label_i18n_key (looked up via the binding's
-+      catalogue_metric_id). DELIBERATE change to the data file (no longer byte-identical to step 2) —
-+      regenerated + committed; the regen test still guards (committed == fresh regen).
-+    - site/i18n/{en,de,fi}.json — hand-edited: the `metrics.<windowed_id>` entries are RENAMED to the
-+      official id (via site/match-preview/metric_bindings.csv: live_id → catalogue_metric_id); the words
-+      + descriptions are MOVED unchanged; the `metric.*` block is deleted.
-   CONSUMERS / BLAST RADIUS:
--    - site/match-preview/index.html renders only the 13 ids in metric_manifest.json from the JSON; JSON is
--      byte-identical → zero UI effect. Translations + manifest + page code untouched.
--    - dbt: zero model/test refs to the metric_definitions seed (only its own schema.yml:151 entry; verified
--      clean of target/). Deleting the seed + its schema block is warehouse-clean.
--    - Deploy (pages-match-preview.yml): regenerates the JSON at deploy with no args → byte-identical. The
--      now-stale trigger line `dbt_project/seeds/metric_definitions.csv` is HARMLESS (any real bindings/catalogue
--      edit must change the committed JSON — enforced by the new regen test — and the JSON is itself a trigger,
--      so auto-deploy still fires). Updating the workflow trigger list is a PROTECTED-path follow-up, OUT of scope.
--  LAYER RULES: metric_bindings.csv = UI display-wiring config → lives in site/match-preview/ beside
--    metric_manifest.json (NOT a dbt seed; no model reads it). The export composes catalogue (definition:
--    format/direction) + bindings (wiring: columns/context) and SELECTS/RENAMES into JSON — no fact derivation,
--    no computation (consumption-layer compliant). The catalogue SSoT is read-only here.
--  DEPLOY ORDERING: static files; the export is deterministic; commit the regenerated (identical) JSON so the
--    committed artifact stays in sync. No migration / no full-refresh.
-+    - Label resolution today: match-preview index.html `metricLabel()` = `metrics.<windowed>.label` with a
-+      `metric.*` fallback (LEGACY_METRIC_LABEL_KEYS, lines 623-643); team-season index.html = 13 hardcoded
-+      `t("metric.<short>", ...)` calls (lines 342-354). `metric.*` is used ONLY in those two pages + one
-+      doc-comment example in site/i18n.js:14 (verified by grep). After: match-preview reads `def.label`
-+      (the official key from the data file); team-season uses `metrics.<official>.label`; the `metric.*`
-+      block + LEGACY_METRIC_LABEL_KEYS are deleted.
-+    - VERIFIED no wording decision: for all 13 stats × en/de/fi, `metric.<short>` == `metrics.<windowed>.label`
-+      (zero mismatches) — so moving the values to the official keys preserves every rendered word.
-+    - `metrics.<id>.description` is NOT consumed by any page (only `.label` is read) — descriptions ride
-+      along in the rename, no consumer break.
-+    - scripts/check_ui_i18n_metrics.py today checks manifest windowed ids against `metrics.<windowed>`;
-+      after re-key it must check the OFFICIAL keys (map the shown stats through metric_bindings.csv).
-+  LAYER RULES: page label lookup = consumption (select/route a key → t(); NO computation); the export
-+    reads label_i18n_key from the catalogue (select, no derivation); i18n files = display copy. Catalogue
-+    is READ-ONLY (not modified). Safety property here is VISIBLE-identical (same words), not byte-identical.
-+  DEPLOY ORDERING: static files; regenerate + commit the data file; the deploy export runs with no args.
+-  WRITERS / LINEAGE:
+-    - site/match-preview/metric_definitions.json — sole writer scripts/export_metric_definitions_json.py;
+-      gains a per-entry `label` = the catalogue's label_i18n_key (looked up via the binding's
+-      catalogue_metric_id). DELIBERATE change to the data file (no longer byte-identical to step 2) —
+-      regenerated + committed; the regen test still guards (committed == fresh regen).
+-    - site/i18n/{en,de,fi}.json — hand-edited: the `metrics.<windowed_id>` entries are RENAMED to the
+-      official id (via site/match-preview/metric_bindings.csv: live_id → catalogue_metric_id); the words
+-      + descriptions are MOVED unchanged; the `metric.*` block is deleted.
+-  CONSUMERS / BLAST RADIUS:
+-    - Label resolution today: match-preview index.html `metricLabel()` = `metrics.<windowed>.label` with a
+-      `metric.*` fallback (LEGACY_METRIC_LABEL_KEYS, lines 623-643); team-season index.html = 13 hardcoded
+-      `t("metric.<short>", ...)` calls (lines 342-354). `metric.*` is used ONLY in those two pages + one
+-      doc-comment example in site/i18n.js:14 (verified by grep). After: match-preview reads `def.label`
+-      (the official key from the data file); team-season uses `metrics.<official>.label`; the `metric.*`
+-      block + LEGACY_METRIC_LABEL_KEYS are deleted.
+-    - VERIFIED no wording decision: for all 13 stats × en/de/fi, `metric.<short>` == `metrics.<windowed>.label`
+-      (zero mismatches) — so moving the values to the official keys preserves every rendered word.
+-    - `metrics.<id>.description` is NOT consumed by any page (only `.label` is read) — descriptions ride
+-      along in the rename, no consumer break.
+-    - scripts/check_ui_i18n_metrics.py today checks manifest windowed ids against `metrics.<windowed>`;
+-      after re-key it must check the OFFICIAL keys (map the shown stats through metric_bindings.csv).
+-  LAYER RULES: page label lookup = consumption (select/route a key → t(); NO computation); the export
+-    reads label_i18n_key from the catalogue (select, no derivation); i18n files = display copy. Catalogue
+-    is READ-ONLY (not modified). Safety property here is VISIBLE-identical (same words), not byte-identical.
+-  DEPLOY ORDERING: static files; regenerate + commit the data file; the deploy export runs with no args.
++  THE RENAME (one substitution, applied to every occurrence): corners_conceded_per_match →
++  corners_against_per_match (+ `_season`, `_recent`, `home_`/`away_` forms, + the i18n key
++  metrics.corners_conceded_per_match.label → metrics.corners_against_per_match.label). Evidence = the
++  exhaustive grep over committed source (catalogue:1, dbt models:7, dbt yml:4, i18n:3, bindings/manifest/
++  data-file/team-season:5, docs:2).
++  COMPUTE / LINEAGE: the metric is computed in int_team_season__metrics (`_season` column) and
++  mart_team_momentum (window column); selected downstream by mart_team_season_insights/_profile/_record;
++  mart_matchday_insights aliases the momentum column to the live `home/away_*_recent` columns. The benchmark
++  macro + 2 accepted_values yml lists enumerate the id. All affected models are materialized table/view
++  (verified) → a column rename rebuilds cleanly with NO --full-refresh / no incremental NULLing.
++  UI LOCKSTEP: the live data columns (matchday `*_recent`, team-season `*_season`) rename in the marts →
++  the deploy-generated matchday_insights.json / team_season_insights.json keys change → the bindings
++  (home/away_column) + the team-season page `row.*_season` read are renamed to match. The export is
++  UNCHANGED (it composes the renamed bindings + catalogue); metric_definitions.json is regenerated.
++  GUARDS: no-drift guard (assert_no_uncatalogued_season_metric) strips `_season` generically and has NO
++  corners reference (verified) → passes (corners_against_per_match_season → corners_against_per_match =
++  catalogue id). check_ui_i18n_metrics maps the shown stat through the bindings to the official id →
++  metrics.corners_against_per_match.label (renamed) → resolves. test_metric_bindings: the binding's
++  catalogue_metric_id resolves in the renamed catalogue; regen matches committed.
++  CATALOGUE CHANGE = id + label_i18n_key ONLY; description/interpretation prose kept (mirrors goals_against,
++  whose description reads "Average goals conceded per match"). DEPLOY: ci-data-build rebuilds state:modified+.
++  LOCAL DBT BROKEN (No module named dbt.adapters.factory) → the dbt side (renames, no-drift guard, DQ) is
++  validated by ci-data-build on the PR; will watch that check.
  
  decisions_taken: >
--  Execute the CPO-approved swap: catalogue stays the clean metric SSoT (unchanged); live wiring in the new
--  metric_bindings.csv; export composes the two; legacy seed deleted. No metric added/changed; no §10 here —
--  the architecture (catalogue-clean + separate wiring) was decided by the CPO earlier this session.
-+  Execute CPO Option 1 (label SSoT = the catalogue's label_i18n_key). No metric definition changed; no
-+  word changed; the catalogue is untouched. The one §10 (which scheme) was decided by the CPO this session.
+-  Execute CPO Option 1 (label SSoT = the catalogue's label_i18n_key). No metric definition changed; no
+-  word changed; the catalogue is untouched. The one §10 (which scheme) was decided by the CPO this session.
++  Execute the CPO-directed rename applying the locked _against convention to its last holdout. Target name
++  corners_against_per_match. No metric definition/formula/prose changed; no displayed word changed. The
++  corner_kicks/corners word asymmetry, opponent_corner_kicks (numerator), and first_conceded_rank (different
++  concept) are explicitly OUT — separate questions, not folded in.
  
  decisions_reserved:
--  - The single i18n/labelling scheme (step 3 — CPO decision), corners _conceded→_against rename (step 4),
--    the team-season _season suffix drop (step 5), final teardown of build_match_preview_site + dead labels
--    (step 6). NONE here. The pages-match-preview.yml trigger-list tidy (protected path) is a separate follow-up.
-+  - corners_conceded → corners_against rename (step 4 — official id stays corners_conceded_per_match here);
-+    team-season `_season` column-name drop (step 5); final teardown of build_match_preview_site + any
-+    remaining legacy (step 6). NONE here. Dropping the unconsumed `metrics.*.description` copy is NOT done
-+    here (out of scope; flag only).
+-  - corners_conceded → corners_against rename (step 4 — official id stays corners_conceded_per_match here);
+-    team-season `_season` column-name drop (step 5); final teardown of build_match_preview_site + any
+-    remaining legacy (step 6). NONE here. Dropping the unconsumed `metrics.*.description` copy is NOT done
+-    here (out of scope; flag only).
++  - team-season `_season` suffix drop (step 5); final teardown (step 6). NONE here.
  
  done_when:
--  - The export builds the JSON from metric_bindings.csv + metric_catalogue.csv; regenerating yields a
--    byte-identical site/match-preview/metric_definitions.json (`git diff --exit-code` clean).
--  - The legacy metric_definitions.csv + its schema.yml block are gone; tests/test_metric_definitions_seed.py
--    is replaced by tests/test_metric_bindings.py which (a) checks every binding's catalogue id resolves +
--    paired columns, and (b) regenerates the JSON and asserts it equals the committed file (the durable
--    byte-identity guard).
--  - validate-local green (incl. the new test); no dbt model affected.
--  - Routes to: scope-auditor (always) + analytics-engineer (dbt_project/** + scripts/export_*.py) + cto
--    (scripts/export_*.py + tests/**). The commit carries contract.md → NOT artifact-exempt. CPO merges.
-+  - The i18n `metrics` block is keyed by official ids; the `metric.*` block is gone; both pages render via
-+    the official keys; the export stamps `label` into the data file; the i18n guard checks official keys.
-+  - Proof: the 13 rendered words per language are IDENTICAL before vs after (captured + compared); the
-+    updated guard passes; the regen-matches-committed test passes; JSON validity holds.
-+  - validate-local green. Routes to: scope-auditor (always) + bi-analyst (site/i18n/**) +
-+    analytics-engineer (scripts/export_*.py) + cto (scripts/export_*.py + scripts/** + tests-adjacent).
-+    Commit carries contract.md → NOT artifact-exempt. CPO merges; never self-merge.
+-  - The i18n `metrics` block is keyed by official ids; the `metric.*` block is gone; both pages render via
+-    the official keys; the export stamps `label` into the data file; the i18n guard checks official keys.
+-  - Proof: the 13 rendered words per language are IDENTICAL before vs after (captured + compared); the
+-    updated guard passes; the regen-matches-committed test passes; JSON validity holds.
+-  - validate-local green. Routes to: scope-auditor (always) + bi-analyst (site/i18n/**) +
+-    analytics-engineer (scripts/export_*.py) + cto (scripts/export_*.py + scripts/** + tests-adjacent).
+-    Commit carries contract.md → NOT artifact-exempt. CPO merges; never self-merge.
++  - `grep -r corners_conceded` over committed source = ZERO remaining.
++  - metric_definitions.json regenerated; its diff shows only corners id/label/columns moving to against.
++  - i18n guard + test_metric_bindings + JSON validity + full python suite green locally; the dbt side green
++    in ci-data-build on the PR.
++  - Routes to: scope-auditor + analytics-engineer (dbt_project/**) + football-analytics (metric_catalogue.csv)
++    + bi-analyst (site/i18n/** + docs/wireframes/**). Commit carries contract.md → NOT artifact-exempt.
++    CPO merges; never self-merge.
  
- amendments: (none)
-diff --git a/scripts/check_ui_i18n_metrics.py b/scripts/check_ui_i18n_metrics.py
-index 05287cc..231e709 100644
---- a/scripts/check_ui_i18n_metrics.py
-+++ b/scripts/check_ui_i18n_metrics.py
-@@ -1,43 +1,72 @@
--"""Verify match-preview metric_manifest ids exist in site i18n metrics namespace."""
-+"""Verify each shown match-preview metric resolves to an i18n label under its official key.
-+
-+The match-preview manifest lists windowed live ids; each maps (via metric_bindings.csv) to its
-+official catalogue id, which is the i18n key standardized in #500 (metrics.<official_id>.label).
-+This checks every shown stat has a non-empty label + description in every site/i18n/*.json.
-+"""
- from __future__ import annotations
+-amendments: (none)
++amendments:
++  - 2026-06-26 (post-CI): ci-data-build surfaced a PRE-EXISTING failure UNRELATED to corners —
++    accepted_values_metric_catalogue_entity (dbt_project/seeds/schema.yml) accepts only ["team","player"]
++    but the catalogue legitimately carries the locked "team and player" entity (2 rows: finishing_efficiency,
++    duels_won_pct). The slim CI re-ran that test because this PR modifies metric_catalogue.csv (so the
++    seed's tests rebuild). The corners rename did NOT touch the entity column (diff confirms). Fold the
++    one-line fix — add "team and player" to that accepted_values list — into this PR to unblock. Authority:
++    CPO direction (the entity value is locked per [[project-metric-layer-two-seeds]]; CPO OK'd folding the
++    one-liner in). schema.yml added to scope_paths.
+diff --git a/.claude/task/review.md b/.claude/task/review.md
+index 9004fbf..4b0f2e3 100644
+--- a/.claude/task/review.md
++++ b/.claude/task/review.md
+@@ -1,66 +1,62 @@
+-# Review — refactor/500-unify-metric-labels — unify the metric label scheme onto the catalogue
++# Review — refactor/500-corners-against — rename corners_conceded → corners_against end-to-end
  
-+import csv
- import json
- import pathlib
- import sys
+-> G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff
+-> (`.claude/task/review_input.patch`). Required set for the staged paths:
+-> site/i18n/** → bi-analyst; scripts/export_*.py → analytics-engineer + cto; scripts/** → cto;
+-> always → scope-auditor; site/match-preview/** + site/team-season/** + site/i18n.js match no path
+-> pattern; contract.md is artifact_only_never → commit not exempt. #500 PR-d step 3 (Option 1).
+->
+-> POST-REVIEW DELTA (transparency): after the 4 PASS verdicts below, the analytics-engineer's
+-> non-blocking docstring nit was fixed — 2 docstrings in scripts/export_metric_definitions_json.py
+-> updated to mention `label_i18n_key`. Behavior-neutral (the generated data file regenerates
+-> byte-identical; verified). diff_sha256 below is the post-fix hash.
++> G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
++> Required set for the staged paths: metric_catalogue.csv → analytics-engineer + football-analytics;
++> dbt_project/** → analytics-engineer; site/i18n/** + docs/wireframes/** → bi-analyst; always → scope-auditor;
++> contract.md is artifact_only_never → commit not exempt. #500 PR-d step 4 (apply the locked _against convention).
  
- REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
- MANIFEST = REPO_ROOT / "site" / "match-preview" / "metric_manifest.json"
-+BINDINGS = REPO_ROOT / "site" / "match-preview" / "metric_bindings.csv"
- I18N_DIR = REPO_ROOT / "site" / "i18n"
+-diff_sha256: 2de4b7c3fc5d68d402739f4e90ef4a4099e843d79bf160732f64a0001e068f63
++diff_sha256: 0799153b33b084d68a56bf829319ee2a6102537fc6151041ceaa5dcad2040092
  
+ ## scope-auditor
+ VERDICT: PASS
+ risks_checked:
+-- Label key → i18n resolution chain: all 13 stats have a matching catalogue label_i18n_key; all 13
+-  official ids exist in all 3 i18n files with non-empty labels; the export stamps the key; the page
+-  resolves it via t() — renders the same words before/after (zero mismatch across 13 × 3 langs).
+-- Scope boundaries + reserved decisions: all 10 touched files within scope_paths; metric_catalogue.csv
+-  unmodified; no windowed id renamed (corners_conceded_per_match stays; team-season `_season` reads
+-  unchanged); the one §10 (which scheme) was CPO-pre-decided — no silent decisions, no reserved item invaded.
++- Incomplete lineage propagation (4 layers, 22 files): traced catalogue id → intermediate column → window
++  mart → 5 downstream marts → UI bindings/manifest/JSON → i18n (3 langs) → consumed JSON keys; all renamed,
++  no stray old reference; the 2 accepted_values yml lists updated. Complete chain integrity.
++- UI data-sync lockstep: mart output columns (home/away_corners_against_per_match_recent, *_season) match the
++  bindings (catalogue_metric_id corners_against_per_match) → the regenerated metric_definitions.json → the
++  team-season page reads. No deployment mismatch.
++- Scope: all 22 within scope_paths; corner_kicks_per_match / opponent_corner_kicks / first_conceded_rank /
++  the catalogue prose / the `_season` suffix all UNTOUCHED. Applying a locked convention — no new §10.
  
-+def _live_to_official() -> dict[str, str]:
-+    mapping: dict[str, str] = {}
-+    with BINDINGS.open(newline="", encoding="utf-8") as f:
-+        for row in csv.DictReader(f):
-+            live = (row.get("live_id") or "").strip()
-+            if live:
-+                mapping[live] = (row.get("catalogue_metric_id") or "").strip()
-+    return mapping
-+
-+
- def main() -> int:
-     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
--    metric_ids = [m["metric_id"] for m in manifest.get("metrics", [])]
--    if not metric_ids:
-+    live_ids = [m["metric_id"] for m in manifest.get("metrics", [])]
-+    if not live_ids:
-         print("check_ui_i18n_metrics: no metrics in manifest", file=sys.stderr)
-         return 1
+-## bi-analyst-reviewer
++## analytics-engineer-reviewer
+ VERDICT: PASS
+ risks_checked:
+-- Word-preservation across 3 languages: the patch shows only key renames; the label + description VALUES
+-  are byte-for-byte identical between the removed windowed entries and the added official entries in all
+-  three files; the `metric.*` block is absent from all three (grep); no windowed `_recent.label` survives.
+-- No broken label at runtime: zero live `t("metric.` calls remain (grep); match-preview resolves
+-  live_id → data-file `label` (e.g. metrics.goals_per_match.label) → t(def.label, metricId) (call site
+-  passes def correctly); team-season uses t("metrics.<official>.label", <fallback>) for all 13.
+-- CI guard correctness: the updated guard maps manifest live ids → official via metric_bindings.csv and
+-  checks metrics.<official>.label/.description in every i18n file; fails-closed on any missing entry.
++- No-drift guard (assert_no_uncatalogued_season_metric.sql): generic `_season` strip →
++  corners_against_per_match_season → corners_against_per_match = catalogue row 25; zero hardcoded corners
++  reference → passes.
++- Accepted-values coverage in BOTH enforcement points (int_competition_benchmarks.yml:26 + shared.yml:1080)
++  now list corners_against_per_match; the team_benchmark_metrics macro emits that exact literal as the
++  metric_key fed to int_/mart_team_competition_benchmarks → tests accept the macro-generated rows.
++- Materialization: every affected model is table/view (int_team_season__metrics, mart_team_momentum,
++  mart_matchday_insights, mart_team_season_insights/_profile/_record, the benchmark int+mart) — none
++  incremental → a column rename rebuilds fully, no --full-refresh.
++- UI lookup chain + DAG producer/consumer names verified consistent end-to-end.
+ escalations: none
  
-+    mapping = _live_to_official()
-     errors: list[str] = []
-+    official_ids: list[str] = []
-+    for live in live_ids:
-+        official = mapping.get(live)
-+        if not official:
-+            errors.append(f"manifest metric '{live}' has no binding in metric_bindings.csv")
-+            continue
-+        official_ids.append(official)
-+
-     for lang_path in sorted(I18N_DIR.glob("*.json")):
-         lang = lang_path.stem
-         data = json.loads(lang_path.read_text(encoding="utf-8"))
-         metrics_ns = data.get("metrics") or {}
--        for mid in metric_ids:
--            entry = metrics_ns.get(mid)
-+        for oid in official_ids:
-+            entry = metrics_ns.get(oid)
-             if not entry:
--                errors.append(f"{lang}: missing metrics.{mid}")
-+                errors.append(f"{lang}: missing metrics.{oid}")
-                 continue
-             if not entry.get("label"):
--                errors.append(f"{lang}: metrics.{mid}.label is empty")
-+                errors.append(f"{lang}: metrics.{oid}.label is empty")
-             if not entry.get("description"):
--                errors.append(f"{lang}: metrics.{mid}.description is empty")
-+                errors.append(f"{lang}: metrics.{oid}.description is empty")
+-## analytics-engineer-reviewer
++## football-analytics-expert-reviewer
+ VERDICT: PASS
+ risks_checked:
+-- Consumption-layer compliance: the export reads label_i18n_key as a verbatim string passthrough (.strip()
+-  only) and assigns it to entry["label"]; metricLabel routes the key through t() — no metric math / no
+-  derivation introduced anywhere.
+-- Catalogue integrity + 13-binding resolution: metric_catalogue.csv is absent from the patch (unmodified);
+-  all 13 catalogue_metric_ids resolve to rows with a non-empty label_i18n_key; every `label` in the data
+-  file equals the catalogue's label_i18n_key; the regen-matches-committed test covers the new field.
+-note: flagged 2 stale docstrings in export_metric_definitions_json.py (non-§10, mechanical) → FIXED post-review
+-  (see POST-REVIEW DELTA). No CPO involvement needed.
++- Pure rename: the catalogue change is metric_id + label_i18n_key ONLY; numerator (opponent_corner_kicks),
++  denominator (games), description, interpretation, direction (neutral), lower_is_better (true), format
++  (decimal_1), group (set_pieces) all byte-identical. No redefinition.
++- Naming consistency: mirrors goals_against_per_match exactly (id uses _against; the description prose keeps
++  "conceded") — the established pattern. "Corners against" is standard football terminology for opponent
++  corner kicks. The corner_kicks/corners asymmetry is pre-existing + explicitly out of scope.
++- Formula unchanged in SQL: mart_team_momentum + int_team_season__metrics still compute
++  safe_divide(opponent_corner_kicks, games_with_opp_stats); the lower_is_better/neutral tension is pre-existing.
++escalations: none
  
-     if errors:
-         for err in errors:
-             print(err, file=sys.stderr)
-         return 1
+-## cto-reviewer
++## bi-analyst-reviewer
+ VERDICT: PASS
+ risks_checked:
+-- No orphaned LEGACY_METRIC_LABEL_KEYS reference (grep across .html/.js = zero); metricLabel(def, metricId)
+-  call-site arity consistent (site/match-preview/index.html:661 passes (def, metricId)); fallback path safe.
+-- check_ui_i18n_metrics.py end-to-end: all 13 manifest live ids present in metric_bindings.csv → 13 official
+-  ids present with non-empty label+description in all 3 i18n files; fails-closed on any missing entry.
+-- Export serialization unchanged (json.dumps(..., ensure_ascii=False, indent=2)+"\n"); both no-arg callers
+-  (pages-match-preview.yml:129, export_matchday_insights.ps1:14) still work; stdlib-only, no new deps.
+-escalations: noted the pre-existing stale `metric_definitions.csv` trigger in pages-match-preview.yml:25 is
+-  a harmless cosmetic dead path (the JSON is itself a trigger) — already a contract-acknowledged step-6
+-  follow-up, out of scope here. Not a CPO blocker.
++- Displayed-word preservation: i18n change is key-only; the label + description VALUES under
++  corners_against_per_match are byte-identical to the old corners_conceded_per_match entries in en/de/fi
++  ("Ø Corners against" / "Ø Ecken gegen" / "Ø Päästetyt kulmapotkut"). No rendered word changes.
++- Lockstep across manifest → bindings → metric_definitions.json → team-season page → catalogue: every node
++  carries the corners_against_* forms; no mismatch that would yield a missing label / undefined value.
++- i18n guard resolves the renamed official key; no residual corners_conceded key in any i18n/UI/doc file.
++escalations: none
  
--    print(f"OK: {len(metric_ids)} manifest metrics present in {len(list(I18N_DIR.glob('*.json')))} i18n file(s)")
-+    print(
-+        f"OK: {len(official_ids)} shown metrics resolve to i18n labels "
-+        f"in {len(list(I18N_DIR.glob('*.json')))} file(s)"
-+    )
-     return 0
+ ## escalations
+-(none requiring CPO — the two reviewer notes are an in-scope docstring fix, applied; and a known
+-out-of-scope workflow-trigger tidy tracked for a later step.)
++(none)
+diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+index 03280e6..0a46f0b 100644
+--- a/.claude/task/review_input.patch
++++ b/.claude/task/review_input.patch
+@@ -1,722 +1,443 @@
+ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+-index bd99602..2cbd64e 100644
++index 2cbd64e..af5f033 100644
+ --- a/.claude/task/contract.md
+ +++ b/.claude/task/contract.md
+-@@ -1,73 +1,76 @@
+--# Task contract — point the live match-preview data at the catalogue (#500 PR-d, step 2)
+-+# Task contract — unify the metric label scheme onto the catalogue (#500 PR-d, step 3)
++@@ -1,76 +1,83 @@
++-# Task contract — unify the metric label scheme onto the catalogue (#500 PR-d, step 3)
+++# Task contract — rename corners_conceded → corners_against end-to-end (#500 PR-d, step 4)
+  
+  > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
+--> CPO-approved architecture (this session): the metric_catalogue.csv SSoT stays clean (defines
+--> metrics); the live display-wiring (which JSON column feeds each number + render context) lives in a
+--> small separate file; the export composes the two. Invisible swap — byte-identical output.
+-+> CPO §10 decision (this session): standardize metric labels on the catalogue's label_i18n_key
+-+> ("Option 1"). The catalogue owns each stat's label key; both live pages + the i18n files use it;
+-+> the legacy hardcoded `metric.*` scheme is retired. Visible output unchanged (same words).
++-> CPO §10 decision (this session): standardize metric labels on the catalogue's label_i18n_key
++-> ("Option 1"). The catalogue owns each stat's label key; both live pages + the i18n files use it;
++-> the legacy hardcoded `metric.*` scheme is retired. Visible output unchanged (same words).
+++> Applies the LOCKED `_against` naming convention to its last holdout. No new §10 (the convention is
+++> decided; the CPO directed this rename this session). Mirrors the existing `goals_against` exactly.
+  
+  objective: >
+--  Switch the producer of site/match-preview/metric_definitions.json from the legacy
+--  metric_definitions.csv seed to (metric_catalogue.csv + a new small bindings file), then delete the
+--  legacy seed. The generated JSON must stay byte-for-byte identical to today's. After this, the live
+--  match-preview site is fed by the single SSoT (the catalogue) plus a thin UI-wiring file, and the
+--  duplicate legacy seed is gone. No visible change; translations + page code untouched; catalogue unchanged.
+-+  Collapse the three coexisting label schemes to one — the catalogue's `metrics.<id>.label` keys.
+-+  Re-key the i18n `metrics.<windowed_id>` entries to the official ids (words/descriptions unchanged);
+-+  delete the legacy `metric.*` block; have the export stamp each stat's official label key into the
+-+  match-preview data file so the page resolves labels from one source; point both live pages at the
+-+  official keys; update the i18n CI guard. NOTHING ON SCREEN CHANGES — the two active schemes already
+-+  render identical words for all 13 stats in all 3 languages (verified).
++-  Collapse the three coexisting label schemes to one — the catalogue's `metrics.<id>.label` keys.
++-  Re-key the i18n `metrics.<windowed_id>` entries to the official ids (words/descriptions unchanged);
++-  delete the legacy `metric.*` block; have the export stamp each stat's official label key into the
++-  match-preview data file so the page resolves labels from one source; point both live pages at the
++-  official keys; update the i18n CI guard. NOTHING ON SCREEN CHANGES — the two active schemes already
++-  render identical words for all 13 stats in all 3 languages (verified).
+++  Rename the metric `corners_conceded_per_match` → `corners_against_per_match` across every layer (the
+++  catalogue SSoT, ~7 dbt models + their schema yml, the UI wiring, and 2 wireframe docs), plus its derived
+++  forms (`*_season`, `*_recent`, `home_*`/`away_*`, the i18n key). Internal naming consistency only —
+++  NOTHING ON SCREEN CHANGES (the displayed label already reads "Corners against"). Changes warehouse column
+++  names + published JSON keys; all affected models are table/view → normal rebuild, no --full-refresh.
+  
+--refs: #500 PR-d step 2 (follows #582 = step 1, WC-block deletion); plan
+--  C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
+-+refs: #500 PR-d step 3 (follows #582 step 1, #583 step 2); CPO Option-1 ruling 2026-06-26;
+-+  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
++-refs: #500 PR-d step 3 (follows #582 step 1, #583 step 2); CPO Option-1 ruling 2026-06-26;
++-  plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
+++refs: #500 PR-d step 4 (follows #582/#583/#584); CPO direction 2026-06-26 ("do it" — finish the locked
+++  _against convention); plan C:\Users\Rami\.claude\plans\scalable-snuggling-lightning.md (approved).
+  
+  scope_paths:
+--  - site/match-preview/metric_bindings.csv
+-+  - site/i18n/en.json
+-+  - site/i18n/de.json
+-+  - site/i18n/fi.json
+-   - scripts/export_metric_definitions_json.py
+--  - dbt_project/seeds/metric_definitions.csv
+--  - dbt_project/seeds/schema.yml
+--  - tests/test_metric_definitions_seed.py
+--  - tests/test_metric_bindings.py
+-+  - site/match-preview/metric_definitions.json
+-+  - site/match-preview/index.html
+-+  - site/team-season/index.html
+-+  - scripts/check_ui_i18n_metrics.py
+-+  - site/i18n.js
+++  - dbt_project/seeds/metric_catalogue.csv
+++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
+++  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+++  - dbt_project/models/5_marts/shared/mart_team_season_record.sql
+++  - dbt_project/macros/team_benchmark_metrics.sql
+++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+++  - dbt_project/models/5_marts/shared/shared.yml
+++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++   - site/i18n/en.json
++   - site/i18n/de.json
++   - site/i18n/fi.json
++-  - scripts/export_metric_definitions_json.py
+++  - site/match-preview/metric_bindings.csv
+++  - site/match-preview/metric_manifest.json
++   - site/match-preview/metric_definitions.json
++-  - site/match-preview/index.html
++   - site/team-season/index.html
++-  - scripts/check_ui_i18n_metrics.py
++-  - site/i18n.js
+++  - docs/wireframes/02_team_profile.md
+++  - docs/wireframes/metrics_display.md
+  
+  impact_map: >
+-   WRITERS / LINEAGE:
+--    - site/match-preview/metric_definitions.json — sole writer is scripts/export_metric_definitions_json.py.
+--      Input today = metric_definitions.csv. After = metric_bindings.csv (live ids + column wiring + context)
+--      + metric_catalogue.csv (format + lower_is_better/direction). Output unchanged (byte-identical).
+--    - VERIFIED catalogue parity: all 13 live ids map to a catalogue row, and format + direction are
+--      IDENTICAL for every one (re-checked post-#582; zero mismatches, zero missing).
+--  CALLERS OF THE EXPORT (must keep working): pages-match-preview.yml:129 and export_matchday_insights.ps1:14
+--    both invoke `python scripts/export_metric_definitions_json.py` with NO args → default-driven. New defaults
+--    (--bindings, --catalogue, --out) keep them working; the script's CLI gains args but breaks no caller.
+-+    - site/match-preview/metric_definitions.json — sole writer scripts/export_metric_definitions_json.py;
+-+      gains a per-entry `label` = the catalogue's label_i18n_key (looked up via the binding's
+-+      catalogue_metric_id). DELIBERATE change to the data file (no longer byte-identical to step 2) —
+-+      regenerated + committed; the regen test still guards (committed == fresh regen).
+-+    - site/i18n/{en,de,fi}.json — hand-edited: the `metrics.<windowed_id>` entries are RENAMED to the
+-+      official id (via site/match-preview/metric_bindings.csv: live_id → catalogue_metric_id); the words
+-+      + descriptions are MOVED unchanged; the `metric.*` block is deleted.
+-   CONSUMERS / BLAST RADIUS:
+--    - site/match-preview/index.html renders only the 13 ids in metric_manifest.json from the JSON; JSON is
+--      byte-identical → zero UI effect. Translations + manifest + page code untouched.
+--    - dbt: zero model/test refs to the metric_definitions seed (only its own schema.yml:151 entry; verified
+--      clean of target/). Deleting the seed + its schema block is warehouse-clean.
+--    - Deploy (pages-match-preview.yml): regenerates the JSON at deploy with no args → byte-identical. The
+--      now-stale trigger line `dbt_project/seeds/metric_definitions.csv` is HARMLESS (any real bindings/catalogue
+--      edit must change the committed JSON — enforced by the new regen test — and the JSON is itself a trigger,
+--      so auto-deploy still fires). Updating the workflow trigger list is a PROTECTED-path follow-up, OUT of scope.
+--  LAYER RULES: metric_bindings.csv = UI display-wiring config → lives in site/match-preview/ beside
+--    metric_manifest.json (NOT a dbt seed; no model reads it). The export composes catalogue (definition:
+--    format/direction) + bindings (wiring: columns/context) and SELECTS/RENAMES into JSON — no fact derivation,
+--    no computation (consumption-layer compliant). The catalogue SSoT is read-only here.
+--  DEPLOY ORDERING: static files; the export is deterministic; commit the regenerated (identical) JSON so the
+--    committed artifact stays in sync. No migration / no full-refresh.
+-+    - Label resolution today: match-preview index.html `metricLabel()` = `metrics.<windowed>.label` with a
+-+      `metric.*` fallback (LEGACY_METRIC_LABEL_KEYS, lines 623-643); team-season index.html = 13 hardcoded
+-+      `t("metric.<short>", ...)` calls (lines 342-354). `metric.*` is used ONLY in those two pages + one
+-+      doc-comment example in site/i18n.js:14 (verified by grep). After: match-preview reads `def.label`
+-+      (the official key from the data file); team-season uses `metrics.<official>.label`; the `metric.*`
+-+      block + LEGACY_METRIC_LABEL_KEYS are deleted.
+-+    - VERIFIED no wording decision: for all 13 stats × en/de/fi, `metric.<short>` == `metrics.<windowed>.label`
+-+      (zero mismatches) — so moving the values to the official keys preserves every rendered word.
+-+    - `metrics.<id>.description` is NOT consumed by any page (only `.label` is read) — descriptions ride
+-+      along in the rename, no consumer break.
+-+    - scripts/check_ui_i18n_metrics.py today checks manifest windowed ids against `metrics.<windowed>`;
+-+      after re-key it must check the OFFICIAL keys (map the shown stats through metric_bindings.csv).
+-+  LAYER RULES: page label lookup = consumption (select/route a key → t(); NO computation); the export
+-+    reads label_i18n_key from the catalogue (select, no derivation); i18n files = display copy. Catalogue
+-+    is READ-ONLY (not modified). Safety property here is VISIBLE-identical (same words), not byte-identical.
+-+  DEPLOY ORDERING: static files; regenerate + commit the data file; the deploy export runs with no args.
++-  WRITERS / LINEAGE:
++-    - site/match-preview/metric_definitions.json — sole writer scripts/export_metric_definitions_json.py;
++-      gains a per-entry `label` = the catalogue's label_i18n_key (looked up via the binding's
++-      catalogue_metric_id). DELIBERATE change to the data file (no longer byte-identical to step 2) —
++-      regenerated + committed; the regen test still guards (committed == fresh regen).
++-    - site/i18n/{en,de,fi}.json — hand-edited: the `metrics.<windowed_id>` entries are RENAMED to the
++-      official id (via site/match-preview/metric_bindings.csv: live_id → catalogue_metric_id); the words
++-      + descriptions are MOVED unchanged; the `metric.*` block is deleted.
++-  CONSUMERS / BLAST RADIUS:
++-    - Label resolution today: match-preview index.html `metricLabel()` = `metrics.<windowed>.label` with a
++-      `metric.*` fallback (LEGACY_METRIC_LABEL_KEYS, lines 623-643); team-season index.html = 13 hardcoded
++-      `t("metric.<short>", ...)` calls (lines 342-354). `metric.*` is used ONLY in those two pages + one
++-      doc-comment example in site/i18n.js:14 (verified by grep). After: match-preview reads `def.label`
++-      (the official key from the data file); team-season uses `metrics.<official>.label`; the `metric.*`
++-      block + LEGACY_METRIC_LABEL_KEYS are deleted.
++-    - VERIFIED no wording decision: for all 13 stats × en/de/fi, `metric.<short>` == `metrics.<windowed>.label`
++-      (zero mismatches) — so moving the values to the official keys preserves every rendered word.
++-    - `metrics.<id>.description` is NOT consumed by any page (only `.label` is read) — descriptions ride
++-      along in the rename, no consumer break.
++-    - scripts/check_ui_i18n_metrics.py today checks manifest windowed ids against `metrics.<windowed>`;
++-      after re-key it must check the OFFICIAL keys (map the shown stats through metric_bindings.csv).
++-  LAYER RULES: page label lookup = consumption (select/route a key → t(); NO computation); the export
++-    reads label_i18n_key from the catalogue (select, no derivation); i18n files = display copy. Catalogue
++-    is READ-ONLY (not modified). Safety property here is VISIBLE-identical (same words), not byte-identical.
++-  DEPLOY ORDERING: static files; regenerate + commit the data file; the deploy export runs with no args.
+++  THE RENAME (one substitution, applied to every occurrence): corners_conceded_per_match →
+++  corners_against_per_match (+ `_season`, `_recent`, `home_`/`away_` forms, + the i18n key
+++  metrics.corners_conceded_per_match.label → metrics.corners_against_per_match.label). Evidence = the
+++  exhaustive grep over committed source (catalogue:1, dbt models:7, dbt yml:4, i18n:3, bindings/manifest/
+++  data-file/team-season:5, docs:2).
+++  COMPUTE / LINEAGE: the metric is computed in int_team_season__metrics (`_season` column) and
+++  mart_team_momentum (window column); selected downstream by mart_team_season_insights/_profile/_record;
+++  mart_matchday_insights aliases the momentum column to the live `home/away_*_recent` columns. The benchmark
+++  macro + 2 accepted_values yml lists enumerate the id. All affected models are materialized table/view
+++  (verified) → a column rename rebuilds cleanly with NO --full-refresh / no incremental NULLing.
+++  UI LOCKSTEP: the live data columns (matchday `*_recent`, team-season `*_season`) rename in the marts →
+++  the deploy-generated matchday_insights.json / team_season_insights.json keys change → the bindings
+++  (home/away_column) + the team-season page `row.*_season` read are renamed to match. The export is
+++  UNCHANGED (it composes the renamed bindings + catalogue); metric_definitions.json is regenerated.
+++  GUARDS: no-drift guard (assert_no_uncatalogued_season_metric) strips `_season` generically and has NO
+++  corners reference (verified) → passes (corners_against_per_match_season → corners_against_per_match =
+++  catalogue id). check_ui_i18n_metrics maps the shown stat through the bindings to the official id →
+++  metrics.corners_against_per_match.label (renamed) → resolves. test_metric_bindings: the binding's
+++  catalogue_metric_id resolves in the renamed catalogue; regen matches committed.
+++  CATALOGUE CHANGE = id + label_i18n_key ONLY; description/interpretation prose kept (mirrors goals_against,
+++  whose description reads "Average goals conceded per match"). DEPLOY: ci-data-build rebuilds state:modified+.
+++  LOCAL DBT BROKEN (No module named dbt.adapters.factory) → the dbt side (renames, no-drift guard, DQ) is
+++  validated by ci-data-build on the PR; will watch that check.
+  
+  decisions_taken: >
+--  Execute the CPO-approved swap: catalogue stays the clean metric SSoT (unchanged); live wiring in the new
+--  metric_bindings.csv; export composes the two; legacy seed deleted. No metric added/changed; no §10 here —
+--  the architecture (catalogue-clean + separate wiring) was decided by the CPO earlier this session.
+-+  Execute CPO Option 1 (label SSoT = the catalogue's label_i18n_key). No metric definition changed; no
+-+  word changed; the catalogue is untouched. The one §10 (which scheme) was decided by the CPO this session.
++-  Execute CPO Option 1 (label SSoT = the catalogue's label_i18n_key). No metric definition changed; no
++-  word changed; the catalogue is untouched. The one §10 (which scheme) was decided by the CPO this session.
+++  Execute the CPO-directed rename applying the locked _against convention to its last holdout. Target name
+++  corners_against_per_match. No metric definition/formula/prose changed; no displayed word changed. The
+++  corner_kicks/corners word asymmetry, opponent_corner_kicks (numerator), and first_conceded_rank (different
+++  concept) are explicitly OUT — separate questions, not folded in.
+  
+  decisions_reserved:
+--  - The single i18n/labelling scheme (step 3 — CPO decision), corners _conceded→_against rename (step 4),
+--    the team-season _season suffix drop (step 5), final teardown of build_match_preview_site + dead labels
+--    (step 6). NONE here. The pages-match-preview.yml trigger-list tidy (protected path) is a separate follow-up.
+-+  - corners_conceded → corners_against rename (step 4 — official id stays corners_conceded_per_match here);
+-+    team-season `_season` column-name drop (step 5); final teardown of build_match_preview_site + any
+-+    remaining legacy (step 6). NONE here. Dropping the unconsumed `metrics.*.description` copy is NOT done
+-+    here (out of scope; flag only).
++-  - corners_conceded → corners_against rename (step 4 — official id stays corners_conceded_per_match here);
++-    team-season `_season` column-name drop (step 5); final teardown of build_match_preview_site + any
++-    remaining legacy (step 6). NONE here. Dropping the unconsumed `metrics.*.description` copy is NOT done
++-    here (out of scope; flag only).
+++  - team-season `_season` suffix drop (step 5); final teardown (step 6). NONE here.
+  
+  done_when:
+--  - The export builds the JSON from metric_bindings.csv + metric_catalogue.csv; regenerating yields a
+--    byte-identical site/match-preview/metric_definitions.json (`git diff --exit-code` clean).
+--  - The legacy metric_definitions.csv + its schema.yml block are gone; tests/test_metric_definitions_seed.py
+--    is replaced by tests/test_metric_bindings.py which (a) checks every binding's catalogue id resolves +
+--    paired columns, and (b) regenerates the JSON and asserts it equals the committed file (the durable
+--    byte-identity guard).
+--  - validate-local green (incl. the new test); no dbt model affected.
+--  - Routes to: scope-auditor (always) + analytics-engineer (dbt_project/** + scripts/export_*.py) + cto
+--    (scripts/export_*.py + tests/**). The commit carries contract.md → NOT artifact-exempt. CPO merges.
+-+  - The i18n `metrics` block is keyed by official ids; the `metric.*` block is gone; both pages render via
+-+    the official keys; the export stamps `label` into the data file; the i18n guard checks official keys.
+-+  - Proof: the 13 rendered words per language are IDENTICAL before vs after (captured + compared); the
+-+    updated guard passes; the regen-matches-committed test passes; JSON validity holds.
+-+  - validate-local green. Routes to: scope-auditor (always) + bi-analyst (site/i18n/**) +
+-+    analytics-engineer (scripts/export_*.py) + cto (scripts/export_*.py + scripts/** + tests-adjacent).
+-+    Commit carries contract.md → NOT artifact-exempt. CPO merges; never self-merge.
++-  - The i18n `metrics` block is keyed by official ids; the `metric.*` block is gone; both pages render via
++-    the official keys; the export stamps `label` into the data file; the i18n guard checks official keys.
++-  - Proof: the 13 rendered words per language are IDENTICAL before vs after (captured + compared); the
++-    updated guard passes; the regen-matches-committed test passes; JSON validity holds.
++-  - validate-local green. Routes to: scope-auditor (always) + bi-analyst (site/i18n/**) +
++-    analytics-engineer (scripts/export_*.py) + cto (scripts/export_*.py + scripts/** + tests-adjacent).
++-    Commit carries contract.md → NOT artifact-exempt. CPO merges; never self-merge.
+++  - `grep -r corners_conceded` over committed source = ZERO remaining.
+++  - metric_definitions.json regenerated; its diff shows only corners id/label/columns moving to against.
+++  - i18n guard + test_metric_bindings + JSON validity + full python suite green locally; the dbt side green
+++    in ci-data-build on the PR.
+++  - Routes to: scope-auditor + analytics-engineer (dbt_project/**) + football-analytics (metric_catalogue.csv)
+++    + bi-analyst (site/i18n/** + docs/wireframes/**). Commit carries contract.md → NOT artifact-exempt.
+++    CPO merges; never self-merge.
+  
+  amendments: (none)
+-diff --git a/scripts/check_ui_i18n_metrics.py b/scripts/check_ui_i18n_metrics.py
+-index 05287cc..231e709 100644
+---- a/scripts/check_ui_i18n_metrics.py
+-+++ b/scripts/check_ui_i18n_metrics.py
+-@@ -1,43 +1,72 @@
+--"""Verify match-preview metric_manifest ids exist in site i18n metrics namespace."""
+-+"""Verify each shown match-preview metric resolves to an i18n label under its official key.
+-+
+-+The match-preview manifest lists windowed live ids; each maps (via metric_bindings.csv) to its
+-+official catalogue id, which is the i18n key standardized in #500 (metrics.<official_id>.label).
+-+This checks every shown stat has a non-empty label + description in every site/i18n/*.json.
+-+"""
+- from __future__ import annotations
++diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
++index acf8683..96bbe79 100644
++--- a/dbt_project/macros/team_benchmark_metrics.sql
+++++ b/dbt_project/macros/team_benchmark_metrics.sql
++@@ -26,7 +26,7 @@
++         ('pass_accuracy', 'pass_accuracy_season'),
++         ('key_passes_per_match', 'key_passes_per_match_season'),
++         ('corner_kicks_per_match', 'corner_kicks_per_match_season'),
++-        ('corners_conceded_per_match', 'corners_conceded_per_match_season'),
+++        ('corners_against_per_match', 'corners_against_per_match_season'),
++         ('save_ratio', 'save_ratio_season')
++     ] %}
++     {{ return(metrics) }}
++diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++index b6712bb..1d0daa6 100644
++--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++@@ -157,7 +157,7 @@ select
++     case
++         when games_with_opp_stats < games_played then null
++         else safe_divide(opponent_corner_kicks, games_with_opp_stats)
++-    end as corners_conceded_per_match_season,
+++    end as corners_against_per_match_season,
++     -- save_ratio: byte-identical to the prior model (which divided by goals_against TOTAL) — the
++     -- gate makes BOTH null on partial save coverage, and when fully covered every game is
++     -- save-covered so goals_against_in_save_games == goals_against (verified 0/12537).
++diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++index b9a39f0..72e4b10 100644
++--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++@@ -23,7 +23,7 @@ models:
++         tests:
++           - not_null
++           - accepted_values:
++-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
+++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++       - name: team_count
++         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
++         tests: [not_null]
++diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
++index 770458a..cbf4412 100644
++--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
+++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
++@@ -39,7 +39,7 @@ models:
++         description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency."
++         tests: [not_null]
++       - name: games_with_opp_stats
++-        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_conceded_per_match."
+++        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_against_per_match."
++         tests: [not_null]
++       - name: games_with_save_stats
++         description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
++diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++index 0c3549b..2801741 100644
++--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++@@ -238,9 +238,9 @@ models:
++         description: "Home: corners won per game with team stats."
++       - name: away_corner_kicks_per_match_recent
++         description: "Away: corners won per game with team stats."
++-      - name: home_corners_conceded_per_match_recent
+++      - name: home_corners_against_per_match_recent
++         description: "Home: corners conceded per game with opponent stats."
++-      - name: away_corners_conceded_per_match_recent
+++      - name: away_corners_against_per_match_recent
++         description: "Away: corners conceded per game with opponent stats."
++       - name: home_save_ratio_recent
++         description: "Home: saves / (saves + goals conceded in save-covered games); self-bounded."
++diff --git a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++index 67a590b..8b18dd1 100644
++--- a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+++++ b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++@@ -152,7 +152,7 @@ select
++     mh.passes_per_match as home_passes_per_match_recent,
++     mh.pass_accuracy as home_pass_accuracy_recent,
++     mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
++-    mh.corners_conceded_per_match as home_corners_conceded_per_match_recent,
+++    mh.corners_against_per_match as home_corners_against_per_match_recent,
++     mh.save_ratio as home_save_ratio_recent,
++     -- away form window (from mart_team_momentum).
++     ma.goals_per_match as away_goals_per_match_recent,
++@@ -164,7 +164,7 @@ select
++     ma.passes_per_match as away_passes_per_match_recent,
++     ma.pass_accuracy as away_pass_accuracy_recent,
++     ma.corner_kicks_per_match as away_corner_kicks_per_match_recent,
++-    ma.corners_conceded_per_match as away_corners_conceded_per_match_recent,
+++    ma.corners_against_per_match as away_corners_against_per_match_recent,
++     ma.save_ratio as away_save_ratio_recent,
++     -- form games/points: 0 (not null) when a team has no finished matches in the
++     -- window. coalesce calculations sort after the simple columns above (ST06).
++diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++index 80ae01c..2a3c85b 100644
++--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++@@ -84,7 +84,7 @@ select
++     m.pass_accuracy_season,
++     m.passes_per_match_season,
++     m.corner_kicks_per_match_season,
++-    m.corners_conceded_per_match_season,
+++    m.corners_against_per_match_season,
++     m.save_ratio_season
++ from latest_season_metrics as m
++ inner join dim_team as t on m.team_sk = t.team_sk
++diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++index 53e0747..e98d4b5 100644
++--- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++@@ -92,7 +92,7 @@ select
++     case
++         when b.games_with_opp_stats < b.games_in_window then null
++         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
++-        as corners_conceded_per_match,
+++        as corners_against_per_match,
++     -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded.
++     -- NULL on partial save coverage (the new games_with_save_stats).
++     case
++diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
++index b44837a..153c1b4 100644
++--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
++@@ -86,7 +86,7 @@ select
++     m.pass_accuracy_season,
++     m.passes_per_match_season,
++     m.corner_kicks_per_match_season,
++-    m.corners_conceded_per_match_season,
+++    m.corners_against_per_match_season,
++     m.save_ratio_season,
++     -- GAP-13: locked-contract season variants (player-derived ones inherit
++     -- player-stat coverage gaps; caption from player_stat_coverage_season_games)
++diff --git a/dbt_project/models/5_marts/shared/mart_team_season_record.sql b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
++index fa4cb1f..6cf5bec 100644
++--- a/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+++++ b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
++@@ -80,7 +80,7 @@ matched as (
++         m.passes_per_match_season as passes_per_match,
++         m.pass_accuracy_season as pass_accuracy,
++         m.corner_kicks_per_match_season as corner_kicks_per_match,
++-        m.corners_conceded_per_match_season as corners_conceded_per_match,
+++        m.corners_against_per_match_season as corners_against_per_match,
++         m.save_ratio_season as save_ratio,
++         m.key_passes_per_match_season as key_passes_per_match,
++         m.tackles_per_match_season as tackles_per_match,
++@@ -137,7 +137,7 @@ select
++     passes_per_match,
++     pass_accuracy,
++     corner_kicks_per_match,
++-    corners_conceded_per_match,
+++    corners_against_per_match,
++     save_ratio,
++     key_passes_per_match,
++     tackles_per_match,
++diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
++index 5c0cb92..8f66ca4 100644
++--- a/dbt_project/models/5_marts/shared/shared.yml
+++++ b/dbt_project/models/5_marts/shared/shared.yml
++@@ -1077,7 +1077,7 @@ models:
++         tests:
++           - not_null
++           - accepted_values:
++-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
+++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
++       - name: metric_value
++         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
++         tests: [not_null]
++diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
++index 8ab9987..47a00a2 100644
++--- a/dbt_project/seeds/metric_catalogue.csv
+++++ b/dbt_project/seeds/metric_catalogue.csv
++@@ -22,7 +22,7 @@ passes_per_match,team,metrics.passes_per_match.label,Average passes attempted pe
++ pass_accuracy,team,metrics.pass_accuracy.label,Share of passes successfully completed. Null when passes_total is zero.,passes_accurate,passes_total,false,percent,passing,2,2,higher_better,Passing security - completion rate; high = keeps the ball well
++ key_passes_per_match,team,metrics.key_passes_per_match.label,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,key_passes,games,false,decimal_1,passing,2,3,higher_better,Creativity - passes leading to a shot; high = creates chances
++ corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,corner_kicks,games,false,decimal_1,set_pieces,3,1,neutral,Corner volume won - sustained attacking pressure (a weak proxy)
++-corners_conceded_per_match,team,metrics.corners_conceded_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,opponent_corner_kicks,games,true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
+++corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,opponent_corner_kicks,games,true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
++ save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,goalkeeper_saves,goalkeeper_saves + goals_against,false,percent,goalkeeping,2,1,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
++ goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,goals_total,,false,integer,goals,,1,,
++ assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,goals_assists,,false,integer,goals,,1,,
++diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
++index c4733f0..a3b3b97 100644
++--- a/docs/wireframes/02_team_profile.md
+++++ b/docs/wireframes/02_team_profile.md
++@@ -141,7 +141,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
++ | Ø Passes | `passes_per_match_season` |
++ | % Pass accuracy | `pass_accuracy_season` |
++ | Ø Corners | `corner_kicks_per_match_season` |
++-| Ø Corners against | `corners_conceded_per_match_season` |
+++| Ø Corners against | `corners_against_per_match_season` |
++ | % Save percentage | `save_ratio_season` |
+  
+-+import csv
+- import json
+- import pathlib
+- import sys
++ **Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
++diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
++index eb570c1..3909b75 100644
++--- a/docs/wireframes/metrics_display.md
+++++ b/docs/wireframes/metrics_display.md
++@@ -85,7 +85,7 @@ Set pieces → Goalkeeping.
++ | 12 | % Pass accuracy | `pass_accuracy` | Passing | 2 | live |
++ | 13 | Ø Key passes | `key_passes_per_match` | Passing | 2 | live |
++ | 14 | Ø Corners | `corner_kicks_per_match` | Set pieces | 3 | live |
++-| 15 | Ø Corners against | `corners_conceded_per_match` | Set pieces | 3 | live |
+++| 15 | Ø Corners against | `corners_against_per_match` | Set pieces | 3 | live |
++ | 16 | % Save percentage | `save_ratio` | Goalkeeping | 2 | live |
+  
+- REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+- MANIFEST = REPO_ROOT / "site" / "match-preview" / "metric_manifest.json"
+-+BINDINGS = REPO_ROOT / "site" / "match-preview" / "metric_bindings.csv"
+- I18N_DIR = REPO_ROOT / "site" / "i18n"
+- 
+- 
+-+def _live_to_official() -> dict[str, str]:
+-+    mapping: dict[str, str] = {}
+-+    with BINDINGS.open(newline="", encoding="utf-8") as f:
+-+        for row in csv.DictReader(f):
+-+            live = (row.get("live_id") or "").strip()
+-+            if live:
+-+                mapping[live] = (row.get("catalogue_metric_id") or "").strip()
+-+    return mapping
+-+
+-+
+- def main() -> int:
+-     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+--    metric_ids = [m["metric_id"] for m in manifest.get("metrics", [])]
+--    if not metric_ids:
+-+    live_ids = [m["metric_id"] for m in manifest.get("metrics", [])]
+-+    if not live_ids:
+-         print("check_ui_i18n_metrics: no metrics in manifest", file=sys.stderr)
+-         return 1
+- 
+-+    mapping = _live_to_official()
+-     errors: list[str] = []
+-+    official_ids: list[str] = []
+-+    for live in live_ids:
+-+        official = mapping.get(live)
+-+        if not official:
+-+            errors.append(f"manifest metric '{live}' has no binding in metric_bindings.csv")
+-+            continue
+-+        official_ids.append(official)
+-+
+-     for lang_path in sorted(I18N_DIR.glob("*.json")):
+-         lang = lang_path.stem
+-         data = json.loads(lang_path.read_text(encoding="utf-8"))
+-         metrics_ns = data.get("metrics") or {}
+--        for mid in metric_ids:
+--            entry = metrics_ns.get(mid)
+-+        for oid in official_ids:
+-+            entry = metrics_ns.get(oid)
+-             if not entry:
+--                errors.append(f"{lang}: missing metrics.{mid}")
+-+                errors.append(f"{lang}: missing metrics.{oid}")
+-                 continue
+-             if not entry.get("label"):
+--                errors.append(f"{lang}: metrics.{mid}.label is empty")
+-+                errors.append(f"{lang}: metrics.{oid}.label is empty")
+-             if not entry.get("description"):
+--                errors.append(f"{lang}: metrics.{mid}.description is empty")
+-+                errors.append(f"{lang}: metrics.{oid}.description is empty")
+- 
+-     if errors:
+-         for err in errors:
+-             print(err, file=sys.stderr)
+-         return 1
+- 
+--    print(f"OK: {len(metric_ids)} manifest metrics present in {len(list(I18N_DIR.glob('*.json')))} i18n file(s)")
+-+    print(
+-+        f"OK: {len(official_ids)} shown metrics resolve to i18n labels "
+-+        f"in {len(list(I18N_DIR.glob('*.json')))} file(s)"
+-+    )
+-     return 0
+- 
+- 
+-diff --git a/scripts/export_metric_definitions_json.py b/scripts/export_metric_definitions_json.py
+-index bfbc6e4..d1c612b 100644
+---- a/scripts/export_metric_definitions_json.py
+-+++ b/scripts/export_metric_definitions_json.py
+-@@ -3,7 +3,7 @@
+- 
+- Composes two sources (the catalogue is never modified here):
+-   - metric_catalogue.csv  — the single source of truth for each metric. This script reads
+--    ONLY `format` and `lower_is_better` (direction) from it.
+-+    `format`, `lower_is_better` (direction), and `label_i18n_key` from it.
+-   - metric_bindings.csv   — the live display wiring: each windowed live id, the catalogue
+-     metric it maps to, the JSON columns that feed it, and the render context.
+- 
+-@@ -25,7 +25,7 @@ def _truthy(value: str | None) -> bool:
+- 
+- 
+- def load_catalogue(path: Path) -> dict[str, dict[str, object]]:
+--    """metric_id -> {format, lower_is_better} from the catalogue SSoT."""
+-+    """metric_id -> {format, lower_is_better, label_i18n_key} from the catalogue SSoT."""
+-     catalogue: dict[str, dict[str, object]] = {}
+-     with path.open(newline="", encoding="utf-8") as f:
+-         for row in csv.DictReader(f):
+-@@ -35,6 +35,7 @@ def load_catalogue(path: Path) -> dict[str, dict[str, object]]:
+-             catalogue[mid] = {
+-                 "format": (row.get("format") or "").strip(),
+-                 "lower_is_better": _truthy(row.get("lower_is_better")),
+-+                "label_i18n_key": (row.get("label_i18n_key") or "").strip(),
+-             }
+-     return catalogue
+- 
+-@@ -54,10 +55,11 @@ def build_defs(bindings_path: Path, catalogue_path: Path) -> dict[str, dict[str,
+-                 raise SystemExit(
+-                     f"metric_bindings: '{live_id}' references unknown catalogue metric '{cat_id}'"
+-                 )
+--            entry: dict[str, object] = {
+--                "format": cat_row["format"],
+--                "context": (row.get("context") or "").strip(),
+--            }
+-+            entry: dict[str, object] = {}
+-+            if cat_row["label_i18n_key"]:
+-+                entry["label"] = cat_row["label_i18n_key"]
+-+            entry["format"] = cat_row["format"]
+-+            entry["context"] = (row.get("context") or "").strip()
+-             if cat_row["lower_is_better"]:
+-                 entry["lower_is_better"] = True
+-             for col in ("home_column", "away_column", "single_column"):
+-diff --git a/site/i18n.js b/site/i18n.js
+-index 0425600..aee96cf 100644
+---- a/site/i18n.js
+-+++ b/site/i18n.js
+-@@ -11,7 +11,7 @@
+-  *   <button data-i18n-attr="aria-label:nav.prev">…</button>
+-  *
+-  * Usage in JS:
+-- *   window.t("metric.tabellenplatz", "Tabellenplatz")  // sync read
+-+ *   window.t("metrics.league_rank.label", "League position")  // sync read
+-  *   window.MATCHDAYIQ_I18N_READY.then((strings) => render(data))  // await load
+-  *
+-  * Switching:
++ Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
+ diff --git a/site/i18n/de.json b/site/i18n/de.json
+-index a888f92..68b6c50 100644
++index 68b6c50..2c0ba9d 100644
+ --- a/site/i18n/de.json
+ +++ b/site/i18n/de.json
+-@@ -4,71 +4,56 @@
+-     "feedback": "Feedback geben",
+-     "unavailable": "nicht verfügbar"
+-   },
+--  "metric": {
+--    "tabellenplatz": "Tabellenplatz",
+--    "punkteausbeute": "Punkteausbeute",
+--    "tore": "Ø Tore",
+--    "gegentore": "Ø Gegentore",
+--    "schuesse": "Ø Schüsse",
+--    "schuesseAufsTor": "% Schüsse aufs Tor",
+--    "schuesseAusStrafraum": "% Schüsse aus dem Strafraum",
+--    "trefferquote": "% Trefferquote",
+--    "paesse": "Ø Pässe",
+--    "angekommenePaesse": "% Angekommene Pässe",
+--    "ecken": "Ø Ecken",
+--    "eckenGegen": "Ø Ecken gegen",
+--    "gehalteneTorschuesse": "% Gehaltene Torschüsse"
+--  },
+-   "metrics": {
+-     "league_rank": {
+-       "label": "Tabellenplatz",
+-       "description": "Platzierung vor diesem Spieltag (wenn verfügbar)."
+-     },
+--    "points_won_form": {
+-+    "points_won": {
+-       "label": "Punkteausbeute",
+-       "description": "Erzielte Ligapunkte im Formfenster im Verhältnis zu maximal möglichen Punkten (3 × Spiele)."
+-     },
+--    "goals_per_match_recent": {
+-+    "goals_per_match": {
+-       "label": "Ø Tore",
+-       "description": "Durchschnittlich erzielte Tore pro Spiel im Formfenster."
+-     },
+--    "goals_against_per_match_recent": {
+-+    "goals_against_per_match": {
+-       "label": "Ø Gegentore",
+-       "description": "Durchschnittlich kassierte Tore pro Spiel im Formfenster."
+-     },
+--    "shots_per_match_recent": {
+-+    "shots_per_match": {
+-       "label": "Ø Schüsse",
+-       "description": "Durchschnittliche Anzahl aller Abschlüsse pro Spiel im Formfenster."
+-     },
+--    "shot_accuracy_recent": {
+-+    "shot_accuracy": {
+-       "label": "% Schüsse aufs Tor",
+-       "description": "Anteil der Schüsse aufs Tor an allen Schüssen im Formfenster."
+-     },
+--    "danger_zone_ratio_recent": {
+-+    "danger_zone_ratio": {
+-       "label": "% Schüsse aus dem Strafraum",
+-       "description": "Anteil der Schüsse aus dem Strafraum an allen Schüssen im Formfenster."
+-     },
+--    "finishing_efficiency_recent": {
+-+    "finishing_efficiency": {
+-       "label": "% Trefferquote",
+-       "description": "Tore je Schuss aufs Tor im Formfenster."
+-     },
+--    "passes_per_match_recent": {
+-+    "passes_per_match": {
+-       "label": "Ø Pässe",
+-       "description": "Durchschnittliche Anzahl gespielter Pässe pro Spiel im Formfenster."
+-     },
+--    "pass_accuracy_recent": {
+-+    "pass_accuracy": {
+-       "label": "% Angekommene Pässe",
+-       "description": "Anteil genauer Pässe an allen Pässen im Formfenster."
+-     },
+--    "corner_kicks_per_match_recent": {
+-+    "corner_kicks_per_match": {
++@@ -49,7 +49,7 @@
+        "label": "Ø Ecken",
+        "description": "Durchschnittliche Anzahl eigener Ecken pro Spiel im Formfenster."
+      },
+--    "corners_conceded_per_match_recent": {
+-+    "corners_conceded_per_match": {
++-    "corners_conceded_per_match": {
+++    "corners_against_per_match": {
+        "label": "Ø Ecken gegen",
+        "description": "Durchschnittliche Anzahl zugelassener Ecken pro Spiel im Formfenster."
+      },
+--    "save_ratio_recent": {
+-+    "save_ratio": {
+-       "label": "% Gehaltene Torschüsse",
+-       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren im Formfenster."
+-     }
+ diff --git a/site/i18n/en.json b/site/i18n/en.json
+-index 1ab3a73..41a3ffe 100644
++index 41a3ffe..9781d33 100644
+ --- a/site/i18n/en.json
+ +++ b/site/i18n/en.json
+-@@ -4,71 +4,56 @@
+-     "feedback": "Give feedback",
+-     "unavailable": "not available"
+-   },
+--  "metric": {
+--    "tabellenplatz": "League position",
+--    "punkteausbeute": "Points won",
+--    "tore": "Ø Goals",
+--    "gegentore": "Ø Goals against",
+--    "schuesse": "Ø Shots",
+--    "schuesseAufsTor": "% Shots on target",
+--    "schuesseAusStrafraum": "% Shots from box",
+--    "trefferquote": "% Conversion rate",
+--    "paesse": "Ø Passes",
+--    "angekommenePaesse": "% Pass accuracy",
+--    "ecken": "Ø Corners",
+--    "eckenGegen": "Ø Corners against",
+--    "gehalteneTorschuesse": "% Save percentage"
+--  },
+-   "metrics": {
+-     "league_rank": {
+-       "label": "League position",
+-       "description": "Standing before this matchday (when available)."
+-     },
+--    "points_won_form": {
+-+    "points_won": {
+-       "label": "Points won",
+-       "description": "League points earned in the form window as a share of the maximum possible (3 × games)."
+-     },
+--    "goals_per_match_recent": {
+-+    "goals_per_match": {
+-       "label": "Ø Goals",
+-       "description": "Average goals scored per match in the form window."
+-     },
+--    "goals_against_per_match_recent": {
+-+    "goals_against_per_match": {
+-       "label": "Ø Goals against",
+-       "description": "Average goals conceded per match in the form window."
+-     },
+--    "shots_per_match_recent": {
+-+    "shots_per_match": {
+-       "label": "Ø Shots",
+-       "description": "Average total shots per match in the form window."
+-     },
+--    "shot_accuracy_recent": {
+-+    "shot_accuracy": {
+-       "label": "% Shots on target",
+-       "description": "Share of shots on target out of all shots in the form window."
+-     },
+--    "danger_zone_ratio_recent": {
+-+    "danger_zone_ratio": {
+-       "label": "% Shots from box",
+-       "description": "Share of shots from inside the box out of all shots in the form window."
+-     },
+--    "finishing_efficiency_recent": {
+-+    "finishing_efficiency": {
+-       "label": "% Conversion rate",
+-       "description": "Goals per shot on target in the form window."
+-     },
+--    "passes_per_match_recent": {
+-+    "passes_per_match": {
+-       "label": "Ø Passes",
+-       "description": "Average passes attempted per match in the form window."
+-     },
+--    "pass_accuracy_recent": {
+-+    "pass_accuracy": {
+-       "label": "% Pass accuracy",
+-       "description": "Share of accurate passes out of all passes in the form window."
+-     },
+--    "corner_kicks_per_match_recent": {
+-+    "corner_kicks_per_match": {
++@@ -49,7 +49,7 @@
+        "label": "Ø Corners",
+        "description": "Average corners won per match in the form window."
+      },
+--    "corners_conceded_per_match_recent": {
+-+    "corners_conceded_per_match": {
++-    "corners_conceded_per_match": {
+++    "corners_against_per_match": {
+        "label": "Ø Corners against",
+        "description": "Average corners conceded per match in the form window."
+      },
+--    "save_ratio_recent": {
+-+    "save_ratio": {
+-       "label": "% Save percentage",
+-       "description": "Saves as a share of saves plus goals conceded in the form window."
+-     }
+ diff --git a/site/i18n/fi.json b/site/i18n/fi.json
+-index 8590b00..0af881c 100644
++index 0af881c..6dfd6a0 100644
+ --- a/site/i18n/fi.json
+ +++ b/site/i18n/fi.json
+-@@ -4,71 +4,56 @@
+-     "feedback": "Anna palautetta",
+-     "unavailable": "ei saatavilla"
+-   },
+--  "metric": {
+--    "tabellenplatz": "Sarjasijoitus",
+--    "punkteausbeute": "Pisteosuus",
+--    "tore": "Ø Maalit",
+--    "gegentore": "Ø Päästetyt maalit",
+--    "schuesse": "Ø Laukaukset",
+--    "schuesseAufsTor": "% Maalilaukaukset",
+--    "schuesseAusStrafraum": "% Laukaukset boksista",
+--    "trefferquote": "% Viimeistelytehokkuus",
+--    "paesse": "Ø Syötöt",
+--    "angekommenePaesse": "% Syöttötarkkuus",
+--    "ecken": "Ø Kulmapotkut",
+--    "eckenGegen": "Ø Päästetyt kulmapotkut",
+--    "gehalteneTorschuesse": "% Torjuntaosuus"
+--  },
+-   "metrics": {
+-     "league_rank": {
+-       "label": "Sarjasijoitus",
+-       "description": "Sijoitus sarjataulukossa ennen tätä ottelukierrosta (kun saatavilla)."
+-     },
+--    "points_won_form": {
+-+    "points_won": {
+-       "label": "Pisteosuus",
+-       "description": "Saavutettujen sarjapisteiden osuus mahdollisista maksimipisteistä kuntojakson aikana (3 × ottelut)."
+-     },
+--    "goals_per_match_recent": {
+-+    "goals_per_match": {
+-       "label": "Ø Maalit",
+-       "description": "Tehdyt maalit keskimäärin per ottelu kuntojakson aikana."
+-     },
+--    "goals_against_per_match_recent": {
+-+    "goals_against_per_match": {
+-       "label": "Ø Päästetyt maalit",
+-       "description": "Päästetyt maalit keskimäärin per ottelu kuntojakson aikana."
+-     },
+--    "shots_per_match_recent": {
+-+    "shots_per_match": {
+-       "label": "Ø Laukaukset",
+-       "description": "Kaikki laukaukset keskimäärin per ottelu kuntojakson aikana."
+-     },
+--    "shot_accuracy_recent": {
+-+    "shot_accuracy": {
+-       "label": "% Maalilaukaukset",
+-       "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
+-     },
+--    "danger_zone_ratio_recent": {
+-+    "danger_zone_ratio": {
+-       "label": "% Laukaukset boksista",
+-       "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
+-     },
+--    "finishing_efficiency_recent": {
+-+    "finishing_efficiency": {
+-       "label": "% Viimeistelytehokkuus",
+-       "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin kuntojakson aikana."
+-     },
+--    "passes_per_match_recent": {
+-+    "passes_per_match": {
+-       "label": "Ø Syötöt",
+-       "description": "Syöttöyritykset keskimäärin per ottelu kuntojakson aikana."
+-     },
+--    "pass_accuracy_recent": {
+-+    "pass_accuracy": {
+-       "label": "% Syöttötarkkuus",
+-       "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä kuntojakson aikana."
+-     },
+--    "corner_kicks_per_match_recent": {
+-+    "corner_kicks_per_match": {
++@@ -49,7 +49,7 @@
+        "label": "Ø Kulmapotkut",
+        "description": "Voitetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
+      },
+--    "corners_conceded_per_match_recent": {
+-+    "corners_conceded_per_match": {
++-    "corners_conceded_per_match": {
+++    "corners_against_per_match": {
+        "label": "Ø Päästetyt kulmapotkut",
+        "description": "Vastustajalle annetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
+      },
+--    "save_ratio_recent": {
+-+    "save_ratio": {
+-       "label": "% Torjuntaosuus",
+-       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
+-     }
+-diff --git a/site/match-preview/index.html b/site/match-preview/index.html
+-index 8df0d69..2344045 100644
+---- a/site/match-preview/index.html
+-+++ b/site/match-preview/index.html
+-@@ -620,26 +620,10 @@
+-       return Number.isFinite(n) ? String(n) : "-";
+-     }
+- 
+--    const LEGACY_METRIC_LABEL_KEYS = {
+--      league_rank: "metric.tabellenplatz",
+--      points_won_form: "metric.punkteausbeute",
+--      goals_per_match_recent: "metric.tore",
+--      goals_against_per_match_recent: "metric.gegentore",
+--      shots_per_match_recent: "metric.schuesse",
+--      shot_accuracy_recent: "metric.schuesseAufsTor",
+--      danger_zone_ratio_recent: "metric.schuesseAusStrafraum",
+--      finishing_efficiency_recent: "metric.trefferquote",
+--      passes_per_match_recent: "metric.paesse",
+--      pass_accuracy_recent: "metric.angekommenePaesse",
+--      corner_kicks_per_match_recent: "metric.ecken",
+--      corners_conceded_per_match_recent: "metric.eckenGegen",
+--      save_ratio_recent: "metric.gehalteneTorschuesse",
+--    };
+--
+--    function metricLabel(metricId) {
+--      const legacy = LEGACY_METRIC_LABEL_KEYS[metricId];
+--      const fallback = legacy ? t(legacy, metricId) : metricId;
+--      return t(`metrics.${metricId}.label`, fallback);
+-+    function metricLabel(def, metricId) {
+-+      // The metric's i18n label key is stamped into the data file by
+-+      // scripts/export_metric_definitions_json.py (from the catalogue's label_i18n_key).
+-+      return def && def.label ? t(def.label, metricId) : metricId;
+-     }
+- 
+-     function escHtml(s) {
+-@@ -674,7 +658,7 @@
+-         const homeRaw = def.home_column ? r[def.home_column] : null;
+-         const awayRaw = def.away_column ? r[def.away_column] : null;
+-         return {
+--          label: metricLabel(metricId),
+-+          label: metricLabel(def, metricId),
+-           home: formatDisplay(homeRaw, def.format, "home"),
+-           away: formatDisplay(awayRaw, def.format, "away"),
+-           homeNum: compareNum(homeRaw, def.format, "home"),
++diff --git a/site/match-preview/metric_bindings.csv b/site/match-preview/metric_bindings.csv
++index 5c2ffd1..48cc605 100644
++--- a/site/match-preview/metric_bindings.csv
+++++ b/site/match-preview/metric_bindings.csv
++@@ -10,5 +10,5 @@ finishing_efficiency_recent,finishing_efficiency,home_finishing_efficiency_recen
++ passes_per_match_recent,passes_per_match,home_passes_per_match_recent,away_passes_per_match_recent,match_preview
++ pass_accuracy_recent,pass_accuracy,home_pass_accuracy_recent,away_pass_accuracy_recent,match_preview
++ corner_kicks_per_match_recent,corner_kicks_per_match,home_corner_kicks_per_match_recent,away_corner_kicks_per_match_recent,match_preview
++-corners_conceded_per_match_recent,corners_conceded_per_match,home_corners_conceded_per_match_recent,away_corners_conceded_per_match_recent,match_preview
+++corners_against_per_match_recent,corners_against_per_match,home_corners_against_per_match_recent,away_corners_against_per_match_recent,match_preview
++ save_ratio_recent,save_ratio,home_save_ratio_recent,away_save_ratio_recent,match_preview
+ diff --git a/site/match-preview/metric_definitions.json b/site/match-preview/metric_definitions.json
+-index 831a5bf..32042c4 100644
++index 32042c4..9195a60 100644
+ --- a/site/match-preview/metric_definitions.json
+ +++ b/site/match-preview/metric_definitions.json
+-@@ -1,5 +1,6 @@
+- {
+-   "league_rank": {
+-+    "label": "metrics.league_rank.label",
+-     "format": "integer",
+-     "context": "match_preview",
+-     "lower_is_better": true,
+-@@ -7,18 +8,21 @@
+-     "away_column": "away_league_rank"
+-   },
+-   "points_won_form": {
+-+    "label": "metrics.points_won.label",
+-     "format": "points_fraction",
+-     "context": "match_preview",
+-     "home_column": "home_points_won_sum_form",
+-     "away_column": "away_points_won_sum_form"
+-   },
+-   "goals_per_match_recent": {
+-+    "label": "metrics.goals_per_match.label",
+-     "format": "decimal_1",
+-     "context": "match_preview",
+-     "home_column": "home_goals_per_match_recent",
+-     "away_column": "away_goals_per_match_recent"
+-   },
+-   "goals_against_per_match_recent": {
+-+    "label": "metrics.goals_against_per_match.label",
+-     "format": "decimal_1",
+-     "context": "match_preview",
+-     "lower_is_better": true,
+-@@ -26,48 +30,56 @@
+-     "away_column": "away_goals_against_per_match_recent"
+-   },
+-   "shots_per_match_recent": {
+-+    "label": "metrics.shots_per_match.label",
+-     "format": "decimal_1",
+-     "context": "match_preview",
+-     "home_column": "home_shots_per_match_recent",
+-     "away_column": "away_shots_per_match_recent"
+-   },
+-   "shot_accuracy_recent": {
+-+    "label": "metrics.shot_accuracy.label",
+-     "format": "percent",
+-     "context": "match_preview",
+-     "home_column": "home_shot_accuracy_recent",
+-     "away_column": "away_shot_accuracy_recent"
+-   },
+-   "danger_zone_ratio_recent": {
+-+    "label": "metrics.danger_zone_ratio.label",
+-     "format": "percent",
+-     "context": "match_preview",
+-     "home_column": "home_danger_zone_ratio_recent",
+-     "away_column": "away_danger_zone_ratio_recent"
+-   },
+-   "finishing_efficiency_recent": {
+-+    "label": "metrics.finishing_efficiency.label",
+-     "format": "percent",
+-     "context": "match_preview",
+-     "home_column": "home_finishing_efficiency_recent",
+-     "away_column": "away_finishing_efficiency_recent"
+-   },
+-   "passes_per_match_recent": {
+-+    "label": "metrics.passes_per_match.label",
+-     "format": "decimal_0",
+-     "context": "match_preview",
+-     "home_column": "home_passes_per_match_recent",
+-     "away_column": "away_passes_per_match_recent"
+-   },
+-   "pass_accuracy_recent": {
+-+    "label": "metrics.pass_accuracy.label",
+-     "format": "percent",
+-     "context": "match_preview",
+-     "home_column": "home_pass_accuracy_recent",
+-     "away_column": "away_pass_accuracy_recent"
+-   },
+-   "corner_kicks_per_match_recent": {
+-+    "label": "metrics.corner_kicks_per_match.label",
+-     "format": "decimal_1",
+-     "context": "match_preview",
++@@ -78,13 +78,13 @@
+      "home_column": "home_corner_kicks_per_match_recent",
+      "away_column": "away_corner_kicks_per_match_recent"
+    },
+-   "corners_conceded_per_match_recent": {
+-+    "label": "metrics.corners_conceded_per_match.label",
++-  "corners_conceded_per_match_recent": {
++-    "label": "metrics.corners_conceded_per_match.label",
+++  "corners_against_per_match_recent": {
+++    "label": "metrics.corners_against_per_match.label",
+      "format": "decimal_1",
+      "context": "match_preview",
+      "lower_is_better": true,
+-@@ -75,6 +87,7 @@
+-     "away_column": "away_corners_conceded_per_match_recent"
++-    "home_column": "home_corners_conceded_per_match_recent",
++-    "away_column": "away_corners_conceded_per_match_recent"
+++    "home_column": "home_corners_against_per_match_recent",
+++    "away_column": "away_corners_against_per_match_recent"
+    },
+    "save_ratio_recent": {
+-+    "label": "metrics.save_ratio.label",
+-     "format": "percent",
+-     "context": "match_preview",
+-     "home_column": "home_save_ratio_recent",
++     "label": "metrics.save_ratio.label",
++diff --git a/site/match-preview/metric_manifest.json b/site/match-preview/metric_manifest.json
++index b62bba8..57c864a 100644
++--- a/site/match-preview/metric_manifest.json
+++++ b/site/match-preview/metric_manifest.json
++@@ -11,7 +11,7 @@
++     { "metric_id": "passes_per_match_recent", "band": "b" },
++     { "metric_id": "pass_accuracy_recent", "band": "b" },
++     { "metric_id": "corner_kicks_per_match_recent", "band": "a" },
++-    { "metric_id": "corners_conceded_per_match_recent", "band": "a" },
+++    { "metric_id": "corners_against_per_match_recent", "band": "a" },
++     { "metric_id": "save_ratio_recent", "band": "b" }
++   ]
++ }
+ diff --git a/site/team-season/index.html b/site/team-season/index.html
+-index b53bfcb..69f442d 100644
++index 69f442d..5bb87b5 100644
+ --- a/site/team-season/index.html
+ +++ b/site/team-season/index.html
+-@@ -339,19 +339,19 @@
+-       //   a: Ø Ecken, Ø Ecken gegen               (set pieces)
+-       //   b: Gehaltene Torschüsse                 (keeper)
+-       const rows = [
+--        { label: t("metric.tabellenplatz",         "Tabellenplatz"),               value: rankDisplay(row),                                band: "a" },
+--        { label: t("metric.punkteausbeute",        "Punkteausbeute"),              value: pointsDisplay(row),                              band: "a" },
+--        { label: t("metric.tore",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
+--        { label: t("metric.gegentore",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
+--        { label: t("metric.schuesse",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
+--        { label: t("metric.schuesseAufsTor",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
+--        { label: t("metric.schuesseAusStrafraum",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
+--        { label: t("metric.trefferquote",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
+--        { label: t("metric.paesse",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
+--        { label: t("metric.angekommenePaesse",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
+--        { label: t("metric.ecken",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
+--        { label: t("metric.eckenGegen",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
+--        { label: t("metric.gehalteneTorschuesse", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
+-+        { label: t("metrics.league_rank.label",         "Tabellenplatz"),               value: rankDisplay(row),                                band: "a" },
+-+        { label: t("metrics.points_won.label",        "Punkteausbeute"),              value: pointsDisplay(row),                              band: "a" },
+-+        { label: t("metrics.goals_per_match.label",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
+-+        { label: t("metrics.goals_against_per_match.label",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
+-+        { label: t("metrics.shots_per_match.label",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
+-+        { label: t("metrics.shot_accuracy.label",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
+-+        { label: t("metrics.danger_zone_ratio.label",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
+-+        { label: t("metrics.finishing_efficiency.label",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
+-+        { label: t("metrics.passes_per_match.label",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
+-+        { label: t("metrics.pass_accuracy.label",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
+-+        { label: t("metrics.corner_kicks_per_match.label",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
+-+        { label: t("metrics.corners_conceded_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
+-+        { label: t("metrics.save_ratio.label", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
++@@ -350,7 +350,7 @@
++         { label: t("metrics.passes_per_match.label",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
++         { label: t("metrics.pass_accuracy.label",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
++         { label: t("metrics.corner_kicks_per_match.label",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
++-        { label: t("metrics.corners_conceded_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
+++        { label: t("metrics.corners_against_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_against_per_match_season, 1), band: "a" },
++         { label: t("metrics.save_ratio.label", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
+        ];
+        return rows.map((r) => `
+-         <div class="metric metric-band-${r.band}">
+diff --git a/dbt_project/macros/team_benchmark_metrics.sql b/dbt_project/macros/team_benchmark_metrics.sql
+index acf8683..96bbe79 100644
+--- a/dbt_project/macros/team_benchmark_metrics.sql
++++ b/dbt_project/macros/team_benchmark_metrics.sql
+@@ -26,7 +26,7 @@
+         ('pass_accuracy', 'pass_accuracy_season'),
+         ('key_passes_per_match', 'key_passes_per_match_season'),
+         ('corner_kicks_per_match', 'corner_kicks_per_match_season'),
+-        ('corners_conceded_per_match', 'corners_conceded_per_match_season'),
++        ('corners_against_per_match', 'corners_against_per_match_season'),
+         ('save_ratio', 'save_ratio_season')
+     ] %}
+     {{ return(metrics) }}
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+index b6712bb..1d0daa6 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+@@ -157,7 +157,7 @@ select
+     case
+         when games_with_opp_stats < games_played then null
+         else safe_divide(opponent_corner_kicks, games_with_opp_stats)
+-    end as corners_conceded_per_match_season,
++    end as corners_against_per_match_season,
+     -- save_ratio: byte-identical to the prior model (which divided by goals_against TOTAL) — the
+     -- gate makes BOTH null on partial save coverage, and when fully covered every game is
+     -- save-covered so goals_against_in_save_games == goals_against (verified 0/12537).
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index b9a39f0..72e4b10 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -23,7 +23,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: team_count
+         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 770458a..cbf4412 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -39,7 +39,7 @@ models:
+         description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency."
+         tests: [not_null]
+       - name: games_with_opp_stats
+-        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_conceded_per_match."
++        description: "Count of window legs with opponent team stats present. Denominator/gate for corners_against_per_match."
+         tests: [not_null]
+       - name: games_with_save_stats
+         description: "Count of window legs with goalkeeper_saves present — save_ratio's own coverage bucket (saves can be null where other team stats are present), used to NULL save_ratio on partial coverage."
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index 0c3549b..2801741 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -238,9 +238,9 @@ models:
+         description: "Home: corners won per game with team stats."
+       - name: away_corner_kicks_per_match_recent
+         description: "Away: corners won per game with team stats."
+-      - name: home_corners_conceded_per_match_recent
++      - name: home_corners_against_per_match_recent
+         description: "Home: corners conceded per game with opponent stats."
+-      - name: away_corners_conceded_per_match_recent
++      - name: away_corners_against_per_match_recent
+         description: "Away: corners conceded per game with opponent stats."
+       - name: home_save_ratio_recent
+         description: "Home: saves / (saves + goals conceded in save-covered games); self-bounded."
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+index 67a590b..8b18dd1 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+@@ -152,7 +152,7 @@ select
+     mh.passes_per_match as home_passes_per_match_recent,
+     mh.pass_accuracy as home_pass_accuracy_recent,
+     mh.corner_kicks_per_match as home_corner_kicks_per_match_recent,
+-    mh.corners_conceded_per_match as home_corners_conceded_per_match_recent,
++    mh.corners_against_per_match as home_corners_against_per_match_recent,
+     mh.save_ratio as home_save_ratio_recent,
+     -- away form window (from mart_team_momentum).
+     ma.goals_per_match as away_goals_per_match_recent,
+@@ -164,7 +164,7 @@ select
+     ma.passes_per_match as away_passes_per_match_recent,
+     ma.pass_accuracy as away_pass_accuracy_recent,
+     ma.corner_kicks_per_match as away_corner_kicks_per_match_recent,
+-    ma.corners_conceded_per_match as away_corners_conceded_per_match_recent,
++    ma.corners_against_per_match as away_corners_against_per_match_recent,
+     ma.save_ratio as away_save_ratio_recent,
+     -- form games/points: 0 (not null) when a team has no finished matches in the
+     -- window. coalesce calculations sort after the simple columns above (ST06).
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+index 80ae01c..2a3c85b 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+@@ -84,7 +84,7 @@ select
+     m.pass_accuracy_season,
+     m.passes_per_match_season,
+     m.corner_kicks_per_match_season,
+-    m.corners_conceded_per_match_season,
++    m.corners_against_per_match_season,
+     m.save_ratio_season
+ from latest_season_metrics as m
+ inner join dim_team as t on m.team_sk = t.team_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+index 53e0747..e98d4b5 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+@@ -92,7 +92,7 @@ select
+     case
+         when b.games_with_opp_stats < b.games_in_window then null
+         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
+-        as corners_conceded_per_match,
++        as corners_against_per_match,
+     -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded.
+     -- NULL on partial save coverage (the new games_with_save_stats).
+     case
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index b44837a..153c1b4 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -86,7 +86,7 @@ select
+     m.pass_accuracy_season,
+     m.passes_per_match_season,
+     m.corner_kicks_per_match_season,
+-    m.corners_conceded_per_match_season,
++    m.corners_against_per_match_season,
+     m.save_ratio_season,
+     -- GAP-13: locked-contract season variants (player-derived ones inherit
+     -- player-stat coverage gaps; caption from player_stat_coverage_season_games)
+diff --git a/dbt_project/models/5_marts/shared/mart_team_season_record.sql b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+index fa4cb1f..6cf5bec 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+@@ -80,7 +80,7 @@ matched as (
+         m.passes_per_match_season as passes_per_match,
+         m.pass_accuracy_season as pass_accuracy,
+         m.corner_kicks_per_match_season as corner_kicks_per_match,
+-        m.corners_conceded_per_match_season as corners_conceded_per_match,
++        m.corners_against_per_match_season as corners_against_per_match,
+         m.save_ratio_season as save_ratio,
+         m.key_passes_per_match_season as key_passes_per_match,
+         m.tackles_per_match_season as tackles_per_match,
+@@ -137,7 +137,7 @@ select
+     passes_per_match,
+     pass_accuracy,
+     corner_kicks_per_match,
+-    corners_conceded_per_match,
++    corners_against_per_match,
+     save_ratio,
+     key_passes_per_match,
+     tackles_per_match,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 5c0cb92..8f66ca4 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1077,7 +1077,7 @@ models:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_conceded_per_match", "save_ratio"]
++              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+       - name: metric_value
+         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
+         tests: [not_null]
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 8ab9987..47a00a2 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -22,7 +22,7 @@ passes_per_match,team,metrics.passes_per_match.label,Average passes attempted pe
+ pass_accuracy,team,metrics.pass_accuracy.label,Share of passes successfully completed. Null when passes_total is zero.,passes_accurate,passes_total,false,percent,passing,2,2,higher_better,Passing security - completion rate; high = keeps the ball well
+ key_passes_per_match,team,metrics.key_passes_per_match.label,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,key_passes,games,false,decimal_1,passing,2,3,higher_better,Creativity - passes leading to a shot; high = creates chances
+ corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,corner_kicks,games,false,decimal_1,set_pieces,3,1,neutral,Corner volume won - sustained attacking pressure (a weak proxy)
+-corners_conceded_per_match,team,metrics.corners_conceded_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,opponent_corner_kicks,games,true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
++corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,opponent_corner_kicks,games,true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
+ save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,goalkeeper_saves,goalkeeper_saves + goals_against,false,percent,goalkeeping,2,1,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
+ goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,goals_total,,false,integer,goals,,1,,
+ assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,goals_assists,,false,integer,goals,,1,,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 268d4a6..96653c9 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -84,11 +84,11 @@ seeds:
+         tests:
+           - not_null
+       - name: entity
+-        description: "Whether this metric describes a team or a player."
++        description: "Whether this metric describes a team, a player, or both."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["team", "player"]
++              values: ["team", "player", "team and player"]
+       - name: label_i18n_key
+         description: "i18n key for the human-readable label."
+         tests: [not_null]
+diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
+index c4733f0..a3b3b97 100644
+--- a/docs/wireframes/02_team_profile.md
++++ b/docs/wireframes/02_team_profile.md
+@@ -141,7 +141,7 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
+ | Ø Passes | `passes_per_match_season` |
+ | % Pass accuracy | `pass_accuracy_season` |
+ | Ø Corners | `corner_kicks_per_match_season` |
+-| Ø Corners against | `corners_conceded_per_match_season` |
++| Ø Corners against | `corners_against_per_match_season` |
+ | % Save percentage | `save_ratio_season` |
  
+ **Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index eb570c1..3909b75 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -85,7 +85,7 @@ Set pieces → Goalkeeping.
+ | 12 | % Pass accuracy | `pass_accuracy` | Passing | 2 | live |
+ | 13 | Ø Key passes | `key_passes_per_match` | Passing | 2 | live |
+ | 14 | Ø Corners | `corner_kicks_per_match` | Set pieces | 3 | live |
+-| 15 | Ø Corners against | `corners_conceded_per_match` | Set pieces | 3 | live |
++| 15 | Ø Corners against | `corners_against_per_match` | Set pieces | 3 | live |
+ | 16 | % Save percentage | `save_ratio` | Goalkeeping | 2 | live |
  
-diff --git a/scripts/export_metric_definitions_json.py b/scripts/export_metric_definitions_json.py
-index bfbc6e4..d1c612b 100644
---- a/scripts/export_metric_definitions_json.py
-+++ b/scripts/export_metric_definitions_json.py
-@@ -3,7 +3,7 @@
- 
- Composes two sources (the catalogue is never modified here):
-   - metric_catalogue.csv  — the single source of truth for each metric. This script reads
--    ONLY `format` and `lower_is_better` (direction) from it.
-+    `format`, `lower_is_better` (direction), and `label_i18n_key` from it.
-   - metric_bindings.csv   — the live display wiring: each windowed live id, the catalogue
-     metric it maps to, the JSON columns that feed it, and the render context.
- 
-@@ -25,7 +25,7 @@ def _truthy(value: str | None) -> bool:
- 
- 
- def load_catalogue(path: Path) -> dict[str, dict[str, object]]:
--    """metric_id -> {format, lower_is_better} from the catalogue SSoT."""
-+    """metric_id -> {format, lower_is_better, label_i18n_key} from the catalogue SSoT."""
-     catalogue: dict[str, dict[str, object]] = {}
-     with path.open(newline="", encoding="utf-8") as f:
-         for row in csv.DictReader(f):
-@@ -35,6 +35,7 @@ def load_catalogue(path: Path) -> dict[str, dict[str, object]]:
-             catalogue[mid] = {
-                 "format": (row.get("format") or "").strip(),
-                 "lower_is_better": _truthy(row.get("lower_is_better")),
-+                "label_i18n_key": (row.get("label_i18n_key") or "").strip(),
-             }
-     return catalogue
- 
-@@ -54,10 +55,11 @@ def build_defs(bindings_path: Path, catalogue_path: Path) -> dict[str, dict[str,
-                 raise SystemExit(
-                     f"metric_bindings: '{live_id}' references unknown catalogue metric '{cat_id}'"
-                 )
--            entry: dict[str, object] = {
--                "format": cat_row["format"],
--                "context": (row.get("context") or "").strip(),
--            }
-+            entry: dict[str, object] = {}
-+            if cat_row["label_i18n_key"]:
-+                entry["label"] = cat_row["label_i18n_key"]
-+            entry["format"] = cat_row["format"]
-+            entry["context"] = (row.get("context") or "").strip()
-             if cat_row["lower_is_better"]:
-                 entry["lower_is_better"] = True
-             for col in ("home_column", "away_column", "single_column"):
-diff --git a/site/i18n.js b/site/i18n.js
-index 0425600..aee96cf 100644
---- a/site/i18n.js
-+++ b/site/i18n.js
-@@ -11,7 +11,7 @@
-  *   <button data-i18n-attr="aria-label:nav.prev">…</button>
-  *
-  * Usage in JS:
-- *   window.t("metric.tabellenplatz", "Tabellenplatz")  // sync read
-+ *   window.t("metrics.league_rank.label", "League position")  // sync read
-  *   window.MATCHDAYIQ_I18N_READY.then((strings) => render(data))  // await load
-  *
-  * Switching:
+ Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
 diff --git a/site/i18n/de.json b/site/i18n/de.json
-index a888f92..68b6c50 100644
+index 68b6c50..2c0ba9d 100644
 --- a/site/i18n/de.json
 +++ b/site/i18n/de.json
-@@ -4,71 +4,56 @@
-     "feedback": "Feedback geben",
-     "unavailable": "nicht verfügbar"
-   },
--  "metric": {
--    "tabellenplatz": "Tabellenplatz",
--    "punkteausbeute": "Punkteausbeute",
--    "tore": "Ø Tore",
--    "gegentore": "Ø Gegentore",
--    "schuesse": "Ø Schüsse",
--    "schuesseAufsTor": "% Schüsse aufs Tor",
--    "schuesseAusStrafraum": "% Schüsse aus dem Strafraum",
--    "trefferquote": "% Trefferquote",
--    "paesse": "Ø Pässe",
--    "angekommenePaesse": "% Angekommene Pässe",
--    "ecken": "Ø Ecken",
--    "eckenGegen": "Ø Ecken gegen",
--    "gehalteneTorschuesse": "% Gehaltene Torschüsse"
--  },
-   "metrics": {
-     "league_rank": {
-       "label": "Tabellenplatz",
-       "description": "Platzierung vor diesem Spieltag (wenn verfügbar)."
-     },
--    "points_won_form": {
-+    "points_won": {
-       "label": "Punkteausbeute",
-       "description": "Erzielte Ligapunkte im Formfenster im Verhältnis zu maximal möglichen Punkten (3 × Spiele)."
-     },
--    "goals_per_match_recent": {
-+    "goals_per_match": {
-       "label": "Ø Tore",
-       "description": "Durchschnittlich erzielte Tore pro Spiel im Formfenster."
-     },
--    "goals_against_per_match_recent": {
-+    "goals_against_per_match": {
-       "label": "Ø Gegentore",
-       "description": "Durchschnittlich kassierte Tore pro Spiel im Formfenster."
-     },
--    "shots_per_match_recent": {
-+    "shots_per_match": {
-       "label": "Ø Schüsse",
-       "description": "Durchschnittliche Anzahl aller Abschlüsse pro Spiel im Formfenster."
-     },
--    "shot_accuracy_recent": {
-+    "shot_accuracy": {
-       "label": "% Schüsse aufs Tor",
-       "description": "Anteil der Schüsse aufs Tor an allen Schüssen im Formfenster."
-     },
--    "danger_zone_ratio_recent": {
-+    "danger_zone_ratio": {
-       "label": "% Schüsse aus dem Strafraum",
-       "description": "Anteil der Schüsse aus dem Strafraum an allen Schüssen im Formfenster."
-     },
--    "finishing_efficiency_recent": {
-+    "finishing_efficiency": {
-       "label": "% Trefferquote",
-       "description": "Tore je Schuss aufs Tor im Formfenster."
-     },
--    "passes_per_match_recent": {
-+    "passes_per_match": {
-       "label": "Ø Pässe",
-       "description": "Durchschnittliche Anzahl gespielter Pässe pro Spiel im Formfenster."
-     },
--    "pass_accuracy_recent": {
-+    "pass_accuracy": {
-       "label": "% Angekommene Pässe",
-       "description": "Anteil genauer Pässe an allen Pässen im Formfenster."
-     },
--    "corner_kicks_per_match_recent": {
-+    "corner_kicks_per_match": {
+@@ -49,7 +49,7 @@
        "label": "Ø Ecken",
        "description": "Durchschnittliche Anzahl eigener Ecken pro Spiel im Formfenster."
      },
--    "corners_conceded_per_match_recent": {
-+    "corners_conceded_per_match": {
+-    "corners_conceded_per_match": {
++    "corners_against_per_match": {
        "label": "Ø Ecken gegen",
        "description": "Durchschnittliche Anzahl zugelassener Ecken pro Spiel im Formfenster."
      },
--    "save_ratio_recent": {
-+    "save_ratio": {
-       "label": "% Gehaltene Torschüsse",
-       "description": "Paraden im Verhältnis zu Paraden plus Gegentoren im Formfenster."
-     }
 diff --git a/site/i18n/en.json b/site/i18n/en.json
-index 1ab3a73..41a3ffe 100644
+index 41a3ffe..9781d33 100644
 --- a/site/i18n/en.json
 +++ b/site/i18n/en.json
-@@ -4,71 +4,56 @@
-     "feedback": "Give feedback",
-     "unavailable": "not available"
-   },
--  "metric": {
--    "tabellenplatz": "League position",
--    "punkteausbeute": "Points won",
--    "tore": "Ø Goals",
--    "gegentore": "Ø Goals against",
--    "schuesse": "Ø Shots",
--    "schuesseAufsTor": "% Shots on target",
--    "schuesseAusStrafraum": "% Shots from box",
--    "trefferquote": "% Conversion rate",
--    "paesse": "Ø Passes",
--    "angekommenePaesse": "% Pass accuracy",
--    "ecken": "Ø Corners",
--    "eckenGegen": "Ø Corners against",
--    "gehalteneTorschuesse": "% Save percentage"
--  },
-   "metrics": {
-     "league_rank": {
-       "label": "League position",
-       "description": "Standing before this matchday (when available)."
-     },
--    "points_won_form": {
-+    "points_won": {
-       "label": "Points won",
-       "description": "League points earned in the form window as a share of the maximum possible (3 × games)."
-     },
--    "goals_per_match_recent": {
-+    "goals_per_match": {
-       "label": "Ø Goals",
-       "description": "Average goals scored per match in the form window."
-     },
--    "goals_against_per_match_recent": {
-+    "goals_against_per_match": {
-       "label": "Ø Goals against",
-       "description": "Average goals conceded per match in the form window."
-     },
--    "shots_per_match_recent": {
-+    "shots_per_match": {
-       "label": "Ø Shots",
-       "description": "Average total shots per match in the form window."
-     },
--    "shot_accuracy_recent": {
-+    "shot_accuracy": {
-       "label": "% Shots on target",
-       "description": "Share of shots on target out of all shots in the form window."
-     },
--    "danger_zone_ratio_recent": {
-+    "danger_zone_ratio": {
-       "label": "% Shots from box",
-       "description": "Share of shots from inside the box out of all shots in the form window."
-     },
--    "finishing_efficiency_recent": {
-+    "finishing_efficiency": {
-       "label": "% Conversion rate",
-       "description": "Goals per shot on target in the form window."
-     },
--    "passes_per_match_recent": {
-+    "passes_per_match": {
-       "label": "Ø Passes",
-       "description": "Average passes attempted per match in the form window."
-     },
--    "pass_accuracy_recent": {
-+    "pass_accuracy": {
-       "label": "% Pass accuracy",
-       "description": "Share of accurate passes out of all passes in the form window."
-     },
--    "corner_kicks_per_match_recent": {
-+    "corner_kicks_per_match": {
+@@ -49,7 +49,7 @@
        "label": "Ø Corners",
        "description": "Average corners won per match in the form window."
      },
--    "corners_conceded_per_match_recent": {
-+    "corners_conceded_per_match": {
+-    "corners_conceded_per_match": {
++    "corners_against_per_match": {
        "label": "Ø Corners against",
        "description": "Average corners conceded per match in the form window."
      },
--    "save_ratio_recent": {
-+    "save_ratio": {
-       "label": "% Save percentage",
-       "description": "Saves as a share of saves plus goals conceded in the form window."
-     }
 diff --git a/site/i18n/fi.json b/site/i18n/fi.json
-index 8590b00..0af881c 100644
+index 0af881c..6dfd6a0 100644
 --- a/site/i18n/fi.json
 +++ b/site/i18n/fi.json
-@@ -4,71 +4,56 @@
-     "feedback": "Anna palautetta",
-     "unavailable": "ei saatavilla"
-   },
--  "metric": {
--    "tabellenplatz": "Sarjasijoitus",
--    "punkteausbeute": "Pisteosuus",
--    "tore": "Ø Maalit",
--    "gegentore": "Ø Päästetyt maalit",
--    "schuesse": "Ø Laukaukset",
--    "schuesseAufsTor": "% Maalilaukaukset",
--    "schuesseAusStrafraum": "% Laukaukset boksista",
--    "trefferquote": "% Viimeistelytehokkuus",
--    "paesse": "Ø Syötöt",
--    "angekommenePaesse": "% Syöttötarkkuus",
--    "ecken": "Ø Kulmapotkut",
--    "eckenGegen": "Ø Päästetyt kulmapotkut",
--    "gehalteneTorschuesse": "% Torjuntaosuus"
--  },
-   "metrics": {
-     "league_rank": {
-       "label": "Sarjasijoitus",
-       "description": "Sijoitus sarjataulukossa ennen tätä ottelukierrosta (kun saatavilla)."
-     },
--    "points_won_form": {
-+    "points_won": {
-       "label": "Pisteosuus",
-       "description": "Saavutettujen sarjapisteiden osuus mahdollisista maksimipisteistä kuntojakson aikana (3 × ottelut)."
-     },
--    "goals_per_match_recent": {
-+    "goals_per_match": {
-       "label": "Ø Maalit",
-       "description": "Tehdyt maalit keskimäärin per ottelu kuntojakson aikana."
-     },
--    "goals_against_per_match_recent": {
-+    "goals_against_per_match": {
-       "label": "Ø Päästetyt maalit",
-       "description": "Päästetyt maalit keskimäärin per ottelu kuntojakson aikana."
-     },
--    "shots_per_match_recent": {
-+    "shots_per_match": {
-       "label": "Ø Laukaukset",
-       "description": "Kaikki laukaukset keskimäärin per ottelu kuntojakson aikana."
-     },
--    "shot_accuracy_recent": {
-+    "shot_accuracy": {
-       "label": "% Maalilaukaukset",
-       "description": "Maalia kohti menneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
-     },
--    "danger_zone_ratio_recent": {
-+    "danger_zone_ratio": {
-       "label": "% Laukaukset boksista",
-       "description": "Rangaistusalueelta lähteneiden laukausten osuus kaikista laukauksista kuntojakson aikana."
-     },
--    "finishing_efficiency_recent": {
-+    "finishing_efficiency": {
-       "label": "% Viimeistelytehokkuus",
-       "description": "Kuinka usein maalia kohti mennyt laukaus tuottaa maalin kuntojakson aikana."
-     },
--    "passes_per_match_recent": {
-+    "passes_per_match": {
-       "label": "Ø Syötöt",
-       "description": "Syöttöyritykset keskimäärin per ottelu kuntojakson aikana."
-     },
--    "pass_accuracy_recent": {
-+    "pass_accuracy": {
-       "label": "% Syöttötarkkuus",
-       "description": "Onnistuneiden syöttöjen osuus kaikista syötöistä kuntojakson aikana."
-     },
--    "corner_kicks_per_match_recent": {
-+    "corner_kicks_per_match": {
+@@ -49,7 +49,7 @@
        "label": "Ø Kulmapotkut",
        "description": "Voitetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
      },
--    "corners_conceded_per_match_recent": {
-+    "corners_conceded_per_match": {
+-    "corners_conceded_per_match": {
++    "corners_against_per_match": {
        "label": "Ø Päästetyt kulmapotkut",
        "description": "Vastustajalle annetut kulmapotkut keskimäärin per ottelu kuntojakson aikana."
      },
--    "save_ratio_recent": {
-+    "save_ratio": {
-       "label": "% Torjuntaosuus",
-       "description": "Torjunnat suhteessa torjuntoihin ja päästettyihin maaleihin kuntojakson aikana."
-     }
-diff --git a/site/match-preview/index.html b/site/match-preview/index.html
-index 8df0d69..2344045 100644
---- a/site/match-preview/index.html
-+++ b/site/match-preview/index.html
-@@ -620,26 +620,10 @@
-       return Number.isFinite(n) ? String(n) : "-";
-     }
- 
--    const LEGACY_METRIC_LABEL_KEYS = {
--      league_rank: "metric.tabellenplatz",
--      points_won_form: "metric.punkteausbeute",
--      goals_per_match_recent: "metric.tore",
--      goals_against_per_match_recent: "metric.gegentore",
--      shots_per_match_recent: "metric.schuesse",
--      shot_accuracy_recent: "metric.schuesseAufsTor",
--      danger_zone_ratio_recent: "metric.schuesseAusStrafraum",
--      finishing_efficiency_recent: "metric.trefferquote",
--      passes_per_match_recent: "metric.paesse",
--      pass_accuracy_recent: "metric.angekommenePaesse",
--      corner_kicks_per_match_recent: "metric.ecken",
--      corners_conceded_per_match_recent: "metric.eckenGegen",
--      save_ratio_recent: "metric.gehalteneTorschuesse",
--    };
--
--    function metricLabel(metricId) {
--      const legacy = LEGACY_METRIC_LABEL_KEYS[metricId];
--      const fallback = legacy ? t(legacy, metricId) : metricId;
--      return t(`metrics.${metricId}.label`, fallback);
-+    function metricLabel(def, metricId) {
-+      // The metric's i18n label key is stamped into the data file by
-+      // scripts/export_metric_definitions_json.py (from the catalogue's label_i18n_key).
-+      return def && def.label ? t(def.label, metricId) : metricId;
-     }
- 
-     function escHtml(s) {
-@@ -674,7 +658,7 @@
-         const homeRaw = def.home_column ? r[def.home_column] : null;
-         const awayRaw = def.away_column ? r[def.away_column] : null;
-         return {
--          label: metricLabel(metricId),
-+          label: metricLabel(def, metricId),
-           home: formatDisplay(homeRaw, def.format, "home"),
-           away: formatDisplay(awayRaw, def.format, "away"),
-           homeNum: compareNum(homeRaw, def.format, "home"),
+diff --git a/site/match-preview/metric_bindings.csv b/site/match-preview/metric_bindings.csv
+index 5c2ffd1..48cc605 100644
+--- a/site/match-preview/metric_bindings.csv
++++ b/site/match-preview/metric_bindings.csv
+@@ -10,5 +10,5 @@ finishing_efficiency_recent,finishing_efficiency,home_finishing_efficiency_recen
+ passes_per_match_recent,passes_per_match,home_passes_per_match_recent,away_passes_per_match_recent,match_preview
+ pass_accuracy_recent,pass_accuracy,home_pass_accuracy_recent,away_pass_accuracy_recent,match_preview
+ corner_kicks_per_match_recent,corner_kicks_per_match,home_corner_kicks_per_match_recent,away_corner_kicks_per_match_recent,match_preview
+-corners_conceded_per_match_recent,corners_conceded_per_match,home_corners_conceded_per_match_recent,away_corners_conceded_per_match_recent,match_preview
++corners_against_per_match_recent,corners_against_per_match,home_corners_against_per_match_recent,away_corners_against_per_match_recent,match_preview
+ save_ratio_recent,save_ratio,home_save_ratio_recent,away_save_ratio_recent,match_preview
 diff --git a/site/match-preview/metric_definitions.json b/site/match-preview/metric_definitions.json
-index 831a5bf..32042c4 100644
+index 32042c4..9195a60 100644
 --- a/site/match-preview/metric_definitions.json
 +++ b/site/match-preview/metric_definitions.json
-@@ -1,5 +1,6 @@
- {
-   "league_rank": {
-+    "label": "metrics.league_rank.label",
-     "format": "integer",
-     "context": "match_preview",
-     "lower_is_better": true,
-@@ -7,18 +8,21 @@
-     "away_column": "away_league_rank"
-   },
-   "points_won_form": {
-+    "label": "metrics.points_won.label",
-     "format": "points_fraction",
-     "context": "match_preview",
-     "home_column": "home_points_won_sum_form",
-     "away_column": "away_points_won_sum_form"
-   },
-   "goals_per_match_recent": {
-+    "label": "metrics.goals_per_match.label",
-     "format": "decimal_1",
-     "context": "match_preview",
-     "home_column": "home_goals_per_match_recent",
-     "away_column": "away_goals_per_match_recent"
-   },
-   "goals_against_per_match_recent": {
-+    "label": "metrics.goals_against_per_match.label",
-     "format": "decimal_1",
-     "context": "match_preview",
-     "lower_is_better": true,
-@@ -26,48 +30,56 @@
-     "away_column": "away_goals_against_per_match_recent"
-   },
-   "shots_per_match_recent": {
-+    "label": "metrics.shots_per_match.label",
-     "format": "decimal_1",
-     "context": "match_preview",
-     "home_column": "home_shots_per_match_recent",
-     "away_column": "away_shots_per_match_recent"
-   },
-   "shot_accuracy_recent": {
-+    "label": "metrics.shot_accuracy.label",
-     "format": "percent",
-     "context": "match_preview",
-     "home_column": "home_shot_accuracy_recent",
-     "away_column": "away_shot_accuracy_recent"
-   },
-   "danger_zone_ratio_recent": {
-+    "label": "metrics.danger_zone_ratio.label",
-     "format": "percent",
-     "context": "match_preview",
-     "home_column": "home_danger_zone_ratio_recent",
-     "away_column": "away_danger_zone_ratio_recent"
-   },
-   "finishing_efficiency_recent": {
-+    "label": "metrics.finishing_efficiency.label",
-     "format": "percent",
-     "context": "match_preview",
-     "home_column": "home_finishing_efficiency_recent",
-     "away_column": "away_finishing_efficiency_recent"
-   },
-   "passes_per_match_recent": {
-+    "label": "metrics.passes_per_match.label",
-     "format": "decimal_0",
-     "context": "match_preview",
-     "home_column": "home_passes_per_match_recent",
-     "away_column": "away_passes_per_match_recent"
-   },
-   "pass_accuracy_recent": {
-+    "label": "metrics.pass_accuracy.label",
-     "format": "percent",
-     "context": "match_preview",
-     "home_column": "home_pass_accuracy_recent",
-     "away_column": "away_pass_accuracy_recent"
-   },
-   "corner_kicks_per_match_recent": {
-+    "label": "metrics.corner_kicks_per_match.label",
-     "format": "decimal_1",
-     "context": "match_preview",
+@@ -78,13 +78,13 @@
      "home_column": "home_corner_kicks_per_match_recent",
      "away_column": "away_corner_kicks_per_match_recent"
    },
-   "corners_conceded_per_match_recent": {
-+    "label": "metrics.corners_conceded_per_match.label",
+-  "corners_conceded_per_match_recent": {
+-    "label": "metrics.corners_conceded_per_match.label",
++  "corners_against_per_match_recent": {
++    "label": "metrics.corners_against_per_match.label",
      "format": "decimal_1",
      "context": "match_preview",
      "lower_is_better": true,
-@@ -75,6 +87,7 @@
-     "away_column": "away_corners_conceded_per_match_recent"
+-    "home_column": "home_corners_conceded_per_match_recent",
+-    "away_column": "away_corners_conceded_per_match_recent"
++    "home_column": "home_corners_against_per_match_recent",
++    "away_column": "away_corners_against_per_match_recent"
    },
    "save_ratio_recent": {
-+    "label": "metrics.save_ratio.label",
-     "format": "percent",
-     "context": "match_preview",
-     "home_column": "home_save_ratio_recent",
+     "label": "metrics.save_ratio.label",
+diff --git a/site/match-preview/metric_manifest.json b/site/match-preview/metric_manifest.json
+index b62bba8..57c864a 100644
+--- a/site/match-preview/metric_manifest.json
++++ b/site/match-preview/metric_manifest.json
+@@ -11,7 +11,7 @@
+     { "metric_id": "passes_per_match_recent", "band": "b" },
+     { "metric_id": "pass_accuracy_recent", "band": "b" },
+     { "metric_id": "corner_kicks_per_match_recent", "band": "a" },
+-    { "metric_id": "corners_conceded_per_match_recent", "band": "a" },
++    { "metric_id": "corners_against_per_match_recent", "band": "a" },
+     { "metric_id": "save_ratio_recent", "band": "b" }
+   ]
+ }
 diff --git a/site/team-season/index.html b/site/team-season/index.html
-index b53bfcb..69f442d 100644
+index 69f442d..5bb87b5 100644
 --- a/site/team-season/index.html
 +++ b/site/team-season/index.html
-@@ -339,19 +339,19 @@
-       //   a: Ø Ecken, Ø Ecken gegen               (set pieces)
-       //   b: Gehaltene Torschüsse                 (keeper)
-       const rows = [
--        { label: t("metric.tabellenplatz",         "Tabellenplatz"),               value: rankDisplay(row),                                band: "a" },
--        { label: t("metric.punkteausbeute",        "Punkteausbeute"),              value: pointsDisplay(row),                              band: "a" },
--        { label: t("metric.tore",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
--        { label: t("metric.gegentore",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
--        { label: t("metric.schuesse",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
--        { label: t("metric.schuesseAufsTor",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
--        { label: t("metric.schuesseAusStrafraum",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
--        { label: t("metric.trefferquote",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
--        { label: t("metric.paesse",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
--        { label: t("metric.angekommenePaesse",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
--        { label: t("metric.ecken",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
--        { label: t("metric.eckenGegen",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
--        { label: t("metric.gehalteneTorschuesse", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
-+        { label: t("metrics.league_rank.label",         "Tabellenplatz"),               value: rankDisplay(row),                                band: "a" },
-+        { label: t("metrics.points_won.label",        "Punkteausbeute"),              value: pointsDisplay(row),                              band: "a" },
-+        { label: t("metrics.goals_per_match.label",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
-+        { label: t("metrics.goals_against_per_match.label",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
-+        { label: t("metrics.shots_per_match.label",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
-+        { label: t("metrics.shot_accuracy.label",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
-+        { label: t("metrics.danger_zone_ratio.label",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
-+        { label: t("metrics.finishing_efficiency.label",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
-+        { label: t("metrics.passes_per_match.label",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
-+        { label: t("metrics.pass_accuracy.label",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
-+        { label: t("metrics.corner_kicks_per_match.label",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
-+        { label: t("metrics.corners_conceded_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
-+        { label: t("metrics.save_ratio.label", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
+@@ -350,7 +350,7 @@
+         { label: t("metrics.passes_per_match.label",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
+         { label: t("metrics.pass_accuracy.label",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
+         { label: t("metrics.corner_kicks_per_match.label",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
+-        { label: t("metrics.corners_conceded_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_conceded_per_match_season, 1), band: "a" },
++        { label: t("metrics.corners_against_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_against_per_match_season, 1), band: "a" },
+         { label: t("metrics.save_ratio.label", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
        ];
        return rows.map((r) => `
-         <div class="metric metric-band-${r.band}">
