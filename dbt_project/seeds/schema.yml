@@ -148,33 +148,6 @@ seeds:
           value signals — the seed of website auto-narrative. Populated for team metrics; null for
           player metrics (v1.x).
 
-  - name: metric_definitions
-    description: >
-      Canonical metric ids and mart column bindings (no locale-specific copy).
-      Labels and descriptions live in site/i18n/*.json under metrics.<metric_id>.
-    config:
-      +full_refresh: true
-    columns:
-      - name: metric_id
-        description: "Stable semantic metric id (language-neutral)."
-        tests:
-          - not_null
-          - unique
-      - name: home_column
-        description: "Mart column for the home team value (match-preview paired metrics)."
-      - name: away_column
-        description: "Mart column for the away team value (match-preview paired metrics)."
-      - name: single_column
-        description: "Mart column when the metric is not split home/away."
-      - name: lower_is_better
-        description: "True when a lower numeric value is better for comparison highlighting."
-      - name: format
-        description: "UI format: integer, decimal_0, decimal_1, percent, points_fraction."
-        tests: [not_null]
-      - name: context
-        description: "Where this binding applies: match_preview, wc_pretournament, etc."
-        tests: [not_null]
-
   - name: wc_team_market_value_snapshot
     description: >
       Twice-monthly WC national-team squad market value estimates (EUR). team_sk matches dim_team.team_sk
