@@ -341,17 +341,17 @@
       const rows = [
         { label: t("metrics.league_rank.label",         "Tabellenplatz"),               value: rankDisplay(row),                                band: "a" },
         { label: t("metrics.points_won.label",        "Punkteausbeute"),              value: pointsDisplay(row),                              band: "a" },
-        { label: t("metrics.goals_per_match.label",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match_season, 1),            band: "b" },
-        { label: t("metrics.goals_against_per_match.label",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match_season, 1),    band: "b" },
-        { label: t("metrics.shots_per_match.label",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match_season, 1),            band: "a" },
-        { label: t("metrics.shot_accuracy.label",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy_season),              band: "a" },
-        { label: t("metrics.danger_zone_ratio.label",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio_season),          band: "a" },
-        { label: t("metrics.finishing_efficiency.label",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency_season),       band: "a" },
-        { label: t("metrics.passes_per_match.label",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match_season, 0),           band: "b" },
-        { label: t("metrics.pass_accuracy.label",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy_season),              band: "b" },
-        { label: t("metrics.corner_kicks_per_match.label",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match_season, 1),     band: "a" },
-        { label: t("metrics.corners_against_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_against_per_match_season, 1), band: "a" },
-        { label: t("metrics.save_ratio.label", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio_season),                 band: "b" },
+        { label: t("metrics.goals_per_match.label",                  "Ø Tore"),                      value: fmtDe(row.goals_per_match, 1),            band: "b" },
+        { label: t("metrics.goals_against_per_match.label",             "Ø Gegentore"),                 value: fmtDe(row.goals_against_per_match, 1),    band: "b" },
+        { label: t("metrics.shots_per_match.label",              "Ø Schüsse"),                   value: fmtDe(row.shots_per_match, 1),            band: "a" },
+        { label: t("metrics.shot_accuracy.label",       "% Schüsse aufs Tor"),          value: fmtDePct(row.shot_accuracy),              band: "a" },
+        { label: t("metrics.danger_zone_ratio.label",  "% Schüsse aus dem Strafraum"), value: fmtDePct(row.danger_zone_ratio),          band: "a" },
+        { label: t("metrics.finishing_efficiency.label",          "% Trefferquote"),              value: fmtDePct(row.finishing_efficiency),       band: "a" },
+        { label: t("metrics.passes_per_match.label",                "Ø Pässe"),                     value: fmtDe(row.passes_per_match, 0),           band: "b" },
+        { label: t("metrics.pass_accuracy.label",     "% Angekommene Pässe"),         value: fmtDePct(row.pass_accuracy),              band: "b" },
+        { label: t("metrics.corner_kicks_per_match.label",                 "Ø Ecken"),                     value: fmtDe(row.corner_kicks_per_match, 1),     band: "a" },
+        { label: t("metrics.corners_against_per_match.label",            "Ø Ecken gegen"),               value: fmtDe(row.corners_against_per_match, 1), band: "a" },
+        { label: t("metrics.save_ratio.label", "% Gehaltene Torschüsse"),       value: fmtDePct(row.save_ratio),                 band: "b" },
       ];
       return rows.map((r) => `
         <div class="metric metric-band-${r.band}">

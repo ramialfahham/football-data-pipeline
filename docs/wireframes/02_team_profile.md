@@ -100,8 +100,8 @@ All season-scoped keys come from the selected `seasons[]` row.
 
 | Element | JSON key | Display |
 |---|---|---|
-| Shot share | `shot_share_season` | percent + bar |
-| Points capture | `points_capture_season` | percent + bar |
+| Shot share | `shot_share` | percent + bar |
+| Points capture | `points_capture` | percent + bar |
 | Gap | `performance_vs_results_gap` | signed percentage-point delta + plain-language label ("dominates play more than results show" / inverse); ⓘ → glossary |
 
 Two real ratios and their difference — NEVER a composite score gauge (ruled).
@@ -132,24 +132,24 @@ same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
 
 | Contract row | JSON key (season variant) |
 |---|---|
-| Ø Goals | `goals_per_match_season` |
-| Ø Goals against | `goals_against_per_match_season` |
+| Ø Goals | `goals_per_match` |
+| Ø Goals against | `goals_against_per_match` |
 | Clean sheets (x/y) | derivable: `clean_sheets` of `played` |
-| Ø Shots | `shots_per_match_season` |
-| % Shots from box | `danger_zone_ratio_season` |
-| % Goals per shot on target | `finishing_efficiency_season` |
-| Ø Passes | `passes_per_match_season` |
-| % Pass accuracy | `pass_accuracy_season` |
-| Ø Corners | `corner_kicks_per_match_season` |
-| Ø Corners against | `corners_against_per_match_season` |
-| % Save percentage | `save_ratio_season` |
+| Ø Shots | `shots_per_match` |
+| % Shots from box | `danger_zone_ratio` |
+| % Goals per shot on target | `finishing_efficiency` |
+| Ø Passes | `passes_per_match` |
+| % Pass accuracy | `pass_accuracy` |
+| Ø Corners | `corner_kicks_per_match` |
+| Ø Corners against | `corners_against_per_match` |
+| % Save percentage | `save_ratio` |
 
 **Missing season variants (GAP-13)**: Ø Shots on target, Ø Duels, % Duels won,
 Ø Defensive actions, Ø Key passes — the full-season intermediate predates the
 player-stat-derived team metrics. Until GAP-13 ships these rows render only in
 the fixture comparison, not here. Coverage caption from
 `stat_coverage_season_games` vs `season_games_played` ("stats from N of M").
-`shot_accuracy_season` exists but is unrendered (contract).
+`shot_accuracy` exists but is unrendered (contract).
 
 ### (9) Fixtures + (10) links
 

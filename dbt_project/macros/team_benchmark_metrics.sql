@@ -8,26 +8,26 @@
   (non-metrics), and dribbles_success_pct (retired team-side, #510).
 #}
     {% set metrics = [
-        ('goals_per_match', 'goals_per_match_season'),
-        ('goals_against_per_match', 'goals_against_per_match_season'),
-        ('clean_sheets', 'clean_sheets_season'),
-        ('shots_per_match', 'shots_per_match_season'),
-        ('shot_accuracy', 'shot_accuracy_season'),
-        ('danger_zone_ratio', 'danger_zone_ratio_season'),
-        ('shots_on_goal_per_match', 'shots_on_goal_per_match_season'),
-        ('finishing_efficiency', 'finishing_efficiency_season'),
-        ('duels_per_match', 'duels_per_match_season'),
-        ('duels_won_pct', 'duels_won_pct_season'),
-        ('defensive_actions_per_match', 'defensive_actions_per_match_season'),
-        ('tackles_per_match', 'tackles_per_match_season'),
-        ('interceptions_per_match', 'interceptions_per_match_season'),
-        ('blocks_per_match', 'blocks_per_match_season'),
-        ('passes_per_match', 'passes_per_match_season'),
-        ('pass_accuracy', 'pass_accuracy_season'),
-        ('key_passes_per_match', 'key_passes_per_match_season'),
-        ('corner_kicks_per_match', 'corner_kicks_per_match_season'),
-        ('corners_against_per_match', 'corners_against_per_match_season'),
-        ('save_ratio', 'save_ratio_season')
+        ('goals_per_match', 'goals_per_match'),
+        ('goals_against_per_match', 'goals_against_per_match'),
+        ('clean_sheets', 'clean_sheets'),
+        ('shots_per_match', 'shots_per_match'),
+        ('shot_accuracy', 'shot_accuracy'),
+        ('danger_zone_ratio', 'danger_zone_ratio'),
+        ('shots_on_goal_per_match', 'shots_on_goal_per_match'),
+        ('finishing_efficiency', 'finishing_efficiency'),
+        ('duels_per_match', 'duels_per_match'),
+        ('duels_won_pct', 'duels_won_pct'),
+        ('defensive_actions_per_match', 'defensive_actions_per_match'),
+        ('tackles_per_match', 'tackles_per_match'),
+        ('interceptions_per_match', 'interceptions_per_match'),
+        ('blocks_per_match', 'blocks_per_match'),
+        ('passes_per_match', 'passes_per_match'),
+        ('pass_accuracy', 'pass_accuracy'),
+        ('key_passes_per_match', 'key_passes_per_match'),
+        ('corner_kicks_per_match', 'corner_kicks_per_match'),
+        ('corners_against_per_match', 'corners_against_per_match'),
+        ('save_ratio', 'save_ratio')
     ] %}
     {{ return(metrics) }}
 {% endmacro %}

@@ -9,9 +9,9 @@
   *_sum_season raw intermediates, and the playing-time facts (appearances / starts / subs /
   minutes) which are dimensions, not metrics.
 
-  Naming is normalised to the catalogue's metric_id: the team season model carries a `_season`
-  suffix (stripped here). That normalisation exists only until #500 Stage 2 renames the team-season
-  columns; it is deliberately NOT a binding-map. (The goals_saves->saves normalisation was removed
+  Naming is normalised to the catalogue's metric_id: #500 Stage 2 has renamed the team-season model
+  columns to catalogue-id names (no `_season` suffix), so the strip here is now a defensive no-op;
+  it is deliberately NOT a binding-map. (The goals_saves->saves normalisation was removed
   once Stage 1 renamed the player model column to `saves`.) A `team and player` catalogue row
   satisfies both the team and the player model checks.
 #}

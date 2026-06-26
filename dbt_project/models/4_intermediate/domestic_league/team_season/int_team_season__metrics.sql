@@ -9,8 +9,8 @@
 
   The shared per-match / ratio formulas are plain inline SQL below — the same window-form as
   mart_team_momentum / mart_team_season_record (the latter COMPOSES this model, never re-derives).
-  The `_season` column suffix is KEPT here — these names are the live team_season_insights.json
-  keys; the suffix drop is the live-surface step (#500 PR-d). Window-specific season metrics
+  The metric columns now match the catalogue ids — the `_season` suffix was dropped end-to-end in
+  #500 Stage 2 (the live team_season_insights.json keys moved in lockstep). Window-specific season metrics
   (points_capture, shot_share, clean-sheets RATE) stay inline — they are not shared across windows.
 
   Incomplete-data → NULL (CPO 2026-06-25; reverse #320) is enforced inline (a team-feed rate is
@@ -62,7 +62,8 @@ select
     games_with_sot_stats as stat_coverage_season_games,
     games_with_player_stats as player_stat_coverage_season_games,
     games_with_team_stats,
-    -- raw season-total counts (kept under the _season names — live JSON keys; suffix drop = PR-d)
+    -- raw season-total counts (kept under the _sum_season names — live JSON keys; the metric columns
+    -- dropped their _season suffix in #500 Stage 2, but these raw sums keep the window marker)
     points_won as points_won_sum_season,
     wins as wins_sum_season,
     draws as draws_sum_season,
@@ -70,9 +71,9 @@ select
     clean_sheet_games as clean_sheets_sum_season,
     goals_for as goals_for_sum_season,
     goals_against as goals_against_sum_season,
-    goals_penalty as goals_penalty_season,
-    goals_own as goals_own_season,
-    goals_for - goals_penalty - goals_own as goals_open_play_season,
+    goals_penalty,
+    goals_own,
+    goals_for - goals_penalty - goals_own as goals_open_play,
     -- team-feed sum columns: NULL ('—') on partial coverage (incomplete-data rule, CPO 2026-06-25).
     -- These are the DISPLAYED season totals; the per-match rates below gate independently off the
     -- raw cumulative columns. Scoreline sums above are always present, so they are NOT gated.
@@ -104,60 +105,60 @@ select
         when games_with_save_stats < games_played then null else goalkeeper_saves
     end as goalkeeper_saves_sum_season,
     -- window-specific season metrics (not shared across windows; stay inline)
-    safe_divide(points_won, 3 * games_played) as points_capture_season,
+    safe_divide(points_won, 3 * games_played) as points_capture,
     -- shot share: NULL unless BOTH own and opponent shots cover every game (else a partial value)
     case
         when games_with_team_stats < games_played then null
         when games_with_opp_stats < games_played then null
         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
-    end as shot_share_season,
-    safe_divide(clean_sheet_games, games_played) as clean_sheets_season,
+    end as shot_share,
+    safe_divide(clean_sheet_games, games_played) as clean_sheets,
     -- shared per-match / ratio formulas (plain inline SQL — same window-form as the marts; the
-    -- _season suffix is kept until the live-surface rename, #500 PR-d). Composed (not recomputed)
+    -- metric columns match the catalogue ids since #500 Stage 2). Composed (not recomputed)
     -- by mart_team_season_record.
-    safe_divide(goals_for, games_played) as goals_per_match_season,
-    safe_divide(goals_against, games_played) as goals_against_per_match_season,
+    safe_divide(goals_for, games_played) as goals_per_match,
+    safe_divide(goals_against, games_played) as goals_against_per_match,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(shots_total, games_with_team_stats)
-    end as shots_per_match_season,
+    end as shots_per_match,
     case
         -- gate on BOTH SoT (numerator) and team (denominator) coverage: in rare old data a game
         -- carries shots_on_goal but null shots_total, so SoT coverage alone is not sufficient.
         when games_with_sot_stats < games_played then null
         when games_with_team_stats < games_played then null
         else safe_divide(shots_on_goal, shots_total)
-    end as shot_accuracy_season,
+    end as shot_accuracy,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(shots_inside_box, shots_total)
-    end as danger_zone_ratio_season,
+    end as danger_zone_ratio,
     case
         when games_with_sot_stats < games_played then null
         else safe_divide(shots_on_goal, games_with_sot_stats)
-    end as shots_on_goal_per_match_season,
+    end as shots_on_goal_per_match,
     case
         when games_with_sot_stats < games_played then null
         when (goals_for - goals_penalty - goals_own) < 0 then null
         when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
         else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
-    end as finishing_efficiency_season,
+    end as finishing_efficiency,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(passes_total, games_with_team_stats)
-    end as passes_per_match_season,
+    end as passes_per_match,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(passes_accurate, passes_total)
-    end as pass_accuracy_season,
+    end as pass_accuracy,
     case
         when games_with_team_stats < games_played then null
         else safe_divide(corner_kicks, games_with_team_stats)
-    end as corner_kicks_per_match_season,
+    end as corner_kicks_per_match,
     case
         when games_with_opp_stats < games_played then null
         else safe_divide(opponent_corner_kicks, games_with_opp_stats)
-    end as corners_against_per_match_season,
+    end as corners_against_per_match,
     -- save_ratio: byte-identical to the prior model (which divided by goals_against TOTAL) — the
     -- gate makes BOTH null on partial save coverage, and when fully covered every game is
     -- save-covered so goals_against_in_save_games == goals_against (verified 0/12537).
@@ -166,14 +167,14 @@ select
         else safe_divide(
             goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
         )
-    end as save_ratio_season,
-    safe_divide(key_passes, games_with_player_stats) as key_passes_per_match_season,
-    safe_divide(tackles, games_with_player_stats) as tackles_per_match_season,
+    end as save_ratio,
+    safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
+    safe_divide(tackles, games_with_player_stats) as tackles_per_match,
     safe_divide(interceptions, games_with_player_stats)
-        as interceptions_per_match_season,
-    safe_divide(blocks, games_with_player_stats) as blocks_per_match_season,
+        as interceptions_per_match,
+    safe_divide(blocks, games_with_player_stats) as blocks_per_match,
     safe_divide(tackles + interceptions + blocks, games_with_player_stats)
-        as defensive_actions_per_match_season,
-    safe_divide(duels_total, games_with_player_stats) as duels_per_match_season,
-    safe_divide(duels_won, duels_total) as duels_won_pct_season
+        as defensive_actions_per_match,
+    safe_divide(duels_total, games_with_player_stats) as duels_per_match,
+    safe_divide(duels_won, duels_total) as duels_won_pct
 from final
