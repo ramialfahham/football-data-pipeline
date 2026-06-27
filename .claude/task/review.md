@@ -1,49 +1,41 @@
-# Review — docs/macro-usage-standard — engineering_standards.md §1.3 Macros
+# Review — refactor/team-benchmark-demacro — remove team_benchmark_metrics macro (COMPOSE)
 
 > G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
 > Required set: always → scope-auditor; `dbt_project/**` → analytics-engineer-reviewer.
-> Documentation only — adds a "when / when-not to use a macro" standard. The benchmark macro removals +
-> dormant-scaffolding deletions are reserved to separate PRs (contract decisions_reserved).
-> Two prior FAILs fixed: (1) the COMPOSE rule mischaracterised the benchmark macro as a "formula" and the
-> generate_schema_name claim was imprecise; (2) a "latest partition" example cited dead code
-> (apif_latest_source_partition has zero callers) — replaced with the genuinely-used JSON-expansion macro.
+> Number-preserving refactor: the team_benchmark_metrics() macro is replaced by one shared long-form model
+> (int_team_competition_benchmark_metrics_long) that the benchmark engine aggregates and the benchmark mart
+> ranks. dbt CLI broken locally + dbt MCP unavailable — the analytics-engineer SQL review is the pre-CI gate;
+> CI's dbt build + benchmark DQ tests are the final number check.
 
-diff_sha256: 984190fb2f0474b284c3789e622b239bf3be89e5aa6c76052d4299cf6d1bc9c5
+diff_sha256: a41ab0218803c39c939e966ab550450140c9673c50c99a662d4732f5e8ccf495
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope + decision class: only `dbt_project/docs/engineering_standards.md` (in scope) + the always-allowed
-  contract.md are touched; no model/macro change. The text codifies the CPO's already-stated principle
-  (macros decrease maintainability; prefer plain SQL + COMPOSE) — no new §10 decision; consistent with
-  layering.md (generate_schema_name override; JSON parsing allowed in staging) and §5.
-- Boundary — "cross-cutting transform that can't be a model": the "can't be a standalone model" assertion is
-  a context-dependent judgment a weak claim could exploit; mitigated by the §5 cross-ref + the COMPOSE
-  principle a reviewer can cite to push back. The standard documents the tension honestly rather than
-  closing it falsely; the contested existing macros (team/player benchmark) are reserved to the CPO anyway.
-- Dormant-macro grandfathering left implicit: "don't add a macro ahead of need" is forward-looking ("add"),
-  but a strict reader could try to apply it to the CPO-reserved dormant scaffolding (playoff round names
-  etc.). No scope violation (the contract reserves their disposition); a future "applies to new macros"
-  clarifier would reduce friction. Low risk.
+- UNPIVOT metric set + null-handling parity: the new long-form UNPIVOT lists all 20 metrics in the same
+  order as the deleted macro; UNPIVOT EXCLUDE NULLS (default) matches the prior `where metric_value is not
+  null` filters (kept defensively in both consumers); the engine grouping keys + the mart ranking window are
+  unchanged — so the numbers are equivalent by construction, not asserted.
+- Output contract + materialization preserved: the mart grain (team_sk, season_sk, metric_key), its full
+  column set, and its materialization (view) are unchanged; the engine stays a table; layering.md is updated
+  to reflect the new composition. No §10 decision (no metric/label/format change, no output-contract change,
+  internal-convention model name); player_benchmark_metrics + the dormant scaffolding macros untouched
+  (decisions_reserved honoured); all changed files within scope_paths.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- `generate_schema_name` example — live + accurate: the override exists at
-  `dbt_project/macros/generate_schema_name.sql` and is active; dbt's default would produce
-  `<target_schema>_<custom>` (e.g. `dbt_analytics_staging`) instead of the bare `staging`, exactly as the
-  standard states; layering.md documents the dependency. Correct, necessary example.
-- JSON-expansion example — verified in live use: `apif_payload_response_json_strings` has exactly three
-  callers (`stg_apif__fixtures_next`, `stg_apif__leagues`, `stg_apif__teams`), each inside
-  `unnest({{ ... }})` in the `from` clause; it takes a table alias and resolves inside the caller's from,
-  so it genuinely cannot be a standalone model. "Several staging models" + "inside the from/unnest" are
-  accurate.
-- §5 cross-reference consistency: §1.3's COMPOSE guidance (compute once, downstream reads) aligns with §5
-  ("centralize once in `intermediate` if reused") and layering.md's `4_intermediate` definition. No
-  contradiction.
-- No false legitimation of dead code: `apif_latest_source_partition` has zero callers (staging uses inline
-  `qualify`); the standard does NOT cite it — the second example maps to the live JSON macro, so no dead
-  macro is canonised.
+- UNPIVOT type-homogeneity (build-breaking if any column were not FLOAT64): verified all 20 UNPIVOT IN-list
+  columns in int_team_season__metrics.sql are produced by safe_divide(...) or CASE WHEN ... THEN NULL ELSE
+  safe_divide(...) END — every branch is FLOAT64, so BigQuery UNPIVOT's equal-type requirement is satisfied;
+  no CI type-mismatch. Passthrough columns (team_sk, season_sk, league_sk, league_code, season_api_year)
+  confirmed present in the source; the macro is fully deleted with no live .sql caller; no AL09 self-alias.
+- season_games_played >= 3 applied once + team_count correctness: the filter lives only in the long-form
+  `season` CTE; neither the engine nor the mart re-applies it, so the population entering count(metric_value)
+  (the rank-of-N denominator) is identical to the prior macro-driven UNION ALL. UNPIVOT EXCLUDE NULLS matches
+  the prior explicit null filter; the retained defensive `where metric_value is not null` cannot change counts.
+  Engine aggregates (count/avg/approx_quantiles group by league/season/metric) and the mart rank() window are
+  byte-for-byte the same logic — numbers do not change.
 
 ## escalations
 (none)
