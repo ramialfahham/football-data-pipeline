@@ -1,41 +1,39 @@
-# Review — refactor/team-benchmark-demacro — remove team_benchmark_metrics macro (COMPOSE)
+# Review — docs/macro-standard-trim — trim §1.3 to a calibrated default
 
 > G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
 > Required set: always → scope-auditor; `dbt_project/**` → analytics-engineer-reviewer.
-> Number-preserving refactor: the team_benchmark_metrics() macro is replaced by one shared long-form model
-> (int_team_competition_benchmark_metrics_long) that the benchmark engine aggregates and the benchmark mart
-> ranks. dbt CLI broken locally + dbt MCP unavailable — the analytics-engineer SQL review is the pre-CI gate;
-> CI's dbt build + benchmark DQ tests are the final number check.
+> Documentation only — CPO-directed trim of §1.3 (Macros) from a rule/test framing to a calibrated default;
+> keeps the plain-SQL default + COMPOSE + the two verified examples, drops the "test" line, closes with
+> "beyond those it is the engineer's judgment."
 
-diff_sha256: a41ab0218803c39c939e966ab550450140c9673c50c99a662d4732f5e8ccf495
+diff_sha256: 53c826f5442649c4f21b349d29f77e1cbe8cc348139b3f455b4a8beef1c1745a
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- UNPIVOT metric set + null-handling parity: the new long-form UNPIVOT lists all 20 metrics in the same
-  order as the deleted macro; UNPIVOT EXCLUDE NULLS (default) matches the prior `where metric_value is not
-  null` filters (kept defensively in both consumers); the engine grouping keys + the mart ranking window are
-  unchanged — so the numbers are equivalent by construction, not asserted.
-- Output contract + materialization preserved: the mart grain (team_sk, season_sk, metric_key), its full
-  column set, and its materialization (view) are unchanged; the engine stays a table; layering.md is updated
-  to reflect the new composition. No §10 decision (no metric/label/format change, no output-contract change,
-  internal-convention model name); player_benchmark_metrics + the dormant scaffolding macros untouched
-  (decisions_reserved honoured); all changed files within scope_paths.
+- Consistency with the established macro preference: "default to plain SQL + COMPOSE" aligns with the
+  documented feedback (dropping team_window_metrics in #500 PR1). Removing the rigid "test" line acknowledges
+  judgment, but the two justified cases (override hook, cross-query expression) stay explicit, so the
+  reframing does not open a loophole for bad macros; §10 still gates NEW mechanisms.
+- Interaction with the shipped macro inventory: the existing macros (generate_schema_name override,
+  apif_response_to_json_strings cross-query expression) fit the new framing; the trim does not retroactively
+  invalidate them, and layering.md / §5 are unchanged. Scope clean (only engineering_standards.md + contract.md);
+  faithful CPO-directed trim, no new §10 decision.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- UNPIVOT type-homogeneity (build-breaking if any column were not FLOAT64): verified all 20 UNPIVOT IN-list
-  columns in int_team_season__metrics.sql are produced by safe_divide(...) or CASE WHEN ... THEN NULL ELSE
-  safe_divide(...) END — every branch is FLOAT64, so BigQuery UNPIVOT's equal-type requirement is satisfied;
-  no CI type-mismatch. Passthrough columns (team_sk, season_sk, league_sk, league_code, season_api_year)
-  confirmed present in the source; the macro is fully deleted with no live .sql caller; no AL09 self-alias.
-- season_games_played >= 3 applied once + team_count correctness: the filter lives only in the long-form
-  `season` CTE; neither the engine nor the mart re-applies it, so the population entering count(metric_value)
-  (the rank-of-N denominator) is identical to the prior macro-driven UNION ALL. UNPIVOT EXCLUDE NULLS matches
-  the prior explicit null filter; the retained defensive `where metric_value is not null` cannot change counts.
-  Engine aggregates (count/avg/approx_quantiles group by league/season/metric) and the mart rank() window are
-  byte-for-byte the same logic — numbers do not change.
+- generate_schema_name example — verified live at dbt_project/macros/generate_schema_name.sql: dbt's stock
+  hook prefixes the target schema (e.g. dbt_scratch__staging); this override returns the custom name verbatim
+  so layer models land in `staging`/`base`/etc. "default would name datasets wrong" is accurate; not dead code.
+- JSON-expansion example — apif_payload_response_json_strings (dbt_project/macros/apif_response_to_json_strings.sql)
+  is used in three staging models (stg_apif__fixtures_next/teams/leagues, line 16) inside
+  unnest({{ ... }}) — a correlated subquery producing ARRAY<STRING> that must sit inside the from/unnest, so it
+  cannot be a standalone model. The "expression that must sit inside other queries" framing is accurate.
+- §5 cross-reference (soft): "see §5" lands on Performance Standards, which states "centralize once in
+  intermediate if reused" (the same idea) but does not name COMPOSE — documentation imprecision, not a false
+  technical claim; the COMPOSE guidance in §1.3 is self-contained and sound (live exemplar:
+  int_team_competition_benchmark_metrics_long read by both the engine and the mart). Not a defect.
 
 ## escalations
 (none)
