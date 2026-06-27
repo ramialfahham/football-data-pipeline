@@ -1,125 +1,165 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index de1d414..a058ecf 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,15 +4,15 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-06-26 EOD** — **#500 PR-d (live-MVP → metric_catalogue SSoT) STEPS 1–5 ALL MERGED** (#582 + #583 + #584 + #585 + #587). The live match-preview and team-season MVP now reads entirely from `metric_catalogue.csv`; `metric_definitions.csv` is DELETED. **NEXT: step 6 — teardown (scope first, CPO directs; do NOT build until go).**_
++_Last updated: **2026-06-27** — **#500 PR-d step 6 (teardown) candidates 1 + 4 MERGED as [PR #590](https://github.com/ramialfahham/football-data-pipeline/pull/590)**. Steps 1–5 already merged (#582–#585 + #587); `metric_definitions.csv` is DELETED, the live MVP reads from `metric_catalogue.csv`. **NEXT: the remaining step-6 items — candidate 3 + candidate 5 (CPO-directed) + the trigger-block-rot follow-up (background task_44698a18).**_
+ 
+-main carries #582 + #583 + #584 + #585 + #587. **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
++main carries #582–#585 + #587 + **#590** (step-6 cand. 1+4). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed. **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull` (carries #582–#585 + #587). **Nothing pending-merge; main GREEN.**
++1. `git checkout main && git pull` — main carries #590 (step-6 cand. 1+4 teardown: Pages trigger repointed to `metric_catalogue.csv` + canonical mart-name doc fixes).
+ 2. Read this file top-to-bottom before touching anything.
+-3. **The NEXT unit is step 6 (teardown) — scope it first, present the candidate list to the CPO, wait for explicit go.** Do NOT begin building until the CPO approves.
+-4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (the impact-map gate enforces it for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`) + use **PLAN MODE** for the plan-back.
++3. **Step 6 candidates 1 + 4 are DONE (#590). The remaining step-6 items are CPO-directed, not auto-granted:** candidate 3 (benchmark-macro seam — a DESIGN call) + candidate 5 (description enrichment — domain) + the trigger-block-rot follow-up ([background task_44698a18]). Scope with the CPO before building; do NOT pre-decide.
++4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`; `protected_override` for `.github/workflows/**` etc.) + use **PLAN MODE** for the plan-back.
+ 
+ ---
+ 
+@@ -56,15 +56,19 @@ site/team-season/index.html  (row.<metric_id> — no _season suffix)
+ 
+ ---
+ 
+-### Step 6 — teardown (NOT built; scope + CPO go first)
++### Step 6 — teardown (candidates 1 + 4 SHIPPED via #590; 3 + 5 + rot REMAIN)
+ 
+-Present this candidate list to the CPO; do NOT pre-decide which to include:
++**SHIPPED — [#590](https://github.com/ramialfahham/football-data-pipeline/pull/590) MERGED:**
++1. ✅ **`pages-match-preview.yml` trigger** — the dead `metric_definitions.csv` path repointed to `metric_catalogue.csv` (the catalogue seed wasn't covered by any glob; `metric_bindings.csv` already is, via `site/**`). PROTECTED → done under `protected_override` + cto-reviewer.
++4. ✅ **Two stale doc globs** — `mart_fixture_stats__{team,player}` / `mart_fixture_stats__*` → `mart_team_fixture_stats` / `mart_player_fixture_stats` in `docs/content_architecture.md` + `docs/wireframes/99_gaps_register.md`.
+ 
+-1. **`pages-match-preview.yml:25` trigger** — still references `metric_definitions.csv` (now deleted). PROTECTED path; needs `protected_override` + cto-reviewer. Likely replace with `site/match-preview/metric_bindings.csv` as the trigger.
+-2. **Verify/retire `build_match_preview_site.{sh,ps1}` and `export_matchday_insights.ps1`** — likely KEEP (they assemble the whole Pages site); verify actual usage before touching.
+-3. **Benchmark macro pair simplification** — `team_benchmark_metrics.sql` now has `('X','X')` pairs after both renames; consider simplifying to single-element. Do NOT build until CPO-directed.
+-4. **Two stale glob refs** in `docs/content_architecture.md` and `docs/wireframes/99_gaps_register.md` (entity-first shorthand from the old naming).
+-5. **Seed description enrichment** — flagged in PR-c review as low-priority polish (provider-semantics nuances).
++**VERIFIED as a no-op (no change needed):**
++2. **`build_match_preview_site.{sh,ps1}` + `export_matchday_insights.ps1`** — KEEP. They assemble the whole Pages `_site/` and reference `metric_definitions.json` (the live output, still generated), not the deleted seed. Not broken.
++
++**REMAIN — CPO-directed, do NOT pre-decide:**
++3. **Benchmark macro pair simplification** — `team_benchmark_metrics.sql` now has identical `('X','X')` pairs. NOT cleanup: the `(metric_key, season_column)` two-element form is a deliberate abstraction seam (lets the catalogue id and physical column diverge). Collapsing it is a YAGNI-vs-flexibility DESIGN call → CPO decides.
++5. **Seed description enrichment** — domain-semantic provider nuances in `metric_catalogue.csv` descriptions; CPO + football-analytics. Lowest priority, nothing breaks.
++- **Trigger-block-rot follow-up** ([background task_44698a18]) — discovered during #590: the SAME workflow trigger block has a dead `scripts/build_metric_glossary_json.py` path (older glossary work, deleted) + stale flat mart paths (lines 18–23, marts moved to `5_marts/{domestic_league,shared}/`). NOT #500 residue → left out of #590; CPO scopes as its own PROTECTED-path unit.
+ 
+ ---
+ 
+@@ -87,6 +91,12 @@ Present this candidate list to the CPO; do NOT pre-decide which to include:
+ 
+ **Plain-language communication:** Do NOT ask the CPO cryptic technical questions. Ask in plain language; lead with a brief decision frame + options.
+ 
++**(2026-06-27, #590) `cd && git commit` trips the sole-command gate:** `git_discipline.py` blocks `git commit` when it is NOT the only command in the Bash call (a chained sibling could restage after the review hash). `cd <dir> && git commit …` counts as chained → BLOCKED. The Bash tool's cwd already persists as the repo root, so run `git commit …` with NO `cd` prefix and nothing chained.
++
++**(2026-06-27, #590) docs/workflow-only PRs skip the expensive CI:** a PR touching only `.github/workflows/**` + `docs/**` (no dbt models, no `site/**`) has `data-build` and `ui-checks` SKIP — only `validate` (incl. `check_task_artifacts.py`) + `test` + the gates run. Fast, no BigQuery build. Don't wait for data-build on such PRs.
++
++**(2026-06-27, #590) catalogue-vs-bindings trigger reasoning:** when repointing the Pages trigger off the deleted `metric_definitions.csv`, the right target is the **catalogue seed** (`dbt_project/seeds/metric_catalogue.csv`) — it is covered by no glob — NOT `metric_bindings.csv`, which is already covered by the `site/**` glob. The handover's "likely metric_bindings.csv" hint was slightly off; the catalogue is the uncovered source.
++
+ ---
+ 
+ ### #500 metric-layer — STATUS (COMPLETE bar step 6)
+@@ -102,7 +112,8 @@ Present this candidate list to the CPO; do NOT pre-decide which to include:
+ | PR-d step 3 — label unification | #584 | MERGED |
+ | PR-d step 4 — corners rename | #585 | MERGED |
+ | PR-d step 5 — drop `_season` | #587 | MERGED |
+-| PR-d step 6 — teardown | — | NOT BUILT (scope first) |
++| PR-d step 6 — teardown (cand. 1 + 4) | #590 | MERGED |
++| PR-d step 6 — cand. 3 + 5 + trigger rot | — | REMAIN (CPO-directed; rot = task_44698a18) |
+ 
+ The metric layer is now **one entity-first naming scheme + one definition SSoT (metric_catalogue.csv)**.
+ 
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0c0cd52..2806ddd 100644
+index 2806ddd..bbc1ad5 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,32 +1,64 @@
--# Task contract — end-of-session handover refresh (2026-06-26 EOD)
-+# Task contract — #500 PR-d step 6 (teardown, partial): dead-seed trigger ref + stale doc model-name globs
+@@ -1,64 +1,36 @@
+-# Task contract — #500 PR-d step 6 (teardown, partial): dead-seed trigger ref + stale doc model-name globs
++# Task contract — end-of-session handover refresh (2026-06-27)
  
  > Governance G2/G3 contract. Written on a clean tree BEFORE any edit.
--> Artifact/handover task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
-+> Step 6 is CPO-directed. The CPO approved a TWO-candidate scope (candidates 1 + 4 of five)
-+> this session (2026-06-27) and delegated unattended execution; candidates 3 + 5 are DEFERRED.
+-> Step 6 is CPO-directed. The CPO approved a TWO-candidate scope (candidates 1 + 4 of five)
+-> this session (2026-06-27) and delegated unattended execution; candidates 3 + 5 are DEFERRED.
++> Artifact/handover task — `.claude/active_work.md` is NOT auto-editable, so it is named in scope_paths.
  
  objective: >
--  Rewrite `.claude/active_work.md` to current truth: #500 PR-d (the live-MVP → metric_catalogue SSoT
--  migration) is DONE bar step 6 — #582/#583/#584/#585/#587 all MERGED. Capture the live metric chain
--  post-migration, the remaining step-6 teardown (to be scoped), this session's hard-won lessons (local
--  dbt-validation gaps + the dbt MCP parse seam + the two ci-data-build failures + the "mechanical"
--  mis-framing + the amend-a-pushed-PR dance), the governance machinery, the next candidates, and the
--  do-NOTs (incl. the CPO's plain-language communication feedback).
-+  Remove two residual references left by the #500 PR-d migration:
-+  (1) the GitHub Pages deploy workflow still triggers on the DELETED seed
-+      `dbt_project/seeds/metric_definitions.csv` (removed in PR-d step 2). Repoint that one
-+      trigger path to the seed that now carries the metric definitions,
-+      `dbt_project/seeds/metric_catalogue.csv`. The catalogue seed is covered by no existing
-+      path glob, whereas `site/match-preview/metric_bindings.csv` is ALREADY covered by the
-+      `site/**` glob — so only the catalogue needs adding, and nothing else in the trigger
-+      block is touched.
-+  (2) two docs still use the pre-rename shorthand `mart_fixture_stats__{team,player}` and
-+      `mart_fixture_stats__*` for the marts now named `mart_team_fixture_stats` /
-+      `mart_player_fixture_stats` (entity-first, per the #500 rename sweep). Update both refs
-+      to the canonical names (matching the `site_architecture.md` convention).
+-  Remove two residual references left by the #500 PR-d migration:
+-  (1) the GitHub Pages deploy workflow still triggers on the DELETED seed
+-      `dbt_project/seeds/metric_definitions.csv` (removed in PR-d step 2). Repoint that one
+-      trigger path to the seed that now carries the metric definitions,
+-      `dbt_project/seeds/metric_catalogue.csv`. The catalogue seed is covered by no existing
+-      path glob, whereas `site/match-preview/metric_bindings.csv` is ALREADY covered by the
+-      `site/**` glob — so only the catalogue needs adding, and nothing else in the trigger
+-      block is touched.
+-  (2) two docs still use the pre-rename shorthand `mart_fixture_stats__{team,player}` and
+-      `mart_fixture_stats__*` for the marts now named `mart_team_fixture_stats` /
+-      `mart_player_fixture_stats` (entity-first, per the #500 rename sweep). Update both refs
+-      to the canonical names (matching the `site_architecture.md` convention).
++  Rewrite `.claude/active_work.md` to current truth after this session: #500 PR-d step 6 (teardown)
++  candidates 1 + 4 are BUILT and shipped as PR #590 (CI green, awaiting CPO merge). Record what #590
++  changed, that step-6 candidates 3 + 5 are DEFERRED to the CPO (design call + domain-semantic), and
++  that the remaining out-of-scope trigger-block rot (dead build_metric_glossary_json.py path + stale
++  flat mart paths) is flagged for the CPO as background task_44698a18. Carry this session's lessons
++  (the `cd && git commit` sole-command gotcha; the data-build/ui-checks CI skip on docs/workflow-only
++  changes; the catalogue-vs-bindings trigger reasoning). Keep the governance machinery, the rest of
++  the next-candidates list, and the do-NOTs intact.
  
--refs: end-of-session handover; #582+#583+#584+#585+#587 merged; #500 PR-d step 6 (teardown) the only remaining unit.
-+refs: >
-+  #500 PR-d step 6 (teardown). Scope = candidates 1 + 4 ONLY (CPO-approved 2026-06-27).
-+  Candidate 3 (benchmark-macro (key,column) seam) and candidate 5 (metric_catalogue
-+  description enrichment) DEFERRED to the CPO. Out-of-scope trigger-block rot discovered
-+  during exploration — a dead `scripts/build_metric_glossary_json.py` trigger path (older
-+  glossary work, not #500 PR-d) and stale flat mart paths (lines 18-23, from the mart-reorg
-+  refactor that moved marts into 5_marts/{domestic_league,shared}/) — is NOT touched here and
-+  is flagged separately for the CPO to scope.
+-refs: >
+-  #500 PR-d step 6 (teardown). Scope = candidates 1 + 4 ONLY (CPO-approved 2026-06-27).
+-  Candidate 3 (benchmark-macro (key,column) seam) and candidate 5 (metric_catalogue
+-  description enrichment) DEFERRED to the CPO. Out-of-scope trigger-block rot discovered
+-  during exploration — a dead `scripts/build_metric_glossary_json.py` trigger path (older
+-  glossary work, not #500 PR-d) and stale flat mart paths (lines 18-23, from the mart-reorg
+-  refactor that moved marts into 5_marts/{domestic_league,shared}/) — is NOT touched here and
+-  is flagged separately for the CPO to scope.
++refs: end-of-session handover; #590 OPEN (CI green, awaiting CPO merge); #500 PR-d step 6 candidates 3 + 5 deferred; trigger-block rot flagged as task_44698a18.
  
  scope_paths:
--  - .claude/active_work.md
-+  - .github/workflows/pages-match-preview.yml
-+  - docs/content_architecture.md
-+  - docs/wireframes/99_gaps_register.md
-+
-+protected_override: >
-+  `.github/workflows/pages-match-preview.yml` is a PROTECTED governance path. CPO (Rami)
-+  approved step-6 candidate 1 in this session (2026-06-27) and delegated unattended execution.
-+  cto-reviewer is the required platform reviewer for the workflow change (review_routing.json).
+-  - .github/workflows/pages-match-preview.yml
+-  - docs/content_architecture.md
+-  - docs/wireframes/99_gaps_register.md
+-
+-protected_override: >
+-  `.github/workflows/pages-match-preview.yml` is a PROTECTED governance path. CPO (Rami)
+-  approved step-6 candidate 1 in this session (2026-06-27) and delegated unattended execution.
+-  cto-reviewer is the required platform reviewer for the workflow change (review_routing.json).
++  - .claude/active_work.md
  
  decisions_taken: >
--  Documentation only — no product/code/§10 decision. Records what merged and re-points the handover at
--  step 6 (teardown) as a CPO-directed choice, not a pre-decided build.
-+  Faithful migration of an existing trigger's intent (a change to the metric-definitions seed
-+  should rebuild + redeploy the Pages site) across the #500 seed rename. metric_catalogue.csv
-+  (not metric_bindings.csv) is the correct new trigger: bindings is already covered by `site/**`,
-+  the catalogue seed is otherwise untriggered, and line 129 of the workflow regenerates
-+  metric_definitions.json from the catalogue on every run. The doc edits are a pure name update
-+  to marts that already exist on main. No product, metric, naming, or mechanism decision is made.
+-  Faithful migration of an existing trigger's intent (a change to the metric-definitions seed
+-  should rebuild + redeploy the Pages site) across the #500 seed rename. metric_catalogue.csv
+-  (not metric_bindings.csv) is the correct new trigger: bindings is already covered by `site/**`,
+-  the catalogue seed is otherwise untriggered, and line 129 of the workflow regenerates
+-  metric_definitions.json from the catalogue on every run. The doc edits are a pure name update
+-  to marts that already exist on main. No product, metric, naming, or mechanism decision is made.
++  Documentation only — no product/code/§10 decision. Records what shipped in #590 and re-points the
++  handover at the remaining step-6 items (candidates 3 + 5) as CPO-directed choices, not pre-decided builds.
  
  decisions_reserved:
--  - None new. Step 6 teardown is CPO-directed + needs scoping; not pre-decided here.
-+  - Candidate 3 (collapse the benchmark-macro (metric_key, season_column) pairs now that they are
-+    identical) — this drops a deliberate abstraction seam; a design call for the CPO, not cleanup.
-+  - Candidate 5 (enrich metric_catalogue.csv descriptions with provider semantics) — domain-semantic;
-+    CPO + football-analytics.
-+  - Whether/under which refactor the remaining trigger-block rot (dead build_metric_glossary_json.py
-+    path; stale flat mart paths) is fixed. Flagged for the CPO; not pre-decided here.
+-  - Candidate 3 (collapse the benchmark-macro (metric_key, season_column) pairs now that they are
+-    identical) — this drops a deliberate abstraction seam; a design call for the CPO, not cleanup.
+-  - Candidate 5 (enrich metric_catalogue.csv descriptions with provider semantics) — domain-semantic;
+-    CPO + football-analytics.
+-  - Whether/under which refactor the remaining trigger-block rot (dead build_metric_glossary_json.py
+-    path; stale flat mart paths) is fixed. Flagged for the CPO; not pre-decided here.
++  - None new. Step-6 candidate 3 (benchmark-macro seam) + candidate 5 (description enrichment) stay
++    CPO-directed; the trigger-block-rot follow-up is CPO-scoped (flagged, not pre-decided).
  
  done_when:
--  - active_work.md leads with: PR-d steps 1-5 MERGED (#582-#585 + #587); step 6 (teardown) the only remaining
--    unit; the live metric chain; the session lessons; the governance machinery; the do-NOTs; next candidates.
--  - Routes to scope-auditor only (active_work.md is in no routing path; the commit carries contract.md so it is
--    NOT artifact-exempt — scope-auditor must run). CPO merges.
-+  - pages-match-preview.yml triggers on `dbt_project/seeds/metric_catalogue.csv` in place of the
-+    deleted `dbt_project/seeds/metric_definitions.csv`; no other trigger path is added or removed.
-+  - docs/content_architecture.md and docs/wireframes/99_gaps_register.md use
-+    `mart_team_fixture_stats` / `mart_player_fixture_stats`; no other doc content changes.
-+  - Required reviewers (scope-auditor, cto-reviewer, bi-analyst-reviewer) PASS with >=2 named risks
-+    each; review.md diff_sha256 binds the staged diff; CI is green. The CPO merges (never self-merge).
+-  - pages-match-preview.yml triggers on `dbt_project/seeds/metric_catalogue.csv` in place of the
+-    deleted `dbt_project/seeds/metric_definitions.csv`; no other trigger path is added or removed.
+-  - docs/content_architecture.md and docs/wireframes/99_gaps_register.md use
+-    `mart_team_fixture_stats` / `mart_player_fixture_stats`; no other doc content changes.
+-  - Required reviewers (scope-auditor, cto-reviewer, bi-analyst-reviewer) PASS with >=2 named risks
+-    each; review.md diff_sha256 binds the staged diff; CI is green. The CPO merges (never self-merge).
++  - active_work.md leads with: PR-d step 6 candidates 1+4 SHIPPED as #590 (awaiting merge); candidates
++    3+5 deferred; trigger-rot flagged (task_44698a18); the session lessons; governance machinery and
++    do-NOTs intact.
++  - Routes to scope-auditor only (active_work.md is in no routing path; the commit carries contract.md so
++    it is NOT artifact-exempt — scope-auditor must run). CPO merges.
  
  amendments: (none)
-diff --git a/.github/workflows/pages-match-preview.yml b/.github/workflows/pages-match-preview.yml
-index dae5907..78c0dbf 100644
---- a/.github/workflows/pages-match-preview.yml
-+++ b/.github/workflows/pages-match-preview.yml
-@@ -22,7 +22,7 @@ on:
-       - "dbt_project/models/5_marts/mart_team_season.sql"
-       - "dbt_project/models/5_marts/mart_team_season_insights.sql"
-       - "dbt_project/models/5_marts/marts.yml"
--      - "dbt_project/seeds/metric_definitions.csv"
-+      - "dbt_project/seeds/metric_catalogue.csv"
-       - "site/match-preview/metric_manifest.json"
-       - "site/match-preview/metric_definitions.json"
-       - "dbt_project/seeds/schema.yml"
-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
-index ecfebf5..4af407c 100644
---- a/docs/content_architecture.md
-+++ b/docs/content_architecture.md
-@@ -68,7 +68,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
- | | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ⚠ player |
- | | Season-over-season | team, player | YoY model | ✓ team / gap player |
- | | Vs-benchmark (bars vs league avg + percentile) | team, player | **NEW** `mart_competition_benchmarks` | ✗ |
--| | Single fixture | team, player | `mart_fixture_stats__{team,player}` | ✓ |
-+| | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
- | **Standings / rank** | League / group table | team | standings mart (#322) | ✓ |
- | | Standing-as-context | team | standings mart | ✓ |
- | | Leaderboards (scorers + the metric set) | player | **NEW** `mart_leaderboards` (generalise `mart_top_scorers`) | ⚠ partial |
-diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index 7c07da2..1bbe566 100644
---- a/docs/wireframes/99_gaps_register.md
-+++ b/docs/wireframes/99_gaps_register.md
-@@ -15,7 +15,7 @@
- | GAP-04 | 10 home | feed | Trending/storylines feed: which `mart_team_profile` signals surface (YoY swings, streaks, deserved-vs-actual gap) and how they rank | CPO selects signals + ranking at 10_home review; feed ships with `landing.json` | pending | — |
- | GAP-05 | 05 leaderboards | export | Only goals / assists / shots_on_target boards are exported; `/stats/{metric-slug}/` implies more | CPO picks the metric set at 05 review; each added board is a one-line export change | pending | — |
- | GAP-06 | 01 fixture, 06 h2h | export | `/h2h/{pair}/` is in the URL scheme and `mart_head_to_head` exists, but there is no standalone h2h export target (`ENTITY_TYPES` has none; fixture payloads embed only the summary) | Add an `h2h` export target (canonical pair = lower team id first) | pending | — |
--| GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_fixture_stats__*`), then extend the export | pending | — |
-+| GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_team_fixture_stats`/`mart_player_fixture_stats`), then extend the export | pending | — |
- | GAP-08 | 01 fixture, 04 hub | content | `round_name` (e.g. "Regular Season - 14", "Group Stage - 1") is a raw provider string rendered as-is — no localization strategy ("Spieltag 14") | i18n strategy decision in #370 (pattern-based round-label translation vs raw); blueprint renders the raw string until then | pending | — |
- | GAP-09 | all metric screens | catalogue | Metric display needs grouping + importance as data: no `metric_group`, `importance_tier`, `group_display_order` columns in `metric_catalogue` | Add the three columns; values from the locked contract in [`metrics_display.md`](metrics_display.md) — `metric_group` on all atomics (team + player), `importance_tier` team-only (null for player entries) | **approved** (CPO 2026-06-11) | — |
- | GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_team_season_record` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |

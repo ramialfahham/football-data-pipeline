@@ -4,15 +4,15 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-06-26 EOD** — **#500 PR-d (live-MVP → metric_catalogue SSoT) STEPS 1–5 ALL MERGED** (#582 + #583 + #584 + #585 + #587). The live match-preview and team-season MVP now reads entirely from `metric_catalogue.csv`; `metric_definitions.csv` is DELETED. **NEXT: step 6 — teardown (scope first, CPO directs; do NOT build until go).**_
+_Last updated: **2026-06-27** — **#500 PR-d step 6 (teardown) candidates 1 + 4 MERGED as [PR #590](https://github.com/ramialfahham/football-data-pipeline/pull/590)**. Steps 1–5 already merged (#582–#585 + #587); `metric_definitions.csv` is DELETED, the live MVP reads from `metric_catalogue.csv`. **NEXT: the remaining step-6 items — candidate 3 + candidate 5 (CPO-directed) + the trigger-block-rot follow-up (background task_44698a18).**_
 
-main carries #582 + #583 + #584 + #585 + #587. **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed; **CPO merges, never self-merge.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
+main carries #582–#585 + #587 + **#590** (step-6 cand. 1+4). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed. **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull` (carries #582–#585 + #587). **Nothing pending-merge; main GREEN.**
+1. `git checkout main && git pull` — main carries #590 (step-6 cand. 1+4 teardown: Pages trigger repointed to `metric_catalogue.csv` + canonical mart-name doc fixes).
 2. Read this file top-to-bottom before touching anything.
-3. **The NEXT unit is step 6 (teardown) — scope it first, present the candidate list to the CPO, wait for explicit go.** Do NOT begin building until the CPO approves.
-4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (the impact-map gate enforces it for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`) + use **PLAN MODE** for the plan-back.
+3. **Step 6 candidates 1 + 4 are DONE (#590). The remaining step-6 items are CPO-directed, not auto-granted:** candidate 3 (benchmark-macro seam — a DESIGN call) + candidate 5 (description enrichment — domain) + the trigger-block-rot follow-up ([background task_44698a18]). Scope with the CPO before building; do NOT pre-decide.
+4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`; `protected_override` for `.github/workflows/**` etc.) + use **PLAN MODE** for the plan-back.
 
 ---
 
@@ -56,15 +56,19 @@ site/team-season/index.html  (row.<metric_id> — no _season suffix)
 
 ---
 
-### Step 6 — teardown (NOT built; scope + CPO go first)
+### Step 6 — teardown (candidates 1 + 4 SHIPPED via #590; 3 + 5 + rot REMAIN)
 
-Present this candidate list to the CPO; do NOT pre-decide which to include:
+**SHIPPED — [#590](https://github.com/ramialfahham/football-data-pipeline/pull/590) MERGED:**
+1. ✅ **`pages-match-preview.yml` trigger** — the dead `metric_definitions.csv` path repointed to `metric_catalogue.csv` (the catalogue seed wasn't covered by any glob; `metric_bindings.csv` already is, via `site/**`). PROTECTED → done under `protected_override` + cto-reviewer.
+4. ✅ **Two stale doc globs** — `mart_fixture_stats__{team,player}` / `mart_fixture_stats__*` → `mart_team_fixture_stats` / `mart_player_fixture_stats` in `docs/content_architecture.md` + `docs/wireframes/99_gaps_register.md`.
 
-1. **`pages-match-preview.yml:25` trigger** — still references `metric_definitions.csv` (now deleted). PROTECTED path; needs `protected_override` + cto-reviewer. Likely replace with `site/match-preview/metric_bindings.csv` as the trigger.
-2. **Verify/retire `build_match_preview_site.{sh,ps1}` and `export_matchday_insights.ps1`** — likely KEEP (they assemble the whole Pages site); verify actual usage before touching.
-3. **Benchmark macro pair simplification** — `team_benchmark_metrics.sql` now has `('X','X')` pairs after both renames; consider simplifying to single-element. Do NOT build until CPO-directed.
-4. **Two stale glob refs** in `docs/content_architecture.md` and `docs/wireframes/99_gaps_register.md` (entity-first shorthand from the old naming).
-5. **Seed description enrichment** — flagged in PR-c review as low-priority polish (provider-semantics nuances).
+**VERIFIED as a no-op (no change needed):**
+2. **`build_match_preview_site.{sh,ps1}` + `export_matchday_insights.ps1`** — KEEP. They assemble the whole Pages `_site/` and reference `metric_definitions.json` (the live output, still generated), not the deleted seed. Not broken.
+
+**REMAIN — CPO-directed, do NOT pre-decide:**
+3. **Benchmark macro pair simplification** — `team_benchmark_metrics.sql` now has identical `('X','X')` pairs. NOT cleanup: the `(metric_key, season_column)` two-element form is a deliberate abstraction seam (lets the catalogue id and physical column diverge). Collapsing it is a YAGNI-vs-flexibility DESIGN call → CPO decides.
+5. **Seed description enrichment** — domain-semantic provider nuances in `metric_catalogue.csv` descriptions; CPO + football-analytics. Lowest priority, nothing breaks.
+- **Trigger-block-rot follow-up** ([background task_44698a18]) — discovered during #590: the SAME workflow trigger block has a dead `scripts/build_metric_glossary_json.py` path (older glossary work, deleted) + stale flat mart paths (lines 18–23, marts moved to `5_marts/{domestic_league,shared}/`). NOT #500 residue → left out of #590; CPO scopes as its own PROTECTED-path unit.
 
 ---
 
@@ -87,6 +91,12 @@ Present this candidate list to the CPO; do NOT pre-decide which to include:
 
 **Plain-language communication:** Do NOT ask the CPO cryptic technical questions. Ask in plain language; lead with a brief decision frame + options.
 
+**(2026-06-27, #590) `cd && git commit` trips the sole-command gate:** `git_discipline.py` blocks `git commit` when it is NOT the only command in the Bash call (a chained sibling could restage after the review hash). `cd <dir> && git commit …` counts as chained → BLOCKED. The Bash tool's cwd already persists as the repo root, so run `git commit …` with NO `cd` prefix and nothing chained.
+
+**(2026-06-27, #590) docs/workflow-only PRs skip the expensive CI:** a PR touching only `.github/workflows/**` + `docs/**` (no dbt models, no `site/**`) has `data-build` and `ui-checks` SKIP — only `validate` (incl. `check_task_artifacts.py`) + `test` + the gates run. Fast, no BigQuery build. Don't wait for data-build on such PRs.
+
+**(2026-06-27, #590) catalogue-vs-bindings trigger reasoning:** when repointing the Pages trigger off the deleted `metric_definitions.csv`, the right target is the **catalogue seed** (`dbt_project/seeds/metric_catalogue.csv`) — it is covered by no glob — NOT `metric_bindings.csv`, which is already covered by the `site/**` glob. The handover's "likely metric_bindings.csv" hint was slightly off; the catalogue is the uncovered source.
+
 ---
 
 ### #500 metric-layer — STATUS (COMPLETE bar step 6)
@@ -102,7 +112,8 @@ Present this candidate list to the CPO; do NOT pre-decide which to include:
 | PR-d step 3 — label unification | #584 | MERGED |
 | PR-d step 4 — corners rename | #585 | MERGED |
 | PR-d step 5 — drop `_season` | #587 | MERGED |
-| PR-d step 6 — teardown | — | NOT BUILT (scope first) |
+| PR-d step 6 — teardown (cand. 1 + 4) | #590 | MERGED |
+| PR-d step 6 — cand. 3 + 5 + trigger rot | — | REMAIN (CPO-directed; rot = task_44698a18) |
 
 The metric layer is now **one entity-first naming scheme + one definition SSoT (metric_catalogue.csv)**.
 
