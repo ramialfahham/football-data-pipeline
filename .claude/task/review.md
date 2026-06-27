@@ -1,26 +1,49 @@
-# Review — chore/handover-2026-06-27 — end-of-session handover refresh
+# Review — docs/macro-usage-standard — engineering_standards.md §1.3 Macros
 
-> G3 Lock artifact. Reviewer spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
-> Required set: always → scope-auditor. Artifact/handover only — no dbt, no site, no structural surface.
-> Rebased onto post-#590 main (sibling teardown PR #590 merged first); review rebound to the rebased diff.
-> Records that #500 PR-d step 6 candidates 1+4 MERGED as #590; candidates 3+5 + a trigger-rot follow-up remain (CPO-directed).
+> G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
+> Required set: always → scope-auditor; `dbt_project/**` → analytics-engineer-reviewer.
+> Documentation only — adds a "when / when-not to use a macro" standard. The benchmark macro removals +
+> dormant-scaffolding deletions are reserved to separate PRs (contract decisions_reserved).
+> Two prior FAILs fixed: (1) the COMPOSE rule mischaracterised the benchmark macro as a "formula" and the
+> generate_schema_name claim was imprecise; (2) a "latest partition" example cited dead code
+> (apif_latest_source_partition has zero callers) — replaced with the genuinely-used JSON-expansion macro.
 
-diff_sha256: 22c2edacc1a7742650207e2528bd7291346b64ab912bb48d21bc88ed26658ce3
+diff_sha256: 984190fb2f0474b284c3789e622b239bf3be89e5aa6c76052d4299cf6d1bc9c5
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Session lessons as embedded decisions: examined the three "hard-won lessons" added to the handover (the
-  `cd && git commit` sole-command constraint, the docs/workflow-only CI skip, the catalogue-vs-bindings trigger
-  reasoning). All are operational/engineering facts discovered during #590, not new CPO-class decisions —
-  permissible cold-chat continuity aids. No §10 violation, no scope drift.
-- Candidate 3 (benchmark-macro seam) framing integrity: traced the benchmark-macro item from the prior contract
-  (replaced in this patch) to the new handover statement. The new phrasing adds technical justification ("lets the
-  catalogue id and physical column diverge") for why collapsing the seam is a DESIGN call; authority remains
-  CPO-directed. No silent decision embedded; no scope creep.
-- Scope: only `.claude/active_work.md` (in scope_paths) + `.claude/task/contract.md` (always-allowed contract) are
-  touched; no file outside `.claude/`. The workflow + doc teardown was sibling PR #590 — this handover does not
-  re-touch those. Governance machinery and do-NOTs preserved verbatim; #590 correctly recorded as MERGED.
+- Scope + decision class: only `dbt_project/docs/engineering_standards.md` (in scope) + the always-allowed
+  contract.md are touched; no model/macro change. The text codifies the CPO's already-stated principle
+  (macros decrease maintainability; prefer plain SQL + COMPOSE) — no new §10 decision; consistent with
+  layering.md (generate_schema_name override; JSON parsing allowed in staging) and §5.
+- Boundary — "cross-cutting transform that can't be a model": the "can't be a standalone model" assertion is
+  a context-dependent judgment a weak claim could exploit; mitigated by the §5 cross-ref + the COMPOSE
+  principle a reviewer can cite to push back. The standard documents the tension honestly rather than
+  closing it falsely; the contested existing macros (team/player benchmark) are reserved to the CPO anyway.
+- Dormant-macro grandfathering left implicit: "don't add a macro ahead of need" is forward-looking ("add"),
+  but a strict reader could try to apply it to the CPO-reserved dormant scaffolding (playoff round names
+  etc.). No scope violation (the contract reserves their disposition); a future "applies to new macros"
+  clarifier would reduce friction. Low risk.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- `generate_schema_name` example — live + accurate: the override exists at
+  `dbt_project/macros/generate_schema_name.sql` and is active; dbt's default would produce
+  `<target_schema>_<custom>` (e.g. `dbt_analytics_staging`) instead of the bare `staging`, exactly as the
+  standard states; layering.md documents the dependency. Correct, necessary example.
+- JSON-expansion example — verified in live use: `apif_payload_response_json_strings` has exactly three
+  callers (`stg_apif__fixtures_next`, `stg_apif__leagues`, `stg_apif__teams`), each inside
+  `unnest({{ ... }})` in the `from` clause; it takes a table alias and resolves inside the caller's from,
+  so it genuinely cannot be a standalone model. "Several staging models" + "inside the from/unnest" are
+  accurate.
+- §5 cross-reference consistency: §1.3's COMPOSE guidance (compute once, downstream reads) aligns with §5
+  ("centralize once in `intermediate` if reused") and layering.md's `4_intermediate` definition. No
+  contradiction.
+- No false legitimation of dead code: `apif_latest_source_partition` has zero callers (staging uses inline
+  `qualify`); the standard does NOT cite it — the second example maps to the live JSON macro, so no dead
+  macro is canonised.
 
 ## escalations
 (none)
