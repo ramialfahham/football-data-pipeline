@@ -68,7 +68,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 | | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ⚠ player |
 | | Season-over-season | team, player | YoY model | ✓ team / gap player |
 | | Vs-benchmark (bars vs league avg + percentile) | team, player | **NEW** `mart_competition_benchmarks` | ✗ |
-| | Single fixture | team, player | `mart_fixture_stats__{team,player}` | ✓ |
+| | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
 | **Standings / rank** | League / group table | team | standings mart (#322) | ✓ |
 | | Standing-as-context | team | standings mart | ✓ |
 | | Leaderboards (scorers + the metric set) | player | **NEW** `mart_leaderboards` (generalise `mart_top_scorers`) | ⚠ partial |
