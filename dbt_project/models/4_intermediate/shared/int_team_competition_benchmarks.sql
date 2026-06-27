@@ -10,28 +10,14 @@
   cannot skew the median/percentiles. Metrics with no value for a team (e.g. player-stat coverage gaps)
   are excluded per metric (metric_value is null -> not counted).
 
-  Window: season-to-date (W2), from int_team_season__metrics. The 20-metric list lives in
-  the team_benchmark_metrics() macro (shared with mart_team_competition_benchmarks).
+  Window: season-to-date (W2). Aggregates int_team_competition_benchmark_metrics_long (the shared long
+  form, also read by mart_team_competition_benchmarks, so the metric set cannot drift).
   Grain: (league_code, season_api_year, metric_key).
 #}
 
-with season as (
-    select * from {{ ref('int_team_season__metrics') }}
-    where season_games_played >= 3
-),
-
-unpivoted as (
-    {% for metric_key, col in team_benchmark_metrics() %}
-    select
-        league_code,
-        season_api_year,
-        '{{ metric_key }}' as metric_key,
-        {{ col }} as metric_value
-    from season
-    {% if not loop.last %}
-    union all
-    {% endif %}
-    {% endfor %}
+with benchmark_metrics as (
+    select * from {{ ref('int_team_competition_benchmark_metrics_long') }}
+    where metric_value is not null
 )
 
 select
@@ -43,6 +29,5 @@ select
     approx_quantiles(metric_value, 4)[offset(1)] as league_p25,
     approx_quantiles(metric_value, 4)[offset(2)] as league_median,
     approx_quantiles(metric_value, 4)[offset(3)] as league_p75
-from unpivoted
-where metric_value is not null
+from benchmark_metrics
 group by league_code, season_api_year, metric_key
