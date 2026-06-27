@@ -53,13 +53,16 @@ Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, an
 
 ## 1.3) Macros
 
-Prefer plain SQL. A Jinja macro hides the real logic from the source files and pushes errors into generated SQL, so it costs readability and debuggability — add one only when it earns that cost.
+Not a rulebook — a calibrated default. This project's habit has been reaching for a Jinja macro where plain SQL or a model would read better, so: **default to plain SQL.** A macro hides the real logic from the source files and surfaces errors in generated SQL, so it carries a readability/debuggability cost — spend it only when the macro buys something plain SQL or a model cannot.
 
-**A macro earns its place** when it does something plain SQL or a dbt model cannot: a required dbt **override hook** (e.g. `generate_schema_name`, whose default would otherwise produce the wrong dataset names), or a **cross-cutting expression that has to sit inside other queries** and would otherwise be copied across many files (e.g. expanding a raw provider JSON payload inside the `from`/`unnest` of several staging models, which can't be a standalone model).
+**The trap we keep hitting — a shared list or formula held in a macro.** Build it once as a model (usually an `int_*`) and let the others read or aggregate it instead — the COMPOSE pattern (see §5). Same single source, no generated SQL.
 
-**A macro does not earn its place** merely to avoid repetition. A shared list, a repeated block of SQL, or a value used in several models is usually better as a **model** the others read or aggregate — compute once, downstream reads (the COMPOSE pattern; see also §5). And don't add a macro ahead of need, for a feature that isn't live yet.
+**Where a macro genuinely earns it:**
 
-The test: *does this give value plain SQL or a model cannot?* If not, write the SQL.
+- a dbt **override hook** (e.g. `generate_schema_name`, whose default would name datasets wrong);
+- an **expression that must sit inside other queries** and would otherwise be copied across files (e.g. expanding a raw JSON payload inside the `from`/`unnest` of several staging models).
+
+Beyond those there is no formula: an experienced analytics engineer weighs the readability cost against what the macro saves, and judges. This records the default and the trap — not a decision procedure.
 
 ## 2) Documentation Policy
 
