@@ -51,6 +51,16 @@ Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, an
 
 **Standard applied consistently across Python and SQL.** A senior engineer reading any file in this repo should be able to orient themselves within 30 seconds.
 
+## 1.3) Macros
+
+Prefer plain SQL. A Jinja macro hides the real logic from the source files and pushes errors into generated SQL, so it costs readability and debuggability — add one only when it earns that cost.
+
+**A macro earns its place** when it does something plain SQL or a dbt model cannot: a required dbt **override hook** (e.g. `generate_schema_name`, whose default would otherwise produce the wrong dataset names), or a **cross-cutting expression that has to sit inside other queries** and would otherwise be copied across many files (e.g. expanding a raw provider JSON payload inside the `from`/`unnest` of several staging models, which can't be a standalone model).
+
+**A macro does not earn its place** merely to avoid repetition. A shared list, a repeated block of SQL, or a value used in several models is usually better as a **model** the others read or aggregate — compute once, downstream reads (the COMPOSE pattern; see also §5). And don't add a macro ahead of need, for a feature that isn't live yet.
+
+The test: *does this give value plain SQL or a model cannot?* If not, write the SQL.
+
 ## 2) Documentation Policy
 
 - Every model must have a `description`.
