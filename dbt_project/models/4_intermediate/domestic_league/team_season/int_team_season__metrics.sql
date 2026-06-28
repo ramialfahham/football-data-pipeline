@@ -137,6 +137,20 @@ select
         when games_with_sot_stats < games_played then null
         else safe_divide(shots_on_goal, games_with_sot_stats)
     end as shots_on_goal_per_match,
+    -- shots-on-target conceded per match: opponent-SoT companion to shots_on_goal_per_match;
+    -- NULL unless opponent SoT covers every game (incomplete-data rule, CPO 2026-06-25).
+    case
+        when games_with_opp_sot_stats < games_played then null
+        else safe_divide(opponent_shots_on_goal, games_with_opp_sot_stats)
+    end as shots_on_goal_against_per_match,
+    -- sot_difference (deserved signal): per-match shots-on-target difference (for - against). The
+    -- catalogue denominator is count(*) = matches; this APPLIES it only when BOTH own and opponent
+    -- SoT cover every game (availability gate — never part of the formula). Signed: can be negative.
+    case
+        when games_with_sot_stats < games_played then null
+        when games_with_opp_sot_stats < games_played then null
+        else safe_divide(shots_on_goal - opponent_shots_on_goal, games_played)
+    end as sot_difference,
     case
         when games_with_sot_stats < games_played then null
         when (goals_for - goals_penalty - goals_own) < 0 then null
