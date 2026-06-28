@@ -4,176 +4,68 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-06-27** — **#500 PR-d step 6 (teardown) candidates 1 + 4 MERGED as [PR #590](https://github.com/ramialfahham/football-data-pipeline/pull/590)**. Steps 1–5 already merged (#582–#585 + #587); `metric_definitions.csv` is DELETED, the live MVP reads from `metric_catalogue.csv`. **NEXT: the remaining step-6 items — candidate 3 + candidate 5 (CPO-directed) + the trigger-block-rot follow-up (background task_44698a18).**_
+_Last updated: **2026-06-28** — **[PR #596](https://github.com/ramialfahham/football-data-pipeline/pull/596) MERGED: metric_catalogue formula FORMALIZATION.** Every metric now carries a structured, resolvable formula — `base_relation` + clean `numerator_expr` / `denominator_expr` over the `int_legs__*` building-block columns (67/71 rows; 4 deferred). **A CPO RULING was set this session and must NOT be relitigated: a metric's formula is its fixed mathematical definition; data availability decides only whether a model can APPLY it (compute vs null) and is NEVER encoded in the formula.** main is GREEN. **There is NO locked next task — the CPO directs from the NEXT candidates below.**_
 
-main carries #582–#585 + #587 + **#590** (step-6 cand. 1+4). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** Per-item CPO-directed. **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
+main carries the full #500 metric layer + the macro-cleanup thread + **#596** (formula formalization). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull` — main carries #590 (step-6 cand. 1+4 teardown: Pages trigger repointed to `metric_catalogue.csv` + canonical mart-name doc fixes).
+1. `git checkout main && git pull`. **main is GREEN at #596.** Then **close stale PR #595** (the pre-session 2026-06-28 EOD handover, superseded by this one) if still open.
 2. Read this file top-to-bottom before touching anything.
-3. **Step 6 candidates 1 + 4 are DONE (#590). The remaining step-6 items are CPO-directed, not auto-granted:** candidate 3 (benchmark-macro seam — a DESIGN call) + candidate 5 (description enrichment — domain) + the trigger-block-rot follow-up ([background task_44698a18]). Scope with the CPO before building; do NOT pre-decide.
-4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`; `protected_override` for `.github/workflows/**` etc.) + use **PLAN MODE** for the plan-back.
+3. **No locked next task.** Present the NEXT candidates (below) to the CPO in plain language with a brief recommendation, then WAIT for the pick. Do NOT pre-decide any §10 question.
+4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
 
 ---
 
-### ⭐ THIS SESSION (2026-06-26) — #500 PR-d: live-MVP → metric_catalogue SSoT (steps 1–5)
+### ⭐ THIS SESSION (2026-06-28) — the arc
 
-| PR | Step | What changed |
-|----|------|--------------|
-| #582 | 1 — WC cleanup | Deleted 14 dead WC-pretournament metric rows from `metric_definitions.csv`; deleted matching i18n keys (3 langs) |
-| #583 | 2 — SSoT migration | Deleted `metric_definitions.csv` entirely; created `site/match-preview/metric_bindings.csv` (thin wiring: live_id → catalogue_metric_id + home/away JSON column names + context); rewrote `export_metric_definitions_json.py` to compose catalogue + bindings; added `tests/test_metric_bindings.py` (byte-identity guard); removed seed block from `seeds/schema.yml` |
-| #584 | 3 — label unification | Unified onto ONE label scheme (`metrics.<catalogue_id>.label`); rewrote `check_ui_i18n_metrics.py` to follow bindings → catalogue keys; updated `site/match-preview/index.html` (dropped `LEGACY_METRIC_LABEL_KEYS`); updated `site/team-season/index.html` (all 13 label refs); re-keyed all three i18n files (en/de/fi): `metrics.<windowed_id>` → `metrics.<official_id>` + deleted the `metric.*` block |
-| #585 | 4 — corners rename | `corners_conceded_per_match` → `corners_against_per_match` end-to-end: catalogue id + label_i18n_key, i18n files (3 langs), bindings CSV, int_team_season__metrics.sql, mart_team_season_record.sql, team_benchmark_metrics.sql macro, schema YMLs, team-season page, wireframe. **Folded fix:** added `"team and player"` to entity `accepted_values` in `seeds/schema.yml` (pre-existing gap surfaced by CI) |
-| #587 | 5 — drop `_season` suffix | Dropped `_season` from all **metric** columns (not `_sum_season` intermediates); int_team_season__metrics.sql, mart_team_season_record.sql, mart_team_season_insights.sql, mart_team_profile.sql, team_benchmark_metrics.sql macro, schema YMLs (int_team_season.yml / shared.yml / domestic_league.yml), DQ test (assert_mart_team_season_insights_metric_consistency.sql), drift guard (assert_no_uncatalogued_season_metric.sql comment), team-season page, wireframe 02_team_profile.md. **AL09 fix:** de-aliased `m.X as X` → `m.X` (19 rows in mart_team_season_record) + `col as col` → `col` (2 rows in int_team_season__metrics) |
+Started on the **TEAM deserved-vs-actual** thread; it cascaded into formalizing the whole metric layer.
 
-#### The live metric chain post-migration
+1. **SoT deserved-vs-actual — VALIDATED, design settled, NOT built.** Ran a full correlation sweep of every team metric vs final league rank (149 league-seasons / ~3,500 team-seasons, Spearman): **`sot_difference_per_match` (SoT for − against) = +0.70, statistically tied with `goals_per_match` (+0.70)** — the best *process* (deserved) predictor. Defensive action-counts are noise (tackles −0.05 … blocks −0.32). **Design settled (CPO-locked in this session's design discussion; recorded in memory [[project-team-metric-rank-correlation-sweep]] — NOT yet in any build contract):** method = **rank-space gap**; deserved = rank teams by `sot_difference`; actual = `league_rank`; **gap = actual_rank − deserved_rank**. Catalogue-first (define + approve the metric rows before building). See memory [[project-team-metric-rank-correlation-sweep]]. `sot_difference` itself is the stash `feat/team-sot-difference-metrics`. **NOT built** — the formalization below became the prerequisite foundation.
+2. **Catalogue-coverage gate (#530) was explored, then RESHAPED.** Sequence of CPO decisions: declarative schema.yml tags → audit found calc spread across ~11 models → momentum/record mart-calc is a *justified* placement (no refactor) → CPO then observed the catalogue lacked the "how it's calculated" → pivoted to **formalizing the formula**, which **supersedes the labeling gate**.
+3. **#596 — formula formalization (MERGED).** See below.
 
-```
-metric_catalogue.csv  (SSoT — format, lower_is_better, label_i18n_key, formula)
-        +
-site/match-preview/metric_bindings.csv  (wiring: live_id → catalogue_metric_id + home/away columns + context)
-        ↓
-scripts/export_metric_definitions_json.py  (composes both → site/match-preview/metric_definitions.json)
-        ↓
-site/match-preview/index.html  (reads def.label for i18n key; def.format / lower_is_better)
-```
+### #596 — what shipped (metric_catalogue formula formalization)
+- Added `base_relation` + replaced prose `numerator`/`denominator` with **`numerator_expr` / `denominator_expr`** = window-free aggregates over the **`int_legs__*`** per-(entity, fixture) building blocks:
+  - team scoreline/team-stat → `int_legs__team_match`; team player-derived (tackles/duels/key_passes) → `int_legs__team_from_players`; player → `int_legs__player_match`.
+- Patterns: per-match rate = `sum(x) / count(*)`; ratio = `sum(a) / sum(b)`; count = `sum(x)`; per-90 = `sum(x) * 90 / sum(minutes_played)`; points = `sum(case result when 'W' then 3 when 'D' then 1 else 0 end)`.
+- **67/71 formalized; all resolve. 4 blank-deferred** (CPO follow-ups): the 2 entity-dual `team and player` rows (`finishing_efficiency`, `duels_won_pct`) and player `goals_penalty` / `goals_open_play`.
+- `numerator`/`denominator` were **documentation-only** (no consumer) → additive metadata, **no model SQL, no shipped-number change**.
 
-Team-season chain:
-```
-dbt_project/models/4_intermediate/…/int_team_season__metrics.sql
-  (metric column names now = catalogue metric_ids, no _season suffix)
-        ↓
-mart_team_season_record / mart_team_season_insights / mart_team_profile
-        ↓
-scripts/export_team_season_json.py  (SELECT * → renamed columns flow through automatically)
-        ↓
-site/team-season/index.html  (row.<metric_id> — no _season suffix)
-```
-
-**Byte-identity guard:** `tests/test_metric_bindings.py::test_regenerated_json_matches_committed` — regenerates the JSON in a temp dir and asserts byte-equality with the committed file. Fails if bindings/catalogue drift without updating the JSON.
-
-**Drift guard:** `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` — catches any metric column in `int_team_season__metrics` or `int_player_season__metrics` that has no catalogue row. The `_season` strip is now a no-op (commented as defensive; #500 Stage 2 is done).
-
----
-
-### Step 6 — teardown (candidates 1 + 4 SHIPPED via #590; 3 + 5 + rot REMAIN)
-
-**SHIPPED — [#590](https://github.com/ramialfahham/football-data-pipeline/pull/590) MERGED:**
-1. ✅ **`pages-match-preview.yml` trigger** — the dead `metric_definitions.csv` path repointed to `metric_catalogue.csv` (the catalogue seed wasn't covered by any glob; `metric_bindings.csv` already is, via `site/**`). PROTECTED → done under `protected_override` + cto-reviewer.
-4. ✅ **Two stale doc globs** — `mart_fixture_stats__{team,player}` / `mart_fixture_stats__*` → `mart_team_fixture_stats` / `mart_player_fixture_stats` in `docs/content_architecture.md` + `docs/wireframes/99_gaps_register.md`.
-
-**VERIFIED as a no-op (no change needed):**
-2. **`build_match_preview_site.{sh,ps1}` + `export_matchday_insights.ps1`** — KEEP. They assemble the whole Pages `_site/` and reference `metric_definitions.json` (the live output, still generated), not the deleted seed. Not broken.
-
-**REMAIN — CPO-directed, do NOT pre-decide:**
-3. **Benchmark macro pair simplification** — `team_benchmark_metrics.sql` now has identical `('X','X')` pairs. NOT cleanup: the `(metric_key, season_column)` two-element form is a deliberate abstraction seam (lets the catalogue id and physical column diverge). Collapsing it is a YAGNI-vs-flexibility DESIGN call → CPO decides.
-5. **Seed description enrichment** — domain-semantic provider nuances in `metric_catalogue.csv` descriptions; CPO + football-analytics. Lowest priority, nothing breaks.
-- **Trigger-block-rot follow-up** ([background task_44698a18]) — discovered during #590: the SAME workflow trigger block has a dead `scripts/build_metric_glossary_json.py` path (older glossary work, deleted) + stale flat mart paths (lines 18–23, marts moved to `5_marts/{domestic_league,shared}/`). NOT #500 residue → left out of #590; CPO scopes as its own PROTECTED-path unit.
-
----
-
-### Session lessons (hard-won — read before touching these areas)
-
-**Local dbt validation gap:** `dbt CLI` is BROKEN locally (`No module named dbt.adapters.factory`). `mcp__dbt__parse` catches broken refs/Jinja/YAML but NOT data tests or SQL lint. **ci-data-build is the real gate** — every PR must pass CI before the CPO merges.
-
-**SQLFluff AL09 — cannot run locally:** The `_season` rename turned `m.<metric>_season as <metric>` into `m.<metric> as <metric>` (self-alias). SQLFluff catches this in CI only. Fix: drop the redundant alias — `m.X as X` → `m.X`; `col as col` → `col`. Watch for this on any rename that produces a self-alias.
-
-**entity accepted_values pre-existing gap:** `metric_catalogue.csv` legitimately has `"team and player"` on 2 rows (finishing_efficiency, duels_won_pct). The schema.yml `accepted_values` only had `["team","player"]` — a pre-existing gap exposed when #585 touched the catalogue. Fixed by adding `"team and player"` to the list.
-
-**Force-push amendment dance (when ci-data-build fails mid-PR):**
-1. Fix the file(s)
-2. `git reset --soft HEAD~1` (unstage without losing changes)
-3. Re-stage everything + `git commit` (single clean commit)
-4. Re-run all reviewers (hash changed; all reviews must be fresh)
-5. `git push --force-with-lease origin <branch>`
-
-**"Mechanical" mis-framing:** Do NOT characterise a cross-layer rename as "mechanical" before tracing the full blast radius. Count files and patterns first; then name the scope accurately.
-
-**Plain-language communication:** Do NOT ask the CPO cryptic technical questions. Ask in plain language; lead with a brief decision frame + options.
-
-**(2026-06-27, #590) `cd && git commit` trips the sole-command gate:** `git_discipline.py` blocks `git commit` when it is NOT the only command in the Bash call (a chained sibling could restage after the review hash). `cd <dir> && git commit …` counts as chained → BLOCKED. The Bash tool's cwd already persists as the repo root, so run `git commit …` with NO `cd` prefix and nothing chained.
-
-**(2026-06-27, #590) docs/workflow-only PRs skip the expensive CI:** a PR touching only `.github/workflows/**` + `docs/**` (no dbt models, no `site/**`) has `data-build` and `ui-checks` SKIP — only `validate` (incl. `check_task_artifacts.py`) + `test` + the gates run. Fast, no BigQuery build. Don't wait for data-build on such PRs.
-
-**(2026-06-27, #590) catalogue-vs-bindings trigger reasoning:** when repointing the Pages trigger off the deleted `metric_definitions.csv`, the right target is the **catalogue seed** (`dbt_project/seeds/metric_catalogue.csv`) — it is covered by no glob — NOT `metric_bindings.csv`, which is already covered by the `site/**` glob. The handover's "likely metric_bindings.csv" hint was slightly off; the catalogue is the uncovered source.
-
----
-
-### #500 metric-layer — STATUS (COMPLETE bar step 6)
-
-| Phase | PR(s) | Status |
-|-------|-------|--------|
-| PR1 — team consolidation | #574 | MERGED |
-| PR2 — player renames | #577 | MERGED |
-| PR-c — SSoT crown | #579 | MERGED |
-| Rename sweep | #580 | MERGED |
-| PR-d step 1 — WC cleanup | #582 | MERGED |
-| PR-d step 2 — SSoT migration | #583 | MERGED |
-| PR-d step 3 — label unification | #584 | MERGED |
-| PR-d step 4 — corners rename | #585 | MERGED |
-| PR-d step 5 — drop `_season` | #587 | MERGED |
-| PR-d step 6 — teardown (cand. 1 + 4) | #590 | MERGED |
-| PR-d step 6 — cand. 3 + 5 + trigger rot | — | REMAIN (CPO-directed; rot = task_44698a18) |
-
-The metric layer is now **one entity-first naming scheme + one definition SSoT (metric_catalogue.csv)**.
+### ⚠️ THE RULING — do NOT relitigate ([[feedback-metric-formula-vs-availability]])
+A metric's **formula is its fixed mathematical definition**. Data availability (missing stats) decides only whether a model can **APPLY** it (compute vs null) — it is **NEVER** in the formula. So per-match denominators are **`count(*)`** (number of matches), NOT coverage counts (`games_with_team_stats`); and **no expression carries `coalesce` / `countif` / null-gates**. The models' coverage handling is *application*, not the formula. (This came after I wrongly bent `save_ratio` toward the model's coverage path chasing reviewer findings — reverted. The reviewers' "count(*) infidelity" findings describe model availability handling, not the formula.) **Authority:** the CPO stated this in chat this session ("the formula doesn't depend on availability of data; availability tells us whether we can apply it"); it is recorded as a CPO RULING in the **MERGED #596 contract `decisions_taken`**, in the seed schema docs, and in memory [[feedback-metric-formula-vs-availability]]. Cite those — it is settled, not a fresh assertion.
 
 ---
 
 ### NEXT candidates (CPO directs; none auto-granted)
-- **#500 PR-d step 6** (above) — final teardown.
-- **TEAM deserved-vs-actual REDESIGN** — a DESIGN discussion (below), not a build.
-- **PROGRAMS** — a tranche of #545 (coverage) / #546 (data-quality) / #547 (cost) (below).
-- **Carryovers (open):** #484 (player NT/tournament context window); #510 (retire leftover team `dribbles_success_pct`); team season-rollup → mapping spine (pre-season teams appear); #483 (qualifying-type cumulative window, GAP-18); display-contract amendment (appearance/playing-time block into `metrics_display.md`); Pilot PR2 slugs (BLOCKED on blinded §10 rulings E2/E3); opponent-context v1.x; Coach + career CONSUMPTION marts (DEFERRED, #391 paused).
-- **Tiny follow-ups from the previous session:** two shorthand glob refs (`docs/content_architecture.md` `mart_fixture_stats__{team,player}`; `docs/wireframes/99_gaps_register.md` GAP-07) → entity-first.
-
-### TEAM deserved-vs-actual REDESIGN (design discussion — do NOT build yet; TEAM only)
-The flagship "how you PLAY vs what you GET" read. The prior crude implementation (`performance_vs_results_gap = shot_share − points_capture`) was REMOVED in #563 (uncatalogued + non-commensurable shares). Framing settled: the real failure was **comparability** → compare deserved + actual in a **common space**. **Lean (NOT decided): percentile-space gap via the benchmark engine**. Alternative: a non-xG deserved-goals/points composite. **Explicitly NO xG.** RESERVED for the discussion: the comparability METHOD, the "deserved" input set, the "actual" set. Process: catalogue-first (define metric_catalogue rows with football-analytics + CPO approval BEFORE building).
-
-### PROGRAMS (enablers — pull in deliberately; never eclipse product)
-- **#545 coverage** (`stream:coverage`): onboard ~146 missing domestic leagues by tranche. API-cheap; DQ-at-scale is the real cost. CPO picks the first tranche. `provider_league_id` discovery is search-first.
-- **#546 data-quality** (`stream:data-quality`): CI integrity suite + scheduled DQ sweep + triage rule. NEXT: generalise the detector; #550 automated-triage design (SCOPE = §10 awaiting CPO).
-- **#547 cost** (`stream:platform`): size BQ build-bytes/storage before expansion scales.
+- **SoT deserved-vs-actual BUILD** — now unblocked by the formalized catalogue. **Catalogue-first: the metric names + rows need football-analytics + CPO sign-off BEFORE building** — candidate names `sot_difference` (the CPO's own named metric / the stash) + `sot_against` (a proposed companion), then the rank-space gap. The flagship product read; the *design method* is CPO-locked (above), the *catalogue rows* are not yet approved.
+- **#530 follow-ups from #596** (review-flagged): **(a)** PR2 — the **automated resolvability check** (every `*_expr` column ∈ `base_relation`; reviewers said key it on `base_relation` + (metric_id, entity), and handle dialect tokens `cast`/`round` + the `count(*)`-domain difference between legs); **(b)** **split the 2 entity-dual rows** per entity; **(c)** add the event-derived **`goals_penalty` to `int_legs__player_match`** then fill the 2 deferred player rows; **(d)** later — **model-conformance** (does each model compute the catalogue formula, modulo availability).
+- **PROGRAMS** (enablers; never eclipse product): #545 coverage tranche · #546 data-quality suite · #547 cost sizing.
+- **Carryovers (open):** #484 (player NT/tournament window); #510 (retire leftover team `dribbles_success_pct`); team season-rollup → mapping spine; #483 (qualifying-type cumulative window, GAP-18); display-contract amendment (appearance/playing-time block); Pilot PR2 slugs (BLOCKED on blinded §10 rulings E2/E3); Coach + career CONSUMPTION marts (DEFERRED, #391 paused).
+- **Trigger-block-rot follow-up** (background task_44698a18) — dead `build_metric_glossary_json.py` + stale flat mart paths in `pages-match-preview.yml`; PROTECTED-path unit.
 
 ---
 
-### The governance machinery (G1–G4 LIVE)
-- **Contract first:** every unit writes `.claude/task/contract.md` (objective, scope_paths, decisions, done_when) on a CLEAN tree BEFORE code. `task_contract_gate.py` denies edits outside scope_paths / to PROTECTED paths (`.claude/hooks|agents|commands/`, `.github/workflows/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`) without `protected_override`.
-- **Impact-map gate:** denies first edit on structural surface until contract carries a non-placeholder `impact_map` (evidence, not assertion).
-- **4-step review cycle** (Code Lock → cold Blinding → Cross-Examination → SHA-256 Lock) in `review.md`. Reviewer routing via `.claude/review_routing.json`: scope-auditor always; `dbt_project/**` → analytics-engineer; `scripts/export_*.py` → +cto; hooks/CI → cto; ingestion/registry → data-engineer; wireframes + i18n → bi-analyst; `metric_catalogue.csv` → +football-analytics. PASS needs ≥2 named risks; default FAIL.
-- **Commit gate** (`git_discipline.py`): staged SHA-256 must equal review.md `diff_sha256`; required reviewers PASS, no FAIL, every ESCALATE has a CPO ANSWER. ONE substantive commit per PR. Post-commit hook auto-pushes + opens the PR.
-- **CI backstop** `scripts/check_task_artifacts.py --base origin/main` re-binds review.md to the PR diff.
-- **Reviewer-driven scope amendment:** when a FAIL fix needs a file outside scope → stash code changes, amend contract.md on a clean tree, unstash, fix, re-review.
+### The governance machinery (G1–G4 LIVE — unchanged)
+- **Contract first:** every file-touching unit writes `.claude/task/contract.md` (objective, scope_paths, impact_map for structural surfaces, decisions, done_when) on a CLEAN tree BEFORE code. `task_contract_gate.py` denies edits outside scope_paths / to PROTECTED paths without `protected_override`. **Amending the contract requires a clean tree** — if code is staged, `git stash push -- <code paths>`, amend, `git stash pop`, re-stage (used twice this session).
+- **Hashing:** `python .claude/hooks/git_discipline.py --staged-hash` prints the exact `diff_sha256` the commit gate checks (staged diff EXCLUDING `hash_exclude_paths`; covers code + contract.md).
+- **4-step review cycle** (Code Lock → cold Blinding → Cross-Examination → SHA Lock) in `review.md`. Routing (`.claude/review_routing.json`): scope-auditor always; `dbt_project/**` → analytics-engineer; `dbt_project/seeds/metric_catalogue.csv` → +football-analytics-expert; `scripts/export_*.py`/hooks/CI → cto; ingestion/registry → data-engineer; wireframes+i18n → bi-analyst. PASS needs ≥2 named risks; default FAIL. **Re-run ALL required reviewers fresh whenever the hash changes.**
+- **Commit gate** (`git_discipline.py`): staged SHA == review.md hash; required reviewers PASS, no FAIL, every ESCALATE has a CPO ANSWER. ONE substantive commit per PR; run `git commit` **alone** (no `cd`, no chaining). Post-commit hook auto-pushes + opens the PR.
 
----
+### Session lessons (hard-won — read before touching these areas)
+- **[[feedback-metric-formula-vs-availability]]** — the ruling above. The deepest lesson of the session: do NOT conflate the formula with whether you can compute it. I patched it wrong twice before the CPO corrected; don't repeat.
+- **The review cycle earns its keep** — it caught real fidelity issues (save_ratio, per-90 doc, resolvability). When a reviewer FAILs, FIX the root cause; don't patch-to-pass. When findings rest on a premise the CPO has ruled on, cite the ruling in the contract + reviewer prompt so they evaluate against it.
+- **dbt validation is CI-only** — dbt CLI broken locally; the dbt MCP did not connect this session. `ci-data-build` is the real gate for seeds/models. Offline: a scratchpad python resolvability/parse spot-check (read leg columns from the model SQL).
+- **`bq` is not on Python's PATH** (it's a shell wrapper) — `subprocess.run(["bq", ...])` fails on Windows. Fetch columns via shell `bq` and pipe to python via stdin, or read columns from the model SQL.
+- **Contract gate blocks Bash writes outside scope_paths** (e.g. `> /tmp/...`) once a contract is active — keep helper scripts in the scratchpad (Write tool, outside the repo) and pipe via stdin (no `>` redirects to non-scope paths).
 
-### Form-window model vocabulary (CURRENT names, post #574/#577/#580)
-- **W1 momentum:** `int_team_momentum__metrics` → `mart_team_momentum` (+ `mart_team_momentum_window` drill-down). Player: `int_player_momentum__metrics` → `mart_player_momentum`. window_type: `last_5` / `tournament_to_date` / `qualifiers`.
-- **W2 season record:** `int_team_season_record` → `mart_team_season_record`; `int_player_season_record` → `mart_player_season_record`. Player full-season agg = `int_player_season__metrics`.
-- **Benchmarks:** `int_team_competition_benchmarks` → `mart_team_competition_benchmarks`; `int_player_competition_benchmarks` → `mart_player_competition_benchmarks`. Per-fixture: `mart_team_fixture_stats` / `mart_player_fixture_stats`. The shared per-perspective leg builders = the `int_legs__*` family (NOT entity-renamed — separate naming question).
-
-### Parked state (do not touch until directed)
-- Team **SoT-difference** metric build STASHED (`git stash list` → "sot-difference WIP (paused for #500)"). Design settled (Camp 2, `sot_difference` = SoT for − against; TEAM only; CPO direction). Re-add after teardown.
-- v2 blueprint drill-down — under #391 (PAUSED). Pilot PR2 slug rulings E2/E3 — BLINDED, do NOT pre-decide.
-- Backfill Phase 2a: registry depths MERGED (#524) but deep ingest was STOPPED partway → RESUME for leagues not yet at depth. ~10x cheaper with `history_seasons` + `full`-profile scoped run.
-
-### PENDING CPO ACTIONS (outside the tree)
-1. ~~`bq rm` the orphaned metric-layer relations~~ — **ALL DONE** (16 dropped).
-2. **Set `PROJECT_AUTOMATION_TOKEN`** to fine-grained least-privilege scope (from #413).
-3. **Remove now-unused secrets** `CURSOR_EXECUTOR_BRIDGE_URL` + `CURSOR_EXECUTOR_BRIDGE_TOKEN` (from #458).
+### Standing rules / Do NOT
+- **No locked next task — present candidates, get the CPO's pick, do NOT pre-decide §10** (product/UX, metrics, naming, NEW mechanisms, rule extensions). Escalate in PLAIN language.
+- **No blueprint/feature work while #391 is PAUSED** unless the CPO directs it. Live MVP must not break.
+- Do not compute/derive facts in the frontend/export — select/group/rename only.
+- Branch from main; never commit to main. **Never merge a PR — the CPO merges.**
+- **Bash only** for all commands. **dbt CLI broken locally** — rely on CI + the blinded reviewers.
 
 ### Key specs to read before building
-- `docs/content_architecture.md` — blocks/tabs/navigation, entity types, block↔mart map.
-- `docs/metric_layer.md` — the metric-layer map (seed is SSoT; display → `metrics_display.md`; windows → `metrics_context_model.md`).
-- `docs/metrics_context_model.md` §8 — player performance surface.
-- `dbt_project/docs/layering.md` — layer contract + exhaustive mart inventory.
-
-### Do NOT
-- **No blueprint/feature work while #391 is PAUSED** unless the CPO directs it.
-- **Never decide CPO-class questions** (§10); escalate in PLAIN language (§11).
-- **Never build step 6 teardown without CPO scope approval first** — the trigger-file change is PROTECTED.
-- **Never remove `build_match_preview_site.*` without verifying it's truly unused.**
-- Do not compute/derive facts in the frontend/export — select/group/rename only (layering.md §Consumption).
-- Do not change shipped numbers without a directed PR + before/after deltas + reviewer sign-off.
-- Branch from main; never commit to main. **Never merge a PR — the CPO merges.**
-- **Bash only** for all commands (git, bq, gh, python). Never PowerShell.
-- **dbt CLI is broken locally** — use `mcp__dbt__parse` for ref/Jinja checks; rely on CI for data tests + SQLFluff.
+- `dbt_project/seeds/metric_catalogue.csv` (+ its `schema.yml` entry) — the metric SSoT, now with formalized formulas.
+- `docs/metric_layer.md` · `docs/metrics_context_model.md` §8 (player performance surface) · `dbt_project/docs/layering.md` (layer contract + mart inventory).
+- Memory: [[feedback-metric-formula-vs-availability]], [[feedback-metric-catalogue-governance]], [[feedback-metric-calc-layer-placement]], [[project-team-metric-rank-correlation-sweep]], [[project-semantic-layer-ai-ready]].
