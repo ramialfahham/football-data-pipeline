@@ -63,13 +63,15 @@ seeds:
   - name: metric_catalogue
     description: >
       Single source of truth for every metric the platform computes. One row per metric
-      per entity. Captures the formula (numerator / denominator), entity type (team/player),
-      i18n key, display format, the display dimensions (group, tier, order) ruled in
-      docs/wireframes/metrics_display.md, and the performance semantic (direction + interpretation).
-      Formulas reference raw totals from int_legs__*
-      building-block legs; the mart applies the window context and computes the final
-      values. Window-agnostic: metric IDs carry no window suffix. Part of epic #317;
-      display columns added for #391 (GAP-09).
+      per entity. Captures the formula as a structured, resolvable expression
+      (base_relation + numerator_expr / denominator_expr over the base's real columns), entity
+      type (team/player), i18n key, display format, the display dimensions (group, tier, order)
+      ruled in docs/wireframes/metrics_display.md, and the performance semantic (direction +
+      interpretation). Each formula aggregates over an int_legs__* per-(entity, fixture)
+      building-block leg; it is window-free — the consuming model applies the window and any
+      coverage/null policy. The formula is the correctness contract every model that computes the
+      metric must conform to. Window-agnostic: metric IDs carry no window suffix. Part of epic
+      #317; display columns added for #391 (GAP-09); formulas formalized for #530.
     config:
       +full_refresh: true
       column_types:
@@ -95,10 +97,31 @@ seeds:
       - name: description
         description: "Plain-English definition: what the metric measures, nullability, and source columns."
         tests: [not_null]
-      - name: numerator
-        description: "Source column(s) from int_legs__* to sum, or a formula expression for derived values. Blank for lookups."
-      - name: denominator
-        description: "'games' for per-match rates; a column name to SUM for ratios; blank for raw sums and lookups."
+      - name: base_relation
+        description: >
+          The int_legs__* per-(entity, fixture) building block the formula aggregates over
+          (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
+          lookups not derived from legs (league_rank — sourced from fct_standings); the entity-dual
+          'team and player' rows whose formula differs by entity (finishing_efficiency, duels_won_pct
+          — #530 follow-up: split per entity); and player goals_penalty/goals_open_play, pending
+          int_legs__player_match exposing the event-derived penalty-goal atom (#530 leg-gap follow-up).
+        tests:
+          - accepted_values:
+              values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
+      - name: numerator_expr
+        description: >
+          The metric's fixed mathematical numerator as a window-free aggregate over base_relation's
+          real columns (e.g. sum(goals_for); sum(goals_for - goals_penalty - goals_own)). The
+          expression is the DEFINITION only — data availability (missing stats) decides whether a
+          model can APPLY the formula (compute vs null); it is NOT encoded here (no coverage counts,
+          no coalesce, no null gates). Blank for the deferred rows above.
+      - name: denominator_expr
+        description: >
+          The metric's fixed mathematical denominator: count(*) = number of matches in the window
+          (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
+          numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
+          only — coverage/availability handling lives in the model, never here. Blank for raw count
+          metrics and the deferred rows above.
       - name: lower_is_better
         description: "True when a lower value indicates better performance."
         tests: [not_null]

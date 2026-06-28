@@ -1,39 +1,55 @@
-# Review — docs/macro-standard-trim — trim §1.3 to a calibrated default
+# Review — feat/formalize-metric-catalogue-formulas — formalize metric_catalogue formulas
 
 > G3 Lock artifact. Reviewers spawned cold (blinded) on the staged diff (`.claude/task/review_input.patch`).
-> Required set: always → scope-auditor; `dbt_project/**` → analytics-engineer-reviewer.
-> Documentation only — CPO-directed trim of §1.3 (Macros) from a rule/test framing to a calibrated default;
-> keeps the plain-SQL default + COMPOSE + the two verified examples, drops the "test" line, closes with
-> "beyond those it is the engineer's judgment."
+> Required set (routing): always → scope-auditor; `dbt_project/**` → analytics-engineer-reviewer;
+> `dbt_project/seeds/metric_catalogue.csv` → +football-analytics-expert-reviewer.
+> Change: add `base_relation` + replace prose numerator/denominator with precise window-free
+> `numerator_expr`/`denominator_expr` over int_legs__* columns; 67/71 rows formalized, 4 blank-deferred.
+> Doc-only columns (no consumer) → no model SQL, no shipped-number change.
+> CPO RULING (in contract decisions_taken): the formula is the fixed math definition; data
+> availability is the model's compute-or-not concern, never encoded in the expression.
 
-diff_sha256: 53c826f5442649c4f21b349d29f77e1cbe8cc348139b3f455b4a8beef1c1745a
+diff_sha256: 3458f03b3d98c40120c9bd16fdddac1f0b987a9da52748f118ab9c6d65f62cc4
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Consistency with the established macro preference: "default to plain SQL + COMPOSE" aligns with the
-  documented feedback (dropping team_window_metrics in #500 PR1). Removing the rigid "test" line acknowledges
-  judgment, but the two justified cases (override hook, cross-query expression) stay explicit, so the
-  reframing does not open a loophole for bad macros; §10 still gates NEW mechanisms.
-- Interaction with the shipped macro inventory: the existing macros (generate_schema_name override,
-  apif_response_to_json_strings cross-query expression) fit the new framing; the trim does not retroactively
-  invalidate them, and layering.md / §5 are unchanged. Scope clean (only engineering_standards.md + contract.md);
-  faithful CPO-directed trim, no new §10 decision.
+- Formula transcription accuracy across 71 rows: spot-checks (clean_sheets, goals_per_match, save_ratio,
+  passes_accurate) matched the canonical models, but local dbt parse is unavailable this session
+  (deferred to CI), so a single transcription error could slip past this cycle. Mitigated by the
+  football-analytics-expert review (PASS, formula-by-formula) + CI dbt compile on the seed.
+- Entity-dual rows (finishing_efficiency, duels_won_pct) blank-deferred rather than filling the
+  extractable team side: a trade-off, but recorded in the contract `amendments` as a CPO follow-up
+  (split per entity) — not a silent decision; tracked. The save_ratio revert + the 4 deferrals are all
+  recorded in amendments; diff stays within scope_paths (the 2 seeds + .claude/task/**).
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- generate_schema_name example — verified live at dbt_project/macros/generate_schema_name.sql: dbt's stock
-  hook prefixes the target schema (e.g. dbt_scratch__staging); this override returns the custom name verbatim
-  so layer models land in `staging`/`base`/etc. "default would name datasets wrong" is accurate; not dead code.
-- JSON-expansion example — apif_payload_response_json_strings (dbt_project/macros/apif_response_to_json_strings.sql)
-  is used in three staging models (stg_apif__fixtures_next/teams/leagues, line 16) inside
-  unnest({{ ... }}) — a correlated subquery producing ARRAY<STRING> that must sit inside the from/unnest, so it
-  cannot be a standalone model. The "expression that must sit inside other queries" framing is accurate.
-- §5 cross-reference (soft): "see §5" lands on Performance Standards, which states "centralize once in
-  intermediate if reused" (the same idea) but does not name COMPOSE — documentation imprecision, not a false
-  technical claim; the COMPOSE guidance in §1.3 is self-contained and sound (live exemplar:
-  int_team_competition_benchmark_metrics_long read by both the engine and the mart). Not a defect.
+- `count(*)` over `int_legs__team_from_players` (duels/defensive_actions/tackles/interceptions/blocks/
+  key_passes per_match) counts only player-covered matches (the leg has a row only where player stats
+  exist), a different domain than `count(*)` over `int_legs__team_match`. Per the CPO ruling `count(*)`
+  is the definition and the model handles availability; flagged that the PR2 conformance check must key
+  on `base_relation` (and on (metric_id, entity)).
+- `passes_accurate`/`pass_accuracy_pct` (player) carry a BigQuery-dialect expression
+  `sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64))` — faithfully transcribed
+  from `int_player_season__metrics.sql` but a structural fragility for any future dialect migration or a
+  naive PR2 parser. Not blocking; resolvability confirmed (all non-blank expressions resolve against
+  their base; blank-base rows carry no expression).
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- save_ratio: the catalogue uses raw `goals_against` from `int_legs__team_match` while the model uses the
+  derived coverage-scoped `goals_against_in_save_games`; both resolve, are numerically identical at full
+  coverage (model comment: 0/12537 divergence), and the difference is model availability-handling per the
+  CPO ruling. Definition is football-correct (saves ÷ shots-on-target-faced = saves + goals conceded).
+- Column aliasing across the team/player defensive boundary: `int_legs__team_from_players` renames the
+  player atoms (`tackles_total`→`tackles`, etc.); the catalogue correctly uses `tackles/interceptions/
+  blocks` for the team base and `tackles_total/tackles_interceptions/tackles_blocks` for the player base.
+  Each expression resolves against its declared base. Compositions verified (defensive_actions, scorer_
+  points, points_capture, finishing_efficiency, per-90) against the canonical models.
 
 ## escalations
-(none)
+(none) — the formula-vs-availability question is settled by the CPO ruling recorded in
+`.claude/task/contract.md` (decisions_taken); no outstanding ESCALATE.
