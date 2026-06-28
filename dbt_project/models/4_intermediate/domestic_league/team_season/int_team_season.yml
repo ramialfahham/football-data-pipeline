@@ -50,9 +50,17 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(shot_accuracy is null or shot_accuracy between 0 and 1) and (danger_zone_ratio is null or danger_zone_ratio between 0 and 1) and (pass_accuracy is null or pass_accuracy between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets is null or clean_sheets between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
           name: int_team_season_ratios_in_range
+      # shots-on-target conceded per match is a count rate — never negative (a sign-flip or bad
+      # numerator would trip this). sot_difference is signed, so it is intentionally not range-tested.
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
+          name: int_team_season_sot_against_non_negative
     columns:
       - name: team_season_sk
-        tests: [not_null]
+        description: "Surrogate over (team_sk, season_sk); the model's grain key. Uniqueness tested at source (relied on by int_team_season__deserved_vs_actual)."
+        tests:
+          - not_null
+          - unique
       - name: team_sk
         tests:
           - not_null
@@ -65,6 +73,59 @@ models:
         tests: [not_null]
       - name: season_games_played
         tests: [not_null]
+      - name: sot_difference
+        description: >
+          Shots-on-target difference per match (for - against) — the deserved signal. NULL unless
+          both own and opponent SoT cover every season game. Signed (can be negative).
+      - name: shots_on_goal_against_per_match
+        description: >
+          Shots on target conceded per match (opponent-SoT companion to shots_on_goal_per_match).
+          NULL unless opponent SoT covers every season game.
+
+  - name: int_team_season__deserved_vs_actual
+    description: >
+      TEAM deserved-vs-actual read (rank-space), one row per (team_sk, season_sk): actual league
+      rank vs the rank deserved by sot_difference (SoT for - against per match). deserved_rank ranks
+      teams by sot_difference within their league-season (1 = best); sot_rank_gap = actual_rank -
+      deserved_rank (positive = under-performing, negative = over-performing). Computed only for
+      league-seasons where EVERY team has full SoT coverage AND a league rank (full-table gate);
+      NULL otherwise. Composes int_team_season__metrics + int_team_season__standings_primary.
+      TEAM only, no xG.
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "deserved_rank is null or deserved_rank >= 1"
+          name: int_team_season_deserved_rank_positive
+      # gate invariant: a non-null deserved_rank means the league-season is fully rankable, so this
+      # row's own sot_difference and actual_rank must both be present.
+      - dbt_utils.expression_is_true:
+          expression: "deserved_rank is null or (sot_difference is not null and actual_rank is not null)"
+          name: int_team_season_deserved_rank_requires_inputs
+      # sot_rank_gap null/arithmetic contract: null exactly when not rankable (deserved_rank null),
+      # else exactly actual_rank - deserved_rank. Guards the sign convention + null propagation.
+      - dbt_utils.expression_is_true:
+          expression: "(deserved_rank is null and sot_rank_gap is null) or (deserved_rank is not null and sot_rank_gap = actual_rank - deserved_rank)"
+          name: int_team_season_sot_rank_gap_contract
+    columns:
+      - name: team_season_sk
+        tests:
+          - not_null
+          - unique
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests: [not_null]
+      - name: actual_rank
+        description: "League table rank (standing_rank from int_team_season__standings_primary) — the actual position."
+      - name: deserved_rank
+        description: "Rank by sot_difference within the league-season (1 = best); NULL when the league-season is not fully rankable."
+      - name: sot_rank_gap
+        description: "actual_rank - deserved_rank; positive = under-performing, negative = over-performing; NULL when not rankable."
 
   - name: int_player_season__metrics
     description: >

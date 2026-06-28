@@ -58,6 +58,7 @@ legs as (
         tl.corner_kicks,
         tl.opponent_corner_kicks,
         tl.opponent_shots_total,
+        tl.opponent_shots_on_goal,
         tl.goalkeeper_saves,
         pl.key_passes,
         pl.tackles,
@@ -103,6 +104,10 @@ select
         as games_with_sot_stats,
     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
         as games_with_opp_stats,
+    -- opponent shots-on-target coverage (cumulative): sot_difference / shots_on_goal_against_per_match
+    -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)
+    sum(case when opponent_shots_on_goal is not null then 1 else 0 end) over w
+        as games_with_opp_sot_stats,
     -- save coverage (cumulative): save_ratio is a team-feed (goalkeeper) metric, so it needs its
     -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
@@ -124,6 +129,7 @@ select
     sum(corner_kicks) over w as corner_kicks,
     sum(opponent_corner_kicks) over w as opponent_corner_kicks,
     sum(opponent_shots_total) over w as opponent_shots_total,
+    sum(opponent_shots_on_goal) over w as opponent_shots_on_goal,
     sum(goalkeeper_saves) over w as goalkeeper_saves,
     -- player-derived team stats (cumulative; inherit player-stat coverage gaps)
     sum(case when has_player_stats then 1 else 0 end) over w
