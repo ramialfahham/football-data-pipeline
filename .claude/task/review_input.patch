@@ -1,119 +1,145 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 0dae468..b728f02 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,33 +4,35 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-06-29** — main GREEN at **a3bc9c3** (#600 integrity guards + its handover #602 merged). The recent arc shipped #596 (formalization) → #598 (TEAM deserved-vs-actual) → #600 (integrity guards), all MERGED. **LOCKED NEXT TASK: #530(a) — split the 2 entity-dual catalogue rows (`finishing_efficiency`, `duels_won_pct`) per entity, catalogue-first.** The CPO-agreed move AFTER (a) is **the #391 conversation** — whether to un-pause the website so the metric layer (deserved-vs-actual, benchmarks, leaderboards, profiles) finally gets a user-facing consumer. Both detailed below._
++_Last updated: **2026-06-29** — main GREEN at **6dd1f89** (#530(a) split merged via #604). The recent arc shipped #596 (formalization) → #598 (TEAM deserved-vs-actual) → #600 (integrity guards) → **#530(a)** (split the 2 entity-dual catalogue rows per entity), all MERGED. **NEXT (CPO-agreed): the #391 conversation** — a DISCUSSION (not a build) of whether to un-pause the website so the metric layer (deserved-vs-actual, benchmarks, leaderboards, profiles) finally gets a user-facing consumer. Detailed below._
+ 
+-main carries the full #500 metric layer + #596 (formula formalization) + #598 (deserved-vs-actual) + **#600** (integrity guards). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
++main carries the full #500 metric layer + #596 (formula formalization) + #598 (deserved-vs-actual) + #600 (integrity guards) + **#530(a)** (entity-dual rows split per entity). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main is GREEN at a3bc9c3.** Confirm tree clean.
++1. `git checkout main && git pull`. **main is GREEN at 6dd1f89.** Confirm tree clean.
+ 2. Read this file top-to-bottom before touching anything.
+-3. **LOCKED NEXT TASK = #530(a)** (see the LOCKED block below). Restate its spec back to the CPO, then present a catalogue-first DESIGN proposal of the per-entity `base_relation` + `*_expr` for §10 sign-off — do NOT pre-decide the exprs or the (a)/(b) sequencing. After sign-off: PLAN MODE → build. **After (a) ships, the CPO-agreed next is the #391 conversation** (a discussion, not a build).
++3. **NEXT = the #391 conversation** (see the block below) — a DISCUSSION, not a build: present state + options on whether to un-pause the website so the metric layer gets a user-facing consumer. Do NOT start product work without the CPO's explicit un-pause. No locked build task; for any new build, present candidates and get the CPO's pick (§10).
+ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
+ 
+ ---
+ 
+-### ⭐ LOCKED NEXT TASK — #530(a): split the 2 entity-dual catalogue rows
+-CPO-locked this chat ("First (a) then #391 -> yes"). **Catalogue-first; do NOT pre-decide the exprs (§10).**
+-- The 2 rows are `finishing_efficiency` and `duels_won_pct`, entity **`team and player`** with BLANK `base_relation`/`*_expr` (the resolvability test skips blank-base rows, so they're its one coverage gap). Split each into a **team** row and a **player** row, each with explicit `base_relation` + `numerator_expr`/`denominator_expr` → then `assert_metric_catalogue_expr_resolvable` covers them.
+-- **Candidate mapping (propose for sign-off — NOT decided):**
+-  - `duels_won_pct` — team: `sum(duels_won)/sum(duels_total)` over `int_legs__team_from_players`; player: same over `int_legs__player_match`. **Splits cleanly now** (all columns present — verified this session).
+-  - `finishing_efficiency` — team: `sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)` over `int_legs__team_match` (resolvable now). player: `sum(goals_total - goals_penalty)/sum(shots_on)` over `int_legs__player_match` — **BLOCKED on #530(b)**: player `goals_penalty` is NOT in `int_legs__player_match` yet (it's a deferred (b) row). **(a) and (b) are entangled for the player side.** Surface the sequencing to the CPO (do (b) first / fold (a)+(b) / split duels_won_pct now + defer finishing_efficiency-player).
+-- Carry `direction`/`interpretation` onto the split rows (the existing `team and player` rows have them; team rows MUST per the completeness test). Process: DESIGN proposal → CPO + football-analytics sign-off → PLAN MODE → build. Reviewers: scope-auditor + analytics-engineer + football-analytics.
++### ⭐ DONE — #530(a): split the 2 entity-dual catalogue rows (MERGED #604)
++`finishing_efficiency` and `duels_won_pct` were split from entity `team and player` into per-entity rows:
++- `duels_won_pct` → team (`int_legs__team_from_players`) + player (`int_legs__player_match`), both `sum(duels_won)/sum(duels_total)`. Fully resolvable.
++- `finishing_efficiency` → team (`int_legs__team_match`, `sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)`) + **player DEFERRED** (blank base/exprs) to **#530(b)** — pending the event-derived `goals_penalty` atom in `int_legs__player_match` (player formula will be `sum(goals_total - goals_penalty)/sum(shots_on)`).
++`assert_metric_catalogue_expr_resolvable` now covers the 3 resolvable rows; the deferred player row stays skip-listed.
++**Hard-won lesson (logged [[feedback-premature-escalation]]):** `finishing_efficiency` is locked to **[0,1]** by the deployed model (`int_team_season__metrics.sql:156-158`), a dbt test (`int_player_season_position.yml:21`) and **CPO "Option A"** — the catalogue prose matches that. A blinded reviewer cited the wireframe's stale "never capped" line (`docs/wireframes/metrics_display.md:107`); I escalated the doc-vs-doc conflict WITHOUT checking the code first → wasted a fix-now/revert loop. **When two specs disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them before escalating.** (The stale wireframe line is a separate reconciliation, not yet done.)
+ 
+-### ⭐ THEN — the #391 conversation (CPO-agreed, AFTER (a))
+-The metric layer is solid (formalization + deserved-vs-actual + integrity guards) but has **no user-facing surface** — deserved-vs-actual is intermediate-only, and benchmarks/leaderboards/profiles are marts with no frontend, because the website **#391 is PAUSED**. The CPO agreed the next conversation is **whether to un-pause #391** so the work gets a consumer. This is a **DISCUSSION, not a build** — present the state + options; do NOT start product work without the CPO's explicit un-pause (standing rule).
++### ⭐ NEXT — the #391 conversation (CPO-agreed)
++The metric layer is solid (formalization + deserved-vs-actual + integrity guards + the entity split) but has **no user-facing surface** — deserved-vs-actual is intermediate-only, and benchmarks/leaderboards/profiles are marts with no frontend, because the website **#391 is PAUSED**. The CPO-agreed next step is the conversation about **whether to un-pause #391** so the work gets a consumer. This is a **DISCUSSION, not a build** — present the state + options; do NOT start product work without the CPO's explicit un-pause (standing rule).
+ 
+ ---
+ 
+-### ⭐ THIS SESSION (2026-06-29) — three PRs
++### ⭐ RECENT PRs
+ 
++- **#604 (latest) — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity with explicit base_relation + numerator_expr/denominator_expr; player `finishing_efficiency` deferred to #530(b). Catalogue-only. See the DONE block above + the [0,1]/Option A lesson.
++
++Prior arc (2026-06-29):
+ 1. **#598 — TEAM deserved-vs-actual read (SoT rank-space gap), MERGED.** The flagship process read. 4 catalogue rows (`sot_difference`, `shots_on_goal_against_per_match` per-match over `int_legs__team_match`; `deserved_rank`, `sot_rank_gap` rank-derived/blank-expr). New model `int_team_season__deserved_vs_actual` (composes the gated `sot_difference` + standings rank; `deserved_rank` = rank by sot_difference within league-season; `sot_rank_gap = actual_rank − deserved_rank`, positive = under-performing) under a **full-table coverage gate**. Intermediate-only; method CPO-locked; TEAM only, no xG. See memory [[project-team-metric-rank-correlation-sweep]].
+ 2. **#599 — handover refresh, MERGED.**
+ 3. **#600 — metric_catalogue integrity guards, MERGED.** Two CI singular tests + filling the only 3 team meaning-gaps:
+@@ -44,8 +46,8 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
+ ---
+ 
+ ### NEXT candidates (after #530(a) + the #391 conversation — CPO directs; none auto-granted)
+-- **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) is the LOCKED next task — see the block above**):
+-  (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the 2 deferred player rows (`goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today. **Entangled with (a)'s player finishing_efficiency** — sequence with (a).
++- **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) DONE via #604** — entity-dual rows split per entity):
++  (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the **3 deferred player rows** (`finishing_efficiency`, `goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today (the player `finishing_efficiency` row from (a) is now one of these). **This is the lead #530 follow-up.**
+   (c) **model-conformance** test — does each model actually COMPUTE the catalogue formula (modulo availability)? The deeper guard beyond resolvability.
+ - **Player-metric direction/interpretation classification** (v1.x deferral) — the completeness test is team-only; when the player benchmark matures, classify the ~28 blank player rows and widen the test. CPO call.
+ - **Deserved-vs-actual extensions (NOT granted):** a consumption mart when a frontend consumer exists (#391 paused); `rank()` tie semantics revisit; other windows (form panel could compute sot_difference too).
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b78380c..2cc19de 100644
+index 2cc19de..7603cae 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,40 +1,54 @@
--# Task contract — lock #530(a) as next task + record the #391 conversation (handover refresh)
-+# Task contract — #530(a): split the 2 entity-dual metric_catalogue rows
+@@ -1,54 +1,38 @@
+-# Task contract — #530(a): split the 2 entity-dual metric_catalogue rows
++# Task contract — refresh handover: #530(a) merged, #391 conversation next
  
--> Handover refresh. Written on a CLEAN tree (main @ a3bc9c3). Doc-only — no code/model change.
-+> Written on a CLEAN tree (branch feat/530a-split-entity-dual-metrics off main @ 521be4a).
-+> Catalogue-only (seed CSV + its schema.yml prose). No structural surface touched.
-+> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation).
+-> Written on a CLEAN tree (branch feat/530a-split-entity-dual-metrics off main @ 521be4a).
+-> Catalogue-only (seed CSV + its schema.yml prose). No structural surface touched.
+-> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation).
++> Written on a CLEAN tree (branch chore/handover-refresh-530a-merged off main @ 6dd1f89).
++> Doc-only — no code/model change. Records merged state; invents no decision.
  
  objective: >
--  Refresh .claude/active_work.md so a fresh chat continues with the CPO's just-made decision:
--  (1) the LOCKED next task is #530(a) — split the 2 entity-dual catalogue rows (finishing_efficiency,
--  duels_won_pct) into per-entity rows with explicit base_relation + *_expr; (2) the CPO-agreed move
--  AFTER (a) is the #391 conversation (whether to un-pause product so the metric layer gets a
--  user-facing consumer). Catalogue-first; the per-entity exprs + the (a)/(b) sequencing are §10 — do
--  not pre-decide. No code change.
-+  Split the two entity-dual metric_catalogue rows (finishing_efficiency, duels_won_pct — entity
-+  "team and player", blank base_relation/numerator_expr/denominator_expr) into per-entity rows with
-+  explicit, resolvable formulas, closing the one coverage gap in assert_metric_catalogue_expr_resolvable
-+  (it skips blank-base rows). CPO-approved option (iii): ship everything resolvable now; park player
-+  finishing_efficiency as a blank-base deferred row for follow-up (b) (player goals_penalty leg).
+-  Split the two entity-dual metric_catalogue rows (finishing_efficiency, duels_won_pct — entity
+-  "team and player", blank base_relation/numerator_expr/denominator_expr) into per-entity rows with
+-  explicit, resolvable formulas, closing the one coverage gap in assert_metric_catalogue_expr_resolvable
+-  (it skips blank-base rows). CPO-approved option (iii): ship everything resolvable now; park player
+-  finishing_efficiency as a blank-base deferred row for follow-up (b) (player goals_penalty leg).
++  Refresh .claude/active_work.md so a fresh chat continues from the current merged state:
++  #530(a) (split the 2 entity-dual catalogue rows finishing_efficiency + duels_won_pct per entity)
++  is MERGED (#604, main @ 6dd1f89). The CPO-agreed next step is the #391 conversation — whether to
++  un-pause the website so the metric layer gets a user-facing consumer — a DISCUSSION, not a build.
++  Update status + next action + do-NOTs; carry forward the #530 follow-ups ((b) player goals_penalty
++  leg + the 3 deferred player rows; (c) model-conformance test) and the stale-wireframe note.
  
  refs: >
--  CPO decision this chat: "First (a) then #391 -> yes." (a) = the lead #530 follow-up from the #600
--  handover. Mirrors prior handover refreshes (#602, #599).
-+  #530(a). CPO sign-off this chat (2026-06-29): option (iii) + player rows null
-+  direction/interpretation/importance_tier per the v1.x player convention. Plan approved
-+  (whimsical-swinging-mccarthy.md). Follows #600 (the integrity guards this fills).
+-  #530(a). CPO sign-off this chat (2026-06-29): option (iii) + player rows null
+-  direction/interpretation/importance_tier per the v1.x player convention. Plan approved
+-  (whimsical-swinging-mccarthy.md). Follows #600 (the integrity guards this fills).
++  Follows #604 (the #530(a) split, merged this session). Mirrors prior handover refreshes (#599, #602).
++  CPO directed this refresh in-chat (2026-06-29).
  
  scope_paths:
-+  - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/seeds/schema.yml
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/seeds/schema.yml
    - .claude/active_work.md
    - .claude/task/**
  
-+# No impact_map: no raw writer, dbt model, or consumption path in scope. metric_catalogue.csv is a
-+# seed (configuration), schema.yml is its doc/test config. No model SQL changes; no warehouse migration.
-+
+-# No impact_map: no raw writer, dbt model, or consumption path in scope. metric_catalogue.csv is a
+-# seed (configuration), schema.yml is its doc/test config. No model SQL changes; no warehouse migration.
+-
  decisions_taken: >
--  Documentation / handover only — RECORDS the CPO's in-chat decision (lock (a); #391 conversation
--  next), invents none. Does NOT decide the per-entity exprs for the split, nor the (a)/(b)
--  sequencing, nor the #391 outcome — all reserved to the CPO at build/discussion time.
-+  Rests on the CPO's in-chat sign-off of the exact per-entity rows + option (iii) sequencing + the
-+  player-row null convention. Formulas are pure math per the standing formula-vs-availability ruling
-+  (no coalesce/countif/null-gate in any *_expr; "Null when…" stays in description prose only). Both
-+  metrics keep their existing label_i18n_key on both entity rows — no new i18n keys (out of scope).
+-  Rests on the CPO's in-chat sign-off of the exact per-entity rows + option (iii) sequencing + the
+-  player-row null convention. Formulas are pure math per the standing formula-vs-availability ruling
+-  (no coalesce/countif/null-gate in any *_expr; "Null when…" stays in description prose only). Both
+-  metrics keep their existing label_i18n_key on both entity rows — no new i18n keys (out of scope).
++  Documentation / handover only — RECORDS merged state and the CPO's standing in-chat decision (the
++  #391 conversation is next, as a discussion). Invents no product/metric/naming decision. Does NOT
++  start #391 product work, nor decide the #530(b)/(c) sequencing, nor reconcile the stale wireframe
++  line — all reserved to the CPO.
  
  decisions_reserved:
--  - The per-entity base_relation + numerator_expr/denominator_expr for finishing_efficiency and
--    duels_won_pct (a §10 metric-formula decision — catalogue-first sign-off in the new chat).
--  - Whether finishing_efficiency-player waits on #530(b) (player goals_penalty leg) — the two are
--    entangled (player open-play = goals_total - goals_penalty, and player goals_penalty is the
--    deferred (b) row). The new chat surfaces the sequencing to the CPO.
--  - The #391 un-pause outcome (product vs continued foundation) — the CPO's call, after (a).
-+  - Player finishing_efficiency formula APPLICATION (sum(goals_total - goals_penalty)/sum(shots_on))
-+    waits on #530(b) adding the event-derived goals_penalty atom to int_legs__player_match — this row
-+    ships blank-base/deferred only. Do NOT add the player goals_penalty leg here (separate PR).
-+  - Player direction/interpretation classification stays deferred (v1.x player benchmark) — not in scope.
+-  - Player finishing_efficiency formula APPLICATION (sum(goals_total - goals_penalty)/sum(shots_on))
+-    waits on #530(b) adding the event-derived goals_penalty atom to int_legs__player_match — this row
+-    ships blank-base/deferred only. Do NOT add the player goals_penalty leg here (separate PR).
+-  - Player direction/interpretation classification stays deferred (v1.x player benchmark) — not in scope.
++  - The #391 un-pause outcome (un-pause product vs continue foundation) — the CPO's call, after the discussion.
++  - #530(b) sequencing (add goals_penalty to int_legs__player_match, then fill the 3 deferred player rows).
++  - Whether/when to reconcile the stale "never capped" wireframe line (metrics_display.md:107) to Option A [0,1].
  
  done_when:
--  - active_work.md names #530(a) as the LOCKED next task (catalogue-first: design proposal -> CPO
--    sign-off -> plan mode -> build), flags the (a)/(b) entanglement, and records the #391 conversation
--    as the CPO-agreed next-after.
--  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
-+  - metric_catalogue.csv: duels_won_pct → team (int_legs__team_from_players) + player
-+    (int_legs__player_match), both sum(duels_won)/sum(duels_total); finishing_efficiency → team
-+    (int_legs__team_match, sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)) + player
-+    (blank base/exprs, deferred to (b)). The merged "team and player" rows are removed.
-+  - schema.yml prose updated: drop the "entity-dual split per entity" wording; fold
-+    finishing_efficiency into the deferred-player-rows list with goals_penalty/goals_open_play.
-+  - Offline: scratchpad python confirms every row has 14 fields + the 3 new resolvable rows tokenize
-+    clean against their model columns; `python scripts/check_layer_contract.py` green.
-+  - CI ci-data-build green (assert_metric_catalogue_expr_resolvable, assert_team_metric_meaning_complete,
-+    assert_metric_catalogue_unique_by_entity, base_relation accepted_values).
-+  - scope-auditor + analytics-engineer + football-analytics-expert PASS (>=2 risks each); review.md
-+    diff_sha256 binds the staged diff; CPO merges (never self-merge).
+-  - metric_catalogue.csv: duels_won_pct → team (int_legs__team_from_players) + player
+-    (int_legs__player_match), both sum(duels_won)/sum(duels_total); finishing_efficiency → team
+-    (int_legs__team_match, sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)) + player
+-    (blank base/exprs, deferred to (b)). The merged "team and player" rows are removed.
+-  - schema.yml prose updated: drop the "entity-dual split per entity" wording; fold
+-    finishing_efficiency into the deferred-player-rows list with goals_penalty/goals_open_play.
+-  - Offline: scratchpad python confirms every row has 14 fields + the 3 new resolvable rows tokenize
+-    clean against their model columns; `python scripts/check_layer_contract.py` green.
+-  - CI ci-data-build green (assert_metric_catalogue_expr_resolvable, assert_team_metric_meaning_complete,
+-    assert_metric_catalogue_unique_by_entity, base_relation accepted_values).
+-  - scope-auditor + analytics-engineer + football-analytics-expert PASS (>=2 risks each); review.md
+-    diff_sha256 binds the staged diff; CPO merges (never self-merge).
++  - active_work.md states #530(a) MERGED (#604, main @ 6dd1f89), names the #391 conversation as the
++    CPO-agreed next step (DISCUSSION not build), and carries the #530(b)/(c) follow-ups + the stale-wireframe note.
++  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
  
  amendments: (none)
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index b7c2dd8..6db2498 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -11,9 +11,11 @@ shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempte
- shot_accuracy,team,metrics.shot_accuracy.label,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),false,percent,shooting,,,higher_better,Striking precision - share of shots on target
- danger_zone_ratio,team,metrics.danger_zone_ratio.label,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),false,percent,shooting,2,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
- shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average shots on target per match with available shots-on-target stats in the window (its own coverage count — same-window rule).,int_legs__team_match,sum(shots_on_goal),count(*),false,decimal_1,shooting,1,3,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
--finishing_efficiency,team and player,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties; for teams also minus own goals) per shot on goal, over a fully shot-covered window (numerator and denominator share the window). In [0, 1] - penalties and own goals are excluded because they are not finishing one's own on-target shots. Null when the window is not fully shot-covered or the value would fall outside [0, 1].",,,,false,percent,shooting,1,4,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
-+finishing_efficiency,team,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, over a fully shot-covered window (numerator and denominator share the window). In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null when the window is not fully shot-covered or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),false,percent,shooting,1,4,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
-+finishing_efficiency,player,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1]. Deferred: pending int_legs__player_match exposing the event-derived goals_penalty atom (#530 (b)); formula will be sum(goals_total - goals_penalty)/sum(shots_on).",,,,false,percent,shooting,,,,
- duels_per_match,team,metrics.duels_per_match.label,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),false,decimal_0,duels,2,1,neutral,Duel engagement - physical contests per game; a combative/contested style
--duels_won_pct,team and player,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,,,,false,percent,duels,2,2,higher_better,Duel success - share of duels won; high = wins the physical battle
-+duels_won_pct,team,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,int_legs__team_from_players,sum(duels_won),sum(duels_total),false,percent,duels,2,2,higher_better,Duel success - share of duels won; high = wins the physical battle
-+duels_won_pct,player,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero.,int_legs__player_match,sum(duels_won),sum(duels_total),false,percent,duels,,1,,
- defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),false,decimal_1,defending,2,1,neutral,Defensive workload - tackles + interceptions + blocks per game; high = a deep block or an aggressive press
- tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),false,decimal_1,defending,,,neutral,Tackling volume - ball-winning challenges per game
- interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),false,decimal_1,defending,,,neutral,Interception volume - reading and cutting out passes
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index a9a404e..50a154b 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -104,10 +104,10 @@ seeds:
-         description: >
-           The int_legs__* per-(entity, fixture) building block the formula aggregates over
-           (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
--          lookups not derived from legs (league_rank — sourced from fct_standings); the entity-dual
--          'team and player' rows whose formula differs by entity (finishing_efficiency, duels_won_pct
--          — #530 follow-up: split per entity); and player goals_penalty/goals_open_play, pending
--          int_legs__player_match exposing the event-derived penalty-goal atom (#530 leg-gap follow-up).
-+          lookups not derived from legs (league_rank — sourced from fct_standings); rank-derived reads
-+          (deserved_rank, sot_rank_gap); and the deferred player rows pending int_legs__player_match
-+          exposing the event-derived penalty-goal atom — finishing_efficiency, goals_penalty,
-+          goals_open_play (#530 leg-gap follow-up (b)).
-         tests:
-           - accepted_values:
-               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
