@@ -71,7 +71,10 @@ seeds:
       building-block leg; it is window-free — the consuming model applies the window and any
       coverage/null policy. The formula is the correctness contract every model that computes the
       metric must conform to. Window-agnostic: metric IDs carry no window suffix. Part of epic
-      #317; display columns added for #391 (GAP-09); formulas formalized for #530.
+      #317; display columns added for #391 (GAP-09); formulas formalized for #530. Two singular
+      tests guard its integrity: assert_team_metric_meaning_complete (every team metric carries
+      direction + interpretation) and assert_metric_catalogue_expr_resolvable (every
+      numerator_expr/denominator_expr column resolves against its base_relation).
     config:
       +full_refresh: true
       column_types:
@@ -161,7 +164,9 @@ seeds:
           lower_better, or neutral (a descriptive/style metric with no inherent good-or-bad).
           Orients the competition benchmark and seeds website auto-interpretation. Populated for
           team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x).
-          lower_is_better is retained until the full migration.
+          lower_is_better is retained until the full migration. Every team metric must carry BOTH
+          direction and interpretation (enforced by assert_team_metric_meaning_complete; player rows
+          exempt while v1.x).
         tests:
           - accepted_values:
               values: ["higher_better", "lower_better", "neutral"]
@@ -169,7 +174,8 @@ seeds:
         description: >
           Short plain-English meaning of the metric — what it captures and what a notably high
           value signals — the seed of website auto-narrative. Populated for team metrics; null for
-          player metrics (v1.x).
+          player metrics (v1.x). Required on every team metric (enforced by
+          assert_team_metric_meaning_complete).
 
   - name: wc_team_market_value_snapshot
     description: >
