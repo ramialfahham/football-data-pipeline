@@ -1,22 +1,30 @@
-# Review — feat/a1-deserved-vs-actual-team-profile — 2026-06-29
+# Review — feat/gap15-team-fixtures-export — 2026-06-29
 
-> Blinded review cycle (G3). Required set for the staged paths (dbt_project/models/**):
-> scope-auditor (always) + analytics-engineer (dbt_project/**). NOT football-analytics —
-> metric_catalogue.csv is untouched (deserved_rank/sot_rank_gap already catalogued, #598).
+> Blinded review cycle (G3). Round 2 (final). All three required reviewers re-run fresh on the
+> updated diff. Required set for the staged paths (scripts/export_*.py): scope-auditor (always) +
+> analytics-engineer (dbt_project/**? — export consumes marts) + cto (scripts/export_*.py).
+> Routing `scripts/export_*.py` → analytics-engineer + cto; scope-auditor always.
 
-diff_sha256: 8681b707cbfe42bcecf8e6485923055ea995bf1464ab018c6f0103b107e412bb
+diff_sha256: 5d3c223eafb959116ca5572cc6036a0377ec4788d07fbbb095401b40ed22355b
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Join grain and cardinality: int_team_season__deserved_vs_actual is grain (team_sk, season_sk); the left join matches both keys; the intermediate produces one row per input (single rank() over subset partition keys, no aggregation fan-out), so the mart's existing unique_combination_of_columns(team_sk, season_sk) cannot be violated.
-- NULL semantics + §10/scope: deserved_rank and sot_rank_gap NULL together for non-rankable league-seasons (the coverage gate requires every team to have both sot_difference and standing_rank); no §10 decision taken unilaterally (placement = CPO Option 1; metrics pre-catalogued #598); scope is exactly the 3 declared files; impact_map present and evidenced (leaf mart). Non-blocking note: the intermediate's domestic_league/ folder is organizational, not a compile-time filter — pre-existing, sound, out of scope here.
+- §10 naming recorded with authority: the published key names next_fixture/recent_results are the one user-visible naming decision; the contract now records them in decisions_taken as CPO-decided (AskUserQuestion sign-off 2026-06-29), removed from decisions_reserved — no §10 taken silently. Scope is exactly the 3 declared files.
+- Consumption-layer purity + empty-state: the export filters on the mart's precomputed upcoming_rank/recency_rank, selects display fields via a keep-list (_TEAM_FIXTURE_FIELDS), and strips all internal keys (asserted in the test); a season with no fixtures renders next_fixture=None + recent_results=[] (tested). No derivation/reinterpretation; impact_map honest (view over fct_fixture, one bounded scan/night).
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Grain fan-out: int_team_season__deserved_vs_actual carries a tested unique on team_season_sk (surrogate over team_sk, season_sk); the join keys match the intermediate's grain exactly; one row in → one row out (rank() partitions on subset keys). No row multiplication; mart grain test is the backstop.
-- latest_rank == actual_rank identity: both are standing_rank from the SAME int_team_season__standings_primary model on (team_sk, season_sk) (tested unique grain), so sot_rank_gap reconciles exactly with the displayed latest_rank — confirming the decision to surface no redundant actual_rank. Also verified: NULL propagation safe (existing IS NULL OR ... tests untripped), consumption layer does no computation (_strip_identity denylist excludes the new cols → they pass through verbatim), layer direction correct (mart→intermediate), additive columns on a table mart (no incremental hazard).
+- Season-key lookup survives _strip_identity: the fixtures bucket is keyed (league_code, season_api_year) from raw rows; the post-strip profile row keeps both keys (not in the identity denylist), so fixtures attach to the right season — no silent empty-array from a key mismatch.
+- Simplified filter `1 <= (recency_rank or 0) <= 5` is semantically identical to the prior form (None→0→excluded, 1-5 included, 6+ excluded); the test exercises the rank-6 exclusion boundary + the None/empty-season case; consumption purity holds (selection on precomputed ranks only).
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Cost characterization verified against mart_team_fixtures.sql line 1 (materialized='view'): one bounded scan per nightly export over the small fct_fixture fact, not a per-team N+1, zero API-Football quota, no new run — the contract's cost line is accurate; null ranks exclude live/postponed rows at the BQ WHERE before Python.
+- SQL/refactor safety: the sample-path id_list uses str(int(t)) (ValueError before interpolation → injection structurally impossible, mirrors fetch_player_payloads); the WHERE `(upcoming_rank=1 or recency_rank<=5)` is correctly parenthesized vs the appended `and team_sk in (...)`; the sort lambda only sees in-range ranks (post-filter); shape_team_payload's new fixture_rows=None default keeps the pre-GAP-15 callsite/test backward-compatible.
 
 ## escalations
-(none)
+- question: The published JSON key names for the team fixtures section (next_fixture / recent_results) are a §10 naming decision (user-visible, permanent once published) — what names? (Raised by scope-auditor round 1.)
+  CPO ANSWER: next_fixture / recent_results, nested per seasons[] row — explicit AskUserQuestion sign-off, 2026-06-29. Recorded in the contract's decisions_taken.

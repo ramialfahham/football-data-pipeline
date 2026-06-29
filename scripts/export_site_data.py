@@ -118,18 +118,52 @@ def _latest_season_row(rows: list[dict]) -> dict:
     return max(rows, key=lambda r: (r.get("season_api_year") or 0))
 
 
-def shape_team_payload(rows: list[dict]) -> dict:
-    """One team's mart_team_profile rows -> the team page payload.
+# Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
+# (team_sk, fixture_sk, opponent_team_sk, league_code, season_api_year, the ranks,
+# has_result, is_upcoming) are dropped — the published row is display-only. The
+# per-fixture deep-link (fixture URL identity) is GAP-19, deliberately absent here.
+_TEAM_FIXTURE_FIELDS = (
+    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime",
+    "round_name", "goals_for", "goals_against", "result", "status_short",
+)
 
-    rows: every (team, competition-season) row for a single team_sk.
+
+def _shape_team_fixture(row: dict) -> dict:
+    return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
+
+
+def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None = None) -> dict:
+    """One team's mart_team_profile rows (+ mart_team_fixtures rows) -> the team page payload.
+
+    profile_rows: every (team, competition-season) profile row for a single team_sk.
+    fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
     """
-    latest = _latest_season_row(rows)
+    latest = _latest_season_row(profile_rows)
     team_id = int(latest["team_sk"])
     seasons = sorted(
-        rows,
+        profile_rows,
         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
         reverse=True,
     )
+    fixtures_by_season: dict = {}
+    for fr in fixture_rows or []:
+        fixtures_by_season.setdefault(
+            (fr.get("league_code"), fr.get("season_api_year")), []
+        ).append(fr)
+
+    seasons_out = []
+    for r in seasons:
+        s = _strip_identity(r)
+        frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+        nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
+        recent = sorted(
+            (fr for fr in frs if 1 <= (fr.get("recency_rank") or 0) <= 5),
+            key=lambda fr: fr["recency_rank"],
+        )
+        s["next_fixture"] = _shape_team_fixture(nxt) if nxt else None
+        s["recent_results"] = [_shape_team_fixture(fr) for fr in recent]
+        seasons_out.append(s)
+
     return {
         "type": "team",
         "team_id": team_id,
@@ -137,7 +171,7 @@ def shape_team_payload(rows: list[dict]) -> dict:
         "name": latest.get("team_name"),
         "country": latest.get("team_country"),
         "crest": latest.get("team_logo_url"),
-        "seasons": [_strip_identity(r) for r in seasons],
+        "seasons": seasons_out,
     }
 
 
@@ -341,8 +375,18 @@ def _group_by(rows: list[dict], key: str) -> dict:
 def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     rows = _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_profile`")
     grouped = _group_by(rows, "team_sk")
-    payloads = [shape_team_payload(v) for v in grouped.values()]
-    return payloads[:sample] if sample else payloads
+    team_ids = list(grouped.keys())[:sample] if sample else list(grouped.keys())
+    # GAP-15: next fixture + last-5 results, already rank-tagged in mart_team_fixtures. Filter on
+    # the precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
+    fx_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_fixtures`"
+    fx_where = "(upcoming_rank = 1 or recency_rank <= 5)"
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        fx_sql = f"select * from {fx_table} where {fx_where} and team_sk in ({id_list})"
+    else:
+        fx_sql = f"select * from {fx_table} where {fx_where}"
+    fixtures_by_team = _group_by(_query(client, fx_sql), "team_sk")
+    return [shape_team_payload(grouped[t], fixtures_by_team.get(t, [])) for t in team_ids]
 
 
 def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
