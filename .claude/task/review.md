@@ -1,30 +1,22 @@
-# Review — feat/gap15-team-fixtures-export — 2026-06-29
+# Review — chore/handover-refresh-391-backlog — 2026-06-29
 
-> Blinded review cycle (G3). Round 2 (final). All three required reviewers re-run fresh on the
-> updated diff. Required set for the staged paths (scripts/export_*.py): scope-auditor (always) +
-> analytics-engineer (dbt_project/**? — export consumes marts) + cto (scripts/export_*.py).
-> Routing `scripts/export_*.py` → analytics-engineer + cto; scope-auditor always.
+> G3 Lock artifact. Doc-only handover refresh recording the #391 un-pause (data-first), the verified
+> gap map, and the A–D backlog. Required set (routing): always → scope-auditor only — the diff touches
+> `.claude/active_work.md` (artifact_only) + `.claude/task/contract.md` (artifact_only_never → hashed,
+> review required). No code path.
 
-diff_sha256: 5d3c223eafb959116ca5572cc6036a0377ec4788d07fbbb095401b40ed22355b
+diff_sha256: 2b08dd864faddfd2baf5f66ce88bc41336ecd19ae72f31070439166f90b9f9b9
+
+> Rebased onto main after sibling PR #607 merged (only the .claude/task/* scratch files conflicted;
+> resolved by taking this PR's versions). Hash rebound 10aae507 → 2b08dd86 (the contract.md diff base
+> moved from the A1 contract to #607's; the handover content is unchanged) — the scope-auditor PASS
+> above still applies. [[feedback-sibling-pr-rebase-rebind]]
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10 naming recorded with authority: the published key names next_fixture/recent_results are the one user-visible naming decision; the contract now records them in decisions_taken as CPO-decided (AskUserQuestion sign-off 2026-06-29), removed from decisions_reserved — no §10 taken silently. Scope is exactly the 3 declared files.
-- Consumption-layer purity + empty-state: the export filters on the mart's precomputed upcoming_rank/recency_rank, selects display fields via a keep-list (_TEAM_FIXTURE_FIELDS), and strips all internal keys (asserted in the test); a season with no fixtures renders next_fixture=None + recent_results=[] (tested). No derivation/reinterpretation; impact_map honest (view over fct_fixture, one bounded scan/night).
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Season-key lookup survives _strip_identity: the fixtures bucket is keyed (league_code, season_api_year) from raw rows; the post-strip profile row keeps both keys (not in the identity denylist), so fixtures attach to the right season — no silent empty-array from a key mismatch.
-- Simplified filter `1 <= (recency_rank or 0) <= 5` is semantically identical to the prior form (None→0→excluded, 1-5 included, 6+ excluded); the test exercises the rank-6 exclusion boundary + the None/empty-season case; consumption purity holds (selection on precomputed ranks only).
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Cost characterization verified against mart_team_fixtures.sql line 1 (materialized='view'): one bounded scan per nightly export over the small fct_fixture fact, not a per-team N+1, zero API-Football quota, no new run — the contract's cost line is accurate; null ranks exclude live/postponed rows at the BQ WHERE before Python.
-- SQL/refactor safety: the sample-path id_list uses str(int(t)) (ValueError before interpolation → injection structurally impossible, mirrors fetch_player_payloads); the WHERE `(upcoming_rank=1 or recency_rank<=5)` is correctly parenthesized vs the appended `and team_sk in (...)`; the sort lambda only sees in-range ranks (post-filter); shape_team_payload's new fixture_rows=None default keeps the pre-GAP-15 callsite/test backward-compatible.
+- Forward-reference to #607's payload-key names (next_fixture/recent_results): the handover explicitly disclaims authority ("owned and recorded in #607's own review cycle — not re-decided here") rather than re-asserting the naming as a settled decision here; the contract's decisions_taken likewise routes A1's Option-1 placement + GAP-15's key names to #606/#607's own cycles. Names are documented for cold-chat continuity; §10 authority stays with the owning PRs. Round-2 FAIL resolved.
+- "Orphan marts need screen specs" methodology + doc-sync: verified this is reported as a CPO-guided process correction (governance, not a §10 mechanism/metric); the content_architecture.md §3 staleness is flagged as a doc-only follow-up (CPO call), not claimed-authority-over or silently overridden. decisions_reserved honestly holds the next Phase-B pick, the orphan-mart screen specs, and the two stale-wireframe reconciliations. Scope is exactly the two artifact files; no impact_map needed (doc-only).
 
 ## escalations
-- question: The published JSON key names for the team fixtures section (next_fixture / recent_results) are a §10 naming decision (user-visible, permanent once published) — what names? (Raised by scope-auditor round 1.)
-  CPO ANSWER: next_fixture / recent_results, nested per seasons[] row — explicit AskUserQuestion sign-off, 2026-06-29. Recorded in the contract's decisions_taken.
+(none) — doc-only handover; records this session's state (#391 un-pause data-first; A–D backlog; A1 #606 merged, GAP-15 #607 open) and reserves the open choices to the CPO.

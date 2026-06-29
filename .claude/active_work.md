@@ -4,33 +4,68 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-06-29** — main GREEN at **6dd1f89** (#530(a) split merged via #604). The recent arc shipped #596 (formalization) → #598 (TEAM deserved-vs-actual) → #600 (integrity guards) → **#530(a)** (split the 2 entity-dual catalogue rows per entity), all MERGED. **NEXT (CPO-agreed): the #391 conversation** — a DISCUSSION (not a build) of whether to un-pause the website so the metric layer (deserved-vs-actual, benchmarks, leaderboards, profiles) finally gets a user-facing consumer. Detailed below._
+_Last updated: **2026-06-29** — main GREEN at **5041396** (#391 A1 deserved-vs-actual on the team profile, MERGED #606). **BIG SHIFT this session: #391 is UN-PAUSED, NARROWLY + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **NOW: Phase B of the gap backlog** — GAP-15 (team fixtures → team payload) is **PR #607, OPEN** (sync main; if merged, continue from the backlog). Backlog + verified gap map below._
 
-main carries the full #500 metric layer + #596 (formula formalization) + #598 (deserved-vs-actual) + #600 (integrity guards) + **#530(a)** (entity-dual rows split per entity). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
+main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any file-touching task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull`. **main is GREEN at 6dd1f89.** Confirm tree clean.
+1. `git checkout main && git pull`. **main GREEN at 5041396** (or later if #607 / this refresh merged). Confirm tree clean.
 2. Read this file top-to-bottom before touching anything.
-3. **NEXT = the #391 conversation** (see the block below) — a DISCUSSION, not a build: present state + options on whether to un-pause the website so the metric layer gets a user-facing consumer. Do NOT start product work without the CPO's explicit un-pause. No locked build task; for any new build, present candidates and get the CPO's pick (§10).
+3. **NEXT = Phase B of the gap backlog** (see THE GAP-CLOSURE BACKLOG below). **GAP-15 is PR #607, OPEN** — if not yet merged, that's the current PR; if merged, the next Phase-B item is a CPO pick (GAP-14 / GAP-16 / GAP-01). #391 is un-paused but NARROW — present the candidate + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
 
 ---
 
-### ⭐ DONE — #530(a): split the 2 entity-dual catalogue rows (MERGED #604)
-`finishing_efficiency` and `duels_won_pct` were split from entity `team and player` into per-entity rows:
-- `duels_won_pct` → team (`int_legs__team_from_players`) + player (`int_legs__player_match`), both `sum(duels_won)/sum(duels_total)`. Fully resolvable.
-- `finishing_efficiency` → team (`int_legs__team_match`, `sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)`) + **player DEFERRED** (blank base/exprs) to **#530(b)** — pending the event-derived `goals_penalty` atom in `int_legs__player_match` (player formula will be `sum(goals_total - goals_penalty)/sum(shots_on)`).
-`assert_metric_catalogue_expr_resolvable` now covers the 3 resolvable rows; the deferred player row stays skip-listed.
-**Hard-won lesson (logged [[feedback-premature-escalation]]):** `finishing_efficiency` is locked to **[0,1]** by the deployed model (`int_team_season__metrics.sql:156-158`), a dbt test (`int_player_season_position.yml:21`) and **CPO "Option A"** — the catalogue prose matches that. A blinded reviewer cited the wireframe's stale "never capped" line (`docs/wireframes/metrics_display.md:107`); I escalated the doc-vs-doc conflict WITHOUT checking the code first → wasted a fix-now/revert loop. **When two specs disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them before escalating.** (The stale wireframe line is a separate reconciliation, not yet done.)
+### ⭐ #391 UN-PAUSED — data-first: complete v2 data+export, THEN the frontend
+The metric layer was rich but had no user-facing surface. The CPO un-paused #391 NARROWLY with a
+**data-first strategy**: get every v2 content block to **built (mart exists) AND wired (the v2 export
+carries it)** first, then build the frontend against a stable export. The live MVP (`site/`, fed by
+`export_pages_data.py` + `mart_matchday_insights`) is SEPARATE — do NOT add to it; cutover is #377.
 
-### ⭐ NEXT — the #391 conversation (CPO-agreed)
-The metric layer is solid (formalization + deserved-vs-actual + integrity guards + the entity split) but has **no user-facing surface** — deserved-vs-actual is intermediate-only, and benchmarks/leaderboards/profiles are marts with no frontend, because the website **#391 is PAUSED**. The CPO-agreed next step is the conversation about **whether to un-pause #391** so the work gets a consumer. This is a **DISCUSSION, not a build** — present the state + options; do NOT start product work without the CPO's explicit un-pause (standing rule).
+**Verified gap map (this session). NOTE:** `docs/content_architecture.md` §3's status column has drifted since 2026-06-17 and needs a reconciliation pass (a doc-only follow-up — CPO call); the verified current state is:
+- v2 = `scripts/export_site_data.py` (8 entity types) + `docs/wireframes/` (only **3 of 10 screens spec'd**:
+  01 fixture, 02 team, 03 player + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
+- **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
+  (2) **orphan marts** that EXIST but the v2 export does NOT carry (benchmarks, roster, career, player-season)
+  AND whose screens (Squad / Stats-percentile / Career tabs) are NOT spec'd → wiring them needs a wireframe
+  step FIRST (NOT cheap "just wire it" — corrected this session); (3) flagship deserved-vs-actual (DONE, A1),
+  opponent-context + contribution-share (need new marts).
+
+### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
+- **A1 — deserved-vs-actual → `mart_team_profile`. MERGED #606.** Composed `int_team_season__deserved_vs_actual`
+  (deserved_rank, sot_rank_gap) into the team mart; auto-carried by the team export (select *). Option-1 placement.
+  Verified actual_rank == latest_rank (same `int_team_season__standings_primary.standing_rank`) → no redundant column.
+- **Phase B — wire the SPEC'D-screen gaps (export-only, the cheap green):**
+  - **GAP-15 — team fixtures (next + last 5) → team payload. PR #607 OPEN.** `mart_team_fixtures` (a view)
+    precomputes ranks; `shape_team_payload` attaches `next_fixture` + `recent_results` per season, display
+    fields only. Per-fixture deep-link deferred to GAP-19. (Payload key names `next_fixture`/`recent_results`
+    and their §10 sign-off are owned and recorded in #607's own review cycle — not re-decided here.)
+  - Remaining (screens 02/03): **GAP-14** (player birth_date, export-only), **GAP-16** (player team affiliation,
+    dbt-derived), **GAP-01** (team venue fields, mart+export; disposition still pending). CPO picks next.
+  - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
+- **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
+  YoY/streaks/season + wire. A chain.
+- **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
+  + contribution-share (§10 definition). New marts.
+- **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
+
+### ⚠️ Two STALE-WIREFRAME flags (reconcile separately; NOT decided)
+1. **02 block-5 deserved-vs-actual:** the wireframe binds to ratio-space `shot_share`/`points_capture`/
+   `performance_vs_results_gap` (that gap column does NOT exist) — but A1 shipped the **rank-space** version
+   (deserved_rank/sot_rank_gap, the CPO-locked #598 method). The wireframe is stale; block 5 needs reconciling
+   to rank-space before it renders.
+2. **finishing_efficiency [0,1]:** locked to [0,1] by the model (`int_team_season__metrics.sql:156-158`) + a dbt
+   test (`int_player_season_position.yml:21`) + CPO "Option A"; the wireframe's "never capped" line
+   (`metrics_display.md:107`) is the stale one. **Lesson ([[feedback-premature-escalation]]): when two specs
+   disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them BEFORE escalating.**
 
 ---
 
 ### ⭐ RECENT PRs
 
-- **#604 (latest) — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity with explicit base_relation + numerator_expr/denominator_expr; player `finishing_efficiency` deferred to #530(b). Catalogue-only. See the DONE block above + the [0,1]/Option A lesson.
+- **#607 (OPEN) — #391 GAP-15: team fixtures (next + last 5) → the v2 team payload.** Export-only; `mart_team_fixtures` (a view) → `shape_team_payload` attaches `next_fixture` + `recent_results` per season. `data-build` skips (no dbt change). Awaiting CPO merge.
+- **#606 — #391 A1: deserved-vs-actual on `mart_team_profile`, MERGED.** See the backlog A1 entry above.
+- **#604 — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity; player `finishing_efficiency` deferred to #530(b). Catalogue-only.
 
 Prior arc (2026-06-29):
 1. **#598 — TEAM deserved-vs-actual read (SoT rank-space gap), MERGED.** The flagship process read. 4 catalogue rows (`sot_difference`, `shots_on_goal_against_per_match` per-match over `int_legs__team_match`; `deserved_rank`, `sot_rank_gap` rank-derived/blank-expr). New model `int_team_season__deserved_vs_actual` (composes the gated `sot_difference` + standings rank; `deserved_rank` = rank by sot_difference within league-season; `sot_rank_gap = actual_rank − deserved_rank`, positive = under-performing) under a **full-table coverage gate**. Intermediate-only; method CPO-locked; TEAM only, no xG. See memory [[project-team-metric-rank-correlation-sweep]].
@@ -45,7 +80,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
 
 ---
 
-### NEXT candidates (after #530(a) + the #391 conversation — CPO directs; none auto-granted)
+### OTHER carryovers (the A–D backlog above is the PRIMARY track now; CPO directs; none auto-granted)
 - **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) DONE via #604** — entity-dual rows split per entity):
   (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the **3 deferred player rows** (`finishing_efficiency`, `goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today (the player `finishing_efficiency` row from (a) is now one of these). **This is the lead #530 follow-up.**
   (c) **model-conformance** test — does each model actually COMPUTE the catalogue formula (modulo availability)? The deeper guard beyond resolvability.
@@ -71,7 +106,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
 
 ### Standing rules / Do NOT
 - **No locked next task — present candidates, get the CPO's pick, do NOT pre-decide §10** (product/UX, metrics, naming, NEW mechanisms, rule extensions). Escalate in PLAIN language.
-- **No blueprint/feature work while #391 is PAUSED** unless the CPO directs it. Live MVP must not break.
+- **#391 is UN-PAUSED but NARROW** — only CPO-directed gap-backlog (A–D) items; do NOT touch the live MVP (`site/`), and do NOT start the v2 frontend (Phase E) until the data+export is "all green". Each item still needs the CPO's go.
 - Do not compute/derive facts in the frontend/export — select/group/rename only.
 - Branch from main; never commit to main. **Never merge a PR — the CPO merges.**
 - **Bash only** for all commands. **dbt CLI + SQLFluff broken locally** — rely on CI + the blinded reviewers.

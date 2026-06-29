@@ -1,255 +1,630 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index b728f02..4bb1120 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,33 +4,68 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-06-29** — main GREEN at **6dd1f89** (#530(a) split merged via #604). The recent arc shipped #596 (formalization) → #598 (TEAM deserved-vs-actual) → #600 (integrity guards) → **#530(a)** (split the 2 entity-dual catalogue rows per entity), all MERGED. **NEXT (CPO-agreed): the #391 conversation** — a DISCUSSION (not a build) of whether to un-pause the website so the metric layer (deserved-vs-actual, benchmarks, leaderboards, profiles) finally gets a user-facing consumer. Detailed below._
++_Last updated: **2026-06-29** — main GREEN at **5041396** (#391 A1 deserved-vs-actual on the team profile, MERGED #606). **BIG SHIFT this session: #391 is UN-PAUSED, NARROWLY + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **NOW: Phase B of the gap backlog** — GAP-15 (team fixtures → team payload) is **PR #607, OPEN** (sync main; if merged, continue from the backlog). Backlog + verified gap map below._
+ 
+-main carries the full #500 metric layer + #596 (formula formalization) + #598 (deserved-vs-actual) + #600 (integrity guards) + **#530(a)** (entity-dual rows split per entity). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any file-touching task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main is GREEN at 6dd1f89.** Confirm tree clean.
++1. `git checkout main && git pull`. **main GREEN at 5041396** (or later if #607 / this refresh merged). Confirm tree clean.
+ 2. Read this file top-to-bottom before touching anything.
+-3. **NEXT = the #391 conversation** (see the block below) — a DISCUSSION, not a build: present state + options on whether to un-pause the website so the metric layer gets a user-facing consumer. Do NOT start product work without the CPO's explicit un-pause. No locked build task; for any new build, present candidates and get the CPO's pick (§10).
++3. **NEXT = Phase B of the gap backlog** (see THE GAP-CLOSURE BACKLOG below). **GAP-15 is PR #607, OPEN** — if not yet merged, that's the current PR; if merged, the next Phase-B item is a CPO pick (GAP-14 / GAP-16 / GAP-01). #391 is un-paused but NARROW — present the candidate + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
+ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
+ 
+ ---
+ 
+-### ⭐ DONE — #530(a): split the 2 entity-dual catalogue rows (MERGED #604)
+-`finishing_efficiency` and `duels_won_pct` were split from entity `team and player` into per-entity rows:
+-- `duels_won_pct` → team (`int_legs__team_from_players`) + player (`int_legs__player_match`), both `sum(duels_won)/sum(duels_total)`. Fully resolvable.
+-- `finishing_efficiency` → team (`int_legs__team_match`, `sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)`) + **player DEFERRED** (blank base/exprs) to **#530(b)** — pending the event-derived `goals_penalty` atom in `int_legs__player_match` (player formula will be `sum(goals_total - goals_penalty)/sum(shots_on)`).
+-`assert_metric_catalogue_expr_resolvable` now covers the 3 resolvable rows; the deferred player row stays skip-listed.
+-**Hard-won lesson (logged [[feedback-premature-escalation]]):** `finishing_efficiency` is locked to **[0,1]** by the deployed model (`int_team_season__metrics.sql:156-158`), a dbt test (`int_player_season_position.yml:21`) and **CPO "Option A"** — the catalogue prose matches that. A blinded reviewer cited the wireframe's stale "never capped" line (`docs/wireframes/metrics_display.md:107`); I escalated the doc-vs-doc conflict WITHOUT checking the code first → wasted a fix-now/revert loop. **When two specs disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them before escalating.** (The stale wireframe line is a separate reconciliation, not yet done.)
+-
+-### ⭐ NEXT — the #391 conversation (CPO-agreed)
+-The metric layer is solid (formalization + deserved-vs-actual + integrity guards + the entity split) but has **no user-facing surface** — deserved-vs-actual is intermediate-only, and benchmarks/leaderboards/profiles are marts with no frontend, because the website **#391 is PAUSED**. The CPO-agreed next step is the conversation about **whether to un-pause #391** so the work gets a consumer. This is a **DISCUSSION, not a build** — present the state + options; do NOT start product work without the CPO's explicit un-pause (standing rule).
++### ⭐ #391 UN-PAUSED — data-first: complete v2 data+export, THEN the frontend
++The metric layer was rich but had no user-facing surface. The CPO un-paused #391 NARROWLY with a
++**data-first strategy**: get every v2 content block to **built (mart exists) AND wired (the v2 export
++carries it)** first, then build the frontend against a stable export. The live MVP (`site/`, fed by
++`export_pages_data.py` + `mart_matchday_insights`) is SEPARATE — do NOT add to it; cutover is #377.
++
++**Verified gap map (this session). NOTE:** `docs/content_architecture.md` §3's status column has drifted since 2026-06-17 and needs a reconciliation pass (a doc-only follow-up — CPO call); the verified current state is:
++- v2 = `scripts/export_site_data.py` (8 entity types) + `docs/wireframes/` (only **3 of 10 screens spec'd**:
++  01 fixture, 02 team, 03 player + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
++- **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
++  (2) **orphan marts** that EXIST but the v2 export does NOT carry (benchmarks, roster, career, player-season)
++  AND whose screens (Squad / Stats-percentile / Career tabs) are NOT spec'd → wiring them needs a wireframe
++  step FIRST (NOT cheap "just wire it" — corrected this session); (3) flagship deserved-vs-actual (DONE, A1),
++  opponent-context + contribution-share (need new marts).
++
++### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
++- **A1 — deserved-vs-actual → `mart_team_profile`. MERGED #606.** Composed `int_team_season__deserved_vs_actual`
++  (deserved_rank, sot_rank_gap) into the team mart; auto-carried by the team export (select *). Option-1 placement.
++  Verified actual_rank == latest_rank (same `int_team_season__standings_primary.standing_rank`) → no redundant column.
++- **Phase B — wire the SPEC'D-screen gaps (export-only, the cheap green):**
++  - **GAP-15 — team fixtures (next + last 5) → team payload. PR #607 OPEN.** `mart_team_fixtures` (a view)
++    precomputes ranks; `shape_team_payload` attaches `next_fixture` + `recent_results` per season, display
++    fields only. Per-fixture deep-link deferred to GAP-19. (Payload key names `next_fixture`/`recent_results`
++    and their §10 sign-off are owned and recorded in #607's own review cycle — not re-decided here.)
++  - Remaining (screens 02/03): **GAP-14** (player birth_date, export-only), **GAP-16** (player team affiliation,
++    dbt-derived), **GAP-01** (team venue fields, mart+export; disposition still pending). CPO picks next.
++  - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
++- **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
++  YoY/streaks/season + wire. A chain.
++- **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
++  + contribution-share (§10 definition). New marts.
++- **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
++
++### ⚠️ Two STALE-WIREFRAME flags (reconcile separately; NOT decided)
++1. **02 block-5 deserved-vs-actual:** the wireframe binds to ratio-space `shot_share`/`points_capture`/
++   `performance_vs_results_gap` (that gap column does NOT exist) — but A1 shipped the **rank-space** version
++   (deserved_rank/sot_rank_gap, the CPO-locked #598 method). The wireframe is stale; block 5 needs reconciling
++   to rank-space before it renders.
++2. **finishing_efficiency [0,1]:** locked to [0,1] by the model (`int_team_season__metrics.sql:156-158`) + a dbt
++   test (`int_player_season_position.yml:21`) + CPO "Option A"; the wireframe's "never capped" line
++   (`metrics_display.md:107`) is the stale one. **Lesson ([[feedback-premature-escalation]]): when two specs
++   disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them BEFORE escalating.**
+ 
+ ---
+ 
+ ### ⭐ RECENT PRs
+ 
+-- **#604 (latest) — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity with explicit base_relation + numerator_expr/denominator_expr; player `finishing_efficiency` deferred to #530(b). Catalogue-only. See the DONE block above + the [0,1]/Option A lesson.
++- **#607 (OPEN) — #391 GAP-15: team fixtures (next + last 5) → the v2 team payload.** Export-only; `mart_team_fixtures` (a view) → `shape_team_payload` attaches `next_fixture` + `recent_results` per season. `data-build` skips (no dbt change). Awaiting CPO merge.
++- **#606 — #391 A1: deserved-vs-actual on `mart_team_profile`, MERGED.** See the backlog A1 entry above.
++- **#604 — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity; player `finishing_efficiency` deferred to #530(b). Catalogue-only.
+ 
+ Prior arc (2026-06-29):
+ 1. **#598 — TEAM deserved-vs-actual read (SoT rank-space gap), MERGED.** The flagship process read. 4 catalogue rows (`sot_difference`, `shots_on_goal_against_per_match` per-match over `int_legs__team_match`; `deserved_rank`, `sot_rank_gap` rank-derived/blank-expr). New model `int_team_season__deserved_vs_actual` (composes the gated `sot_difference` + standings rank; `deserved_rank` = rank by sot_difference within league-season; `sot_rank_gap = actual_rank − deserved_rank`, positive = under-performing) under a **full-table coverage gate**. Intermediate-only; method CPO-locked; TEAM only, no xG. See memory [[project-team-metric-rank-correlation-sweep]].
+@@ -45,7 +80,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
+ 
+ ---
+ 
+-### NEXT candidates (after #530(a) + the #391 conversation — CPO directs; none auto-granted)
++### OTHER carryovers (the A–D backlog above is the PRIMARY track now; CPO directs; none auto-granted)
+ - **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) DONE via #604** — entity-dual rows split per entity):
+   (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the **3 deferred player rows** (`finishing_efficiency`, `goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today (the player `finishing_efficiency` row from (a) is now one of these). **This is the lead #530 follow-up.**
+   (c) **model-conformance** test — does each model actually COMPUTE the catalogue formula (modulo availability)? The deeper guard beyond resolvability.
+@@ -71,7 +106,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
+ 
+ ### Standing rules / Do NOT
+ - **No locked next task — present candidates, get the CPO's pick, do NOT pre-decide §10** (product/UX, metrics, naming, NEW mechanisms, rule extensions). Escalate in PLAIN language.
+-- **No blueprint/feature work while #391 is PAUSED** unless the CPO directs it. Live MVP must not break.
++- **#391 is UN-PAUSED but NARROW** — only CPO-directed gap-backlog (A–D) items; do NOT touch the live MVP (`site/`), and do NOT start the v2 frontend (Phase E) until the data+export is "all green". Each item still needs the CPO's go.
+ - Do not compute/derive facts in the frontend/export — select/group/rename only.
+ - Branch from main; never commit to main. **Never merge a PR — the CPO merges.**
+ - **Bash only** for all commands. **dbt CLI + SQLFluff broken locally** — rely on CI + the blinded reviewers.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 81469d1..1413941 100644
+index 1413941..9cf03b8 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,60 +1,63 @@
--# Task contract — A1: deserved-vs-actual into mart_team_profile
-+# Task contract — GAP-15: wire team fixtures into the v2 team payload
+@@ -1,63 +1,43 @@
+-# Task contract — GAP-15: wire team fixtures into the v2 team payload
++# Task contract — refresh handover: #391 un-paused (data-first), gap backlog A–D, A1 merged + GAP-15 PR'd
  
--> Written on a CLEAN tree (branch feat/a1-deserved-vs-actual-team-profile off main @ 1deb5bf).
--> Touches a dbt model → impact_map REQUIRED. See docs/working_agreement.md §2/§10, dbt_project/docs/layering.md.
-+> Written on a CLEAN tree (branch feat/gap15-team-fixtures-export off main @ 5041396).
-+> Touches a consumption surface (scripts/export_*.py) → impact_map REQUIRED.
-+> Governing doc: the consumption-layer contract (export selects/filters/renames/strips, never derives).
+-> Written on a CLEAN tree (branch feat/gap15-team-fixtures-export off main @ 5041396).
+-> Touches a consumption surface (scripts/export_*.py) → impact_map REQUIRED.
+-> Governing doc: the consumption-layer contract (export selects/filters/renames/strips, never derives).
++> Written on a CLEAN tree (branch chore/handover-refresh-391-backlog off main @ 5041396).
++> Doc-only — no code/model change. Records this session's decisions + state for a cold chat.
  
  objective: >
--  Surface the deserved-vs-actual read on the v2 team page by composing the existing intermediate
--  int_team_season__deserved_vs_actual (#598) into mart_team_profile (CPO-chosen backlog item A1,
--  Option 1). Add deserved_rank + sot_rank_gap; one additive PR closes both "built" (mart) and "wired"
--  (the v2 team export reads mart_team_profile via select *).
-+  Surface the team page's "next fixture + last 5 results per (team, season)" section (02 wireframe block 9,
-+  GAP-15 approved) by wiring the existing mart_team_fixtures into the v2 team export. Export-only half of
-+  GAP-15; the mart already precomputes everything (upcoming_rank=1 = next, recency_rank<=5 = last five,
-+  opponent + score + result joined from the tested int_legs__team_match leg).
+-  Surface the team page's "next fixture + last 5 results per (team, season)" section (02 wireframe block 9,
+-  GAP-15 approved) by wiring the existing mart_team_fixtures into the v2 team export. Export-only half of
+-  GAP-15; the mart already precomputes everything (upcoming_rank=1 = next, recency_rank<=5 = last five,
+-  opponent + score + result joined from the tested int_legs__team_match leg).
++  Refresh .claude/active_work.md so a fresh chat continues from this session's big shift: the CPO
++  un-paused #391 NARROWLY with a data-first strategy — complete the v2 data+export layer to "all green"
++  first, then build the frontend. Records the verified block→mart→status gap map, the A–D gap-closure
++  backlog (A1 MERGED #606; GAP-15 = first Phase-B item, PR #607 open; the rest queued), the two stale-
++  wireframe flags, and the standing rules. Replaces the prior "#391 is a discussion" handover.
  
  refs: >
--  Backlog A1 + Option 1, CPO-approved this chat (2026-06-29). Plan: whimsical-swinging-mccarthy.md.
--  Metrics already catalogued as rank-derived rows (#598) — no metric_catalogue change.
-+  Backlog Phase B, GAP-15 (docs/wireframes/99_gaps_register.md, approved 2026-06-11; 02_team_profile.md
-+  §5 block 9). CPO chose GAP-15 as the next PR this chat. Plan: whimsical-swinging-mccarthy.md.
+-  Backlog Phase B, GAP-15 (docs/wireframes/99_gaps_register.md, approved 2026-06-11; 02_team_profile.md
+-  §5 block 9). CPO chose GAP-15 as the next PR this chat. Plan: whimsical-swinging-mccarthy.md.
++  This session (2026-06-29): #391 un-pause discussion → data-first strategy; A1 (#606, MERGED);
++  GAP-15 (#607, open). CPO directed this refresh ("fold the handover refresh in after"). Mirrors
++  prior handover refreshes (#605/#604, #602, #599).
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/mart_team_profile.sql
--  - dbt_project/models/5_marts/shared/shared.yml
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
    - .claude/active_work.md
    - .claude/task/**
  
- impact_map: >
--  writers: mart_team_profile (changed); new upstream ref = int_team_season__deserved_vs_actual
--    (intermediate, already on main since #598; grain team_sk+season_sk, matches the mart).
--  downstream: `dbt list mart_team_profile+` → "football_data_pipeline.5_marts.shared.mart_team_profile"
--    ONLY (leaf — no downstream models). grep `ref('mart_team_profile')` across dbt_project/models → zero
--    (only doc comments in mart_player_profile/int_team_profile__yoy + the shared.yml schema entry).
--    Sole consumer = scripts/export_site_data.py fetch_team_payloads (`select *` → shape_team_payload →
--    _strip_identity, an identity-only denylist) → the two new metric columns auto-flow to the team payload.
--  layer_rules: marts COMPOSE intermediates, never recompute (layering.md cross-layer-consumption rule).
--    mart_team_profile already composes int_team_season__metrics / int_team_profile__yoy /
--    int_team_profile__streaks; adding int_team_season__deserved_vs_actual is the identical pattern.
--    check_layer_contract.py must stay green.
--  deploy_order: mart_team_profile is materialized='table' (full rebuild each run) — additive columns,
--    NO incremental schema-change / full-refresh trap. The intermediate already exists on main, so no
--    upstream gap. ci-data-build builds it; the 04:00 nightly rebuilds prod. No migration ordering risk.
--  blast_radius: the v2 team export gains deserved_rank + sot_rank_gap; NO existing column or number
--    changes; both NULL for non-rankable league-seasons (knockouts / incomplete SoT coverage), gated
--    upstream in the intermediate. RAW/other marts unaffected.
-+  writers: none (no dbt/model change). Reads the existing mart_team_fixtures (on main; grain
-+    (team_sk, fixture_sk); ranks precomputed).
-+  downstream: scripts/export_site_data.py is the leaf consumer (the v2 static export). The team payload
-+    teams/{id}.json gains, per seasons[] row, next_fixture (object|null) + recent_results (array<=5).
-+    No existing payload key changes; additive only. Consumed by the (unbuilt) v2 site_v2 frontend.
-+  layer_rules: consumption-layer contract — the export only selects/filters (on precomputed ranks),
-+    renames, nests and strips internal keys; it derives NO fact (results/ranks/opponent all come from the
-+    mart). check_layer_contract.py must stay green.
-+  deploy_order: pure export-script change; no warehouse migration. Takes effect on the next nightly export
-+    run post-merge. No ordering risk.
-+  cost: mart_team_fixtures is materialized='view' over fct_fixture (a small fact — one row per fixture),
-+    so there is no stored table to cluster; the new query is ONE bounded scan per nightly export, filtered
-+    on the precomputed ranks (post-window, so no further partition pruning, but the underlying fct_fixture
-+    scan is small and fixed). Not a per-team N+1 (one query for the whole run). Zero API-Football quota
-+    impact — BigQuery bytes only, on the existing daily export path; no new run added.
-+  blast_radius: the team payload only; the per-fixture deep-link / fixture URL identity is DEFERRED to
-+    GAP-19 (the mart deliberately omits it) — GAP-15 ships display rows only.
- 
+-impact_map: >
+-  writers: none (no dbt/model change). Reads the existing mart_team_fixtures (on main; grain
+-    (team_sk, fixture_sk); ranks precomputed).
+-  downstream: scripts/export_site_data.py is the leaf consumer (the v2 static export). The team payload
+-    teams/{id}.json gains, per seasons[] row, next_fixture (object|null) + recent_results (array<=5).
+-    No existing payload key changes; additive only. Consumed by the (unbuilt) v2 site_v2 frontend.
+-  layer_rules: consumption-layer contract — the export only selects/filters (on precomputed ranks),
+-    renames, nests and strips internal keys; it derives NO fact (results/ranks/opponent all come from the
+-    mart). check_layer_contract.py must stay green.
+-  deploy_order: pure export-script change; no warehouse migration. Takes effect on the next nightly export
+-    run post-merge. No ordering risk.
+-  cost: mart_team_fixtures is materialized='view' over fct_fixture (a small fact — one row per fixture),
+-    so there is no stored table to cluster; the new query is ONE bounded scan per nightly export, filtered
+-    on the precomputed ranks (post-window, so no further partition pruning, but the underlying fct_fixture
+-    scan is small and fixed). Not a per-team N+1 (one query for the whole run). Zero API-Football quota
+-    impact — BigQuery bytes only, on the existing daily export path; no new run added.
+-  blast_radius: the team payload only; the per-fixture deep-link / fixture URL identity is DEFERRED to
+-    GAP-19 (the mart deliberately omits it) — GAP-15 ships display rows only.
+-
  decisions_taken: >
--  Rests on the CPO's Option-1 sign-off. VERIFIED (not assumed): the intermediate's actual_rank and the
--  mart's existing latest_rank are the SAME value — both are int_team_season__standings_primary.standing_rank
--  on (team_sk, season_sk) — so latest_rank already serves as "actual"; surface only deserved_rank +
--  sot_rank_gap, no redundant actual_rank column. Formulas/metrics unchanged (already catalogued #598).
-+  Rests on the CPO's GAP-15 pick + the 02 wireframe binding (block 9). Shape mirrors the existing player
-+  two-mart pattern (fetch_player_payloads / shape_player_payload(profile_rows, match_rows)). Display fields
-+  only; internal keys (team_sk, fixture_sk, opponent_team_sk, ranks) stripped per existing discipline.
-+  Published-payload key names — next_fixture (object|null) + recent_results (array<=5), nested per
-+  seasons[] row — are CPO-DECIDED (§10 naming): surfaced in the approved plan and confirmed by an explicit
-+  AskUserQuestion sign-off this chat (2026-06-29). Permanent once published; recorded here, not reserved.
+-  Rests on the CPO's GAP-15 pick + the 02 wireframe binding (block 9). Shape mirrors the existing player
+-  two-mart pattern (fetch_player_payloads / shape_player_payload(profile_rows, match_rows)). Display fields
+-  only; internal keys (team_sk, fixture_sk, opponent_team_sk, ranks) stripped per existing discipline.
+-  Published-payload key names — next_fixture (object|null) + recent_results (array<=5), nested per
+-  seasons[] row — are CPO-DECIDED (§10 naming): surfaced in the approved plan and confirmed by an explicit
+-  AskUserQuestion sign-off this chat (2026-06-29). Permanent once published; recorded here, not reserved.
++  Documentation / handover only — RECORDS this session's STATE for a cold chat: the CPO's un-pause of
++  #391 (data-first), the A–D backlog, the verified gap map, and the orphan-marts-need-screen-specs
++  methodology note. Per-PR §10 decisions (A1's Option-1 placement; GAP-15's payload key names) are owned
++  and evidenced in those PRs' own review cycles (#606, #607), not re-decided here. Invents no new
++  product/metric/naming decision.
  
  decisions_reserved:
--  - How the team page renders the block (actual vs deserved bar + gap callout) — frontend, #391 paused; out of scope.
-+  - The per-fixture deep-link (fixture URL identity) — GAP-19 item 5, NOT in scope here.
-+  - Block-5 deserved-vs-actual wireframe staleness (binds to ratio-space performance_vs_results_gap; A1
-+    shipped rank-space deserved_rank/sot_rank_gap) — FLAGGED separately, not this PR.
+-  - The per-fixture deep-link (fixture URL identity) — GAP-19 item 5, NOT in scope here.
+-  - Block-5 deserved-vs-actual wireframe staleness (binds to ratio-space performance_vs_results_gap; A1
+-    shipped rank-space deserved_rank/sot_rank_gap) — FLAGGED separately, not this PR.
++  - The next Phase-B item after GAP-15 (GAP-14 player birth_date / GAP-16 player affiliation / GAP-01
++    venue) — CPO directs; none auto-granted.
++  - Whether to spec the orphan-mart screens (Squad / Stats-percentile / Career tabs) so benchmarks/
++    roster/career can be wired — wireframe/design work, CPO call.
++  - The two stale-wireframe reconciliations (block-5 deserved-vs-actual ratio-space vs the shipped
++    rank-space; finishing_efficiency [0,1]/Option A vs the "never capped" line) — flagged, not decided.
  
  done_when:
--  - mart_team_profile.sql: left join int_team_season__deserved_vs_actual on (team_sk, season_sk),
--    surfacing deserved_rank + sot_rank_gap (same join shape as the streaks join).
--  - shared.yml: column docs for the two new columns (null-when-not-rankable semantics; no new data tests —
--    the sign/null invariants live on the intermediate).
--  - `python scripts/check_layer_contract.py` green; compiled join grain-correct.
--  - Export carry-through: export_site_data.py sample dry-run shows deserved_rank/sot_rank_gap in a
--    seasons[] entry (NULL for a knockout/incomplete season).
--  - ci-data-build green; scope-auditor + analytics-engineer PASS; CPO merges (never self-merge).
-+  - fetch_team_payloads queries mart_team_fixtures (where upcoming_rank=1 or recency_rank<=5; sample-scoped)
-+    + groups by team_sk; shape_team_payload(profile_rows, fixture_rows) attaches next_fixture +
-+    recent_results per seasons[] row, display fields only, internal keys stripped.
-+  - tests/test_export_site_data.py updated for the 2-arg signature + asserts attachment/order/empty-case.
-+  - `python -m pytest tests/test_export_site_data.py` green; `python scripts/check_layer_contract.py` green.
-+  - scope-auditor + analytics-engineer + cto PASS; CPO merges (never self-merge).
+-  - fetch_team_payloads queries mart_team_fixtures (where upcoming_rank=1 or recency_rank<=5; sample-scoped)
+-    + groups by team_sk; shape_team_payload(profile_rows, fixture_rows) attaches next_fixture +
+-    recent_results per seasons[] row, display fields only, internal keys stripped.
+-  - tests/test_export_site_data.py updated for the 2-arg signature + asserts attachment/order/empty-case.
+-  - `python -m pytest tests/test_export_site_data.py` green; `python scripts/check_layer_contract.py` green.
+-  - scope-auditor + analytics-engineer + cto PASS; CPO merges (never self-merge).
++  - active_work.md states main @ 5041396 (A1 #606 merged), GAP-15 #607 open; records the data-first
++    #391 strategy, the verified gap map (3 spec'd screens; orphan marts blocked on screen specs), the
++    A–D backlog with status, the two stale-wireframe flags, and the standing rules.
++  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
  
  amendments: (none)
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 3b26d90..6faba1a 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -118,18 +118,52 @@ def _latest_season_row(rows: list[dict]) -> dict:
-     return max(rows, key=lambda r: (r.get("season_api_year") or 0))
+diff --git a/.claude/task/review.md b/.claude/task/review.md
+index 9e8d5bb..0eefc99 100644
+--- a/.claude/task/review.md
++++ b/.claude/task/review.md
+@@ -1,30 +1,22 @@
+-# Review — feat/gap15-team-fixtures-export — 2026-06-29
++# Review — chore/handover-refresh-391-backlog — 2026-06-29
  
+-> Blinded review cycle (G3). Round 2 (final). All three required reviewers re-run fresh on the
+-> updated diff. Required set for the staged paths (scripts/export_*.py): scope-auditor (always) +
+-> analytics-engineer (dbt_project/**? — export consumes marts) + cto (scripts/export_*.py).
+-> Routing `scripts/export_*.py` → analytics-engineer + cto; scope-auditor always.
++> G3 Lock artifact. Doc-only handover refresh recording the #391 un-pause (data-first), the verified
++> gap map, and the A–D backlog. Required set (routing): always → scope-auditor only — the diff touches
++> `.claude/active_work.md` (artifact_only) + `.claude/task/contract.md` (artifact_only_never → hashed,
++> review required). No code path.
  
--def shape_team_payload(rows: list[dict]) -> dict:
--    """One team's mart_team_profile rows -> the team page payload.
-+# Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
-+# (team_sk, fixture_sk, opponent_team_sk, league_code, season_api_year, the ranks,
-+# has_result, is_upcoming) are dropped — the published row is display-only. The
-+# per-fixture deep-link (fixture URL identity) is GAP-19, deliberately absent here.
-+_TEAM_FIXTURE_FIELDS = (
-+    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime",
-+    "round_name", "goals_for", "goals_against", "result", "status_short",
-+)
+-diff_sha256: 5d3c223eafb959116ca5572cc6036a0377ec4788d07fbbb095401b40ed22355b
++diff_sha256: 2b08dd864faddfd2baf5f66ce88bc41336ecd19ae72f31070439166f90b9f9b9
  
--    rows: every (team, competition-season) row for a single team_sk.
-+
-+def _shape_team_fixture(row: dict) -> dict:
-+    return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
-+
-+
-+def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None = None) -> dict:
-+    """One team's mart_team_profile rows (+ mart_team_fixtures rows) -> the team page payload.
-+
-+    profile_rows: every (team, competition-season) profile row for a single team_sk.
-+    fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
-     """
--    latest = _latest_season_row(rows)
-+    latest = _latest_season_row(profile_rows)
-     team_id = int(latest["team_sk"])
-     seasons = sorted(
--        rows,
-+        profile_rows,
-         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
-         reverse=True,
-     )
-+    fixtures_by_season: dict = {}
-+    for fr in fixture_rows or []:
-+        fixtures_by_season.setdefault(
-+            (fr.get("league_code"), fr.get("season_api_year")), []
-+        ).append(fr)
-+
-+    seasons_out = []
-+    for r in seasons:
-+        s = _strip_identity(r)
-+        frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
-+        nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
-+        recent = sorted(
-+            (fr for fr in frs if 1 <= (fr.get("recency_rank") or 0) <= 5),
-+            key=lambda fr: fr["recency_rank"],
-+        )
-+        s["next_fixture"] = _shape_team_fixture(nxt) if nxt else None
-+        s["recent_results"] = [_shape_team_fixture(fr) for fr in recent]
-+        seasons_out.append(s)
-+
-     return {
-         "type": "team",
-         "team_id": team_id,
-@@ -137,7 +171,7 @@ def shape_team_payload(rows: list[dict]) -> dict:
-         "name": latest.get("team_name"),
-         "country": latest.get("team_country"),
-         "crest": latest.get("team_logo_url"),
--        "seasons": [_strip_identity(r) for r in seasons],
-+        "seasons": seasons_out,
-     }
+-## scope-auditor
+-VERDICT: PASS
+-risks_checked:
+-- §10 naming recorded with authority: the published key names next_fixture/recent_results are the one user-visible naming decision; the contract now records them in decisions_taken as CPO-decided (AskUserQuestion sign-off 2026-06-29), removed from decisions_reserved — no §10 taken silently. Scope is exactly the 3 declared files.
+-- Consumption-layer purity + empty-state: the export filters on the mart's precomputed upcoming_rank/recency_rank, selects display fields via a keep-list (_TEAM_FIXTURE_FIELDS), and strips all internal keys (asserted in the test); a season with no fixtures renders next_fixture=None + recent_results=[] (tested). No derivation/reinterpretation; impact_map honest (view over fct_fixture, one bounded scan/night).
++> Rebased onto main after sibling PR #607 merged (only the .claude/task/* scratch files conflicted;
++> resolved by taking this PR's versions). Hash rebound 10aae507 → 2b08dd86 (the contract.md diff base
++> moved from the A1 contract to #607's; the handover content is unchanged) — the scope-auditor PASS
++> above still applies. [[feedback-sibling-pr-rebase-rebind]]
  
+-## analytics-engineer-reviewer
+-VERDICT: PASS
+-risks_checked:
+-- Season-key lookup survives _strip_identity: the fixtures bucket is keyed (league_code, season_api_year) from raw rows; the post-strip profile row keeps both keys (not in the identity denylist), so fixtures attach to the right season — no silent empty-array from a key mismatch.
+-- Simplified filter `1 <= (recency_rank or 0) <= 5` is semantically identical to the prior form (None→0→excluded, 1-5 included, 6+ excluded); the test exercises the rank-6 exclusion boundary + the None/empty-season case; consumption purity holds (selection on precomputed ranks only).
+-
+-## cto-reviewer
++## scope-auditor
+ VERDICT: PASS
+ risks_checked:
+-- Cost characterization verified against mart_team_fixtures.sql line 1 (materialized='view'): one bounded scan per nightly export over the small fct_fixture fact, not a per-team N+1, zero API-Football quota, no new run — the contract's cost line is accurate; null ranks exclude live/postponed rows at the BQ WHERE before Python.
+-- SQL/refactor safety: the sample-path id_list uses str(int(t)) (ValueError before interpolation → injection structurally impossible, mirrors fetch_player_payloads); the WHERE `(upcoming_rank=1 or recency_rank<=5)` is correctly parenthesized vs the appended `and team_sk in (...)`; the sort lambda only sees in-range ranks (post-filter); shape_team_payload's new fixture_rows=None default keeps the pre-GAP-15 callsite/test backward-compatible.
++- Forward-reference to #607's payload-key names (next_fixture/recent_results): the handover explicitly disclaims authority ("owned and recorded in #607's own review cycle — not re-decided here") rather than re-asserting the naming as a settled decision here; the contract's decisions_taken likewise routes A1's Option-1 placement + GAP-15's key names to #606/#607's own cycles. Names are documented for cold-chat continuity; §10 authority stays with the owning PRs. Round-2 FAIL resolved.
++- "Orphan marts need screen specs" methodology + doc-sync: verified this is reported as a CPO-guided process correction (governance, not a §10 mechanism/metric); the content_architecture.md §3 staleness is flagged as a doc-only follow-up (CPO call), not claimed-authority-over or silently overridden. decisions_reserved honestly holds the next Phase-B pick, the orphan-mart screen specs, and the two stale-wireframe reconciliations. Scope is exactly the two artifact files; no impact_map needed (doc-only).
  
-@@ -341,8 +375,18 @@ def _group_by(rows: list[dict], key: str) -> dict:
- def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
-     rows = _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_profile`")
-     grouped = _group_by(rows, "team_sk")
--    payloads = [shape_team_payload(v) for v in grouped.values()]
--    return payloads[:sample] if sample else payloads
-+    team_ids = list(grouped.keys())[:sample] if sample else list(grouped.keys())
-+    # GAP-15: next fixture + last-5 results, already rank-tagged in mart_team_fixtures. Filter on
-+    # the precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
-+    fx_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_fixtures`"
-+    fx_where = "(upcoming_rank = 1 or recency_rank <= 5)"
-+    if sample:
-+        id_list = ", ".join(str(int(t)) for t in team_ids)
-+        fx_sql = f"select * from {fx_table} where {fx_where} and team_sk in ({id_list})"
-+    else:
-+        fx_sql = f"select * from {fx_table} where {fx_where}"
-+    fixtures_by_team = _group_by(_query(client, fx_sql), "team_sk")
-+    return [shape_team_payload(grouped[t], fixtures_by_team.get(t, [])) for t in team_ids]
- 
- 
- def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index f5b2020..e403d46 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -187,6 +187,49 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
-     assert p["seasons"][0]["points"] == 82
- 
- 
-+def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
-+    rows = [
-+        {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
-+         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"},
-+        {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
-+         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2"},
-+    ]
-+
-+    def fx(opponent, *, upcoming=None, recency=None, is_home=True):
-+        return {
-+            "team_sk": 157, "league_code": "BL1", "season_api_year": 2025,
-+            "fixture_sk": 0, "opponent_team_sk": 5, "opponent_name": opponent,
-+            "opponent_logo_url": "x", "is_home": is_home, "kickoff_datetime": "2025-10-01",
-+            "round_name": "MD1", "goals_for": 1, "goals_against": 0, "result": "W",
-+            "status_short": "FT", "has_result": recency is not None,
-+            "is_upcoming": upcoming is not None, "upcoming_rank": upcoming,
-+            "recency_rank": recency,
-+        }
-+
-+    fixtures = [
-+        fx("Dortmund", upcoming=1),
-+        fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
-+        fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
-+    ]
-+    p = shape_team_payload(rows, fixtures)
-+    s2025 = p["seasons"][0]
-+    assert s2025["season_api_year"] == 2025
-+    assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
-+    # recent results newest-first (recency_rank asc), capped at 5 — the rank-6 row is excluded
-+    assert [f["opponent_name"] for f in s2025["recent_results"]] == [
-+        "Leipzig", "Mainz", "Koln", "Bremen", "Wolfsburg"]
-+    # every internal key is stripped from each shaped fixture row (next + recent)
-+    for internal in ("team_sk", "fixture_sk", "opponent_team_sk", "league_code",
-+                     "season_api_year", "upcoming_rank", "recency_rank",
-+                     "has_result", "is_upcoming"):
-+        assert internal not in s2025["next_fixture"]
-+        assert all(internal not in r for r in s2025["recent_results"])
-+    # a season with no fixture rows renders the empty state
-+    s2024 = p["seasons"][1]
-+    assert s2024["next_fixture"] is None
-+    assert s2024["recent_results"] == []
-+
-+
- def test_shape_player_payload_orders_match_log_desc():
-     profiles = [
-         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
+ ## escalations
+-- question: The published JSON key names for the team fixtures section (next_fixture / recent_results) are a §10 naming decision (user-visible, permanent once published) — what names? (Raised by scope-auditor round 1.)
+-  CPO ANSWER: next_fixture / recent_results, nested per seasons[] row — explicit AskUserQuestion sign-off, 2026-06-29. Recorded in the contract's decisions_taken.
++(none) — doc-only handover; records this session's state (#391 un-pause data-first; A–D backlog; A1 #606 merged, GAP-15 #607 open) and reserves the open choices to the CPO.
+diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+index c388922..7377517 100644
+--- a/.claude/task/review_input.patch
++++ b/.claude/task/review_input.patch
+@@ -1,42 +1,146 @@
++diff --git a/.claude/active_work.md b/.claude/active_work.md
++index b728f02..4bb1120 100644
++--- a/.claude/active_work.md
+++++ b/.claude/active_work.md
++@@ -4,33 +4,68 @@
++ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
++ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
++ 
++-_Last updated: **2026-06-29** — main GREEN at **6dd1f89** (#530(a) split merged via #604). The recent arc shipped #596 (formalization) → #598 (TEAM deserved-vs-actual) → #600 (integrity guards) → **#530(a)** (split the 2 entity-dual catalogue rows per entity), all MERGED. **NEXT (CPO-agreed): the #391 conversation** — a DISCUSSION (not a build) of whether to un-pause the website so the metric layer (deserved-vs-actual, benchmarks, leaderboards, profiles) finally gets a user-facing consumer. Detailed below._
+++_Last updated: **2026-06-29** — main GREEN at **5041396** (#391 A1 deserved-vs-actual on the team profile, MERGED #606). **BIG SHIFT this session: #391 is UN-PAUSED, NARROWLY + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **NOW: Phase B of the gap backlog** — GAP-15 (team fixtures → team payload) is **PR #607, OPEN** (sync main; if merged, continue from the backlog). Backlog + verified gap map below._
++ 
++-main carries the full #500 metric layer + #596 (formula formalization) + #598 (deserved-vs-actual) + #600 (integrity guards) + **#530(a)** (entity-dual rows split per entity). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
+++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any file-touching task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing.
++ 
++ ### FIRST STEPS (cold chat — do in order)
++-1. `git checkout main && git pull`. **main is GREEN at 6dd1f89.** Confirm tree clean.
+++1. `git checkout main && git pull`. **main GREEN at 5041396** (or later if #607 / this refresh merged). Confirm tree clean.
++ 2. Read this file top-to-bottom before touching anything.
++-3. **NEXT = the #391 conversation** (see the block below) — a DISCUSSION, not a build: present state + options on whether to un-pause the website so the metric layer gets a user-facing consumer. Do NOT start product work without the CPO's explicit un-pause. No locked build task; for any new build, present candidates and get the CPO's pick (§10).
+++3. **NEXT = Phase B of the gap backlog** (see THE GAP-CLOSURE BACKLOG below). **GAP-15 is PR #607, OPEN** — if not yet merged, that's the current PR; if merged, the next Phase-B item is a CPO pick (GAP-14 / GAP-16 / GAP-01). #391 is un-paused but NARROW — present the candidate + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
++ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
++ 
++ ---
++ 
++-### ⭐ DONE — #530(a): split the 2 entity-dual catalogue rows (MERGED #604)
++-`finishing_efficiency` and `duels_won_pct` were split from entity `team and player` into per-entity rows:
++-- `duels_won_pct` → team (`int_legs__team_from_players`) + player (`int_legs__player_match`), both `sum(duels_won)/sum(duels_total)`. Fully resolvable.
++-- `finishing_efficiency` → team (`int_legs__team_match`, `sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)`) + **player DEFERRED** (blank base/exprs) to **#530(b)** — pending the event-derived `goals_penalty` atom in `int_legs__player_match` (player formula will be `sum(goals_total - goals_penalty)/sum(shots_on)`).
++-`assert_metric_catalogue_expr_resolvable` now covers the 3 resolvable rows; the deferred player row stays skip-listed.
++-**Hard-won lesson (logged [[feedback-premature-escalation]]):** `finishing_efficiency` is locked to **[0,1]** by the deployed model (`int_team_season__metrics.sql:156-158`), a dbt test (`int_player_season_position.yml:21`) and **CPO "Option A"** — the catalogue prose matches that. A blinded reviewer cited the wireframe's stale "never capped" line (`docs/wireframes/metrics_display.md:107`); I escalated the doc-vs-doc conflict WITHOUT checking the code first → wasted a fix-now/revert loop. **When two specs disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them before escalating.** (The stale wireframe line is a separate reconciliation, not yet done.)
++-
++-### ⭐ NEXT — the #391 conversation (CPO-agreed)
++-The metric layer is solid (formalization + deserved-vs-actual + integrity guards + the entity split) but has **no user-facing surface** — deserved-vs-actual is intermediate-only, and benchmarks/leaderboards/profiles are marts with no frontend, because the website **#391 is PAUSED**. The CPO-agreed next step is the conversation about **whether to un-pause #391** so the work gets a consumer. This is a **DISCUSSION, not a build** — present the state + options; do NOT start product work without the CPO's explicit un-pause (standing rule).
+++### ⭐ #391 UN-PAUSED — data-first: complete v2 data+export, THEN the frontend
+++The metric layer was rich but had no user-facing surface. The CPO un-paused #391 NARROWLY with a
+++**data-first strategy**: get every v2 content block to **built (mart exists) AND wired (the v2 export
+++carries it)** first, then build the frontend against a stable export. The live MVP (`site/`, fed by
+++`export_pages_data.py` + `mart_matchday_insights`) is SEPARATE — do NOT add to it; cutover is #377.
+++
+++**Verified gap map (this session). NOTE:** `docs/content_architecture.md` §3's status column has drifted since 2026-06-17 and needs a reconciliation pass (a doc-only follow-up — CPO call); the verified current state is:
+++- v2 = `scripts/export_site_data.py` (8 entity types) + `docs/wireframes/` (only **3 of 10 screens spec'd**:
+++  01 fixture, 02 team, 03 player + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
+++- **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
+++  (2) **orphan marts** that EXIST but the v2 export does NOT carry (benchmarks, roster, career, player-season)
+++  AND whose screens (Squad / Stats-percentile / Career tabs) are NOT spec'd → wiring them needs a wireframe
+++  step FIRST (NOT cheap "just wire it" — corrected this session); (3) flagship deserved-vs-actual (DONE, A1),
+++  opponent-context + contribution-share (need new marts).
+++
+++### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
+++- **A1 — deserved-vs-actual → `mart_team_profile`. MERGED #606.** Composed `int_team_season__deserved_vs_actual`
+++  (deserved_rank, sot_rank_gap) into the team mart; auto-carried by the team export (select *). Option-1 placement.
+++  Verified actual_rank == latest_rank (same `int_team_season__standings_primary.standing_rank`) → no redundant column.
+++- **Phase B — wire the SPEC'D-screen gaps (export-only, the cheap green):**
+++  - **GAP-15 — team fixtures (next + last 5) → team payload. PR #607 OPEN.** `mart_team_fixtures` (a view)
+++    precomputes ranks; `shape_team_payload` attaches `next_fixture` + `recent_results` per season, display
+++    fields only. Per-fixture deep-link deferred to GAP-19. (Payload key names `next_fixture`/`recent_results`
+++    and their §10 sign-off are owned and recorded in #607's own review cycle — not re-decided here.)
+++  - Remaining (screens 02/03): **GAP-14** (player birth_date, export-only), **GAP-16** (player team affiliation,
+++    dbt-derived), **GAP-01** (team venue fields, mart+export; disposition still pending). CPO picks next.
+++  - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
+++- **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
+++  YoY/streaks/season + wire. A chain.
+++- **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
+++  + contribution-share (§10 definition). New marts.
+++- **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
+++
+++### ⚠️ Two STALE-WIREFRAME flags (reconcile separately; NOT decided)
+++1. **02 block-5 deserved-vs-actual:** the wireframe binds to ratio-space `shot_share`/`points_capture`/
+++   `performance_vs_results_gap` (that gap column does NOT exist) — but A1 shipped the **rank-space** version
+++   (deserved_rank/sot_rank_gap, the CPO-locked #598 method). The wireframe is stale; block 5 needs reconciling
+++   to rank-space before it renders.
+++2. **finishing_efficiency [0,1]:** locked to [0,1] by the model (`int_team_season__metrics.sql:156-158`) + a dbt
+++   test (`int_player_season_position.yml:21`) + CPO "Option A"; the wireframe's "never capped" line
+++   (`metrics_display.md:107`) is the stale one. **Lesson ([[feedback-premature-escalation]]): when two specs
+++   disagree, the deployed code + tests + last CPO ruling are the tiebreaker — read them BEFORE escalating.**
++ 
++ ---
++ 
++ ### ⭐ RECENT PRs
++ 
++-- **#604 (latest) — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity with explicit base_relation + numerator_expr/denominator_expr; player `finishing_efficiency` deferred to #530(b). Catalogue-only. See the DONE block above + the [0,1]/Option A lesson.
+++- **#607 (OPEN) — #391 GAP-15: team fixtures (next + last 5) → the v2 team payload.** Export-only; `mart_team_fixtures` (a view) → `shape_team_payload` attaches `next_fixture` + `recent_results` per season. `data-build` skips (no dbt change). Awaiting CPO merge.
+++- **#606 — #391 A1: deserved-vs-actual on `mart_team_profile`, MERGED.** See the backlog A1 entry above.
+++- **#604 — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity; player `finishing_efficiency` deferred to #530(b). Catalogue-only.
++ 
++ Prior arc (2026-06-29):
++ 1. **#598 — TEAM deserved-vs-actual read (SoT rank-space gap), MERGED.** The flagship process read. 4 catalogue rows (`sot_difference`, `shots_on_goal_against_per_match` per-match over `int_legs__team_match`; `deserved_rank`, `sot_rank_gap` rank-derived/blank-expr). New model `int_team_season__deserved_vs_actual` (composes the gated `sot_difference` + standings rank; `deserved_rank` = rank by sot_difference within league-season; `sot_rank_gap = actual_rank − deserved_rank`, positive = under-performing) under a **full-table coverage gate**. Intermediate-only; method CPO-locked; TEAM only, no xG. See memory [[project-team-metric-rank-correlation-sweep]].
++@@ -45,7 +80,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
++ 
++ ---
++ 
++-### NEXT candidates (after #530(a) + the #391 conversation — CPO directs; none auto-granted)
+++### OTHER carryovers (the A–D backlog above is the PRIMARY track now; CPO directs; none auto-granted)
++ - **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) DONE via #604** — entity-dual rows split per entity):
++   (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the **3 deferred player rows** (`finishing_efficiency`, `goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today (the player `finishing_efficiency` row from (a) is now one of these). **This is the lead #530 follow-up.**
++   (c) **model-conformance** test — does each model actually COMPUTE the catalogue formula (modulo availability)? The deeper guard beyond resolvability.
++@@ -71,7 +106,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
++ 
++ ### Standing rules / Do NOT
++ - **No locked next task — present candidates, get the CPO's pick, do NOT pre-decide §10** (product/UX, metrics, naming, NEW mechanisms, rule extensions). Escalate in PLAIN language.
++-- **No blueprint/feature work while #391 is PAUSED** unless the CPO directs it. Live MVP must not break.
+++- **#391 is UN-PAUSED but NARROW** — only CPO-directed gap-backlog (A–D) items; do NOT touch the live MVP (`site/`), and do NOT start the v2 frontend (Phase E) until the data+export is "all green". Each item still needs the CPO's go.
++ - Do not compute/derive facts in the frontend/export — select/group/rename only.
++ - Branch from main; never commit to main. **Never merge a PR — the CPO merges.**
++ - **Bash only** for all commands. **dbt CLI + SQLFluff broken locally** — rely on CI + the blinded reviewers.
+ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+-index 81469d1..1413941 100644
++index 81469d1..9cf03b8 100644
+ --- a/.claude/task/contract.md
+ +++ b/.claude/task/contract.md
+-@@ -1,60 +1,63 @@
++@@ -1,60 +1,43 @@
+ -# Task contract — A1: deserved-vs-actual into mart_team_profile
+-+# Task contract — GAP-15: wire team fixtures into the v2 team payload
+++# Task contract — refresh handover: #391 un-paused (data-first), gap backlog A–D, A1 merged + GAP-15 PR'd
+  
+ -> Written on a CLEAN tree (branch feat/a1-deserved-vs-actual-team-profile off main @ 1deb5bf).
+ -> Touches a dbt model → impact_map REQUIRED. See docs/working_agreement.md §2/§10, dbt_project/docs/layering.md.
+-+> Written on a CLEAN tree (branch feat/gap15-team-fixtures-export off main @ 5041396).
+-+> Touches a consumption surface (scripts/export_*.py) → impact_map REQUIRED.
+-+> Governing doc: the consumption-layer contract (export selects/filters/renames/strips, never derives).
+++> Written on a CLEAN tree (branch chore/handover-refresh-391-backlog off main @ 5041396).
+++> Doc-only — no code/model change. Records this session's decisions + state for a cold chat.
+  
+  objective: >
+ -  Surface the deserved-vs-actual read on the v2 team page by composing the existing intermediate
+ -  int_team_season__deserved_vs_actual (#598) into mart_team_profile (CPO-chosen backlog item A1,
+ -  Option 1). Add deserved_rank + sot_rank_gap; one additive PR closes both "built" (mart) and "wired"
+ -  (the v2 team export reads mart_team_profile via select *).
+-+  Surface the team page's "next fixture + last 5 results per (team, season)" section (02 wireframe block 9,
+-+  GAP-15 approved) by wiring the existing mart_team_fixtures into the v2 team export. Export-only half of
+-+  GAP-15; the mart already precomputes everything (upcoming_rank=1 = next, recency_rank<=5 = last five,
+-+  opponent + score + result joined from the tested int_legs__team_match leg).
+++  Refresh .claude/active_work.md so a fresh chat continues from this session's big shift: the CPO
+++  un-paused #391 NARROWLY with a data-first strategy — complete the v2 data+export layer to "all green"
+++  first, then build the frontend. Records the verified block→mart→status gap map, the A–D gap-closure
+++  backlog (A1 MERGED #606; GAP-15 = first Phase-B item, PR #607 open; the rest queued), the two stale-
+++  wireframe flags, and the standing rules. Replaces the prior "#391 is a discussion" handover.
+  
+  refs: >
+ -  Backlog A1 + Option 1, CPO-approved this chat (2026-06-29). Plan: whimsical-swinging-mccarthy.md.
+ -  Metrics already catalogued as rank-derived rows (#598) — no metric_catalogue change.
+-+  Backlog Phase B, GAP-15 (docs/wireframes/99_gaps_register.md, approved 2026-06-11; 02_team_profile.md
+-+  §5 block 9). CPO chose GAP-15 as the next PR this chat. Plan: whimsical-swinging-mccarthy.md.
+++  This session (2026-06-29): #391 un-pause discussion → data-first strategy; A1 (#606, MERGED);
+++  GAP-15 (#607, open). CPO directed this refresh ("fold the handover refresh in after"). Mirrors
+++  prior handover refreshes (#605/#604, #602, #599).
+  
+  scope_paths:
+ -  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+ -  - dbt_project/models/5_marts/shared/shared.yml
+-+  - scripts/export_site_data.py
+-+  - tests/test_export_site_data.py
+    - .claude/active_work.md
+    - .claude/task/**
+  
+- impact_map: >
++-impact_map: >
+ -  writers: mart_team_profile (changed); new upstream ref = int_team_season__deserved_vs_actual
+ -    (intermediate, already on main since #598; grain team_sk+season_sk, matches the mart).
+ -  downstream: `dbt list mart_team_profile+` → "football_data_pipeline.5_marts.shared.mart_team_profile"
+@@ -54,41 +158,26 @@ index 81469d1..1413941 100644
+ -  blast_radius: the v2 team export gains deserved_rank + sot_rank_gap; NO existing column or number
+ -    changes; both NULL for non-rankable league-seasons (knockouts / incomplete SoT coverage), gated
+ -    upstream in the intermediate. RAW/other marts unaffected.
+-+  writers: none (no dbt/model change). Reads the existing mart_team_fixtures (on main; grain
+-+    (team_sk, fixture_sk); ranks precomputed).
+-+  downstream: scripts/export_site_data.py is the leaf consumer (the v2 static export). The team payload
+-+    teams/{id}.json gains, per seasons[] row, next_fixture (object|null) + recent_results (array<=5).
+-+    No existing payload key changes; additive only. Consumed by the (unbuilt) v2 site_v2 frontend.
+-+  layer_rules: consumption-layer contract — the export only selects/filters (on precomputed ranks),
+-+    renames, nests and strips internal keys; it derives NO fact (results/ranks/opponent all come from the
+-+    mart). check_layer_contract.py must stay green.
+-+  deploy_order: pure export-script change; no warehouse migration. Takes effect on the next nightly export
+-+    run post-merge. No ordering risk.
+-+  cost: mart_team_fixtures is materialized='view' over fct_fixture (a small fact — one row per fixture),
+-+    so there is no stored table to cluster; the new query is ONE bounded scan per nightly export, filtered
+-+    on the precomputed ranks (post-window, so no further partition pruning, but the underlying fct_fixture
+-+    scan is small and fixed). Not a per-team N+1 (one query for the whole run). Zero API-Football quota
+-+    impact — BigQuery bytes only, on the existing daily export path; no new run added.
+-+  blast_radius: the team payload only; the per-fixture deep-link / fixture URL identity is DEFERRED to
+-+    GAP-19 (the mart deliberately omits it) — GAP-15 ships display rows only.
+- 
++-
+  decisions_taken: >
+ -  Rests on the CPO's Option-1 sign-off. VERIFIED (not assumed): the intermediate's actual_rank and the
+ -  mart's existing latest_rank are the SAME value — both are int_team_season__standings_primary.standing_rank
+ -  on (team_sk, season_sk) — so latest_rank already serves as "actual"; surface only deserved_rank +
+ -  sot_rank_gap, no redundant actual_rank column. Formulas/metrics unchanged (already catalogued #598).
+-+  Rests on the CPO's GAP-15 pick + the 02 wireframe binding (block 9). Shape mirrors the existing player
+-+  two-mart pattern (fetch_player_payloads / shape_player_payload(profile_rows, match_rows)). Display fields
+-+  only; internal keys (team_sk, fixture_sk, opponent_team_sk, ranks) stripped per existing discipline.
+-+  Published-payload key names — next_fixture (object|null) + recent_results (array<=5), nested per
+-+  seasons[] row — are CPO-DECIDED (§10 naming): surfaced in the approved plan and confirmed by an explicit
+-+  AskUserQuestion sign-off this chat (2026-06-29). Permanent once published; recorded here, not reserved.
+++  Documentation / handover only — RECORDS this session's STATE for a cold chat: the CPO's un-pause of
+++  #391 (data-first), the A–D backlog, the verified gap map, and the orphan-marts-need-screen-specs
+++  methodology note. Per-PR §10 decisions (A1's Option-1 placement; GAP-15's payload key names) are owned
+++  and evidenced in those PRs' own review cycles (#606, #607), not re-decided here. Invents no new
+++  product/metric/naming decision.
+  
+  decisions_reserved:
+ -  - How the team page renders the block (actual vs deserved bar + gap callout) — frontend, #391 paused; out of scope.
+-+  - The per-fixture deep-link (fixture URL identity) — GAP-19 item 5, NOT in scope here.
+-+  - Block-5 deserved-vs-actual wireframe staleness (binds to ratio-space performance_vs_results_gap; A1
+-+    shipped rank-space deserved_rank/sot_rank_gap) — FLAGGED separately, not this PR.
+++  - The next Phase-B item after GAP-15 (GAP-14 player birth_date / GAP-16 player affiliation / GAP-01
+++    venue) — CPO directs; none auto-granted.
+++  - Whether to spec the orphan-mart screens (Squad / Stats-percentile / Career tabs) so benchmarks/
+++    roster/career can be wired — wireframe/design work, CPO call.
+++  - The two stale-wireframe reconciliations (block-5 deserved-vs-actual ratio-space vs the shipped
+++    rank-space; finishing_efficiency [0,1]/Option A vs the "never capped" line) — flagged, not decided.
+  
+  done_when:
+ -  - mart_team_profile.sql: left join int_team_season__deserved_vs_actual on (team_sk, season_sk),
+@@ -99,157 +188,9 @@ index 81469d1..1413941 100644
+ -  - Export carry-through: export_site_data.py sample dry-run shows deserved_rank/sot_rank_gap in a
+ -    seasons[] entry (NULL for a knockout/incomplete season).
+ -  - ci-data-build green; scope-auditor + analytics-engineer PASS; CPO merges (never self-merge).
+-+  - fetch_team_payloads queries mart_team_fixtures (where upcoming_rank=1 or recency_rank<=5; sample-scoped)
+-+    + groups by team_sk; shape_team_payload(profile_rows, fixture_rows) attaches next_fixture +
+-+    recent_results per seasons[] row, display fields only, internal keys stripped.
+-+  - tests/test_export_site_data.py updated for the 2-arg signature + asserts attachment/order/empty-case.
+-+  - `python -m pytest tests/test_export_site_data.py` green; `python scripts/check_layer_contract.py` green.
+-+  - scope-auditor + analytics-engineer + cto PASS; CPO merges (never self-merge).
+++  - active_work.md states main @ 5041396 (A1 #606 merged), GAP-15 #607 open; records the data-first
+++    #391 strategy, the verified gap map (3 spec'd screens; orphan marts blocked on screen specs), the
+++    A–D backlog with status, the two stale-wireframe flags, and the standing rules.
+++  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
+  
+  amendments: (none)
+-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+-index 3b26d90..6faba1a 100644
+---- a/scripts/export_site_data.py
+-+++ b/scripts/export_site_data.py
+-@@ -118,18 +118,52 @@ def _latest_season_row(rows: list[dict]) -> dict:
+-     return max(rows, key=lambda r: (r.get("season_api_year") or 0))
+- 
+- 
+--def shape_team_payload(rows: list[dict]) -> dict:
+--    """One team's mart_team_profile rows -> the team page payload.
+-+# Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
+-+# (team_sk, fixture_sk, opponent_team_sk, league_code, season_api_year, the ranks,
+-+# has_result, is_upcoming) are dropped — the published row is display-only. The
+-+# per-fixture deep-link (fixture URL identity) is GAP-19, deliberately absent here.
+-+_TEAM_FIXTURE_FIELDS = (
+-+    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime",
+-+    "round_name", "goals_for", "goals_against", "result", "status_short",
+-+)
+- 
+--    rows: every (team, competition-season) row for a single team_sk.
+-+
+-+def _shape_team_fixture(row: dict) -> dict:
+-+    return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
+-+
+-+
+-+def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None = None) -> dict:
+-+    """One team's mart_team_profile rows (+ mart_team_fixtures rows) -> the team page payload.
+-+
+-+    profile_rows: every (team, competition-season) profile row for a single team_sk.
+-+    fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
+-     """
+--    latest = _latest_season_row(rows)
+-+    latest = _latest_season_row(profile_rows)
+-     team_id = int(latest["team_sk"])
+-     seasons = sorted(
+--        rows,
+-+        profile_rows,
+-         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
+-         reverse=True,
+-     )
+-+    fixtures_by_season: dict = {}
+-+    for fr in fixture_rows or []:
+-+        fixtures_by_season.setdefault(
+-+            (fr.get("league_code"), fr.get("season_api_year")), []
+-+        ).append(fr)
+-+
+-+    seasons_out = []
+-+    for r in seasons:
+-+        s = _strip_identity(r)
+-+        frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+-+        nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
+-+        recent = sorted(
+-+            (fr for fr in frs if 1 <= (fr.get("recency_rank") or 0) <= 5),
+-+            key=lambda fr: fr["recency_rank"],
+-+        )
+-+        s["next_fixture"] = _shape_team_fixture(nxt) if nxt else None
+-+        s["recent_results"] = [_shape_team_fixture(fr) for fr in recent]
+-+        seasons_out.append(s)
+-+
+-     return {
+-         "type": "team",
+-         "team_id": team_id,
+-@@ -137,7 +171,7 @@ def shape_team_payload(rows: list[dict]) -> dict:
+-         "name": latest.get("team_name"),
+-         "country": latest.get("team_country"),
+-         "crest": latest.get("team_logo_url"),
+--        "seasons": [_strip_identity(r) for r in seasons],
+-+        "seasons": seasons_out,
+-     }
+- 
+- 
+-@@ -341,8 +375,18 @@ def _group_by(rows: list[dict], key: str) -> dict:
+- def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+-     rows = _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_profile`")
+-     grouped = _group_by(rows, "team_sk")
+--    payloads = [shape_team_payload(v) for v in grouped.values()]
+--    return payloads[:sample] if sample else payloads
+-+    team_ids = list(grouped.keys())[:sample] if sample else list(grouped.keys())
+-+    # GAP-15: next fixture + last-5 results, already rank-tagged in mart_team_fixtures. Filter on
+-+    # the precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
+-+    fx_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_fixtures`"
+-+    fx_where = "(upcoming_rank = 1 or recency_rank <= 5)"
+-+    if sample:
+-+        id_list = ", ".join(str(int(t)) for t in team_ids)
+-+        fx_sql = f"select * from {fx_table} where {fx_where} and team_sk in ({id_list})"
+-+    else:
+-+        fx_sql = f"select * from {fx_table} where {fx_where}"
+-+    fixtures_by_team = _group_by(_query(client, fx_sql), "team_sk")
+-+    return [shape_team_payload(grouped[t], fixtures_by_team.get(t, [])) for t in team_ids]
+- 
+- 
+- def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
+-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+-index f5b2020..e403d46 100644
+---- a/tests/test_export_site_data.py
+-+++ b/tests/test_export_site_data.py
+-@@ -187,6 +187,49 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
+-     assert p["seasons"][0]["points"] == 82
+- 
+- 
+-+def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
+-+    rows = [
+-+        {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
+-+         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"},
+-+        {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
+-+         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2"},
+-+    ]
+-+
+-+    def fx(opponent, *, upcoming=None, recency=None, is_home=True):
+-+        return {
+-+            "team_sk": 157, "league_code": "BL1", "season_api_year": 2025,
+-+            "fixture_sk": 0, "opponent_team_sk": 5, "opponent_name": opponent,
+-+            "opponent_logo_url": "x", "is_home": is_home, "kickoff_datetime": "2025-10-01",
+-+            "round_name": "MD1", "goals_for": 1, "goals_against": 0, "result": "W",
+-+            "status_short": "FT", "has_result": recency is not None,
+-+            "is_upcoming": upcoming is not None, "upcoming_rank": upcoming,
+-+            "recency_rank": recency,
+-+        }
+-+
+-+    fixtures = [
+-+        fx("Dortmund", upcoming=1),
+-+        fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
+-+        fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
+-+    ]
+-+    p = shape_team_payload(rows, fixtures)
+-+    s2025 = p["seasons"][0]
+-+    assert s2025["season_api_year"] == 2025
+-+    assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
+-+    # recent results newest-first (recency_rank asc), capped at 5 — the rank-6 row is excluded
+-+    assert [f["opponent_name"] for f in s2025["recent_results"]] == [
+-+        "Leipzig", "Mainz", "Koln", "Bremen", "Wolfsburg"]
+-+    # every internal key is stripped from each shaped fixture row (next + recent)
+-+    for internal in ("team_sk", "fixture_sk", "opponent_team_sk", "league_code",
+-+                     "season_api_year", "upcoming_rank", "recency_rank",
+-+                     "has_result", "is_upcoming"):
+-+        assert internal not in s2025["next_fixture"]
+-+        assert all(internal not in r for r in s2025["recent_results"])
+-+    # a season with no fixture rows renders the empty state
+-+    s2024 = p["seasons"][1]
+-+    assert s2024["next_fixture"] is None
+-+    assert s2024["recent_results"] == []
+-+
+-+
+- def test_shape_player_payload_orders_match_log_desc():
+-     profiles = [
+-         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
