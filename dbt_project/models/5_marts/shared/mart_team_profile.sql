@@ -48,6 +48,10 @@ yoy as (
 
 streaks as (
     select * from {{ ref('int_team_profile__streaks') }}
+),
+
+deserved as (
+    select * from {{ ref('int_team_season__deserved_vs_actual') }}
 )
 
 select
@@ -115,7 +119,11 @@ select
     s.win_run,
     s.winless_run,
     s.clean_sheet_run,
-    s.scoring_run
+    s.scoring_run,
+    -- deserved-vs-actual (rank-space; NULL when the league-season is not fully rankable).
+    -- The "actual" rank is latest_rank above (same source: standings_primary.standing_rank).
+    d.deserved_rank,
+    d.sot_rank_gap
 from metrics as m
 left join team_season as ts
     on m.team_season_sk = ts.team_season_sk
@@ -132,3 +140,7 @@ left join streaks as s
     on
         m.team_sk = s.team_sk
         and m.season_sk = s.season_sk
+left join deserved as d
+    on
+        m.team_sk = d.team_sk
+        and m.season_sk = d.season_sk
