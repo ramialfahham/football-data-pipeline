@@ -1,147 +1,255 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7603cae..81469d1 100644
+index 81469d1..1413941 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,38 +1,60 @@
--# Task contract — refresh handover: #530(a) merged, #391 conversation next
-+# Task contract — A1: deserved-vs-actual into mart_team_profile
+@@ -1,60 +1,63 @@
+-# Task contract — A1: deserved-vs-actual into mart_team_profile
++# Task contract — GAP-15: wire team fixtures into the v2 team payload
  
--> Written on a CLEAN tree (branch chore/handover-refresh-530a-merged off main @ 6dd1f89).
--> Doc-only — no code/model change. Records merged state; invents no decision.
-+> Written on a CLEAN tree (branch feat/a1-deserved-vs-actual-team-profile off main @ 1deb5bf).
-+> Touches a dbt model → impact_map REQUIRED. See docs/working_agreement.md §2/§10, dbt_project/docs/layering.md.
+-> Written on a CLEAN tree (branch feat/a1-deserved-vs-actual-team-profile off main @ 1deb5bf).
+-> Touches a dbt model → impact_map REQUIRED. See docs/working_agreement.md §2/§10, dbt_project/docs/layering.md.
++> Written on a CLEAN tree (branch feat/gap15-team-fixtures-export off main @ 5041396).
++> Touches a consumption surface (scripts/export_*.py) → impact_map REQUIRED.
++> Governing doc: the consumption-layer contract (export selects/filters/renames/strips, never derives).
  
  objective: >
--  Refresh .claude/active_work.md so a fresh chat continues from the current merged state:
--  #530(a) (split the 2 entity-dual catalogue rows finishing_efficiency + duels_won_pct per entity)
--  is MERGED (#604, main @ 6dd1f89). The CPO-agreed next step is the #391 conversation — whether to
--  un-pause the website so the metric layer gets a user-facing consumer — a DISCUSSION, not a build.
--  Update status + next action + do-NOTs; carry forward the #530 follow-ups ((b) player goals_penalty
--  leg + the 3 deferred player rows; (c) model-conformance test) and the stale-wireframe note.
-+  Surface the deserved-vs-actual read on the v2 team page by composing the existing intermediate
-+  int_team_season__deserved_vs_actual (#598) into mart_team_profile (CPO-chosen backlog item A1,
-+  Option 1). Add deserved_rank + sot_rank_gap; one additive PR closes both "built" (mart) and "wired"
-+  (the v2 team export reads mart_team_profile via select *).
+-  Surface the deserved-vs-actual read on the v2 team page by composing the existing intermediate
+-  int_team_season__deserved_vs_actual (#598) into mart_team_profile (CPO-chosen backlog item A1,
+-  Option 1). Add deserved_rank + sot_rank_gap; one additive PR closes both "built" (mart) and "wired"
+-  (the v2 team export reads mart_team_profile via select *).
++  Surface the team page's "next fixture + last 5 results per (team, season)" section (02 wireframe block 9,
++  GAP-15 approved) by wiring the existing mart_team_fixtures into the v2 team export. Export-only half of
++  GAP-15; the mart already precomputes everything (upcoming_rank=1 = next, recency_rank<=5 = last five,
++  opponent + score + result joined from the tested int_legs__team_match leg).
  
  refs: >
--  Follows #604 (the #530(a) split, merged this session). Mirrors prior handover refreshes (#599, #602).
--  CPO directed this refresh in-chat (2026-06-29).
-+  Backlog A1 + Option 1, CPO-approved this chat (2026-06-29). Plan: whimsical-swinging-mccarthy.md.
-+  Metrics already catalogued as rank-derived rows (#598) — no metric_catalogue change.
+-  Backlog A1 + Option 1, CPO-approved this chat (2026-06-29). Plan: whimsical-swinging-mccarthy.md.
+-  Metrics already catalogued as rank-derived rows (#598) — no metric_catalogue change.
++  Backlog Phase B, GAP-15 (docs/wireframes/99_gaps_register.md, approved 2026-06-11; 02_team_profile.md
++  §5 block 9). CPO chose GAP-15 as the next PR this chat. Plan: whimsical-swinging-mccarthy.md.
  
  scope_paths:
-+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
    - .claude/active_work.md
    - .claude/task/**
  
-+impact_map: >
-+  writers: mart_team_profile (changed); new upstream ref = int_team_season__deserved_vs_actual
-+    (intermediate, already on main since #598; grain team_sk+season_sk, matches the mart).
-+  downstream: `dbt list mart_team_profile+` → "football_data_pipeline.5_marts.shared.mart_team_profile"
-+    ONLY (leaf — no downstream models). grep `ref('mart_team_profile')` across dbt_project/models → zero
-+    (only doc comments in mart_player_profile/int_team_profile__yoy + the shared.yml schema entry).
-+    Sole consumer = scripts/export_site_data.py fetch_team_payloads (`select *` → shape_team_payload →
-+    _strip_identity, an identity-only denylist) → the two new metric columns auto-flow to the team payload.
-+  layer_rules: marts COMPOSE intermediates, never recompute (layering.md cross-layer-consumption rule).
-+    mart_team_profile already composes int_team_season__metrics / int_team_profile__yoy /
-+    int_team_profile__streaks; adding int_team_season__deserved_vs_actual is the identical pattern.
-+    check_layer_contract.py must stay green.
-+  deploy_order: mart_team_profile is materialized='table' (full rebuild each run) — additive columns,
-+    NO incremental schema-change / full-refresh trap. The intermediate already exists on main, so no
-+    upstream gap. ci-data-build builds it; the 04:00 nightly rebuilds prod. No migration ordering risk.
-+  blast_radius: the v2 team export gains deserved_rank + sot_rank_gap; NO existing column or number
-+    changes; both NULL for non-rankable league-seasons (knockouts / incomplete SoT coverage), gated
-+    upstream in the intermediate. RAW/other marts unaffected.
-+
+ impact_map: >
+-  writers: mart_team_profile (changed); new upstream ref = int_team_season__deserved_vs_actual
+-    (intermediate, already on main since #598; grain team_sk+season_sk, matches the mart).
+-  downstream: `dbt list mart_team_profile+` → "football_data_pipeline.5_marts.shared.mart_team_profile"
+-    ONLY (leaf — no downstream models). grep `ref('mart_team_profile')` across dbt_project/models → zero
+-    (only doc comments in mart_player_profile/int_team_profile__yoy + the shared.yml schema entry).
+-    Sole consumer = scripts/export_site_data.py fetch_team_payloads (`select *` → shape_team_payload →
+-    _strip_identity, an identity-only denylist) → the two new metric columns auto-flow to the team payload.
+-  layer_rules: marts COMPOSE intermediates, never recompute (layering.md cross-layer-consumption rule).
+-    mart_team_profile already composes int_team_season__metrics / int_team_profile__yoy /
+-    int_team_profile__streaks; adding int_team_season__deserved_vs_actual is the identical pattern.
+-    check_layer_contract.py must stay green.
+-  deploy_order: mart_team_profile is materialized='table' (full rebuild each run) — additive columns,
+-    NO incremental schema-change / full-refresh trap. The intermediate already exists on main, so no
+-    upstream gap. ci-data-build builds it; the 04:00 nightly rebuilds prod. No migration ordering risk.
+-  blast_radius: the v2 team export gains deserved_rank + sot_rank_gap; NO existing column or number
+-    changes; both NULL for non-rankable league-seasons (knockouts / incomplete SoT coverage), gated
+-    upstream in the intermediate. RAW/other marts unaffected.
++  writers: none (no dbt/model change). Reads the existing mart_team_fixtures (on main; grain
++    (team_sk, fixture_sk); ranks precomputed).
++  downstream: scripts/export_site_data.py is the leaf consumer (the v2 static export). The team payload
++    teams/{id}.json gains, per seasons[] row, next_fixture (object|null) + recent_results (array<=5).
++    No existing payload key changes; additive only. Consumed by the (unbuilt) v2 site_v2 frontend.
++  layer_rules: consumption-layer contract — the export only selects/filters (on precomputed ranks),
++    renames, nests and strips internal keys; it derives NO fact (results/ranks/opponent all come from the
++    mart). check_layer_contract.py must stay green.
++  deploy_order: pure export-script change; no warehouse migration. Takes effect on the next nightly export
++    run post-merge. No ordering risk.
++  cost: mart_team_fixtures is materialized='view' over fct_fixture (a small fact — one row per fixture),
++    so there is no stored table to cluster; the new query is ONE bounded scan per nightly export, filtered
++    on the precomputed ranks (post-window, so no further partition pruning, but the underlying fct_fixture
++    scan is small and fixed). Not a per-team N+1 (one query for the whole run). Zero API-Football quota
++    impact — BigQuery bytes only, on the existing daily export path; no new run added.
++  blast_radius: the team payload only; the per-fixture deep-link / fixture URL identity is DEFERRED to
++    GAP-19 (the mart deliberately omits it) — GAP-15 ships display rows only.
+ 
  decisions_taken: >
--  Documentation / handover only — RECORDS merged state and the CPO's standing in-chat decision (the
--  #391 conversation is next, as a discussion). Invents no product/metric/naming decision. Does NOT
--  start #391 product work, nor decide the #530(b)/(c) sequencing, nor reconcile the stale wireframe
--  line — all reserved to the CPO.
-+  Rests on the CPO's Option-1 sign-off. VERIFIED (not assumed): the intermediate's actual_rank and the
-+  mart's existing latest_rank are the SAME value — both are int_team_season__standings_primary.standing_rank
-+  on (team_sk, season_sk) — so latest_rank already serves as "actual"; surface only deserved_rank +
-+  sot_rank_gap, no redundant actual_rank column. Formulas/metrics unchanged (already catalogued #598).
+-  Rests on the CPO's Option-1 sign-off. VERIFIED (not assumed): the intermediate's actual_rank and the
+-  mart's existing latest_rank are the SAME value — both are int_team_season__standings_primary.standing_rank
+-  on (team_sk, season_sk) — so latest_rank already serves as "actual"; surface only deserved_rank +
+-  sot_rank_gap, no redundant actual_rank column. Formulas/metrics unchanged (already catalogued #598).
++  Rests on the CPO's GAP-15 pick + the 02 wireframe binding (block 9). Shape mirrors the existing player
++  two-mart pattern (fetch_player_payloads / shape_player_payload(profile_rows, match_rows)). Display fields
++  only; internal keys (team_sk, fixture_sk, opponent_team_sk, ranks) stripped per existing discipline.
++  Published-payload key names — next_fixture (object|null) + recent_results (array<=5), nested per
++  seasons[] row — are CPO-DECIDED (§10 naming): surfaced in the approved plan and confirmed by an explicit
++  AskUserQuestion sign-off this chat (2026-06-29). Permanent once published; recorded here, not reserved.
  
  decisions_reserved:
--  - The #391 un-pause outcome (un-pause product vs continue foundation) — the CPO's call, after the discussion.
--  - #530(b) sequencing (add goals_penalty to int_legs__player_match, then fill the 3 deferred player rows).
--  - Whether/when to reconcile the stale "never capped" wireframe line (metrics_display.md:107) to Option A [0,1].
-+  - How the team page renders the block (actual vs deserved bar + gap callout) — frontend, #391 paused; out of scope.
+-  - How the team page renders the block (actual vs deserved bar + gap callout) — frontend, #391 paused; out of scope.
++  - The per-fixture deep-link (fixture URL identity) — GAP-19 item 5, NOT in scope here.
++  - Block-5 deserved-vs-actual wireframe staleness (binds to ratio-space performance_vs_results_gap; A1
++    shipped rank-space deserved_rank/sot_rank_gap) — FLAGGED separately, not this PR.
  
  done_when:
--  - active_work.md states #530(a) MERGED (#604, main @ 6dd1f89), names the #391 conversation as the
--    CPO-agreed next step (DISCUSSION not build), and carries the #530(b)/(c) follow-ups + the stale-wireframe note.
--  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
-+  - mart_team_profile.sql: left join int_team_season__deserved_vs_actual on (team_sk, season_sk),
-+    surfacing deserved_rank + sot_rank_gap (same join shape as the streaks join).
-+  - shared.yml: column docs for the two new columns (null-when-not-rankable semantics; no new data tests —
-+    the sign/null invariants live on the intermediate).
-+  - `python scripts/check_layer_contract.py` green; compiled join grain-correct.
-+  - Export carry-through: export_site_data.py sample dry-run shows deserved_rank/sot_rank_gap in a
-+    seasons[] entry (NULL for a knockout/incomplete season).
-+  - ci-data-build green; scope-auditor + analytics-engineer PASS; CPO merges (never self-merge).
+-  - mart_team_profile.sql: left join int_team_season__deserved_vs_actual on (team_sk, season_sk),
+-    surfacing deserved_rank + sot_rank_gap (same join shape as the streaks join).
+-  - shared.yml: column docs for the two new columns (null-when-not-rankable semantics; no new data tests —
+-    the sign/null invariants live on the intermediate).
+-  - `python scripts/check_layer_contract.py` green; compiled join grain-correct.
+-  - Export carry-through: export_site_data.py sample dry-run shows deserved_rank/sot_rank_gap in a
+-    seasons[] entry (NULL for a knockout/incomplete season).
+-  - ci-data-build green; scope-auditor + analytics-engineer PASS; CPO merges (never self-merge).
++  - fetch_team_payloads queries mart_team_fixtures (where upcoming_rank=1 or recency_rank<=5; sample-scoped)
++    + groups by team_sk; shape_team_payload(profile_rows, fixture_rows) attaches next_fixture +
++    recent_results per seasons[] row, display fields only, internal keys stripped.
++  - tests/test_export_site_data.py updated for the 2-arg signature + asserts attachment/order/empty-case.
++  - `python -m pytest tests/test_export_site_data.py` green; `python scripts/check_layer_contract.py` green.
++  - scope-auditor + analytics-engineer + cto PASS; CPO merges (never self-merge).
  
  amendments: (none)
-diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index 0c112d6..725c2fd 100644
---- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -48,6 +48,10 @@ yoy as (
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 3b26d90..6faba1a 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -118,18 +118,52 @@ def _latest_season_row(rows: list[dict]) -> dict:
+     return max(rows, key=lambda r: (r.get("season_api_year") or 0))
  
- streaks as (
-     select * from {{ ref('int_team_profile__streaks') }}
-+),
+ 
+-def shape_team_payload(rows: list[dict]) -> dict:
+-    """One team's mart_team_profile rows -> the team page payload.
++# Display fields kept from a mart_team_fixtures row (GAP-15). Internal keys
++# (team_sk, fixture_sk, opponent_team_sk, league_code, season_api_year, the ranks,
++# has_result, is_upcoming) are dropped — the published row is display-only. The
++# per-fixture deep-link (fixture URL identity) is GAP-19, deliberately absent here.
++_TEAM_FIXTURE_FIELDS = (
++    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime",
++    "round_name", "goals_for", "goals_against", "result", "status_short",
++)
+ 
+-    rows: every (team, competition-season) row for a single team_sk.
 +
-+deserved as (
-+    select * from {{ ref('int_team_season__deserved_vs_actual') }}
- )
++def _shape_team_fixture(row: dict) -> dict:
++    return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
++
++
++def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None = None) -> dict:
++    """One team's mart_team_profile rows (+ mart_team_fixtures rows) -> the team page payload.
++
++    profile_rows: every (team, competition-season) profile row for a single team_sk.
++    fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
+     """
+-    latest = _latest_season_row(rows)
++    latest = _latest_season_row(profile_rows)
+     team_id = int(latest["team_sk"])
+     seasons = sorted(
+-        rows,
++        profile_rows,
+         key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
+         reverse=True,
+     )
++    fixtures_by_season: dict = {}
++    for fr in fixture_rows or []:
++        fixtures_by_season.setdefault(
++            (fr.get("league_code"), fr.get("season_api_year")), []
++        ).append(fr)
++
++    seasons_out = []
++    for r in seasons:
++        s = _strip_identity(r)
++        frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
++        nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
++        recent = sorted(
++            (fr for fr in frs if 1 <= (fr.get("recency_rank") or 0) <= 5),
++            key=lambda fr: fr["recency_rank"],
++        )
++        s["next_fixture"] = _shape_team_fixture(nxt) if nxt else None
++        s["recent_results"] = [_shape_team_fixture(fr) for fr in recent]
++        seasons_out.append(s)
++
+     return {
+         "type": "team",
+         "team_id": team_id,
+@@ -137,7 +171,7 @@ def shape_team_payload(rows: list[dict]) -> dict:
+         "name": latest.get("team_name"),
+         "country": latest.get("team_country"),
+         "crest": latest.get("team_logo_url"),
+-        "seasons": [_strip_identity(r) for r in seasons],
++        "seasons": seasons_out,
+     }
  
- select
-@@ -115,7 +119,11 @@ select
-     s.win_run,
-     s.winless_run,
-     s.clean_sheet_run,
--    s.scoring_run
-+    s.scoring_run,
-+    -- deserved-vs-actual (rank-space; NULL when the league-season is not fully rankable).
-+    -- The "actual" rank is latest_rank above (same source: standings_primary.standing_rank).
-+    d.deserved_rank,
-+    d.sot_rank_gap
- from metrics as m
- left join team_season as ts
-     on m.team_season_sk = ts.team_season_sk
-@@ -132,3 +140,7 @@ left join streaks as s
-     on
-         m.team_sk = s.team_sk
-         and m.season_sk = s.season_sk
-+left join deserved as d
-+    on
-+        m.team_sk = d.team_sk
-+        and m.season_sk = d.season_sk
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index d08aa3d..d054e36 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -251,7 +251,8 @@ models:
-       Team profile (#324). One row per (team, competition-season): identity + record +
-       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
-       (int_team_season__metrics, incl. shot_share + points_capture) + a
--      year-over-year differentiator and a streaks layer. Year-over-year columns
-+      year-over-year differentiator, a streaks layer, and the deserved-vs-actual rank gap
-+      (int_team_season__deserved_vs_actual; domestic leagues with a full table). Year-over-year columns
-       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
-       domestic-league only — NULL elsewhere and where the prior season is not ingested.
-       Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
-@@ -288,6 +289,10 @@ models:
-         description: "From the registry; YoY columns are populated only for domestic_league."
-       - name: points_delta_yoy
-         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
-+      - name: deserved_rank
-+        description: "Rank by shots-on-target difference within the league-season (1 = best) — the process-deserved table position. From int_team_season__deserved_vs_actual. NULL when the league-season is not fully rankable (knockouts / incomplete SoT coverage)."
-+      - name: sot_rank_gap
-+        description: "actual_rank (= latest_rank) minus deserved_rank; positive = under-performing (results lag the process), negative = over-performing. From int_team_season__deserved_vs_actual. NULL when not rankable."
  
-   - name: mart_team_season_record
-     description: >
+@@ -341,8 +375,18 @@ def _group_by(rows: list[dict], key: str) -> dict:
+ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+     rows = _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_profile`")
+     grouped = _group_by(rows, "team_sk")
+-    payloads = [shape_team_payload(v) for v in grouped.values()]
+-    return payloads[:sample] if sample else payloads
++    team_ids = list(grouped.keys())[:sample] if sample else list(grouped.keys())
++    # GAP-15: next fixture + last-5 results, already rank-tagged in mart_team_fixtures. Filter on
++    # the precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
++    fx_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_fixtures`"
++    fx_where = "(upcoming_rank = 1 or recency_rank <= 5)"
++    if sample:
++        id_list = ", ".join(str(int(t)) for t in team_ids)
++        fx_sql = f"select * from {fx_table} where {fx_where} and team_sk in ({id_list})"
++    else:
++        fx_sql = f"select * from {fx_table} where {fx_where}"
++    fixtures_by_team = _group_by(_query(client, fx_sql), "team_sk")
++    return [shape_team_payload(grouped[t], fixtures_by_team.get(t, [])) for t in team_ids]
+ 
+ 
+ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index f5b2020..e403d46 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -187,6 +187,49 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
+     assert p["seasons"][0]["points"] == 82
+ 
+ 
++def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
++    rows = [
++        {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
++         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"},
++        {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
++         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2"},
++    ]
++
++    def fx(opponent, *, upcoming=None, recency=None, is_home=True):
++        return {
++            "team_sk": 157, "league_code": "BL1", "season_api_year": 2025,
++            "fixture_sk": 0, "opponent_team_sk": 5, "opponent_name": opponent,
++            "opponent_logo_url": "x", "is_home": is_home, "kickoff_datetime": "2025-10-01",
++            "round_name": "MD1", "goals_for": 1, "goals_against": 0, "result": "W",
++            "status_short": "FT", "has_result": recency is not None,
++            "is_upcoming": upcoming is not None, "upcoming_rank": upcoming,
++            "recency_rank": recency,
++        }
++
++    fixtures = [
++        fx("Dortmund", upcoming=1),
++        fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
++        fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
++    ]
++    p = shape_team_payload(rows, fixtures)
++    s2025 = p["seasons"][0]
++    assert s2025["season_api_year"] == 2025
++    assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
++    # recent results newest-first (recency_rank asc), capped at 5 — the rank-6 row is excluded
++    assert [f["opponent_name"] for f in s2025["recent_results"]] == [
++        "Leipzig", "Mainz", "Koln", "Bremen", "Wolfsburg"]
++    # every internal key is stripped from each shaped fixture row (next + recent)
++    for internal in ("team_sk", "fixture_sk", "opponent_team_sk", "league_code",
++                     "season_api_year", "upcoming_rank", "recency_rank",
++                     "has_result", "is_upcoming"):
++        assert internal not in s2025["next_fixture"]
++        assert all(internal not in r for r in s2025["recent_results"])
++    # a season with no fixture rows renders the empty state
++    s2024 = p["seasons"][1]
++    assert s2024["next_fixture"] is None
++    assert s2024["recent_results"] == []
++
++
+ def test_shape_player_payload_orders_match_log_desc():
+     profiles = [
+         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",

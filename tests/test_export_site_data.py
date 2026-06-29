@@ -187,6 +187,49 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
     assert p["seasons"][0]["points"] == 82
 
 
+def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
+    rows = [
+        {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
+         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"},
+        {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
+         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2"},
+    ]
+
+    def fx(opponent, *, upcoming=None, recency=None, is_home=True):
+        return {
+            "team_sk": 157, "league_code": "BL1", "season_api_year": 2025,
+            "fixture_sk": 0, "opponent_team_sk": 5, "opponent_name": opponent,
+            "opponent_logo_url": "x", "is_home": is_home, "kickoff_datetime": "2025-10-01",
+            "round_name": "MD1", "goals_for": 1, "goals_against": 0, "result": "W",
+            "status_short": "FT", "has_result": recency is not None,
+            "is_upcoming": upcoming is not None, "upcoming_rank": upcoming,
+            "recency_rank": recency,
+        }
+
+    fixtures = [
+        fx("Dortmund", upcoming=1),
+        fx("Leipzig", recency=1), fx("Mainz", recency=2), fx("Koln", recency=3),
+        fx("Bremen", recency=4), fx("Wolfsburg", recency=5), fx("Freiburg", recency=6),
+    ]
+    p = shape_team_payload(rows, fixtures)
+    s2025 = p["seasons"][0]
+    assert s2025["season_api_year"] == 2025
+    assert s2025["next_fixture"]["opponent_name"] == "Dortmund"
+    # recent results newest-first (recency_rank asc), capped at 5 — the rank-6 row is excluded
+    assert [f["opponent_name"] for f in s2025["recent_results"]] == [
+        "Leipzig", "Mainz", "Koln", "Bremen", "Wolfsburg"]
+    # every internal key is stripped from each shaped fixture row (next + recent)
+    for internal in ("team_sk", "fixture_sk", "opponent_team_sk", "league_code",
+                     "season_api_year", "upcoming_rank", "recency_rank",
+                     "has_result", "is_upcoming"):
+        assert internal not in s2025["next_fixture"]
+        assert all(internal not in r for r in s2025["recent_results"])
+    # a season with no fixture rows renders the empty state
+    s2024 = p["seasons"][1]
+    assert s2024["next_fixture"] is None
+    assert s2024["recent_results"] == []
+
+
 def test_shape_player_payload_orders_match_log_desc():
     profiles = [
         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
