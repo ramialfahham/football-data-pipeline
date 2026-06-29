@@ -1,38 +1,19 @@
-# Review — feat/metric-layer-integrity-tests — 2026-06-29
+# Review — chore/handover-2026-06-29-integrity-tests — refresh active_work.md handover
 
-> Machine-checked review artifact (G3). FINAL round on the complete diff vs main (the commit was
-> collapsed to one via `reset --soft` after a CI-driven fix). The resolvability test's empty-result
-> fallback was FROM-less (`select ... where 1 = 0`) — a BigQuery error that surfaced only in
-> data-build (validate parses; the offline python checked resolution logic, not rendered SQL).
-> Fixed to select `from {{ ref('metric_catalogue') }} where 1 = 0`. All three required reviewers
-> PASS on a fresh blinded run against the staged diff below.
+> G3 Lock artifact. Reviewer spawned cold (blinded) on the staged diff. Required set (routing):
+> always → scope-auditor only — the diff touches `.claude/active_work.md` + `.claude/task/contract.md`
+> (no code path). Doc-only handover refresh after PR #600 (metric_catalogue integrity guards) merged;
+> contract.md is `artifact_only_never` (hashed), so review is required (not exempt).
 
-diff_sha256: de64d4f00dd7853a1b1d6661ab8f5ee2c36b5f4de1c8cde13c1347016c0de029
+diff_sha256: 90208eb476ac10af005a79bfe77a4a43604e4a327b6e22eceb105efbe87b17e6
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Resolvability test layer-dependency: the `adapter.get_columns_in_relation` calls on the 3 leg models are guarded by `{% if execute %}` + the `-- depends_on:` comments (CI build order), so they resolve correctly; a missing leg would error (not false-pass). Scope is within scope_paths; no §10 decision beyond decisions_taken; no data-availability encoded in any *_expr (none edited).
-- Completeness test blank-handling: the dual NULL-and-`trim()=''` guard correctly covers CSV's ambiguous blank representation (unquoted→NULL, quoted→''); the only residual edge (a future author quoting an intended-null as "") is low-risk and requires a separate authoring mistake. The interpretation copy is §10 wording, contract-declared CPO-approved + consumer-inert.
-findings:
-- none
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Token resolution against the real aliased leg columns: verified the team-from-players exprs (defensive_actions/tackles/interceptions/blocks_per_match) resolve against the ALIASED names (`sum(tackles_total) as tackles`, etc.), not the source names; all 106 exprs resolve; quoted literals ('W'/'D') stripped before tokenizing; `count(*)`/numeric literals produce no spurious token.
-- BigQuery validity of both branches + mechanics: the empty/pass branch (`from {{ ref('metric_catalogue') }} where 1 = 0`) is valid and the compile-time render is the same valid fallback; the non-empty branch is a UNION ALL of FROM-less constant selects (valid, no WHERE); run_query row index alignment (0..4) matches the SELECT; completeness test operator precedence is correctly parenthesised (player-exempt scope intact). Seed: 3 atoms direction=higher_better + interpretation, no *_expr changed, CSV 14 fields.
-findings:
-- none
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- Direction soundness: all three atoms are goals FOR the team (additive to the scoreline) → higher_better is correct; goals_own is the for-version (opponents' own goals in the team's favour), disambiguated by the description + interpretation; the "pressure-forced" copy is hedged with "often", not overclaiming a skill signal.
-- Coherence + no formula change: lower_is_better=false aligns with higher_better on all three; confirmed by direct diff inspection that only direction (col 13) + interpretation (col 14) changed — no numerator_expr/denominator_expr/base_relation touched; formula-vs-availability ruling structurally untouched.
+- Handover continuity + coherence: FIRST STEPS clear and ordered; the three merged PRs (#598/#599/#600) cited with links; standing rules + the two non-obvious #600 friction lessons captured (BigQuery FROM-less-WHERE singular-test error; the git reset --soft one-commit collapse since --amend is gate-blocked); NEXT candidates framed as CPO choices, not pre-picked — a cold chat can continue without re-exploring history.
+- Contract-to-handover sync + §10: the handover RECORDS already-made sourced decisions (the #600 atom fill = higher_better, team-only completeness scope) and invents none; all done_when criteria met; scope is exactly the two artifact files (active_work.md + contract.md). No NEW §10 decision asserted.
 findings:
 - none
 
 ## escalations
-- question: Filling `direction` (higher_better) + `interpretation` copy on the 3 team component atoms (goals_penalty, goals_own, goals_open_play) is a §10 metric-meaning/wording decision. Approved, and with what direction?
-  CPO ANSWER: Approved this session. The CPO directed all three = higher_better (they are goals for the team — they help the result and often reflect attacking pressure; goals_own is the for-version), and approved the interpretation strings as shown. Recorded here for the audit trail.
+(none) — doc-only handover refresh; records sourced decisions (MERGED #600 contract + review.md) and reserves the next task to the CPO.
