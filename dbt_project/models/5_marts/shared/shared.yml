@@ -251,7 +251,8 @@ models:
       Team profile (#324). One row per (team, competition-season): identity + record +
       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
       (int_team_season__metrics, incl. shot_share + points_capture) + a
-      year-over-year differentiator and a streaks layer. Year-over-year columns
+      year-over-year differentiator, a streaks layer, and the deserved-vs-actual rank gap
+      (int_team_season__deserved_vs_actual; domestic leagues with a full table). Year-over-year columns
       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
       domestic-league only — NULL elsewhere and where the prior season is not ingested.
       Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
@@ -288,6 +289,10 @@ models:
         description: "From the registry; YoY columns are populated only for domestic_league."
       - name: points_delta_yoy
         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
+      - name: deserved_rank
+        description: "Rank by shots-on-target difference within the league-season (1 = best) — the process-deserved table position. From int_team_season__deserved_vs_actual. NULL when the league-season is not fully rankable (knockouts / incomplete SoT coverage)."
+      - name: sot_rank_gap
+        description: "actual_rank (= latest_rank) minus deserved_rank; positive = under-performing (results lag the process), negative = over-performing. From int_team_season__deserved_vs_actual. NULL when not rankable."
 
   - name: mart_team_season_record
     description: >
