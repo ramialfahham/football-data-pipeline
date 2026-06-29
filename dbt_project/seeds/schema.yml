@@ -104,10 +104,10 @@ seeds:
         description: >
           The int_legs__* per-(entity, fixture) building block the formula aggregates over
           (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
-          lookups not derived from legs (league_rank — sourced from fct_standings); the entity-dual
-          'team and player' rows whose formula differs by entity (finishing_efficiency, duels_won_pct
-          — #530 follow-up: split per entity); and player goals_penalty/goals_open_play, pending
-          int_legs__player_match exposing the event-derived penalty-goal atom (#530 leg-gap follow-up).
+          lookups not derived from legs (league_rank — sourced from fct_standings); rank-derived reads
+          (deserved_rank, sot_rank_gap); and the deferred player rows pending int_legs__player_match
+          exposing the event-derived penalty-goal atom — finishing_efficiency, goals_penalty,
+          goals_open_play (#530 leg-gap follow-up (b)).
         tests:
           - accepted_values:
               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
