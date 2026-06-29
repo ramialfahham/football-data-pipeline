@@ -4,15 +4,28 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-06-29** — **[PR #600](https://github.com/ramialfahham/football-data-pipeline/pull/600) MERGED: metric_catalogue integrity guards** (meaning completeness + #530 PR2 resolvability). main is GREEN at **bc94b61** (data-build passed). This session shipped THREE PRs: **#598** (TEAM deserved-vs-actual / SoT rank-space gap), **#599** (handover refresh), **#600** (integrity guards). **There is NO locked next task — the CPO directs from the NEXT candidates below.**_
+_Last updated: **2026-06-29** — main GREEN at **a3bc9c3** (#600 integrity guards + its handover #602 merged). The recent arc shipped #596 (formalization) → #598 (TEAM deserved-vs-actual) → #600 (integrity guards), all MERGED. **LOCKED NEXT TASK: #530(a) — split the 2 entity-dual catalogue rows (`finishing_efficiency`, `duels_won_pct`) per entity, catalogue-first.** The CPO-agreed move AFTER (a) is **the #391 conversation** — whether to un-pause the website so the metric layer (deserved-vs-actual, benchmarks, leaderboards, profiles) finally gets a user-facing consumer. Both detailed below._
 
 main carries the full #500 metric layer + #596 (formula formalization) + #598 (deserved-vs-actual) + **#600** (integrity guards). **CPO merges, never self-merge — standing rule.** **Website #391 PAUSED; the live MVP must NOT break — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** → Implement → Verify; for any file-touching task ENTER PLAN MODE at the Plan step and WAIT for the CPO's ExitPlanMode approval (= Confirm) before editing.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull`. **main is GREEN at #600 (bc94b61).** Confirm tree clean.
+1. `git checkout main && git pull`. **main is GREEN at a3bc9c3.** Confirm tree clean.
 2. Read this file top-to-bottom before touching anything.
-3. **No locked next task.** Present the NEXT candidates (below) to the CPO in plain language with a brief recommendation, then WAIT for the pick. Do NOT pre-decide any §10 question.
+3. **LOCKED NEXT TASK = #530(a)** (see the LOCKED block below). Restate its spec back to the CPO, then present a catalogue-first DESIGN proposal of the per-entity `base_relation` + `*_expr` for §10 sign-off — do NOT pre-decide the exprs or the (a)/(b) sequencing. After sign-off: PLAN MODE → build. **After (a) ships, the CPO-agreed next is the #391 conversation** (a discussion, not a build).
 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
+
+---
+
+### ⭐ LOCKED NEXT TASK — #530(a): split the 2 entity-dual catalogue rows
+CPO-locked this chat ("First (a) then #391 -> yes"). **Catalogue-first; do NOT pre-decide the exprs (§10).**
+- The 2 rows are `finishing_efficiency` and `duels_won_pct`, entity **`team and player`** with BLANK `base_relation`/`*_expr` (the resolvability test skips blank-base rows, so they're its one coverage gap). Split each into a **team** row and a **player** row, each with explicit `base_relation` + `numerator_expr`/`denominator_expr` → then `assert_metric_catalogue_expr_resolvable` covers them.
+- **Candidate mapping (propose for sign-off — NOT decided):**
+  - `duels_won_pct` — team: `sum(duels_won)/sum(duels_total)` over `int_legs__team_from_players`; player: same over `int_legs__player_match`. **Splits cleanly now** (all columns present — verified this session).
+  - `finishing_efficiency` — team: `sum(goals_for - goals_penalty - goals_own)/sum(shots_on_goal)` over `int_legs__team_match` (resolvable now). player: `sum(goals_total - goals_penalty)/sum(shots_on)` over `int_legs__player_match` — **BLOCKED on #530(b)**: player `goals_penalty` is NOT in `int_legs__player_match` yet (it's a deferred (b) row). **(a) and (b) are entangled for the player side.** Surface the sequencing to the CPO (do (b) first / fold (a)+(b) / split duels_won_pct now + defer finishing_efficiency-player).
+- Carry `direction`/`interpretation` onto the split rows (the existing `team and player` rows have them; team rows MUST per the completeness test). Process: DESIGN proposal → CPO + football-analytics sign-off → PLAN MODE → build. Reviewers: scope-auditor + analytics-engineer + football-analytics.
+
+### ⭐ THEN — the #391 conversation (CPO-agreed, AFTER (a))
+The metric layer is solid (formalization + deserved-vs-actual + integrity guards) but has **no user-facing surface** — deserved-vs-actual is intermediate-only, and benchmarks/leaderboards/profiles are marts with no frontend, because the website **#391 is PAUSED**. The CPO agreed the next conversation is **whether to un-pause #391** so the work gets a consumer. This is a **DISCUSSION, not a build** — present the state + options; do NOT start product work without the CPO's explicit un-pause (standing rule).
 
 ---
 
@@ -30,10 +43,9 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
 
 ---
 
-### NEXT candidates (CPO directs; none auto-granted)
-- **#530 remaining follow-ups** (the completeness + resolvability tranche is now DONE via #600):
-  (a) **split the 2 entity-dual rows** (`finishing_efficiency`, `duels_won_pct`, entity `team and player`) into per-entity rows with explicit `base_relation`/`*_expr`;
-  (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the 2 deferred player rows (`goals_penalty`, `goals_open_play`) — they currently have blank `base_relation`/`*_expr`;
+### NEXT candidates (after #530(a) + the #391 conversation — CPO directs; none auto-granted)
+- **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) is the LOCKED next task — see the block above**):
+  (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the 2 deferred player rows (`goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today. **Entangled with (a)'s player finishing_efficiency** — sequence with (a).
   (c) **model-conformance** test — does each model actually COMPUTE the catalogue formula (modulo availability)? The deeper guard beyond resolvability.
 - **Player-metric direction/interpretation classification** (v1.x deferral) — the completeness test is team-only; when the player benchmark matures, classify the ~28 blank player rows and widen the test. CPO call.
 - **Deserved-vs-actual extensions (NOT granted):** a consumption mart when a frontend consumer exists (#391 paused); `rank()` tie semantics revisit; other windows (form panel could compute sot_difference too).
