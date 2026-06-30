@@ -132,6 +132,17 @@ def _shape_team_fixture(row: dict) -> dict:
     return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
 
 
+def _venue_block(row: dict) -> dict | None:
+    """The team's home venue -> {name, city, capacity}, or None when the team has no venue
+    data (honest absence). Identity from dim_team (via the mart); the export does not derive it."""
+    name = row.get("venue_name")
+    city = row.get("venue_city")
+    capacity = row.get("venue_capacity")
+    if name is None and city is None and capacity is None:
+        return None
+    return {"name": name, "city": city, "capacity": capacity}
+
+
 def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None = None) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures rows) -> the team page payload.
 
@@ -171,6 +182,8 @@ def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None
         "name": latest.get("team_name"),
         "country": latest.get("team_country"),
         "crest": latest.get("team_logo_url"),
+        "founded_year": latest.get("team_founded_year"),
+        "venue": _venue_block(latest),
         "seasons": seasons_out,
     }
 
@@ -356,6 +369,7 @@ def _strip_identity(row: dict) -> dict:
     at the top of the payload, not on every season)."""
     drop = {
         "team_name", "team_country", "team_logo_url",
+        "team_founded_year", "venue_name", "venue_city", "venue_capacity",
         "player_name", "player_first_name", "player_last_name",
         "player_nationality", "player_birth_date", "player_photo_url",
     }

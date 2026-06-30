@@ -171,20 +171,32 @@ def test_slugify_falls_back_to_id_when_name_empty():
 def test_shape_team_payload_identity_from_latest_and_seasons_desc():
     rows = [
         {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
-         "team_name": "Bayern", "team_country": "Germany",
-         "team_logo_url": "u", "points": 78},
+         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u", "points": 78,
+         "team_founded_year": 1900, "venue_name": "Old", "venue_city": "München", "venue_capacity": 70000},
         {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
-         "team_name": "Bayern München", "team_country": "Germany",
-         "team_logo_url": "u2", "points": 82},
+         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2", "points": 82,
+         "team_founded_year": 1900, "venue_name": "Allianz Arena", "venue_city": "München", "venue_capacity": 75000},
     ]
     p = shape_team_payload(rows)
     assert p["team_id"] == 157
     assert p["slug"] == "bayern-munchen-157"          # from the 2025 (latest) row
     assert p["name"] == "Bayern München"
+    # GAP-01: founded year + venue from the latest row; venue is a nested block
+    assert p["founded_year"] == 1900
+    assert p["venue"] == {"name": "Allianz Arena", "city": "München", "capacity": 75000}
     assert [s["season_api_year"] for s in p["seasons"]] == [2025, 2024]  # desc
-    # identity columns are stripped from per-season rows
+    # identity columns (incl. founded/venue) are stripped from per-season rows
     assert "team_name" not in p["seasons"][0]
+    assert "team_founded_year" not in p["seasons"][0] and "venue_name" not in p["seasons"][0]
     assert p["seasons"][0]["points"] == 82
+
+
+def test_shape_team_payload_venue_absent_is_none():
+    # a team with no venue/founded data -> honest absence (venue None, founded_year None)
+    p = shape_team_payload([{"team_sk": 9, "season_api_year": 2025,
+                             "league_code": "BL1", "team_name": "X"}])
+    assert p["venue"] is None
+    assert p["founded_year"] is None
 
 
 def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
