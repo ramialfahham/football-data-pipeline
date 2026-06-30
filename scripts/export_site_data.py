@@ -195,6 +195,7 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
         "slug": slugify(latest.get("player_name"), player_id),
         "name": latest.get("player_name"),
         "nationality": latest.get("player_nationality"),
+        "birth_date": latest.get("player_birth_date"),
         "photo": latest.get("player_photo_url"),
         "position": latest.get("position_code"),
         "seasons": [_strip_identity(r) for r in seasons],
