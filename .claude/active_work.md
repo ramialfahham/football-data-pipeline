@@ -4,14 +4,14 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-06-30** — main GREEN at **aea472f** (#391 GAP-16 player team affiliation → the v2 player profile, MERGED **#611**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B nearly done** — A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611) all merged; **only GAP-01 remains on the spec'd screens. NEXT = CPO pick** (GAP-01 — needs a disposition ruling first — or move to Phase C/D). Backlog + verified gap map below._
+_Last updated: **2026-06-30** — main GREEN at **f4b1aa8** (#391 GAP-01 team founded year + venue → the v2 team profile, MERGED **#613**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B spec'd screens COMPLETE** — A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611), GAP-01 (#613) all merged; the 3 spec'd screens (01 fixture / 02 team / 03 player) are data-complete. **NEXT = CPO pick** among Phase C (player-season foundation), Phase D (flagship design marts), and a doc-status reconciliation. Backlog + verified gap map below._
 
-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull`. **main GREEN at aea472f** (or later if this refresh merged). Confirm tree clean.
+1. `git checkout main && git pull`. **main GREEN at f4b1aa8** (or later if this refresh merged). Confirm tree clean.
 2. Read this file top-to-bottom before touching anything.
-3. **NEXT = Phase B nearly done** (see THE GAP-CLOSURE BACKLOG below). A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611) are merged. The next item is a **CPO pick** — the last spec'd-screen Phase-B item is **GAP-01** (team venue/founded, mart+export; disposition still **pending** → needs a quick §10 ruling first) — or move to Phase C/D. #391 is un-paused but NARROW — present the candidates + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
+3. **NEXT = Phase B spec'd screens COMPLETE** (see THE GAP-CLOSURE BACKLOG below). A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611), GAP-01 (#613) all merged — no spec'd-screen Phase-B items remain. The next track is a **CPO pick**: Phase C (player-season foundation), Phase D (flagship design marts), or the doc-status reconciliation. #391 is un-paused but NARROW — present the candidates + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
 
 ---
@@ -50,11 +50,13 @@ carries it)** first, then build the frontend against a stable export. The live M
     (relationships `team_sk` → `dim_team`); the export reshapes into top-level `current_team` + a per-season
     `team` block (selected by the dbt flag, never re-ranked). Wireframe §3/§4/§5/§8/§10 + register doc-sync
     FOLDED in (CPO-directed). All 4 reviewers PASS; `data-build` green.
-  - **Remaining spec'd-screen Phase B: GAP-01 only** (team `team_founded_year`/`venue_name`/`venue_city`/
-    `venue_capacity` — exist in `dim_team`, absent from `mart_team_profile`; mart+export, ~4 additive columns;
-    disposition still **pending** → needs a §10 ruling before a clean start). CPO picks next: GAP-01 or Phase C/D.
+  - **GAP-01 — team founded year + venue (name/city/capacity) → team profile. MERGED #613.** The register's
+    4 fields (CPO-ruled this session) added to `mart_team_profile` from its existing dim_team join (additive,
+    no new model); the export surfaces top-level `founded_year` + a nested `venue` block (None when absent);
+    the 4 fields stripped from per-season rows. Wireframe §3/§4/§5/§10 + register doc-sync FOLDED in
+    (CPO-directed). All 4 reviewers PASS; `data-build` green. **→ Phase B's spec'd-screen gaps are COMPLETE.**
   - ⚠️ **Open (CPO call, NOT decided):** whether folding a closed gap's directly-coupled spec-sync into its
-    gap PR GENERALIZES — now **2 CPO-directed instances** (#609 status-only, #611 substantive) — vs the
+    gap PR GENERALIZES — now **3 CPO-directed instances** (#609 status-only, #611 + #613 substantive) — vs the
     gaps-register note "gap fixes never ship inside blueprint PRs". Each fold was a specific CPO direction,
     not a general rule.
   - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
@@ -78,6 +80,8 @@ carries it)** first, then build the frontend against a stable export. The live M
 
 ### ⭐ RECENT PRs
 
+- **#613 — #391 GAP-01: team founded year + venue → the v2 team profile, MERGED.** The register's 4 fields added to `mart_team_profile` from its existing dim_team join (additive, no new model); export surfaces top-level `founded_year` + a nested `venue` block (None when absent). Folded wireframe/register doc-sync. All 4 reviewers PASS; `data-build` + python-ci green. → **Phase B spec'd screens COMPLETE.**
+- **#612 — handover refresh (#391 GAP-16 merged), MERGED.** Recorded the post-#611 state; kept the fold-generalization question open (then 2 instances).
 - **#611 — #391 GAP-16: player team affiliation (current team + per-season history) → the v2 player profile, MERGED.** NEW `int_player_season__team` (most-recent-match club per player-season + `is_current_team`) → `mart_player_profile` (+ dim_team identity, relationships DQ test) → export (`current_team` + per-season `team`, selected by the dbt flag). Folded wireframe/register doc-sync. All 4 reviewers PASS; `data-build` + python-ci green. See the backlog GAP-16 entry above.
 - **#610 — handover refresh (#391 GAP-14 merged), MERGED.** Recorded the post-#609 state; established the plan-mode carve-out for handover refreshes; reserved the doc-sync fold-generalization question to the CPO.
 - **#609 — #391 GAP-14: player `birth_date` → the v2 player payload, MERGED.** Export-only (+1 line in `shape_player_payload`; the column was already on `mart_player_profile`, just unsurfaced) + the folded-in wireframe/gaps-register doc sync. `data-build` + `ui-checks` skip (no dbt/UI change); python-ci green. See the backlog GAP-14 entry above.
