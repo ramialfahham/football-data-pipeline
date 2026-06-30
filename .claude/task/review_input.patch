@@ -1,202 +1,182 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 4bb1120..c5385e6 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,14 +4,14 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-06-29** — main GREEN at **5041396** (#391 A1 deserved-vs-actual on the team profile, MERGED #606). **BIG SHIFT this session: #391 is UN-PAUSED, NARROWLY + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **NOW: Phase B of the gap backlog** — GAP-15 (team fixtures → team payload) is **PR #607, OPEN** (sync main; if merged, continue from the backlog). Backlog + verified gap map below._
++_Last updated: **2026-06-30** — main GREEN at **2b9f656** (#391 GAP-14 player `birth_date` → the v2 player payload, MERGED **#609**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B of the gap backlog continues** — A1 (#606), GAP-15 (#607), GAP-14 (#609) all merged; **GAP-16 + GAP-01 remain. NEXT = CPO pick** (a remaining Phase-B item, or move to Phase C/D). Backlog + verified gap map below._
+ 
+-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any file-touching task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing.
++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date` → player payload, #609). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any file-touching task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main GREEN at 5041396** (or later if #607 / this refresh merged). Confirm tree clean.
++1. `git checkout main && git pull`. **main GREEN at 2b9f656** (or later if this refresh merged). Confirm tree clean.
+ 2. Read this file top-to-bottom before touching anything.
+-3. **NEXT = Phase B of the gap backlog** (see THE GAP-CLOSURE BACKLOG below). **GAP-15 is PR #607, OPEN** — if not yet merged, that's the current PR; if merged, the next Phase-B item is a CPO pick (GAP-14 / GAP-16 / GAP-01). #391 is un-paused but NARROW — present the candidate + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
++3. **NEXT = Phase B continues** (see THE GAP-CLOSURE BACKLOG below). A1 (#606), GAP-15 (#607), GAP-14 (#609) are merged. The next item is a **CPO pick** — remaining Phase-B = **GAP-16** (player current-team affiliation, dbt-derived) or **GAP-01** (team venue, mart+export, disposition pending) — or move to Phase C/D. #391 is un-paused but NARROW — present the candidates + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
+ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
+ 
+ ---
+@@ -36,12 +36,20 @@ carries it)** first, then build the frontend against a stable export. The live M
+   (deserved_rank, sot_rank_gap) into the team mart; auto-carried by the team export (select *). Option-1 placement.
+   Verified actual_rank == latest_rank (same `int_team_season__standings_primary.standing_rank`) → no redundant column.
+ - **Phase B — wire the SPEC'D-screen gaps (export-only, the cheap green):**
+-  - **GAP-15 — team fixtures (next + last 5) → team payload. PR #607 OPEN.** `mart_team_fixtures` (a view)
++  - **GAP-15 — team fixtures (next + last 5) → team payload. MERGED #607.** `mart_team_fixtures` (a view)
+     precomputes ranks; `shape_team_payload` attaches `next_fixture` + `recent_results` per season, display
+-    fields only. Per-fixture deep-link deferred to GAP-19. (Payload key names `next_fixture`/`recent_results`
+-    and their §10 sign-off are owned and recorded in #607's own review cycle — not re-decided here.)
+-  - Remaining (screens 02/03): **GAP-14** (player birth_date, export-only), **GAP-16** (player team affiliation,
+-    dbt-derived), **GAP-01** (team venue fields, mart+export; disposition still pending). CPO picks next.
++    fields only. Per-fixture deep-link deferred to GAP-19.
++  - **GAP-14 — player `birth_date` → player payload. MERGED #609.** Export-only (+1 line in
++    `shape_player_payload` surfacing the already-present `mart_player_profile.player_birth_date`) **PLUS** the
++    directly-coupled wireframe + gaps-register doc sync, folded into the same PR at the CPO's explicit
++    direction ("fix that doc too, now"). The first (code-only) review round had scope-auditor FAIL on the
++    missing doc-sync → resolved by folding it in; all 4 routed reviewers then PASSed. **Open (CPO call, NOT
++    decided):** whether folding a closed gap's spec-sync into its gap PR generalizes beyond #609 — vs the
++    gaps-register note "gap fixes never ship inside blueprint PRs" — is unresolved; #609 was a specific CPO
++    direction, not a general rule.
++  - **Remaining Phase B (screens 03/02): GAP-16** (player current-team affiliation — dbt-derived per the
++    register: latest team that season + per-season history, DQ-tested vs `dim_team`) · **GAP-01** (team venue
++    fields, mart+export; disposition still **pending** — needs a §10 ruling before a clean start). CPO picks next.
+   - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
+ - **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
+   YoY/streaks/season + wire. A chain.
+@@ -63,7 +71,8 @@ carries it)** first, then build the frontend against a stable export. The live M
+ 
+ ### ⭐ RECENT PRs
+ 
+-- **#607 (OPEN) — #391 GAP-15: team fixtures (next + last 5) → the v2 team payload.** Export-only; `mart_team_fixtures` (a view) → `shape_team_payload` attaches `next_fixture` + `recent_results` per season. `data-build` skips (no dbt change). Awaiting CPO merge.
++- **#609 — #391 GAP-14: player `birth_date` → the v2 player payload, MERGED.** Export-only (+1 line in `shape_player_payload`; the column was already on `mart_player_profile`, just unsurfaced) + the folded-in wireframe/gaps-register doc sync. `data-build` + `ui-checks` skip (no dbt/UI change); python-ci green. See the backlog GAP-14 entry above.
++- **#607 — #391 GAP-15: team fixtures (next + last 5) → the v2 team payload, MERGED.** Export-only; `mart_team_fixtures` (a view) → `shape_team_payload` attaches `next_fixture` + `recent_results` per season.
+ - **#606 — #391 A1: deserved-vs-actual on `mart_team_profile`, MERGED.** See the backlog A1 entry above.
+ - **#604 — #530(a) entity-dual catalogue split, MERGED.** The 2 `team and player` rows (`finishing_efficiency`, `duels_won_pct`) split per entity; player `finishing_efficiency` deferred to #530(b). Catalogue-only.
+ 
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 9cf03b8..4f065a6 100644
+index 4f065a6..3afcddf 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,43 +1,84 @@
--# Task contract — refresh handover: #391 un-paused (data-first), gap backlog A–D, A1 merged + GAP-15 PR'd
-+# Task contract — #391 GAP-14: surface player birth_date in the v2 player payload (+ doc sync)
+@@ -1,84 +1,48 @@
+-# Task contract — #391 GAP-14: surface player birth_date in the v2 player payload (+ doc sync)
++# Task contract — refresh handover: #391 GAP-14 merged (#609), Phase B continues
  
--> Written on a CLEAN tree (branch chore/handover-refresh-391-backlog off main @ 5041396).
--> Doc-only — no code/model change. Records this session's decisions + state for a cold chat.
-+> Written on a CLEAN tree (branch off main @ 557eb6d). Export change + the directly-coupled
-+> wireframe/gaps-register doc sync (folded in per CPO go 2026-06-30).
-+> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), App. A.
+-> Written on a CLEAN tree (branch off main @ 557eb6d). Export change + the directly-coupled
+-> wireframe/gaps-register doc sync (folded in per CPO go 2026-06-30).
+-> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), App. A.
++> Written on a CLEAN tree (branch chore/refresh-handover-609 off main @ 2b9f656).
++> Doc-only — no code/model change. Records this session's state for a cold chat.
++> See docs/working_agreement.md §2 (contract), §10 (decision rights).
  
  objective: >
--  Refresh .claude/active_work.md so a fresh chat continues from this session's big shift: the CPO
--  un-paused #391 NARROWLY with a data-first strategy — complete the v2 data+export layer to "all green"
--  first, then build the frontend. Records the verified block→mart→status gap map, the A–D gap-closure
--  backlog (A1 MERGED #606; GAP-15 = first Phase-B item, PR #607 open; the rest queued), the two stale-
--  wireframe flags, and the standing rules. Replaces the prior "#391 is a discussion" handover.
-+  Surface the player's birth_date at the top of the v2 player payload, and sync the player wireframe +
-+  gaps register so the spec reflects the now-closed gap. The column already exists on mart_player_profile
-+  and is already pulled by the player fetch (select *), but shape_player_payload never re-surfaces it and
-+  _strip_identity drops it from every season row, so it is currently lost from the payload. Adding the
-+  identity key closes GAP-14; the wireframe (03_player_profile.md) + gaps register (99_gaps_register.md)
-+  are updated in the same change so they no longer describe birth_date as missing.
+-  Surface the player's birth_date at the top of the v2 player payload, and sync the player wireframe +
+-  gaps register so the spec reflects the now-closed gap. The column already exists on mart_player_profile
+-  and is already pulled by the player fetch (select *), but shape_player_payload never re-surfaces it and
+-  _strip_identity drops it from every season row, so it is currently lost from the payload. Adding the
+-  identity key closes GAP-14; the wireframe (03_player_profile.md) + gaps register (99_gaps_register.md)
+-  are updated in the same change so they no longer describe birth_date as missing.
++  Refresh .claude/active_work.md so a fresh chat continues from the post-#609 state: #391 GAP-14
++  (player birth_date → v2 player payload) MERGED as #609. Update the Phase-B gap-backlog status
++  (A1 #606, GAP-15 #607, GAP-14 #609 all merged; GAP-16 + GAP-01 remain) and set the next action =
++  CPO pick. Replaces the prior handover that still listed GAP-15 as "PR #607 open" and predated GAP-14.
  
--refs: >
--  This session (2026-06-29): #391 un-pause discussion → data-first strategy; A1 (#606, MERGED);
--  GAP-15 (#607, open). CPO directed this refresh ("fold the handover refresh in after"). Mirrors
--  prior handover refreshes (#605/#604, #602, #599).
-+refs: #391 (un-paused, data-first) · GAP-14 (Phase B; ruled approved CPO 2026-06-11; CPO-picked this session) · backlog in .claude/active_work.md
+-refs: #391 (un-paused, data-first) · GAP-14 (Phase B; ruled approved CPO 2026-06-11; CPO-picked this session) · backlog in .claude/active_work.md
++refs: >
++  This session (2026-06-30): Phase-B pick = GAP-14 (CPO); built export-only, then folded the wireframe/
++  gaps-register doc sync in per CPO go ("fix that doc too, now, in the same change"); merged as #609.
++  Mirrors prior handover refreshes (#608/#607, #605/#604, #602, #599).
  
  scope_paths:
--  - .claude/active_work.md
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - docs/wireframes/03_player_profile.md
-+  - docs/wireframes/99_gaps_register.md
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
+-  - docs/wireframes/03_player_profile.md
+-  - docs/wireframes/99_gaps_register.md
++  - .claude/active_work.md
    - .claude/task/**
  
-+# Consumption surface (scripts/export_*.py) is in scope -> impact_map required.
-+# Leaf/additive/evidenced short-form:
-+impact_map: >
-+  writers: NONE — no dbt model changes. `mart_player_profile.player_birth_date` already exists
-+    (dbt_project/models/5_marts/shared/mart_player_profile.sql:75; lineage staging -> dim_player.sql:26
-+    -> mart, typed DATE) and is already queried by the player fetch `select * from mart_player_profile`
-+    (scripts/export_site_data.py:394). The export only reads an already-present column via latest.get();
-+    it derives nothing (consumption-layer contract honored).
-+  downstream: the v2 player payload is consumed only by `site_v2/` — an empty Astro scaffold (2 stubs:
-+    site_v2/src/pages/index.astro + [lang]/index.astro), NO player-page consumer yet. The payload SHAPE is
-+    documented in two spec files — docs/wireframes/03_player_profile.md (§3 enumeration, §5 identity
-+    binding, §10 gaps) and docs/wireframes/99_gaps_register.md (GAP-14 row) — BOTH updated in this PR so
-+    they stop describing birth_date as missing. (An earlier impact_map claimed "grep: only
-+    export_site_data.py + its test reference the shape" — that grep was incomplete; corrected here. A6.)
-+    No JSON schema enforces payload keys.
-+  layer_rules: consumption-layer contract (dbt_project/docs/layering.md §Consumption layer) — the export
-+    may select/rename, NEVER derive a fact. This surfaces an existing identity column with no transform;
-+    age stays a render concern (shared.yml:974). The doc edits are spec-only (no code/logic).
-+  deploy_order: NONE — `export_site_data.py` is wired into NO workflow yet (only `export_pages_data.py`,
-+    the SEPARATE live-MVP export, runs in pages-match-preview.yml + ci-ui.yml). No warehouse migration; no
-+    nightly interaction; additive JSON key cannot break a schema. Docs are not executed.
-+  blast_radius: one new additive key `birth_date` on the player payload JSON + a 4-spot wireframe sync +
-+    one gaps-register status line. No mart/number changes. The live MVP (`site/`, fed by export_pages_data.py
-+    + mart_matchday_insights) is untouched. RAW/dbt unaffected — `ci-data-build` skips (no dbt change); the
-+    export shape is python-unit-tested.
-+
+-# Consumption surface (scripts/export_*.py) is in scope -> impact_map required.
+-# Leaf/additive/evidenced short-form:
+-impact_map: >
+-  writers: NONE — no dbt model changes. `mart_player_profile.player_birth_date` already exists
+-    (dbt_project/models/5_marts/shared/mart_player_profile.sql:75; lineage staging -> dim_player.sql:26
+-    -> mart, typed DATE) and is already queried by the player fetch `select * from mart_player_profile`
+-    (scripts/export_site_data.py:394). The export only reads an already-present column via latest.get();
+-    it derives nothing (consumption-layer contract honored).
+-  downstream: the v2 player payload is consumed only by `site_v2/` — an empty Astro scaffold (2 stubs:
+-    site_v2/src/pages/index.astro + [lang]/index.astro), NO player-page consumer yet. The payload SHAPE is
+-    documented in two spec files — docs/wireframes/03_player_profile.md (§3 enumeration, §5 identity
+-    binding, §10 gaps) and docs/wireframes/99_gaps_register.md (GAP-14 row) — BOTH updated in this PR so
+-    they stop describing birth_date as missing. (An earlier impact_map claimed "grep: only
+-    export_site_data.py + its test reference the shape" — that grep was incomplete; corrected here. A6.)
+-    No JSON schema enforces payload keys.
+-  layer_rules: consumption-layer contract (dbt_project/docs/layering.md §Consumption layer) — the export
+-    may select/rename, NEVER derive a fact. This surfaces an existing identity column with no transform;
+-    age stays a render concern (shared.yml:974). The doc edits are spec-only (no code/logic).
+-  deploy_order: NONE — `export_site_data.py` is wired into NO workflow yet (only `export_pages_data.py`,
+-    the SEPARATE live-MVP export, runs in pages-match-preview.yml + ci-ui.yml). No warehouse migration; no
+-    nightly interaction; additive JSON key cannot break a schema. Docs are not executed.
+-  blast_radius: one new additive key `birth_date` on the player payload JSON + a 4-spot wireframe sync +
+-    one gaps-register status line. No mart/number changes. The live MVP (`site/`, fed by export_pages_data.py
+-    + mart_matchday_insights) is untouched. RAW/dbt unaffected — `ci-data-build` skips (no dbt change); the
+-    export shape is python-unit-tested.
+-
  decisions_taken: >
--  Documentation / handover only — RECORDS this session's STATE for a cold chat: the CPO's un-pause of
--  #391 (data-first), the A–D backlog, the verified gap map, and the orphan-marts-need-screen-specs
--  methodology note. Per-PR §10 decisions (A1's Option-1 placement; GAP-15's payload key names) are owned
--  and evidenced in those PRs' own review cycles (#606, #607), not re-decided here. Invents no new
--  product/metric/naming decision.
-+  GAP-14 was ruled approved (CPO 2026-06-11, gaps register) and CPO-picked this session (export-only;
-+  simplest). The change is purely additive: surface the existing `mart_player_profile.player_birth_date` as
-+  a top-level identity key. The key NAME follows the established top-level bare-noun identity convention
-+  already locked in shape_player_payload — name / nationality / photo / position all strip the mart's
-+  `player_`/`_code` affix — so the column `player_birth_date` surfaces as `birth_date` (CPO confirmed the
-+  key name at plan approval). The value is the stored DATE verbatim (serialized by default=str); no age is
-+  derived here (render concern, shared.yml:974). The directly-coupled wireframe + gaps-register doc sync was
-+  folded into this PR per the CPO's explicit go ("fix that doc too, now, in the same change", 2026-06-30) —
-+  completing GAP-14 in code AND spec rather than shipping a spec that contradicts the code. No live-MVP
-+  impact (separate export).
+-  GAP-14 was ruled approved (CPO 2026-06-11, gaps register) and CPO-picked this session (export-only;
+-  simplest). The change is purely additive: surface the existing `mart_player_profile.player_birth_date` as
+-  a top-level identity key. The key NAME follows the established top-level bare-noun identity convention
+-  already locked in shape_player_payload — name / nationality / photo / position all strip the mart's
+-  `player_`/`_code` affix — so the column `player_birth_date` surfaces as `birth_date` (CPO confirmed the
+-  key name at plan approval). The value is the stored DATE verbatim (serialized by default=str); no age is
+-  derived here (render concern, shared.yml:974). The directly-coupled wireframe + gaps-register doc sync was
+-  folded into this PR per the CPO's explicit go ("fix that doc too, now, in the same change", 2026-06-30) —
+-  completing GAP-14 in code AND spec rather than shipping a spec that contradicts the code. No live-MVP
+-  impact (separate export).
++  Documentation / handover only — RECORDS this session's STATE for a cold chat: GAP-14 merged (#609) and the
++  Phase-B backlog status. It records the FACT that #609 ALSO carried the directly-coupled wireframe +
++  gaps-register doc sync, folded into the same PR at the CPO's explicit per-PR direction ("fix that doc too,
++  now, in the same change") — a specific instruction for #609, NOT a general rule. Per-PR §10 items (GAP-14's
++  key name `birth_date`; the doc-sync fold) are owned + evidenced in #609's own review.md, not re-decided
++  here. Asserts NO governance reinterpretation and invents no product/metric/naming decision.
  
  decisions_reserved:
--  - The next Phase-B item after GAP-15 (GAP-14 player birth_date / GAP-16 player affiliation / GAP-01
--    venue) — CPO directs; none auto-granted.
--  - Whether to spec the orphan-mart screens (Squad / Stats-percentile / Career tabs) so benchmarks/
--    roster/career can be wired — wireframe/design work, CPO call.
--  - The two stale-wireframe reconciliations (block-5 deserved-vs-actual ratio-space vs the shipped
--    rank-space; finishing_efficiency [0,1]/Option A vs the "never capped" line) — flagged, not decided.
-+  - HOW birth date / age renders in the identity header (display treatment + position in the layout) — a
-+    frontend/UX (§10) call deferred to the v2 frontend (Phase E). The wireframe layout annotation stays
-+    illustrative, not prescriptive; this PR only makes the data available and records that availability.
+-  - HOW birth date / age renders in the identity header (display treatment + position in the layout) — a
+-    frontend/UX (§10) call deferred to the v2 frontend (Phase E). The wireframe layout annotation stays
+-    illustrative, not prescriptive; this PR only makes the data available and records that availability.
++  - Whether folding a closed gap's directly-coupled spec-sync into its gap PR GENERALIZES beyond #609 — and
++    how that squares with the gaps-register note "gap fixes never ship inside blueprint PRs" — is an OPEN
++    governance question, reserved to the CPO. #609 was a specific CPO direction, not a precedent that settles
++    the general rule; the handover flags it open, does not decide it.
++  - The next Phase-B (or Phase-C/D) item — CPO directs; none auto-granted. Remaining spec'd-screen Phase-B:
++    GAP-16 (player current-team affiliation, dbt-derived) and GAP-01 (team venue fields, mart+export —
++    disposition still "pending", needs a §10 ruling before a clean start).
++  - Whether to spec the orphan-mart screens (Squad / Stats-percentile / Career) — wireframe/design, CPO call.
++  - The two stale-wireframe reconciliations (02 block-5 ratio-space vs the shipped rank-space;
++    finishing_efficiency [0,1]/Option A vs the "never capped" line) — flagged, not decided.
  
  done_when:
--  - active_work.md states main @ 5041396 (A1 #606 merged), GAP-15 #607 open; records the data-first
--    #391 strategy, the verified gap map (3 spec'd screens; orphan marts blocked on screen specs), the
--    A–D backlog with status, the two stale-wireframe flags, and the standing rules.
--  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
-+  - shape_player_payload returns `birth_date` from `latest.get("player_birth_date")`; no query, mart, or
-+    other-shaper change.
-+  - `pytest tests/test_export_site_data.py` passes, incl. a new assertion that the payload surfaces
-+    `birth_date`; full `tests/` suite green.
-+  - docs/wireframes/03_player_profile.md no longer lists birth_date as missing (§3 enumeration includes
-+    `birth_date`; §5 binding present-tense, key `birth_date`; §10 GAP-14 line removed); 99_gaps_register.md
-+    GAP-14 marked shipped.
-+  - Offline gates green (validate-local: python tests; no dbt/SQLFluff path touched). `ci-data-build` skips.
-+  - scope-auditor + analytics-engineer-reviewer + cto-reviewer + bi-analyst-reviewer PASS (>=2 risks each);
-+    review.md diff_sha256 binds the staged diff; CPO merges (never self-merge).
+-  - shape_player_payload returns `birth_date` from `latest.get("player_birth_date")`; no query, mart, or
+-    other-shaper change.
+-  - `pytest tests/test_export_site_data.py` passes, incl. a new assertion that the payload surfaces
+-    `birth_date`; full `tests/` suite green.
+-  - docs/wireframes/03_player_profile.md no longer lists birth_date as missing (§3 enumeration includes
+-    `birth_date`; §5 binding present-tense, key `birth_date`; §10 GAP-14 line removed); 99_gaps_register.md
+-    GAP-14 marked shipped.
+-  - Offline gates green (validate-local: python tests; no dbt/SQLFluff path touched). `ci-data-build` skips.
+-  - scope-auditor + analytics-engineer-reviewer + cto-reviewer + bi-analyst-reviewer PASS (>=2 risks each);
+-    review.md diff_sha256 binds the staged diff; CPO merges (never self-merge).
++  - active_work.md states main @ 2b9f656 (GAP-14 #609 merged); records the data-first #391 strategy, the
++    updated backlog (A1 #606 / GAP-15 #607 / GAP-14 #609 done; GAP-16 + GAP-01 remaining), the #609 doc-sync
++    FACT + the open generalization flag, the two stale-wireframe flags, and the standing rules.
++  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
  
--amendments: (none)
-+amendments:
-+  - 2026-06-30: + docs/wireframes/03_player_profile.md, + docs/wireframes/99_gaps_register.md,
-+    − .claude/active_work.md — authority: CPO explicit go this session ("Fix that doc too, now, in the same
-+    change"); content: fold the directly-coupled wireframe + gaps-register doc sync into this PR (resolves
-+    the scope-auditor doc-sync FAIL); drop active_work.md from scope (the handover refresh is a separate
-+    step, per the #607→#608 precedent). The impact_map grep claim was corrected (A6).
-diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
-index 4b4a374..046a069 100644
---- a/docs/wireframes/03_player_profile.md
-+++ b/docs/wireframes/03_player_profile.md
-@@ -26,7 +26,7 @@ per-90, no composite ratings (locked).
- ## 3. Data sources
- 
- `data/players/{player_id}.json` —
--top level: `player_id, slug, name, nationality, photo, position`;
-+top level: `player_id, slug, name, nationality, birth_date, photo, position`;
- `seasons[]` (per league-season, year desc): appearance facts + the bundle
- atomics; `match_log[]` (all matches with a stat line, latest first).
- 
-@@ -37,7 +37,7 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
- │ ▸Home › ▸Players › Jamal Musiala           │  (1) breadcrumb
- ├────────────────────────────────────────────┤
- │  [photo]  Jamal Musiala          [MF]      │  (2) identity header
--│           Germany                          │      (birth date: GAP-14,
-+│           Germany                          │      (birth date in payload;
- │           ▸FC Bayern München               │       team: GAP-16)
- │  [ Bundesliga 2025/26          ▾ ]         │  (3) season selector
- ├────────────────────────────────────────────┤
-@@ -76,7 +76,7 @@ season stats; right: match log (it carries the scroll).
- |---|---|---|
- | Name / photo / nationality | top-level `name`, `photo`, `nationality` | photo fallback = initials monogram |
- | Position badge | `position` (`G/D/M/F`) | i18n badge labels (GK/DF/MF/FW) |
--| Birth date / age | — | **GAP-14, approved** — `player_birth_date` is in the mart; export will surface `birth_date` top-level |
-+| Birth date / age | top-level `birth_date` | `player_birth_date` from the mart, surfaced top-level; age derived at render |
- | Current team + history | — | **GAP-16, approved** — `current_team` from the latest match-log row + per-season team history; ▸ team profile link |
- | Selector | `seasons[].league_code` + `season_api_year` | default = most recent |
- 
-@@ -164,5 +164,4 @@ empty/absent states · internal-links footer.
- 
- - [GAP-08](99_gaps_register.md) — `round_name` localization (match log secondary line).
- - [GAP-12](99_gaps_register.md) — GK triple atomics (save bundle, §5.5).
--- [GAP-14](99_gaps_register.md) — birth date not in the payload (§5.2).
- - [GAP-16](99_gaps_register.md) — no current-team affiliation in the profile (§5.2).
-diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index 1bbe566..e337a5d 100644
---- a/docs/wireframes/99_gaps_register.md
-+++ b/docs/wireframes/99_gaps_register.md
-@@ -22,7 +22,7 @@
- | GAP-11 | 01 fixture, 02 team | catalogue + mart | Locked team display table needs four metrics that don't exist: `clean_sheets` (x/y, both window marts), `shots_on_target_per_match`, `duels_per_match`, `defensive_actions_per_match` (T+I+B aggregate). Plus: finishing relabel ("% Conversion rate" → "% Goals per shot on target", formula unchanged), description tightenings (coverage denominators, blocked-shots note, >100% finishing caveat) | One catalogue+marts PR: new rows/columns per [`metrics_display.md`](metrics_display.md); `shot_accuracy` stays defined but unrendered | **approved** (CPO 2026-06-11) | — |
- | GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
- | GAP-13 | 02 team | mart | Five locked metric rows have no full-season variant: Ø shots on target, Ø duels, % duels won, Ø defensive actions, Ø key passes — `int_team_season__full_season_metrics` predates the player-stat-derived team metrics (W1/W2 have them; those are fixture-anchored and can't serve season pages) | Extend the full-season intermediate + `mart_team_profile` + team export with the five season columns | **approved** (CPO 2026-06-11) | — |
--| GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11) | — |
-+| GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11); **shipped** 2026-06-30 (#391 Phase B) | — |
- | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
- | GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11) | — |
- | GAP-17 | 02 team, MVP | mart | Pre-existing: the season rollup's original per-match rates divide by `season_games_played`, not stat-coverage counts (pre-coverage-rule convention) — understates rates where coverage < played. The five NEW season variants (GAP-13) already use coverage denominators | Align the old denominators with the coverage rule — **changes shipped MVP numbers**, so explicitly a CPO ruling; until then the two conventions coexist, documented in the rollup header | pending | — |
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 6faba1a..0d173c9 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -195,6 +195,7 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
-         "slug": slugify(latest.get("player_name"), player_id),
-         "name": latest.get("player_name"),
-         "nationality": latest.get("player_nationality"),
-+        "birth_date": latest.get("player_birth_date"),
-         "photo": latest.get("player_photo_url"),
-         "position": latest.get("position_code"),
-         "seasons": [_strip_identity(r) for r in seasons],
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index e403d46..8ed51a2 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -234,7 +234,8 @@ def test_shape_player_payload_orders_match_log_desc():
-     profiles = [
-         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
-          "player_name": "Jamal Musiala", "player_photo_url": "ph",
--         "player_nationality": "Germany", "position_code": "M", "goals": 12},
-+         "player_nationality": "Germany", "player_birth_date": "2003-02-26",
-+         "position_code": "M", "goals": 12},
-     ]
-     matches = [
-         {"player_sk": 1090, "kickoff_datetime": "2025-09-01T18:30:00",
-@@ -246,6 +247,7 @@ def test_shape_player_payload_orders_match_log_desc():
-     assert p["player_id"] == 1090
-     assert p["slug"] == "jamal-musiala-1090"
-     assert p["position"] == "M"
-+    assert p["birth_date"] == "2003-02-26"
-     assert [m["opponent_name"] for m in p["match_log"]] == ["B", "A"]  # latest first
- 
- 
+-amendments:
+-  - 2026-06-30: + docs/wireframes/03_player_profile.md, + docs/wireframes/99_gaps_register.md,
+-    − .claude/active_work.md — authority: CPO explicit go this session ("Fix that doc too, now, in the same
+-    change"); content: fold the directly-coupled wireframe + gaps-register doc sync into this PR (resolves
+-    the scope-auditor doc-sync FAIL); drop active_work.md from scope (the handover refresh is a separate
+-    step, per the #607→#608 precedent). The impact_map grep claim was corrected (A6).
++amendments: (none)
