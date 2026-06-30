@@ -66,6 +66,11 @@ select
     t.team_code,
     t.team_country,
     t.team_logo_url,
+    -- founded year + venue (GAP-01); from the same dim_team join
+    t.team_founded_year,
+    t.venue_name,
+    t.venue_city,
+    t.venue_capacity,
     -- record / rank / form
     ts.played,
     ts.wins,

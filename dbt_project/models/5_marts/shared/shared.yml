@@ -293,6 +293,15 @@ models:
         description: "Rank by shots-on-target difference within the league-season (1 = best) — the process-deserved table position. From int_team_season__deserved_vs_actual. NULL when the league-season is not fully rankable (knockouts / incomplete SoT coverage)."
       - name: sot_rank_gap
         description: "actual_rank (= latest_rank) minus deserved_rank; positive = under-performing (results lag the process), negative = over-performing. From int_team_season__deserved_vs_actual. NULL when not rankable."
+      # identity (GAP-01): founded year + venue, denormalised from dim_team. Nullable (sparse feed).
+      - name: team_founded_year
+        description: "Club founded year, from dim_team (GAP-01). Nullable — sparse in the feed."
+      - name: venue_name
+        description: "Home venue name, from dim_team (GAP-01). Nullable."
+      - name: venue_city
+        description: "Home venue city, from dim_team (GAP-01). Nullable."
+      - name: venue_capacity
+        description: "Home venue capacity, from dim_team (GAP-01). Nullable."
 
   - name: mart_team_season_record
     description: >

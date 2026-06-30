@@ -9,7 +9,7 @@
 
 | ID | Screen(s) | Type | Gap | Proposed disposition | Ruling | Issue |
 |----|-----------|------|-----|----------------------|--------|-------|
-| GAP-01 | 02 team profile | mart + export | Identity fields promised by brief §6.2 — `team_founded_year`, `venue_name`, `venue_city`, `venue_capacity` — exist in `dim_team` but are not surfaced in `mart_team_profile` / the team export | Add the four columns to the mart + payload (small, additive) | pending | — |
+| GAP-01 | 02 team profile | mart + export | Identity fields promised by brief §6.2 — `team_founded_year`, `venue_name`, `venue_city`, `venue_capacity` — exist in `dim_team` but are not surfaced in `mart_team_profile` / the team export | Add the four columns to the mart + payload (small, additive) | **approved** (CPO 2026-06-30: the 4 fields — no `venue_address`/internal id); **shipped** 2026-06-30 (#391 Phase B) | — |
 | GAP-02 | 10 home | feed | Cross-competition upcoming-fixtures feed (the home hero) does not exist; only per-competition lists | Build as part of `landing.json` (#367), shape decided at 10_home review | pending | — |
 | GAP-03 | 01 fixture, 10 home, SEO | generator | Data-to-text narrative generator (storylines, anti-thin-page text) not built | Export-layer generator, own issue; until then screens use templated factual sentences or omit the slot | pending | — |
 | GAP-04 | 10 home | feed | Trending/storylines feed: which `mart_team_profile` signals surface (YoY swings, streaks, deserved-vs-actual gap) and how they rank | CPO selects signals + ranking at 10_home review; feed ships with `landing.json` | pending | — |

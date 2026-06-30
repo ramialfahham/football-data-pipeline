@@ -25,7 +25,7 @@ games-aligned year-over-year comparison and active streaks.
 
 ## 3. Data sources
 
-`data/teams/{team_id}.json` — top level: `team_id, slug, name, country, crest`;
+`data/teams/{team_id}.json` — top level: `team_id, slug, name, country, crest, founded_year, venue`;
 `seasons[]` (one row per competition-season, sorted year desc) carrying record,
 season rates, deserved-vs-actual, YoY and streaks (identity stripped per row).
 
@@ -36,7 +36,7 @@ season rates, deserved-vs-actual, YoY and streaks (identity stripped per row).
 │ ▸Home › ▸Teams › Bayern München            │  (1) breadcrumb
 ├────────────────────────────────────────────┤
 │  [crest]  Bayern München                   │  (2) identity header
-│           Germany                          │      (founded/venue: GAP-01)
+│           Germany                          │      (founded + venue in payload)
 │  [ Bundesliga 2025/26          ▾ ]         │  (3) competition-season selector
 ├────────────────────────────────────────────┤
 │  #1 · 33 pts        Form W W D W W         │  (4) record block
@@ -82,7 +82,7 @@ All season-scoped keys come from the selected `seasons[]` row.
 | Element | JSON key | Notes |
 |---|---|---|
 | Name / crest / country | top-level `name`, `crest`, `country` | crest fallback = monogram |
-| Founded, venue | — | **GAP-01** (in `dim_team`, not exported) |
+| Founded, venue | top-level `founded_year` + `venue` `{name, city, capacity}` | from dim_team; `venue` is null when the club has no venue data |
 | Selector options | `seasons[].league_code` + `season_api_year` (+ `competition_type`) | label via registry name + season slug rule; default = most recent season, domestic league first |
 
 ### (4) Record block
@@ -198,6 +198,5 @@ empty/absent states · internal-links footer.
 
 ## 10. Gaps
 
-- [GAP-01](99_gaps_register.md) — founded/venue identity fields not exported (§5.2).
 - [GAP-13](99_gaps_register.md) — five locked metric rows lack season variants (§5.8).
 - [GAP-15](99_gaps_register.md) — no fixtures list in the team payload (§5.9).
