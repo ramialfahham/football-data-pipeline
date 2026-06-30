@@ -59,31 +59,36 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 
 ## 3. The block library (block ↔ mart)
 
+> **Status legend** (reconciled 2026-06-30, post-#613). **✓** = mart built AND wired to the v2 export
+> (`scripts/export_site_data.py`) — the 3 spec'd screens (fixture / team / player) are green. **⚠ orphan**
+> = mart BUILT but NOT wired, because its screen (Squad / Stats-percentile / Career) is not spec'd yet —
+> wiring needs a wireframe step first. **✗** = mart not built (Phase C/D). The v2 export queries 14 marts.
+
 | Family | Block | Subject | Backing mart | Status |
 |---|---|---|---|---|
-| **Identity** | Team header | team | `dim_team` (+ standing chip, + coach) | ✓ |
-| | Player header | player | `dim_player` (+ current club) | ✓ |
+| **Identity** | Team header | team | `dim_team` (+ founded/venue, + standing chip) | ✓ (founded/venue #613; coach pending) |
+| | Player header | player | `dim_player` (+ current club, + birth date) | ✓ (current club #611, birth date #609) |
 | | Competition header | comp | registry / dim | partial |
 | **Performance** | Form (recent) | team, player | `mart_momentum__{team,player}` (+ `_window` drill-down) | ✓ (player `_window` gap) |
-| | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ⚠ player |
-| | Season-over-season | team, player | YoY model | ✓ team / gap player |
-| | Vs-benchmark (bars vs league avg + percentile) | team, player | **NEW** `mart_competition_benchmarks` | ✗ |
+| | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ✓ team · ⚠ player (#480 per-club grain = Phase C) |
+| | Season-over-season | team, player | YoY model | ✓ team · gap player (Phase C) |
+| | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_{team,player}_competition_benchmarks` | ⚠ orphan — built (#512 / #559), not wired (screen unspec'd) |
 | | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
 | **Standings / rank** | League / group table | team | standings mart (#322) | ✓ |
 | | Standing-as-context | team | standings mart | ✓ |
-| | Leaderboards (scorers + the metric set) | player | **NEW** `mart_leaderboards` (generalise `mart_top_scorers`) | ⚠ partial |
-| **Schedule** | Upcoming / Results | team, player | match-list mart (filter) | ✓ |
+| | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
+| **Schedule** | Upcoming / Results | team, player | `mart_team_fixtures` (filter) | ✓ (team fixtures #607) |
 | | Matchday schedule | comp | fixtures by round (derive) | ~ |
-| **Listings** | Squad / roster | team→players | **NEW** `mart_roster` (from the team↔player mapping) | ✗ |
+| **Listings** | Squad / roster | team→players | `mart_roster` (from the team↔player mapping) | ⚠ orphan — built (#503), not wired (screen unspec'd) |
 | | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
-| | Player career (clubs + per-comp totals) | player | **NEW** `mart_player_career` (needs backfill) | ✗ |
-| **Matchup** | Match preview (two sides) | fixture | `mart_matchday_insights` | ✓ |
+| | Player career (clubs + per-comp totals) | player | `mart_player_career` (needs backfill) | ⚠ orphan — built, needs backfill + wiring (screen unspec'd) |
+| **Matchup** | Match preview (two sides) | fixture | composed (W1 `mart_team_momentum` + W2 `mart_team_season_record` + standing + h2h) | ✓ (v2; `mart_matchday_insights` = the separate live-MVP feed) |
 | | Lineups / key players | fixture | fixture player stats / `mart_leaderboards` | ✓ |
-| | Head-to-head | fixture | — | deferred (low value, #323) |
-| **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` differentiator | ✓ team |
+| | Head-to-head | fixture | `mart_head_to_head` | ✓ embedded (standalone `/h2h/` target = GAP-06, deferred) |
+| **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` differentiator | ✓ team (rank-space #606) |
 | | Vs-own-history / YoY *(flagship)* | team (player v1.x) | YoY model | ✓ team |
-| | Opponent / schedule context *(flagship, v1.x)* | team, player | (uses the benchmark engine) | ✗ |
-| | Contribution-share *(bonus)* | player↔team | **NEW** mart-computed (share of team output; definition reserved to build) | ✗ |
+| | Opponent / schedule context *(flagship, v1.x)* | team, player | (uses the benchmark engine) | ✗ not built (Phase D) |
+| | Contribution-share *(bonus)* | player↔team | **NEW** mart-computed (share of team output; definition reserved to build) | ✗ not built (Phase D) |
 | | Streaks | team (player?) | `int_*_profile__streaks` | ✓ team |
 
 A block works for any competition and either subject because it's just a mart sliced by
@@ -150,15 +155,15 @@ The triad is a clean axis set: **vs your own play** · **vs your own past** · *
 
 ---
 
-## 7. New marts to build (each its own later PR)
+## 7. New marts — build status (each its own PR)
 
-| New mart | Powers | Depends on |
+| New mart | Powers | Status (2026-06-30) |
 |---|---|---|
-| `mart_competition_benchmarks` (team + player) | Vs-benchmark block + the flagship reads' league context | a clean season aggregation (#480 + the season-record↔rollup unification) |
-| `mart_leaderboards` (generalise `mart_top_scorers`) | Leaderboards block + key players + top performers | season aggregation |
-| `mart_roster` | Squad block | team↔player mapping (exists) |
-| `mart_player_career` (+ a team-history equivalent) | Career & History tabs | the backfill |
-| `dim_coach` (+ Coach block/entity) | Coach block & page | coaches ingest |
+| `mart_{team,player}_competition_benchmarks` | Vs-benchmark block + the flagship reads' league context | **built** (#512 / #559 PR1); **not wired** — screen unspec'd |
+| `mart_leaderboards` (generalised `mart_top_scorers`) | Leaderboards block + key players + top performers | **built + wired** ✓ |
+| `mart_roster` | Squad block | **built** (#503); **not wired** — screen unspec'd |
+| `mart_player_career` (+ a team-history equivalent) | Career & History tabs | **built**; needs backfill + wiring — screen unspec'd |
+| `dim_coach` (+ Coach block/entity) | Coach block & page | **not built** (coaches ingest) |
 
 The percentile **scope** (competition-wide vs position-aware, the fbref way) is a v1.x build-time
 decision with football-analytics — reserved, not settled here.

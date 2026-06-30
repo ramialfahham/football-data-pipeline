@@ -1,17 +1,21 @@
-# Review — chore/refresh-handover-613 — 2026-06-30
+# Review — chore/reconcile-content-arch-status — 2026-06-30
 
-> G3 Lock artifact. Doc-only handover refresh: record #391 GAP-01 merged (#613); Phase B's spec'd-screen
-> gaps are COMPLETE; next = CPO pick (Phase C / Phase D / doc-status reconciliation). Required set
-> (routing): always → scope-auditor only — the diff touches `.claude/active_work.md` (artifact_only,
-> hash-excluded) + `.claude/task/contract.md` (artifact_only_never → hashed, review required). No code path.
+> G3 Lock artifact. Doc-only status reconciliation: docs/content_architecture.md §3 (block ↔ mart) + §7
+> reconciled to the verified built-vs-wired-vs-orphan-vs-not-built state, with a legend. Required set
+> (routing): always → scope-auditor only — the diff touches docs/content_architecture.md (no specialist
+> route) + .claude/task/contract.md (hashed). No code path.
+> Round 1 FAILED (accuracy): the legend said "15 marts" (a comment-mention of mart_matchday_insights was
+> miscounted → real = 14) and the Match-preview row listed mart_matchday_insights (the live-MVP mart, not
+> queried by the v2 export) under a strict "built AND wired" legend. Both fixed: count → 14; Match-preview
+> → v2 composition (W1/W2/standing/h2h) with mart_matchday_insights noted as the separate live-MVP feed.
 
-diff_sha256: 6192d0e475036b1e65f7cfc5673fbebda41dbe54d8899941e0a8750386663988
+diff_sha256: e6de1bb282bb2294a7b73ef9fe48be17ce243ef45ffb3fa72897f023ac2a3184
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Merge-state factual accuracy: the handover anchors on main @ f4b1aa8 with #613 (GAP-01 team founded/venue) merged, and the "Phase B spec'd screens COMPLETE" claim (A1 #606 / GAP-15 #607 / GAP-14 #609 / GAP-16 #611 / GAP-01 #613 all merged; the 3 spec'd screens 01/02/03 data-complete). Verified internal consistency (session date, branch name chore/refresh-handover-613, PR sequence #609→#613, GAP-01 content = the 4 additive fields) — a factual status record, not a design decision; the next track (Phase C / D / doc reconciliation) is left to the CPO, none auto-granted.
-- Fold-generalization boundary: the count is bumped to "3 CPO-directed instances (#609/#611/#613)" but the question stays OPEN — active_work.md + contract both say "stays OPEN, reserved to the CPO. Not decided here." + "Each fold was a specific CPO direction, not a general rule." Recording a pattern, NOT settling it (the #610 failure pattern did not recur). Scope is exactly the two artifact files; do-NOTs + the plan-mode carve-out (CPO-attributed) + the two stale-wireframe flags all preserved. The doc-status reconciliation is a new RESERVED follow-up (the stale GAP-15 §10 line was observed during the #613 build), not silently actioned.
+- Mart-inventory accuracy: traced all explicit queries in export_site_data.py — 14 wired marts (mart_team_profile, mart_team_fixtures, mart_player_profile, mart_player_match_log, mart_team_momentum, mart_team_season_record, mart_fixture_standing_context, mart_head_to_head, mart_team_momentum_window, mart_player_momentum, mart_standings, mart_leaderboards, mart_team_fixture_stats, mart_player_fixture_stats) — cross-checked against the §3 ✓ rows; confirmed the orphan marts (mart_{team,player}_competition_benchmarks, mart_roster, mart_player_career) EXIST as model files but are NOT queried; confirmed the ✗ not-built marts (opponent-context, contribution-share) have no model file. Both prior findings fixed (count = 14; Match-preview corrected); the contract states 14 too (consistent).
+- §10 decision boundary: the diff records factual STATUS only (built / wired / orphan / not-built) — it does NOT decide product/UX, screen specs, build schedule, or metric definitions; "⚠ orphan" is descriptive ("currently not wired"), not prescriptive. Whether/when to spec the orphan screens or build the Phase-D marts is reserved to the CPO. Scope is exactly docs/content_architecture.md + .claude/task/**.
 
 ## escalations
-(none) — doc-only handover; records this session's post-#613 state and RESERVES (does not decide) the next track (Phase C / Phase D / doc-status reconciliation), the fold-generalization question, and the two stale-wireframe reconciliations to the CPO.
+(none) — doc-only status reconciliation; records the verified current state and RESERVES (does not decide) whether/when to spec the orphan-mart screens, build the flagship marts, or run the broader wireframe doc-status sweep — all to the CPO.
