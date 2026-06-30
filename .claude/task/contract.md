@@ -1,84 +1,48 @@
-# Task contract — #391 GAP-14: surface player birth_date in the v2 player payload (+ doc sync)
+# Task contract — refresh handover: #391 GAP-14 merged (#609), Phase B continues
 
-> Written on a CLEAN tree (branch off main @ 557eb6d). Export change + the directly-coupled
-> wireframe/gaps-register doc sync (folded in per CPO go 2026-06-30).
-> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), App. A.
+> Written on a CLEAN tree (branch chore/refresh-handover-609 off main @ 2b9f656).
+> Doc-only — no code/model change. Records this session's state for a cold chat.
+> See docs/working_agreement.md §2 (contract), §10 (decision rights).
 
 objective: >
-  Surface the player's birth_date at the top of the v2 player payload, and sync the player wireframe +
-  gaps register so the spec reflects the now-closed gap. The column already exists on mart_player_profile
-  and is already pulled by the player fetch (select *), but shape_player_payload never re-surfaces it and
-  _strip_identity drops it from every season row, so it is currently lost from the payload. Adding the
-  identity key closes GAP-14; the wireframe (03_player_profile.md) + gaps register (99_gaps_register.md)
-  are updated in the same change so they no longer describe birth_date as missing.
+  Refresh .claude/active_work.md so a fresh chat continues from the post-#609 state: #391 GAP-14
+  (player birth_date → v2 player payload) MERGED as #609. Update the Phase-B gap-backlog status
+  (A1 #606, GAP-15 #607, GAP-14 #609 all merged; GAP-16 + GAP-01 remain) and set the next action =
+  CPO pick. Replaces the prior handover that still listed GAP-15 as "PR #607 open" and predated GAP-14.
 
-refs: #391 (un-paused, data-first) · GAP-14 (Phase B; ruled approved CPO 2026-06-11; CPO-picked this session) · backlog in .claude/active_work.md
+refs: >
+  This session (2026-06-30): Phase-B pick = GAP-14 (CPO); built export-only, then folded the wireframe/
+  gaps-register doc sync in per CPO go ("fix that doc too, now, in the same change"); merged as #609.
+  Mirrors prior handover refreshes (#608/#607, #605/#604, #602, #599).
 
 scope_paths:
-  - scripts/export_site_data.py
-  - tests/test_export_site_data.py
-  - docs/wireframes/03_player_profile.md
-  - docs/wireframes/99_gaps_register.md
+  - .claude/active_work.md
   - .claude/task/**
 
-# Consumption surface (scripts/export_*.py) is in scope -> impact_map required.
-# Leaf/additive/evidenced short-form:
-impact_map: >
-  writers: NONE — no dbt model changes. `mart_player_profile.player_birth_date` already exists
-    (dbt_project/models/5_marts/shared/mart_player_profile.sql:75; lineage staging -> dim_player.sql:26
-    -> mart, typed DATE) and is already queried by the player fetch `select * from mart_player_profile`
-    (scripts/export_site_data.py:394). The export only reads an already-present column via latest.get();
-    it derives nothing (consumption-layer contract honored).
-  downstream: the v2 player payload is consumed only by `site_v2/` — an empty Astro scaffold (2 stubs:
-    site_v2/src/pages/index.astro + [lang]/index.astro), NO player-page consumer yet. The payload SHAPE is
-    documented in two spec files — docs/wireframes/03_player_profile.md (§3 enumeration, §5 identity
-    binding, §10 gaps) and docs/wireframes/99_gaps_register.md (GAP-14 row) — BOTH updated in this PR so
-    they stop describing birth_date as missing. (An earlier impact_map claimed "grep: only
-    export_site_data.py + its test reference the shape" — that grep was incomplete; corrected here. A6.)
-    No JSON schema enforces payload keys.
-  layer_rules: consumption-layer contract (dbt_project/docs/layering.md §Consumption layer) — the export
-    may select/rename, NEVER derive a fact. This surfaces an existing identity column with no transform;
-    age stays a render concern (shared.yml:974). The doc edits are spec-only (no code/logic).
-  deploy_order: NONE — `export_site_data.py` is wired into NO workflow yet (only `export_pages_data.py`,
-    the SEPARATE live-MVP export, runs in pages-match-preview.yml + ci-ui.yml). No warehouse migration; no
-    nightly interaction; additive JSON key cannot break a schema. Docs are not executed.
-  blast_radius: one new additive key `birth_date` on the player payload JSON + a 4-spot wireframe sync +
-    one gaps-register status line. No mart/number changes. The live MVP (`site/`, fed by export_pages_data.py
-    + mart_matchday_insights) is untouched. RAW/dbt unaffected — `ci-data-build` skips (no dbt change); the
-    export shape is python-unit-tested.
-
 decisions_taken: >
-  GAP-14 was ruled approved (CPO 2026-06-11, gaps register) and CPO-picked this session (export-only;
-  simplest). The change is purely additive: surface the existing `mart_player_profile.player_birth_date` as
-  a top-level identity key. The key NAME follows the established top-level bare-noun identity convention
-  already locked in shape_player_payload — name / nationality / photo / position all strip the mart's
-  `player_`/`_code` affix — so the column `player_birth_date` surfaces as `birth_date` (CPO confirmed the
-  key name at plan approval). The value is the stored DATE verbatim (serialized by default=str); no age is
-  derived here (render concern, shared.yml:974). The directly-coupled wireframe + gaps-register doc sync was
-  folded into this PR per the CPO's explicit go ("fix that doc too, now, in the same change", 2026-06-30) —
-  completing GAP-14 in code AND spec rather than shipping a spec that contradicts the code. No live-MVP
-  impact (separate export).
+  Documentation / handover only — RECORDS this session's STATE for a cold chat: GAP-14 merged (#609) and the
+  Phase-B backlog status. It records the FACT that #609 ALSO carried the directly-coupled wireframe +
+  gaps-register doc sync, folded into the same PR at the CPO's explicit per-PR direction ("fix that doc too,
+  now, in the same change") — a specific instruction for #609, NOT a general rule. Per-PR §10 items (GAP-14's
+  key name `birth_date`; the doc-sync fold) are owned + evidenced in #609's own review.md, not re-decided
+  here. Asserts NO governance reinterpretation and invents no product/metric/naming decision.
 
 decisions_reserved:
-  - HOW birth date / age renders in the identity header (display treatment + position in the layout) — a
-    frontend/UX (§10) call deferred to the v2 frontend (Phase E). The wireframe layout annotation stays
-    illustrative, not prescriptive; this PR only makes the data available and records that availability.
+  - Whether folding a closed gap's directly-coupled spec-sync into its gap PR GENERALIZES beyond #609 — and
+    how that squares with the gaps-register note "gap fixes never ship inside blueprint PRs" — is an OPEN
+    governance question, reserved to the CPO. #609 was a specific CPO direction, not a precedent that settles
+    the general rule; the handover flags it open, does not decide it.
+  - The next Phase-B (or Phase-C/D) item — CPO directs; none auto-granted. Remaining spec'd-screen Phase-B:
+    GAP-16 (player current-team affiliation, dbt-derived) and GAP-01 (team venue fields, mart+export —
+    disposition still "pending", needs a §10 ruling before a clean start).
+  - Whether to spec the orphan-mart screens (Squad / Stats-percentile / Career) — wireframe/design, CPO call.
+  - The two stale-wireframe reconciliations (02 block-5 ratio-space vs the shipped rank-space;
+    finishing_efficiency [0,1]/Option A vs the "never capped" line) — flagged, not decided.
 
 done_when:
-  - shape_player_payload returns `birth_date` from `latest.get("player_birth_date")`; no query, mart, or
-    other-shaper change.
-  - `pytest tests/test_export_site_data.py` passes, incl. a new assertion that the payload surfaces
-    `birth_date`; full `tests/` suite green.
-  - docs/wireframes/03_player_profile.md no longer lists birth_date as missing (§3 enumeration includes
-    `birth_date`; §5 binding present-tense, key `birth_date`; §10 GAP-14 line removed); 99_gaps_register.md
-    GAP-14 marked shipped.
-  - Offline gates green (validate-local: python tests; no dbt/SQLFluff path touched). `ci-data-build` skips.
-  - scope-auditor + analytics-engineer-reviewer + cto-reviewer + bi-analyst-reviewer PASS (>=2 risks each);
-    review.md diff_sha256 binds the staged diff; CPO merges (never self-merge).
+  - active_work.md states main @ 2b9f656 (GAP-14 #609 merged); records the data-first #391 strategy, the
+    updated backlog (A1 #606 / GAP-15 #607 / GAP-14 #609 done; GAP-16 + GAP-01 remaining), the #609 doc-sync
+    FACT + the open generalization flag, the two stale-wireframe flags, and the standing rules.
+  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
 
-amendments:
-  - 2026-06-30: + docs/wireframes/03_player_profile.md, + docs/wireframes/99_gaps_register.md,
-    − .claude/active_work.md — authority: CPO explicit go this session ("Fix that doc too, now, in the same
-    change"); content: fold the directly-coupled wireframe + gaps-register doc sync into this PR (resolves
-    the scope-auditor doc-sync FAIL); drop active_work.md from scope (the handover refresh is a separate
-    step, per the #607→#608 precedent). The impact_map grep claim was corrected (A6).
+amendments: (none)
