@@ -175,6 +175,22 @@ def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None
     }
 
 
+def _player_team_block(row: dict) -> dict | None:
+    """The player's affiliated club for a profile row -> {team_id, name, crest, country},
+    or None when the player-season has no team (honest absence). team_sk + is_current_team
+    are computed in dbt (int_player_season__team); identity is joined from dim_team. The
+    export only selects/reshapes — it never decides which club is current."""
+    team_sk = row.get("team_sk")
+    if team_sk is None:
+        return None
+    return {
+        "team_id": int(team_sk),
+        "name": row.get("team_name"),
+        "crest": row.get("team_logo_url"),
+        "country": row.get("team_country"),
+    }
+
+
 def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> dict:
     """One player's profile rows + match-log rows -> the player page payload."""
     latest = _latest_season_row(profile_rows)
@@ -189,6 +205,19 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
         key=lambda r: (r.get("kickoff_datetime") or datetime.min),
         reverse=True,
     )
+    # Per-season club + the single current club. is_current_team is the dbt flag
+    # (int_player_season__team) — the export selects by it, it never re-ranks.
+    current_team = None
+    seasons_out = []
+    for r in seasons:
+        team = _player_team_block(r)
+        if current_team is None and r.get("is_current_team"):
+            current_team = team
+        s = _strip_identity(r)
+        for k in ("team_sk", "is_current_team"):
+            s.pop(k, None)
+        s["team"] = team
+        seasons_out.append(s)
     return {
         "type": "player",
         "player_id": player_id,
@@ -198,7 +227,8 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
         "birth_date": latest.get("player_birth_date"),
         "photo": latest.get("player_photo_url"),
         "position": latest.get("position_code"),
-        "seasons": [_strip_identity(r) for r in seasons],
+        "current_team": current_team,
+        "seasons": seasons_out,
         "match_log": matches,
     }
 

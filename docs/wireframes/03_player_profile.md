@@ -26,9 +26,9 @@ per-90, no composite ratings (locked).
 ## 3. Data sources
 
 `data/players/{player_id}.json` —
-top level: `player_id, slug, name, nationality, birth_date, photo, position`;
+top level: `player_id, slug, name, nationality, birth_date, photo, position, current_team`;
 `seasons[]` (per league-season, year desc): appearance facts + the bundle
-atomics; `match_log[]` (all matches with a stat line, latest first).
+atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest first).
 
 ## 4. Layout
 
@@ -37,8 +37,8 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
 │ ▸Home › ▸Players › Jamal Musiala           │  (1) breadcrumb
 ├────────────────────────────────────────────┤
 │  [photo]  Jamal Musiala          [MF]      │  (2) identity header
-│           Germany                          │      (birth date in payload;
-│           ▸FC Bayern München               │       team: GAP-16)
+│           Germany                          │      (birth date + current_team
+│           ▸FC Bayern München               │       now in payload)
 │  [ Bundesliga 2025/26          ▾ ]         │  (3) season selector
 ├────────────────────────────────────────────┤
 │  14 apps (12 starts) · 1.102 min           │  (4) appearance facts
@@ -77,7 +77,7 @@ season stats; right: match log (it carries the scroll).
 | Name / photo / nationality | top-level `name`, `photo`, `nationality` | photo fallback = initials monogram |
 | Position badge | `position` (`G/D/M/F`) | i18n badge labels (GK/DF/MF/FW) |
 | Birth date / age | top-level `birth_date` | `player_birth_date` from the mart, surfaced top-level; age derived at render |
-| Current team + history | — | **GAP-16, approved** — `current_team` from the latest match-log row + per-season team history; ▸ team profile link |
+| Current team + history | top-level `current_team` + `seasons[].team` | dbt-derived (`int_player_season__team`): the club of the player's most-recent finished match — `current_team` = most recent overall, `seasons[].team` = per competition-season; ▸ team profile link via `team_id` |
 | Selector | `seasons[].league_code` + `season_api_year` | default = most recent |
 
 ### (4) Appearance facts (selected season row)
@@ -148,7 +148,7 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
 ## 8. SEO
 
 - `schema.org/Person` (athlete): name, image = photo, nationality;
-  `memberOf` once GAP-16 lands.
+  `memberOf` from `current_team`.
 - Title: `{name} — Stats & Match Log | Matchday IQ` (localized).
 - Meta description templated from season facts (apps, goals, assists).
 - `BreadcrumbList`; canonical + hreflang; OG card with photo.
@@ -164,4 +164,3 @@ empty/absent states · internal-links footer.
 
 - [GAP-08](99_gaps_register.md) — `round_name` localization (match log secondary line).
 - [GAP-12](99_gaps_register.md) — GK triple atomics (save bundle, §5.5).
-- [GAP-16](99_gaps_register.md) — no current-team affiliation in the profile (§5.2).

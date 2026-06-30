@@ -57,6 +57,22 @@ modal_position as (
         partition by player_sk, season_sk
         order by count(*) desc
     ) = 1
+),
+
+-- GAP-16: the player's team per competition-season (most-recent-match club + the current-club flag),
+-- derived in dbt. The export selects by is_current_team — it never re-ranks (consumption-layer).
+team_affiliation as (
+    select * from {{ ref('int_player_season__team') }}
+),
+
+-- dim_team identity for the affiliated club (mirrors the dim_player identity join below).
+teams as (
+    select
+        team_sk,
+        team_name,
+        team_logo_url,
+        team_country
+    from {{ ref('dim_team') }}
 )
 
 select
@@ -80,6 +96,13 @@ select
     p.player_position,
     p.player_photo_url,
     mp.position_code,
+    -- team affiliation (GAP-16): the most-recent-match club this competition-season + the current-club
+    -- flag (the player's single most-recent finished match overall); identity from dim_team.
+    ta.team_sk,
+    coalesce(ta.is_current_team, false) as is_current_team,
+    t.team_name,
+    t.team_logo_url,
+    t.team_country,
     a.appearances,
     a.starts,
     a.substitute_appearances,
@@ -119,3 +142,10 @@ left join modal_position as mp
     on
         a.player_sk = mp.player_sk
         and a.season_sk = mp.season_sk
+left join team_affiliation as ta
+    on
+        a.player_sk = ta.player_sk
+        and a.league_code = ta.league_code
+        and a.season_api_year = ta.season_api_year
+left join teams as t
+    on ta.team_sk = t.team_sk
