@@ -628,6 +628,26 @@ models:
         description: "Weight (e.g. '75 kg'), from dim_player bio."
       - name: player_position
         description: "General/listed position from bio (distinct from position_code, the season modal)."
+      # team affiliation (GAP-16): most-recent-match club this competition-season + current-club flag
+      - name: team_sk
+        description: >
+          Club of the player's most recent finished match this competition-season (Option B,
+          CPO-ruled 2026-06-30). FK to dim_team; null only when the player-season has no finished leg.
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: is_current_team
+        description: >
+          True on the player's current-club row (the season holding their globally most-recent finished
+          match). Exactly one true per player by construction; the export selects current_team by this flag.
+        tests: [not_null]
+      - name: team_name
+        description: "Affiliated club display name, from dim_team."
+      - name: team_logo_url
+        description: "Affiliated club crest URL, from dim_team."
+      - name: team_country
+        description: "Affiliated club country, from dim_team."
 
   - name: mart_player_match_log
     description: >

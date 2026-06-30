@@ -251,6 +251,31 @@ def test_shape_player_payload_orders_match_log_desc():
     assert [m["opponent_name"] for m in p["match_log"]] == ["B", "A"]  # latest first
 
 
+def test_shape_player_payload_current_team_and_per_season_team():
+    # GAP-16: dbt (int_player_season__team) flags the current club via is_current_team; the export
+    # SELECTS current_team by that flag and never re-ranks. Here 2024 is flagged (not the latest
+    # 2025 season) on purpose — to prove the export reads the flag, not its own "latest season".
+    profiles = [
+        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD", "player_name": "Player X",
+         "team_sk": 541, "is_current_team": False,
+         "team_name": "Real Madrid", "team_logo_url": "rm.png", "team_country": "Spain"},
+        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1", "player_name": "Player X",
+         "team_sk": 157, "is_current_team": True,
+         "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany"},
+        {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
+         "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
+    ]
+    p = shape_player_payload(profiles, [])
+    assert p["current_team"] == {"team_id": 157, "name": "Bayern",
+                                 "crest": "fcb.png", "country": "Germany"}
+    teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
+    assert teams[0]["team_id"] == 541           # 2025 PD
+    assert teams[1]["team_id"] == 157           # 2024 BL1
+    assert teams[2] is None                     # 2023: no team
+    # internal keys never leak into the published season rows
+    assert all("team_sk" not in s and "is_current_team" not in s for s in p["seasons"])
+
+
 def test_build_manifest_counts_by_type():
     entries = [
         {"type": "team", "id": 1, "slug": "a-1", "path": "teams/1.json", "sha256": "x"},
