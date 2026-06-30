@@ -26,7 +26,7 @@ per-90, no composite ratings (locked).
 ## 3. Data sources
 
 `data/players/{player_id}.json` —
-top level: `player_id, slug, name, nationality, photo, position`;
+top level: `player_id, slug, name, nationality, birth_date, photo, position`;
 `seasons[]` (per league-season, year desc): appearance facts + the bundle
 atomics; `match_log[]` (all matches with a stat line, latest first).
 
@@ -37,7 +37,7 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
 │ ▸Home › ▸Players › Jamal Musiala           │  (1) breadcrumb
 ├────────────────────────────────────────────┤
 │  [photo]  Jamal Musiala          [MF]      │  (2) identity header
-│           Germany                          │      (birth date: GAP-14,
+│           Germany                          │      (birth date in payload;
 │           ▸FC Bayern München               │       team: GAP-16)
 │  [ Bundesliga 2025/26          ▾ ]         │  (3) season selector
 ├────────────────────────────────────────────┤
@@ -76,7 +76,7 @@ season stats; right: match log (it carries the scroll).
 |---|---|---|
 | Name / photo / nationality | top-level `name`, `photo`, `nationality` | photo fallback = initials monogram |
 | Position badge | `position` (`G/D/M/F`) | i18n badge labels (GK/DF/MF/FW) |
-| Birth date / age | — | **GAP-14, approved** — `player_birth_date` is in the mart; export will surface `birth_date` top-level |
+| Birth date / age | top-level `birth_date` | `player_birth_date` from the mart, surfaced top-level; age derived at render |
 | Current team + history | — | **GAP-16, approved** — `current_team` from the latest match-log row + per-season team history; ▸ team profile link |
 | Selector | `seasons[].league_code` + `season_api_year` | default = most recent |
 
@@ -164,5 +164,4 @@ empty/absent states · internal-links footer.
 
 - [GAP-08](99_gaps_register.md) — `round_name` localization (match log secondary line).
 - [GAP-12](99_gaps_register.md) — GK triple atomics (save bundle, §5.5).
-- [GAP-14](99_gaps_register.md) — birth date not in the payload (§5.2).
 - [GAP-16](99_gaps_register.md) — no current-team affiliation in the profile (§5.2).

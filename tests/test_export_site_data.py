@@ -234,7 +234,8 @@ def test_shape_player_payload_orders_match_log_desc():
     profiles = [
         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
          "player_name": "Jamal Musiala", "player_photo_url": "ph",
-         "player_nationality": "Germany", "position_code": "M", "goals": 12},
+         "player_nationality": "Germany", "player_birth_date": "2003-02-26",
+         "position_code": "M", "goals": 12},
     ]
     matches = [
         {"player_sk": 1090, "kickoff_datetime": "2025-09-01T18:30:00",
@@ -246,6 +247,7 @@ def test_shape_player_payload_orders_match_log_desc():
     assert p["player_id"] == 1090
     assert p["slug"] == "jamal-musiala-1090"
     assert p["position"] == "M"
+    assert p["birth_date"] == "2003-02-26"
     assert [m["opponent_name"] for m in p["match_log"]] == ["B", "A"]  # latest first
 
 
