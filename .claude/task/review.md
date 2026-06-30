@@ -1,36 +1,17 @@
-# Review — feat/391-gap16-player-team-affiliation — 2026-06-30
+# Review — chore/refresh-handover-611 — 2026-06-30
 
-> G3 Lock artifact. #391 GAP-16 — player team affiliation (current team + per-season history). dbt build
-> (new int_player_season__team + mart columns + relationships DQ test) + export reshape + folded wireframe/
-> register doc-sync. Required set (routing): scope-auditor (always) + analytics-engineer (dbt_project/**) +
-> cto (scripts/export_*.py + tests/**) + bi-analyst (docs/wireframes/**). All four fresh at this hash.
+> G3 Lock artifact. Doc-only handover refresh: record #391 GAP-16 merged (#611); Phase B now has only
+> GAP-01 left on the spec'd screens; next = CPO pick. Required set (routing): always → scope-auditor only
+> — the diff touches `.claude/active_work.md` (artifact_only, hash-excluded) + `.claude/task/contract.md`
+> (artifact_only_never → hashed, review required). No code path.
 
-diff_sha256: 752bc98494eca1f421b1dc4861abff5b018d595b6e15825e9c5923b57eea6ae1
+diff_sha256: 2d8d0b79daaab4625f5d1873ffc4fd40a089a99adabdbd3c5b9b440acb0f574d
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Grain-alignment + LEFT JOIN safety: int_player_season__team grain (player_sk, league_code, season_api_year) is 1:1 with the mart's (player_sk, season_sk) (season_sk = sk(league_api_id, season)); the unique_combination test enforces it; coalesce(is_current_team, false) handles honest absence. No fan-out/drop.
-- Consumption-layer: shape_player_payload selects current_team by the dbt is_current_team flag (no independent re-rank); the test deliberately flags 2024 (not the latest 2025) so it would fail if the export re-ranked; internal keys (team_sk, is_current_team) stripped from published season rows. dbt owns the ranking.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Fan-out on the mart LEFT JOIN to int_player_season__team: join keys (player_sk, league_code, season_api_year) are the exact (tested-unique) grain of the new int; the mart spine int_player_season__metrics shares that grain → provably 1:1, no fan-out.
-- Duplicate team_sk: int_player_season__metrics already exposes team_sk on alias `a`, but the mart SELECT is fully explicit (no a.*) and emits only ta.team_sk — no duplicate column/ambiguity in the output.
-- Consumption-layer + materialization + drift guard: export reads the flag, never re-ranks; _strip_identity drops team_name/logo/country, the pop removes team_sk/is_current_team; both new int + mart are table-materialized (no incremental rename / no --full-refresh); the drift guard (assert_no_uncatalogued_season_metric) targets only the two *__metrics ints — the new int's non-metric columns are not inspected.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Flag-read vs re-rank: shape_player_payload gates current_team on r.get("is_current_team") with no sort-and-pick; the test flags the 2024 row while 2025 exists, so current_team=Bayern(157) — it would fail (=Real Madrid 541) if the export used "latest season". Valid falsifying case.
-- Identity-key leak + regression: _strip_identity drops team_name/logo/country before they can appear as flat keys; the pop loop removes team_sk/is_current_team (safe on absent keys); null team_sk → None honest absence (no raise); the pre-existing player test (rows without team cols) still passes because all new paths fail-safe to None. Export wired into no workflow (live MVP isolated); no new import/cost.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Field-binding/key-name consistency across mart → export → wireframe: §3 enumerates current_team + seasons[].team; the export emits {team_id,name,crest,country} (team_id from team_sk, identical to _fixture_side); §5 binds the same keys + source int_player_season__team. No spelling drift.
-- Locked display contract: metrics_display.md not in the diff; the 9 locked player bundles unchanged; team affiliation is identity (no %/rate/KPI); the §8 SEO memberOf + §4 ASCII edits are spec-accuracy, not a new rendered-metric label/treatment. §5 source corrected ("latest match-log row" export-side → dbt-derived most-recent-match); register GAP-16 marked shipped + Option-B (cf. GAP-14/GAP-18 format); §10 GAP-16 line removed; GAP-08/GAP-12 intact; no stray open "GAP-16".
+- Backlog-state accuracy + GAP-01 "pending": active_work.md is the single cold-chat state machine, so a wrong status ripples to every future session. Verified the branch point aea472f = #611 (GAP-16), the merged sequence (A1 #606 / GAP-15 #607 / GAP-14 #609 / GAP-16 #611) is accurate, the GAP-16 entry records the Option-B source + the int/mart/DQ/export + the doc-sync fold (deferred to #611's own review.md, not re-decided), and GAP-01 is correctly the sole remaining spec'd Phase-B item with disposition still "pending" (needs a §10 ruling) — no premature closure.
+- Governance integrity (the #610 failure must NOT recur): the doc-sync fold-generalization question is explicitly kept OPEN — active_work.md says "NOT decided" + "Each fold was a specific CPO direction, not a general rule" (2 instances recorded: #609 status-only, #611 substantive), and the contract's decisions_reserved reserves it to the CPO. The plan-mode carve-out is attributed to the CPO ("CPO-set 2026-06-30") and bounded to handover/bookkeeping refreshes (full plan mode preserved for code/model/metric). No silent §10 reinterpretation; do-NOTs + the two stale-wireframe flags preserved.
 
 ## escalations
-(none) — all four required reviewers PASS at this hash; no FAIL, no ESCALATE. The Option-B source ruling, the naming, and the doc-sync fold were CPO-directed this session (presented decisions + plan approval), recorded as such (not silently self-granted).
+(none) — doc-only handover; records this session's post-#611 state and RESERVES (does not decide) the next pick (GAP-01 / Phase C/D), GAP-01's pending disposition, the fold-generalization question, and the two stale-wireframe reconciliations to the CPO.

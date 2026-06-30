@@ -1,473 +1,196 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index c5385e6..f50cf32 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,15 +4,15 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-06-30** — main GREEN at **2b9f656** (#391 GAP-14 player `birth_date` → the v2 player payload, MERGED **#609**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B of the gap backlog continues** — A1 (#606), GAP-15 (#607), GAP-14 (#609) all merged; **GAP-16 + GAP-01 remain. NEXT = CPO pick** (a remaining Phase-B item, or move to Phase C/D). Backlog + verified gap map below._
++_Last updated: **2026-06-30** — main GREEN at **aea472f** (#391 GAP-16 player team affiliation → the v2 player profile, MERGED **#611**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B nearly done** — A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611) all merged; **only GAP-01 remains on the spec'd screens. NEXT = CPO pick** (GAP-01 — needs a disposition ruling first — or move to Phase C/D). Backlog + verified gap map below._
+ 
+-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date` → player payload, #609). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any file-touching task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing.
++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main GREEN at 2b9f656** (or later if this refresh merged). Confirm tree clean.
++1. `git checkout main && git pull`. **main GREEN at aea472f** (or later if this refresh merged). Confirm tree clean.
+ 2. Read this file top-to-bottom before touching anything.
+-3. **NEXT = Phase B continues** (see THE GAP-CLOSURE BACKLOG below). A1 (#606), GAP-15 (#607), GAP-14 (#609) are merged. The next item is a **CPO pick** — remaining Phase-B = **GAP-16** (player current-team affiliation, dbt-derived) or **GAP-01** (team venue, mart+export, disposition pending) — or move to Phase C/D. #391 is un-paused but NARROW — present the candidates + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
+-4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back.
++3. **NEXT = Phase B nearly done** (see THE GAP-CLOSURE BACKLOG below). A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611) are merged. The next item is a **CPO pick** — the last spec'd-screen Phase-B item is **GAP-01** (team venue/founded, mart+export; disposition still **pending** → needs a quick §10 ruling first) — or move to Phase C/D. #391 is un-paused but NARROW — present the candidates + get the CPO's go before building; do NOT touch the live MVP or start the frontend.
++4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
+ 
+ ---
+ 
+@@ -40,16 +40,23 @@ carries it)** first, then build the frontend against a stable export. The live M
+     precomputes ranks; `shape_team_payload` attaches `next_fixture` + `recent_results` per season, display
+     fields only. Per-fixture deep-link deferred to GAP-19.
+   - **GAP-14 — player `birth_date` → player payload. MERGED #609.** Export-only (+1 line in
+-    `shape_player_payload` surfacing the already-present `mart_player_profile.player_birth_date`) **PLUS** the
+-    directly-coupled wireframe + gaps-register doc sync, folded into the same PR at the CPO's explicit
+-    direction ("fix that doc too, now"). The first (code-only) review round had scope-auditor FAIL on the
+-    missing doc-sync → resolved by folding it in; all 4 routed reviewers then PASSed. **Open (CPO call, NOT
+-    decided):** whether folding a closed gap's spec-sync into its gap PR generalizes beyond #609 — vs the
+-    gaps-register note "gap fixes never ship inside blueprint PRs" — is unresolved; #609 was a specific CPO
+-    direction, not a general rule.
+-  - **Remaining Phase B (screens 03/02): GAP-16** (player current-team affiliation — dbt-derived per the
+-    register: latest team that season + per-season history, DQ-tested vs `dim_team`) · **GAP-01** (team venue
+-    fields, mart+export; disposition still **pending** — needs a §10 ruling before a clean start). CPO picks next.
++    `shape_player_payload`) **PLUS** the directly-coupled wireframe/gaps-register doc-sync, folded in at the
++    CPO's explicit direction. scope-auditor FAILed the code-only round on the missing doc-sync → resolved by
++    folding it in; all 4 routed reviewers then PASSed.
++  - **GAP-16 — player team affiliation (current team + per-season history) → player profile. MERGED #611.**
++    NEW `int_player_season__team` derives each player's team per competition-season = the club of their
++    **most-recent finished match** (Option B, CPO-ruled — deterministic/byte-stable; the roster source has no
++    transfer date) + an `is_current_team` flag; `mart_player_profile` joins it + dim_team identity, DQ-tested
++    (relationships `team_sk` → `dim_team`); the export reshapes into top-level `current_team` + a per-season
++    `team` block (selected by the dbt flag, never re-ranked). Wireframe §3/§4/§5/§8/§10 + register doc-sync
++    FOLDED in (CPO-directed). All 4 reviewers PASS; `data-build` green.
++  - **Remaining spec'd-screen Phase B: GAP-01 only** (team `team_founded_year`/`venue_name`/`venue_city`/
++    `venue_capacity` — exist in `dim_team`, absent from `mart_team_profile`; mart+export, ~4 additive columns;
++    disposition still **pending** → needs a §10 ruling before a clean start). CPO picks next: GAP-01 or Phase C/D.
++  - ⚠️ **Open (CPO call, NOT decided):** whether folding a closed gap's directly-coupled spec-sync into its
++    gap PR GENERALIZES — now **2 CPO-directed instances** (#609 status-only, #611 substantive) — vs the
++    gaps-register note "gap fixes never ship inside blueprint PRs". Each fold was a specific CPO direction,
++    not a general rule.
+   - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
+ - **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
+   YoY/streaks/season + wire. A chain.
+@@ -71,6 +78,8 @@ carries it)** first, then build the frontend against a stable export. The live M
+ 
+ ### ⭐ RECENT PRs
+ 
++- **#611 — #391 GAP-16: player team affiliation (current team + per-season history) → the v2 player profile, MERGED.** NEW `int_player_season__team` (most-recent-match club per player-season + `is_current_team`) → `mart_player_profile` (+ dim_team identity, relationships DQ test) → export (`current_team` + per-season `team`, selected by the dbt flag). Folded wireframe/register doc-sync. All 4 reviewers PASS; `data-build` + python-ci green. See the backlog GAP-16 entry above.
++- **#610 — handover refresh (#391 GAP-14 merged), MERGED.** Recorded the post-#609 state; established the plan-mode carve-out for handover refreshes; reserved the doc-sync fold-generalization question to the CPO.
+ - **#609 — #391 GAP-14: player `birth_date` → the v2 player payload, MERGED.** Export-only (+1 line in `shape_player_payload`; the column was already on `mart_player_profile`, just unsurfaced) + the folded-in wireframe/gaps-register doc sync. `data-build` + `ui-checks` skip (no dbt/UI change); python-ci green. See the backlog GAP-14 entry above.
+ - **#607 — #391 GAP-15: team fixtures (next + last 5) → the v2 team payload, MERGED.** Export-only; `mart_team_fixtures` (a view) → `shape_team_payload` attaches `next_fixture` + `recent_results` per season.
+ - **#606 — #391 A1: deserved-vs-actual on `mart_team_profile`, MERGED.** See the backlog A1 entry above.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3afcddf..e792829 100644
+index e792829..c687240 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,48 +1,91 @@
--# Task contract — refresh handover: #391 GAP-14 merged (#609), Phase B continues
-+# Task contract — #391 GAP-16: player team affiliation (current team + per-season history)
+@@ -1,91 +1,48 @@
+-# Task contract — #391 GAP-16: player team affiliation (current team + per-season history)
++# Task contract — refresh handover: #391 GAP-16 merged (#611), Phase B nearly done
  
--> Written on a CLEAN tree (branch chore/refresh-handover-609 off main @ 2b9f656).
--> Doc-only — no code/model change. Records this session's state for a cold chat.
--> See docs/working_agreement.md §2 (contract), §10 (decision rights).
-+> Written on a CLEAN tree (branch off main @ b840e6b). dbt build + export wiring + folded doc-sync.
-+> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), App. A.
+-> Written on a CLEAN tree (branch off main @ b840e6b). dbt build + export wiring + folded doc-sync.
+-> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (escalation), App. A.
++> Written on a CLEAN tree (branch chore/refresh-handover-611 off main @ aea472f).
++> Doc-only — no code/model change. Records this session's state for a cold chat.
++> See docs/working_agreement.md §2 (contract), §10 (decision rights).
  
  objective: >
--  Refresh .claude/active_work.md so a fresh chat continues from the post-#609 state: #391 GAP-14
--  (player birth_date → v2 player payload) MERGED as #609. Update the Phase-B gap-backlog status
--  (A1 #606, GAP-15 #607, GAP-14 #609 all merged; GAP-16 + GAP-01 remain) and set the next action =
--  CPO pick. Replaces the prior handover that still listed GAP-15 as "PR #607 open" and predated GAP-14.
-+  Surface the player's CURRENT team + per-season team on the v2 player page. mart_player_profile carries
-+  no team today (correct at its grain; players transfer). Per the CPO ruling this session, "team" is the
-+  club of the player's MOST RECENT finished match (Option B — deterministic, byte-stable, matches the
-+  profile's played-seasons grain), derived in dbt, DQ-tested vs dim_team. A new intermediate computes the
-+  per-(player, competition-season) most-recent-match team + a single current-team flag; mart_player_profile
-+  joins it + dim_team identity; the export reshapes (no derivation). The directly-coupled wireframe + gaps
-+  register are synced in the same PR (CPO chose FOLD at plan approval). Closes GAP-16.
+-  Surface the player's CURRENT team + per-season team on the v2 player page. mart_player_profile carries
+-  no team today (correct at its grain; players transfer). Per the CPO ruling this session, "team" is the
+-  club of the player's MOST RECENT finished match (Option B — deterministic, byte-stable, matches the
+-  profile's played-seasons grain), derived in dbt, DQ-tested vs dim_team. A new intermediate computes the
+-  per-(player, competition-season) most-recent-match team + a single current-team flag; mart_player_profile
+-  joins it + dim_team identity; the export reshapes (no derivation). The directly-coupled wireframe + gaps
+-  register are synced in the same PR (CPO chose FOLD at plan approval). Closes GAP-16.
++  Refresh .claude/active_work.md so a fresh chat continues from the post-#611 state: #391 GAP-16 (player
++  team affiliation — current team + per-season history) MERGED as #611. Update the Phase-B backlog (A1 #606,
++  GAP-15 #607, GAP-14 #609, GAP-16 #611 all merged; only GAP-01 remains on the spec'd screens) and set the
++  next action = CPO pick (GAP-01, which needs a disposition ruling first, or move to Phase C/D).
  
  refs: >
--  This session (2026-06-30): Phase-B pick = GAP-14 (CPO); built export-only, then folded the wireframe/
--  gaps-register doc sync in per CPO go ("fix that doc too, now, in the same change"); merged as #609.
--  Mirrors prior handover refreshes (#608/#607, #605/#604, #602, #599).
-+  #391 (un-paused, data-first) · GAP-16 (Phase B; register "approved CPO 2026-06-11", scope = current team
-+  + history) · CPO source ruling this session: Option B (most-recent-match team, dbt-derived) — DEVIATES
-+  from the register's literal "affiliation" (roster) wording, which lacks a transfer date so cannot give a
-+  stable "latest team that season". Doc-sync FOLD chosen by CPO at plan approval. backlog in .claude/active_work.md.
+-  #391 (un-paused, data-first) · GAP-16 (Phase B; register "approved CPO 2026-06-11", scope = current team
+-  + history) · CPO source ruling this session: Option B (most-recent-match team, dbt-derived) — DEVIATES
+-  from the register's literal "affiliation" (roster) wording, which lacks a transfer date so cannot give a
+-  stable "latest team that season". Doc-sync FOLD chosen by CPO at plan approval. backlog in .claude/active_work.md.
++  This session (2026-06-30): GAP-14 (#609) → handover (#610) → GAP-16 (#611). GAP-16 source = Option B
++  (most-recent-finished-match team, dbt-derived; CPO-ruled), int_player_season__team + mart + DQ + export +
++  folded wireframe/register doc-sync (CPO-directed). Mirrors prior handover refreshes (#610, #608, #605...).
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/models/4_intermediate/shared/int_player_season__team.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - docs/wireframes/03_player_profile.md
-+  - docs/wireframes/99_gaps_register.md
+-  - dbt_project/models/4_intermediate/shared/int_player_season__team.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
+-  - docs/wireframes/03_player_profile.md
+-  - docs/wireframes/99_gaps_register.md
++  - .claude/active_work.md
    - .claude/task/**
  
-+# Structural surface (dbt_project/models/** + scripts/export_*.py) in scope -> impact_map required.
-+impact_map: >
-+  writers: NEW `int_player_season__team` (grain player_sk, league_code, season_api_year — 1:1 with the
-+    mart's player_sk+season_sk) from `int_legs__player_match` (the conformed finished player-match leg;
-+    carries player_sk, team_sk, league_code, season_api_year, fixture_sk, kickoff_datetime — same source
-+    + finished-only filter as the profile, so grains align). Per (player, competition-season): team_sk of
-+    the max-kickoff leg (qualify row_number, tiebreak fixture_sk). is_current_team = the season-row holding
-+    the player's GLOBAL max-kickoff (row_number over player). mart_player_profile (materialized=TABLE ->
-+    full rebuild each run, NO incremental/full-refresh dance) LEFT JOINs it on (player_sk, league_code,
-+    season_api_year) + LEFT JOINs dim_team for identity (team_name/team_logo_url/team_country), mirroring
-+    its existing dim_player identity join.
-+  downstream: mart_player_profile is consumed ONLY by the v2 player export (scripts/export_site_data.py,
-+    `select * from mart_player_profile`) + documented in shared.yml. (`int_player_season__metrics.sql:5`
-+    names it in a COMMENT, not a ref() — verified; no inverted dependency.) The new intermediate is
-+    consumed only by mart_player_profile.
-+  layer_rules: intermediate = the recency BUSINESS LOGIC (which team is "most recent"); mart = assembly +
-+    dim_team identity join; export = reshape ONLY (dbt owns is_current_team + team_sk; the export selects
-+    by the flag, never re-ranks). check_layer_contract; consumption-layer contract.
-+  deploy_order: mart_player_profile is table-materialized -> rebuilt on the next nightly run after the new
-+    intermediate; no incremental rename, no --full-refresh. The export is wired into NO workflow (only
-+    export_pages_data.py, the live-MVP export, runs in pages/ci-ui) -> zero live-MVP impact. ci-data-build
-+    builds + DQ-tests the new model + the mart relationships test on this PR.
-+  blast_radius: +1 intermediate (+ its yml), ~5 new columns on mart_player_profile (team_sk,
-+    is_current_team, team_name, team_logo_url, team_country), +1 relationships DQ test (team_sk -> dim_team)
-+    + the int grain test. Player payload gains top-level `current_team` + a per-season `team` block. NO
-+    change to any existing metric/number. Live MVP (`site/`) untouched. Docs are non-executed.
-+
+-# Structural surface (dbt_project/models/** + scripts/export_*.py) in scope -> impact_map required.
+-impact_map: >
+-  writers: NEW `int_player_season__team` (grain player_sk, league_code, season_api_year — 1:1 with the
+-    mart's player_sk+season_sk) from `int_legs__player_match` (the conformed finished player-match leg;
+-    carries player_sk, team_sk, league_code, season_api_year, fixture_sk, kickoff_datetime — same source
+-    + finished-only filter as the profile, so grains align). Per (player, competition-season): team_sk of
+-    the max-kickoff leg (qualify row_number, tiebreak fixture_sk). is_current_team = the season-row holding
+-    the player's GLOBAL max-kickoff (row_number over player). mart_player_profile (materialized=TABLE ->
+-    full rebuild each run, NO incremental/full-refresh dance) LEFT JOINs it on (player_sk, league_code,
+-    season_api_year) + LEFT JOINs dim_team for identity (team_name/team_logo_url/team_country), mirroring
+-    its existing dim_player identity join.
+-  downstream: mart_player_profile is consumed ONLY by the v2 player export (scripts/export_site_data.py,
+-    `select * from mart_player_profile`) + documented in shared.yml. (`int_player_season__metrics.sql:5`
+-    names it in a COMMENT, not a ref() — verified; no inverted dependency.) The new intermediate is
+-    consumed only by mart_player_profile.
+-  layer_rules: intermediate = the recency BUSINESS LOGIC (which team is "most recent"); mart = assembly +
+-    dim_team identity join; export = reshape ONLY (dbt owns is_current_team + team_sk; the export selects
+-    by the flag, never re-ranks). check_layer_contract; consumption-layer contract.
+-  deploy_order: mart_player_profile is table-materialized -> rebuilt on the next nightly run after the new
+-    intermediate; no incremental rename, no --full-refresh. The export is wired into NO workflow (only
+-    export_pages_data.py, the live-MVP export, runs in pages/ci-ui) -> zero live-MVP impact. ci-data-build
+-    builds + DQ-tests the new model + the mart relationships test on this PR.
+-  blast_radius: +1 intermediate (+ its yml), ~5 new columns on mart_player_profile (team_sk,
+-    is_current_team, team_name, team_logo_url, team_country), +1 relationships DQ test (team_sk -> dim_team)
+-    + the int grain test. Player payload gains top-level `current_team` + a per-season `team` block. NO
+-    change to any existing metric/number. Live MVP (`site/`) untouched. Docs are non-executed.
+-
  decisions_taken: >
--  Documentation / handover only — RECORDS this session's STATE for a cold chat: GAP-14 merged (#609) and the
--  Phase-B backlog status. It records the FACT that #609 ALSO carried the directly-coupled wireframe +
--  gaps-register doc sync, folded into the same PR at the CPO's explicit per-PR direction ("fix that doc too,
--  now, in the same change") — a specific instruction for #609, NOT a general rule. Per-PR §10 items (GAP-14's
--  key name `birth_date`; the doc-sync fold) are owned + evidenced in #609's own review.md, not re-decided
--  here. Asserts NO governance reinterpretation and invents no product/metric/naming decision.
-+  Source = Option B (most-recent-finished-match team), CPO-ruled this session — deterministic + byte-stable
-+  where the register's literal roster source cannot be (no transfer date). "current team" = club of the
-+  player's single most-recent finished match overall (dbt flag is_current_team); per-season "team" = club
-+  of their most-recent finished match that competition-season. dbt owns the ranking; the export selects by
-+  the flag + reshapes (consumption-layer honored). DQ = relationships test team_sk -> dim_team. The mart
-+  carries team identity (joined from dim_team) so it stays self-describing. Source = int_legs__player_match
-+  (the tested conformed leg, finished-only) — modular, mirrors int_player_season_record. Doc-sync FOLDED in
-+  per the CPO's choice at plan approval (GAP-16's wireframe §5 is substantively wrong — wrong source + wrong
-+  layer — so shipping code-≠-spec is worse than for GAP-14); this also records the Option-B ruling in the
-+  register. Naming (int_player_season__team, is_current_team, payload current_team + per-season team block)
-+  proposed in the plan, approved by the CPO at ExitPlanMode.
+-  Source = Option B (most-recent-finished-match team), CPO-ruled this session — deterministic + byte-stable
+-  where the register's literal roster source cannot be (no transfer date). "current team" = club of the
+-  player's single most-recent finished match overall (dbt flag is_current_team); per-season "team" = club
+-  of their most-recent finished match that competition-season. dbt owns the ranking; the export selects by
+-  the flag + reshapes (consumption-layer honored). DQ = relationships test team_sk -> dim_team. The mart
+-  carries team identity (joined from dim_team) so it stays self-describing. Source = int_legs__player_match
+-  (the tested conformed leg, finished-only) — modular, mirrors int_player_season_record. Doc-sync FOLDED in
+-  per the CPO's choice at plan approval (GAP-16's wireframe §5 is substantively wrong — wrong source + wrong
+-  layer — so shipping code-≠-spec is worse than for GAP-14); this also records the Option-B ruling in the
+-  register. Naming (int_player_season__team, is_current_team, payload current_team + per-season team block)
+-  proposed in the plan, approved by the CPO at ExitPlanMode.
++  Documentation / handover only — RECORDS this session's STATE for a cold chat: GAP-16 merged (#611), the
++  Phase-B backlog status, and the FACT that #611's doc-sync was folded in at the CPO's explicit per-PR
++  direction (the 2nd instance after #609). Per-PR §10 items (GAP-16's Option-B source ruling; the naming;
++  the doc-sync fold) are owned + evidenced in #611's own review.md, not re-decided here. Asserts NO
++  governance reinterpretation (the "does folding generalize" question stays OPEN — see decisions_reserved)
++  and invents no product/metric/naming decision.
  
  decisions_reserved:
--  - Whether folding a closed gap's directly-coupled spec-sync into its gap PR GENERALIZES beyond #609 — and
--    how that squares with the gaps-register note "gap fixes never ship inside blueprint PRs" — is an OPEN
--    governance question, reserved to the CPO. #609 was a specific CPO direction, not a precedent that settles
--    the general rule; the handover flags it open, does not decide it.
--  - The next Phase-B (or Phase-C/D) item — CPO directs; none auto-granted. Remaining spec'd-screen Phase-B:
--    GAP-16 (player current-team affiliation, dbt-derived) and GAP-01 (team venue fields, mart+export —
--    disposition still "pending", needs a §10 ruling before a clean start).
--  - Whether to spec the orphan-mart screens (Squad / Stats-percentile / Career) — wireframe/design, CPO call.
--  - The two stale-wireframe reconciliations (02 block-5 ratio-space vs the shipped rank-space;
--    finishing_efficiency [0,1]/Option A vs the "never capped" line) — flagged, not decided.
-+  - is_current_team uniqueness (exactly one per player) is GUARANTEED by the deterministic row_number()=1
-+    window (every player in the int has >=1 leg) — relying on construction + the grain test, NOT adding a
-+    separate singular test (would expand scope to dbt_project/tests/ + the FROM-clause gotcha). Documented.
-+  - HOW current team / age etc. render is a frontend (§10) concern, deferred to Phase E; the wireframe stays
-+    descriptive.
+-  - is_current_team uniqueness (exactly one per player) is GUARANTEED by the deterministic row_number()=1
+-    window (every player in the int has >=1 leg) — relying on construction + the grain test, NOT adding a
+-    separate singular test (would expand scope to dbt_project/tests/ + the FROM-clause gotcha). Documented.
+-  - HOW current team / age etc. render is a frontend (§10) concern, deferred to Phase E; the wireframe stays
+-    descriptive.
++  - The next item — CPO directs; none auto-granted. Remaining spec'd-screen Phase-B = GAP-01 (team venue/
++    founded fields, mart+export; disposition still "pending" — needs a §10 ruling before a clean start).
++    Beyond that: Phase C (player-season foundation chain) / Phase D (flagship design marts).
++  - The open governance question — whether folding a closed gap's directly-coupled spec-sync into its gap
++    PR GENERALIZES (now 2 CPO-directed instances: #609 status-only, #611 substantive) vs the gaps-register
++    "gap fixes never ship inside blueprint PRs" note — stays OPEN, reserved to the CPO. Not decided here.
++  - The two stale-wireframe reconciliations (02 block-5 ratio-space vs the shipped rank-space;
++    finishing_efficiency [0,1] vs the "never capped" line) — flagged, not decided. (03-player staleness was
++    resolved by #609 + #611.)
  
  done_when:
--  - active_work.md states main @ 2b9f656 (GAP-14 #609 merged); records the data-first #391 strategy, the
--    updated backlog (A1 #606 / GAP-15 #607 / GAP-14 #609 done; GAP-16 + GAP-01 remaining), the #609 doc-sync
--    FACT + the open generalization flag, the two stale-wireframe flags, and the standing rules.
--  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
-+  - `int_player_season__team` (+ yml: grain unique_combination + not_null cols) builds; mart_player_profile
-+    carries team_sk + is_current_team + team identity; shared.yml documents them + the relationships DQ test
-+    (team_sk -> dim_team) — both run in ci-data-build.
-+  - shape_player_payload emits top-level `current_team` (from the is_current_team row, NOT re-ranked) + a
-+    per-season `team` block; `pytest tests/test_export_site_data.py` green incl. new asserts.
-+  - wireframe 03_player_profile.md no longer says "latest match-log row"/export-side (§5 dbt-derived
-+    most-recent-match; §4/§8 updated; §10 GAP-16 removed); 99_gaps_register.md GAP-16 marked shipped + Option-B note.
-+  - `python scripts/check_layer_contract.py` passes; dbt build + DQ in ci-data-build (dbt CLI broken locally).
-+  - scope-auditor + analytics-engineer + cto + bi-analyst PASS (>=2 risks each); review.md binds the staged
-+    diff; CPO merges (never self-merge).
+-  - `int_player_season__team` (+ yml: grain unique_combination + not_null cols) builds; mart_player_profile
+-    carries team_sk + is_current_team + team identity; shared.yml documents them + the relationships DQ test
+-    (team_sk -> dim_team) — both run in ci-data-build.
+-  - shape_player_payload emits top-level `current_team` (from the is_current_team row, NOT re-ranked) + a
+-    per-season `team` block; `pytest tests/test_export_site_data.py` green incl. new asserts.
+-  - wireframe 03_player_profile.md no longer says "latest match-log row"/export-side (§5 dbt-derived
+-    most-recent-match; §4/§8 updated; §10 GAP-16 removed); 99_gaps_register.md GAP-16 marked shipped + Option-B note.
+-  - `python scripts/check_layer_contract.py` passes; dbt build + DQ in ci-data-build (dbt CLI broken locally).
+-  - scope-auditor + analytics-engineer + cto + bi-analyst PASS (>=2 risks each); review.md binds the staged
+-    diff; CPO merges (never self-merge).
++  - active_work.md states main @ aea472f (GAP-16 #611 merged); records the data-first #391 strategy, the
++    updated backlog (A1/GAP-15/GAP-14/GAP-16 done; GAP-01 the last spec'd Phase-B item), GAP-16's Option-B
++    source + the doc-sync FACT, the still-open fold-generalization question, the two stale-wireframe flags,
++    and the standing rules.
++  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
  
  amendments: (none)
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season__team.sql b/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
-new file mode 100644
-index 0000000..143c3b6
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
-@@ -0,0 +1,62 @@
-+{{ config(materialized='table') }}
-+
-+{#
-+  GAP-16 — the player's team per competition-season: the club of their MOST RECENT finished match
-+  that season (Option B, CPO-ruled 2026-06-30 — deterministic + byte-stable, where the roster
-+  affiliation source has no transfer date so cannot give a stable "latest team that season").
-+  is_current_team flags the single season-row holding the player's globally most-recent finished
-+  match (their current club). dbt owns "which team is current"; the consumption layer never re-ranks.
-+
-+  Built on int_legs__player_match (the conformed finished player-match leg; team_sk = the club the
-+  player played for in that match), mirroring int_player_season_record. Grain:
-+  (player_sk, league_code, season_api_year) — 1:1 with mart_player_profile's (player_sk, season_sk).
-+  Consumed only by mart_player_profile.
-+#}
-+
-+with legs as (
-+    select
-+        player_sk,
-+        team_sk,
-+        league_code,
-+        season_api_year,
-+        fixture_sk,
-+        kickoff_datetime
-+    from {{ ref('int_legs__player_match') }}
-+),
-+
-+-- Club of the player's most recent finished match in each competition-season.
-+season_team as (
-+    select
-+        player_sk,
-+        league_code,
-+        season_api_year,
-+        team_sk,
-+        kickoff_datetime as last_match_kickoff
-+    from legs
-+    qualify row_number() over (
-+        partition by player_sk, league_code, season_api_year
-+        order by kickoff_datetime desc, fixture_sk desc
-+    ) = 1
-+),
-+
-+-- Rank each competition-season by recency within the player; rank 1 = their current club.
-+ranked as (
-+    select
-+        player_sk,
-+        league_code,
-+        season_api_year,
-+        team_sk,
-+        row_number() over (
-+            partition by player_sk
-+            order by last_match_kickoff desc, season_api_year desc, league_code desc
-+        ) as current_rank
-+    from season_team
-+)
-+
-+select
-+    player_sk,
-+    league_code,
-+    season_api_year,
-+    team_sk,
-+    current_rank = 1 as is_current_team
-+from ranked
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season__team.yml b/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
-new file mode 100644
-index 0000000..2799533
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
-@@ -0,0 +1,32 @@
-+version: 2
-+
-+models:
-+  - name: int_player_season__team
-+    description: >
-+      GAP-16 — the player's team per competition-season: the club of the player's MOST RECENT finished
-+      match that season (Option B, CPO-ruled 2026-06-30 — deterministic + byte-stable; the roster
-+      affiliation source has no transfer date so cannot give a stable "latest team that season").
-+      is_current_team flags the single season-row holding the player's globally most-recent finished match
-+      (their current club) — guaranteed unique per player by the deterministic row_number()=1 window. Built
-+      on int_legs__player_match (finished player-match legs). Consumed by mart_player_profile.
-+      Grain: (player_sk, league_code, season_api_year) — 1:1 with mart_player_profile's (player_sk, season_sk).
-+    config:
-+      tags: ["intermediate", "football", "player"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [player_sk, league_code, season_api_year]
-+    columns:
-+      - name: player_sk
-+        description: "FK to dim_player."
-+        tests: [not_null]
-+      - name: league_code
-+        description: "Partition key."
-+        tests: [not_null]
-+      - name: season_api_year
-+        tests: [not_null]
-+      - name: team_sk
-+        description: "Club of the player's most recent finished match this competition-season (FK to dim_team)."
-+        tests: [not_null]
-+      - name: is_current_team
-+        description: "True on the one season-row holding the player's globally most-recent finished match (their current club)."
-+        tests: [not_null]
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index 9b29b38..96672f7 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -57,6 +57,22 @@ modal_position as (
-         partition by player_sk, season_sk
-         order by count(*) desc
-     ) = 1
-+),
-+
-+-- GAP-16: the player's team per competition-season (most-recent-match club + the current-club flag),
-+-- derived in dbt. The export selects by is_current_team — it never re-ranks (consumption-layer).
-+team_affiliation as (
-+    select * from {{ ref('int_player_season__team') }}
-+),
-+
-+-- dim_team identity for the affiliated club (mirrors the dim_player identity join below).
-+teams as (
-+    select
-+        team_sk,
-+        team_name,
-+        team_logo_url,
-+        team_country
-+    from {{ ref('dim_team') }}
- )
- 
- select
-@@ -80,6 +96,13 @@ select
-     p.player_position,
-     p.player_photo_url,
-     mp.position_code,
-+    -- team affiliation (GAP-16): the most-recent-match club this competition-season + the current-club
-+    -- flag (the player's single most-recent finished match overall); identity from dim_team.
-+    ta.team_sk,
-+    coalesce(ta.is_current_team, false) as is_current_team,
-+    t.team_name,
-+    t.team_logo_url,
-+    t.team_country,
-     a.appearances,
-     a.starts,
-     a.substitute_appearances,
-@@ -119,3 +142,10 @@ left join modal_position as mp
-     on
-         a.player_sk = mp.player_sk
-         and a.season_sk = mp.season_sk
-+left join team_affiliation as ta
-+    on
-+        a.player_sk = ta.player_sk
-+        and a.league_code = ta.league_code
-+        and a.season_api_year = ta.season_api_year
-+left join teams as t
-+    on ta.team_sk = t.team_sk
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index d054e36..6e329f9 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -628,6 +628,26 @@ models:
-         description: "Weight (e.g. '75 kg'), from dim_player bio."
-       - name: player_position
-         description: "General/listed position from bio (distinct from position_code, the season modal)."
-+      # team affiliation (GAP-16): most-recent-match club this competition-season + current-club flag
-+      - name: team_sk
-+        description: >
-+          Club of the player's most recent finished match this competition-season (Option B,
-+          CPO-ruled 2026-06-30). FK to dim_team; null only when the player-season has no finished leg.
-+        tests:
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: is_current_team
-+        description: >
-+          True on the player's current-club row (the season holding their globally most-recent finished
-+          match). Exactly one true per player by construction; the export selects current_team by this flag.
-+        tests: [not_null]
-+      - name: team_name
-+        description: "Affiliated club display name, from dim_team."
-+      - name: team_logo_url
-+        description: "Affiliated club crest URL, from dim_team."
-+      - name: team_country
-+        description: "Affiliated club country, from dim_team."
- 
-   - name: mart_player_match_log
-     description: >
-diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
-index 046a069..f989c2b 100644
---- a/docs/wireframes/03_player_profile.md
-+++ b/docs/wireframes/03_player_profile.md
-@@ -26,9 +26,9 @@ per-90, no composite ratings (locked).
- ## 3. Data sources
- 
- `data/players/{player_id}.json` —
--top level: `player_id, slug, name, nationality, birth_date, photo, position`;
-+top level: `player_id, slug, name, nationality, birth_date, photo, position, current_team`;
- `seasons[]` (per league-season, year desc): appearance facts + the bundle
--atomics; `match_log[]` (all matches with a stat line, latest first).
-+atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest first).
- 
- ## 4. Layout
- 
-@@ -37,8 +37,8 @@ atomics; `match_log[]` (all matches with a stat line, latest first).
- │ ▸Home › ▸Players › Jamal Musiala           │  (1) breadcrumb
- ├────────────────────────────────────────────┤
- │  [photo]  Jamal Musiala          [MF]      │  (2) identity header
--│           Germany                          │      (birth date in payload;
--│           ▸FC Bayern München               │       team: GAP-16)
-+│           Germany                          │      (birth date + current_team
-+│           ▸FC Bayern München               │       now in payload)
- │  [ Bundesliga 2025/26          ▾ ]         │  (3) season selector
- ├────────────────────────────────────────────┤
- │  14 apps (12 starts) · 1.102 min           │  (4) appearance facts
-@@ -77,7 +77,7 @@ season stats; right: match log (it carries the scroll).
- | Name / photo / nationality | top-level `name`, `photo`, `nationality` | photo fallback = initials monogram |
- | Position badge | `position` (`G/D/M/F`) | i18n badge labels (GK/DF/MF/FW) |
- | Birth date / age | top-level `birth_date` | `player_birth_date` from the mart, surfaced top-level; age derived at render |
--| Current team + history | — | **GAP-16, approved** — `current_team` from the latest match-log row + per-season team history; ▸ team profile link |
-+| Current team + history | top-level `current_team` + `seasons[].team` | dbt-derived (`int_player_season__team`): the club of the player's most-recent finished match — `current_team` = most recent overall, `seasons[].team` = per competition-season; ▸ team profile link via `team_id` |
- | Selector | `seasons[].league_code` + `season_api_year` | default = most recent |
- 
- ### (4) Appearance facts (selected season row)
-@@ -148,7 +148,7 @@ may show the full per-match line: `shots_total`, `shots_on`, `passes_total`,
- ## 8. SEO
- 
- - `schema.org/Person` (athlete): name, image = photo, nationality;
--  `memberOf` once GAP-16 lands.
-+  `memberOf` from `current_team`.
- - Title: `{name} — Stats & Match Log | Matchday IQ` (localized).
- - Meta description templated from season facts (apps, goals, assists).
- - `BreadcrumbList`; canonical + hreflang; OG card with photo.
-@@ -164,4 +164,3 @@ empty/absent states · internal-links footer.
- 
- - [GAP-08](99_gaps_register.md) — `round_name` localization (match log secondary line).
- - [GAP-12](99_gaps_register.md) — GK triple atomics (save bundle, §5.5).
--- [GAP-16](99_gaps_register.md) — no current-team affiliation in the profile (§5.2).
-diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index e337a5d..31f6d7c 100644
---- a/docs/wireframes/99_gaps_register.md
-+++ b/docs/wireframes/99_gaps_register.md
-@@ -24,7 +24,7 @@
- | GAP-13 | 02 team | mart | Five locked metric rows have no full-season variant: Ø shots on target, Ø duels, % duels won, Ø defensive actions, Ø key passes — `int_team_season__full_season_metrics` predates the player-stat-derived team metrics (W1/W2 have them; those are fixture-anchored and can't serve season pages) | Extend the full-season intermediate + `mart_team_profile` + team export with the five season columns | **approved** (CPO 2026-06-11) | — |
- | GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11); **shipped** 2026-06-30 (#391 Phase B) | — |
- | GAP-15 | 02 team | export | Team profile has no fixtures list, promised by brief §6.2; the payload is `mart_team_profile` rows only | **Scope ruled: next fixture + last 5 results** per (team, season). **Disposition revised 2026-06-11 (consumption-layer contract): a `mart_team_fixtures`** built on `fct_fixture` + the tested `int_legs__team_match` perspective legs — the export only selects/groups; interim = links to the competition fixtures page | **approved** (CPO 2026-06-11) | — |
--| GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11) | — |
-+| GAP-16 | 03 player | export | No team affiliation in the player profile payload (`mart_player_profile` has no team column — correct at its grain, players transfer); brief §6.4 promises team | **Scope ruled: current team AND team history**. **Disposition revised 2026-06-11 (consumption-layer contract): derived in dbt**, not the export — team affiliation per (player, season) on the player surface (latest team that season + per-season history), DQ-tested against `dim_team` | **approved** (CPO 2026-06-11); **shipped** 2026-06-30 (#391 Phase B) — **source = Option B: the club of the player's most-recent finished match** (`int_player_season__team`), CPO-ruled this session (the literal roster "affiliation" has no transfer date, so cannot give a byte-stable "latest team that season") | — |
- | GAP-17 | 02 team, MVP | mart | Pre-existing: the season rollup's original per-match rates divide by `season_games_played`, not stat-coverage counts (pre-coverage-rule convention) — understates rates where coverage < played. The five NEW season variants (GAP-13) already use coverage denominators | Align the old denominators with the coverage rule — **changes shipped MVP numbers**, so explicitly a CPO ruling; until then the two conventions coexist, documented in the rollup header | pending | — |
- | GAP-18 | 01 fixture | mart | The context matrix's tournament exception is NOT implemented in the new window marts: `int_team_momentum_window` hard-caps at `recency_rank <= 5` for everyone (no cumulative-within-tournament mode from group-stage MD2, no qualifier preview — `wc_supporting_league_codes` is referenced by zero models, orphaned in the #321 migration), and the marts carry no `phase` descriptor for honest labelling | Implement the matrix exception in the form-window selection (tournament-cumulative + qualifier preview via the seed) + add `phase`/window descriptors; **needed before WC 2026 (summer)** | **approved** (CPO 2026-06-11); **live preview fixed** 2026-06-16 (CPO go-ahead, same date) — tournament/qualifier form window (`window_type` tournament_to_date / qualifiers) in `int_team_momentum_window` via the registry parent link, world + continental championship; live match-preview form NUMBERS are cumulative-correct AND the WC form LABEL now switches via `form_from_qualifiers` on `mart_matchday_insights` feeding the existing `formContextLabel` UI + `formContextWc*` i18n. The v2 blueprint drill-down (`form_window[]` cap, separate `phase` column) stays under #391. Deferred: qualifying-type #483, player strip #484 | — |
- | GAP-19 | export (all screens) | mart + export | Consumption-layer audit (CPO ruling: ALL logic/transformation in dbt; the export may never compute): the merged export derives five things in Python — (1) leaderboard ranking + zero-exclusion, (2) top-player ranking (goals→assists→key passes), (3) nav taxonomy (`_GROUP_OF_TYPE` competition_type→group dict), (4) H2H canonical pair ordering, (5) **slugs** (published URL identity — must be byte-identical across any frontend) | Migrate each to dbt: rank columns on the player marts (`mart_top_scorers.scorer_rank` is the pattern), a leaderboards mart, `display_group` on the registry/seed, canonical pair key on `mart_head_to_head`, slug columns on the entity marts; export shrinks to selection | **approved** (CPO 2026-06-11) | — |
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 0d173c9..795f2d6 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -175,6 +175,22 @@ def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None
-     }
- 
- 
-+def _player_team_block(row: dict) -> dict | None:
-+    """The player's affiliated club for a profile row -> {team_id, name, crest, country},
-+    or None when the player-season has no team (honest absence). team_sk + is_current_team
-+    are computed in dbt (int_player_season__team); identity is joined from dim_team. The
-+    export only selects/reshapes — it never decides which club is current."""
-+    team_sk = row.get("team_sk")
-+    if team_sk is None:
-+        return None
-+    return {
-+        "team_id": int(team_sk),
-+        "name": row.get("team_name"),
-+        "crest": row.get("team_logo_url"),
-+        "country": row.get("team_country"),
-+    }
-+
-+
- def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> dict:
-     """One player's profile rows + match-log rows -> the player page payload."""
-     latest = _latest_season_row(profile_rows)
-@@ -189,6 +205,19 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
-         key=lambda r: (r.get("kickoff_datetime") or datetime.min),
-         reverse=True,
-     )
-+    # Per-season club + the single current club. is_current_team is the dbt flag
-+    # (int_player_season__team) — the export selects by it, it never re-ranks.
-+    current_team = None
-+    seasons_out = []
-+    for r in seasons:
-+        team = _player_team_block(r)
-+        if current_team is None and r.get("is_current_team"):
-+            current_team = team
-+        s = _strip_identity(r)
-+        for k in ("team_sk", "is_current_team"):
-+            s.pop(k, None)
-+        s["team"] = team
-+        seasons_out.append(s)
-     return {
-         "type": "player",
-         "player_id": player_id,
-@@ -198,7 +227,8 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
-         "birth_date": latest.get("player_birth_date"),
-         "photo": latest.get("player_photo_url"),
-         "position": latest.get("position_code"),
--        "seasons": [_strip_identity(r) for r in seasons],
-+        "current_team": current_team,
-+        "seasons": seasons_out,
-         "match_log": matches,
-     }
- 
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 8ed51a2..882c2bc 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -251,6 +251,31 @@ def test_shape_player_payload_orders_match_log_desc():
-     assert [m["opponent_name"] for m in p["match_log"]] == ["B", "A"]  # latest first
- 
- 
-+def test_shape_player_payload_current_team_and_per_season_team():
-+    # GAP-16: dbt (int_player_season__team) flags the current club via is_current_team; the export
-+    # SELECTS current_team by that flag and never re-ranks. Here 2024 is flagged (not the latest
-+    # 2025 season) on purpose — to prove the export reads the flag, not its own "latest season".
-+    profiles = [
-+        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD", "player_name": "Player X",
-+         "team_sk": 541, "is_current_team": False,
-+         "team_name": "Real Madrid", "team_logo_url": "rm.png", "team_country": "Spain"},
-+        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1", "player_name": "Player X",
-+         "team_sk": 157, "is_current_team": True,
-+         "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany"},
-+        {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
-+         "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
-+    ]
-+    p = shape_player_payload(profiles, [])
-+    assert p["current_team"] == {"team_id": 157, "name": "Bayern",
-+                                 "crest": "fcb.png", "country": "Germany"}
-+    teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
-+    assert teams[0]["team_id"] == 541           # 2025 PD
-+    assert teams[1]["team_id"] == 157           # 2024 BL1
-+    assert teams[2] is None                     # 2023: no team
-+    # internal keys never leak into the published season rows
-+    assert all("team_sk" not in s and "is_current_team" not in s for s in p["seasons"])
-+
-+
- def test_build_manifest_counts_by_type():
-     entries = [
-         {"type": "team", "id": 1, "slug": "a-1", "path": "teams/1.json", "sha256": "x"},
