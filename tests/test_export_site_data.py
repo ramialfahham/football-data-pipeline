@@ -242,6 +242,54 @@ def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
     assert s2024["recent_results"] == []
 
 
+def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
+    rows = [
+        {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
+         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"},
+        {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
+         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2"},
+    ]
+
+    def member(player_sk, name, *, position="Midfielder"):
+        return {
+            "player_team_season_sk": player_sk * 10, "team_sk": 157, "player_sk": player_sk,
+            "season_sk": 1, "league_code": "BL1", "season_api_year": 2025,
+            "competition_type": "domestic_league", "entity_type": "club",
+            "player_name": name, "player_position": position,
+            "player_nationality": "Germany", "player_birth_date": "1996-02-08",
+            "player_photo_url": "p",
+        }
+
+    # deliberately out of player_sk order; one unresolved-player row (null name) to be omitted
+    roster = [
+        member(30, "Kimmich"),
+        member(9, "Kane", position="Attacker"),
+        member(1, "Neuer", position="Goalkeeper"),
+        member(99, None),
+    ]
+    p = shape_team_payload(rows, None, roster)
+    s2025 = p["seasons"][0]
+    assert s2025["season_api_year"] == 2025
+    # sorted by player_sk (byte-stable), the null-name member omitted
+    assert [m["player_id"] for m in s2025["squad"]] == [1, 9, 30]
+    assert [m["name"] for m in s2025["squad"]] == ["Neuer", "Kane", "Kimmich"]
+    # each member carries only the six identity-only display keys
+    assert set(s2025["squad"][0]) == {
+        "player_id", "name", "position", "nationality", "birth_date", "photo"}
+    for internal in ("team_sk", "league_code", "season_api_year", "player_team_season_sk",
+                     "season_sk", "competition_type", "entity_type", "player_sk"):
+        assert all(internal not in m for m in s2025["squad"])
+    # a season with no roster rows renders the empty squad
+    assert p["seasons"][1]["squad"] == []
+
+
+def test_shape_team_payload_squad_defaults_empty_without_roster():
+    rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
+             "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
+    p = shape_team_payload(rows)
+    assert p["seasons"][0]["squad"] == []
+
+
 def test_shape_player_payload_orders_match_log_desc():
     profiles = [
         {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
