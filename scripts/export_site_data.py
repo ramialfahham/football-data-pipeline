@@ -132,6 +132,23 @@ def _shape_team_fixture(row: dict) -> dict:
     return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
 
 
+def _shape_squad_member(row: dict) -> dict:
+    """One mart_roster row -> an identity-only squad member (GAP-20). Internal keys
+    (team_sk, league_code, season_api_year, player_team_season_sk, season_sk,
+    competition_type, entity_type) are dropped. player_position is carried RAW — the
+    GK/DEF/MID/ATT grouping is frontend display, not an export derivation. No slug
+    (the frontend slugifies from player_id + name; slug migration is GAP-19). No
+    per-club stats — that is #480 / Phase C."""
+    return {
+        "player_id": int(row["player_sk"]),
+        "name": row.get("player_name"),
+        "position": row.get("player_position"),
+        "nationality": row.get("player_nationality"),
+        "birth_date": row.get("player_birth_date"),
+        "photo": row.get("player_photo_url"),
+    }
+
+
 def _venue_block(row: dict) -> dict | None:
     """The team's home venue -> {name, city, capacity}, or None when the team has no venue
     data (honest absence). Identity from dim_team (via the mart); the export does not derive it."""
@@ -143,11 +160,16 @@ def _venue_block(row: dict) -> dict | None:
     return {"name": name, "city": city, "capacity": capacity}
 
 
-def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None = None) -> dict:
-    """One team's mart_team_profile rows (+ mart_team_fixtures rows) -> the team page payload.
+def shape_team_payload(
+    profile_rows: list[dict],
+    fixture_rows: list[dict] | None = None,
+    roster_rows: list[dict] | None = None,
+) -> dict:
+    """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster rows) -> the team page payload.
 
     profile_rows: every (team, competition-season) profile row for a single team_sk.
     fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
+    roster_rows: that team's mart_roster rows (identity-only squad, per season; GAP-20).
     """
     latest = _latest_season_row(profile_rows)
     team_id = int(latest["team_sk"])
@@ -161,6 +183,11 @@ def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None
         fixtures_by_season.setdefault(
             (fr.get("league_code"), fr.get("season_api_year")), []
         ).append(fr)
+    roster_by_season: dict = {}
+    for rr in roster_rows or []:
+        roster_by_season.setdefault(
+            (rr.get("league_code"), rr.get("season_api_year")), []
+        ).append(rr)
 
     seasons_out = []
     for r in seasons:
@@ -173,6 +200,15 @@ def shape_team_payload(profile_rows: list[dict], fixture_rows: list[dict] | None
         )
         s["next_fixture"] = _shape_team_fixture(nxt) if nxt else None
         s["recent_results"] = [_shape_team_fixture(fr) for fr in recent]
+        # GAP-20: identity-only squad for this (competition, season). Omit unresolved-player
+        # rows (null player_name — guarded upstream by the player_sk->dim_player relationships
+        # DQ test); byte-stable order by player_sk (the frontend groups by position + sorts).
+        squad_rows = roster_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+        s["squad"] = [
+            _shape_squad_member(rr)
+            for rr in sorted(squad_rows, key=lambda rr: rr["player_sk"])
+            if rr.get("player_name") is not None
+        ]
         seasons_out.append(s)
 
     return {
@@ -431,7 +467,19 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     else:
         fx_sql = f"select * from {fx_table} where {fx_where}"
     fixtures_by_team = _group_by(_query(client, fx_sql), "team_sk")
-    return [shape_team_payload(grouped[t], fixtures_by_team.get(t, [])) for t in team_ids]
+    # GAP-20: identity-only squad per (team, competition-season) from mart_roster. Scope to the
+    # sampled teams on a sample run; whole-table otherwise (selection, not derivation).
+    roster_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_roster`"
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        roster_sql = f"select * from {roster_table} where team_sk in ({id_list})"
+    else:
+        roster_sql = f"select * from {roster_table}"
+    roster_by_team = _group_by(_query(client, roster_sql), "team_sk")
+    return [
+        shape_team_payload(grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []))
+        for t in team_ids
+    ]
 
 
 def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
