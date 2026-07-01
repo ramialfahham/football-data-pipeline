@@ -65,12 +65,18 @@ Every screen file follows this structure:
 | 08 | 08_browse.md | Competitions index + country hubs | pending | 4 |
 | 09 | 09_chrome.md | Nav/header/footer/search/locale/404 | pending | 4 |
 | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
+| 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster list, identity-only) | **spec'd** | #391 ⁑ |
 | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
 
 Order rationale: the fixture page first — the product's heart and the most
 field-dense screen; it calibrates the vocabulary (stat rows, comparison bars, form
 strings) every other screen reuses. Home last — it is mostly teasers of the other
 screens and the only screen needing new feeds.
+
+The **PR** column is the original blueprint batch (1–5) that first spec'd each
+screen. **⁑** marks a screen added later, outside the original batches, under
+epic **#391**'s data-first un-pause (gap-closure track) rather than a numbered
+batch.
 
 ## Component census (aggregated — grows as screens land)
 
@@ -90,11 +96,11 @@ inventory, flagged as new for the design system (#366).
 | Result chip (W/D/L) | 01 | part of form string family |
 | Player row (photo, name, stat columns) | 01 | player row ✓ |
 | H2H record block (aggregate W-D-L bar + counts) | 01 | ➕ |
-| Empty/absent state | 01, 02, 03 | ✓ |
+| Empty/absent state | 01, 02, 03, 11 | ✓ |
 | Narrative block (data-to-text slot) | 01 | ➕ (slot only — GAP-03) |
-| Internal-links footer | 01, 02, 03 | ➕ (SEO-driven) |
-| Profile header (team/player) | 02, 03 | ✓ |
-| Competition-/season selector | 02, 03 | ➕ |
+| Internal-links footer | 01, 02, 03, 11 | ➕ (SEO-driven) |
+| Profile header (team/player) | 02, 03, 11 | ✓ |
+| Competition-/season selector | 02, 03, 11 | ➕ |
 | Big-number record block | 02 | big-number callout ✓ |
 | Single-bar ratio row + gap callout (deserved vs actual) | 02 | ➕ |
 | Aligned-comparison row (YoY) | 02 | sparkline/trend family ✓ |
@@ -105,6 +111,8 @@ inventory, flagged as new for the design system (#366).
 | Fact summary line | 03 | ➕ |
 | Bundled stat row (player contract) | 03 | player row ✓ |
 | Match-log row | 03 | ➕ |
+| Position-group header | 11 | ➕ |
+| Squad player row (photo · name · nationality · age) | 11 | player row ✓ |
 
 ## Verification (per screen, before its PR merges)
 

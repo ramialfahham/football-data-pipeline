@@ -63,7 +63,7 @@ season rates, deserved-vs-actual, YoY and streaks (identity stripped per row).
 ├────────────────────────────────────────────┤
 │  FIXTURES                                  │  (9) next + recent (GAP-15)
 ├────────────────────────────────────────────┤
-│  ▸Bundesliga ▸Table ▸Top scorers ▸Squad?   │  (10) internal links
+│  ▸Bundesliga ▸Table ▸Top scorers ▸Squad    │  (10) internal links
 └────────────────────────────────────────────┘
 ```
 
@@ -158,8 +158,9 @@ approved): ships via the team-export extension from `fct_fixture`/legs. Rows
 reuse the fixture-row component (opponent, H/A, score, result chip; next fixture
 links to its fixture page). Until the data PR lands the section renders links to
 the competition's `/fixtures/` page. Internal links: competition hub, `/table/`,
-`/top-scorers/`; player links live on fixture pages (no squad surface yet — no
-squad mart).
+`/top-scorers/`, and the **Squad** sub-screen ([11](11_team_squad.md), backed by
+`mart_roster` — export wiring pending [GAP-20](99_gaps_register.md)); player-level
+links live on the squad + fixture pages.
 
 ## 6. States
 
