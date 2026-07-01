@@ -4,14 +4,14 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-07-01** — main GREEN at **dafd463** (docs: reconcile content_architecture.md §3/§7 block↔mart map to reality, MERGED **#615**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B spec'd screens COMPLETE** — A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611), GAP-01 (#613) all merged; the 3 spec'd screens (01 fixture / 02 team / 03 player) are data-complete, and the block↔mart map is reconciled (#615). **NEXT (CPO-picked 2026-07-01) = track A — the Squad screen:** spec the Squad tab (§10 design, PLAN MODE) so the built `mart_roster` can be wired, then a cheap wiring PR; un-picked candidates (Phase C player-season foundation, Phase D flagship design marts, the wireframe §10 doc-status sweep) stay in the backlog. Backlog + verified gap map below._
+_Last updated: **2026-07-01** — main GREEN at **4adafef** (#391 track A: the Team → Squad wireframe spec, MERGED **#617**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B spec'd screens COMPLETE** — A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611), GAP-01 (#613) merged; block↔mart map reconciled (#615). **Track A (Squad) SPEC DONE (#617)** — new wireframe `docs/wireframes/11_team_squad.md` (identity-only roster, backed by `mart_roster`) + GAP-20 registered. **NEXT = the GAP-20 wiring PR** (turns `mart_roster` orphan → wired: a per-season `squad[]` block on the team payload, select/reshape only) — a CPO pick; present before starting. Backlog + verified gap map below._
 
-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull`. **main GREEN at dafd463** (or later if this refresh merged). Confirm tree clean.
+1. `git checkout main && git pull`. **main GREEN at 4adafef** (or later if this refresh merged). Confirm tree clean.
 2. Read this file top-to-bottom before touching anything.
-3. **NEXT (CPO-picked 2026-07-01) = track A — the Squad screen.** Spec the Squad tab (§10 design → PLAN MODE, wait for ExitPlanMode) so the built `mart_roster` (#503) can be wired, then a cheap wiring PR. Phase B spec'd screens are COMPLETE (A1 #606, GAP-15 #607, GAP-14 #609, GAP-16 #611, GAP-01 #613). Un-picked candidates stay in the backlog: Phase C (player-season foundation), Phase D (flagship design marts), the wireframe §10 doc-status sweep. #391 is un-paused but NARROW — do NOT touch the live MVP or start the frontend.
+3. **NEXT = the GAP-20 export-wiring PR (track A's remaining green).** Track A's Squad SPEC is merged (#617 → `docs/wireframes/11_team_squad.md`). The green = wire `mart_roster` into `shape_team_payload` as a per-season `squad[]` block (select/reshape only — GAP-20 in `99_gaps_register.md`). This touches `scripts/export_*.py` → contract + PLAN MODE + analytics-engineer/cto review + `pytest tests/test_export_site_data.py`. **Two reviewer advisories to bake in:** (a) OMIT null-identity members (guarded by the `player_sk`→`dim_player` DQ test); (b) VALIDATE the `player_position` domain before locking the GK/DEF/MID/ATT grouping. Present as a CPO pick (vs Phase C / Phase D / the wireframe §10 doc-status sweep) before starting. #391 un-paused but NARROW — do NOT touch the live MVP or start the frontend.
 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
 
 ---
@@ -23,13 +23,13 @@ carries it)** first, then build the frontend against a stable export. The live M
 `export_pages_data.py` + `mart_matchday_insights`) is SEPARATE — do NOT add to it; cutover is #377.
 
 **Verified gap map** (`docs/content_architecture.md` §3/§7 — reconciled to reality by #615, with a built-vs-wired legend). Current state:
-- v2 = `scripts/export_site_data.py` (8 entity types) + `docs/wireframes/` (only **3 of 10 screens spec'd**:
-  01 fixture, 02 team, 03 player + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
+- v2 = `scripts/export_site_data.py` (8 entity types) + `docs/wireframes/` (**4 screens spec'd**:
+  01 fixture, 02 team, 03 player, 11 Squad + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
 - **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
-  (2) **orphan marts** that EXIST but the v2 export does NOT carry (benchmarks, roster, career, player-season)
-  AND whose screens (Squad / Stats-percentile / Career tabs) are NOT spec'd → wiring them needs a wireframe
-  step FIRST (NOT cheap "just wire it" — corrected this session); (3) flagship deserved-vs-actual (DONE, A1),
-  opponent-context + contribution-share (need new marts).
+  (2) **orphan marts** that EXIST but the v2 export does NOT carry (benchmarks, roster, career, player-season);
+  wiring needs a wireframe step FIRST. **roster/Squad now spec'd (#617)** → its GAP-20 export-wiring PR is the
+  immediate green; benchmarks (Stats-percentile) + career screens still un-spec'd; (3) flagship deserved-vs-actual
+  (DONE, A1), opponent-context + contribution-share (need new marts).
 
 ### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
 - **A1 — deserved-vs-actual → `mart_team_profile`. MERGED #606.** Composed `int_team_season__deserved_vs_actual`
@@ -59,7 +59,15 @@ carries it)** first, then build the frontend against a stable export. The live M
     gap PR GENERALIZES — now **3 CPO-directed instances** (#609 status-only, #611 + #613 substantive) — vs the
     gaps-register note "gap fixes never ship inside blueprint PRs". Each fold was a specific CPO direction,
     not a general rule.
-  - ⚠️ benchmarks/roster/career wiring is NOT Phase B — blocked on their screens being spec'd first.
+  - ⚠️ benchmarks/career wiring is NOT Phase B — blocked on their screens being spec'd first.
+- **Track A (Squad/roster) — SPEC MERGED #617.** New wireframe `docs/wireframes/11_team_squad.md` (identity-only
+  roster list, backed by `mart_roster`, grouped by position, links to player profiles) + GAP-20 registered +
+  02/00 stale-note reconciliation. Doc-only; scope-auditor + bi-analyst PASS (bi-analyst caught an invented
+  flag-rendering + a missing null-identity state, both fixed; sibling-PR rebase-rebind after #616 merged first).
+  **Remaining green = the GAP-20 export-wiring PR** — a per-season `squad[]` block on the team payload
+  (`shape_team_payload`, select/reshape only). Advisories for that PR: (a) omit null-identity members (DQ-test-
+  guarded); (b) validate the `player_position` domain before locking GK/DEF/MID/ATT grouping. Stats-percentile
+  (benchmarks) + Career screens remain the other two orphan-mart specs, not yet done.
 - **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
   YoY/streaks/season + wire. A chain.
 - **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
@@ -80,6 +88,8 @@ carries it)** first, then build the frontend against a stable export. The live M
 
 ### ⭐ RECENT PRs
 
+- **#617 — #391 track A: the Team → Squad wireframe spec, MERGED.** Doc-only. New `docs/wireframes/11_team_squad.md` (identity-only roster list backed by `mart_roster`, grouped by position, links to player profiles) following the 00_overview §1–10 template + GAP-20 (export-wiring gap) + 02/00 stale-note/inventory/census reconciliation. scope-auditor + bi-analyst PASS over 4 rounds (bi-analyst caught an invented flag-rendering + a missing null-identity state → both fixed; then a sibling-PR rebase-rebind after #616 merged first, hash shifted `ecf12b17`→`4bcc72da`, both reviewers re-confirmed). Remaining green = the GAP-20 export-wiring PR.
+- **#616 — handover refresh (post-#615; track A pick recorded), MERGED.** Dropped the resolved content_architecture drift note; bumped the pointer to dafd463.
 - **#615 — content_architecture.md §3/§7 block↔mart map reconciled to reality, MERGED.** Doc-only; §3 status legend (✓ wired / orphan built-not-wired / ✗ not built) + §7 new-mart build status brought in line with the shipped code (14 v2-wired marts; Match-preview backing corrected). Resolves the drift note the prior handover reserved.
 - **#614 — handover refresh (#391 GAP-01 merged), MERGED.** Recorded the post-#613 state; kept the fold-generalization question open.
 - **#613 — #391 GAP-01: team founded year + venue → the v2 team profile, MERGED.** The register's 4 fields added to `mart_team_profile` from its existing dim_team join (additive, no new model); export surfaces top-level `founded_year` + a nested `venue` block (None when absent). Folded wireframe/register doc-sync. All 4 reviewers PASS; `data-build` + python-ci green. → **Phase B spec'd screens COMPLETE.**

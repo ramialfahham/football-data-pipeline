@@ -1,55 +1,42 @@
-# Task contract — spec the Team → Squad screen (wireframe, doc-only)
+# Task contract — handover refresh (post-#617)
 
-> Written on a CLEAN tree (branch docs/391-squad-screen-spec off main @ dafd463).
-> Doc-only wireframe spec — NO code/model/export change. The export wiring of mart_roster
-> is a SEPARATE follow-up PR (gaps-register rule: "gap fixes never ship inside blueprint PRs").
-> See docs/working_agreement.md §2 (contract), §10 (decision rights). Plan mode + ExitPlanMode required.
+> Written on a CLEAN tree (branch chore/handover-refresh-617 off main @ 4adafef).
+> Bookkeeping only — no code/model/doc-of-record change. Refreshes the handover to the
+> post-#617 state: track-A Squad SPEC merged; the GAP-20 wiring PR is the next concrete action.
+> See docs/working_agreement.md §2 (contract). Handover refreshes skip plan mode (CPO 2026-06-30).
 
 objective: >
-  #391 track A (CPO-picked 2026-07-01): spec the Team → Squad surface so the already-built,
-  orphan mart_roster (#503) can be wired next. Write the Squad wireframe following the
-  docs/wireframes/00_overview.md §1–10 template, binding its blocks to mart_roster's columns as
-  the PROPOSED payload; register the gap that mart_roster is not yet carried by the team export
-  (a follow-up wiring PR fulfils it — the GAP-15 pattern); reconcile the now-stale "no squad
-  mart / no squad surface yet" notes + the "Squad?" link in 02_team_profile.md; add the screen to
-  the 00_overview.md inventory + component census. Doc-only; the export wiring is NOT in this PR.
+  Bring .claude/active_work.md up to date after #617 (the Team → Squad wireframe spec, MERGED, main
+  now @ 4adafef). Record that #391 track A is a two-PR sequence whose SPEC is now done (#617) and whose
+  remaining green is the GAP-20 export-wiring PR (mart_roster orphan → wired). Carry forward the two
+  reviewer advisories for that wiring PR (omit null-identity members; validate the player_position
+  domain before locking GK/DEF/MID/ATT grouping). Also record #616 (the prior handover refresh) merged.
 
 refs: >
-  mart_roster = dbt_project/models/5_marts/shared/mart_roster.sql — IDENTITY-ONLY, one row per
-  (team_sk, league_code, season_api_year, player_sk), club competitions only: player_name,
-  player_position, player_nationality, player_birth_date, player_photo_url (NO per-club stats /
-  appearances — that is #480 / Phase C). content_architecture.md §3 (Squad block ↔ mart_roster,
-  orphan) + §4 (Team page tabs incl. Squad) + §9 (build seq #3: leaderboards+roster, cheap, no
-  governance). Established pattern: GAP-15 (02 §9 referenced fixtures ahead of the data PR #607).
-  Export attach pattern: shape_team_payload seasons[] with per-season next_fixture/recent_results.
+  main @ 4adafef (#617 Squad wireframe spec). #616 (handover refresh) merged before it, forcing the
+  documented sibling-PR rebase-rebind of #617. CPO merged both. GAP-20 registered in
+  docs/wireframes/99_gaps_register.md. New screen: docs/wireframes/11_team_squad.md.
 
 scope_paths:
-  - docs/wireframes/**
+  - .claude/active_work.md
   - .claude/task/**
 
 decisions_taken: >
-  Doc-only wireframe spec + a gaps-register entry (mart_roster not wired to the team export) +
-  the 02_team_profile stale-note/link reconciliation + the 00_overview inventory/census addition.
-  NO code/model/export/metric/catalogue change — the export wiring is a separate PR. Squad v1 scope
-  = IDENTITY-ONLY (the roster list: name, listed position, nationality, age derived render-time from
-  birth_date, photo, deep-link to the player profile), grouped by position, because mart_roster
-  carries no stats. Arranges only existing roster fields; invents no metric.
+  Bookkeeping only — updates the _Last updated_ header (2026-07-01, main @ 4adafef, MERGED #617),
+  appends #616 + #617 to the "main carries" line + the two f4b1aa8/dafd463 pointers, refreshes the NEXT
+  section to "track A spec DONE (#617); GAP-20 wiring is the next concrete action (a CPO pick — present,
+  do not auto-start)", prepends #617 + #616 to RECENT PRs, and records the two wiring-PR advisories.
+  Invents NO product/UX/metric/naming decision.
 
-decisions_reserved:  # §10 — surfaced to the CPO in plan mode, not pre-decided
-  - IA STRUCTURE: where the Squad spec lives — a new dedicated wireframe file (Team→Squad sub-screen,
-    added to the inventory) vs a new tabbed section inside 02_team_profile.md. Recommendation carried
-    to the plan-back; the CPO rules. (Both options fall inside docs/wireframes/**, so scope is stable.)
-  - The Squad EXPORT payload shape + attachment (per-season squad[] on the team payload vs a separate
-    export target) — a follow-up wiring-PR decision; noted in the gap entry, not locked here.
-  - Position grouping taxonomy (GK/DEF/MID/ATT vs flat) + within-group ordering — settled in the spec
-    at build time against the actual player_position domain; flagged as a data check.
+decisions_reserved:
+  - Whether to proceed to the GAP-20 wiring PR next vs another track — a CPO pick (present candidates).
+  - Whether folding a closed gap's spec-sync into its gap PR generalises — still open, CPO call.
+  - The two stale-wireframe flags + the wireframe §10 doc-status sweep — separate items, not touched here.
 
 done_when:
-  - A Squad wireframe (§1–10 per 00_overview) exists, every referenced field grounded in a real
-    mart_roster column, with a registered gap for the unwired export and the interim/absent states.
-  - 02_team_profile.md stale "no squad mart / no squad surface" notes + the Squad link reconciled;
-    00_overview.md inventory + component census updated.
-  - scope-auditor + bi-analyst-reviewer PASS (>=2 risks each); review.md diff_sha256 binds the staged
-    diff; CPO merges. The export wiring is explicitly deferred to a follow-up PR.
+  - active_work.md header, "main carries" line, the FIRST-STEPS/NEXT section, RECENT PRs, and the
+    track-A backlog entry are current (post-#617; spec done, GAP-20 wiring next with its two advisories);
+    no other status claim changes.
+  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds the staged diff; CPO merges.
 
 amendments: (none)
