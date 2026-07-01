@@ -59,10 +59,10 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 
 ## 3. The block library (block ↔ mart)
 
-> **Status legend** (reconciled 2026-06-30, post-#613). **✓** = mart built AND wired to the v2 export
-> (`scripts/export_site_data.py`) — the 3 spec'd screens (fixture / team / player) are green. **⚠ orphan**
-> = mart BUILT but NOT wired, because its screen (Squad / Stats-percentile / Career) is not spec'd yet —
-> wiring needs a wireframe step first. **✗** = mart not built (Phase C/D). The v2 export queries 14 marts.
+> **Status legend** (reconciled 2026-07-01, post-#619). **✓** = mart built AND wired to the v2 export
+> (`scripts/export_site_data.py`) — the spec'd screens (fixture / team / player / Squad) are green. **⚠ orphan**
+> = mart BUILT but NOT wired, because its screen (Stats-percentile / Career) is not spec'd yet —
+> wiring needs a wireframe step first. **✗** = mart not built (Phase C/D). The v2 export queries 15 marts.
 
 | Family | Block | Subject | Backing mart | Status |
 |---|---|---|---|---|
@@ -79,7 +79,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
 | **Schedule** | Upcoming / Results | team, player | `mart_team_fixtures` (filter) | ✓ (team fixtures #607) |
 | | Matchday schedule | comp | fixtures by round (derive) | ~ |
-| **Listings** | Squad / roster | team→players | `mart_roster` (from the team↔player mapping) | ⚠ orphan — built (#503), not wired (screen unspec'd) |
+| **Listings** | Squad / roster | team→players | `mart_roster` (from the team↔player mapping) | ✓ (identity-only squad wired to the team payload, #619; screen 11 spec'd #617) |
 | | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
 | | Player career (clubs + per-comp totals) | player | `mart_player_career` (needs backfill) | ⚠ orphan — built, needs backfill + wiring (screen unspec'd) |
 | **Matchup** | Match preview (two sides) | fixture | composed (W1 `mart_team_momentum` + W2 `mart_team_season_record` + standing + h2h) | ✓ (v2; `mart_matchday_insights` = the separate live-MVP feed) |
@@ -161,7 +161,7 @@ The triad is a clean axis set: **vs your own play** · **vs your own past** · *
 |---|---|---|
 | `mart_{team,player}_competition_benchmarks` | Vs-benchmark block + the flagship reads' league context | **built** (#512 / #559 PR1); **not wired** — screen unspec'd |
 | `mart_leaderboards` (generalised `mart_top_scorers`) | Leaderboards block + key players + top performers | **built + wired** ✓ |
-| `mart_roster` | Squad block | **built** (#503); **not wired** — screen unspec'd |
+| `mart_roster` | Squad block | **built** (#503) + **wired** (#619, per-season `squad[]` on the team payload); screen 11 spec'd (#617) |
 | `mart_player_career` (+ a team-history equivalent) | Career & History tabs | **built**; needs backfill + wiring — screen unspec'd |
 | `dim_coach` (+ Coach block/entity) | Coach block & page | **not built** (coaches ingest) |
 

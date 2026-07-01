@@ -1,59 +1,46 @@
-# Review — feat/391-gap20-squad-export — 2026-07-01
+# Review — docs/391-gap20-shipped-status — 2026-07-01
 
-> G3 Lock artifact. #391 GAP-20: wire mart_roster into the v2 team export — a per-season squad[] block
-> on the team payload (identity-only, mirroring the GAP-15 fixtures pattern). Export-only (no dbt/model
-> change). Required set (routing): scope-auditor (always) + analytics-engineer + cto
-> (scripts/export_*.py + tests/**).
+> G3 Lock artifact. #391 GAP-20 close-out: doc-status reconciliation of the already-merged #619
+> (mart_roster wired into the team payload as per-season squad[]). Marks GAP-20 shipped
+> (99_gaps_register.md), flips the Squad/roster block ⚠orphan→✓ + updates §7 + bumps the §3 legend
+> queried-mart count 14→15 (content_architecture.md), and refreshes the handover (active_work.md,
+> track A fully green; next = CPO pick). Bookkeeping/status → skip plan mode (CPO 2026-06-30 carve-out).
+> Required set (routing): scope-auditor (always) + bi-analyst-reviewer (docs/wireframes/**).
 >
-> Round 1 (hash 0a781b5) — analytics-engineer PASS, cto PASS, scope-auditor FAIL: the contract's
-> decisions_taken wrongly claimed the squad member carries a "slug" (the code has none, per the CPO
-> plan-mode ruling), and decisions_reserved still listed the slug choice as open — a self-contradictory
-> contract. CODE was correct; only the contract was wrong.
-> Round 2 (hash 86a4bc1, THIS lock) — contract-only fix: decisions_taken → "id+name only, NO slug";
-> decisions_reserved → the three plan-mode choices recorded as "(ruled)" (no-slug; player_sk order;
-> doc-status a separate PR). CODE byte-identical. All three reviewers PASS.
+> Round 1 (hash 240b0b2) — scope-auditor PASS; bi-analyst FAIL: the §3 legend PROSE was left stale
+> ("the 3 spec'd screens (fixture/team/player)" + Squad named as the orphan example) — self-contradicting
+> the roster row flip in the same PR.
+> Round 2 (hash 7f45b42, THIS lock) — legend prose fixed: "the spec'd screens (fixture/team/player/Squad)
+> are green"; orphan example → "(Stats-percentile / Career)"; reconciliation date → 2026-07-01, post-#619.
+> Both reviewers PASS.
 
-diff_sha256: 86a4bc1ad0ca54fbc3a96264585f21b69f19def723e4d1f6a4ce0bf44f72a501
+diff_sha256: 7f45b42b20c2f1bf578129bb324d5128ab3c8355e35c4c48ca69d648c3d913e2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Upstream DQ gate for unresolved-player filtering — the export filters `player_name is not None`,
-  trusting mart_roster's player_sk→dim_player relationships DQ test to guard corrupt/unresolved rows.
-  The contract documents the upstream guard; dbt CI runs it; the unit test confirms the filter. Structural
-  assumption sound (consumption never re-validates the mart). Held.
-- Season-key consistency between mart_team_profile and mart_roster — the attach joins on (league_code,
-  season_api_year); a lineage/ingestion key mismatch would silently decouple the squad (honest absence via
-  `.get(..., [])`). The code's grouping tuple matches mart_roster's stated grain exactly; the shared
-  upstream fact-grain guarantees key synchrony. Round-1 slug contradiction FIXED; scope is exactly
-  scripts/export_site_data.py + tests/** + .claude/task/** (no docs/wireframes or content_architecture).
-  Held.
+- Prose legend consistency (Appendix A6) — the round-1 stale prose (claimed 3 green screens while listing
+  Squad as an orphan example, contradicting the table) is fixed: prose now lists fixture/team/player/Squad
+  as green and the orphan example as Stats-percentile/Career, matching the table's Squad ⚠→✓ flip. Factually
+  correct (#617 spec'd Squad; #619 wired it). No stale claim pushed forward.
+- Queried-mart count accuracy — the 14→15 bump is tied to mart_roster now being queried by fetch_team_payloads
+  (#619, merged on main @ ac261da); prior count was understating. All changes within scope_paths
+  (99_gaps_register.md, content_architecture.md, active_work.md, .claude/task/**); no code/model change; no
+  §10 decision (records merged facts only; next track reserved to the CPO). Held.
 
-## analytics-engineer-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Consumption-layer purity — `_shape_squad_member` is a pure field select/rename; the null-name filter is
-  selection (backed by the DQ test), the player_sk sort is a byte-stable tie-break (not a computed rank),
-  player_position is a raw passthrough (no GK/DEF/MID/ATT mapping), and no slug is generated. Satisfies the
-  layer contract. Held.
-- Grain/attachment — roster_by_season keys on (league_code, season_api_year), the same tuple as the proven
-  GAP-15 fixtures pattern; mart_team_profile.seasons[] drives the loop so a roster row for an absent season
-  is dropped (no orphan season); club-scope congruence between the two marts holds; payload change is
-  additive-only. Code byte-identical to round-1 PASS. Held.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Python correctness — the 3rd param defaults None (backward-compatible; proven by the defaults-empty
-  test); player_sk is non-null by mart grain so `int()`/sort are safe (matches the existing unguarded
-  `int(row["team_sk"])` GAP-15 precedent); empty/None roster fully guarded (`roster_rows or []`). Held.
-- Query construction + test quality — the mart_roster sample-scoping mirrors the accepted GAP-15 fixtures
-  query (int-cast internal team_ids, no new injection surface; idempotent re-run); both new tests assert
-  real behavior (out-of-order input forces the sort, an explicit null-name row forces the omission, a
-  zero-roster season forces the empty default, set-based key check catches leakage). Code byte-identical to
-  round-1 PASS. Held.
+- Cross-file date/PR consistency — content_architecture.md (post-#619), 99_gaps_register.md (shipped
+  2026-07-01, #619), and active_work.md (main @ ac261da, #619 merged) all cite #619 / 2026-07-01
+  consistently; no drift. The GAP-20 "shipped" note matches the export code exactly (id+name only/no slug,
+  byte-stable player_sk order, null-identity omitted, raw position, no stats). Held.
+- No silent third orphan / leftover stale Squad language — grepped all Squad/roster occurrences in
+  content_architecture.md (lines 63, 82, 107, 164, 203): only benchmarks (Stats-percentile) + career remain
+  ⚠ in §3/§7 (correctly untouched); no "orphan" language still attached to Squad; the 14→15 count is the only
+  numeric change and is arithmetically consistent. Held.
 
 ## escalations
-(none) — export-only wiring implementing the three CPO plan-mode rulings (no-slug; player_sk order;
-doc-status kept to a separate follow-up PR). The GAP-20 "shipped" status + content_architecture §3 roster
-✓-flip are RESERVED to that separate doc-sync PR (CPO); no §10 decision taken here.
+(none) — doc-status reconciliation of merged work; records GAP-20 shipped + roster wired, and RESERVES the
+next track (Stats-percentile / Career / Phase C / Phase D), the fold-generalization question, and the
+wireframe §10 doc-status sweep — all to the CPO.
