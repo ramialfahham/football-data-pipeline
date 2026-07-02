@@ -2,9 +2,9 @@
 
 > A sub-screen of the player page (03). Field-bound against `mart_player_career` — **built** (#630, #480 §8.3:
 > the per-club player-season foundation `int_player_club_season__metrics` → the rebuilt career mart). The mart
-> is **not yet exported** — every key in §5 is a **proposed** shape pending [GAP-22](99_gaps_register.md) (the
-> wiring PR); this spec is written ahead of it, the same way Squad (11) preceded its wiring (#619) and Stats
-> (12) preceded [GAP-21](99_gaps_register.md). **Counts only:** labels/formats for `goals`/`assists` come
+> is **wired** — every key in §5 is carried by the player export ([GAP-22](99_gaps_register.md), shipped
+> #634); this spec preceded the wiring PR, the same way Squad (11) preceded its wiring (#619) and Stats
+> (12) preceded [GAP-21](99_gaps_register.md) (#627). **Counts only:** labels/formats for `goals`/`assists` come
 > from `metric_catalogue.csv` (the 00 binding rule); **no per-90, no composite scores** — deliberately not
 > offered yet ([`ui_design_brief.md`](../ui_design_brief.md) §6.4) — and a career-long rate across mixed
 > clubs/seasons is not meaningful (the CPO counts-only ruling on `mart_player_career`).
@@ -38,13 +38,13 @@ meaningful (the CPO counts-only ruling on `mart_player_career`).
 
 ## 3. Data sources
 
-`data/players/{player_id}.json` — the existing player payload. **Proposed** addition (GAP-22): a
-**`career[]`** set, one member per `(club, competition, season)`, sourced 1:1 from `mart_player_career`
-(grain `(player_sk, team_sk, season_sk)`) + a top-level `national_appearances_total`. The export
-**selects/reshapes only** — grouping into clubs and any subtotals are display concerns (§5, §10); no fact is
-derived in the export (consumption-layer contract). The exact nesting (flat `career[]` vs pre-grouped by
-club) is confirmed at the wiring PR. Until GAP-22 lands the payload carries no `career[]`; the surface is not
-generated (§6).
+`data/players/{player_id}.json` — the existing player payload. Addition (GAP-22, **shipped #634**): a
+top-level **`career[]`** set, one member per `(club, competition, season)`, sourced 1:1 from
+`mart_player_career` (grain `(player_sk, team_sk, season_sk)`) + a top-level `national_appearances_total`.
+The export **selects/reshapes only** — grouping into clubs and any subtotals are display concerns (§5, §10);
+no fact is derived in the export (consumption-layer contract). The nesting shipped as a **flat `career[]`**
+(club grouping is display-side); each member carries `season`, `competition`, `entity_type`, a nested `team`
+block, `appearances`, `goals`, `assists`. A player with no career rows carries no `career[]` (§6).
 
 ## 4. Layout
 
@@ -81,7 +81,7 @@ the club groups sit in one column; identity header full-width. The per-club subt
 
 ## 5. Module bindings
 
-All keys **proposed** (GAP-22); each a real `mart_player_career` column.
+All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` column (renamed for display where noted).
 
 ### (2) Identity header
 
@@ -92,16 +92,16 @@ All keys **proposed** (GAP-22); each a real `mart_player_career` column.
 
 ### (3)(4)(5) Club groups + season rows + subtotals
 
-| Element | JSON key (proposed) | ← mart column | Display |
+| Element | JSON key | ← mart column | Display |
 |---|---|---|---|
-| Club group header | `career[].team_name`, `team_logo_url` | `team_name`, `team_logo_url` | crest + name; ▸ team profile via `team_sk` |
-| Row — season | `career[].season_api_year` | `season_api_year` | e.g. "2025/26" (locale season format) |
-| Row — competition | `career[].league_code` | `league_code` | competition badge; ▸ competition hub |
+| Club group header | `career[].team` block (`name`, `crest`, `team_id`) | `team_name`, `team_logo_url`, `team_sk` | crest + name; ▸ team profile via `team.team_id` |
+| Row — season | `career[].season` | `season_api_year` | e.g. "2025/26" (locale season format) |
+| Row — competition | `career[].competition` | `league_code` | competition badge; ▸ competition hub |
 | Row — appearances | `career[].appearances` | `appearances` | integer (a playing-time fact, not a catalogue metric) |
 | Row — goals | `career[].goals` | `goals` | integer; label/format from `metric_catalogue` (`goals`) |
 | Row — assists | `career[].assists` | `assists` | integer; label/format from `metric_catalogue` (`assists`) |
-| Per-club subtotal | (derived) | sum of the club's rows | **display-side grouping** of `career[]`, OR a reserved dbt precompute (§10) |
-| Career total | (derived) | sum of all club rows | same — display grouping or reserved precompute |
+| Per-club subtotal | (display grouping) | sum of the club's rows | **display-side grouping** of `career[]` — resolved #634 (the export ships raw rows only, computes nothing; §10) |
+| Career total | (display grouping) | sum of all club rows | same — display-side grouping (#634) |
 
 ### (6) National team section
 
@@ -129,7 +129,6 @@ Back to the player Overview (03), the player Stats (12), and the Match log. Club
 | Unmapped competition | `entity_type` null (competition not in `competition_types`) | group under an "Other" bucket; not counted as club or national |
 | Unresolved identity | player OR club identity fields null (a `mart_player_career` row with no resolvable `dim_player`/`dim_team` — the mart LEFT-joins both, per its header) | guarded upstream by the `player_sk` → `dim_player` and `team_sk` → `dim_team` `relationships` DQ tests (`shared.yml`), so a name-less row surfaces as a **test failure, not a rendered blank** (mirrors 11 §6); the build omits any that slip through rather than fabricating a name |
 | Zero denominator | n/a | this screen has no ratios — counts only |
-| Not yet wired | GAP-22 open (today) | payload carries no `career[]`; the surface is not generated |
 
 ## 7. Interactions
 
@@ -153,13 +152,14 @@ Breadcrumb · profile header (player, shared with 03) · **club group header (cr
 
 ## 10. Gaps
 
-- [GAP-22](99_gaps_register.md) — `mart_player_career` (the per-club career log; built #630) is not carried by
-  the v2 player export; the Career surface has no payload. Disposition: add a `career[]` block (+ top-level
-  `national_appearances_total`) to `shape_player_payload` (select/reshape only). Own follow-up PR.
-- **Subtotals (per-club / career totals): precompute in dbt vs display-side grouping** — reserved (the #630
-  `decisions_reserved` item). Summing a club's season rows for a subtotal is display grouping, but if a
-  DQ-testable total is wanted it belongs in the mart. CPO ruling at the GAP-22 wiring PR; this spec renders
-  subtotals as display grouping until then. `national_appearances_total` is already precomputed.
+- [GAP-22](99_gaps_register.md) — **shipped #634**: `mart_player_career` (the per-club career log; built
+  #630) is now carried by the v2 player export as a top-level `career[]` block (+ top-level
+  `national_appearances_total`), select/reshape only; club-contiguous newest-first order via the mart's
+  `club_latest_kickoff_at` window column (no client-side aggregation).
+- **Subtotals (per-club / career totals): resolved #634 to display-side grouping** — the export ships raw
+  `career[]` rows only (season / competition / team / apps / goals / assists) and computes nothing; the
+  frontend sums each club's rows for its subtotal and the career total. `national_appearances_total` remains
+  precomputed on the mart.
 - **History depth** — the career log is thin until the per-competition backfill runs (a separate registry +
   cost-gated ingest task; content_architecture §8). Not a blocker for the spec; the screen is honest about it.
 - Season-over-season / YoY and per-90 career rates are **out of scope** (counts only, locked); YoY depends on

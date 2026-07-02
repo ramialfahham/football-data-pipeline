@@ -1,10 +1,10 @@
 # 11 — Team → Squad
 
 > A sub-screen of the team page (02). Field-bound against `mart_roster`
-> (identity-only squad list, #503). The squad payload is **not yet exported** —
-> every key in §5 is a **proposed** shape pending [GAP-20](99_gaps_register.md)
-> (the export-wiring PR); this spec is written ahead of that PR, the same way 02's
-> fixtures block preceded its data PR (GAP-15 → #607).
+> (identity-only squad list, #503). The squad payload is **wired** — every key in §5
+> is carried by the team export ([GAP-20](99_gaps_register.md), shipped #619); this
+> spec preceded the wiring PR, the same way 02's fixtures block preceded its data PR
+> (GAP-15 → #607).
 
 ## 1. Purpose
 
@@ -31,14 +31,14 @@ model (#480, Phase C).
 
 ## 3. Data sources
 
-`data/teams/{team_id}.json` — the existing team payload. **Proposed** addition
-(GAP-20): a per-season `squad[]` array on each `seasons[]` row, one member object
-per rostered player, sourced 1:1 from `mart_roster` and attached the same way
+`data/teams/{team_id}.json` — the existing team payload. Addition (GAP-20, **shipped
+#619**): a per-season `squad[]` array on each `seasons[]` row, one member object per
+rostered player, sourced 1:1 from `mart_roster` and attached the same way
 `next_fixture` / `recent_results` are (per `(league_code, season_api_year)`). The
 export **selects/reshapes only** — no derivation (consumption-layer contract).
 
-Until GAP-20 lands the team payload carries no `squad[]`; the Squad surface is not
-generated (see §6, thin page).
+A season with no roster rows carries no `squad[]` — that season renders its designed
+absent state; a team with no roster at all is not generated (see §6).
 
 ## 4. Layout
 
@@ -75,8 +75,8 @@ the row); each player is a compact card (photo, name, nationality, age).
 
 ## 5. Module bindings
 
-Squad members come from the selected season's `squad[]`. All keys **proposed**
-(GAP-20); each maps to a real `mart_roster` column.
+Squad members come from the selected season's `squad[]`. All keys **wired** (GAP-20,
+#619); each maps to a real `mart_roster` column.
 
 ### (2) Identity + (3) selector
 
@@ -87,7 +87,7 @@ Squad members come from the selected season's `squad[]`. All keys **proposed**
 
 ### (4) Position groups + player rows
 
-| Element | JSON key (proposed) | ← `mart_roster` column | Format |
+| Element | JSON key | ← `mart_roster` column | Format |
 |---|---|---|---|
 | Group | `squad[].position` | `player_position` | grouped into Goalkeepers / Defenders / Midfielders / Forwards (§ build note); unknown → "Other" |
 | Name | `squad[].name` | `player_name` | text; links to the player profile |
@@ -115,7 +115,6 @@ player row → the player profile (03).
 | Unresolved player | all identity fields null (a roster membership with no resolvable `dim_player` — the mart LEFT-joins `dim_player`, per its header) | member omitted from the render; this is guarded upstream by the `player_sk` → `dim_player` relationships DQ test (`mart_roster` is not silently dropped, so the case surfaces as a test failure, not a nameless row) |
 | Empty season | selected season has no `squad[]` rows | designed absent state ("Squad not available for this season") |
 | Thin page | team has no roster rows at all (no `squad[]` in any season) | Squad surface not generated; the team-page link is hidden |
-| Not yet wired | GAP-20 open (today) | as "thin page" — no `squad[]` in the payload, surface not generated |
 
 ## 7. Interactions
 
@@ -143,8 +142,8 @@ profile) · empty/absent state · internal-links footer.
 
 ## 10. Gaps
 
-- [GAP-20](99_gaps_register.md) — `mart_roster` is built (#503) but not carried by
-  the team export; the Squad surface has no payload. Disposition: add a per-season
-  `squad[]` block to the team payload (export selects/reshapes only) in a follow-up PR.
+- [GAP-20](99_gaps_register.md) — **shipped #619**: `mart_roster` (built #503) is now
+  carried by the team export as a per-season `squad[]` block (selects/reshapes only,
+  byte-stable player_sk order, null-identity members omitted).
 - Stats/appearances on the squad are deferred to #480 (per-club player-season model,
   Phase C) — out of scope for this identity-only screen.

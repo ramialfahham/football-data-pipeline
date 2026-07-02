@@ -2,8 +2,8 @@
 
 > A sub-screen of the player page (03). Field-bound against `mart_player_competition_benchmarks` — **built**
 > (the player benchmark chain: #559 per-90 metric layer → #561 engine + mart; entity-renamed in #500). The
-> benchmark payload is **not yet exported** — every key in §5 is a **proposed** shape pending
-> [GAP-21](99_gaps_register.md) (the wiring PR); this spec is written ahead of it, the same way Squad (11)
+> benchmark payload is **wired** — every key in §5 is carried by the player export
+> ([GAP-21](99_gaps_register.md), shipped #627); this spec preceded the wiring PR, the same way Squad (11)
 > preceded its wiring (#619). Display rules follow the LOCKED contract in
 > [`metrics_display.md`](metrics_display.md) §"Percentile display (vs-peers)".
 
@@ -30,14 +30,15 @@ below it there is no benchmark, and we say so rather than draw a bar.
 
 ## 3. Data sources
 
-`data/players/{player_id}.json` — the existing player payload. **Proposed** addition (GAP-21): a per-season,
-per-position **`benchmarks[]`** set, one member per benchmarked metric, sourced 1:1 from the LONG
+`data/players/{player_id}.json` — the existing player payload. Addition (GAP-21, **shipped #627**): on each
+`seasons[]` row a per-position **`benchmarks[]`** set — one block per `position_group`, each with a
+`metrics[]` list (one member per benchmarked metric) — sourced 1:1 from the LONG
 `mart_player_competition_benchmarks` (grain `(player_sk, season_sk, position_group, metric_key)`). The export
 **selects/reshapes only** — the "top X%" label is applied at render from the catalogue `direction` (the mart
-is direction-agnostic). For the five **ratio** metrics the wiring PR must additionally carry the num/den
-atoms from `int_player_season_position__metrics` (§5, GAP-21), so the volume triple can render (no naked %).
-The exact nesting (season → position_group → metrics) is confirmed at the wiring PR. Until GAP-21 lands the
-payload carries no `benchmarks[]`; the surface is not generated (§6).
+is direction-agnostic). For the five **ratio** metrics the export also carries the mart's num/den atoms
+(shipped as `numerator` / `denominator`) so the volume triple renders (no naked %). The nesting shipped as
+`seasons[]` → `benchmarks[]` (per position_group) → `metrics[]`; a season/position below the mart's minutes
+floor carries no block (§6).
 
 ## 4. Layout
 
@@ -74,25 +75,26 @@ two columns of rows; header + selectors full-width.
 
 ## 5. Module bindings
 
-Members come from the selected `(season, position_group)`; all keys **proposed** (GAP-21), each a real
-`mart_player_competition_benchmarks` column.
+Members come from the selected `(season, position_group)`; all keys **wired** (GAP-21, #627), each a real
+`mart_player_competition_benchmarks` column. Shipped nesting: `seasons[]` → `benchmarks[]` (one block per
+`position_group`) → `metrics[]` (the per-metric members).
 
 ### (2) Identity + (3) selectors + sample line
 
 | Element | JSON key | ← mart column | Notes |
 |---|---|---|---|
 | Name / photo | top-level `name`, `photo` | (player payload) | photo fallback = monogram |
-| Season options | `benchmarks[].season_api_year` (+ `league_code`) | `season_api_year`, `league_code` | per competition-season |
-| Position options | `benchmarks[].position_group` | `position_group` | GK / DEF / MID / ATT; one set per qualifying position |
-| Sample line | `peer_count`, `minutes`, `appearances` | `peer_count`, `minutes`, `appearances` | "vs {peer_count} {position}s · {minutes} min · {appearances} apps" |
+| Season options | `seasons[].season_api_year` (+ `league_code`) | `season_api_year`, `league_code` | per competition-season; `benchmarks[]` nests under the season row |
+| Position options | `benchmarks[].position_group` | `position_group` | GK / DEF / MID / ATT; one block per qualifying position |
+| Sample line | `benchmarks[].minutes`, `benchmarks[].appearances`, `benchmarks[].metrics[].peer_count` | `minutes`, `appearances`, `peer_count` | "vs {peer_count} {position}s · {minutes} min · {appearances} apps" |
 
 ### (4) Metric rows
 
-| Element | JSON key (proposed) | ← mart column | Display |
+| Element | JSON key | ← mart column | Display |
 |---|---|---|---|
 | Label | `metric_key` | `metric_key` | label + format from `metric_catalogue` (never invented) |
 | Value — per-90 metric (13) | `metric_value` | `metric_value` | the per-90 rate, catalogue `format` (`decimal_1`) |
-| Value — ratio metric (5) | `metric_value` + num/den atoms | `metric_value` + atoms (carried by GAP-21) | the **volume triple** `{num} of {den} · {pct}%` — no naked % |
+| Value — ratio metric (5) | `metric_value` + `numerator` / `denominator` | `metric_value` + `metric_numerator` / `metric_denominator` | the **volume triple** `{num} of {den} · {pct}%` — no naked % |
 | Bar fill | derived from `percentile` (+ `direction`) | `percentile` | fill = the **distributional position** on a 0–100 track |
 | Median line | fixed at 50 | (`peer_median`) | dashed reference = the median peer |
 | Rank label | `percentile` (+ `direction`, `rank`, `peer_count`) | `percentile` / `rank` / `peer_count` | **"top X%" / "median" / "bottom X%"** (rule below) |
@@ -122,8 +124,9 @@ line and would wrongly imply a good/bad verdict on the neutral metrics; the bar 
 colour deferred to the design pass (#366)**.
 
 **Ratio metrics carry their volume (no naked %).** The five ratio metrics show the triple `{num} of {den} ·
-{pct}%`; their atoms all exist in `int_player_season_position__metrics` and the GAP-21 wiring PR must carry
-them into the payload:
+{pct}%`; their atoms exist in `int_player_season_position__metrics`, surface on the mart as
+`metric_numerator` / `metric_denominator`, and the export carries them into each metric member as
+`numerator` / `denominator` (#627):
 
 | Ratio metric | numerator | denominator |
 |---|---|---|
@@ -155,7 +158,6 @@ its glossary entry). No new player-level targets invented.
 | Thin peer group | small `peer_count` | render, but the sample line states `peer_count` plainly (honest small-N) |
 | Multi-position | several `position_group` sets | position selector; **default = the position with the most `minutes`** (a display selection, not a derived fact) |
 | No value | `metric_value` null | row omitted |
-| Not yet wired | GAP-21 open (today) | payload carries no `benchmarks[]`; the surface is not generated |
 
 ## 7. Interactions
 
@@ -180,10 +182,9 @@ empty/absent state · internal-links footer.
 
 ## 10. Gaps
 
-- [GAP-21](99_gaps_register.md) — `mart_player_competition_benchmarks` is built (#559 layer → #561 engine +
-  mart) but not carried by the player export; the Stats surface has no payload. Disposition: add a
-  per-(season, position) `benchmarks[]` block to `shape_player_payload` (select/reshape only), carrying the
-  ratio num/den atoms so the volume triple renders. Own follow-up PR.
+- [GAP-21](99_gaps_register.md) — **shipped #627**: `mart_player_competition_benchmarks` (built #559 layer
+  → #561 engine + mart) is now carried by the player export as a per-(season, position) `benchmarks[]` block
+  (select/reshape only), with the ratio `numerator` / `denominator` atoms so the volume triple renders.
 - The **team** vs-benchmark is a separate screen — `mart_team_competition_benchmarks` is **rank-based, not
   percentile** (honest at N≈18), so it renders "k of N" + vs-median, not "top X%". Its own later spec.
 - Season-over-season / YoY for players depends on the player-season foundation (#480, Phase C) — not here.
