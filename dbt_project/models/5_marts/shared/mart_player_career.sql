@@ -1,21 +1,27 @@
 {{ config(materialized='table') }}
 
 {#
-  Player Career tab (content_architecture §4): one row per (player, competition) with the player's CAREER
-  totals in that competition (int_player_career__metrics) + identity (dim_player) + the competition's
-  entity_type (club / national, via the registry -> competition_types seeds).
+  Player Career log (content_architecture §4; #480 §8.3). One row per (player, CLUB, competition-season):
+  the player's appearances / goals / assists at that club that competition-season + player identity
+  (dim_player) + club identity (dim_team) + the competition's entity_type (club / national, via the
+  registry -> competition_types seeds). This is the Transfermarkt-shaped career table — a mid-season
+  transfer shows as two rows (two clubs, one season). Club and national rows are handled uniformly:
+  a "national" row is a season in a competition whose entity_type is national.
 
   National-entity rows are the player's NATIONAL APPEARANCES IN COVERED COMPETITIONS — honestly NOT true
-  career caps: we ingest only a subset of national competitions, so this undercounts a player's full
-  international history. national_appearances_total denormalises the per-player national-appearance sum so
-  the export reads it directly (a fact computed in dbt, never derived in the consumption layer).
+  career caps: we ingest only a subset of national competitions. national_appearances_total denormalises
+  the per-player national-appearance sum so the export reads it directly (a fact computed in dbt, never in
+  the consumption layer).
 
-  The clubs-played-for list is served by dim_player_team_season_mapping, not duplicated here.
-  Grain: (player_sk, league_code).
+  Grain: (player_sk, team_sk, season_sk). Composes int_player_club_season__metrics (the single per-club
+  atoms base) — no re-aggregation here, just identity + typing joins. APPEARANCE-GATED (rows come from
+  finished-match stats via the base), distinct from dim_player_team_season_mapping which records ROSTER
+  membership incl. never-played squad members. Per-club / per-competition / national subtotals are
+  derivable from this grain (display-side), so they are not precomputed.
 #}
 
-with career as (
-    select * from {{ ref('int_player_career__metrics') }}
+with club_season as (
+    select * from {{ ref('int_player_club_season__metrics') }}
 ),
 
 players as (
@@ -25,6 +31,15 @@ players as (
         player_nationality,
         player_photo_url
     from {{ ref('dim_player') }}
+),
+
+teams as (
+    select
+        team_sk,
+        team_name,
+        team_logo_url,
+        team_country
+    from {{ ref('dim_team') }}
 ),
 
 registry as (
@@ -41,40 +56,62 @@ types as (
     from {{ ref('competition_types') }}
 ),
 
-career_typed as (
+typed as (
     select
-        career.player_career_sk,
-        career.player_sk,
-        career.league_sk,
-        career.league_code,
-        career.seasons_played,
-        career.first_season,
-        career.last_season,
-        career.appearances,
-        career.goals,
-        career.assists,
+        cs.player_sk,
+        cs.team_sk,
+        cs.league_sk,
+        cs.league_code,
+        cs.season_sk,
+        cs.season_api_year,
+        cs.appearances,
+        cs.goals,
+        cs.assists,
         types.entity_type
-    from career
-    left join registry on career.league_code = registry.league_code
+    from club_season as cs
+    left join registry on cs.league_code = registry.league_code
     left join types on registry.competition_type = types.competition_type
+),
+
+with_caps as (
+    select
+        typed.player_sk,
+        typed.team_sk,
+        typed.league_sk,
+        typed.league_code,
+        typed.season_sk,
+        typed.season_api_year,
+        typed.entity_type,
+        typed.appearances,
+        typed.goals,
+        typed.assists,
+        -- per-player national-appearance total (covered comps only — honestly not true caps),
+        -- denormalised so the export reads it directly (never derived in the consumption layer).
+        sum(case when typed.entity_type = 'national' then typed.appearances else 0 end)
+            over (partition by typed.player_sk) as national_appearances_total
+    from typed
 )
 
 select
-    ct.player_career_sk,
-    ct.player_sk,
+    {{ dbt_utils.generate_surrogate_key(['wc.player_sk', 'wc.team_sk', 'wc.season_sk']) }}
+        as player_career_sk,
+    wc.player_sk,
+    wc.team_sk,
+    wc.league_sk,
+    wc.league_code,
+    wc.season_sk,
+    wc.season_api_year,
     p.player_name,
     p.player_nationality,
     p.player_photo_url,
-    ct.league_code,
-    ct.league_sk,
-    ct.entity_type,
-    ct.seasons_played,
-    ct.first_season,
-    ct.last_season,
-    ct.appearances,
-    ct.goals,
-    ct.assists,
-    sum(case when ct.entity_type = 'national' then ct.appearances else 0 end)
-        over (partition by ct.player_sk) as national_appearances_total
-from career_typed as ct
-left join players as p on ct.player_sk = p.player_sk
+    tm.team_name,
+    tm.team_logo_url,
+    tm.team_country,
+    wc.entity_type,
+    wc.appearances,
+    wc.goals,
+    wc.assists,
+    wc.national_appearances_total
+from with_caps as wc
+left join players as p on wc.player_sk = p.player_sk
+left join teams as tm on wc.team_sk = tm.team_sk

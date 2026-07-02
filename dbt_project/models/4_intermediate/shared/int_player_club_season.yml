@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: int_player_club_season__metrics
+    description: >
+      Per (player, CLUB, competition-season) aggregate over all finished matches — the finest-grain player
+      atoms rollup (#480 §8.3). One row per player at one club in one competition-season; a mid-season
+      transfer yields one row per club (no last-club collapse). The single atoms source that
+      int_player_season__metrics (re-aggregated to the competition-season) and mart_player_career (the
+      per-club career log) both COMPOSE. Atoms follow metric_catalogue.csv exactly (per-fixture
+      ROUND-weighted passes_accurate; counts coalesce nulls to 0; appearances = finished player-stat rows).
+      Ratios / per-90 are derived where consumed, not here. Grain: (player_sk, team_sk, season_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - player_sk
+            - team_sk
+            - season_sk
+    columns:
+      - name: player_club_season_sk
+        description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
+        tests: [not_null, unique]
+      - name: player_sk
+        description: "Player entity key."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_sk
+        description: "Club the player turned out for that competition-season."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        description: "Competition-season key (encodes league + year)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        description: "Competition key."
+        tests: [not_null]
+      - name: league_code
+        description: "Competition code (partition key)."
+        tests: [not_null]
+      - name: season_api_year
+        description: "Provider season year."
+        tests: [not_null]
+      - name: appearances
+        description: "Finished-match player-stat rows for this player-club-season (honest absence where stats are off)."
+        tests: [not_null]
