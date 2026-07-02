@@ -60,7 +60,8 @@ atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest
 │  ▸ W 3-1 · 90' · 1 G · 1 A                 │
 │    …all matches with a stat line…          │
 ├────────────────────────────────────────────┤
-│  ▸Team profile ▸Bundesliga ▸Top scorers    │  (7) internal links
+│  ▸Stats ▸Team profile                      │  (7) internal links
+│  ▸Bundesliga ▸Top scorers                  │
 └────────────────────────────────────────────┘
 ```
 
@@ -164,3 +165,5 @@ empty/absent states · internal-links footer.
 
 - [GAP-08](99_gaps_register.md) — `round_name` localization (match log secondary line).
 - [GAP-12](99_gaps_register.md) — GK triple atomics (save bundle, §5.5).
+- The **Stats** tab (percentile vs peers) is its own sub-screen — [12](12_player_stats.md), backed by
+  `mart_player_competition_benchmarks`; export wiring pending [GAP-21](99_gaps_register.md). Linked from (7).

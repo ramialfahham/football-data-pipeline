@@ -63,6 +63,33 @@ context→window matrix, §1/§4). This section binds them to DISPLAY:
 5. Sample size is always displayable (`games_in_window` / `games_played`);
    the window meta line is part of the component, not optional copy.
 
+## Percentile display (vs-peers) — ruled 2026-07-01; median word + distributional framing confirmed 2026-07-02
+
+How a percentile-vs-peers benchmark renders (the Player Stats screen, [12](12_player_stats.md), fed by
+`mart_player_competition_benchmarks`). Distinct from the team vs-benchmark, which is **rank-based** ("k of
+N" + vs-median, honest at N≈18) — never a percentile.
+
+1. **Plain-language ladder, not "Nth percentile."** A stat reads **"top X%"** (above the median),
+   **"median"** (exactly the median peer — the dashed reference line), or **"bottom X%"** (below it). Fans
+   grok "top 5%"; "95th percentile" is analyst-speak. ("middle" / "more than X%" were rejected — CPO.)
+2. **Median-anchored.** The reference is the **median** peer (the middle-ranked one), shown as a dashed line —
+   never called "average" ("average" = mean, a different statistic, reserved for the team bars-vs-average mode).
+3. **Distributional position, not a verdict.** The bar states WHERE the value sits among positional peers, not
+   good/bad. The mart `percentile` is direction-agnostic (by value ascending); read position = `percentile`
+   for `higher_better`/`neutral`, `1 − percentile` for `lower_better` (which also mirrors the caption rank to
+   `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end —
+   dormant, 0 such metrics today); then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
+   "top 1%", never "top 0%"). For the **11 higher_better** metrics "top" reads as quality; for the **7 neutral**
+   volume/style metrics it reads as *most*, not better.
+4. **Peers = position group** (GK / DEF / MID / ATT) — position-aware, set at the mart (CPO 2026-06-23).
+5. **One bar, no traffic lights.** A single-fill rank bar on a track + the dashed median line — colour is
+   redundant with the median line (and would wrongly imply a verdict on the neutral metrics), so there is
+   none; the fill is a neutral **data token deferred to the design pass (#366)**. Sample (`peer_count`,
+   `minutes`, `appearances`) is always shown.
+6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `pass_accuracy_pct`,
+   `finishing_efficiency`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
+   {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
+
 ## Team metrics — LOCKED (CPO, 2026-06-11)
 
 Display order top to bottom. MVP rows keep their relative order; new blocks slot
