@@ -1,39 +1,46 @@
-# Task contract — handover refresh (post-#630; #480 §8.3 per-club foundation merged)
+# Task contract — Player → Career screen spec (wireframe 13) + GAP-22
 
-> Written on a CLEAN tree (branch chore/handover-refresh-630 off main @ 7bebac7).
-> Bookkeeping only — no code/model change. Records that #630 merged (the #480 §8.3 per-club
-> player-season foundation + rebuilt mart_player_career) and re-points the next chat at the updated
-> backlog. Handover refreshes skip plan mode (CPO carve-out 2026-06-30). See docs/working_agreement.md §2.
+> Written on a CLEAN tree (branch docs/391-career-screen-spec off main @ 65deea7).
+> Doc/wireframe spec — went through plan mode; plan approved. Mirrors #625 (Stats 12) + #617 (Squad 11).
+> No code/model/dbt/export change (docs/wireframes/** is NOT a structural surface → no impact_map).
 
 objective: >
-  #630 is MERGED (main @ 7bebac7): #480 §8.3 — NEW int_player_club_season__metrics (canonical per-club
-  atoms base, grain player×club×competition-season); int_player_season__metrics re-expressed as a
-  byte-identical composition of it (mart_player_profile + mart_leaderboards unchanged, CI-verified);
-  mart_player_career rebuilt to the per-club × competition-season career log; int_player_career__metrics
-  retired. This is Phase C brick 1. Refresh active_work.md so a fresh chat resumes cleanly: the Career
-  surface is now DATA-unblocked (mart at the right grain, still orphan/unspec'd/thin-until-backfill);
-  NEXT = a CPO pick (Career screen spec / Phase C continued / backfill / Phase D). Records merged facts only.
+  Spec the Player → Career sub-screen (wireframe 13) against the merged per-club mart_player_career (#630,
+  grain player×club×competition-season): a club-grouped season-by-season career log + a national-team caps
+  section, honest counts only (apps/goals/assists), bound 1:1 to real mart columns. Register GAP-22 (the
+  export-wiring gap — mart_player_career is not yet carried by shape_player_payload). Doc-only; the export
+  wiring + the history backfill are separate follow-ups. Resolves the screen that opened the session.
 
 scope_paths:
-  - .claude/active_work.md
+  - docs/wireframes/13_player_career.md
+  - docs/wireframes/00_overview.md
+  - docs/wireframes/99_gaps_register.md
+  - docs/wireframes/03_player_profile.md
   - .claude/task/**
 
 decisions_taken: >
-  Bookkeeping only. Header → post-#630 / main @ 7bebac7 leading with the #480 §8.3 foundation; add #630 to
-  the "main carries" line + prepend it to RECENT PRs; FIRST STEPS step 3 + the backlog updated to reflect
-  the per-club mart now built (career screen spec now against the rebuilt mart; wiring + backfill pending).
-  Records the byte-stability property + the 4-round review. Invents nothing new; locks no next task.
+  Per the approved plan. NEW 13_player_career.md follows the 00_overview §1-10 template (mirrors 12/11):
+  club-grouped season rows (Season · Competition · Apps · Goals · Assists) + per-club/career subtotals + a
+  National-team caps section; counts-only (no per-90, CPO); §5 binds ONLY to mart_player_career columns
+  (player/club identity, entity_type, appearances/goals/assists, national_appearances_total). Honest limits
+  stated: national rows = appearances in COVERED competitions (NOT true caps) + the log is thin until the
+  backfill runs. GAP-22 registered (export wiring, pending). Companion doc-syncs: 00 (screen inventory row 13
+  + census), 99 (GAP-22), 03 (§7 ▸Career footer link + §10 reference). metrics_display.md NOT touched (plain
+  integer counts, no new display idiom).
 
 decisions_reserved:
-  - The next task — CPO picks: Career screen spec (13, against the rebuilt per-club mart), Phase C continued
-    (player YoY/streaks on the new base), the history backfill (§10 cost), or Phase D flagship marts. Present
-    candidates; do NOT pre-decide.
-  - All §10 unchanged (product/UX, metrics, naming, new mechanisms, backfill depth/cost).
+  - Subtotal precompute (dbt) vs display-side grouping — the #630 decisions_reserved item; CPO at the GAP-22
+    wiring PR. The spec presents subtotals as display grouping + flags this, does NOT pre-decide.
+  - Export nesting shape of the career[] block — confirmed at the GAP-22 wiring PR (like Stats/Squad).
+  - The export wiring PR itself + the history backfill (§10 cost) — separate follow-ups, not this PR.
+  - All §10 (product/UX, metrics, naming, new mechanisms) — no new metric; labels from metric_catalogue only.
 
 done_when:
-  - active_work.md: header post-#630 (main @ 7bebac7); #480 §8.3 foundation recorded; mart_player_career
-    now built-at-per-club-grain (orphan, unspec'd, thin-until-backfill); #630 in "main carries" + RECENT PRs;
-    NEXT = CPO backlog pick; self-contained for a cold chat.
-  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds; CPO merges.
+  - docs/wireframes/13_player_career.md written §1-10; every §5 key is a real mart_player_career column;
+    labels/formats reference metric_catalogue (goals/assists) / are facts (appearances); §6 covers thin +
+    not-yet-wired + national-absent cases; §9 flags the new components.
+  - 00_overview (inventory row 13 + census), 99_gaps_register (GAP-22), 03_player_profile (§7 link + §10 ref)
+    synced; metrics_display untouched.
+  - scope-auditor + bi-analyst-reviewer PASS (>=2 risks each); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)

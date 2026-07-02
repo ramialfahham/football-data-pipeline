@@ -67,6 +67,7 @@ Every screen file follows this structure:
 | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
 | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster list, identity-only) | **spec'd** | #391 ⁑ |
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
+| 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
 | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
 
 Order rationale: the fixture page first — the product's heart and the most
@@ -97,10 +98,10 @@ inventory, flagged as new for the design system (#366).
 | Result chip (W/D/L) | 01 | part of form string family |
 | Player row (photo, name, stat columns) | 01 | player row ✓ |
 | H2H record block (aggregate W-D-L bar + counts) | 01 | ➕ |
-| Empty/absent state | 01, 02, 03, 11, 12 | ✓ |
+| Empty/absent state | 01, 02, 03, 11, 12, 13 | ✓ |
 | Narrative block (data-to-text slot) | 01 | ➕ (slot only — GAP-03) |
-| Internal-links footer | 01, 02, 03, 11, 12 | ➕ (SEO-driven) |
-| Profile header (team/player) | 02, 03, 11, 12 | ✓ |
+| Internal-links footer | 01, 02, 03, 11, 12, 13 | ➕ (SEO-driven) |
+| Profile header (team/player) | 02, 03, 11, 12, 13 | ✓ |
 | Competition-/season selector | 02, 03, 11, 12 | ➕ |
 | Position selector | 12 | ➕ |
 | Percentile rank bar (single fill + track + dashed median) | 12 | ➕ |
@@ -117,6 +118,10 @@ inventory, flagged as new for the design system (#366).
 | Match-log row | 03 | ➕ |
 | Position-group header | 11 | ➕ |
 | Squad player row (photo · name · nationality · age) | 11 | player row ✓ |
+| Club group header (crest + name) | 13 | ➕ |
+| Career-log row (season · comp · apps · goals · assists) | 13 | player row ✓ |
+| Subtotal / career-total line | 13 | ➕ |
+| National-caps block | 13 | ➕ |
 
 ## Verification (per screen, before its PR merges)
 
