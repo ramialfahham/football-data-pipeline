@@ -1,46 +1,45 @@
-# Task contract — handover refresh (post-#621)
+# Task contract — handover refresh (post-#623; prep a fresh chat)
 
-> Written on a CLEAN tree (branch chore/handover-refresh-621 off main @ 46719fb).
-> Bookkeeping only — no code/model/doc-of-record change. Records the accumulated state since #620:
-> the Stats-percentile track pick, the PARKED Player Stats wireframe (stash), #530(b) merged (#621),
-> and the percentile display contract. See docs/working_agreement.md §2. Handover refreshes skip plan mode.
+> Written on a CLEAN tree (branch chore/handover-refresh-623 off main @ 9ee17be).
+> Bookkeeping only — no code/model/doc-of-record change. Final refresh before handing to a fresh chat:
+> corrects the two wording/scope items the CPO resolved AFTER #623 locked. See docs/working_agreement.md §2.
+> Handover refreshes skip plan mode.
 
 objective: >
-  Bring .claude/active_work.md current after #621 (#530(b), MERGED, main @ 46719fb). Since the last
-  refresh (#620) the CPO picked the Stats-percentile screen track; the Player Stats wireframe was DRAFTED
-  then PARKED (stashed) when a catalogue-integrity gap surfaced; #530(b) fixed that gap (finishing_efficiency
-  + duels_won_pct player rows completed). Record all of it — especially the FRAGILE parked stash + its
-  rework list — so a fresh chat can recover and resume. Set NEXT = resume the Player Stats wireframe.
+  #623 (handover refresh) is MERGED (main @ 9ee17be), but the CPO resolved two items AFTER it locked, so
+  the merged handover is stale on them: (1) the median-band word is **"median"** (CONFIRMED), NOT the
+  "provisionally 'middle', CPO-to-confirm" that #623 records; (2) the naked-% denominators item is
+  RESOLVED (the denominator atoms exist in `int_player_season_position__metrics`, where the % is computed
+  from them — e.g. duels_won/duels_total; carry num/den into the benchmark payload and show the triple — a
+  shaping step, not an open CPO call), NOT the "OPEN, don't guess" #623 records. Make active_work.md accurate + fully self-contained so a fresh chat can
+  resume the Player Stats wireframe rework with all four rework items settled/resolved.
 
 refs: >
-  main @ 46719fb (#621 #530b). Parked: stash@{0} on docs/391-player-stats-percentile-spec ("wip:
-  12_player_stats wireframe"). Percentile display contract banked in memory
-  [[feedback-percentile-display-phrasing]]. Prior refresh #620 (post-#619). Also record #620 itself in the
-  "main carries" list (the GAP-20 close-out doc-sync, which the #620-era handover didn't self-list).
+  main @ 9ee17be (#623). Parked: stash@{0} on docs/391-player-stats-percentile-spec ("wip: 12_player_stats").
+  Display contract (now fully settled) in memory [[feedback-percentile-display-phrasing]]: ladder = top X% /
+  median / bottom X%; ratio metrics show the {num} of {den} · {pct}% triple (carry the atoms).
 
 scope_paths:
   - .claude/active_work.md
   - .claude/task/**
 
 decisions_taken: >
-  Bookkeeping only. Update the header (2026-07-02, main @ 46719fb, #530b merged); append #620 + #621 to the
-  "main carries" line; refresh FIRST STEPS/NEXT to "resume the Player Stats wireframe (recover the stash +
-  rework)"; add a PARKED-WIREFRAME callout (stash location + rework list, each item STATUS-tagged: the
-  uniform top/[median word]/bottom STRUCTURE settled, finishing_efficiency + duels_won_pct now catalogued
-  higher_better via #530b, restore Top-scorers link = SETTLED; the median WORD "middle" = PROVISIONAL
-  (CPO-to-confirm per the memory); naked-% denominators for save%/duels%/dribbles% = OPEN); add a
-  Stats-percentile track entry + #530b to the backlog; record the percentile display contract pointer;
-  prepend #620 + #621 to RECENT PRs. Records the session's CPO decisions + faithfully marks the still-open /
-  provisional items as such — invents no new product/UX/metric/naming decision.
+  Bookkeeping only. In the PARKED WIREFRAME callout: item 1 median word → "median" CONFIRMED (was
+  provisional "middle"); item 4 naked-% → RESOLVED (carry the denominator atoms + show the triple; a
+  shaping step, not an open call) — so all four rework items are now settled/resolved. Bump the header to
+  post-#623 / all-wording-settled; set NEXT = resume the wireframe rework (recover the stash + apply). Add
+  #623 to the "main carries" line + RECENT PRs. Records CPO decisions already made this session — invents
+  nothing new.
 
 decisions_reserved:
-  - The Player Stats wireframe rework itself — its own continuation (plan mode), next.
-  - Flagged follow-ups: season-model single-source repoint; remaining #530(b) rows (goals_penalty,
-    goals_open_play metrics, now unblocked). Career screen spec; Phase C / Phase D.
+  - The wireframe rework itself — its own continuation (recover stash → rework → bi-analyst/scope-auditor).
+  - Flagged follow-ups: the benchmark→player-export wiring PR (carries the squad[]-style block + the
+    denominator atoms); season-model single-source repoint; remaining #530(b) rows (goals_penalty,
+    goals_open_play metrics); Career screen; Phase C / Phase D.
 
 done_when:
-  - active_work.md records: main @ 46719fb / #530b merged; the parked Player Stats wireframe stash + rework
-    list; the percentile display contract; NEXT = resume the wireframe; #620/#621 in RECENT PRs.
+  - active_work.md: median word = "median" (settled), naked-% resolved, all 4 rework items settled/resolved,
+    NEXT = resume the wireframe rework, #623 recorded; self-contained for a cold chat.
   - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)
