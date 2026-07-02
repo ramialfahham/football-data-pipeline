@@ -1,65 +1,36 @@
-# Review — fix/530b-player-catalogue-integrity — 2026-07-02
+# Review — chore/handover-refresh-621 — 2026-07-02
 
-> G3 Lock artifact. #530(b): fix the player catalogue-integrity gap. Adds an event-derived `goals_penalty`
-> atom to int_legs__player_match; completes the two player metric_catalogue rows (finishing_efficiency:
-> base/num/denom + direction=higher_better; duels_won_pct: direction=higher_better); syncs the seed's own
-> schema.yml deferred-rows prose. Season model untouched (Option Y). Required set (routing): scope-auditor
-> (always) + analytics-engineer (dbt_project/**) + football-analytics-expert (metric_catalogue.csv).
+> G3 Lock artifact. Bookkeeping-only handover refresh: brings .claude/active_work.md current after #621
+> (#530(b) merged, main @ 46719fb). Records the Stats-percentile track pick, the PARKED Player Stats
+> wireframe (stash@{0} on docs/391-player-stats-percentile-spec) + a recovery/rework callout, #620/#621 in
+> RECENT PRs, and the percentile display contract pointer. Required set (routing): scope-auditor only —
+> the diff touches .claude/active_work.md (artifact) + .claude/task/contract.md (hashed). No specialist route.
 >
-> Round 1 (hash e339d31) — scope-auditor PASS, football-analytics PASS, analytics-engineer FAIL: the seed's
-> own dbt_project/seeds/schema.yml still listed finishing_efficiency among "the deferred player rows pending
-> the penalty atom" — SSoT self-contradiction after the CSV row was completed.
-> Round 2 (hash 959cfc07) — added schema.yml to scope + dropped finishing_efficiency from the
-> deferred enumeration (kept goals_penalty/goals_open_play, still blank) + corrected the now-stale
-> "pending the atom" phrasing. CODE (leg + CSV) byte-identical to round 1. All three reviewers PASS.
-> Round 3 (hash 08375bb5, THIS lock) — ci-data-build round-2 failed a SQLFluff **ST06** rule: the new
-> `coalesce(...) as goals_penalty` sat among the simple `ps.*` columns; ST06 wants calculations AFTER
-> simple targets. Moved it to the trailing calculated-columns block (before round_order) — still an output
-> column, catalogue formula still resolves, semantics identical. CSV/schema.yml/contract byte-identical to
-> round 2. All three reviewers re-confirmed PASS (resolvability guard is name-based, not positional).
+> Round 1 (hash 75ff1894) FAIL — the rework callout claimed items "all CPO-settled" while item 4 (naked-%)
+> was an open question; stash-recovery lacked a conflict guard.
+> Round 2 (hash 75ff1894, active_work-only edits) FAIL — the median word "middle" was tagged [SETTLED]/(CPO
+> pick) but the memory (feedback_percentile_display_phrasing.md) marks it "CPO-to-confirm" — over-asserted.
+> Round 3 (hash ba740469, THIS lock) — per-item STATUS tags: item 1 [STRUCTURE SETTLED] + median word
+> [WORD PROVISIONAL, CPO-to-confirm]; items 2–3 [SETTLED]; item 4 [OPEN, CPO/football-analytics escalation];
+> contract decisions_taken reworded to "records decisions + faithfully marks open/provisional items";
+> stash-conflict guard added. scope-auditor PASS.
 
-diff_sha256: 08375bb5c920f0299e7ee85672841e40ee7a5608e9e0132e7ece2dc430d2efd8
+diff_sha256: ba740469210c227e132b4234a40b92a3c9ea4bcbbd346dfac40ab767ba067bfe
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Penalty-atom resolvability in metric_catalogue — goals_penalty added to int_legs__player_match from the
-  same event derivation as the team leg; assert_metric_catalogue_expr_resolvable now includes
-  finishing_efficiency,player (was skipped with blank base_relation) and resolves `sum(goals_total -
-  goals_penalty)` + `sum(shots_on)` to real leg columns. Left join on (fixture_sk, player_sk) is
-  cardinality-preserving; coalesce(...,0) null-safe. Held.
-- schema.yml/CSV consistency round-trip — the 3rd amendment added schema.yml to scope; the description now
-  records finishing_efficiency as done + goals_penalty/goals_open_play still pending (verified against the
-  live CSV blanks). CSV rows well-formed (14 fields); direction=higher_better on both; interpretation blank
-  (v1.x player exemption, schema.yml). Doc + code synchronized; no §10 decision; formula pure. Held.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Doc/data SSoT drift (the round-1 defect) — re-verified schema.yml base_relation description
-  (lines 108-110) against the live CSV: finishing_efficiency (row 15) fully filled + no longer in the
-  deferred enumeration; goals_penalty/goals_open_play (rows 31-32) genuinely still blank and the only two
-  listed; the "Blank for the deferred rows above" refs now resolve to those two. No stale reference remains.
-  Fully resolved.
-- Join fan-out on the new leg column — the events CTE groups by (fixture_sk, player_sk) before the left
-  join, so it cannot multiply rows; the leg's unique_combination_of_columns([fixture_sk, player_sk]) grain
-  test still holds. Derivation parity with the season model's own CTE confirmed (same event filter/grain/
-  coalesce); Option Y (season model untouched) → finishing value unchanged. Held.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- finishing_efficiency (player) — open-play conversion `(goals − penalty goals)/shots on target` is
-  football-valid; goals_total already excludes own goals (provider convention → only penalties subtracted,
-  vs the team row's penalties+own-goals — a real accounting asymmetry, not a copy-paste gap); higher_better
-  correct; the >100% edge is honestly nulled ([0,1]), cap stays model-side. Held.
-- duels_won_pct (player) direction + schema.yml prose — higher_better matches the team row for the identical
-  formula (a duel win-rate is a genuine quality signal, no style-vs-quality caveat needed); the schema.yml
-  edit is pure bookkeeping (verified against the live CSV blanks/fills), no formula/direction/football claim
-  embedded. Held.
+- Stash-recovery fragility — if `git stash pop` conflicts on the parked wireframe branch, the callout
+  directs re-creation from the rework list (a prose 4-item summary, not an executable diff). Verified the
+  list is detailed enough (status tags, metric names, explicit rules) to re-create the spec, and a clear
+  priority rule (rework list = source of truth on conflict) is stated. Real but documented + guarded. Held.
+- Provisional-word binding drift — the median word "middle" is marked [WORD PROVISIONAL] with explicit
+  "CPO-to-confirm" language matching the memory exactly; the handover no longer asserts it as decided. The
+  soft-vs-hard ambiguity (from "Let's try it") is inherited from the source, not created here, and correctly
+  flagged for the CPO to restate at rework. Naked-% (item 4) correctly OPEN. Bookkeeping-only; scope =
+  .claude/active_work.md + .claude/task/**; no §10 decision made/hidden. Held.
 
 ## escalations
-(none) — completes two player catalogue rows to match the already-computed formula + the CPO direction
-ruling (both higher_better, 2026-07-02); no new metric invented; exprs pure (cap stays model-side). The
-season-model single-source repoint + the remaining #530(b) rows (goals_penalty, goals_open_play) are
-flagged follow-ups, reserved.
+(none here) — the two OPEN/provisional items (the median word "middle" = CPO-to-confirm; the naked-%
+denominators for save%/duels%/dribbles% = CPO/football-analytics call) are RECORDED in the handover as
+to-be-resolved at the wireframe rework (their own task + review cycle), not decided in this bookkeeping refresh.
