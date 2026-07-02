@@ -1169,6 +1169,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: "metric_key != 'finishing_efficiency' or metric_value is null or (metric_value between 0 and 1)"
           name: mart_competition_benchmarks_player_finishing_in_range
+      # GAP-21 (#391): the 5 ratio metrics carry their volume (num/den) for the no-naked-% triple; the 13
+      # per-90 metrics do not. num AND den are non-null EXACTLY on the ratio rows (and, since a ranked row
+      # always has a non-null metric_value, safe_divide guarantees a non-null, non-zero den there).
+      - dbt_utils.expression_is_true:
+          expression: "(metric_key in ('save_pct', 'pass_accuracy_pct', 'finishing_efficiency', 'dribbles_success_pct', 'duels_won_pct')) = (metric_numerator is not null and metric_denominator is not null)"
+          name: mart_competition_benchmarks_player_ratio_atoms_present
     columns:
       - name: player_benchmark_sk
         description: "Surrogate from (player_sk, season_sk, position_group, metric_key)."
@@ -1214,6 +1220,15 @@ models:
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]
+      - name: metric_numerator
+        description: >
+          GAP-21 (#391): the count behind a RATIO metric's % (e.g. duels_won for duels_won_pct), so the Stats
+          screen can render the no-naked-% volume triple {num} of {den} · {pct}%. Non-null ONLY on the 5 ratio
+          rows (save_pct, pass_accuracy_pct, finishing_efficiency, dribbles_success_pct, duels_won_pct); null
+          on the 13 per-90 rows. From int_player_season_position__metrics atoms, gated identically to
+          metric_value — never derived in the export.
+      - name: metric_denominator
+        description: "The denominator behind a ratio metric's % (see metric_numerator; e.g. duels_total). Null on per-90 rows."
       - name: peer_mean
         description: "Mean peer value this league-season-position (skew-sensitive)."
       - name: peer_median

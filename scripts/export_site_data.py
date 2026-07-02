@@ -240,8 +240,54 @@ def _player_team_block(row: dict) -> dict | None:
     }
 
 
-def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> dict:
-    """One player's profile rows + match-log rows -> the player page payload."""
+def _shape_benchmark_member(row: dict) -> dict:
+    """One mart_player_competition_benchmarks row -> a Stats-screen metric entry (GAP-21).
+    Select/reshape only — the "top X%"/"median"/"bottom X%" label and the good/bad reading are
+    applied at render from the catalogue direction (the mart is direction-agnostic). numerator +
+    denominator come straight from the mart (non-null only for the 5 ratio metrics) so the
+    no-naked-% triple {num} of {den} · {pct}% can render; the export never computes them."""
+    return {
+        "metric_key": row.get("metric_key"),
+        "metric_value": row.get("metric_value"),
+        "percentile": row.get("percentile"),
+        "rank": row.get("rank"),
+        "peer_count": row.get("peer_count"),
+        "peer_median": row.get("peer_median"),
+        "vs_median_delta": row.get("vs_median_delta"),
+        "numerator": row.get("metric_numerator"),
+        "denominator": row.get("metric_denominator"),
+    }
+
+
+def _shape_benchmarks(rows: list[dict]) -> list[dict]:
+    """A season's mart_player_competition_benchmarks rows -> position-group blocks (GAP-21). Grouped
+    by position_group (a player benchmarked in >1 role appears once per role); minutes + appearances
+    are the position's sample (constant across its metrics); metrics ordered byte-stable by metric_key
+    (the frontend re-orders per the metrics_display block order and selects the position). No derivation."""
+    by_pos: dict = {}
+    for r in rows:
+        by_pos.setdefault(r.get("position_group"), []).append(r)
+    out = []
+    for pos in sorted(by_pos):
+        prs = by_pos[pos]
+        out.append({
+            "position_group": pos,
+            "minutes": prs[0].get("minutes"),
+            "appearances": prs[0].get("appearances"),
+            "metrics": [
+                _shape_benchmark_member(r)
+                for r in sorted(prs, key=lambda r: r.get("metric_key") or "")
+            ],
+        })
+    return out
+
+
+def shape_player_payload(
+    profile_rows: list[dict],
+    match_rows: list[dict],
+    benchmark_rows: list[dict] | None = None,
+) -> dict:
+    """One player's profile rows + match-log rows (+ benchmark rows) -> the player page payload."""
     latest = _latest_season_row(profile_rows)
     player_id = int(latest["player_sk"])
     seasons = sorted(
@@ -254,6 +300,12 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
         key=lambda r: (r.get("kickoff_datetime") or datetime.min),
         reverse=True,
     )
+    # GAP-21: per-(competition, season) benchmark rows, grouped into position-group blocks (§12).
+    benchmarks_by_season: dict = {}
+    for br in benchmark_rows or []:
+        benchmarks_by_season.setdefault(
+            (br.get("league_code"), br.get("season_api_year")), []
+        ).append(br)
     # Per-season club + the single current club. is_current_team is the dbt flag
     # (int_player_season__team) — the export selects by it, it never re-ranks.
     current_team = None
@@ -266,6 +318,9 @@ def shape_player_payload(profile_rows: list[dict], match_rows: list[dict]) -> di
         for k in ("team_sk", "is_current_team"):
             s.pop(k, None)
         s["team"] = team
+        s["benchmarks"] = _shape_benchmarks(
+            benchmarks_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+        )
         seasons_out.append(s)
     return {
         "type": "player",
@@ -499,8 +554,18 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
         log_sql = f"select * from {log_table}"
     logs = _query(client, log_sql)
     by_player_log = _group_by(logs, "player_sk")
+    # GAP-21: per-player benchmark rows from mart_player_competition_benchmarks (scoped to the
+    # sampled players on a sample run, like the match log). Selection only.
+    bench_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_competition_benchmarks`"
+    if sample:
+        bench_sql = f"select * from {bench_table} where player_sk in ({id_list})"
+    else:
+        bench_sql = f"select * from {bench_table}"
+    by_player_bench = _group_by(_query(client, bench_sql), "player_sk")
     return [
-        shape_player_payload(by_player[pid], by_player_log.get(pid, []))
+        shape_player_payload(
+            by_player[pid], by_player_log.get(pid, []), by_player_bench.get(pid, [])
+        )
         for pid in player_ids
         if pid in wanted
     ]

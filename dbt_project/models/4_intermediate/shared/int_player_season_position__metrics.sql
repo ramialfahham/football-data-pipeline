@@ -127,6 +127,7 @@ select
     appearances,
     minutes,
     goals,
+    goals_penalty,
     assists,
     shots_on_goal,
     passes_total,

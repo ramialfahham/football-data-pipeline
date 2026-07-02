@@ -53,7 +53,22 @@ unpivoted as (
                 position_group in ('{{ m.pos | join("', '") }}')
                 {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
                 then {{ m.col }}
-        end as metric_value
+        end as metric_value,
+        -- GAP-21: the volume behind each ratio %, gated by the SAME eligibility+floor as
+        -- metric_value; null when the metric defines no num/den (the 13 per-90 metrics).
+        -- Feeds the {num} of {den} · {pct}% triple on the Stats screen.
+        case
+            when
+                position_group in ('{{ m.pos | join("', '") }}')
+                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
+                then {% if m.num is defined %}{{ m.num }}{% else %}cast(null as int64){% endif %}
+        end as metric_numerator,
+        case
+            when
+                position_group in ('{{ m.pos | join("', '") }}')
+                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
+                then {% if m.den is defined %}{{ m.den }}{% else %}cast(null as int64){% endif %}
+        end as metric_denominator
     from season
     {% if not loop.last %}
     union all
@@ -73,6 +88,8 @@ ranked as (
         u.appearances,
         u.metric_key,
         u.metric_value,
+        u.metric_numerator,
+        u.metric_denominator,
         rank() over (
             partition by
                 u.league_code, u.season_api_year, u.position_group, u.metric_key
@@ -104,6 +121,8 @@ select
     r.minutes,
     r.appearances,
     r.metric_value,
+    r.metric_numerator,
+    r.metric_denominator,
     b.peer_mean,
     b.peer_median,
     b.peer_p25,
