@@ -7,6 +7,8 @@ fabricated rows so python-ci validates the logic offline.
 from scripts.export_site_data import (
     _display_group_of_type,
     _fixture_side,
+    _shape_benchmark_member,
+    _shape_benchmarks,
     build_manifest,
     build_nav,
     fetch_glossary,
@@ -334,6 +336,83 @@ def test_shape_player_payload_current_team_and_per_season_team():
     assert teams[2] is None                     # 2023: no team
     # internal keys never leak into the published season rows
     assert all("team_sk" not in s and "is_current_team" not in s for s in p["seasons"])
+
+
+def test_shape_benchmark_member_carries_mart_columns_and_ratio_atoms():
+    # GAP-21: a RATIO metric row keeps numerator/denominator (for the {num} of {den} · {pct}% triple);
+    # a per-90 row has null num/den. The export copies straight from the mart — no computation.
+    ratio = {
+        "metric_key": "duels_won_pct", "metric_value": 0.54, "percentile": 0.70,
+        "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
+        "position_group": "ATT", "minutes": 2470, "appearances": 29,
+        "metric_numerator": 96, "metric_denominator": 178,
+    }
+    m = _shape_benchmark_member(ratio)
+    assert m == {
+        "metric_key": "duels_won_pct", "metric_value": 0.54, "percentile": 0.70,
+        "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
+        "numerator": 96, "denominator": 178,
+    }
+    per90 = {**ratio, "metric_key": "goals_per90", "metric_value": 0.82,
+             "metric_numerator": None, "metric_denominator": None}
+    m90 = _shape_benchmark_member(per90)
+    assert m90["numerator"] is None and m90["denominator"] is None
+    # grain/internal keys never leak into the member
+    for internal in ("position_group", "minutes", "appearances",
+                     "metric_numerator", "metric_denominator"):
+        assert internal not in m
+
+
+def test_shape_benchmarks_groups_by_position_and_orders_by_metric_key():
+    def row(pos, key, **kw):
+        base = {"position_group": pos, "metric_key": key, "metric_value": 1.0,
+                "percentile": 0.5, "rank": 1, "peer_count": 10, "peer_median": 1.0,
+                "vs_median_delta": 0.0, "minutes": 2000, "appearances": 24,
+                "metric_numerator": None, "metric_denominator": None}
+        base.update(kw)
+        return base
+    # one player benchmarked in two positions; metrics deliberately out of key order
+    rows = [
+        row("MID", "passes_per90"),
+        row("ATT", "goals_per90"),
+        row("ATT", "assists_per90"),
+        row("MID", "duels_won_pct", metric_numerator=50, metric_denominator=90),
+    ]
+    groups = _shape_benchmarks(rows)
+    # position groups sorted (ATT before MID)
+    assert [g["position_group"] for g in groups] == ["ATT", "MID"]
+    # minutes/appearances carried at the group level (the position's sample)
+    assert groups[0]["minutes"] == 2000 and groups[0]["appearances"] == 24
+    # metrics ordered byte-stable by metric_key
+    assert [m["metric_key"] for m in groups[0]["metrics"]] == ["assists_per90", "goals_per90"]
+    assert [m["metric_key"] for m in groups[1]["metrics"]] == ["duels_won_pct", "passes_per90"]
+    # the ratio metric's atoms survive
+    duels = groups[1]["metrics"][0]
+    assert duels["numerator"] == 50 and duels["denominator"] == 90
+
+
+def test_shape_player_payload_attaches_benchmarks_per_season():
+    profiles = [
+        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD",
+         "player_name": "X", "position_code": "F"},
+        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1",
+         "player_name": "X", "position_code": "F"},
+    ]
+    benchmarks = [
+        {"player_sk": 7, "league_code": "PD", "season_api_year": 2025, "position_group": "ATT",
+         "metric_key": "goals_per90", "metric_value": 0.9, "percentile": 0.99, "rank": 1,
+         "peer_count": 40, "peer_median": 0.3, "vs_median_delta": 0.6,
+         "minutes": 2500, "appearances": 30, "metric_numerator": None, "metric_denominator": None},
+    ]
+    p = shape_player_payload(profiles, [], benchmarks)
+    s2025, s2024 = p["seasons"][0], p["seasons"][1]
+    assert s2025["benchmarks"][0]["position_group"] == "ATT"
+    assert s2025["benchmarks"][0]["metrics"][0]["metric_key"] == "goals_per90"
+    # a season with no benchmark rows renders an empty list (honest absence)
+    assert s2024["benchmarks"] == []
+    # default (no benchmark_rows) also yields empty benchmarks
+    p2 = shape_player_payload(profiles, [])
+    assert all(s["benchmarks"] == [] for s in p2["seasons"])
 
 
 def test_build_manifest_counts_by_type():

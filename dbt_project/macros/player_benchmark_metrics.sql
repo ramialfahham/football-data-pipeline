@@ -7,7 +7,10 @@
   Each entry: key = the metric_catalogue metric_id; col = the column in int_player_season_position__metrics;
   pos = the position groups this metric is benchmarked for (eligibility — CPO ruling 2026-06-23 B3); floor
   (optional) = an extra per-row qualifier on top of the global minutes >= 270 (finishing needs >= 10 shots
-  on target in the position).
+  on target in the position); num/den (optional, the 5 RATIO metrics only) = numerator/denominator
+  expressions over the same int_player_season_position__metrics atoms, so the mart can carry the volume
+  behind each % for the no-naked-% triple {num} of {den} · {pct}% on the Stats screen (GAP-21, #391). Only
+  the MART reads num/den; the engine (int_player_competition_benchmarks) ignores them.
 
   Eligibility rule (CPO B3): benchmark a metric for a position only when non-degenerate for that group.
   Because the peer pool is already position-specific, the only dead boards are at the GK<->outfield
@@ -18,19 +21,19 @@
     {% set all_pos = ['GK', 'DEF', 'MID', 'ATT'] %}
     {% set metrics = [
         {'key': 'saves_per90', 'col': 'saves_per90', 'pos': ['GK']},
-        {'key': 'save_pct', 'col': 'save_pct', 'pos': ['GK']},
+        {'key': 'save_pct', 'col': 'save_pct', 'pos': ['GK'], 'num': 'saves', 'den': 'saves + goals_against'},
         {'key': 'passes_per90', 'col': 'passes_per90', 'pos': all_pos},
-        {'key': 'pass_accuracy_pct', 'col': 'pass_accuracy_pct', 'pos': all_pos},
+        {'key': 'pass_accuracy_pct', 'col': 'pass_accuracy_pct', 'pos': all_pos, 'num': 'passes_accurate', 'den': 'passes_total'},
         {'key': 'goals_per90', 'col': 'goals_per90', 'pos': outfield},
         {'key': 'assists_per90', 'col': 'assists_per90', 'pos': outfield},
         {'key': 'scorer_points_per90', 'col': 'scorer_points_per90', 'pos': outfield},
         {'key': 'shots_on_goal_per90', 'col': 'shots_on_goal_per90', 'pos': outfield},
         {'key': 'key_passes_per90', 'col': 'key_passes_per90', 'pos': outfield},
-        {'key': 'finishing_efficiency', 'col': 'finishing_efficiency', 'pos': outfield, 'floor': 'shots_on_goal >= 10'},
+        {'key': 'finishing_efficiency', 'col': 'finishing_efficiency', 'pos': outfield, 'floor': 'shots_on_goal >= 10', 'num': 'goals - goals_penalty', 'den': 'shots_on_goal'},
         {'key': 'dribbles_success_per90', 'col': 'dribbles_success_per90', 'pos': outfield},
-        {'key': 'dribbles_success_pct', 'col': 'dribbles_success_pct', 'pos': outfield},
+        {'key': 'dribbles_success_pct', 'col': 'dribbles_success_pct', 'pos': outfield, 'num': 'dribbles_success', 'den': 'dribbles_attempts'},
         {'key': 'duels_won_per90', 'col': 'duels_won_per90', 'pos': outfield},
-        {'key': 'duels_won_pct', 'col': 'duels_won_pct', 'pos': outfield},
+        {'key': 'duels_won_pct', 'col': 'duels_won_pct', 'pos': outfield, 'num': 'duels_won', 'den': 'duels_total'},
         {'key': 'defensive_actions_per90', 'col': 'defensive_actions_per90', 'pos': outfield},
         {'key': 'tackles_per90', 'col': 'tackles_per90', 'pos': outfield},
         {'key': 'interceptions_per90', 'col': 'interceptions_per90', 'pos': outfield},
