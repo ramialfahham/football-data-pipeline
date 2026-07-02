@@ -67,6 +67,7 @@ typed as (
         cs.appearances,
         cs.goals,
         cs.assists,
+        cs.last_kickoff_at,
         types.entity_type
     from club_season as cs
     left join registry on cs.league_code = registry.league_code
@@ -85,6 +86,13 @@ with_caps as (
         typed.appearances,
         typed.goals,
         typed.assists,
+        typed.last_kickoff_at,
+        -- the CLUB's latest match across all the player's seasons at that club (season-collapsed recency).
+        -- The export sorts the career log by this so a club's rows stay contiguous and clubs sort
+        -- most-recent-first — the ordering SIGNAL lives here (mart), the export only selects+sorts by it
+        -- (never aggregates client-side). Handles a mid-season transfer and a return spell correctly.
+        max(typed.last_kickoff_at)
+            over (partition by typed.player_sk, typed.team_sk) as club_latest_kickoff_at,
         -- per-player national-appearance total (covered comps only — honestly not true caps),
         -- denormalised so the export reads it directly (never derived in the consumption layer).
         sum(case when typed.entity_type = 'national' then typed.appearances else 0 end)
@@ -111,7 +119,13 @@ select
     wc.appearances,
     wc.goals,
     wc.assists,
-    wc.national_appearances_total
+    wc.national_appearances_total,
+    -- ordering SIGNALS for the export's career log (sort keys, not displayed metrics): last_kickoff_at =
+    -- this club-season's latest match (within-club season order); club_latest_kickoff_at = the club's latest
+    -- match across all the player's seasons there (club-block order + contiguity). season_api_year alone can't
+    -- disambiguate two clubs in one season (mid-season transfer) or keep a return spell's rows contiguous.
+    wc.last_kickoff_at,
+    wc.club_latest_kickoff_at
 from with_caps as wc
 left join players as p on wc.player_sk = p.player_sk
 left join teams as tm on wc.team_sk = tm.team_sk
