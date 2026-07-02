@@ -1,218 +1,146 @@
 diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 58e75eb..e7f6ee0 100644
+index e7f6ee0..05a821a 100644
 --- a/.claude/active_work.md
 +++ b/.claude/active_work.md
-@@ -4,14 +4,40 @@
+@@ -4,38 +4,38 @@
  > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
  > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
  
--_Last updated: **2026-07-01** — main GREEN at **ac261da** (#391 GAP-20: mart_roster wired into the team payload as per-season `squad[]`, MERGED **#619**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO) — build the v2 site by completing the data+export layer to "all green" first, THEN the frontend. The live MVP stays untouched until cutover (#377). **Phase B spec'd screens COMPLETE** — A1 (#606), GAP-15 (#607), GAP-14 (#609), GAP-16 (#611), GAP-01 (#613) merged; block↔mart map reconciled (#615). **Track A (Squad) FULLY GREEN** — screen spec'd (#617, `docs/wireframes/11_team_squad.md`) AND `mart_roster` wired to the team payload as per-season `squad[]` (#619; GAP-20 shipped). **NEXT = a CPO pick** (present, do not auto-start): the two remaining orphan-mart screens still need specs — **Stats-percentile** (benchmarks) and **Career** — or **Phase C** (player-season #480), **Phase D** (flagship marts), the **wireframe §10 doc-status sweep**. Backlog + verified gap map below._
--
--main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
-+_Last updated: **2026-07-02** — main GREEN at **46719fb** (#530(b): completed the player `finishing_efficiency` + `duels_won_pct` catalogue rows + added the `goals_penalty` atom to `int_legs__player_match`, MERGED **#621**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). Track A (Squad) FULLY GREEN (#617 + #619). **NOW ON THE Stats-percentile SCREEN** (CPO-picked): the Player Stats percentile-vs-peers wireframe was DRAFTED then **PARKED (stashed)** when a catalogue-integrity gap surfaced; #530(b) (#621) fixed that gap → the wireframe is now **unblocked to resume**. **NEXT = recover the parked wireframe stash + rework it** (see the ⭐ PARKED WIREFRAME callout below). The live MVP stays untouched until cutover (#377); do NOT start the frontend. Backlog + verified gap map below._
-+
-+### ⭐ PARKED WIREFRAME — recover this first (fragile)
-+The Player Stats percentile screen (`docs/wireframes/12_player_stats.md`) is a DRAFTED wireframe sitting in
-+**`stash@{0}` on branch `docs/391-player-stats-percentile-spec`** ("wip: 12_player_stats wireframe"). Recover:
-+`git checkout docs/391-player-stats-percentile-spec` then `git stash pop` — **if the pop conflicts, don't fight
-+it: this rework list is the source of truth, re-create `12_player_stats.md` from it.** REWORK before review.
-+Status per item below (display contract banked in memory `feedback_percentile_display_phrasing.md`): items
-+2–3 SETTLED; item 1's STRUCTURE settled but its median WORD is provisional (confirm); item 4 OPEN:
-+1. **Uniform "top X% / [median word] / bottom X%"** — distributional position, median-anchored; NO
-+   neutral/directional split (the earlier "more than X%" idea is dropped). [STRUCTURE SETTLED.] The median
-+   WORD is provisionally **"middle"** ("Let's try it") but the memory marks it **CPO-to-confirm** — confirm
-+   it (or pick another, e.g. "par") at rework. [WORD PROVISIONAL]
-+2. **finishing_efficiency + duels_won_pct are now catalogued** (both `higher_better`, via #530b) — they were
-+   the blockers; the screen can now bind all 18 benchmark metrics honestly. [SETTLED]
-+3. **Restore the "Top scorers" link** on 03_player_profile (an earlier edit dropped it — bi-analyst flagged). [SETTLED]
-+4. **Naked-% denominators — OPEN, NOT yet decided:** save% / duels% / dribbles% have their true denominator
-+   (shots faced / duels total / dribble attempts) NOT in a sibling row or the benchmark payload, so the LOCKED
-+   "no naked %" rule isn't satisfiable as-is. Resolve before finalizing — a CPO / football-analytics call
-+   (carry the denominator atoms in the payload vs a documented display exception). Do NOT guess it.
-+Then: bi-analyst + scope-auditor review (docs/wireframes/**). It also registers a GAP for wiring
-+`mart_player_competition_benchmarks` into the player export (a separate later PR).
-+
-+main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+-_Last updated: **2026-07-02** — main GREEN at **46719fb** (#530(b): completed the player `finishing_efficiency` + `duels_won_pct` catalogue rows + added the `goals_penalty` atom to `int_legs__player_match`, MERGED **#621**). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). Track A (Squad) FULLY GREEN (#617 + #619). **NOW ON THE Stats-percentile SCREEN** (CPO-picked): the Player Stats percentile-vs-peers wireframe was DRAFTED then **PARKED (stashed)** when a catalogue-integrity gap surfaced; #530(b) (#621) fixed that gap → the wireframe is now **unblocked to resume**. **NEXT = recover the parked wireframe stash + rework it** (see the ⭐ PARKED WIREFRAME callout below). The live MVP stays untouched until cutover (#377); do NOT start the frontend. Backlog + verified gap map below._
++_Last updated: **2026-07-02** — main GREEN at **9ee17be** (handover refresh, MERGED **#623**; substantive tip = **#621** #530(b): player `finishing_efficiency` + `duels_won_pct` catalogue rows completed + `goals_penalty` atom on `int_legs__player_match`). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). Track A (Squad) FULLY GREEN (#617 + #619). **NOW ON THE Stats-percentile SCREEN** (CPO-picked): the Player Stats percentile-vs-peers wireframe was DRAFTED then **PARKED (stashed)**; #530(b) unblocked it, and **all 4 rework items are now settled/resolved** (median word = "median", naked-% = carry the denominators — see the ⭐ callout). **NEXT = recover the parked wireframe stash + rework it, then review.** The live MVP stays untouched until cutover (#377); do NOT start the frontend. Backlog + verified gap map below._
+ 
+ ### ⭐ PARKED WIREFRAME — recover this first (fragile)
+ The Player Stats percentile screen (`docs/wireframes/12_player_stats.md`) is a DRAFTED wireframe sitting in
+ **`stash@{0}` on branch `docs/391-player-stats-percentile-spec`** ("wip: 12_player_stats wireframe"). Recover:
+ `git checkout docs/391-player-stats-percentile-spec` then `git stash pop` — **if the pop conflicts, don't fight
+ it: this rework list is the source of truth, re-create `12_player_stats.md` from it.** REWORK before review.
+-Status per item below (display contract banked in memory `feedback_percentile_display_phrasing.md`): items
+-2–3 SETTLED; item 1's STRUCTURE settled but its median WORD is provisional (confirm); item 4 OPEN:
+-1. **Uniform "top X% / [median word] / bottom X%"** — distributional position, median-anchored; NO
+-   neutral/directional split (the earlier "more than X%" idea is dropped). [STRUCTURE SETTLED.] The median
+-   WORD is provisionally **"middle"** ("Let's try it") but the memory marks it **CPO-to-confirm** — confirm
+-   it (or pick another, e.g. "par") at rework. [WORD PROVISIONAL]
++**All 4 items are now SETTLED/RESOLVED** (display contract banked in memory `feedback_percentile_display_phrasing.md`):
++1. **Uniform "top X% / median / bottom X%"** — distributional position, median-anchored; NO neutral/directional
++   split (the "more than X%" idea is dropped). The median-band word is **"median"** (CONFIRMED, CPO 2026-07-02 —
++   "middle" was rejected; the word matches the dashed reference line). [SETTLED]
+ 2. **finishing_efficiency + duels_won_pct are now catalogued** (both `higher_better`, via #530b) — they were
+    the blockers; the screen can now bind all 18 benchmark metrics honestly. [SETTLED]
+ 3. **Restore the "Top scorers" link** on 03_player_profile (an earlier edit dropped it — bi-analyst flagged). [SETTLED]
+-4. **Naked-% denominators — OPEN, NOT yet decided:** save% / duels% / dribbles% have their true denominator
+-   (shots faced / duels total / dribble attempts) NOT in a sibling row or the benchmark payload, so the LOCKED
+-   "no naked %" rule isn't satisfiable as-is. Resolve before finalizing — a CPO / football-analytics call
+-   (carry the denominator atoms in the payload vs a documented display exception). Do NOT guess it.
++4. **Naked-% denominators — RESOLVED (carry the atoms):** for the ratio metrics (save% / duels% / dribbles% /
++   pass_accuracy% / finishing) show the volume triple `{num} of {den} · {pct}%`. The denominator atoms EXIST
++   (the % is computed from them in `int_player_season_position__metrics`, e.g. `duels_won/duels_total`); the
++   LONG benchmark mart just doesn't carry them yet — so carry num/den into the payload. A shaping step, NOT an
++   open call (was earlier mis-flagged "open"). [RESOLVED]
+ Then: bi-analyst + scope-auditor review (docs/wireframes/**). It also registers a GAP for wiring
+-`mart_player_competition_benchmarks` into the player export (a separate later PR).
++`mart_player_competition_benchmarks` into the player export (a separate later PR — that PR carries the
++num/den atoms for item 4).
+ 
+-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
  
  ### FIRST STEPS (cold chat — do in order)
--1. `git checkout main && git pull`. **main GREEN at ac261da** (or later if this refresh merged). Confirm tree clean.
--2. Read this file top-to-bottom before touching anything.
--3. **NEXT = a CPO pick — track A is FULLY GREEN.** #391 track A is DONE: the Squad screen is spec'd (#617) AND `mart_roster` is wired to the team payload (#619; GAP-20 shipped). Present these candidates and get the CPO's pick before building (do NOT auto-start): the two remaining ORPHAN-mart screens still need wireframe specs — **Stats-percentile** (`mart_{team,player}_competition_benchmarks`) and **Career** (`mart_player_career`, + backfill) — plus **Phase C** (player-season #480 → backfill), **Phase D** (flagship marts: opponent-context / contribution-share), and the small **wireframe §10 doc-status sweep**. #391 un-paused but NARROW — do NOT touch the live MVP or start the frontend.
-+1. `git checkout main && git pull`. **main GREEN at 46719fb** (or later if this refresh merged). Confirm tree clean.
-+2. Read this file top-to-bottom before touching anything (esp. the ⭐ PARKED WIREFRAME callout above).
-+3. **NEXT = resume the Player Stats percentile wireframe** (the CPO-picked Stats-percentile track). Recover the
-+   parked stash (⭐ callout) and rework it per the 4 points there, then bi-analyst + scope-auditor review. This
-+   is a continuation of an already-approved plan (ExitPlanMode) — but the rework changed the wording approach +
-+   unblocked finishing/duels, so restate the reworked spec back to the CPO before finalizing. Career screen,
-+   Phase C (player-season #480), Phase D (flagship marts), the wireframe §10 doc-status sweep remain un-picked
-+   backlog. #391 un-paused but NARROW — do NOT touch the live MVP or start the frontend.
+-1. `git checkout main && git pull`. **main GREEN at 46719fb** (or later if this refresh merged). Confirm tree clean.
++1. `git checkout main && git pull`. **main GREEN at 9ee17be** (or later if this refresh merged). Confirm tree clean.
+ 2. Read this file top-to-bottom before touching anything (esp. the ⭐ PARKED WIREFRAME callout above).
+ 3. **NEXT = resume the Player Stats percentile wireframe** (the CPO-picked Stats-percentile track). Recover the
+-   parked stash (⭐ callout) and rework it per the 4 points there, then bi-analyst + scope-auditor review. This
+-   is a continuation of an already-approved plan (ExitPlanMode) — but the rework changed the wording approach +
+-   unblocked finishing/duels, so restate the reworked spec back to the CPO before finalizing. Career screen,
++   parked stash (⭐ callout) and rework it per the 4 points there — **all 4 are now settled/resolved**, so no
++   open CPO question blocks the spec; still restate the reworked spec back to the CPO before finalizing, then
++   bi-analyst + scope-auditor review. Continuation of an already-approved plan (ExitPlanMode). Career screen,
+    Phase C (player-season #480), Phase D (flagship marts), the wireframe §10 doc-status sweep remain un-picked
+    backlog. #391 un-paused but NARROW — do NOT touch the live MVP or start the frontend.
  4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
- 
- ---
-@@ -27,8 +53,9 @@ carries it)** first, then build the frontend against a stable export. The live M
-   01 fixture, 02 team, 03 player, 11 Squad + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
- - **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
-   (2) **orphan marts** — benchmarks, career, player-season still EXIST but the v2 export does NOT carry them
--  (wiring needs a wireframe step FIRST); their screens (Stats-percentile, Career) are un-spec'd. **roster is
--  now DONE — screen spec'd (#617) AND wired (#619, GAP-20).** (3) flagship deserved-vs-actual (DONE, A1),
-+  (wiring needs a wireframe step FIRST). **roster DONE** (#617 spec + #619 wired). **benchmarks: screen
-+  DRAFTED but PARKED** (the Stats-percentile wireframe stash — ⭐ callout) + its catalogue blockers fixed
-+  (#530b); resume + then wire. **career** screen still un-spec'd. (3) flagship deserved-vs-actual (DONE, A1),
-   opponent-context + contribution-share (need new marts).
- 
- ### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
-@@ -64,8 +91,9 @@ carries it)** first, then build the frontend against a stable export. The live M
-   roster) + WIRED merged #619 (per-season `squad[]` on the team payload via `shape_team_payload` — id+name only,
-   no slug; byte-stable player_sk order; null-identity members omitted; raw position). GAP-20 shipped; the
-   content_architecture §3/§7 roster status flipped to ✓ (this doc-sync PR). `mart_roster` is now built AND wired.
--  The other two orphan-mart specs remain: **Stats-percentile** (`mart_{team,player}_competition_benchmarks`) +
--  **Career** (`mart_player_career`, needs backfill) — screens un-spec'd, the next candidates.
-+  Next orphan-mart screens: **Stats-percentile** (`mart_player_competition_benchmarks`) — now DRAFTED but
-+  PARKED (⭐ callout; catalogue unblocked via #530b), RESUME next; **Career** (`mart_player_career`, needs
-+  backfill) — still un-spec'd. (Team benchmark = a separate rank-based screen, not percentile.)
- - **Phase C — player foundation + analogs:** #480 player-season model → backfill (§10 depth+cost) → player
-   YoY/streaks/season + wire. A chain.
- - **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
-@@ -86,6 +114,8 @@ carries it)** first, then build the frontend against a stable export. The live M
+@@ -114,6 +114,7 @@ carries it)** first, then build the frontend against a stable export. The live M
  
  ### ⭐ RECENT PRs
  
-+- **#621 — #530(b): complete player finishing_efficiency + duels_won_pct catalogue rows, MERGED.** Added an event-derived `goals_penalty` atom to `int_legs__player_match` (mirrors the season model's derivation); filled the player `finishing_efficiency` row (`sum(goals_total - goals_penalty)`/`sum(shots_on)`, `higher_better`) + set `duels_won_pct` player `direction=higher_better`; synced the seed `schema.yml` deferred-rows note. Season model untouched (Option Y; finishing value unchanged). 3 review rounds: analytics-engineer FAIL (schema.yml SSoT drift) → fixed; ci-data-build FAIL (SQLFluff ST06 column-order) → fixed by reordering `goals_penalty` into the calc block; scope-auditor + analytics-engineer + football-analytics all PASS. Unblocks the parked Stats-percentile wireframe.
-+- **#620 — #391 GAP-20 close-out doc-sync, MERGED.** Marked GAP-20 shipped in the gaps register; flipped the Squad/roster block ⚠orphan→✓ in content_architecture §3/§7 + bumped the queried-mart count 14→15; refreshed the handover. bi-analyst round-1 FAIL (stale §3 legend prose) → fixed.
++- **#623 — handover refresh (post-#621), MERGED.** Recorded the Stats-percentile pick + the parked wireframe. (This refresh corrects two items resolved just after it locked: median word = "median"; naked-% = carry the denominators.)
+ - **#621 — #530(b): complete player finishing_efficiency + duels_won_pct catalogue rows, MERGED.** Added an event-derived `goals_penalty` atom to `int_legs__player_match` (mirrors the season model's derivation); filled the player `finishing_efficiency` row (`sum(goals_total - goals_penalty)`/`sum(shots_on)`, `higher_better`) + set `duels_won_pct` player `direction=higher_better`; synced the seed `schema.yml` deferred-rows note. Season model untouched (Option Y; finishing value unchanged). 3 review rounds: analytics-engineer FAIL (schema.yml SSoT drift) → fixed; ci-data-build FAIL (SQLFluff ST06 column-order) → fixed by reordering `goals_penalty` into the calc block; scope-auditor + analytics-engineer + football-analytics all PASS. Unblocks the parked Stats-percentile wireframe.
+ - **#620 — #391 GAP-20 close-out doc-sync, MERGED.** Marked GAP-20 shipped in the gaps register; flipped the Squad/roster block ⚠orphan→✓ in content_architecture §3/§7 + bumped the queried-mart count 14→15; refreshed the handover. bi-analyst round-1 FAIL (stale §3 legend prose) → fixed.
  - **#619 — #391 GAP-20: wire mart_roster into the team payload as squad[], MERGED.** Export-only. `shape_team_payload` gains a per-season `squad[]` block (identity-only, mirroring the GAP-15 fixtures pattern); `_shape_squad_member` reshapes each `mart_roster` row (id+name only, no slug); `fetch_team_payloads` reads `mart_roster`. Null-identity members omitted (DQ-test-guarded), byte-stable player_sk order, raw position (grouping = frontend). Two unit tests. scope-auditor + analytics-engineer + cto PASS (scope-auditor round-1 FAIL was a stale slug claim in contract.md — code was correct; contract fixed, all re-confirmed). Turns `mart_roster` orphan → wired.
- - **#618 — handover refresh (post-#617; GAP-20 wiring set as next), MERGED.**
- - **#617 — #391 track A: the Team → Squad wireframe spec, MERGED.** Doc-only. New `docs/wireframes/11_team_squad.md` (identity-only roster list backed by `mart_roster`, grouped by position, links to player profiles) following the 00_overview §1–10 template + GAP-20 (export-wiring gap) + 02/00 stale-note/inventory/census reconciliation. scope-auditor + bi-analyst PASS over 4 rounds (bi-analyst caught an invented flag-rendering + a missing null-identity state → both fixed; then a sibling-PR rebase-rebind after #616 merged first, hash shifted `ecf12b17`→`4bcc72da`, both reviewers re-confirmed). Remaining green = the GAP-20 export-wiring PR.
-@@ -116,7 +146,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
- 
- ### OTHER carryovers (the A–D backlog above is the PRIMARY track now; CPO directs; none auto-granted)
- - **#530 remaining follow-ups** (completeness + resolvability DONE via #600; **(a) DONE via #604** — entity-dual rows split per entity):
--  (b) add the event-derived **`goals_penalty` to `int_legs__player_match`**, then fill the **3 deferred player rows** (`finishing_efficiency`, `goals_penalty`, `goals_open_play`) — blank `base_relation`/`*_expr` today (the player `finishing_efficiency` row from (a) is now one of these). **This is the lead #530 follow-up.**
-+  (b) **PARTLY DONE (#621):** added the event-derived `goals_penalty` atom to `int_legs__player_match` + filled the player `finishing_efficiency` row + set `duels_won_pct` (player) direction=higher_better. **Remaining:** the `goals_penalty` + `goals_open_play` player METRIC rows (still blank `base_relation`/`*_expr`; now UNBLOCKED since the atom exists on the leg).
-   (c) **model-conformance** test — does each model actually COMPUTE the catalogue formula (modulo availability)? The deeper guard beyond resolvability.
- - **Player-metric direction/interpretation classification** (v1.x deferral) — the completeness test is team-only; when the player benchmark matures, classify the ~28 blank player rows and widen the test. CPO call.
- - **Deserved-vs-actual extensions (NOT granted):** a consumption mart when a frontend consumer exists (#391 paused); `rank()` tie semantics revisit; other windows (form panel could compute sot_difference too).
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b33169d..04f9d72 100644
+index 04f9d72..1c64e56 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,87 +1,46 @@
--# Task contract — #530(b): fix the player catalogue-integrity gap (finishing_efficiency + duels_won_pct)
-+# Task contract — handover refresh (post-#621)
+@@ -1,46 +1,45 @@
+-# Task contract — handover refresh (post-#621)
++# Task contract — handover refresh (post-#623; prep a fresh chat)
  
--> Written on a CLEAN tree (branch fix/530b-player-catalogue-integrity off main @ ee4eb98).
--> dbt MODEL + CATALOGUE change (NOT doc-only). Fixes the two player benchmark metrics whose
--> metric_catalogue rows are incomplete, surfaced while spec'ing the Player Stats screen (#391).
--> See docs/working_agreement.md §2 (contract), §10 (decision rights). Plan mode + ExitPlanMode required.
-+> Written on a CLEAN tree (branch chore/handover-refresh-621 off main @ 46719fb).
-+> Bookkeeping only — no code/model/doc-of-record change. Records the accumulated state since #620:
-+> the Stats-percentile track pick, the PARKED Player Stats wireframe (stash), #530(b) merged (#621),
-+> and the percentile display contract. See docs/working_agreement.md §2. Handover refreshes skip plan mode.
+-> Written on a CLEAN tree (branch chore/handover-refresh-621 off main @ 46719fb).
+-> Bookkeeping only — no code/model/doc-of-record change. Records the accumulated state since #620:
+-> the Stats-percentile track pick, the PARKED Player Stats wireframe (stash), #530(b) merged (#621),
+-> and the percentile display contract. See docs/working_agreement.md §2. Handover refreshes skip plan mode.
++> Written on a CLEAN tree (branch chore/handover-refresh-623 off main @ 9ee17be).
++> Bookkeeping only — no code/model/doc-of-record change. Final refresh before handing to a fresh chat:
++> corrects the two wording/scope items the CPO resolved AFTER #623 locked. See docs/working_agreement.md §2.
++> Handover refreshes skip plan mode.
  
  objective: >
--  The player competition benchmark (mart_player_competition_benchmarks, #559) ranks 18 metrics, but two
--  have incomplete metric_catalogue (entity=player) rows: (1) `finishing_efficiency` — numerator_expr,
--  denominator_expr, base_relation, direction ALL blank (its VALUE is computed in
--  int_player_season_position__metrics via an events-derived penalty component, but the catalogue — the
--  SSoT — doesn't define it, because penalty goals is not an atom on the player leg); (2) `duels_won_pct` —
--  fully defined (num `duels_won`, denom `duels_total`) but `direction` blank. CPO ruled both
--  `higher_better` (2026-07-02). Fix = make the catalogue rows complete + resolvable, single-sourcing the
--  penalty atom. This is the tracked #530(b) follow-up.
-+  Bring .claude/active_work.md current after #621 (#530(b), MERGED, main @ 46719fb). Since the last
-+  refresh (#620) the CPO picked the Stats-percentile screen track; the Player Stats wireframe was DRAFTED
-+  then PARKED (stashed) when a catalogue-integrity gap surfaced; #530(b) fixed that gap (finishing_efficiency
-+  + duels_won_pct player rows completed). Record all of it — especially the FRAGILE parked stash + its
-+  rework list — so a fresh chat can recover and resume. Set NEXT = resume the Player Stats wireframe.
+-  Bring .claude/active_work.md current after #621 (#530(b), MERGED, main @ 46719fb). Since the last
+-  refresh (#620) the CPO picked the Stats-percentile screen track; the Player Stats wireframe was DRAFTED
+-  then PARKED (stashed) when a catalogue-integrity gap surfaced; #530(b) fixed that gap (finishing_efficiency
+-  + duels_won_pct player rows completed). Record all of it — especially the FRAGILE parked stash + its
+-  rework list — so a fresh chat can recover and resume. Set NEXT = resume the Player Stats wireframe.
++  #623 (handover refresh) is MERGED (main @ 9ee17be), but the CPO resolved two items AFTER it locked, so
++  the merged handover is stale on them: (1) the median-band word is **"median"** (CONFIRMED), NOT the
++  "provisionally 'middle', CPO-to-confirm" that #623 records; (2) the naked-% denominators item is
++  RESOLVED (the denominator atoms exist in `int_player_season_position__metrics`, where the % is computed
++  from them — e.g. duels_won/duels_total; carry num/den into the benchmark payload and show the triple — a
++  shaping step, not an open CPO call), NOT the "OPEN, don't guess" #623 records. Make active_work.md accurate + fully self-contained so a fresh chat can
++  resume the Player Stats wireframe rework with all four rework items settled/resolved.
  
  refs: >
--  Season formula (CPO Option A, int_player_season_position__metrics.sql:152-159): finishing_efficiency =
--  (goals − goals_penalty) / shots_on_goal (capped to [0,1] at the model; the cap is availability handling,
--  NOT part of the formula — per [[feedback-metric-formula-vs-availability]]). goals_penalty is event-derived
--  (fct_fixture_event: event_type='Goal' and event_detail='Penalty') — today via a local events CTE in the
--  season model. Team analog already catalogued: finishing_efficiency (entity=team) base=int_legs__team_match,
--  num=sum(goals_for − goals_penalty − goals_own), denom=sum(shots_on_goal), direction=higher_better.
--  int_legs__player_match = materialized TABLE (no incremental full-refresh concern), grain (fixture_sk,
--  player_sk), has goals_total + shots_on but NOT goals_penalty.
--
--impact_map: >
--  CHANGED: (1) int_legs__player_match — ADD an event-derived `goals_penalty` column (additive; the leg is
--  "the shared foundation every player metric aggregates over", so the atom belongs here). (2)
--  metric_catalogue.csv — fill finishing_efficiency (player): base_relation=int_legs__player_match,
--  num=sum(goals_total − goals_penalty), denom=sum(shots_on), direction=higher_better, lower_is_better=false;
--  set duels_won_pct (player) direction=higher_better (+ lower_is_better=false). (3) dbt_project/seeds/schema.yml
--  — the seed's own governing doc lists finishing_efficiency among "the deferred player rows pending
--  int_legs__player_match exposing the penalty atom"; drop finishing_efficiency from that enumeration (now
--  filled) + correct the phrasing (the atom now exists); goals_penalty/goals_open_play stay listed (still
--  blank). NO int_legs.yml change — it documents only keys + enum columns; leg raw-count atoms (goals_total,
--  shots_on, the team leg's own goals_penalty) carry NO per-column entry, so a goals_penalty entry/test would
--  break convention (and a non-negativity test on a coalesced countif is trivially always true). NOT CHANGED:
--  int_player_season_position__metrics (Option Y — it keeps its own identical penalty derivation; repointing
--  it to the leg is a bigger/riskier refactor, deferred).
--  UPSTREAM: fct_fixture_event, fct_fixture_player_stats (read-only). DOWNSTREAM of the leg: additive column,
--  backward-compatible for all consumers (int_player_season_position__metrics, int_player_competition_benchmarks,
--  momentum). CI guards: assert_metric_catalogue_expr_resolvable will now CHECK the finishing row (was skipped
--  while base blank) → the new exprs must resolve against the leg; assert_no_uncatalogued_season_metric
--  unaffected (finishing_efficiency already an output column + catalogued). Verified by ci-data-build (dbt
--  build + DQ) — dbt CLI broken locally. No export/site/live-MVP change.
-+  main @ 46719fb (#621 #530b). Parked: stash@{0} on docs/391-player-stats-percentile-spec ("wip:
-+  12_player_stats wireframe"). Percentile display contract banked in memory
-+  [[feedback-percentile-display-phrasing]]. Prior refresh #620 (post-#619). Also record #620 itself in the
-+  "main carries" list (the GAP-20 close-out doc-sync, which the #620-era handover didn't self-list).
+-  main @ 46719fb (#621 #530b). Parked: stash@{0} on docs/391-player-stats-percentile-spec ("wip:
+-  12_player_stats wireframe"). Percentile display contract banked in memory
+-  [[feedback-percentile-display-phrasing]]. Prior refresh #620 (post-#619). Also record #620 itself in the
+-  "main carries" list (the GAP-20 close-out doc-sync, which the #620-era handover didn't self-list).
++  main @ 9ee17be (#623). Parked: stash@{0} on docs/391-player-stats-percentile-spec ("wip: 12_player_stats").
++  Display contract (now fully settled) in memory [[feedback-percentile-display-phrasing]]: ladder = top X% /
++  median / bottom X%; ratio metrics show the {num} of {den} · {pct}% triple (carry the atoms).
  
  scope_paths:
--  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/schema.yml
-+  - .claude/active_work.md
+   - .claude/active_work.md
    - .claude/task/**
  
  decisions_taken: >
--  Complete the two player catalogue rows to match the already-computed reality + the CPO direction ruling
--  (both higher_better). Add the penalty atom to int_legs__player_match (additive column) so the catalogue's
--  leg-based finishing formula resolves — mirroring the team finishing row. The season model is LEFT
--  UNCHANGED (Option Y): finishing value is unchanged; the season model's own penalty derivation stays (a
--  pre-existing duplication, flagged as a follow-up, not consolidated here — scope discipline). numerator/
--  denominator exprs are the PURE formula (no cap/coalesce — the [0,1] cap stays model-side availability
--  handling). No new metric invented; no export/UI change; the Player Stats wireframe (parked) resumes after.
--
--decisions_reserved:  # §10
--  - The finishing_efficiency player NUMERATOR semantics (goals − penalty goals, "open-play", Option A) are
--    ALREADY CPO-ruled + computed; this only mirrors them into the catalogue. If football-analytics review
--    finds the mirror misstates the formula, escalate — do not re-derive.
--  - Whether to also fill the other #530(b) deferred rows (goals_open_play etc.) — OUT of scope; only the two
--    benchmark-blocking metrics here.
-+  Bookkeeping only. Update the header (2026-07-02, main @ 46719fb, #530b merged); append #620 + #621 to the
-+  "main carries" line; refresh FIRST STEPS/NEXT to "resume the Player Stats wireframe (recover the stash +
-+  rework)"; add a PARKED-WIREFRAME callout (stash location + rework list, each item STATUS-tagged: the
-+  uniform top/[median word]/bottom STRUCTURE settled, finishing_efficiency + duels_won_pct now catalogued
-+  higher_better via #530b, restore Top-scorers link = SETTLED; the median WORD "middle" = PROVISIONAL
-+  (CPO-to-confirm per the memory); naked-% denominators for save%/duels%/dribbles% = OPEN); add a
-+  Stats-percentile track entry + #530b to the backlog; record the percentile display contract pointer;
-+  prepend #620 + #621 to RECENT PRs. Records the session's CPO decisions + faithfully marks the still-open /
-+  provisional items as such — invents no new product/UX/metric/naming decision.
-+
-+decisions_reserved:
-+  - The Player Stats wireframe rework itself — its own continuation (plan mode), next.
-+  - Flagged follow-ups: season-model single-source repoint; remaining #530(b) rows (goals_penalty,
-+    goals_open_play metrics, now unblocked). Career screen spec; Phase C / Phase D.
+-  Bookkeeping only. Update the header (2026-07-02, main @ 46719fb, #530b merged); append #620 + #621 to the
+-  "main carries" line; refresh FIRST STEPS/NEXT to "resume the Player Stats wireframe (recover the stash +
+-  rework)"; add a PARKED-WIREFRAME callout (stash location + rework list, each item STATUS-tagged: the
+-  uniform top/[median word]/bottom STRUCTURE settled, finishing_efficiency + duels_won_pct now catalogued
+-  higher_better via #530b, restore Top-scorers link = SETTLED; the median WORD "middle" = PROVISIONAL
+-  (CPO-to-confirm per the memory); naked-% denominators for save%/duels%/dribbles% = OPEN); add a
+-  Stats-percentile track entry + #530b to the backlog; record the percentile display contract pointer;
+-  prepend #620 + #621 to RECENT PRs. Records the session's CPO decisions + faithfully marks the still-open /
+-  provisional items as such — invents no new product/UX/metric/naming decision.
++  Bookkeeping only. In the PARKED WIREFRAME callout: item 1 median word → "median" CONFIRMED (was
++  provisional "middle"); item 4 naked-% → RESOLVED (carry the denominator atoms + show the triple; a
++  shaping step, not an open call) — so all four rework items are now settled/resolved. Bump the header to
++  post-#623 / all-wording-settled; set NEXT = resume the wireframe rework (recover the stash + apply). Add
++  #623 to the "main carries" line + RECENT PRs. Records CPO decisions already made this session — invents
++  nothing new.
+ 
+ decisions_reserved:
+-  - The Player Stats wireframe rework itself — its own continuation (plan mode), next.
+-  - Flagged follow-ups: season-model single-source repoint; remaining #530(b) rows (goals_penalty,
+-    goals_open_play metrics, now unblocked). Career screen spec; Phase C / Phase D.
++  - The wireframe rework itself — its own continuation (recover stash → rework → bi-analyst/scope-auditor).
++  - Flagged follow-ups: the benchmark→player-export wiring PR (carries the squad[]-style block + the
++    denominator atoms); season-model single-source repoint; remaining #530(b) rows (goals_penalty,
++    goals_open_play metrics); Career screen; Phase C / Phase D.
  
  done_when:
--  - metric_catalogue finishing_efficiency (player) + duels_won_pct (player) rows complete + resolvable;
--    goals_penalty on int_legs__player_match; season model single-sourced (finishing value unchanged).
--  - scope-auditor + analytics-engineer + football-analytics(-expert) PASS (>=2 risks each); ci-data-build
--    green (resolvability guard + DQ); review.md diff_sha256 binds; CPO merges.
-+  - active_work.md records: main @ 46719fb / #530b merged; the parked Player Stats wireframe stash + rework
-+    list; the percentile display contract; NEXT = resume the wireframe; #620/#621 in RECENT PRs.
-+  - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds; CPO merges.
+-  - active_work.md records: main @ 46719fb / #530b merged; the parked Player Stats wireframe stash + rework
+-    list; the percentile display contract; NEXT = resume the wireframe; #620/#621 in RECENT PRs.
++  - active_work.md: median word = "median" (settled), naked-% resolved, all 4 rework items settled/resolved,
++    NEXT = resume the wireframe rework, #623 recorded; self-contained for a cold chat.
+   - scope-auditor PASS (>=2 risks); review.md diff_sha256 binds; CPO merges.
  
--amendments:
--  - 2026-07-02 (plan-back, pre-code): dropped int_player_season_position__metrics from scope — Option Y
--    (leave the season model; add the atom to the leg only). Adjusted impact_map + decisions_taken. Season
--    model single-sourcing repoint deferred as a flagged follow-up.
--  - 2026-07-02 (mid-implement): dropped int_legs__player_match.yml from scope — int_legs.yml documents only
--    keys + enums, not leg raw-count atoms, so goals_penalty gets no per-column entry (matches goals_total /
--    shots_on / the team leg's goals_penalty). No yml change.
--  - 2026-07-02 (review round 1, analytics-engineer FAIL): added dbt_project/seeds/schema.yml to scope — the
--    seed's own governing doc still listed finishing_efficiency as a deferred/blank row; completing the CSV
--    row without updating schema.yml left the catalogue SSoT internally inconsistent. Drop finishing_efficiency
--    from the deferred enumeration; goals_penalty/goals_open_play stay (still blank).
-+amendments: (none)
+ amendments: (none)

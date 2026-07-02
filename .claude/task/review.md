@@ -1,36 +1,34 @@
-# Review — chore/handover-refresh-621 — 2026-07-02
+# Review — chore/handover-refresh-623 — 2026-07-02
 
-> G3 Lock artifact. Bookkeeping-only handover refresh: brings .claude/active_work.md current after #621
-> (#530(b) merged, main @ 46719fb). Records the Stats-percentile track pick, the PARKED Player Stats
-> wireframe (stash@{0} on docs/391-player-stats-percentile-spec) + a recovery/rework callout, #620/#621 in
-> RECENT PRs, and the percentile display contract pointer. Required set (routing): scope-auditor only —
-> the diff touches .claude/active_work.md (artifact) + .claude/task/contract.md (hashed). No specialist route.
+> G3 Lock artifact. Final bookkeeping handover refresh (prep a fresh chat): corrects the two items the CPO
+> resolved AFTER #623 locked — the median-band word is "median" (CONFIRMED, not the "provisionally middle"
+> #623 recorded), and naked-% is RESOLVED (carry the denominator atoms from int_player_season_position__metrics
+> + show the {num} of {den} · {pct}% triple — a shaping step, not an open call). All 4 wireframe-rework items
+> now settled/resolved; NEXT = resume the parked wireframe. Required set (routing): scope-auditor only —
+> .claude/active_work.md (artifact) + .claude/task/contract.md (hashed).
 >
-> Round 1 (hash 75ff1894) FAIL — the rework callout claimed items "all CPO-settled" while item 4 (naked-%)
-> was an open question; stash-recovery lacked a conflict guard.
-> Round 2 (hash 75ff1894, active_work-only edits) FAIL — the median word "middle" was tagged [SETTLED]/(CPO
-> pick) but the memory (feedback_percentile_display_phrasing.md) marks it "CPO-to-confirm" — over-asserted.
-> Round 3 (hash ba740469, THIS lock) — per-item STATUS tags: item 1 [STRUCTURE SETTLED] + median word
-> [WORD PROVISIONAL, CPO-to-confirm]; items 2–3 [SETTLED]; item 4 [OPEN, CPO/football-analytics escalation];
-> contract decisions_taken reworded to "records decisions + faithfully marks open/provisional items";
-> stash-conflict guard added. scope-auditor PASS.
+> Round 1 (hash 3480e36e) FAIL — contract.md named "int_legs__player_match's source model" for where the
+> ratio % is computed, inconsistent with active_work.md + the memory (int_player_season_position__metrics).
+> Round 2 (hash 9b2ad88b, THIS lock) — contract corrected to name int_player_season_position__metrics; all
+> three artifacts now consistent. scope-auditor PASS.
 
-diff_sha256: ba740469210c227e132b4234a40b92a3c9ea4bcbbd346dfac40ab767ba067bfe
+diff_sha256: 9b2ad88be2c731d573befd22dce92bfeb78839ffcd0e8d46e68b15727541b6fe
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Stash-recovery fragility — if `git stash pop` conflicts on the parked wireframe branch, the callout
-  directs re-creation from the rework list (a prose 4-item summary, not an executable diff). Verified the
-  list is detailed enough (status tags, metric names, explicit rules) to re-create the spec, and a clear
-  priority rule (rework list = source of truth on conflict) is stated. Real but documented + guarded. Held.
-- Provisional-word binding drift — the median word "middle" is marked [WORD PROVISIONAL] with explicit
-  "CPO-to-confirm" language matching the memory exactly; the handover no longer asserts it as decided. The
-  soft-vs-hard ambiguity (from "Let's try it") is inherited from the source, not created here, and correctly
-  flagged for the CPO to restate at rework. Naked-% (item 4) correctly OPEN. Bookkeeping-only; scope =
-  .claude/active_work.md + .claude/task/**; no §10 decision made/hidden. Held.
+- Stash-recovery brittleness — the handover directs recovering stash@{0} on docs/391-player-stats-percentile-spec
+  via `git stash pop`, with the explicit fallback "if the pop conflicts, don't fight it: this rework list is
+  the source of truth, re-create 12_player_stats.md from it." The fallback prevents DATA LOSS (the 4-item
+  rework list is complete enough to recreate the spec), so the handoff is safe; a pre-pop `git stash show`
+  verify would be a nicety but isn't required. Held.
+- Data-layer-settled ≠ export-layer-shipped (naked-% atoms) — item 4 is correctly RESOLVED at the DATA layer
+  (the atoms exist + the % is computed in int_player_season_position__metrics); the actual carrying of num/den
+  into the payload is a SEPARATE follow-up (the benchmark→player-export wiring PR), correctly listed in
+  decisions_reserved + the callout, so a cold chat won't mistake it for already-shipped. Scope =
+  .claude/active_work.md + .claude/task/**; bookkeeping-only; both CPO resolutions faithfully recorded; no
+  §10 decision made. Held.
 
 ## escalations
-(none here) — the two OPEN/provisional items (the median word "middle" = CPO-to-confirm; the naked-%
-denominators for save%/duels%/dribbles% = CPO/football-analytics call) are RECORDED in the handover as
-to-be-resolved at the wireframe rework (their own task + review cycle), not decided in this bookkeeping refresh.
+(none) — records the two CPO resolutions already made this session (median word = "median"; naked-% = carry
+the atoms). The wireframe rework itself + the benchmark→export wiring PR are reserved follow-ups.
