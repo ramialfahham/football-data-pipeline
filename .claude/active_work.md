@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-07-02** — main GREEN at **7bebac7** (**#630** MERGED: **#480 §8.3 per-club player-season foundation** — NEW `int_player_club_season__metrics` (canonical atoms base, grain player×club×competition-season); `int_player_season__metrics` re-expressed as a **byte-identical** composition of it (`mart_player_profile` + `mart_leaderboards` unchanged, CI-verified); **`mart_player_career` rebuilt to the per-club × competition-season career log** — a mid-season transfer = two rows; retired the redundant `int_player_career__metrics`). This is **Phase C brick 1**. Prior: #627 CLOSED the Stats-percentile track (mart built + wired); Track A (Squad) GREEN (#617 + #619). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** — the Career surface is now DATA-unblocked (`mart_player_career` is at the right grain, but still **orphan / screen-unspec'd / thin-until-backfill**): **Career screen spec (13)** → wiring → backfill; or **Phase C continued** (player YoY/streaks on the new base); or **Phase D** flagship marts. The live MVP stays untouched until cutover (#377); do NOT start the frontend. Backlog + verified gap map below._
+_Last updated: **2026-07-02** — main GREEN at **1132baa** (**#632** MERGED: the **Player → Career wireframe (13)** — `docs/wireframes/13_player_career.md`, field-bound to the per-club `mart_player_career` (#630); a club-grouped season-by-season career log + a national caps section, counts-only; **GAP-22** registered (export wiring, pending); companion doc-syncs 00/99/03). **The Career screen is now SPEC'D** (was un-spec'd). Prior: #630 shipped the **#480 §8.3 per-club foundation** (`int_player_club_season__metrics` + rebuilt `mart_player_career`, Phase C brick 1); #627 CLOSED the Stats-percentile track; Track A (Squad) GREEN (#617 + #619). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick**: **GAP-22** (wire `mart_player_career` into the export — incl. the reserved subtotal precompute-vs-display call) → the **history backfill** (§10 cost — gives the career real depth); or **Phase C continued** (player YoY/streaks on the new base); or **Phase D** flagship marts. `mart_player_career` is still **orphan (not exported) / thin-until-backfill**. The live MVP stays untouched until cutover (#377); do NOT start the frontend. Backlog + verified gap map below._
 
 ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
 The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
@@ -21,20 +21,21 @@ SQLFluff, CI-only — `validate` misses them): LT02 indent on the num/den `{% if
 "Unrecognized name: goals_penalty" (aggregated-but-not-output) → exposed it via a CI-driven scope amendment.
 Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based** screen, still un-spec'd.
 
-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
 
 ### FIRST STEPS (cold chat — do in order)
-1. `git checkout main && git pull`. **main GREEN at 7bebac7** (or later if this refresh merged). Confirm tree clean.
-2. Read this file top-to-bottom before touching anything (esp. the header lead + the #630 entry in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
+1. `git checkout main && git pull`. **main GREEN at 1132baa** (or later if this refresh merged). Confirm tree clean.
+2. Read this file top-to-bottom before touching anything (esp. the header lead + the #632 entry in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
 3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. #630 shipped the **#480 §8.3 per-club
-   foundation** (`int_player_club_season__metrics`) + rebuilt `mart_player_career` to the per-club ×
-   competition-season grain — now BUILT but still **orphan / screen-unspec'd / thin-until-backfill**. Candidates:
-   **Career screen spec (13)** (now against the rebuilt per-club `mart_player_career` — a design/doc task like
-   Stats 12; then a wiring GAP, then the backfill); **Phase C continued** (player YoY/streaks/season on the new
-   `int_player_club_season__metrics` base); the **history backfill** (§10 cost — depth per competition; lights up
-   Career depth + season-over-season); **Phase D** flagship marts (opponent/schedule context + contribution-share
-   — §10 method). Present candidates + get the CPO's pick; ENTER PLAN MODE for any code/model/metric task. #391
-   un-paused but NARROW — do NOT touch the live MVP or start the frontend.
+   foundation** + rebuilt `mart_player_career`; **#632 spec'd the Career screen (13)** + registered **GAP-22**
+   (export wiring). The Career mart is BUILT and the screen SPEC'D, but still **orphan (not exported) /
+   thin-until-backfill**. Candidates: **GAP-22** (wire `mart_player_career` into `shape_player_payload` — an
+   export-only PR like the Stats/Squad wiring; incl. the reserved subtotal precompute-vs-display call); the
+   **history backfill** (§10 cost — depth per competition; gives Career + season-over-season real depth);
+   **Phase C continued** (player YoY/streaks/season on the new `int_player_club_season__metrics` base);
+   **Phase D** flagship marts (opponent/schedule context + contribution-share — §10 method). Present candidates
+   + get the CPO's pick; ENTER PLAN MODE for any code/model/metric task. #391 un-paused but NARROW — do NOT
+   touch the live MVP or start the frontend.
 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
 
 ---
@@ -51,8 +52,8 @@ carries it)** first, then build the frontend against a stable export. The live M
 - **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
   (2) **orphan marts** — benchmarks, career, player-season still EXIST but the v2 export does NOT carry them
   (wiring needs a wireframe step FIRST). **roster DONE** (#617 spec + #619 wired). **benchmarks: CLOSED**
-  (#625 spec + #627 wire). **career: `mart_player_career` REBUILT to the per-club × competition-season grain
-  (#630, #480 §8.3)** — screen still un-spec'd + not wired + thin-until-backfill. (3) flagship deserved-vs-actual (DONE, A1),
+  (#625 spec + #627 wire). **career: SPEC'D (#632, wireframe 13)** — `mart_player_career` built at per-club
+  grain (#630, #480 §8.3); wiring pending **GAP-22** + thin-until-backfill. (3) flagship deserved-vs-actual (DONE, A1),
   opponent-context + contribution-share (need new marts).
 
 ### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
@@ -88,13 +89,13 @@ carries it)** first, then build the frontend against a stable export. The live M
   roster) + WIRED merged #619 (per-season `squad[]` on the team payload via `shape_team_payload` — id+name only,
   no slug; byte-stable player_sk order; null-identity members omitted; raw position). GAP-20 shipped; the
   content_architecture §3/§7 roster status flipped to ✓ (this doc-sync PR). `mart_roster` is now built AND wired.
-  Stats-percentile CLOSED (#625 spec + #627 wire). **Career**: `mart_player_career` now REBUILT to the per-club ×
-  competition-season grain (#630, #480 §8.3) — screen still **un-spec'd**, not wired, thin-until-backfill; the
-  spec (against the rebuilt mart) is a next candidate. (Team benchmark = a separate rank-based screen, not percentile.)
+  Stats-percentile CLOSED (#625 spec + #627 wire). **Career SPEC'D (#632, wireframe 13)** — `mart_player_career`
+  built at per-club grain (#630, #480 §8.3); wiring = **GAP-22** (a next candidate) + thin-until-backfill.
+  (Team benchmark = a separate rank-based screen, not percentile.)
 - **Phase C — player foundation + analogs:** brick 1 **DONE (#630, #480 §8.3):** the per-club base
-  `int_player_club_season__metrics` + rebuilt `mart_player_career` (per-club × competition-season). Remaining:
-  the **history backfill** (§10 depth+cost; lights up Career + season-over-season depth) → player
-  **YoY/streaks/season** on the new base → **Career screen spec (13)** + export wiring. A chain.
+  `int_player_club_season__metrics` + rebuilt `mart_player_career`; **Career screen SPEC'D (#632, wireframe 13
+  + GAP-22).** Remaining: **GAP-22** (export wiring) + the **history backfill** (§10 depth+cost; lights up
+  Career + season-over-season depth) → player **YoY/streaks/season** on the new base. A chain.
 - **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
   + contribution-share (§10 definition). New marts.
 - **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
@@ -113,6 +114,19 @@ carries it)** first, then build the frontend against a stable export. The live M
 
 ### ⭐ RECENT PRs
 
+- **#632 — #391 Player Career wireframe (13) + GAP-22, MERGED.** Doc-only. NEW
+  `docs/wireframes/13_player_career.md` — the Player → Career sub-screen, field-bound to the merged per-club
+  `mart_player_career` (#630): a club-grouped season-by-season career log (Season · Competition · Apps · Goals ·
+  Assists) + per-club/career subtotals + a National-team caps section; **counts only** (no per-90;
+  `ui_design_brief.md` §6.4 + the CPO ruling); honest wording (national = appearances in COVERED competitions,
+  never "caps"; thin-until-backfill). §5 binds 1:1 to real `mart_player_career` columns. Registered **GAP-22**
+  (export wiring — `shape_player_payload` gains a `career[]` block; the subtotal precompute-vs-display call is
+  reserved to that PR). Companion doc-syncs: 00 (inventory row 13 + census), 99 (GAP-22), 03 (§7 ▸Career link +
+  §10 ref). Review: 2 rounds (bi-analyst r1 FAIL → added the §6 unresolved-identity state [mirrors 11] + fixed a
+  metrics_display→ui_design_brief mis-citation; scope-auditor + bi-analyst r2 PASS). Mirrors #625 (Stats 12) +
+  #617 (Squad 11).
+- **#631 — handover refresh (post-#630), MERGED.** Recorded the #480 §8.3 foundation + set the Career screen
+  spec as a next candidate.
 - **#630 — #480 §8.3 per-club player-season foundation + rebuilt mart_player_career, MERGED.** NEW
   `int_player_club_season__metrics` (grain player×club×competition-season) = the canonical per-club atoms base
   (groups `fct_fixture_player_stats` + the penalty-events CTE by club; atoms only — ratios/per-90 derived at

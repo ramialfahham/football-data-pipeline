@@ -1,53 +1,41 @@
-# Review — docs/391-career-screen-spec — 2026-07-02
+# Review — chore/handover-refresh-632 — 2026-07-02
 
-> G3 Lock artifact. NEW `docs/wireframes/13_player_career.md` — the Player → Career sub-screen — bound to the
-> merged per-club `mart_player_career` (#630), + companion doc-syncs (00 inventory/census, 99 GAP-22, 03
-> footer link + §10 ref). Doc-only; mirrors #625 (Stats 12) + #617 (Squad 11). No code/model/dbt/export change.
-> Required set (routing `.claude/review_routing.json`): scope-auditor (always) + bi-analyst-reviewer
-> (`docs/wireframes/**`). metrics_display.md deliberately NOT touched (counts-only screen, no new display idiom).
+> G3 Lock artifact. Bookkeeping handover refresh after PR #632 merged (the Player Career wireframe 13 + GAP-22;
+> main @ 1132baa). Updates `.claude/active_work.md` to post-#632 state (Career screen now SPEC'D; NEXT = a CPO
+> pick — GAP-22 wiring / backfill / Phase C / Phase D) + refreshes the contract. Handover refreshes skip plan
+> mode (CPO carve-out 2026-06-30); still contract + review + gate.
+> Required set (routing): scope-auditor only (`.claude/active_work.md` artifact + `.claude/task/contract.md`
+> hashed; no code paths).
 >
-> Cycle history (re-run fresh on every hash change):
-> - Round 1 (hash 7aa729b9): scope-auditor PASS; bi-analyst-reviewer FAIL — (a) §6 missing the "unresolved
->   identity" state sibling 11 carries; (b) the header/§1 mis-cited metrics_display.md for the "no per-90 /
->   counts-only" rule (that doc governs the season bundled-row display, not career). Fixes: added the §6
->   null-identity state (mirrors 11, grounded in the player_sk/team_sk relationships DQ tests); re-cited the
->   rule to ui_design_brief.md §6.4 + the CPO counts-only ruling on mart_player_career.
-> - Round 2 (hash 841a96fc, THIS lock): scope-auditor PASS + bi-analyst-reviewer PASS. Only doc content
->   changed since round 1; both fixes verified genuinely resolved + a clean regression sweep.
+> Round 1 (hash 33d93deb) — scope-auditor **ESCALATE**: flagged that `content_architecture.md` §3/§7 still marks
+> the Career screen "unspec'd", now contradicting active_work.md, and asked whether the handover or #632 owns
+> that sync. **CPO ANSWER (2026-07-02): PROCEED; reconcile content_architecture.md separately** (see escalations
+> below). Round 1b (same hash 33d93deb, THIS lock) — scope-auditor re-assessed with the ruling and returned
+> **PASS**.
 
-diff_sha256: 841a96fc95d727a10a51a7fadb86ecfb9b1958a0385a1cb474e18617c58355c4
+diff_sha256: 33d93deb208d8d2c442f91f1eb87ea6c956cfe9a3a7dc7cdd5f8d96a67557d8a
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Metric binding integrity (§5 → mart_player_career): every §5 JSON key (player/club identity, season_api_year,
-  league_code, appearances, goals, assists, entity_type, national_appearances_total) maps 1:1 to a real column
-  on the merged per-club mart_player_career (#630) — no fabricated field, no schema drift. The 00 binding rule
-  (the blueprint's structural foundation) holds.
-- Consumption-layer contract (export derives no facts): national_appearances_total is precomputed on the mart,
-  not the export; per-club/career subtotals are flagged "display grouping OR reserved dbt precompute" — not
-  pre-decided (the #630 reserved item); GAP-22 is registered pending, not shipped. Scope: only docs/wireframes
-  + .claude/task/** touched; content_architecture.md ("caps" wording) is out of scope and correctly left
-  untouched (the spec uses honest wording). No §10 decision made silently; contract "amendments: (none)" is
-  correct (the round-1 fixes were content corrections within scope, not scope extensions).
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- §6 "Unresolved identity" row: verified the cited DQ tests exist verbatim (shared.yml player_sk→dim_player
-  :1294-1296, team_sk→dim_team :1301-1303); the "test failure, not a rendered blank" framing matches 11 §6;
-  both FKs are also not_null so the real failure mode is an orphaned FK — the wireframe's "no resolvable
-  dim_player/dim_team" describes it correctly.
-- Citation fix: the "per-90 / composite scores deliberately not available yet" claim is now the exact
-  ui_design_brief.md §6.4 quote (lines 156-157); metrics_display.md is cited ZERO times in the file; the
-  distinct "career-long rate not meaningful" claim is honestly framed as the CPO judgment, no doc mis-cited.
-- Regression sweep clean: every §5 key traces to a real mart column (none fabricated); goals/assists exist in
-  metric_catalogue.csv, appearances treated as a fact; national wording honest ("covered competitions", never
-  "caps") throughout; counts-only genuinely honored (zero %/percentile/tier in the file); the entity_type-null
-  "Unmapped competition" state matches the mart's LEFT JOIN chain; 00 inventory row 13 + the 4 census
-  components + 03 footer link/§10 ref + 99 GAP-22 all cross-reference consistently.
+- Handover truthfulness vs merged state: the diff records #632 MERGED + the Career screen now SPEC'D — verified
+  against the RECENT PRs entry (wireframe 13, GAP-22, 00/99/03 doc-syncs) and main @ 1132baa; #631 + #632 added
+  to the "main carries" line; the gap map / Track A / Phase C flip Career "un-spec'd" → "SPEC'D (#632); wiring =
+  GAP-22"; FIRST STEPS main tip = 1132baa. Records merged facts, invents nothing.
+- §10 decision-carve boundary (post-CPO-ruling): scope is only `.claude/active_work.md` + `.claude/task/**` — no
+  code/model/dbt/export/wireframe file, and (per the CPO ruling) the stale `content_architecture.md` sync is
+  correctly NOT touched (out-of-scope, tracked separately). NEXT is reserved (GAP-22 / backfill §10 cost /
+  Phase C / Phase D); the subtotal precompute-vs-display call is reserved to the GAP-22 wiring PR. No §10
+  pre-decision, no protected path, contract amendments (none). A cold chat resumes cleanly.
 
 ## escalations
-(none) — both round-1 bi-analyst findings fixed in-cycle (§6 identity state; the ui_design_brief citation).
-The subtotal precompute-vs-display question + the export wiring + the history backfill are reserved to the
-GAP-22 wiring PR / separate follow-ups, not decided here.
+- **ESCALATE (scope-auditor, round 1):** the handover marks the Career screen "SPEC'D (#632)" in active_work.md,
+  but `content_architecture.md` §3 legend (~L64) + §7 (~L162, L165) still say the Career (and the
+  Stats-percentile) screen is "unspec'd". Is syncing content_architecture.md the handover's job or #632's?
+  **CPO ANSWER (2026-07-02): PROCEED; reconcile content_architecture.md SEPARATELY.** It is a doc-of-record
+  (not a `.claude/` bookkeeping artifact); its screen-status drifted through THREE merged PRs — Stats-percentile
+  spec'd (#625) AND wired (#627), plus Career spec'd (#632) — none of which touched it, per this project's
+  convention that content_architecture.md status flips ride a DEDICATED reconciliation PR (#615) / close-out
+  doc-sync (#620), never the spec/wiring PR or its handover refresh. Pre-existing debt broader than Career, out
+  of scope for a bookkeeping refresh; tracked as a separate reconciliation follow-up (spawned task
+  task_8cf4f33f, covering Stats spec+wire + Career spec). This handover accurately reflects main. Resolved.
