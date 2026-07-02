@@ -19,10 +19,12 @@
 -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
 -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
 -- depends_on: {{ ref('int_player_season__metrics') }}
+-- depends_on: {{ ref('int_player_club_season__metrics') }}
 -- depends_on: {{ ref('int_team_season__metrics') }}
 
 {% set models = [
     ('int_player_season__metrics', 'player'),
+    ('int_player_club_season__metrics', 'player'),
     ('int_team_season__metrics', 'team')
 ] %}
 
@@ -30,7 +32,7 @@
     'team_sk', 'player_sk', 'league_sk', 'season_sk', 'league_code', 'season_api_year',
     'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
     'player_stat_coverage_season_games', 'games_with_team_stats', 'entity_type',
-    'appearances', 'starts', 'substitute_appearances', 'minutes'
+    'appearances', 'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at'
 ] %}
 
 {% set rows = [] %}

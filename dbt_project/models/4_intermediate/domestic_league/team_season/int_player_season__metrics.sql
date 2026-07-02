@@ -1,94 +1,24 @@
 {{ config(materialized='table') }}
 
 {#
-  Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
-  player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
-  mart_player_season was retired with the leaderboards consolidation). Replaces the inline
-  aggregation the marts previously duplicated.
+  Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE player-season
+  rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation; mart_player_season was
+  retired with the leaderboards consolidation).
+
+  #480 §8.3: this now COMPOSES int_player_club_season__metrics (the per-club atoms base) — it re-sums the
+  club rows up to the competition-season and re-derives the ratios / per-90 / count composites from the
+  re-summed atoms. Output columns and values are unchanged from the prior fct-direct aggregation: sum of
+  per-club sums = the single sum, and the per-fixture ROUND-weighted passes_accurate is invariant to the
+  grouping level. team_sk = the player's last known club that competition-season, reproduced from the
+  base's per-club last_kickoff_at.
 
   Grain: (player_sk, season_sk) — one row per player per competition-season (season_sk encodes the
-  competition). league_sk / league_code / season_api_year carried for downstream slicing. (The
-  per-club grain + this/last side-by-side are the deferred §8.3 follow-up; today's grain is kept.)
-
-  Atoms follow the metric_catalogue.csv seed (the metric-definition SSoT) exactly:
-  - passes_accurate = per-fixture ROUND(passes_total * passes_accuracy_percent / 100) then summed
-    (catalogue-correct; the weighted-ratio numerator). Small per-fixture rounding error (~±1-2).
-  - counts coalesce nulls to 0; appearances = count of finished player-stat rows (honest absence
-    where statistics_players is off).
-  - rates are NULL when the denominator is zero (never coerced to 0).
+  competition). Atoms follow the metric_catalogue.csv seed; counts coalesce nulls to 0; rates are NULL
+  when the denominator is zero (never coerced to 0).
 #}
 
-with player_stats as (
-    select * from {{ ref('fct_fixture_player_stats') }}
-),
-
-finished as (
-    select
-        fixture_sk,
-        league_sk,
-        season_sk,
-        league_code,
-        season_api_year,
-        kickoff_datetime
-    from {{ ref('fct_fixture') }}
-    where status_short in ('FT', 'AET', 'PEN')
-),
-
--- Penalty goals per (fixture, player) from match events, for the open-play numerator
--- (CPO Option A). event_detail='Penalty' = a scored penalty by this player; the remaining
--- goals_total is open play. goals_total stays the authoritative player goal count; only the
--- penalty component is event-derived. (A player's goals_total already excludes own goals, so
--- the player numerator subtracts penalties only — no goals_own term.)
-events as (
-    select
-        fixture_sk,
-        player_sk,
-        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals
-    from {{ ref('fct_fixture_event') }}
-    where player_sk is not null
-    group by fixture_sk, player_sk
-),
-
-per_fixture as (
-    select
-        s.player_sk,
-        s.team_sk,
-        f.league_sk,
-        f.season_sk,
-        f.league_code,
-        f.season_api_year,
-        f.kickoff_datetime,
-        s.minutes_played,
-        s.is_starter,
-        s.is_substitute,
-        s.goals_total,
-        s.goals_assists,
-        s.saves,
-        s.goals_against,
-        s.shots_total,
-        s.shots_on,
-        s.passes_total,
-        s.passes_key,
-        s.passes_accuracy_percent,
-        s.tackles_total,
-        s.tackles_interceptions,
-        s.tackles_blocks,
-        s.duels_total,
-        s.duels_won,
-        s.dribbles_attempts,
-        s.dribbles_success,
-        s.dribbles_past,
-        s.offsides,
-        s.cards_yellow,
-        s.cards_red,
-        s.penalty_won,
-        s.penalty_committed,
-        coalesce(ev.penalty_goals, 0) as goals_penalty
-    from player_stats as s
-    inner join finished as f
-        on s.fixture_sk = f.fixture_sk
-    left join events as ev
-        on s.fixture_sk = ev.fixture_sk and s.player_sk = ev.player_sk
+with club_season as (
+    select * from {{ ref('int_player_club_season__metrics') }}
 ),
 
 aggregated as (
@@ -98,40 +28,41 @@ aggregated as (
         season_sk,
         league_code,
         season_api_year,
-        -- last known club in this competition-season (latest by kickoff)
-        array_agg(team_sk ignore nulls order by kickoff_datetime desc limit 1)[
+        -- last known club this competition-season: the club whose latest kickoff is the latest overall
+        -- (= the team of the player's last finished match — reproduces the prior fct-direct stamp). A
+        -- player cannot appear for two clubs at the same instant, so last_kickoff_at is unique per club
+        -- and no tie can occur; team_sk is a deterministic secondary sort purely for reproducibility.
+        array_agg(team_sk ignore nulls order by last_kickoff_at desc, team_sk desc limit 1)[
             safe_offset(0)
         ] as team_sk,
-        count(*) as appearances,
-        countif(is_starter) as starts,
-        countif(coalesce(is_substitute, false)) as substitute_appearances,
-        sum(coalesce(minutes_played, 0)) as minutes,
-        sum(coalesce(goals_total, 0)) as goals,
+        sum(appearances) as appearances,
+        sum(starts) as starts,
+        sum(substitute_appearances) as substitute_appearances,
+        sum(minutes) as minutes,
+        sum(goals) as goals,
         sum(goals_penalty) as goals_penalty,
-        sum(coalesce(goals_assists, 0)) as assists,
-        sum(coalesce(shots_total, 0)) as shots_total,
-        sum(coalesce(shots_on, 0)) as shots_on_goal,
-        sum(coalesce(passes_total, 0)) as passes_total,
-        sum(coalesce(passes_key, 0)) as passes_key,
-        sum(
-            cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)
-        ) as passes_accurate,
-        sum(coalesce(tackles_total, 0)) as tackles_total,
-        sum(coalesce(tackles_interceptions, 0)) as tackles_interceptions,
-        sum(coalesce(tackles_blocks, 0)) as tackles_blocks,
-        sum(coalesce(duels_total, 0)) as duels_total,
-        sum(coalesce(duels_won, 0)) as duels_won,
-        sum(coalesce(dribbles_attempts, 0)) as dribbles_attempts,
-        sum(coalesce(dribbles_success, 0)) as dribbles_success,
-        sum(coalesce(dribbles_past, 0)) as dribbles_past,
-        sum(coalesce(offsides, 0)) as offsides,
-        sum(coalesce(cards_yellow, 0)) as cards_yellow,
-        sum(coalesce(cards_red, 0)) as cards_red,
-        sum(coalesce(penalty_won, 0)) as penalty_won,
-        sum(coalesce(penalty_committed, 0)) as penalty_committed,
-        sum(coalesce(saves, 0)) as saves,
-        sum(coalesce(goals_against, 0)) as goals_against
-    from per_fixture
+        sum(assists) as assists,
+        sum(shots_total) as shots_total,
+        sum(shots_on_goal) as shots_on_goal,
+        sum(passes_total) as passes_total,
+        sum(passes_key) as passes_key,
+        sum(passes_accurate) as passes_accurate,
+        sum(tackles_total) as tackles_total,
+        sum(tackles_interceptions) as tackles_interceptions,
+        sum(tackles_blocks) as tackles_blocks,
+        sum(duels_total) as duels_total,
+        sum(duels_won) as duels_won,
+        sum(dribbles_attempts) as dribbles_attempts,
+        sum(dribbles_success) as dribbles_success,
+        sum(dribbles_past) as dribbles_past,
+        sum(offsides) as offsides,
+        sum(cards_yellow) as cards_yellow,
+        sum(cards_red) as cards_red,
+        sum(penalty_won) as penalty_won,
+        sum(penalty_committed) as penalty_committed,
+        sum(saves) as saves,
+        sum(goals_against) as goals_against
+    from club_season
     group by player_sk, league_sk, season_sk, league_code, season_api_year
 )
 

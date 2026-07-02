@@ -131,12 +131,14 @@ models:
     description: >
       Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE
       player-season rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation;
-      mart_player_season was retired with the leaderboards consolidation). Atoms follow
-      the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
+      mart_player_season was retired with the leaderboards consolidation). #480 §8.3: now COMPOSES
+      int_player_club_season__metrics (the per-club atoms base) — the club rows re-summed to the
+      competition-season with ratios / per-90 re-derived from the re-summed atoms; output unchanged.
+      Atoms follow the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
       nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
       denominator is zero. team_sk = the player's last known club that competition-season.
-      Grain: (player_sk, season_sk) — today's grain (the per-club split is the deferred §8.3 follow-up).
+      Grain: (player_sk, season_sk).
     config:
       tags: ["intermediate", "football", "team_season", "player"]
     tests:
@@ -178,6 +180,13 @@ models:
         tests: [not_null]
       - name: season_api_year
         tests: [not_null]
+      - name: team_sk
+        description: "The player's last known club that competition-season (deterministic last-kickoff pick); unused downstream today, tested for integrity."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: appearances
         tests: [not_null]
       - name: pass_accuracy_pct
