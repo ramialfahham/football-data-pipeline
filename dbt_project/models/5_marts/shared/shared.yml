@@ -1318,4 +1318,8 @@ models:
       - name: national_appearances_total
         description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
         tests: [not_null]
+      - name: last_kickoff_at
+        description: "The player's latest match at this club that competition-season (max kickoff, from int_player_club_season__metrics); a career-log ordering signal (within-club season order), not a displayed metric."
+      - name: club_latest_kickoff_at
+        description: "The club's latest match across all the player's seasons there (window max of last_kickoff_at over player+club); the export's primary career-log ordering signal (club-block order + contiguity), not a displayed metric."
 

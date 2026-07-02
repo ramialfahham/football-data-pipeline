@@ -9,6 +9,7 @@ from scripts.export_site_data import (
     _fixture_side,
     _shape_benchmark_member,
     _shape_benchmarks,
+    _shape_career_row,
     build_manifest,
     build_nav,
     fetch_glossary,
@@ -413,6 +414,72 @@ def test_shape_player_payload_attaches_benchmarks_per_season():
     # default (no benchmark_rows) also yields empty benchmarks
     p2 = shape_player_payload(profiles, [])
     assert all(s["benchmarks"] == [] for s in p2["seasons"])
+
+
+def test_shape_career_row_carries_mart_columns():
+    # GAP-22: one mart_player_career row -> a career entry. Counts + club identity copied straight from the
+    # mart (no computation); the club identity reuses _player_team_block; internal + player-identity keys drop.
+    row = {
+        "player_sk": 7, "team_sk": 157, "season_sk": 900, "league_sk": 78,
+        "player_career_sk": "hash", "season_api_year": 2024, "league_code": "BL1",
+        "player_name": "Harry Kane", "entity_type": "club",
+        "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany",
+        "appearances": 32, "goals": 26, "assists": 8, "national_appearances_total": 12,
+        "last_kickoff_at": "2024-05-18T15:30:00", "club_latest_kickoff_at": "2024-05-18T15:30:00",
+    }
+    assert _shape_career_row(row) == {
+        "season": 2024, "competition": "BL1", "entity_type": "club",
+        "team": {"team_id": 157, "name": "Bayern", "crest": "fcb.png", "country": "Germany"},
+        "appearances": 32, "goals": 26, "assists": 8,
+    }
+    m = _shape_career_row(row)
+    for internal in ("player_sk", "team_sk", "season_sk", "league_sk", "player_career_sk",
+                     "player_name", "national_appearances_total", "last_kickoff_at",
+                     "club_latest_kickoff_at"):
+        assert internal not in m
+
+
+def test_shape_player_payload_attaches_career_and_national_total_omits_null_team():
+    # GAP-22: the career log is TOP-LEVEL (whole career, not per-season). Order is a pure sort by the mart's
+    # club_latest_kickoff_at (club-block order + contiguity) then last_kickoff_at (within-club season order) —
+    # no client-side aggregation. A RETURN SPELL (Spurs -> Bayern -> back to Spurs) proves contiguity: both
+    # Spurs rows group together even though Bayern's season falls between them chronologically. National-entity
+    # rows (with a resolved team) are ordered the same way (own team block); an unresolved-identity row (null
+    # team_name = broken FK) is omitted; national_appearances_total is the precomputed per-player total.
+    def row(team_sk, year, comp, name, entity, apps, last, club_latest):
+        return {"player_sk": 9, "team_sk": team_sk, "season_api_year": year, "league_code": comp,
+                "entity_type": entity, "team_name": name, "team_logo_url": "x.png",
+                "team_country": "X", "appearances": apps, "goals": 1, "assists": 1,
+                "national_appearances_total": 23,
+                "last_kickoff_at": last, "club_latest_kickoff_at": club_latest}
+    profiles = [
+        {"player_sk": 9, "season_api_year": 2024, "league_code": "PL", "player_name": "Kane",
+         "position_code": "F"},
+    ]
+    career = [
+        row(47, 2020, "PL", "Spurs", "club", 35, "2020-07-15T19:00:00", "2024-05-19T15:00:00"),
+        row(157, 2022, "BL1", "Bayern", "club", 32, "2022-05-14T15:30:00", "2022-05-14T15:30:00"),
+        row(47, 2024, "PL", "Spurs", "club", 30, "2024-05-19T15:00:00", "2024-05-19T15:00:00"),
+        # two national-team seasons (a real multi-national player) — resolved team, ordered like a club block
+        row(500, 2021, "WC", "England", "national", 8, "2021-07-11T20:00:00", "2023-07-09T20:00:00"),
+        row(500, 2023, "WC", "England", "national", 10, "2023-07-09T20:00:00", "2023-07-09T20:00:00"),
+        # unresolved identity (null team_name = broken FK) -> omitted from career[]
+        {"player_sk": 9, "team_sk": 999, "season_api_year": 2019, "league_code": "WC",
+         "entity_type": "national", "team_name": None, "appearances": 5, "goals": 0, "assists": 0,
+         "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
+         "club_latest_kickoff_at": "2019-06-01T20:00:00"},
+    ]
+    p = shape_player_payload(profiles, [], None, career)
+    # club_latest desc: Spurs 2024-05-19, England 2023-07-09, Bayern 2022-05-14. Spurs rows contiguous
+    # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
+    assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
+        (47, 2024), (47, 2020), (500, 2023), (500, 2021), (157, 2022)
+    ]
+    assert len(p["career"]) == 5
+    assert p["national_appearances_total"] == 23
+    # empty default (no career_rows) -> empty career + None total
+    p2 = shape_player_payload(profiles, [])
+    assert p2["career"] == [] and p2["national_appearances_total"] is None
 
 
 def test_build_manifest_counts_by_type():

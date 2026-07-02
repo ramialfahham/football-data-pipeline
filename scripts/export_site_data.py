@@ -282,12 +282,31 @@ def _shape_benchmarks(rows: list[dict]) -> list[dict]:
     return out
 
 
+def _shape_career_row(row: dict) -> dict:
+    """One mart_player_career row -> a Career-screen entry (GAP-22): the player's counts at one club in one
+    competition-season. Select/reshape only — club grouping and the per-club/career subtotals are frontend
+    display (the export computes nothing); national_appearances_total is a precomputed per-player total carried
+    at the payload top level. entity_type (club/national) is carried raw so the frontend splits the sections;
+    the club identity reuses _player_team_block. Internal keys (player_sk / season_sk / league_sk /
+    player_career_sk) + player identity (already top-level) are dropped."""
+    return {
+        "season": row.get("season_api_year"),
+        "competition": row.get("league_code"),
+        "entity_type": row.get("entity_type"),
+        "team": _player_team_block(row),
+        "appearances": row.get("appearances"),
+        "goals": row.get("goals"),
+        "assists": row.get("assists"),
+    }
+
+
 def shape_player_payload(
     profile_rows: list[dict],
     match_rows: list[dict],
     benchmark_rows: list[dict] | None = None,
+    career_rows: list[dict] | None = None,
 ) -> dict:
-    """One player's profile rows + match-log rows (+ benchmark rows) -> the player page payload."""
+    """One player's profile rows + match-log rows (+ benchmark rows + career rows) -> the player page payload."""
     latest = _latest_season_row(profile_rows)
     player_id = int(latest["player_sk"])
     seasons = sorted(
@@ -322,6 +341,31 @@ def shape_player_payload(
             benchmarks_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
         )
         seasons_out.append(s)
+    # GAP-22: the whole per-club career log (one member per club x competition x season), attached TOP-LEVEL
+    # because the Career screen (13) shows the full career, not a per-season slice. Omit unresolved-identity
+    # rows (null team_name = a broken team_sk FK, guarded upstream by the relationships DQ test). Order is a
+    # pure SORT by two mart-shipped recency signals (no client-side aggregation): primary =
+    # club_latest_kickoff_at (the club's latest match, precomputed in mart_player_career) so a club's rows are
+    # CONTIGUOUS and clubs sort most-recent-first; then last_kickoff_at (within-club season order); then
+    # team_sk (deterministic tie-break) — all descending. Handles a mid-season transfer / return spell
+    # correctly. The frontend groups the already-club-contiguous rows and sums each club/career subtotal
+    # (display only). national_appearances_total is the precomputed per-player total (constant across the
+    # rows); None when the player has no career rows (honest absence — the frontend decides page generation).
+    career = [
+        _shape_career_row(r)
+        for r in sorted(
+            (cr for cr in (career_rows or []) if cr.get("team_name") is not None),
+            key=lambda cr: (
+                cr.get("club_latest_kickoff_at") or datetime.min,
+                cr.get("last_kickoff_at") or datetime.min,
+                cr["team_sk"],
+            ),
+            reverse=True,
+        )
+    ]
+    national_appearances_total = (
+        career_rows[0].get("national_appearances_total") if career_rows else None
+    )
     return {
         "type": "player",
         "player_id": player_id,
@@ -334,6 +378,8 @@ def shape_player_payload(
         "current_team": current_team,
         "seasons": seasons_out,
         "match_log": matches,
+        "career": career,
+        "national_appearances_total": national_appearances_total,
     }
 
 
@@ -562,9 +608,20 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
     else:
         bench_sql = f"select * from {bench_table}"
     by_player_bench = _group_by(_query(client, bench_sql), "player_sk")
+    # GAP-22: per-player career rows from mart_player_career (scoped to the sampled players on a sample run,
+    # like the match log + benchmark rows). Selection only.
+    career_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_career`"
+    if sample:
+        career_sql = f"select * from {career_table} where player_sk in ({id_list})"
+    else:
+        career_sql = f"select * from {career_table}"
+    by_player_career = _group_by(_query(client, career_sql), "player_sk")
     return [
         shape_player_payload(
-            by_player[pid], by_player_log.get(pid, []), by_player_bench.get(pid, [])
+            by_player[pid],
+            by_player_log.get(pid, []),
+            by_player_bench.get(pid, []),
+            by_player_career.get(pid, []),
         )
         for pid in player_ids
         if pid in wanted
