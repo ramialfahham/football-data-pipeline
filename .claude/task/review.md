@@ -1,46 +1,65 @@
-# Review — docs/391-gap20-shipped-status — 2026-07-01
+# Review — fix/530b-player-catalogue-integrity — 2026-07-02
 
-> G3 Lock artifact. #391 GAP-20 close-out: doc-status reconciliation of the already-merged #619
-> (mart_roster wired into the team payload as per-season squad[]). Marks GAP-20 shipped
-> (99_gaps_register.md), flips the Squad/roster block ⚠orphan→✓ + updates §7 + bumps the §3 legend
-> queried-mart count 14→15 (content_architecture.md), and refreshes the handover (active_work.md,
-> track A fully green; next = CPO pick). Bookkeeping/status → skip plan mode (CPO 2026-06-30 carve-out).
-> Required set (routing): scope-auditor (always) + bi-analyst-reviewer (docs/wireframes/**).
+> G3 Lock artifact. #530(b): fix the player catalogue-integrity gap. Adds an event-derived `goals_penalty`
+> atom to int_legs__player_match; completes the two player metric_catalogue rows (finishing_efficiency:
+> base/num/denom + direction=higher_better; duels_won_pct: direction=higher_better); syncs the seed's own
+> schema.yml deferred-rows prose. Season model untouched (Option Y). Required set (routing): scope-auditor
+> (always) + analytics-engineer (dbt_project/**) + football-analytics-expert (metric_catalogue.csv).
 >
-> Round 1 (hash 240b0b2) — scope-auditor PASS; bi-analyst FAIL: the §3 legend PROSE was left stale
-> ("the 3 spec'd screens (fixture/team/player)" + Squad named as the orphan example) — self-contradicting
-> the roster row flip in the same PR.
-> Round 2 (hash 7f45b42, THIS lock) — legend prose fixed: "the spec'd screens (fixture/team/player/Squad)
-> are green"; orphan example → "(Stats-percentile / Career)"; reconciliation date → 2026-07-01, post-#619.
-> Both reviewers PASS.
+> Round 1 (hash e339d31) — scope-auditor PASS, football-analytics PASS, analytics-engineer FAIL: the seed's
+> own dbt_project/seeds/schema.yml still listed finishing_efficiency among "the deferred player rows pending
+> the penalty atom" — SSoT self-contradiction after the CSV row was completed.
+> Round 2 (hash 959cfc07) — added schema.yml to scope + dropped finishing_efficiency from the
+> deferred enumeration (kept goals_penalty/goals_open_play, still blank) + corrected the now-stale
+> "pending the atom" phrasing. CODE (leg + CSV) byte-identical to round 1. All three reviewers PASS.
+> Round 3 (hash 08375bb5, THIS lock) — ci-data-build round-2 failed a SQLFluff **ST06** rule: the new
+> `coalesce(...) as goals_penalty` sat among the simple `ps.*` columns; ST06 wants calculations AFTER
+> simple targets. Moved it to the trailing calculated-columns block (before round_order) — still an output
+> column, catalogue formula still resolves, semantics identical. CSV/schema.yml/contract byte-identical to
+> round 2. All three reviewers re-confirmed PASS (resolvability guard is name-based, not positional).
 
-diff_sha256: 7f45b42b20c2f1bf578129bb324d5128ab3c8355e35c4c48ca69d648c3d913e2
+diff_sha256: 08375bb5c920f0299e7ee85672841e40ee7a5608e9e0132e7ece2dc430d2efd8
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Prose legend consistency (Appendix A6) — the round-1 stale prose (claimed 3 green screens while listing
-  Squad as an orphan example, contradicting the table) is fixed: prose now lists fixture/team/player/Squad
-  as green and the orphan example as Stats-percentile/Career, matching the table's Squad ⚠→✓ flip. Factually
-  correct (#617 spec'd Squad; #619 wired it). No stale claim pushed forward.
-- Queried-mart count accuracy — the 14→15 bump is tied to mart_roster now being queried by fetch_team_payloads
-  (#619, merged on main @ ac261da); prior count was understating. All changes within scope_paths
-  (99_gaps_register.md, content_architecture.md, active_work.md, .claude/task/**); no code/model change; no
-  §10 decision (records merged facts only; next track reserved to the CPO). Held.
+- Penalty-atom resolvability in metric_catalogue — goals_penalty added to int_legs__player_match from the
+  same event derivation as the team leg; assert_metric_catalogue_expr_resolvable now includes
+  finishing_efficiency,player (was skipped with blank base_relation) and resolves `sum(goals_total -
+  goals_penalty)` + `sum(shots_on)` to real leg columns. Left join on (fixture_sk, player_sk) is
+  cardinality-preserving; coalesce(...,0) null-safe. Held.
+- schema.yml/CSV consistency round-trip — the 3rd amendment added schema.yml to scope; the description now
+  records finishing_efficiency as done + goals_penalty/goals_open_play still pending (verified against the
+  live CSV blanks). CSV rows well-formed (14 fields); direction=higher_better on both; interpretation blank
+  (v1.x player exemption, schema.yml). Doc + code synchronized; no §10 decision; formula pure. Held.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Cross-file date/PR consistency — content_architecture.md (post-#619), 99_gaps_register.md (shipped
-  2026-07-01, #619), and active_work.md (main @ ac261da, #619 merged) all cite #619 / 2026-07-01
-  consistently; no drift. The GAP-20 "shipped" note matches the export code exactly (id+name only/no slug,
-  byte-stable player_sk order, null-identity omitted, raw position, no stats). Held.
-- No silent third orphan / leftover stale Squad language — grepped all Squad/roster occurrences in
-  content_architecture.md (lines 63, 82, 107, 164, 203): only benchmarks (Stats-percentile) + career remain
-  ⚠ in §3/§7 (correctly untouched); no "orphan" language still attached to Squad; the 14→15 count is the only
-  numeric change and is arithmetically consistent. Held.
+- Doc/data SSoT drift (the round-1 defect) — re-verified schema.yml base_relation description
+  (lines 108-110) against the live CSV: finishing_efficiency (row 15) fully filled + no longer in the
+  deferred enumeration; goals_penalty/goals_open_play (rows 31-32) genuinely still blank and the only two
+  listed; the "Blank for the deferred rows above" refs now resolve to those two. No stale reference remains.
+  Fully resolved.
+- Join fan-out on the new leg column — the events CTE groups by (fixture_sk, player_sk) before the left
+  join, so it cannot multiply rows; the leg's unique_combination_of_columns([fixture_sk, player_sk]) grain
+  test still holds. Derivation parity with the season model's own CTE confirmed (same event filter/grain/
+  coalesce); Option Y (season model untouched) → finishing value unchanged. Held.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- finishing_efficiency (player) — open-play conversion `(goals − penalty goals)/shots on target` is
+  football-valid; goals_total already excludes own goals (provider convention → only penalties subtracted,
+  vs the team row's penalties+own-goals — a real accounting asymmetry, not a copy-paste gap); higher_better
+  correct; the >100% edge is honestly nulled ([0,1]), cap stays model-side. Held.
+- duels_won_pct (player) direction + schema.yml prose — higher_better matches the team row for the identical
+  formula (a duel win-rate is a genuine quality signal, no style-vs-quality caveat needed); the schema.yml
+  edit is pure bookkeeping (verified against the live CSV blanks/fills), no formula/direction/football claim
+  embedded. Held.
 
 ## escalations
-(none) — doc-status reconciliation of merged work; records GAP-20 shipped + roster wired, and RESERVES the
-next track (Stats-percentile / Career / Phase C / Phase D), the fold-generalization question, and the
-wireframe §10 doc-status sweep — all to the CPO.
+(none) — completes two player catalogue rows to match the already-computed formula + the CPO direction
+ruling (both higher_better, 2026-07-02); no new metric invented; exprs pure (cap stays model-side). The
+season-model single-source repoint + the remaining #530(b) rows (goals_penalty, goals_open_play) are
+flagged follow-ups, reserved.

@@ -105,9 +105,9 @@ seeds:
           The int_legs__* per-(entity, fixture) building block the formula aggregates over
           (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
           lookups not derived from legs (league_rank — sourced from fct_standings); rank-derived reads
-          (deserved_rank, sot_rank_gap); and the deferred player rows pending int_legs__player_match
-          exposing the event-derived penalty-goal atom — finishing_efficiency, goals_penalty,
-          goals_open_play (#530 leg-gap follow-up (b)).
+          (deserved_rank, sot_rank_gap); and the still-deferred player rows goals_penalty, goals_open_play
+          (#530 leg-gap follow-up (b) — int_legs__player_match now exposes the event-derived goals_penalty
+          atom, so these can be filled next; finishing_efficiency is already done).
         tests:
           - accepted_values:
               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]

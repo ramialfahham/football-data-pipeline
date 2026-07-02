@@ -40,6 +40,19 @@ finished as (
         status_short in ('FT', 'AET', 'PEN')
         and goals_home is not null
         and goals_away is not null
+),
+
+-- Penalty goals per (fixture, player) from match events — the open-play finishing numerator
+-- component (goals_total - goals_penalty). goals_total stays authoritative; only the penalty
+-- component is event-derived. Mirrors int_player_season_position__metrics' events derivation.
+events as (
+    select
+        fixture_sk,
+        player_sk,
+        countif(event_type = 'Goal' and event_detail = 'Penalty') as goals_penalty
+    from {{ ref('fct_fixture_event') }}
+    where player_sk is not null
+    group by fixture_sk, player_sk
 )
 
 select
@@ -80,6 +93,7 @@ select
     ps.dribbles_past,
     ps.penalty_won,
     ps.penalty_committed,
+    coalesce(ev.goals_penalty, 0) as goals_penalty,
     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
     case when ps.team_sk = f.home_team_sk then f.away_team_sk else f.home_team_sk end
         as opponent_team_sk,
@@ -91,3 +105,5 @@ left join registry as reg
     on ps.league_code = reg.league_code
 left join types as typ
     on reg.competition_type = typ.competition_type
+left join events as ev
+    on ps.fixture_sk = ev.fixture_sk and ps.player_sk = ev.player_sk
