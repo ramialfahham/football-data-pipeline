@@ -1,25 +1,29 @@
-# Review — docs/add-mvp-screenshot — 2026-07-03
+# Review — docs/readme-design-decisions — 2026-07-03
 
-> G3 Lock artifact. Docs-only, single-binary task: add docs/assets/screenshot.png (the CPO-supplied MVP
-> screenshot the merged README #640 references) + the contract artifact. Required set (routing):
-> **scope-auditor only** — docs/assets/** matches no path pattern, so no other reviewer is triggered.
-> Round 1 (hash 04540ac9) — scope-auditor PASS with risks checked-and-held.
+> G3 Lock artifact. Docs-only task: add a "## Design decisions" section to README.md (five rationale-level
+> bullets on the WHY/trade-offs behind the architecture) between "## Highlights" and "## BigQuery layout".
+> Anti-drift by design: rationale only, no inventory, facts linked to authoritative sources. Required set
+> (routing): **scope-auditor only** — README.md matches no path pattern. Round 1 (hash d2cf0091) —
+> scope-auditor PASS with risks checked-and-held.
 
-diff_sha256: 04540ac90b120cffc07d5d1b3f684adbf7067029670afc36329d0b5cf88e1e7c
+diff_sha256: d2cf00914f9d3bec7b091a2f69270124655150bab9f3bcd67bc4a396d261edf5
 
 ## scope-auditor
 VERDICT: PASS  (round 1)
 risks_checked:
-- Path correctness + reference resolution: the staged binary is at exactly the path the merged README
-  references (docs/assets/screenshot.png, README line 16 from #640). Verified the file is a readable PNG
-  (584x821) showing the Matchday IQ landing/competitions view per the docs/assets/README.md spec — so the
-  hero reference resolves on merge instead of the current broken-image placeholder on main. No typo, no path
-  drift, no dangling reference, no wrong/placeholder image.
-- Scope boundary: the staged diff touches only .claude/task/contract.md (task artifact) and
-  docs/assets/screenshot.png (within docs/assets/** scope). No README.md or docs/assets/README.md edit (both
-  correctly left as merged in #640), no code/dbt/scripts/CI/SQL change. No §10 decision — the path was
-  pre-wired in #640, the CPO supplied the image and directed its addition in-session; the landscape
-  social-preview upload + a future match-detail hero-swap are explicitly reserved as separate steps.
+- Drift-resistance via link-not-copy: the new section links outbound to four authoritative in-repo sources
+  (docs/competition_registry.yml, scripts/check_layer_contract.py, dbt_project/docs/layering.md,
+  dbt_project/docs/engineering_standards.md — all verified to exist) and restates no inventory (no model/
+  competition counts, no version numbers), so it stays true as the underlying facts change. Directly
+  addresses the #505 doc-clutter/drift risk that motivated folding this into the README instead of a 4th doc.
+- Factual accuracy of the five claims: each was checked against the real system and holds — the unified-raw/
+  league_code + zero-file rule (CLAUDE.md architecture), the strict layer contract (layering.md), DQ-as-a-
+  build-gate (engineering_standards testing policy), "metrics defined once" (metric_catalogue.csv is
+  referenced by multiple models and guarded by assert_no_uncatalogued_season_metric), and identity-vs-
+  affiliation (dim_player / dim_team + the *_season_mapping models). Voice is neutral and factual with no
+  self-praise (per the #640 tone ruling); "foundation for a future semantic layer" reads as rationale, not a
+  commitment. Scope is exactly README.md + .claude/task/**; no existing README content altered or dropped;
+  no §10 decision (fold-into-README + the exact copy were CPO-approved in-session).
 
 ## escalations
 (none)
