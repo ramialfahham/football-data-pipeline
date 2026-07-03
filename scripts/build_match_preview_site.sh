@@ -54,4 +54,12 @@ if [ -f "${ROOT}/artifacts/pages_export_manifest.json" ]; then
   cp -f "${ROOT}/artifacts/pages_export_manifest.json" "${SITE_OUT}/"
 fi
 
+# /dbt-docs/  — dbt model lineage + descriptions (self-contained static page).
+# Best-effort: the docs-generate CI step is continue-on-error, so a missing file
+# must not break site assembly.
+if [ -f "${ROOT}/dbt_project/target/static_index.html" ]; then
+  mkdir -p "${SITE_OUT}/dbt-docs"
+  cp -f "${ROOT}/dbt_project/target/static_index.html" "${SITE_OUT}/dbt-docs/index.html"
+fi
+
 echo "Published tree at ${SITE_OUT} (upload _site as Pages root)."
