@@ -1,55 +1,44 @@
-# Task contract — README portfolio polish (docs-only)
+# Task contract — add MVP screenshot asset (docs-only, binary)
 
-> Written on a CLEAN tree (branch docs/readme-portfolio-polish off main @ baef982).
-> Supersedes the prior contract (Phase C brick 1 player YoY, MERGED #638). This is a NEW,
-> CPO-assigned presentation task — not inferred from the handover. Docs-only; no dbt/SQL/Python.
+> Written on a CLEAN tree (branch docs/add-mvp-screenshot off main @ e60b091).
+> Completes the deliverable reserved in the prior contract (README portfolio polish, MERGED #640):
+> the README references docs/assets/screenshot.png, which the CPO has now supplied. Docs-only; no
+> dbt/SQL/Python. Adds one binary image; no text/code behaviour changes.
 
 objective: >
-  Improve the repository's first impression as a portfolio / "business card" without overstating.
-  Replace the top of README.md with a professional, to-the-point funnel: a platform headline, status
-  badges, a clearly-labelled "Live preview" link to the MVP (with a note that the full v2 web app is in
-  active development), a Mermaid architecture diagram, and a factual Highlights list. All EXISTING
-  technical sections (BigQuery layout, dbt setup, DQ, layer contract, operations) stay unchanged below
-  the new funnel. Add docs/assets/README.md documenting the screenshot / social-preview image spec.
-  Tone: understated and factual (no self-praise); technical keywords carry SEO naturally.
-refs: portfolio/visibility request 2026-07-03; live app = MVP preview, v2 in active development (site_architecture.md / epic #361)
+  Add the MVP screenshot the merged README already references (docs/assets/screenshot.png), so the
+  README hero image resolves instead of showing a broken-image placeholder on main. The image is the
+  CPO-supplied Matchday IQ landing/competitions view (PNG, 584x821). No other change.
+refs: closes the docs/assets/screenshot.png reference added in #640; portfolio/visibility request 2026-07-03
 
 scope_paths:
-  - README.md
   - docs/assets/**
   - .claude/task/**
 
 impact_map: >
-  writers: README.md top section replaced (H1 + intro through just before "## BigQuery layout (datasets)");
-    NEW docs/assets/README.md (guidance only). No code, no models, no scripts, no CI, no seeds touched.
-  downstream: none — documentation only. No dbt graph, no export, no build behaviour changes.
+  writers: NEW binary docs/assets/screenshot.png (CPO-supplied). No text file, no code, no models,
+    no scripts, no CI, no seeds touched. The README reference to this path already exists on main (#640).
+  downstream: none — a static image resolves an existing README <img>. No dbt graph, export, or build change.
   layer_rules: not applicable (no dbt models).
-  deploy_order: not applicable — docs merge; GitHub renders the README + Mermaid on push.
-  blast_radius: README.md presentation only. The referenced image docs/assets/screenshot.png is
-    supplied by the CPO later; until then the README shows a broken-image placeholder on this branch
-    (acceptable pre-merge; CPO adds the screenshot before/at merge). No numbers, no data, no behaviour.
+  deploy_order: not applicable — docs merge; GitHub serves the image and the README hero renders on merge.
+  blast_radius: the README hero image on main resolves (currently a broken icon). No numbers, data, or
+    behaviour. Social-preview upload (Settings UI, landscape 1280x640) remains a separate CPO manual step.
 
 decisions_taken: >
-  Framing = option A (MVP link near the top, clearly labelled "Live preview", v2 noted as in active
-  development). Tone corrected per CPO: dropped "Built solo, end to end" and any boast; factual only.
-  Headline = "Football Data Platform". Badges = ci-validate, ci-data-build, MIT, dbt 1.7, BigQuery,
-  Python 3.11. Architecture = Mermaid flowchart (API-Football -> BigQuery raw -> staging/base/core/
-  intermediate/marts -> GitHub Pages). Screenshot left for the CPO to supply (a real app capture beats a
-  placeholder); docs/assets/README.md records the spec + the social-preview reuse. Topics already set on
-  the repo this session (14, via gh api) — outside the diff, no file change.
+  Path/name = docs/assets/screenshot.png (the exact path the merged README + docs/assets/README.md spec
+  point at). Content = the CPO-supplied landing/competitions screenshot (portrait mobile), accepted as the
+  README hero for now; a match-detail hero + a landscape social-preview crop are deferred (noted below).
+  No image processing/cropping applied — the file is committed as supplied.
 
 decisions_reserved:
-  - The actual screenshot.png image and the GitHub social-preview upload are CPO manual steps (Settings UI).
-  - Any further README restructuring of the existing lower sections is out of scope for this PR.
-  - Future portfolio items (case study, dbt docs site, semantic-layer demo) are separate later work.
+  - The GitHub social-preview image (landscape 1280x640) is a separate CPO manual step (Settings UI).
+  - Swapping the hero to a match-detail view is a later, optional change once v2 screens exist.
 
 done_when:
-  - README.md top funnel renders on GitHub (headline, badges, labelled MVP link, Mermaid diagram, Highlights);
-    all existing sections below remain intact and unchanged.
-  - docs/assets/README.md documents the screenshot / social-preview spec.
-  - validate-local (offline gates) passes; no dbt/SQL/Python touched so the data gates are N/A.
-  - scope-auditor PASS (docs-only, no scope creep beyond scope_paths); review.md binds; CPO merges.
+  - docs/assets/screenshot.png exists in the repo and is a valid PNG; the README hero reference resolves.
+  - No other file changed (scope = the image + .claude/task/** artifacts only).
+  - scope-auditor PASS (docs/binary-only, no scope creep); review.md binds; CPO merges.
 
 amendments:
-  - 2026-07-03: contract replaced (prior task Phase C brick 1 merged as #638). CPO assigned this docs-only
-    portfolio task in-session and approved scope, framing (A), tone revision, and final copy ("Good to go").
+  - 2026-07-03: fresh contract (prior task README portfolio polish merged as #640). CPO supplied the
+    screenshot in-session and directed adding it at docs/assets/screenshot.png (option A).
