@@ -1,8 +1,38 @@
-# football-data-pipeline — Matchday IQ
+# Football Data Platform
 
-The data backend for **[Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)** — a pre-match football companion for fans. Open the app, instantly see what's on today, tap a match, and within seconds have five things worth saying about it.
+An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), and served to a web app. Multi-competition and multilingual.
 
-The pipeline ingests from API-Football → BigQuery → dbt → live web app. Multi-competition, multilingual, built to scale to all major competitions.
+[![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
+[![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![dbt](https://img.shields.io/badge/dbt-1.7-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
+[![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+
+### Live preview — [Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)
+
+A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
+
+![Matchday IQ — MVP preview](docs/assets/screenshot.png)
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
+    B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
+    E --> F[intermediate<br/>metrics + form] --> G[marts]
+    G -->|JSON export| H[GitHub Pages<br/>Matchday IQ]
+```
+
+## Highlights
+
+- **Zero-file league onboarding** — a new competition is a single registry entry; a CI-enforced contract prevents any SQL or Python change.
+- **Automated data-quality tests** gate every build.
+- **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
+- **Multilingual** (DE / EN / FI), multi-competition by design.
+- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and scheduled deployment.
+- **v2 web app** with new information architecture and richer insights in active development.
 
 ## BigQuery layout (datasets)
 
