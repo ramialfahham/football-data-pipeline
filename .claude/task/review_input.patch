@@ -1,690 +1,90 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index da4e13f..0a82844 100644
+index 0a82844..875bf54 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,67 +1,55 @@
--# Task contract — Phase C brick 1: player year-over-year (int_player_profile__yoy)
-+# Task contract — README portfolio polish (docs-only)
+@@ -1,55 +1,44 @@
+-# Task contract — README portfolio polish (docs-only)
++# Task contract — add MVP screenshot asset (docs-only, binary)
  
--> Written on a CLEAN tree (branch feat/player-profile-yoy off main @ baef982).
--> First Phase C brick: the PLAYER mirror of the shipped team YoY (int_team_profile__yoy, #324/#606). dbt-only.
--> Backfill confirmed done this session (careers 5-10 seasons deep in mart_player_career) → YoY is meaningful.
-+> Written on a CLEAN tree (branch docs/readme-portfolio-polish off main @ baef982).
-+> Supersedes the prior contract (Phase C brick 1 player YoY, MERGED #638). This is a NEW,
-+> CPO-assigned presentation task — not inferred from the handover. Docs-only; no dbt/SQL/Python.
+-> Written on a CLEAN tree (branch docs/readme-portfolio-polish off main @ baef982).
+-> Supersedes the prior contract (Phase C brick 1 player YoY, MERGED #638). This is a NEW,
+-> CPO-assigned presentation task — not inferred from the handover. Docs-only; no dbt/SQL/Python.
++> Written on a CLEAN tree (branch docs/add-mvp-screenshot off main @ e60b091).
++> Completes the deliverable reserved in the prior contract (README portfolio polish, MERGED #640):
++> the README references docs/assets/screenshot.png, which the CPO has now supplied. Docs-only; no
++> dbt/SQL/Python. Adds one binary image; no text/code behaviour changes.
  
  objective: >
--  Build int_player_profile__yoy (the player analog of int_team_profile__yoy) + compose it into
--  mart_player_profile, so the player profile carries "this season vs last, at the same appearance count"
--  deltas for goals / assists / shots_on_target / key_passes / defensive_actions (the CPO metric set,
--  AskUserQuestion 2026-07-03 "broader per-position set"). Domestic-leagues only, appearance-aligned, per-club
--  grain, attached via the player's primary club. Auto-carries to the v2 player export via select * (the team
--  A1/#606 precedent); a YoY SCREEN is a later wireframe gap.
--refs: #391 Phase C brick 1; #480 §8 (player-season analogs); mirrors #324/#606 (team YoY)
-+  Improve the repository's first impression as a portfolio / "business card" without overstating.
-+  Replace the top of README.md with a professional, to-the-point funnel: a platform headline, status
-+  badges, a clearly-labelled "Live preview" link to the MVP (with a note that the full v2 web app is in
-+  active development), a Mermaid architecture diagram, and a factual Highlights list. All EXISTING
-+  technical sections (BigQuery layout, dbt setup, DQ, layer contract, operations) stay unchanged below
-+  the new funnel. Add docs/assets/README.md documenting the screenshot / social-preview image spec.
-+  Tone: understated and factual (no self-praise); technical keywords carry SEO naturally.
-+refs: portfolio/visibility request 2026-07-03; live app = MVP preview, v2 in active development (site_architecture.md / epic #361)
+-  Improve the repository's first impression as a portfolio / "business card" without overstating.
+-  Replace the top of README.md with a professional, to-the-point funnel: a platform headline, status
+-  badges, a clearly-labelled "Live preview" link to the MVP (with a note that the full v2 web app is in
+-  active development), a Mermaid architecture diagram, and a factual Highlights list. All EXISTING
+-  technical sections (BigQuery layout, dbt setup, DQ, layer contract, operations) stay unchanged below
+-  the new funnel. Add docs/assets/README.md documenting the screenshot / social-preview image spec.
+-  Tone: understated and factual (no self-praise); technical keywords carry SEO naturally.
+-refs: portfolio/visibility request 2026-07-03; live app = MVP preview, v2 in active development (site_architecture.md / epic #361)
++  Add the MVP screenshot the merged README already references (docs/assets/screenshot.png), so the
++  README hero image resolves instead of showing a broken-image placeholder on main. The image is the
++  CPO-supplied Matchday IQ landing/competitions view (PNG, 584x821). No other change.
++refs: closes the docs/assets/screenshot.png reference added in #640; portfolio/visibility request 2026-07-03
  
  scope_paths:
--  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
--  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+  - README.md
-+  - docs/assets/**
+-  - README.md
+   - docs/assets/**
    - .claude/task/**
  
  impact_map: >
--  writers: NEW int_player_profile__yoy (4_intermediate/shared, materialized=table) reads
--    int_player_season_record (per-club appearance-cumulative; its header: "Carries ... match_number for the
--    deferred year-over-year surface") + competition_registry (seed). Exact mirror of int_team_profile__yoy.
--    mart_player_profile.sql gains a `yoy` CTE + a left join + the YoY output columns.
--  downstream: int_player_profile__yoy -> mart_player_profile (the ONLY consumer) -> the v2 player export
--    (scripts/export_site_data.py:588 `select * from mart_player_profile` — auto-carry, NO export edit).
--    dbt ls is CI-only locally; ref-graph cited from the files (Grep: only mart_player_profile will ref it).
--  layer_rules: intermediate = table, preparation for marts, may NOT ref mart_* (layering.md L15/L51) —
--    this model reads one int + one seed only, compliant. `python scripts/check_layer_contract.py` passes offline.
--  deploy_order: ADDITIVE only — a NEW model + NEW nullable columns on mart_player_profile (a full-refresh
--    table, not incremental). No rename/drop; historical rows unaffected. ci-data-build (dbt_analytics) builds
--    it in isolation; prod = the 04:00 scheduled run. No shared-warehouse migration hazard.
--  blast_radius: mart_player_profile gains ~17 NEW YoY columns (5 metrics x this/prev/delta + yoy_appearances_cutoff
--    + appearances_prev); EXISTING mart columns/numbers UNCHANGED. The player export payload gains those columns
--    via select *. No other mart or number changes. The drift guard (assert_no_uncatalogued_season_metric) is
--    unaffected — YoY is a profile/differentiator model, not the season-metrics rollup (like int_team_profile__yoy).
-+  writers: README.md top section replaced (H1 + intro through just before "## BigQuery layout (datasets)");
-+    NEW docs/assets/README.md (guidance only). No code, no models, no scripts, no CI, no seeds touched.
-+  downstream: none — documentation only. No dbt graph, no export, no build behaviour changes.
-+  layer_rules: not applicable (no dbt models).
-+  deploy_order: not applicable — docs merge; GitHub renders the README + Mermaid on push.
-+  blast_radius: README.md presentation only. The referenced image docs/assets/screenshot.png is
-+    supplied by the CPO later; until then the README shows a broken-image placeholder on this branch
-+    (acceptable pre-merge; CPO adds the screenshot before/at merge). No numbers, no data, no behaviour.
+-  writers: README.md top section replaced (H1 + intro through just before "## BigQuery layout (datasets)");
+-    NEW docs/assets/README.md (guidance only). No code, no models, no scripts, no CI, no seeds touched.
+-  downstream: none — documentation only. No dbt graph, no export, no build behaviour changes.
++  writers: NEW binary docs/assets/screenshot.png (CPO-supplied). No text file, no code, no models,
++    no scripts, no CI, no seeds touched. The README reference to this path already exists on main (#640).
++  downstream: none — a static image resolves an existing README <img>. No dbt graph, export, or build change.
+   layer_rules: not applicable (no dbt models).
+-  deploy_order: not applicable — docs merge; GitHub renders the README + Mermaid on push.
+-  blast_radius: README.md presentation only. The referenced image docs/assets/screenshot.png is
+-    supplied by the CPO later; until then the README shows a broken-image placeholder on this branch
+-    (acceptable pre-merge; CPO adds the screenshot before/at merge). No numbers, no data, no behaviour.
++  deploy_order: not applicable — docs merge; GitHub serves the image and the README hero renders on merge.
++  blast_radius: the README hero image on main resolves (currently a broken icon). No numbers, data, or
++    behaviour. Social-preview upload (Settings UI, landscape 1280x640) remains a separate CPO manual step.
  
  decisions_taken: >
--  Metric set = goals / assists / shots_on_target / key_passes / defensive_actions (CPO AskUserQuestion
--  2026-07-03). defensive_actions = tackles_total + tackles_interceptions + tackles_blocks (the T+I+B aggregate,
--  GAP-11). Grain (team_sk, player_sk, league_code, season_api_year); appearance-aligned (match_number = the
--  player's appearance number; current season through N vs the prior season's first N); domestic-leagues only;
--  deltas NULL when no prior season (transfer/first year) — an EXACT mirror of int_team_profile__yoy. Composed
--  into mart_player_profile via the primary club (ta.team_sk from int_player_season__team / GAP-16), so the
--  profile carries the player's main-club YoY (only the latest season per club-league matches; older seasons
--  get NULL — mirrors the team). Tests (int_player_profile.yml): unique_combination(grain) + not_null(keys +
--  cutoff) + relationships player_sk->dim_player, team_sk->dim_team (a safe superset of int_team_profile.yml,
--  which has unique+not_null only). Auto-carry to the export via select * (no export edit; #606 precedent).
-+  Framing = option A (MVP link near the top, clearly labelled "Live preview", v2 noted as in active
-+  development). Tone corrected per CPO: dropped "Built solo, end to end" and any boast; factual only.
-+  Headline = "Football Data Platform". Badges = ci-validate, ci-data-build, MIT, dbt 1.7, BigQuery,
-+  Python 3.11. Architecture = Mermaid flowchart (API-Football -> BigQuery raw -> staging/base/core/
-+  intermediate/marts -> GitHub Pages). Screenshot left for the CPO to supply (a real app capture beats a
-+  placeholder); docs/assets/README.md records the spec + the social-preview reuse. Topics already set on
-+  the repo this session (14, via gh api) — outside the diff, no file change.
+-  Framing = option A (MVP link near the top, clearly labelled "Live preview", v2 noted as in active
+-  development). Tone corrected per CPO: dropped "Built solo, end to end" and any boast; factual only.
+-  Headline = "Football Data Platform". Badges = ci-validate, ci-data-build, MIT, dbt 1.7, BigQuery,
+-  Python 3.11. Architecture = Mermaid flowchart (API-Football -> BigQuery raw -> staging/base/core/
+-  intermediate/marts -> GitHub Pages). Screenshot left for the CPO to supply (a real app capture beats a
+-  placeholder); docs/assets/README.md records the spec + the social-preview reuse. Topics already set on
+-  the repo this session (14, via gh api) — outside the diff, no file change.
++  Path/name = docs/assets/screenshot.png (the exact path the merged README + docs/assets/README.md spec
++  point at). Content = the CPO-supplied landing/competitions screenshot (portrait mobile), accepted as the
++  README hero for now; a match-detail hero + a landscape social-preview crop are deferred (noted below).
++  No image processing/cropping applied — the file is committed as supplied.
  
  decisions_reserved:
--  - The rare same-league two-club-in-one-season case surfaces the primary club's YoY only (documented honest
--    limit in the model header) — an accepted engineering trade-off, not a CPO question.
--  - A YoY SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
--  - Brick 2 (player streaks) + season models are separate later PRs.
--  - All §10 unchanged; the metric set is the only product decision and it is locked above.
-+  - The actual screenshot.png image and the GitHub social-preview upload are CPO manual steps (Settings UI).
-+  - Any further README restructuring of the existing lower sections is out of scope for this PR.
-+  - Future portfolio items (case study, dbt docs site, semantic-layer demo) are separate later work.
+-  - The actual screenshot.png image and the GitHub social-preview upload are CPO manual steps (Settings UI).
+-  - Any further README restructuring of the existing lower sections is out of scope for this PR.
+-  - Future portfolio items (case study, dbt docs site, semantic-layer demo) are separate later work.
++  - The GitHub social-preview image (landscape 1280x640) is a separate CPO manual step (Settings UI).
++  - Swapping the hero to a match-detail view is a later, optional change once v2 screens exist.
  
  done_when:
--  - int_player_profile__yoy builds; grain unique; keys + cutoff not_null; relationships hold; ci-data-build green.
--  - mart_player_profile gains the YoY columns; EXISTING numbers unchanged; drift guard unaffected.
--  - python scripts/check_layer_contract.py passes.
--  - bq spot-check: a long-tenured player (2+ seasons one league) has *_delta_yoy = cur - prev through the
--    aligned cutoff, and NULL for a first-season/transfer case.
--  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each); review.md binds; CPO merges.
--
--amendments: (none)
-+  - README.md top funnel renders on GitHub (headline, badges, labelled MVP link, Mermaid diagram, Highlights);
-+    all existing sections below remain intact and unchanged.
-+  - docs/assets/README.md documents the screenshot / social-preview spec.
-+  - validate-local (offline gates) passes; no dbt/SQL/Python touched so the data gates are N/A.
-+  - scope-auditor PASS (docs-only, no scope creep beyond scope_paths); review.md binds; CPO merges.
-+
-+amendments:
-+  - 2026-07-03: contract replaced (prior task Phase C brick 1 merged as #638). CPO assigned this docs-only
-+    portfolio task in-session and approved scope, framing (A), tone revision, and final copy ("Good to go").
-diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
-index f3769a6..224bba7 100644
---- a/.claude/task/review_input.patch
-+++ b/.claude/task/review_input.patch
-@@ -1,351 +1,181 @@
- diff --git a/.claude/task/contract.md b/.claude/task/contract.md
--index 138e463..da4e13f 100644
-+index da4e13f..0a82844 100644
- --- a/.claude/task/contract.md
- +++ b/.claude/task/contract.md
--@@ -1,46 +1,67 @@
---# Task contract — handover refresh (post-#636; doc-sync reconciliation merged)
--+# Task contract — Phase C brick 1: player year-over-year (int_player_profile__yoy)
-+@@ -1,67 +1,55 @@
-+-# Task contract — Phase C brick 1: player year-over-year (int_player_profile__yoy)
-++# Task contract — README portfolio polish (docs-only)
-  
---> Written on a CLEAN tree (branch chore/handover-refresh-636 off main @ baef982).
---> Bookkeeping only — no code/model/doc-content change beyond the handover itself. Records that #636 merged
---> (post-wiring doc-sync reconciliation: wireframes 11/12/13 + the gaps register + content_architecture flipped
---> to wired/shipped, and 12/13 §5 keys reconciled to the shipped export). Handover refreshes skip plan mode
---> (CPO carve-out 2026-06-30) — show the diff inline, quick go, same contract+review+gate.
--+> Written on a CLEAN tree (branch feat/player-profile-yoy off main @ baef982).
--+> First Phase C brick: the PLAYER mirror of the shipped team YoY (int_team_profile__yoy, #324/#606). dbt-only.
--+> Backfill confirmed done this session (careers 5-10 seasons deep in mart_player_career) → YoY is meaningful.
-+-> Written on a CLEAN tree (branch feat/player-profile-yoy off main @ baef982).
-+-> First Phase C brick: the PLAYER mirror of the shipped team YoY (int_team_profile__yoy, #324/#606). dbt-only.
-+-> Backfill confirmed done this session (careers 5-10 seasons deep in mart_player_career) → YoY is meaningful.
-++> Written on a CLEAN tree (branch docs/readme-portfolio-polish off main @ baef982).
-++> Supersedes the prior contract (Phase C brick 1 player YoY, MERGED #638). This is a NEW,
-++> CPO-assigned presentation task — not inferred from the handover. Docs-only; no dbt/SQL/Python.
-  
-  objective: >
---  #636 is MERGED (main @ baef982): the 3 now-wired screens (Squad #619 / Stats-percentile #627 / Career #634)
---  flipped proposed/pending/orphan -> wired/shipped across wireframes 11/12/13 + the gaps register (GAP-21/22)
---  + content_architecture; per a CPO "full reconciliation" ruling (escalations.log 2026-07-02), 12/13's §5 JSON
---  keys were also corrected to the shipped export payload. Refresh active_work.md to post-#636: NEXT = a CPO
---  pick (history backfill §10 cost / Phase C continued / Phase D) — the doc-sync candidate is now DONE. Records
---  merged facts + the two small open follow-ups; locks no next task.
---refs: #636 (chip task_4c709bd9); #391
--+  Build int_player_profile__yoy (the player analog of int_team_profile__yoy) + compose it into
--+  mart_player_profile, so the player profile carries "this season vs last, at the same appearance count"
--+  deltas for goals / assists / shots_on_target / key_passes / defensive_actions (the CPO metric set,
--+  AskUserQuestion 2026-07-03 "broader per-position set"). Domestic-leagues only, appearance-aligned, per-club
--+  grain, attached via the player's primary club. Auto-carries to the v2 player export via select * (the team
--+  A1/#606 precedent); a YoY SCREEN is a later wireframe gap.
--+refs: #391 Phase C brick 1; #480 §8 (player-season analogs); mirrors #324/#606 (team YoY)
-+-  Build int_player_profile__yoy (the player analog of int_team_profile__yoy) + compose it into
-+-  mart_player_profile, so the player profile carries "this season vs last, at the same appearance count"
-+-  deltas for goals / assists / shots_on_target / key_passes / defensive_actions (the CPO metric set,
-+-  AskUserQuestion 2026-07-03 "broader per-position set"). Domestic-leagues only, appearance-aligned, per-club
-+-  grain, attached via the player's primary club. Auto-carries to the v2 player export via select * (the team
-+-  A1/#606 precedent); a YoY SCREEN is a later wireframe gap.
-+-refs: #391 Phase C brick 1; #480 §8 (player-season analogs); mirrors #324/#606 (team YoY)
-++  Improve the repository's first impression as a portfolio / "business card" without overstating.
-++  Replace the top of README.md with a professional, to-the-point funnel: a platform headline, status
-++  badges, a clearly-labelled "Live preview" link to the MVP (with a note that the full v2 web app is in
-++  active development), a Mermaid architecture diagram, and a factual Highlights list. All EXISTING
-++  technical sections (BigQuery layout, dbt setup, DQ, layer contract, operations) stay unchanged below
-++  the new funnel. Add docs/assets/README.md documenting the screenshot / social-preview image spec.
-++  Tone: understated and factual (no self-praise); technical keywords carry SEO naturally.
-++refs: portfolio/visibility request 2026-07-03; live app = MVP preview, v2 in active development (site_architecture.md / epic #361)
-  
-  scope_paths:
---  - .claude/active_work.md
--+  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
--+  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
--+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+-  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
-+-  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
-+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-++  - README.md
-++  - docs/assets/**
-    - .claude/task/**
-  
--+impact_map: >
--+  writers: NEW int_player_profile__yoy (4_intermediate/shared, materialized=table) reads
--+    int_player_season_record (per-club appearance-cumulative; its header: "Carries ... match_number for the
--+    deferred year-over-year surface") + competition_registry (seed). Exact mirror of int_team_profile__yoy.
--+    mart_player_profile.sql gains a `yoy` CTE + a left join + the YoY output columns.
--+  downstream: int_player_profile__yoy -> mart_player_profile (the ONLY consumer) -> the v2 player export
--+    (scripts/export_site_data.py:588 `select * from mart_player_profile` — auto-carry, NO export edit).
--+    dbt ls is CI-only locally; ref-graph cited from the files (Grep: only mart_player_profile will ref it).
--+  layer_rules: intermediate = table, preparation for marts, may NOT ref mart_* (layering.md L15/L51) —
--+    this model reads one int + one seed only, compliant. `python scripts/check_layer_contract.py` passes offline.
--+  deploy_order: ADDITIVE only — a NEW model + NEW nullable columns on mart_player_profile (a full-refresh
--+    table, not incremental). No rename/drop; historical rows unaffected. ci-data-build (dbt_analytics) builds
--+    it in isolation; prod = the 04:00 scheduled run. No shared-warehouse migration hazard.
--+  blast_radius: mart_player_profile gains ~17 NEW YoY columns (5 metrics x this/prev/delta + yoy_appearances_cutoff
--+    + appearances_prev); EXISTING mart columns/numbers UNCHANGED. The player export payload gains those columns
--+    via select *. No other mart or number changes. The drift guard (assert_no_uncatalogued_season_metric) is
--+    unaffected — YoY is a profile/differentiator model, not the season-metrics rollup (like int_team_profile__yoy).
--+
-+ impact_map: >
-+-  writers: NEW int_player_profile__yoy (4_intermediate/shared, materialized=table) reads
-+-    int_player_season_record (per-club appearance-cumulative; its header: "Carries ... match_number for the
-+-    deferred year-over-year surface") + competition_registry (seed). Exact mirror of int_team_profile__yoy.
-+-    mart_player_profile.sql gains a `yoy` CTE + a left join + the YoY output columns.
-+-  downstream: int_player_profile__yoy -> mart_player_profile (the ONLY consumer) -> the v2 player export
-+-    (scripts/export_site_data.py:588 `select * from mart_player_profile` — auto-carry, NO export edit).
-+-    dbt ls is CI-only locally; ref-graph cited from the files (Grep: only mart_player_profile will ref it).
-+-  layer_rules: intermediate = table, preparation for marts, may NOT ref mart_* (layering.md L15/L51) —
-+-    this model reads one int + one seed only, compliant. `python scripts/check_layer_contract.py` passes offline.
-+-  deploy_order: ADDITIVE only — a NEW model + NEW nullable columns on mart_player_profile (a full-refresh
-+-    table, not incremental). No rename/drop; historical rows unaffected. ci-data-build (dbt_analytics) builds
-+-    it in isolation; prod = the 04:00 scheduled run. No shared-warehouse migration hazard.
-+-  blast_radius: mart_player_profile gains ~17 NEW YoY columns (5 metrics x this/prev/delta + yoy_appearances_cutoff
-+-    + appearances_prev); EXISTING mart columns/numbers UNCHANGED. The player export payload gains those columns
-+-    via select *. No other mart or number changes. The drift guard (assert_no_uncatalogued_season_metric) is
-+-    unaffected — YoY is a profile/differentiator model, not the season-metrics rollup (like int_team_profile__yoy).
-++  writers: README.md top section replaced (H1 + intro through just before "## BigQuery layout (datasets)");
-++    NEW docs/assets/README.md (guidance only). No code, no models, no scripts, no CI, no seeds touched.
-++  downstream: none — documentation only. No dbt graph, no export, no build behaviour changes.
-++  layer_rules: not applicable (no dbt models).
-++  deploy_order: not applicable — docs merge; GitHub renders the README + Mermaid on push.
-++  blast_radius: README.md presentation only. The referenced image docs/assets/screenshot.png is
-++    supplied by the CPO later; until then the README shows a broken-image placeholder on this branch
-++    (acceptable pre-merge; CPO adds the screenshot before/at merge). No numbers, no data, no behaviour.
-+ 
-  decisions_taken: >
---  Bookkeeping only. Header -> post-#636 / main @ baef982, leading with the doc-sync reconciliation; add #636
---  to the "main carries" line + prepend it to RECENT PRs; DROP the now-DONE doc-sync candidate from the NEXT
---  list (leaving history backfill / Phase C / Phase D); flip the wireframes/register/content_architecture
---  status language from "reconcile separately" to reconciled/done; record the two small open follow-ups
---  (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" loose note). Invents nothing; locks no next task.
--+  Metric set = goals / assists / shots_on_target / key_passes / defensive_actions (CPO AskUserQuestion
--+  2026-07-03). defensive_actions = tackles_total + tackles_interceptions + tackles_blocks (the T+I+B aggregate,
--+  GAP-11). Grain (team_sk, player_sk, league_code, season_api_year); appearance-aligned (match_number = the
--+  player's appearance number; current season through N vs the prior season's first N); domestic-leagues only;
--+  deltas NULL when no prior season (transfer/first year) — an EXACT mirror of int_team_profile__yoy. Composed
--+  into mart_player_profile via the primary club (ta.team_sk from int_player_season__team / GAP-16), so the
--+  profile carries the player's main-club YoY (only the latest season per club-league matches; older seasons
--+  get NULL — mirrors the team). Tests (int_player_profile.yml): unique_combination(grain) + not_null(keys +
--+  cutoff) + relationships player_sk->dim_player, team_sk->dim_team (a safe superset of int_team_profile.yml,
--+  which has unique+not_null only). Auto-carry to the export via select * (no export edit; #606 precedent).
-+-  Metric set = goals / assists / shots_on_target / key_passes / defensive_actions (CPO AskUserQuestion
-+-  2026-07-03). defensive_actions = tackles_total + tackles_interceptions + tackles_blocks (the T+I+B aggregate,
-+-  GAP-11). Grain (team_sk, player_sk, league_code, season_api_year); appearance-aligned (match_number = the
-+-  player's appearance number; current season through N vs the prior season's first N); domestic-leagues only;
-+-  deltas NULL when no prior season (transfer/first year) — an EXACT mirror of int_team_profile__yoy. Composed
-+-  into mart_player_profile via the primary club (ta.team_sk from int_player_season__team / GAP-16), so the
-+-  profile carries the player's main-club YoY (only the latest season per club-league matches; older seasons
-+-  get NULL — mirrors the team). Tests (int_player_profile.yml): unique_combination(grain) + not_null(keys +
-+-  cutoff) + relationships player_sk->dim_player, team_sk->dim_team (a safe superset of int_team_profile.yml,
-+-  which has unique+not_null only). Auto-carry to the export via select * (no export edit; #606 precedent).
-++  Framing = option A (MVP link near the top, clearly labelled "Live preview", v2 noted as in active
-++  development). Tone corrected per CPO: dropped "Built solo, end to end" and any boast; factual only.
-++  Headline = "Football Data Platform". Badges = ci-validate, ci-data-build, MIT, dbt 1.7, BigQuery,
-++  Python 3.11. Architecture = Mermaid flowchart (API-Football -> BigQuery raw -> staging/base/core/
-++  intermediate/marts -> GitHub Pages). Screenshot left for the CPO to supply (a real app capture beats a
-++  placeholder); docs/assets/README.md records the spec + the social-preview reuse. Topics already set on
-++  the repo this session (14, via gh api) — outside the diff, no file change.
-  
-  decisions_reserved:
---  - The next task — CPO picks: the history backfill (§10 cost — gives Career/season-over-season real depth),
---    Phase C continued (player YoY/streaks on int_player_club_season__metrics), or Phase D flagship marts.
---    Present candidates; do NOT pre-decide.
---  - Two small open follow-ups (doc-only, surfaced by #636): metrics_display.md:91 still calls GAP-21 a future
---    "wiring PR" (now shipped #627); GAP-20's register note "id+name only" is loose (shipped squad[] carries
---    six identity fields). Each a tiny future doc touch; NOT decided here.
---  - not_null hardening on mart_player_career.last_kickoff_at / club_latest_kickoff_at (thrice-flagged,
---    non-blocking, transitively guaranteed) — a dbt model/yml change; still a future add.
---  - All §10 unchanged.
--+  - The rare same-league two-club-in-one-season case surfaces the primary club's YoY only (documented honest
--+    limit in the model header) — an accepted engineering trade-off, not a CPO question.
--+  - A YoY SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
--+  - Brick 2 (player streaks) + season models are separate later PRs.
--+  - All §10 unchanged; the metric set is the only product decision and it is locked above.
-+-  - The rare same-league two-club-in-one-season case surfaces the primary club's YoY only (documented honest
-+-    limit in the model header) — an accepted engineering trade-off, not a CPO question.
-+-  - A YoY SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
-+-  - Brick 2 (player streaks) + season models are separate later PRs.
-+-  - All §10 unchanged; the metric set is the only product decision and it is locked above.
-++  - The actual screenshot.png image and the GitHub social-preview upload are CPO manual steps (Settings UI).
-++  - Any further README restructuring of the existing lower sections is out of scope for this PR.
-++  - Future portfolio items (case study, dbt docs site, semantic-layer demo) are separate later work.
-  
-  done_when:
---  - active_work.md: header post-#636 (main @ baef982); #636 in "main carries" + RECENT PRs; the doc-sync
---    candidate dropped from NEXT (history backfill / Phase C / Phase D remain); the two follow-ups recorded;
---    self-contained for a cold chat.
---  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
--+  - int_player_profile__yoy builds; grain unique; keys + cutoff not_null; relationships hold; ci-data-build green.
--+  - mart_player_profile gains the YoY columns; EXISTING numbers unchanged; drift guard unaffected.
--+  - python scripts/check_layer_contract.py passes.
--+  - bq spot-check: a long-tenured player (2+ seasons one league) has *_delta_yoy = cur - prev through the
--+    aligned cutoff, and NULL for a first-season/transfer case.
--+  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each); review.md binds; CPO merges.
-- 
-- amendments: (none)
--diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
--new file mode 100644
--index 0000000..c3e904d
----- /dev/null
--+++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
--@@ -0,0 +1,40 @@
--+version: 2
--+
--+models:
--+  - name: int_player_profile__yoy
--+    description: >
--+      Appearances-aligned year-over-year for the player profile (Phase C, #391), domestic
--+      leagues only — the player mirror of int_team_profile__yoy. One row per player's CURRENT
--+      club-league season: cumulative goals / assists / shots-on-target / key-passes /
--+      defensive-actions through the latest N appearances this season vs the same player's prior
--+      season AT THE SAME CLUB through its first N appearances. Aligned by appearances
--+      (match_number); deltas NULL when the prior season at this club is absent (transfer / first
--+      season). defensive_actions = tackles + interceptions + blocks (T+I+B). Grain:
--+      (team_sk, player_sk, league_code, season_api_year).
--+    tests:
--+      - dbt_utils.unique_combination_of_columns:
--+          combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
--+    columns:
--+      - name: team_sk
--+        description: "The player's club this season (the YoY is per-club)."
--+        tests:
--+          - not_null
--+          - relationships:
--+              to: ref('dim_team')
--+              field: team_sk
--+      - name: player_sk
--+        tests:
--+          - not_null
--+          - relationships:
--+              to: ref('dim_player')
--+              field: player_sk
--+      - name: league_code
--+        tests: [not_null]
--+      - name: season_api_year
--+        description: "The player's current domestic season (the YoY anchor)."
--+        tests: [not_null]
--+      - name: yoy_appearances_cutoff
--+        description: "N = appearances this season; the prior season is compared through its first N appearances."
--+        tests: [not_null]
--+      - name: goals_delta_yoy
--+        description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
--diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
--new file mode 100644
--index 0000000..bbbddef
----- /dev/null
--+++ b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
--@@ -0,0 +1,140 @@
--+{{ config(materialized='table') }}
-+-  - int_player_profile__yoy builds; grain unique; keys + cutoff not_null; relationships hold; ci-data-build green.
-+-  - mart_player_profile gains the YoY columns; EXISTING numbers unchanged; drift guard unaffected.
-+-  - python scripts/check_layer_contract.py passes.
-+-  - bq spot-check: a long-tenured player (2+ seasons one league) has *_delta_yoy = cur - prev through the
-+-    aligned cutoff, and NULL for a first-season/transfer case.
-+-  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each); review.md binds; CPO merges.
-+-
-+-amendments: (none)
-++  - README.md top funnel renders on GitHub (headline, badges, labelled MVP link, Mermaid diagram, Highlights);
-++    all existing sections below remain intact and unchanged.
-++  - docs/assets/README.md documents the screenshot / social-preview spec.
-++  - validate-local (offline gates) passes; no dbt/SQL/Python touched so the data gates are N/A.
-++  - scope-auditor PASS (docs-only, no scope creep beyond scope_paths); review.md binds; CPO merges.
- +
--+{#
--+  Appearances-aligned year-over-year — player, domestic leagues only (Phase C, #391;
--+  the player mirror of int_team_profile__yoy, #324).
-++amendments:
-++  - 2026-07-03: contract replaced (prior task Phase C brick 1 merged as #638). CPO assigned this docs-only
-++    portfolio task in-session and approved scope, framing (A), tone revision, and final copy ("Good to go").
-+diff --git a/README.md b/README.md
-+index 03a2a08..a05e78c 100644
-+--- a/README.md
-++++ b/README.md
-+@@ -1,8 +1,38 @@
-+-# football-data-pipeline — Matchday IQ
-++# Football Data Platform
-+ 
-+-The data backend for **[Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)** — a pre-match football companion for fans. Open the app, instantly see what's on today, tap a match, and within seconds have five things worth saying about it.
-++An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), and served to a web app. Multi-competition and multilingual.
-+ 
-+-The pipeline ingests from API-Football → BigQuery → dbt → live web app. Multi-competition, multilingual, built to scale to all major competitions.
-++[![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
-++[![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
-++[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-++[![dbt](https://img.shields.io/badge/dbt-1.7-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
-++[![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
-++[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
- +
--+  For each domestic-league (player, club, current season), compares cumulative output
--+  through the latest appearances this season (N) against the SAME player's immediately
--+  prior season AT THE SAME CLUB through its first N appearances. "This season vs last
--+  season, at the same point of the campaign" — the only honest comparison while a
--+  season is running (a part-season vs a full season would mislead).
-++### Live preview — [Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)
- +
--+  Alignment is by APPEARANCES (match_number from int_player_season_record — the running
--+  count of the player's finished appearances-with-stats), the player analog of the team
--+  builder's games played. Not by date, not by round number.
-++A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
- +
--+  Metric set (CPO 2026-07-03, the broader per-position set): goals, assists, shots on
--+  target, key passes, defensive actions (tackles + interceptions + blocks). Raw
--+  cumulative counts (per-90 / ratios live elsewhere); the delta is this - prev.
-++![Matchday IQ — MVP preview](docs/assets/screenshot.png)
- +
--+  Scope: competition_type = 'domestic_league' only — YoY is meaningful for league
--+  formats; cups/tournaments have no aligned comparison. Deltas are NULL where the prior
--+  season AT THIS CLUB is absent (a transfer, a first top-flight season, or
--+  history_seasons = 1).
-++## Architecture
- +
--+  Grain: (team_sk, player_sk, league_code, season_api_year) — one row per player's
--+  CURRENT club-league season. season_sk is attached downstream in mart_player_profile
--+  via the player's primary club; a within-season same-league two-club spell surfaces
--+  the primary club there (an honest limit, rare).
--+#}
-++```mermaid
-++flowchart LR
-++    A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
-++    B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
-++    E --> F[intermediate<br/>metrics + form] --> G[marts]
-++    G -->|JSON export| H[GitHub Pages<br/>Matchday IQ]
-++```
- +
--+with std as (
--+    select
--+        team_sk,
--+        player_sk,
--+        league_code,
--+        season_api_year,
--+        match_number,
--+        goals_total,
--+        goals_assists,
--+        shots_on,
--+        passes_key,
--+        tackles_total + tackles_interceptions + tackles_blocks as defensive_actions
--+    from {{ ref('int_player_season_record') }}
--+),
-++## Highlights
- +
--+registry as (
--+    select
--+        league_code,
--+        competition_type
--+    from {{ ref('competition_registry') }}
--+),
-++- **Zero-file league onboarding** — a new competition is a single registry entry; a CI-enforced contract prevents any SQL or Python change.
-++- **Automated data-quality tests** gate every build.
-++- **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
-++- **Multilingual** (DE / EN / FI), multi-competition by design.
-++- **CI/CD across 13 GitHub Actions workflows** — lint, validation, data build, security scanning, deployment.
-++- **v2 web app** with new information architecture and richer insights in active development.
-+ 
-+ ## BigQuery layout (datasets)
-+ 
-+diff --git a/docs/assets/README.md b/docs/assets/README.md
-+new file mode 100644
-+index 0000000..9e6a5f5
-+--- /dev/null
-++++ b/docs/assets/README.md
-+@@ -0,0 +1,16 @@
-++# Assets
- +
--+dom as (
--+    select s.*
--+    from std as s
--+    inner join registry as r
--+        on s.league_code = r.league_code
--+    where r.competition_type = 'domestic_league'
--+),
-++Static images referenced by the repository README.
- +
--+-- Current season per (player, club, league) and its latest appearance count N: the
--+-- single most-recent cumulative row (max season, then max match_number).
--+cur as (
--+    select
--+        team_sk,
--+        player_sk,
--+        league_code,
--+        season_api_year as cur_season,
--+        match_number as appearances_cutoff,
--+        goals_total as goals_this_season,
--+        goals_assists as assists_this_season,
--+        shots_on as shots_on_goal_this_season,
--+        passes_key as key_passes_this_season,
--+        defensive_actions as defensive_actions_this_season
--+    from dom
--+    qualify row_number() over (
--+        partition by team_sk, player_sk, league_code
--+        order by season_api_year desc, match_number desc
--+    ) = 1
--+),
-++## `screenshot.png` (referenced by the top-level README)
- +
--+-- Prior season at the same club, cumulative through the same appearance cutoff
--+-- (largest match_number <= N; a complete prior season normally has >= N appearances).
--+prev as (
--+    select
--+        d.team_sk,
--+        d.player_sk,
--+        d.league_code,
--+        d.match_number as appearances_prev,
--+        d.goals_total as goals_prev_season,
--+        d.goals_assists as assists_prev_season,
--+        d.shots_on as shots_on_goal_prev_season,
--+        d.passes_key as key_passes_prev_season,
--+        d.defensive_actions as defensive_actions_prev_season
--+    from dom as d
--+    inner join cur as c
--+        on
--+            d.team_sk = c.team_sk
--+            and d.player_sk = c.player_sk
--+            and d.league_code = c.league_code
--+    where
--+        d.season_api_year = c.cur_season - 1
--+        and d.match_number <= c.appearances_cutoff
--+    qualify row_number() over (
--+        partition by d.team_sk, d.player_sk, d.league_code
--+        order by d.match_number desc
--+    ) = 1
--+)
-++A screenshot of the live **Matchday IQ** MVP preview.
- +
--+select
--+    cur.team_sk,
--+    cur.player_sk,
--+    cur.league_code,
--+    cur.cur_season as season_api_year,
--+    cur.appearances_cutoff as yoy_appearances_cutoff,
--+    cur.goals_this_season,
--+    cur.assists_this_season,
--+    cur.shots_on_goal_this_season,
--+    cur.key_passes_this_season,
--+    cur.defensive_actions_this_season,
--+    prev.appearances_prev,
--+    prev.goals_prev_season,
--+    prev.assists_prev_season,
--+    prev.shots_on_goal_prev_season,
--+    prev.key_passes_prev_season,
--+    prev.defensive_actions_prev_season,
--+    cur.goals_this_season - prev.goals_prev_season as goals_delta_yoy,
--+    cur.assists_this_season - prev.assists_prev_season as assists_delta_yoy,
--+    cur.shots_on_goal_this_season - prev.shots_on_goal_prev_season
--+        as shots_on_goal_delta_yoy,
--+    cur.key_passes_this_season - prev.key_passes_prev_season as key_passes_delta_yoy,
--+    cur.defensive_actions_this_season - prev.defensive_actions_prev_season
--+        as defensive_actions_delta_yoy
--+from cur
--+left join prev
--+    on
--+        cur.team_sk = prev.team_sk
--+        and cur.player_sk = prev.player_sk
--+        and cur.league_code = prev.league_code
--diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
--index 96672f7..cf58b53 100644
----- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
--+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
--@@ -73,6 +73,13 @@ teams as (
--         team_logo_url,
--         team_country
--     from {{ ref('dim_team') }}
--+),
-++- **Format:** PNG
-++- **Recommended width:** ~1200 px (retina-friendly; scales down cleanly in the README)
-++- **Content:** a representative view of the app — ideally a fixture with its insights visible
-++- **Keep it current:** replace this when the v2 web app ships so the README never shows a stale UI
- +
--+-- Phase C: appearances-aligned year-over-year for the player's PRIMARY club that
--+-- competition-season (mirrors int_team_profile__yoy -> mart_team_profile). Only the
--+-- latest season per (player, club, league) has a YoY row; older seasons get NULL.
--+yoy as (
--+    select * from {{ ref('int_player_profile__yoy') }}
-- )
-- 
-- select
--@@ -134,7 +141,25 @@ select
--     a.pass_accuracy_pct,
--     a.duels_won_pct,
--     a.dribbles_success_pct,
---    a.save_pct
--+    a.save_pct,
--+    -- year-over-year (domestic only; the player's primary club that season; NULL
--+    -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
--+    y.yoy_appearances_cutoff,
--+    y.goals_this_season,
--+    y.goals_prev_season,
--+    y.goals_delta_yoy,
--+    y.assists_this_season,
--+    y.assists_prev_season,
--+    y.assists_delta_yoy,
--+    y.shots_on_goal_this_season,
--+    y.shots_on_goal_prev_season,
--+    y.shots_on_goal_delta_yoy,
--+    y.key_passes_this_season,
--+    y.key_passes_prev_season,
--+    y.key_passes_delta_yoy,
--+    y.defensive_actions_this_season,
--+    y.defensive_actions_prev_season,
--+    y.defensive_actions_delta_yoy
-- from season as a
-- left join players as p
--     on a.player_sk = p.player_sk
--@@ -149,3 +174,9 @@ left join team_affiliation as ta
--         and a.season_api_year = ta.season_api_year
-- left join teams as t
--     on ta.team_sk = t.team_sk
--+left join yoy as y
--+    on
--+        a.player_sk = y.player_sk
--+        and ta.team_sk = y.team_sk
--+        and a.league_code = y.league_code
--+        and a.season_api_year = y.season_api_year
-++The same image (or a 1280×640 crop) can be reused for the GitHub **social preview**
-++(Settings → General → Social preview), which controls the card shown when the repo
-++is shared or surfaced in search.
-diff --git a/README.md b/README.md
-index 03a2a08..171c1ec 100644
---- a/README.md
-+++ b/README.md
-@@ -1,8 +1,38 @@
--# football-data-pipeline — Matchday IQ
-+# Football Data Platform
+-  - README.md top funnel renders on GitHub (headline, badges, labelled MVP link, Mermaid diagram, Highlights);
+-    all existing sections below remain intact and unchanged.
+-  - docs/assets/README.md documents the screenshot / social-preview spec.
+-  - validate-local (offline gates) passes; no dbt/SQL/Python touched so the data gates are N/A.
+-  - scope-auditor PASS (docs-only, no scope creep beyond scope_paths); review.md binds; CPO merges.
++  - docs/assets/screenshot.png exists in the repo and is a valid PNG; the README hero reference resolves.
++  - No other file changed (scope = the image + .claude/task/** artifacts only).
++  - scope-auditor PASS (docs/binary-only, no scope creep); review.md binds; CPO merges.
  
--The data backend for **[Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)** — a pre-match football companion for fans. Open the app, instantly see what's on today, tap a match, and within seconds have five things worth saying about it.
-+An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), and served to a web app. Multi-competition and multilingual.
- 
--The pipeline ingests from API-Football → BigQuery → dbt → live web app. Multi-competition, multilingual, built to scale to all major competitions.
-+[![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
-+[![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
-+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-+[![dbt](https://img.shields.io/badge/dbt-1.7-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
-+[![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
-+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-+
-+### Live preview — [Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)
-+
-+A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
-+
-+![Matchday IQ — MVP preview](docs/assets/screenshot.png)
-+
-+## Architecture
-+
-+```mermaid
-+flowchart LR
-+    A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
-+    B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
-+    E --> F[intermediate<br/>metrics + form] --> G[marts]
-+    G -->|JSON export| H[GitHub Pages<br/>Matchday IQ]
-+```
-+
-+## Highlights
-+
-+- **Zero-file league onboarding** — a new competition is a single registry entry; a CI-enforced contract prevents any SQL or Python change.
-+- **Automated data-quality tests** gate every build.
-+- **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
-+- **Multilingual** (DE / EN / FI), multi-competition by design.
-+- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and scheduled deployment.
-+- **v2 web app** with new information architecture and richer insights in active development.
- 
- ## BigQuery layout (datasets)
- 
-diff --git a/docs/assets/README.md b/docs/assets/README.md
+ amendments:
+-  - 2026-07-03: contract replaced (prior task Phase C brick 1 merged as #638). CPO assigned this docs-only
+-    portfolio task in-session and approved scope, framing (A), tone revision, and final copy ("Good to go").
++  - 2026-07-03: fresh contract (prior task README portfolio polish merged as #640). CPO supplied the
++    screenshot in-session and directed adding it at docs/assets/screenshot.png (option A).
+diff --git a/docs/assets/screenshot.png b/docs/assets/screenshot.png
 new file mode 100644
-index 0000000..9e6a5f5
---- /dev/null
-+++ b/docs/assets/README.md
-@@ -0,0 +1,16 @@
-+# Assets
-+
-+Static images referenced by the repository README.
-+
-+## `screenshot.png` (referenced by the top-level README)
-+
-+A screenshot of the live **Matchday IQ** MVP preview.
-+
-+- **Format:** PNG
-+- **Recommended width:** ~1200 px (retina-friendly; scales down cleanly in the README)
-+- **Content:** a representative view of the app — ideally a fixture with its insights visible
-+- **Keep it current:** replace this when the v2 web app ships so the README never shows a stale UI
-+
-+The same image (or a 1280×640 crop) can be reused for the GitHub **social preview**
-+(Settings → General → Social preview), which controls the card shown when the repo
-+is shared or surfaced in search.
+index 0000000..047b3c1
+Binary files /dev/null and b/docs/assets/screenshot.png differ
