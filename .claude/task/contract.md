@@ -1,54 +1,69 @@
-# Task contract — README "Design decisions" section (docs-only)
+# Task contract — publish dbt docs lineage site on GitHub Pages
 
-> Written on a CLEAN tree (branch docs/readme-design-decisions off main @ 5c4ad28).
-> Portfolio work: add the reasoning/judgment narrative an external reader wants, WITHOUT a new
-> document (CPO rejected a standalone design_notes.md as doc-clutter / drift surface; the facts already
-> live in north_star / layering / CLAUDE / the registry). Docs-only; no dbt/SQL/Python.
+> Written on a CLEAN tree (branch feat/dbt-docs-pages off main @ current main).
+> Portfolio artifact: a public, explorable dbt docs site (model lineage graph + descriptions + columns),
+> folded into the EXISTING Pages deployment as a /dbt-docs/ subfolder. Approved plan:
+> C:\Users\Rami\.claude\plans\hazy-imagining-pascal.md. No dbt models, no data changes.
 
 objective: >
-  Add a tight "## Design decisions" section to README.md, immediately after "## Highlights" and before
-  "## BigQuery layout (datasets)". Five rationale-level bullets (unified raw + league_code / strict layer
-  contract / DQ as a build gate / metrics defined once / identity-vs-affiliation) that explain the WHY and
-  the trade-offs — the one thing written nowhere else. Every FACT links out to its authoritative source
-  (competition_registry.yml, check_layer_contract.py, layering.md, engineering_standards.md); the section
-  restates no inventory (no counts, no competition lists), so it does not drift.
-refs: portfolio/visibility request 2026-07-03; anti-clutter ruling (fold into README, no 4th doc); complements north_star (internal) vs README (external)
+  Serve dbt's self-contained static docs at
+  https://ramialfahham.github.io/football-data-pipeline/dbt-docs/ by (1) generating them in the existing
+  pages-match-preview workflow (which already authenticates to BigQuery and runs dbt), and (2) copying the
+  single static HTML into the Pages artifact assembled by build_match_preview_site.sh, and (3) linking the
+  site from the README. Reuses the existing single Pages deployment — no second Pages site, no new workflow.
+refs: portfolio/visibility request 2026-07-03; approved plan hazy-imagining-pascal.md
+
+protected_override: >
+  CPO approved editing the PROTECTED CI workflow .github/workflows/pages-match-preview.yml in plan mode this
+  session (2026-07-03): the plan (hazy-imagining-pascal.md) explicitly lists this workflow as a file to touch
+  and was approved unchanged via ExitPlanMode ("do it"). Change = ONE additive, continue-on-error
+  `dbt docs generate --static` step; no existing step altered; routed to cto-reviewer per review_routing.json.
 
 scope_paths:
+  - .github/workflows/pages-match-preview.yml
+  - scripts/build_match_preview_site.sh
   - README.md
   - .claude/task/**
 
 impact_map: >
-  writers: README.md gains one new "## Design decisions" section (text only) between the existing
-    "## Highlights" and "## BigQuery layout (datasets)" sections. No other README content altered. No code,
-    models, scripts, CI, seeds, or other docs touched.
-  downstream: none — documentation only. No dbt graph, export, or build behaviour change.
-  layer_rules: not applicable (no dbt models).
-  deploy_order: not applicable — docs merge; GitHub renders the new section on push.
-  blast_radius: README.md presentation only; five outbound links to existing in-repo paths. No numbers,
-    data, or behaviour. Staleness is mitigated by design: rationale altitude + links-not-copies (no
-    inventory to drift), per the CPO's "facts live in one place and get linked" rule.
+  writers: (1) pages-match-preview.yml gains ONE step `dbt docs generate --static` (continue-on-error:true)
+    after the existing dbt test step, before Pages assembly. (2) build_match_preview_site.sh gains a guarded
+    block copying dbt_project/target/static_index.html -> _site/dbt-docs/index.html. (3) README.md gains one
+    link under the Live-preview block.
+  downstream: the deployed Pages artifact gains a /dbt-docs/ path. The match-preview app path is unchanged.
+  layer_rules: not applicable (no dbt models; this is CI + build-script + docs).
+  deploy_order: additive. The docs step is continue-on-error and the copy is `-f`-guarded, so a docs failure
+    can NEVER block or break the existing app deploy. No change to run cadence (existing schedule + push paths).
+  blast_radius: the pages-match-preview workflow runs one extra warehouse metadata (catalog) query per build
+    and publishes one extra static page. No dbt model, no seed, no data row, no app behaviour changes. The
+    match-preview build/test/export/deploy steps are untouched.
 
 decisions_taken: >
-  Fold the reasoning narrative into README (NOT a standalone doc) — CPO ruling this session: a 4th document
-  restating architecture facts is exactly the drift/clutter risk (#505). north_star stays the INTERNAL
-  compass (vision/business model/roles/roadmap + terse tech rules); README stays the EXTERNAL face and now
-  carries the curated WHY. Voice = neutral, factual, honest that this is a personal project whose central
-  constraint is sideways scale (no self-praise, per the tone ruling on #640). Five decisions chosen for
-  judgment signal; each links to the authoritative source rather than copying facts. Exact copy pre-approved
-  by the CPO in-session ("go").
+  Fold into the EXISTING Pages workflow + _site folder (NOT a new workflow) — GitHub Pages serves one
+  deployment per repo; two deploy-pages jobs would race. `dbt docs generate --static` (dbt 1.7.2 supports it)
+  bundles manifest+catalog into ONE self-contained target/static_index.html — cleanest for static hosting.
+  Docs step is continue-on-error and the copy is file-guarded so docs are strictly best-effort and cannot
+  regress the app. Triggers left as-is: the daily schedule refreshes docs within 24h; broadening push paths
+  would add warehouse-touching runs (avoided on cost grounds). Cost = one catalog metadata query per existing
+  build, negligible next to the dbt run/test already in the job; no new cadence. Exposure = none new (repo is
+  public; static docs carry schema metadata, not warehouse data).
 
 decisions_reserved:
-  - No formal "architecture PRs must review this section" governance rule added — staleness is handled by
-    altitude + links; a process rule would be over-engineering for a README section (can revisit if it drifts).
-  - Future portfolio items (dbt docs site, semantic-layer demo) remain separate later work.
+  - No `dbt docs serve` local tooling, no custom theming, no per-model description backfill (later content pass).
+  - The landscape social-preview image remains a separate CPO manual step.
+  - If the docs ever need to be strictly fresh per-merge, broadening triggers is a separate cost decision.
 
 done_when:
-  - README.md carries the "## Design decisions" section in the right place; existing sections intact; the
-    five outbound links resolve to existing repo paths.
-  - No inventory/counts in the new section (drift-resistant by construction).
-  - scope-auditor PASS (docs-only, links resolve, no scope creep); review.md binds; CPO merges.
+  - pages-match-preview.yml has the `dbt docs generate --static` step (continue-on-error) in the right place;
+    the existing app build/test/export/deploy steps are unchanged.
+  - build_match_preview_site.sh copies target/static_index.html -> _site/dbt-docs/index.html, guarded by -f.
+  - README.md links the dbt-docs site once, under the Live-preview block.
+  - validate-local offline gates pass (YAML/shell are not dbt-built locally; CI is the real e2e gate).
+  - scope-auditor + cto-reviewer PASS (>=2 named risks each); review.md binds; CPO merges.
+  - POST-MERGE (real e2e gate, not blocking this PR): the workflow log shows the docs step produced
+    target/static_index.html and the copy landed; .../dbt-docs/ loads the lineage graph; .../match-preview/
+    still deploys and loads.
 
 amendments:
-  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO chose option A (fold the
-    reasoning into the README, no standalone doc) and approved the exact copy in-session ("go").
+  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO approved the plan
+    (hazy-imagining-pascal.md) in plan mode this session ("do it" -> ExitPlanMode approved unchanged).

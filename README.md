@@ -13,6 +13,8 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 
 A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
 
+**[Explore the data model →](https://ramialfahham.github.io/football-data-pipeline/dbt-docs/)** — dbt lineage graph, model and column docs, generated from the project.
+
 ![Matchday IQ — MVP preview](docs/assets/screenshot.png)
 
 ## Architecture

@@ -119,6 +119,11 @@ jobs:
           assert_mart_matchday_insights_wc_pretournament_form
           --exclude tag:debug
 
+      - name: Generate dbt docs (static, self-contained)
+        working-directory: dbt_project
+        continue-on-error: true
+        run: dbt docs generate --static
+
       - name: Configure Pages
         uses: actions/configure-pages@v4
 
