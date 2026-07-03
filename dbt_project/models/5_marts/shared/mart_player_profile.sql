@@ -80,6 +80,12 @@ teams as (
 -- latest season per (player, club, league) has a YoY row; older seasons get NULL.
 yoy as (
     select * from {{ ref('int_player_profile__yoy') }}
+),
+
+-- Phase D bonus: goal-involvement share of the club's whole-season goals, for the player's PRIMARY club
+-- that competition-season (content_architecture §6.4).
+contribution as (
+    select * from {{ ref('int_player_profile__contribution') }}
 )
 
 select
@@ -159,7 +165,12 @@ select
     y.key_passes_delta_yoy,
     y.defensive_actions_this_season,
     y.defensive_actions_prev_season,
-    y.defensive_actions_delta_yoy
+    y.defensive_actions_delta_yoy,
+    -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
+    -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
+    c.scorer_points,
+    c.team_goals_season,
+    c.contribution_share
 from season as a
 left join players as p
     on a.player_sk = p.player_sk
@@ -180,3 +191,8 @@ left join yoy as y
         and ta.team_sk = y.team_sk
         and a.league_code = y.league_code
         and a.season_api_year = y.season_api_year
+left join contribution as c
+    on
+        a.player_sk = c.player_sk
+        and ta.team_sk = c.team_sk
+        and a.season_sk = c.season_sk

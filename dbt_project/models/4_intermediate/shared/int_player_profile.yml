@@ -38,3 +38,39 @@ models:
         tests: [not_null]
       - name: goals_delta_yoy
         description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
+
+  - name: int_player_profile__contribution
+    description: >
+      Player contribution-share (content_architecture §6.4): the player's goal involvements (goals + assists)
+      as a share of the club's WHOLE-SEASON goals_for — "involved in X% of the team's goals." A composing
+      differentiator over the player + team legs; NULL when the club scored 0 that competition-season; range
+      [0, 1]. Understates where the player's match stats are missing (CPO-accepted honest limit). Grain:
+      (player_sk, team_sk, season_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, team_sk, season_sk]
+      - dbt_utils.expression_is_true:
+          expression: "contribution_share is null or (contribution_share >= 0 and contribution_share <= 1)"
+          name: player_contribution_share_within_unit
+    columns:
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_sk
+        description: "The player's club that competition-season (contribution is per-club)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        tests: [not_null]
+      - name: scorer_points
+        description: "The player's goals + assists this club-competition-season (the numerator)."
+      - name: team_goals_season
+        description: "The club's whole-season goals_for (the denominator)."
+      - name: contribution_share
+        description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
