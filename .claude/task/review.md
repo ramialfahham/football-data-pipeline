@@ -1,48 +1,30 @@
-# Review — feat/dbt-docs-pages — 2026-07-03
+# Review — chore/handover-refresh-643 — 2026-07-03
 
-> G3 Lock artifact. Publish a public dbt docs lineage site by folding it into the EXISTING GitHub Pages
-> deploy: one `dbt docs generate --static` step (continue-on-error) in pages-match-preview.yml, a `-f`-guarded
-> copy of target/static_index.html into _site/dbt-docs/ in build_match_preview_site.sh, and one README link.
-> The workflow is a PROTECTED path; the contract carries a protected_override tracing to the CPO's plan
-> approval (hazy-imagining-pascal.md, approved unchanged via ExitPlanMode). Required set (routing):
-> **scope-auditor (always) + cto-reviewer (.github/workflows/** + scripts/**)**. Round 1 (hash 2ca0b37a) —
-> BOTH PASS.
+> G3 Lock artifact. Bookkeeping handover refresh bringing `.claude/active_work.md` current from its stale
+> post-#636 state to **post-#643** — catching up SIX merges at once: #638 (Phase C brick 1 — player YoY) +
+> #640–643 (the portfolio arc: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions
+> section, public dbt-docs lineage site at /dbt-docs/) + banking this session's backfill finding (RAW +
+> mart_player_career 5–10 seasons deep; "thin-until-backfill" was stale). The post-#638 refresh #639 was
+> superseded by #640–643 and CLOSED; this replaces it. main @ 87598cc. Handover refreshes skip plan mode
+> (CPO carve-out 2026-06-30); still contract + review + gate. Required set (routing): scope-auditor only
+> (`.claude/active_work.md` + `.claude/task/contract.md`; no code paths).
 >
-> **Rebound onto post-#642 main** (2026-07-03) after sibling PR #642 (README "Design decisions") merged
-> first: only the `.claude/task/*` scratch files conflicted (resolved to this task's versions); README
-> auto-merged (the dbt-docs link + #642's section coexist). The workflow/script/README code hunks are
-> BYTE-IDENTICAL to the r1 review — only contract.md's diff BASE shifted (#641 → #642), so the hash
-> re-anchored 2ca0b37a → cdfcbbae. Both r1 PASS verdicts carry unchanged (same content).
+> Round 1 (hash 88cd9cc1, THIS lock) — scope-auditor PASS.
 
-diff_sha256: cdfcbbaee4bc5d182cfa5a6f12caba20c95f7fa135ac476439902407df4b30f0
+diff_sha256: 88cd9cc1513784e95be91d169b632f521ad5ace8eb584e783df55733c93144f9
 
 ## scope-auditor
-VERDICT: PASS  (round 1)
+VERDICT: PASS
 risks_checked:
-- Protected-override + scope integrity: .github/workflows/** is PROTECTED; the contract's protected_override
-  is present, names the exact file, quotes the CPO "do it" -> ExitPlanMode plan approval (hazy-imagining-
-  pascal.md, which explicitly lists this workflow), and matches scope. Every staged file is within scope_paths
-  (.github/workflows/pages-match-preview.yml, scripts/build_match_preview_site.sh, README.md, .claude/task/**);
-  no EXISTING workflow step (deps/seed/run/test/export/deploy) or existing script logic was altered — additive
-  only. The §10 "new workflow step" was pre-approved in the plan; the diff matches the plan exactly.
-- Silent docs-failure / incomplete deploy (checked, held): continue-on-error on the docs step + the `if [ -f ]`
-  copy guard mean a docs-generation failure cannot block the app deploy but would leave /dbt-docs/ absent on
-  Pages. Bounded by contract (docs are best-effort): the link is new (no prior users), the daily schedule
-  retries, and dbt docs generate is mature. No regression to the match-preview path.
-
-## cto-reviewer
-VERDICT: PASS  (round 1)
-risks_checked:
-- Flag/output correctness for dbt 1.7.2: dbt-bigquery==1.7.2 pins dbt-core 1.7.x, and `dbt docs generate
-  --static` (bundling manifest+catalog into a single target/static_index.html) is a real 1.7+ feature — the
-  flag and the output filename copied by the script match. If it were wrong the step would no-op under
-  continue-on-error and the -f copy would skip, degrading gracefully (docs absent, app unaffected).
-- Regression isolation + placement/auth: the step sits after the existing dbt seed/run/test, so BigQuery WIF
-  auth, profiles.yml and packages are already in scope (dbt docs generate self-compiles, needs nothing more).
-  Exactly one continue-on-error in the file (scoped to the new step); the `[ -f ]` guard is set -euo pipefail
-  safe; no existing step/script line changed; no new trigger or cadence (same schedule + push paths), one
-  extra catalog metadata query per existing build. Non-blocking note: catalog covers the whole project graph,
-  so the published lineage may include relations not built in this job — expected/acceptable for best-effort docs.
+- Backfill-finding fidelity: the "5–10 seasons deep (backfill effectively done)" claim is warehouse-grounded
+  (both RAW + mart_player_career checked, per-league ranges, residual gaps named — VL/CNL at 2, some
+  tournaments at 1 edition, a few continental at 5–9), labeled as this session's observational FINDING (not a
+  CPO decision), and consistent across the header + FIRST STEPS + the two reconciled body refs. It corrects a
+  stale premise factually, without smuggling a scope decision.
+- Cold-start coherence + no locked task: FIRST STEPS point to main @ 87598cc + the new #643/#638 RECENT
+  entries; #638 + #640–643 correctly moved to done; NEXT stays a genuine CPO pick (Phase C brick 2 / player
+  season models / Phase D) with none pre-locked; the #639 supersession is accurately noted. Scope surgical:
+  only .claude/active_work.md + .claude/task/** — bookkeeping, no code/model/doc.
 
 ## escalations
-(none)
+(none) — bookkeeping refresh; catches up #638 + #640–643 + banks the backfill finding; reserves the next task to the CPO.

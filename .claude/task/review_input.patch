@@ -1,224 +1,207 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index adaf6ad..72a9ff1 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,7 +4,7 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-07-03** — main GREEN at **baef982** (**#636** MERGED: **post-wiring doc-sync reconciliation** (chip `task_4c709bd9`) — flipped wireframes 11/12/13 + the gaps register (GAP-21/22) + `content_architecture.md` from proposed/pending/orphan → **wired/shipped** for the now-wired Squad (#619) / Stats-percentile (#627) / Career (#634) screens; per a CPO **"full reconciliation"** ruling (escalations.log 2026-07-02) also corrected 12/13's §5 JSON keys to the shipped export payload — `season`/`competition`/`team` block, `benchmarks[]` nesting, `numerator`/`denominator`; content_architecture now "17 marts"). **The Career/Stats/Squad screens are now spec'd AND wired AND doc-reconciled.** Prior: Career chain WIRED end-to-end (model #630 → spec #632 → export #634); #627 CLOSED the Stats-percentile track; Track A (Squad) GREEN (#617 + #619). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick**: the **history backfill** (§10 cost — gives Career + season-over-season real depth; the career is thin until it runs); **Phase C continued** (player YoY/streaks on the new base); or **Phase D** flagship marts. Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. Backlog + verified gap map below._
++_Last updated: **2026-07-03** — main GREEN at **87598cc**. **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick**: **Phase C brick 2** (player streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models; or **Phase D** flagship marts (§10 method). Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
+ 
+ ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
+ The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
+@@ -21,19 +21,20 @@ SQLFluff, CI-only — `validate` misses them): LT02 indent on the num/den `{% if
+ "Unrecognized name: goals_penalty" (aggregated-but-not-output) → exposed it via a CI-driven scope amendment.
+ Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based** screen, still un-spec'd.
+ 
+-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main GREEN at baef982** (or later if this refresh merged). Confirm tree clean.
+-2. Read this file top-to-bottom before touching anything (esp. the header lead + the #636 + #634 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
+-3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **The Career chain is now WIRED
+-   end-to-end: model (#630) → screen spec (#632) → export (#634).** `mart_player_career` is carried by the v2
+-   player export (career[] + national_appearances_total); the mart carries a `club_latest_kickoff_at` ordering
+-   window column. Still **thin-until-backfill**. Candidates: the **history backfill** (§10 cost — depth per
+-   competition; gives Career + season-over-season real depth); **Phase C continued** (player YoY/streaks/season
+-   on `int_player_club_season__metrics`); **Phase D** flagship marts (opponent/schedule context +
+-   contribution-share — §10 method). (The post-wiring doc-sync reconciliation is **DONE** — #636.) Present
+-   candidates + get the CPO's pick;
++1. `git checkout main && git pull`. **main GREEN at 87598cc** (or later if this refresh merged). Confirm tree clean.
++2. Read this file top-to-bottom before touching anything (esp. the header lead + the #643 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
++3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **Phase C brick 1 (player YoY) is
++   MERGED (#638)** — `int_player_profile__yoy` composed into `mart_player_profile`; the **portfolio arc
++   #640–643 is MERGED** (README funnel + dbt-docs site). **The history backfill is effectively DONE** (RAW +
++   `mart_player_career` are 5–10 seasons deep across domestic leagues; the "thin-until-backfill" premise was
++   STALE — do NOT re-scope a big backfill; see the header finding). Candidates: **Phase C brick 2** (player
++   streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models (on
++   `int_player_club_season__metrics` / `int_player_season_record`); **Phase D** flagship marts
++   (opponent/schedule context + contribution-share — §10 method). (Doc-sync DONE #636; player YoY DONE #638.)
++   Present candidates + get the CPO's pick;
+    ENTER PLAN MODE for any code/model/metric task. #391 un-paused but NARROW — do NOT touch the live MVP or
+    start the frontend.
+ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
+@@ -53,7 +54,7 @@ carries it)** first, then build the frontend against a stable export. The live M
+   (2) **orphan marts** — benchmarks, career, player-season still EXIST but the v2 export does NOT carry them
+   (wiring needs a wireframe step FIRST). **roster DONE** (#617 spec + #619 wired). **benchmarks: CLOSED**
+   (#625 spec + #627 wire). **career: WIRED (#634, GAP-22)** — `mart_player_career` (built #630) carried by the
+-  player export as career[]; screen spec'd #632; thin-until-backfill. (3) flagship deserved-vs-actual (DONE, A1),
++  player export as career[]; screen spec'd #632; the log is 5–10 seasons deep (backfill effectively done). (3) flagship deserved-vs-actual (DONE, A1),
+   opponent-context + contribution-share (need new marts).
+ 
+ ### ⭐ THE GAP-CLOSURE BACKLOG (A–D; order = value ÷ cost; CPO directs each item)
+@@ -91,11 +92,13 @@ carries it)** first, then build the frontend against a stable export. The live M
+   content_architecture §3/§7 roster status flipped to ✓ (this doc-sync PR). `mart_roster` is now built AND wired.
+   Stats-percentile CLOSED (#625 spec + #627 wire). **Career WIRED end-to-end** — `mart_player_career` built
+   (#630) + screen spec'd (#632) + export-wired (#634, GAP-22; career[] + a club_latest_kickoff_at ordering
+-  column); thin-until-backfill. (Team benchmark = a separate rank-based screen, not percentile.)
+-- **Phase C — player foundation + analogs:** brick 1 **DONE (#630):** the per-club base
++  column); the log is 5–10 seasons deep (backfill effectively done). (Team benchmark = a separate rank-based screen, not percentile.)
++- **Phase C — player foundation + analogs:** foundation **DONE (#630):** the per-club base
+   `int_player_club_season__metrics` + rebuilt `mart_player_career`; **Career screen SPEC'D (#632) + WIRED
+-  (#634, GAP-22).** Remaining: the **history backfill** (§10 depth+cost; lights up Career + season-over-season
+-  depth) → player **YoY/streaks/season** on the new base. A chain.
++  (#634, GAP-22).** **Player YoY DONE (#638)** — `int_player_profile__yoy` (mirror of `int_team_profile__yoy`)
++  → `mart_player_profile`. The **history backfill is effectively DONE** (5–10 seasons deep; the premise was
++  stale). Remaining: **brick 2 player streaks** (mirror `int_team_profile__streaks`) + player **season /
++  YoY-extension** models. A chain.
+ - **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
+   + contribution-share (§10 definition). New marts.
+ - **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
+@@ -114,6 +117,28 @@ carries it)** first, then build the frontend against a stable export. The live M
+ 
+ ### ⭐ RECENT PRs
+ 
++- **#643 — publish dbt docs lineage site at /dbt-docs/, MERGED.** Portfolio/CI. Folded a public, static dbt
++  docs site (model lineage graph + descriptions + columns) into the EXISTING GitHub Pages deploy: one additive
++  `dbt docs generate --static` step (continue-on-error) in `pages-match-preview.yml`, a `-f`-guarded copy of
++  `target/static_index.html` → `_site/dbt-docs/index.html` in `build_match_preview_site.sh`, + a README link.
++  Best-effort (a docs failure can't block the app deploy). PROTECTED workflow → protected_override +
++  cto-reviewer. Site: `https://ramialfahham.github.io/football-data-pipeline/dbt-docs/`.
++- **#642 — README "Design decisions" section, MERGED.** Doc-only (portfolio funnel).
++- **#641 — MVP screenshot for the README hero, MERGED.** Doc/asset-only.
++- **#640 — README portfolio funnel (headline, badges, architecture diagram), MERGED.** Doc-only. [[project-repo-portfolio]].
++- **#638 — Phase C brick 1: player year-over-year (int_player_profile__yoy), MERGED.** dbt-only. NEW
++  `int_player_profile__yoy` (4_intermediate/shared) = the player mirror of the shipped team YoY
++  `int_team_profile__yoy`, on `int_player_season_record` (per-club, appearance-aligned via `match_number`,
++  domestic-leagues only): the current season through N appearances vs the prior season's first N, with deltas
++  for goals / assists / shots_on_goal / key_passes / defensive_actions (CPO "broader per-position set",
++  2026-07-03; defensive_actions = tackles + interceptions + blocks). Grain (team_sk, player_sk, league_code,
++  season_api_year); delta NULL when there's no prior season. Composed into `mart_player_profile` via the
++  primary club (`int_player_season__team`) so the profile carries the main-club YoY; auto-carries to the
++  player export via `select *` (#606 precedent). Review: scope-auditor PASS; analytics-engineer r1 FAIL
++  (naming: `shots_on_target` vs the catalogue `shots_on_goal`) → renamed → r2 PASS. ci-data-build green. A YoY
++  **screen** + **brick 2 (player streaks)** are follow-ups. Lessons [[feedback-sibling-pr-rebase-rebind]] +
++  [[feedback-governance-review-mechanics]] #4.
++- **#637 — handover refresh (post-#636), MERGED.** Recorded #636 + dropped the now-done doc-sync candidate.
+ - **#636 — #391 post-wiring doc-sync reconciliation (chip task_4c709bd9), MERGED.** Doc-only. Flipped the 3
+   now-wired screens proposed/pending/orphan → wired/shipped: wireframes 11 (Squad, #619) / 12 (Stats, #627) /
+   13 (Career, #634) — banners, §3, §5, §6 state rows, §10 gaps; the gaps register GAP-21→#627 / GAP-22→#634
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e33ff03..00c36ef 100644
+index 00c36ef..546b84e 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,54 +1,69 @@
--# Task contract — README "Design decisions" section (docs-only)
-+# Task contract — publish dbt docs lineage site on GitHub Pages
+@@ -1,69 +1,45 @@
+-# Task contract — publish dbt docs lineage site on GitHub Pages
++# Task contract — handover refresh (post-#643; catch up #638 + #640–643)
  
--> Written on a CLEAN tree (branch docs/readme-design-decisions off main @ 5c4ad28).
--> Portfolio work: add the reasoning/judgment narrative an external reader wants, WITHOUT a new
--> document (CPO rejected a standalone design_notes.md as doc-clutter / drift surface; the facts already
--> live in north_star / layering / CLAUDE / the registry). Docs-only; no dbt/SQL/Python.
-+> Written on a CLEAN tree (branch feat/dbt-docs-pages off main @ current main).
-+> Portfolio artifact: a public, explorable dbt docs site (model lineage graph + descriptions + columns),
-+> folded into the EXISTING Pages deployment as a /dbt-docs/ subfolder. Approved plan:
-+> C:\Users\Rami\.claude\plans\hazy-imagining-pascal.md. No dbt models, no data changes.
+-> Written on a CLEAN tree (branch feat/dbt-docs-pages off main @ current main).
+-> Portfolio artifact: a public, explorable dbt docs site (model lineage graph + descriptions + columns),
+-> folded into the EXISTING Pages deployment as a /dbt-docs/ subfolder. Approved plan:
+-> C:\Users\Rami\.claude\plans\hazy-imagining-pascal.md. No dbt models, no data changes.
++> Written on a CLEAN tree (branch chore/handover-refresh-643 off main @ 87598cc).
++> Bookkeeping only. main's active_work.md was STALE at post-#636 (the last landed refresh was #637); since
++> then #638 (Phase C brick 1) + #640–643 (portfolio README + dbt-docs site) merged and NO handover landed
++> (my post-#638 refresh #639 was superseded by #640–643 and CLOSED). Bring the handover current to post-#643.
++> Handover refreshes skip plan mode (CPO carve-out 2026-06-30).
  
  objective: >
--  Add a tight "## Design decisions" section to README.md, immediately after "## Highlights" and before
--  "## BigQuery layout (datasets)". Five rationale-level bullets (unified raw + league_code / strict layer
--  contract / DQ as a build gate / metrics defined once / identity-vs-affiliation) that explain the WHY and
--  the trade-offs — the one thing written nowhere else. Every FACT links out to its authoritative source
--  (competition_registry.yml, check_layer_contract.py, layering.md, engineering_standards.md); the section
--  restates no inventory (no counts, no competition lists), so it does not drift.
--refs: portfolio/visibility request 2026-07-03; anti-clutter ruling (fold into README, no 4th doc); complements north_star (internal) vs README (external)
-+  Serve dbt's self-contained static docs at
-+  https://ramialfahham.github.io/football-data-pipeline/dbt-docs/ by (1) generating them in the existing
-+  pages-match-preview workflow (which already authenticates to BigQuery and runs dbt), and (2) copying the
-+  single static HTML into the Pages artifact assembled by build_match_preview_site.sh, and (3) linking the
-+  site from the README. Reuses the existing single Pages deployment — no second Pages site, no new workflow.
-+refs: portfolio/visibility request 2026-07-03; approved plan hazy-imagining-pascal.md
-+
-+protected_override: >
-+  CPO approved editing the PROTECTED CI workflow .github/workflows/pages-match-preview.yml in plan mode this
-+  session (2026-07-03): the plan (hazy-imagining-pascal.md) explicitly lists this workflow as a file to touch
-+  and was approved unchanged via ExitPlanMode ("do it"). Change = ONE additive, continue-on-error
-+  `dbt docs generate --static` step; no existing step altered; routed to cto-reviewer per review_routing.json.
+-  Serve dbt's self-contained static docs at
+-  https://ramialfahham.github.io/football-data-pipeline/dbt-docs/ by (1) generating them in the existing
+-  pages-match-preview workflow (which already authenticates to BigQuery and runs dbt), and (2) copying the
+-  single static HTML into the Pages artifact assembled by build_match_preview_site.sh, and (3) linking the
+-  site from the README. Reuses the existing single Pages deployment — no second Pages site, no new workflow.
+-refs: portfolio/visibility request 2026-07-03; approved plan hazy-imagining-pascal.md
+-
+-protected_override: >
+-  CPO approved editing the PROTECTED CI workflow .github/workflows/pages-match-preview.yml in plan mode this
+-  session (2026-07-03): the plan (hazy-imagining-pascal.md) explicitly lists this workflow as a file to touch
+-  and was approved unchanged via ExitPlanMode ("do it"). Change = ONE additive, continue-on-error
+-  `dbt docs generate --static` step; no existing step altered; routed to cto-reviewer per review_routing.json.
++  main @ 87598cc is SIX merges ahead of its handover (stuck at post-#636 / #637): #638 (Phase C brick 1 —
++  player YoY int_player_profile__yoy -> mart_player_profile), and the portfolio arc #640 (README funnel +
++  badges + architecture diagram) / #641 (MVP screenshot) / #642 (Design-decisions section) / #643 (public
++  dbt docs lineage site at /dbt-docs/, folded into the existing Pages deploy). Also bank this session's
++  BACKFILL FINDING (backfill effectively done — RAW + mart_player_career 5–10 seasons deep; "thin-until-backfill"
++  was STALE). The post-#638 refresh #639 was superseded by #640–643 and CLOSED; this replaces it. NEXT =
++  Phase C brick 2 (player streaks) / player season models / Phase D (a CPO pick). Records merged facts;
++  locks no next task.
++refs: #638; #640–#643; #391; #480; supersedes closed #639
  
  scope_paths:
-+  - .github/workflows/pages-match-preview.yml
-+  - scripts/build_match_preview_site.sh
-   - README.md
+-  - .github/workflows/pages-match-preview.yml
+-  - scripts/build_match_preview_site.sh
+-  - README.md
++  - .claude/active_work.md
    - .claude/task/**
  
- impact_map: >
--  writers: README.md gains one new "## Design decisions" section (text only) between the existing
--    "## Highlights" and "## BigQuery layout (datasets)" sections. No other README content altered. No code,
--    models, scripts, CI, seeds, or other docs touched.
--  downstream: none — documentation only. No dbt graph, export, or build behaviour change.
--  layer_rules: not applicable (no dbt models).
--  deploy_order: not applicable — docs merge; GitHub renders the new section on push.
--  blast_radius: README.md presentation only; five outbound links to existing in-repo paths. No numbers,
--    data, or behaviour. Staleness is mitigated by design: rationale altitude + links-not-copies (no
--    inventory to drift), per the CPO's "facts live in one place and get linked" rule.
-+  writers: (1) pages-match-preview.yml gains ONE step `dbt docs generate --static` (continue-on-error:true)
-+    after the existing dbt test step, before Pages assembly. (2) build_match_preview_site.sh gains a guarded
-+    block copying dbt_project/target/static_index.html -> _site/dbt-docs/index.html. (3) README.md gains one
-+    link under the Live-preview block.
-+  downstream: the deployed Pages artifact gains a /dbt-docs/ path. The match-preview app path is unchanged.
-+  layer_rules: not applicable (no dbt models; this is CI + build-script + docs).
-+  deploy_order: additive. The docs step is continue-on-error and the copy is `-f`-guarded, so a docs failure
-+    can NEVER block or break the existing app deploy. No change to run cadence (existing schedule + push paths).
-+  blast_radius: the pages-match-preview workflow runs one extra warehouse metadata (catalog) query per build
-+    and publishes one extra static page. No dbt model, no seed, no data row, no app behaviour changes. The
-+    match-preview build/test/export/deploy steps are untouched.
- 
+-impact_map: >
+-  writers: (1) pages-match-preview.yml gains ONE step `dbt docs generate --static` (continue-on-error:true)
+-    after the existing dbt test step, before Pages assembly. (2) build_match_preview_site.sh gains a guarded
+-    block copying dbt_project/target/static_index.html -> _site/dbt-docs/index.html. (3) README.md gains one
+-    link under the Live-preview block.
+-  downstream: the deployed Pages artifact gains a /dbt-docs/ path. The match-preview app path is unchanged.
+-  layer_rules: not applicable (no dbt models; this is CI + build-script + docs).
+-  deploy_order: additive. The docs step is continue-on-error and the copy is `-f`-guarded, so a docs failure
+-    can NEVER block or break the existing app deploy. No change to run cadence (existing schedule + push paths).
+-  blast_radius: the pages-match-preview workflow runs one extra warehouse metadata (catalog) query per build
+-    and publishes one extra static page. No dbt model, no seed, no data row, no app behaviour changes. The
+-    match-preview build/test/export/deploy steps are untouched.
+-
  decisions_taken: >
--  Fold the reasoning narrative into README (NOT a standalone doc) — CPO ruling this session: a 4th document
--  restating architecture facts is exactly the drift/clutter risk (#505). north_star stays the INTERNAL
--  compass (vision/business model/roles/roadmap + terse tech rules); README stays the EXTERNAL face and now
--  carries the curated WHY. Voice = neutral, factual, honest that this is a personal project whose central
--  constraint is sideways scale (no self-praise, per the tone ruling on #640). Five decisions chosen for
--  judgment signal; each links to the authoritative source rather than copying facts. Exact copy pre-approved
--  by the CPO in-session ("go").
-+  Fold into the EXISTING Pages workflow + _site folder (NOT a new workflow) — GitHub Pages serves one
-+  deployment per repo; two deploy-pages jobs would race. `dbt docs generate --static` (dbt 1.7.2 supports it)
-+  bundles manifest+catalog into ONE self-contained target/static_index.html — cleanest for static hosting.
-+  Docs step is continue-on-error and the copy is file-guarded so docs are strictly best-effort and cannot
-+  regress the app. Triggers left as-is: the daily schedule refreshes docs within 24h; broadening push paths
-+  would add warehouse-touching runs (avoided on cost grounds). Cost = one catalog metadata query per existing
-+  build, negligible next to the dbt run/test already in the job; no new cadence. Exposure = none new (repo is
-+  public; static docs carry schema metadata, not warehouse data).
+-  Fold into the EXISTING Pages workflow + _site folder (NOT a new workflow) — GitHub Pages serves one
+-  deployment per repo; two deploy-pages jobs would race. `dbt docs generate --static` (dbt 1.7.2 supports it)
+-  bundles manifest+catalog into ONE self-contained target/static_index.html — cleanest for static hosting.
+-  Docs step is continue-on-error and the copy is file-guarded so docs are strictly best-effort and cannot
+-  regress the app. Triggers left as-is: the daily schedule refreshes docs within 24h; broadening push paths
+-  would add warehouse-touching runs (avoided on cost grounds). Cost = one catalog metadata query per existing
+-  build, negligible next to the dbt run/test already in the job; no new cadence. Exposure = none new (repo is
+-  public; static docs carry schema metadata, not warehouse data).
++  Bookkeeping only. Header -> post-#643 / main @ 87598cc leading with Phase C brick 1 + the portfolio arc +
++  the backfill finding; add #638 + #640–643 to the "main carries" line + prepend them to RECENT PRs; replace
++  the "thin-until-backfill" framing with the finding (5–10 seasons deep); set NEXT = Phase C brick 2 / player
++  season models / Phase D; keep the open follow-ups; note the CLOSED-#639 supersession. Invents nothing;
++  locks no next task.
  
  decisions_reserved:
--  - No formal "architecture PRs must review this section" governance rule added — staleness is handled by
--    altitude + links; a process rule would be over-engineering for a README section (can revisit if it drifts).
--  - Future portfolio items (dbt docs site, semantic-layer demo) remain separate later work.
-+  - No `dbt docs serve` local tooling, no custom theming, no per-model description backfill (later content pass).
-+  - The landscape social-preview image remains a separate CPO manual step.
-+  - If the docs ever need to be strictly fresh per-merge, broadening triggers is a separate cost decision.
+-  - No `dbt docs serve` local tooling, no custom theming, no per-model description backfill (later content pass).
+-  - The landscape social-preview image remains a separate CPO manual step.
+-  - If the docs ever need to be strictly fresh per-merge, broadening triggers is a separate cost decision.
++  - The next task — CPO picks: Phase C brick 2 (player streaks, mirror int_team_profile__streaks), player
++    season/YoY-extension models, or Phase D flagship marts (§10 method). Present candidates; do NOT pre-decide.
++  - Portfolio remaining: the landscape social-preview image (a manual CPO step, per the #643 contract).
++  - Two tiny doc follow-ups (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only").
++  - Backfill marginal top-up (low value); not_null hardening on mart_player_career (non-blocking).
++  - All §10 unchanged.
  
  done_when:
--  - README.md carries the "## Design decisions" section in the right place; existing sections intact; the
--    five outbound links resolve to existing repo paths.
--  - No inventory/counts in the new section (drift-resistant by construction).
--  - scope-auditor PASS (docs-only, links resolve, no scope creep); review.md binds; CPO merges.
-+  - pages-match-preview.yml has the `dbt docs generate --static` step (continue-on-error) in the right place;
-+    the existing app build/test/export/deploy steps are unchanged.
-+  - build_match_preview_site.sh copies target/static_index.html -> _site/dbt-docs/index.html, guarded by -f.
-+  - README.md links the dbt-docs site once, under the Live-preview block.
-+  - validate-local offline gates pass (YAML/shell are not dbt-built locally; CI is the real e2e gate).
-+  - scope-auditor + cto-reviewer PASS (>=2 named risks each); review.md binds; CPO merges.
-+  - POST-MERGE (real e2e gate, not blocking this PR): the workflow log shows the docs step produced
-+    target/static_index.html and the copy landed; .../dbt-docs/ loads the lineage graph; .../match-preview/
-+    still deploys and loads.
+-  - pages-match-preview.yml has the `dbt docs generate --static` step (continue-on-error) in the right place;
+-    the existing app build/test/export/deploy steps are unchanged.
+-  - build_match_preview_site.sh copies target/static_index.html -> _site/dbt-docs/index.html, guarded by -f.
+-  - README.md links the dbt-docs site once, under the Live-preview block.
+-  - validate-local offline gates pass (YAML/shell are not dbt-built locally; CI is the real e2e gate).
+-  - scope-auditor + cto-reviewer PASS (>=2 named risks each); review.md binds; CPO merges.
+-  - POST-MERGE (real e2e gate, not blocking this PR): the workflow log shows the docs step produced
+-    target/static_index.html and the copy landed; .../dbt-docs/ loads the lineage graph; .../match-preview/
+-    still deploys and loads.
++  - active_work.md: header post-#643 (main @ 87598cc); #638 + #640–643 in "main carries" + RECENT PRs; the
++    backfill finding banked; #639 supersession noted; NEXT = Phase C brick 2 / season / Phase D as a CPO pick;
++    self-contained for a cold chat.
++  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
  
- amendments:
--  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO chose option A (fold the
--    reasoning into the README, no standalone doc) and approved the exact copy in-session ("go").
-+  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO approved the plan
-+    (hazy-imagining-pascal.md) in plan mode this session ("do it" -> ExitPlanMode approved unchanged).
-diff --git a/.claude/task/review.md b/.claude/task/review.md
-index f67be14..420166d 100644
---- a/.claude/task/review.md
-+++ b/.claude/task/review.md
-@@ -1,29 +1,42 @@
--# Review — docs/readme-design-decisions — 2026-07-03
-+# Review — feat/dbt-docs-pages — 2026-07-03
- 
--> G3 Lock artifact. Docs-only task: add a "## Design decisions" section to README.md (five rationale-level
--> bullets on the WHY/trade-offs behind the architecture) between "## Highlights" and "## BigQuery layout".
--> Anti-drift by design: rationale only, no inventory, facts linked to authoritative sources. Required set
--> (routing): **scope-auditor only** — README.md matches no path pattern. Round 1 (hash d2cf0091) —
--> scope-auditor PASS with risks checked-and-held.
-+> G3 Lock artifact. Publish a public dbt docs lineage site by folding it into the EXISTING GitHub Pages
-+> deploy: one `dbt docs generate --static` step (continue-on-error) in pages-match-preview.yml, a `-f`-guarded
-+> copy of target/static_index.html into _site/dbt-docs/ in build_match_preview_site.sh, and one README link.
-+> The workflow is a PROTECTED path; the contract carries a protected_override tracing to the CPO's plan
-+> approval (hazy-imagining-pascal.md, approved unchanged via ExitPlanMode). Required set (routing):
-+> **scope-auditor (always) + cto-reviewer (.github/workflows/** + scripts/**)**. Round 1 (hash 2ca0b37a) —
-+> BOTH PASS.
- 
--diff_sha256: d2cf00914f9d3bec7b091a2f69270124655150bab9f3bcd67bc4a396d261edf5
-+diff_sha256: 2ca0b37a4de5c48a7de8ad0a934c55030940075dbc167a3080427c030a7e13d5
- 
- ## scope-auditor
- VERDICT: PASS  (round 1)
- risks_checked:
--- Drift-resistance via link-not-copy: the new section links outbound to four authoritative in-repo sources
--  (docs/competition_registry.yml, scripts/check_layer_contract.py, dbt_project/docs/layering.md,
--  dbt_project/docs/engineering_standards.md — all verified to exist) and restates no inventory (no model/
--  competition counts, no version numbers), so it stays true as the underlying facts change. Directly
--  addresses the #505 doc-clutter/drift risk that motivated folding this into the README instead of a 4th doc.
--- Factual accuracy of the five claims: each was checked against the real system and holds — the unified-raw/
--  league_code + zero-file rule (CLAUDE.md architecture), the strict layer contract (layering.md), DQ-as-a-
--  build-gate (engineering_standards testing policy), "metrics defined once" (metric_catalogue.csv is
--  referenced by multiple models and guarded by assert_no_uncatalogued_season_metric), and identity-vs-
--  affiliation (dim_player / dim_team + the *_season_mapping models). Voice is neutral and factual with no
--  self-praise (per the #640 tone ruling); "foundation for a future semantic layer" reads as rationale, not a
--  commitment. Scope is exactly README.md + .claude/task/**; no existing README content altered or dropped;
--  no §10 decision (fold-into-README + the exact copy were CPO-approved in-session).
-+- Protected-override + scope integrity: .github/workflows/** is PROTECTED; the contract's protected_override
-+  is present, names the exact file, quotes the CPO "do it" -> ExitPlanMode plan approval (hazy-imagining-
-+  pascal.md, which explicitly lists this workflow), and matches scope. Every staged file is within scope_paths
-+  (.github/workflows/pages-match-preview.yml, scripts/build_match_preview_site.sh, README.md, .claude/task/**);
-+  no EXISTING workflow step (deps/seed/run/test/export/deploy) or existing script logic was altered — additive
-+  only. The §10 "new workflow step" was pre-approved in the plan; the diff matches the plan exactly.
-+- Silent docs-failure / incomplete deploy (checked, held): continue-on-error on the docs step + the `if [ -f ]`
-+  copy guard mean a docs-generation failure cannot block the app deploy but would leave /dbt-docs/ absent on
-+  Pages. Bounded by contract (docs are best-effort): the link is new (no prior users), the daily schedule
-+  retries, and dbt docs generate is mature. No regression to the match-preview path.
-+
-+## cto-reviewer
-+VERDICT: PASS  (round 1)
-+risks_checked:
-+- Flag/output correctness for dbt 1.7.2: dbt-bigquery==1.7.2 pins dbt-core 1.7.x, and `dbt docs generate
-+  --static` (bundling manifest+catalog into a single target/static_index.html) is a real 1.7+ feature — the
-+  flag and the output filename copied by the script match. If it were wrong the step would no-op under
-+  continue-on-error and the -f copy would skip, degrading gracefully (docs absent, app unaffected).
-+- Regression isolation + placement/auth: the step sits after the existing dbt seed/run/test, so BigQuery WIF
-+  auth, profiles.yml and packages are already in scope (dbt docs generate self-compiles, needs nothing more).
-+  Exactly one continue-on-error in the file (scoped to the new step); the `[ -f ]` guard is set -euo pipefail
-+  safe; no existing step/script line changed; no new trigger or cadence (same schedule + push paths), one
-+  extra catalog metadata query per existing build. Non-blocking note: catalog covers the whole project graph,
-+  so the published lineage may include relations not built in this job — expected/acceptable for best-effort docs.
- 
- ## escalations
- (none)
-diff --git a/.github/workflows/pages-match-preview.yml b/.github/workflows/pages-match-preview.yml
-index 78c0dbf..a721a3a 100644
---- a/.github/workflows/pages-match-preview.yml
-+++ b/.github/workflows/pages-match-preview.yml
-@@ -119,6 +119,11 @@ jobs:
-           assert_mart_matchday_insights_wc_pretournament_form
-           --exclude tag:debug
- 
-+      - name: Generate dbt docs (static, self-contained)
-+        working-directory: dbt_project
-+        continue-on-error: true
-+        run: dbt docs generate --static
-+
-       - name: Configure Pages
-         uses: actions/configure-pages@v4
- 
-diff --git a/README.md b/README.md
-index d6f424d..4b1281a 100644
---- a/README.md
-+++ b/README.md
-@@ -13,6 +13,8 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
- 
- A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
- 
-+**[Explore the data model →](https://ramialfahham.github.io/football-data-pipeline/dbt-docs/)** — dbt lineage graph, model and column docs, generated from the project.
-+
- ![Matchday IQ — MVP preview](docs/assets/screenshot.png)
- 
- ## Architecture
-diff --git a/scripts/build_match_preview_site.sh b/scripts/build_match_preview_site.sh
-index e1f2a9c..06229bf 100644
---- a/scripts/build_match_preview_site.sh
-+++ b/scripts/build_match_preview_site.sh
-@@ -54,4 +54,12 @@ if [ -f "${ROOT}/artifacts/pages_export_manifest.json" ]; then
-   cp -f "${ROOT}/artifacts/pages_export_manifest.json" "${SITE_OUT}/"
- fi
- 
-+# /dbt-docs/  — dbt model lineage + descriptions (self-contained static page).
-+# Best-effort: the docs-generate CI step is continue-on-error, so a missing file
-+# must not break site assembly.
-+if [ -f "${ROOT}/dbt_project/target/static_index.html" ]; then
-+  mkdir -p "${SITE_OUT}/dbt-docs"
-+  cp -f "${ROOT}/dbt_project/target/static_index.html" "${SITE_OUT}/dbt-docs/index.html"
-+fi
-+
- echo "Published tree at ${SITE_OUT} (upload _site as Pages root)."
+-amendments:
+-  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO approved the plan
+-    (hazy-imagining-pascal.md) in plan mode this session ("do it" -> ExitPlanMode approved unchanged).
++amendments: (none)
