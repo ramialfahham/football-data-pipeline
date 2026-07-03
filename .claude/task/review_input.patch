@@ -1,90 +1,111 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0a82844..875bf54 100644
+index 875bf54..e33ff03 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,55 +1,44 @@
--# Task contract — README portfolio polish (docs-only)
-+# Task contract — add MVP screenshot asset (docs-only, binary)
+@@ -1,44 +1,54 @@
+-# Task contract — add MVP screenshot asset (docs-only, binary)
++# Task contract — README "Design decisions" section (docs-only)
  
--> Written on a CLEAN tree (branch docs/readme-portfolio-polish off main @ baef982).
--> Supersedes the prior contract (Phase C brick 1 player YoY, MERGED #638). This is a NEW,
--> CPO-assigned presentation task — not inferred from the handover. Docs-only; no dbt/SQL/Python.
-+> Written on a CLEAN tree (branch docs/add-mvp-screenshot off main @ e60b091).
-+> Completes the deliverable reserved in the prior contract (README portfolio polish, MERGED #640):
-+> the README references docs/assets/screenshot.png, which the CPO has now supplied. Docs-only; no
-+> dbt/SQL/Python. Adds one binary image; no text/code behaviour changes.
+-> Written on a CLEAN tree (branch docs/add-mvp-screenshot off main @ e60b091).
+-> Completes the deliverable reserved in the prior contract (README portfolio polish, MERGED #640):
+-> the README references docs/assets/screenshot.png, which the CPO has now supplied. Docs-only; no
+-> dbt/SQL/Python. Adds one binary image; no text/code behaviour changes.
++> Written on a CLEAN tree (branch docs/readme-design-decisions off main @ 5c4ad28).
++> Portfolio work: add the reasoning/judgment narrative an external reader wants, WITHOUT a new
++> document (CPO rejected a standalone design_notes.md as doc-clutter / drift surface; the facts already
++> live in north_star / layering / CLAUDE / the registry). Docs-only; no dbt/SQL/Python.
  
  objective: >
--  Improve the repository's first impression as a portfolio / "business card" without overstating.
--  Replace the top of README.md with a professional, to-the-point funnel: a platform headline, status
--  badges, a clearly-labelled "Live preview" link to the MVP (with a note that the full v2 web app is in
--  active development), a Mermaid architecture diagram, and a factual Highlights list. All EXISTING
--  technical sections (BigQuery layout, dbt setup, DQ, layer contract, operations) stay unchanged below
--  the new funnel. Add docs/assets/README.md documenting the screenshot / social-preview image spec.
--  Tone: understated and factual (no self-praise); technical keywords carry SEO naturally.
--refs: portfolio/visibility request 2026-07-03; live app = MVP preview, v2 in active development (site_architecture.md / epic #361)
-+  Add the MVP screenshot the merged README already references (docs/assets/screenshot.png), so the
-+  README hero image resolves instead of showing a broken-image placeholder on main. The image is the
-+  CPO-supplied Matchday IQ landing/competitions view (PNG, 584x821). No other change.
-+refs: closes the docs/assets/screenshot.png reference added in #640; portfolio/visibility request 2026-07-03
+-  Add the MVP screenshot the merged README already references (docs/assets/screenshot.png), so the
+-  README hero image resolves instead of showing a broken-image placeholder on main. The image is the
+-  CPO-supplied Matchday IQ landing/competitions view (PNG, 584x821). No other change.
+-refs: closes the docs/assets/screenshot.png reference added in #640; portfolio/visibility request 2026-07-03
++  Add a tight "## Design decisions" section to README.md, immediately after "## Highlights" and before
++  "## BigQuery layout (datasets)". Five rationale-level bullets (unified raw + league_code / strict layer
++  contract / DQ as a build gate / metrics defined once / identity-vs-affiliation) that explain the WHY and
++  the trade-offs — the one thing written nowhere else. Every FACT links out to its authoritative source
++  (competition_registry.yml, check_layer_contract.py, layering.md, engineering_standards.md); the section
++  restates no inventory (no counts, no competition lists), so it does not drift.
++refs: portfolio/visibility request 2026-07-03; anti-clutter ruling (fold into README, no 4th doc); complements north_star (internal) vs README (external)
  
  scope_paths:
--  - README.md
-   - docs/assets/**
+-  - docs/assets/**
++  - README.md
    - .claude/task/**
  
  impact_map: >
--  writers: README.md top section replaced (H1 + intro through just before "## BigQuery layout (datasets)");
--    NEW docs/assets/README.md (guidance only). No code, no models, no scripts, no CI, no seeds touched.
--  downstream: none — documentation only. No dbt graph, no export, no build behaviour changes.
-+  writers: NEW binary docs/assets/screenshot.png (CPO-supplied). No text file, no code, no models,
-+    no scripts, no CI, no seeds touched. The README reference to this path already exists on main (#640).
-+  downstream: none — a static image resolves an existing README <img>. No dbt graph, export, or build change.
+-  writers: NEW binary docs/assets/screenshot.png (CPO-supplied). No text file, no code, no models,
+-    no scripts, no CI, no seeds touched. The README reference to this path already exists on main (#640).
+-  downstream: none — a static image resolves an existing README <img>. No dbt graph, export, or build change.
++  writers: README.md gains one new "## Design decisions" section (text only) between the existing
++    "## Highlights" and "## BigQuery layout (datasets)" sections. No other README content altered. No code,
++    models, scripts, CI, seeds, or other docs touched.
++  downstream: none — documentation only. No dbt graph, export, or build behaviour change.
    layer_rules: not applicable (no dbt models).
--  deploy_order: not applicable — docs merge; GitHub renders the README + Mermaid on push.
--  blast_radius: README.md presentation only. The referenced image docs/assets/screenshot.png is
--    supplied by the CPO later; until then the README shows a broken-image placeholder on this branch
--    (acceptable pre-merge; CPO adds the screenshot before/at merge). No numbers, no data, no behaviour.
-+  deploy_order: not applicable — docs merge; GitHub serves the image and the README hero renders on merge.
-+  blast_radius: the README hero image on main resolves (currently a broken icon). No numbers, data, or
-+    behaviour. Social-preview upload (Settings UI, landscape 1280x640) remains a separate CPO manual step.
+-  deploy_order: not applicable — docs merge; GitHub serves the image and the README hero renders on merge.
+-  blast_radius: the README hero image on main resolves (currently a broken icon). No numbers, data, or
+-    behaviour. Social-preview upload (Settings UI, landscape 1280x640) remains a separate CPO manual step.
++  deploy_order: not applicable — docs merge; GitHub renders the new section on push.
++  blast_radius: README.md presentation only; five outbound links to existing in-repo paths. No numbers,
++    data, or behaviour. Staleness is mitigated by design: rationale altitude + links-not-copies (no
++    inventory to drift), per the CPO's "facts live in one place and get linked" rule.
  
  decisions_taken: >
--  Framing = option A (MVP link near the top, clearly labelled "Live preview", v2 noted as in active
--  development). Tone corrected per CPO: dropped "Built solo, end to end" and any boast; factual only.
--  Headline = "Football Data Platform". Badges = ci-validate, ci-data-build, MIT, dbt 1.7, BigQuery,
--  Python 3.11. Architecture = Mermaid flowchart (API-Football -> BigQuery raw -> staging/base/core/
--  intermediate/marts -> GitHub Pages). Screenshot left for the CPO to supply (a real app capture beats a
--  placeholder); docs/assets/README.md records the spec + the social-preview reuse. Topics already set on
--  the repo this session (14, via gh api) — outside the diff, no file change.
-+  Path/name = docs/assets/screenshot.png (the exact path the merged README + docs/assets/README.md spec
-+  point at). Content = the CPO-supplied landing/competitions screenshot (portrait mobile), accepted as the
-+  README hero for now; a match-detail hero + a landscape social-preview crop are deferred (noted below).
-+  No image processing/cropping applied — the file is committed as supplied.
+-  Path/name = docs/assets/screenshot.png (the exact path the merged README + docs/assets/README.md spec
+-  point at). Content = the CPO-supplied landing/competitions screenshot (portrait mobile), accepted as the
+-  README hero for now; a match-detail hero + a landscape social-preview crop are deferred (noted below).
+-  No image processing/cropping applied — the file is committed as supplied.
++  Fold the reasoning narrative into README (NOT a standalone doc) — CPO ruling this session: a 4th document
++  restating architecture facts is exactly the drift/clutter risk (#505). north_star stays the INTERNAL
++  compass (vision/business model/roles/roadmap + terse tech rules); README stays the EXTERNAL face and now
++  carries the curated WHY. Voice = neutral, factual, honest that this is a personal project whose central
++  constraint is sideways scale (no self-praise, per the tone ruling on #640). Five decisions chosen for
++  judgment signal; each links to the authoritative source rather than copying facts. Exact copy pre-approved
++  by the CPO in-session ("go").
  
  decisions_reserved:
--  - The actual screenshot.png image and the GitHub social-preview upload are CPO manual steps (Settings UI).
--  - Any further README restructuring of the existing lower sections is out of scope for this PR.
--  - Future portfolio items (case study, dbt docs site, semantic-layer demo) are separate later work.
-+  - The GitHub social-preview image (landscape 1280x640) is a separate CPO manual step (Settings UI).
-+  - Swapping the hero to a match-detail view is a later, optional change once v2 screens exist.
+-  - The GitHub social-preview image (landscape 1280x640) is a separate CPO manual step (Settings UI).
+-  - Swapping the hero to a match-detail view is a later, optional change once v2 screens exist.
++  - No formal "architecture PRs must review this section" governance rule added — staleness is handled by
++    altitude + links; a process rule would be over-engineering for a README section (can revisit if it drifts).
++  - Future portfolio items (dbt docs site, semantic-layer demo) remain separate later work.
  
  done_when:
--  - README.md top funnel renders on GitHub (headline, badges, labelled MVP link, Mermaid diagram, Highlights);
--    all existing sections below remain intact and unchanged.
--  - docs/assets/README.md documents the screenshot / social-preview spec.
--  - validate-local (offline gates) passes; no dbt/SQL/Python touched so the data gates are N/A.
--  - scope-auditor PASS (docs-only, no scope creep beyond scope_paths); review.md binds; CPO merges.
-+  - docs/assets/screenshot.png exists in the repo and is a valid PNG; the README hero reference resolves.
-+  - No other file changed (scope = the image + .claude/task/** artifacts only).
-+  - scope-auditor PASS (docs/binary-only, no scope creep); review.md binds; CPO merges.
+-  - docs/assets/screenshot.png exists in the repo and is a valid PNG; the README hero reference resolves.
+-  - No other file changed (scope = the image + .claude/task/** artifacts only).
+-  - scope-auditor PASS (docs/binary-only, no scope creep); review.md binds; CPO merges.
++  - README.md carries the "## Design decisions" section in the right place; existing sections intact; the
++    five outbound links resolve to existing repo paths.
++  - No inventory/counts in the new section (drift-resistant by construction).
++  - scope-auditor PASS (docs-only, links resolve, no scope creep); review.md binds; CPO merges.
  
  amendments:
--  - 2026-07-03: contract replaced (prior task Phase C brick 1 merged as #638). CPO assigned this docs-only
--    portfolio task in-session and approved scope, framing (A), tone revision, and final copy ("Good to go").
-+  - 2026-07-03: fresh contract (prior task README portfolio polish merged as #640). CPO supplied the
-+    screenshot in-session and directed adding it at docs/assets/screenshot.png (option A).
-diff --git a/docs/assets/screenshot.png b/docs/assets/screenshot.png
-new file mode 100644
-index 0000000..047b3c1
-Binary files /dev/null and b/docs/assets/screenshot.png differ
+-  - 2026-07-03: fresh contract (prior task README portfolio polish merged as #640). CPO supplied the
+-    screenshot in-session and directed adding it at docs/assets/screenshot.png (option A).
++  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO chose option A (fold the
++    reasoning into the README, no standalone doc) and approved the exact copy in-session ("go").
+diff --git a/README.md b/README.md
+index 171c1ec..d6f424d 100644
+--- a/README.md
++++ b/README.md
+@@ -34,6 +34,20 @@ flowchart LR
+ - **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and scheduled deployment.
+ - **v2 web app** with new information architecture and richer insights in active development.
+ 
++## Design decisions
++
++This is a personal project, and its central constraint is scaling across many competitions without the maintenance cost growing with each one. A few decisions follow from that:
++
++- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables keyed by a `league_code` column that flows through every layer. Adding a competition is a single [registry entry](docs/competition_registry.yml) — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails the build if anyone reintroduces per-competition models.
++
++- **A strict layer contract.** Each medallion layer has one job (staging = cleanup, core = system of record, marts = consumption), enforced so the boundaries don't erode: a bug has an obvious layer to live in, a new requirement an obvious home. See [layering.md](dbt_project/docs/layering.md).
++
++- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A model that breaks its contract fails the pipeline rather than shipping a wrong number. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
++
++- **Metrics are defined once.** Every metric lives in a machine-readable catalogue and is consumed from there, never re-derived inside a mart — so the same metric stays consistent everywhere, and the definitions stay tool-readable (a foundation for a future semantic layer).
++
++- **Identity is modelled separately from affiliation.** Players and teams change clubs and seasons, so the stable entity is kept distinct from its affiliations over time, and facts reference the entity. It costs a join and buys correct answers to historical questions.
++
+ ## BigQuery layout (datasets)
+ 
+ BigQuery uses **datasets** as the unit that other databases often call **schemas**. This repo uses **one dataset per medallion layer** in the same GCP project:

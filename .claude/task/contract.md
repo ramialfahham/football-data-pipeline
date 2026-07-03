@@ -1,44 +1,54 @@
-# Task contract — add MVP screenshot asset (docs-only, binary)
+# Task contract — README "Design decisions" section (docs-only)
 
-> Written on a CLEAN tree (branch docs/add-mvp-screenshot off main @ e60b091).
-> Completes the deliverable reserved in the prior contract (README portfolio polish, MERGED #640):
-> the README references docs/assets/screenshot.png, which the CPO has now supplied. Docs-only; no
-> dbt/SQL/Python. Adds one binary image; no text/code behaviour changes.
+> Written on a CLEAN tree (branch docs/readme-design-decisions off main @ 5c4ad28).
+> Portfolio work: add the reasoning/judgment narrative an external reader wants, WITHOUT a new
+> document (CPO rejected a standalone design_notes.md as doc-clutter / drift surface; the facts already
+> live in north_star / layering / CLAUDE / the registry). Docs-only; no dbt/SQL/Python.
 
 objective: >
-  Add the MVP screenshot the merged README already references (docs/assets/screenshot.png), so the
-  README hero image resolves instead of showing a broken-image placeholder on main. The image is the
-  CPO-supplied Matchday IQ landing/competitions view (PNG, 584x821). No other change.
-refs: closes the docs/assets/screenshot.png reference added in #640; portfolio/visibility request 2026-07-03
+  Add a tight "## Design decisions" section to README.md, immediately after "## Highlights" and before
+  "## BigQuery layout (datasets)". Five rationale-level bullets (unified raw + league_code / strict layer
+  contract / DQ as a build gate / metrics defined once / identity-vs-affiliation) that explain the WHY and
+  the trade-offs — the one thing written nowhere else. Every FACT links out to its authoritative source
+  (competition_registry.yml, check_layer_contract.py, layering.md, engineering_standards.md); the section
+  restates no inventory (no counts, no competition lists), so it does not drift.
+refs: portfolio/visibility request 2026-07-03; anti-clutter ruling (fold into README, no 4th doc); complements north_star (internal) vs README (external)
 
 scope_paths:
-  - docs/assets/**
+  - README.md
   - .claude/task/**
 
 impact_map: >
-  writers: NEW binary docs/assets/screenshot.png (CPO-supplied). No text file, no code, no models,
-    no scripts, no CI, no seeds touched. The README reference to this path already exists on main (#640).
-  downstream: none — a static image resolves an existing README <img>. No dbt graph, export, or build change.
+  writers: README.md gains one new "## Design decisions" section (text only) between the existing
+    "## Highlights" and "## BigQuery layout (datasets)" sections. No other README content altered. No code,
+    models, scripts, CI, seeds, or other docs touched.
+  downstream: none — documentation only. No dbt graph, export, or build behaviour change.
   layer_rules: not applicable (no dbt models).
-  deploy_order: not applicable — docs merge; GitHub serves the image and the README hero renders on merge.
-  blast_radius: the README hero image on main resolves (currently a broken icon). No numbers, data, or
-    behaviour. Social-preview upload (Settings UI, landscape 1280x640) remains a separate CPO manual step.
+  deploy_order: not applicable — docs merge; GitHub renders the new section on push.
+  blast_radius: README.md presentation only; five outbound links to existing in-repo paths. No numbers,
+    data, or behaviour. Staleness is mitigated by design: rationale altitude + links-not-copies (no
+    inventory to drift), per the CPO's "facts live in one place and get linked" rule.
 
 decisions_taken: >
-  Path/name = docs/assets/screenshot.png (the exact path the merged README + docs/assets/README.md spec
-  point at). Content = the CPO-supplied landing/competitions screenshot (portrait mobile), accepted as the
-  README hero for now; a match-detail hero + a landscape social-preview crop are deferred (noted below).
-  No image processing/cropping applied — the file is committed as supplied.
+  Fold the reasoning narrative into README (NOT a standalone doc) — CPO ruling this session: a 4th document
+  restating architecture facts is exactly the drift/clutter risk (#505). north_star stays the INTERNAL
+  compass (vision/business model/roles/roadmap + terse tech rules); README stays the EXTERNAL face and now
+  carries the curated WHY. Voice = neutral, factual, honest that this is a personal project whose central
+  constraint is sideways scale (no self-praise, per the tone ruling on #640). Five decisions chosen for
+  judgment signal; each links to the authoritative source rather than copying facts. Exact copy pre-approved
+  by the CPO in-session ("go").
 
 decisions_reserved:
-  - The GitHub social-preview image (landscape 1280x640) is a separate CPO manual step (Settings UI).
-  - Swapping the hero to a match-detail view is a later, optional change once v2 screens exist.
+  - No formal "architecture PRs must review this section" governance rule added — staleness is handled by
+    altitude + links; a process rule would be over-engineering for a README section (can revisit if it drifts).
+  - Future portfolio items (dbt docs site, semantic-layer demo) remain separate later work.
 
 done_when:
-  - docs/assets/screenshot.png exists in the repo and is a valid PNG; the README hero reference resolves.
-  - No other file changed (scope = the image + .claude/task/** artifacts only).
-  - scope-auditor PASS (docs/binary-only, no scope creep); review.md binds; CPO merges.
+  - README.md carries the "## Design decisions" section in the right place; existing sections intact; the
+    five outbound links resolve to existing repo paths.
+  - No inventory/counts in the new section (drift-resistant by construction).
+  - scope-auditor PASS (docs-only, links resolve, no scope creep); review.md binds; CPO merges.
 
 amendments:
-  - 2026-07-03: fresh contract (prior task README portfolio polish merged as #640). CPO supplied the
-    screenshot in-session and directed adding it at docs/assets/screenshot.png (option A).
+  - 2026-07-03: fresh contract (prior task add-MVP-screenshot merged as #641). CPO chose option A (fold the
+    reasoning into the README, no standalone doc) and approved the exact copy in-session ("go").
