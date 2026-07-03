@@ -1,296 +1,1284 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 72a9ff1..94b74a3 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -4,7 +4,7 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+ 
+-_Last updated: **2026-07-03** — main GREEN at **87598cc**. **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick**: **Phase C brick 2** (player streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models; or **Phase D** flagship marts (§10 method). Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
++_Last updated: **2026-07-03** — main GREEN at **a08c634**. **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): **Phase D flagship marts** — opponent/schedule context (§10 method, football-analytics); player **season / YoY-extension** models (on `int_player_club_season__metrics` / `int_player_season_record`); or smaller catalogue/window carryovers (#530(b) player metric rows, #510, #484). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
+ 
+ ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
+ The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
+@@ -21,20 +21,22 @@ SQLFluff, CI-only — `validate` misses them): LT02 indent on the num/den `{% if
+ "Unrecognized name: goals_penalty" (aggregated-but-not-output) → exposed it via a CI-driven scope amendment.
+ Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based** screen, still un-spec'd.
+ 
+-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`) + **#645** (**Phase D bonus** — player contribution-share `int_player_profile__contribution` + `mart_player_profile` composition + catalogued `contribution_share`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main GREEN at 87598cc** (or later if this refresh merged). Confirm tree clean.
+-2. Read this file top-to-bottom before touching anything (esp. the header lead + the #643 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
++1. `git checkout main && git pull`. **main GREEN at a08c634** (or later if this refresh merged). Confirm tree clean.
++2. Read this file top-to-bottom before touching anything (esp. the header lead + the #645 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
+ 3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **Phase C brick 1 (player YoY) is
+    MERGED (#638)** — `int_player_profile__yoy` composed into `mart_player_profile`; the **portfolio arc
+-   #640–643 is MERGED** (README funnel + dbt-docs site). **The history backfill is effectively DONE** (RAW +
+-   `mart_player_career` are 5–10 seasons deep across domestic leagues; the "thin-until-backfill" premise was
+-   STALE — do NOT re-scope a big backfill; see the header finding). Candidates: **Phase C brick 2** (player
+-   streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models (on
+-   `int_player_club_season__metrics` / `int_player_season_record`); **Phase D** flagship marts
+-   (opponent/schedule context + contribution-share — §10 method). (Doc-sync DONE #636; player YoY DONE #638.)
+-   Present candidates + get the CPO's pick;
++   #640–643 is MERGED** (README funnel + dbt-docs site); **Phase D bonus (player contribution-share) is
++   MERGED (#645)** — `int_player_profile__contribution` composed into `mart_player_profile` + catalogued
++   `contribution_share`. **Player streaks (Phase C brick 2) is SKIPPED (CPO).** **The history backfill is
++   effectively DONE** (RAW + `mart_player_career` are 5–10 seasons deep across domestic leagues; the
++   "thin-until-backfill" premise was STALE — do NOT re-scope a big backfill; see the header finding).
++   Candidates: **Phase D flagship marts** (opponent/schedule context — §10 method); player **season /
++   YoY-extension** models (on `int_player_club_season__metrics` / `int_player_season_record`); or smaller
++   catalogue/window carryovers (#530(b), #510, #484). (Doc-sync DONE #636; player YoY DONE #638; contribution
++   DONE #645.) Present candidates + get the CPO's pick;
+    ENTER PLAN MODE for any code/model/metric task. #391 un-paused but NARROW — do NOT touch the live MVP or
+    start the frontend.
+ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
+@@ -97,10 +99,12 @@ carries it)** first, then build the frontend against a stable export. The live M
+   `int_player_club_season__metrics` + rebuilt `mart_player_career`; **Career screen SPEC'D (#632) + WIRED
+   (#634, GAP-22).** **Player YoY DONE (#638)** — `int_player_profile__yoy` (mirror of `int_team_profile__yoy`)
+   → `mart_player_profile`. The **history backfill is effectively DONE** (5–10 seasons deep; the premise was
+-  stale). Remaining: **brick 2 player streaks** (mirror `int_team_profile__streaks`) + player **season /
+-  YoY-extension** models. A chain.
+-- **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
+-  + contribution-share (§10 definition). New marts.
++  stale). **Brick 2 player streaks is SKIPPED (CPO, 2026-07-03)** — not pending. Remaining: player **season /
++  YoY-extension** models (optional).
++- **Phase D — design-heavy flagship marts (DECIDE first):** **bonus contribution-share DONE (#645)** —
++  `int_player_profile__contribution` (goal-involvement share of the club's whole-season goals; NEUTRAL;
++  §10 definition CPO-locked 2026-07-03) → `mart_player_profile` + catalogued `contribution_share`. Remaining:
++  **opponent/schedule context** (§10 method, football-analytics) — a NEW mart, still to DECIDE.
+ - **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
+ 
+ ### ⚠️ Two STALE-WIREFRAME flags (reconcile separately; NOT decided)
+@@ -117,6 +121,22 @@ carries it)** first, then build the frontend against a stable export. The live M
+ 
+ ### ⭐ RECENT PRs
+ 
++- **#645 — Phase D bonus: player contribution-share (int_player_profile__contribution), MERGED.** dbt-only.
++  NEW `int_player_profile__contribution` (4_intermediate/shared, table) = a player's goal-involvement share of
++  the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). A composing intermediate over
++  `int_legs__player_match` + `int_legs__team_match` (atoms NOT recomputed; mirrors
++  `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL
++  where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club
++  (left join, additive/nullable) → auto-carries `scorer_points` + `team_goals_season` + `contribution_share`
++  to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the
++  deserved_rank/sot_rank_gap flagship-output pattern, resolvability guard skips it; entity=player,
++  format=percent, direction=**NEUTRAL**, metric_group=goals); the numerator atom reuses the existing catalogued
++  `scorer_points` (goals + assists). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator =
++  goal involvements; denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only —
++  no coverage-gate in the exprs): the share understates where the player's per-match stats are missing. Review:
++  scope-auditor + analytics-engineer + football-analytics PASS; ci-data-build green. A contribution-share
++  **screen** (wireframe + explicit export shaping) is a later gap, not this brick. Closes the Phase D **bonus**;
++  the Phase D **flagship** (opponent/schedule context) is still to DECIDE.
+ - **#643 — publish dbt docs lineage site at /dbt-docs/, MERGED.** Portfolio/CI. Folded a public, static dbt
+   docs site (model lineage graph + descriptions + columns) into the EXISTING GitHub Pages deploy: one additive
+   `dbt docs generate --static` step (continue-on-error) in `pages-match-preview.yml`, a `-f`-guarded copy of
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 546b84e..df939fe 100644
+index df939fe..7a4819e 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,45 +1,74 @@
--# Task contract — handover refresh (post-#643; catch up #638 + #640–643)
-+# Task contract — player contribution-share (int_player_profile__contribution + catalogue)
+@@ -1,74 +1,40 @@
+-# Task contract — player contribution-share (int_player_profile__contribution + catalogue)
++# Task contract — handover refresh (post-#645, Phase D bonus contribution-share merged)
  
--> Written on a CLEAN tree (branch chore/handover-refresh-643 off main @ 87598cc).
--> Bookkeeping only. main's active_work.md was STALE at post-#636 (the last landed refresh was #637); since
--> then #638 (Phase C brick 1) + #640–643 (portfolio README + dbt-docs site) merged and NO handover landed
--> (my post-#638 refresh #639 was superseded by #640–643 and CLOSED). Bring the handover current to post-#643.
--> Handover refreshes skip plan mode (CPO carve-out 2026-06-30).
-+> Written on a CLEAN tree (branch feat/player-contribution-share off main @ c375a99).
-+> Phase D "bonus" flagship read (content_architecture §6.4): a player's goal-involvement share of the team's
-+> WHOLE-SEASON goals ("involved in X% of Bayern's goals"). Scope widened post-review to CATALOGUE the new ratio
-+> metric (analytics-engineer A1 finding, CPO-confirmed) — adds metric_catalogue.csv + the football-analytics reviewer.
+-> Written on a CLEAN tree (branch feat/player-contribution-share off main @ c375a99).
+-> Phase D "bonus" flagship read (content_architecture §6.4): a player's goal-involvement share of the team's
+-> WHOLE-SEASON goals ("involved in X% of Bayern's goals"). Scope widened post-review to CATALOGUE the new ratio
+-> metric (analytics-engineer A1 finding, CPO-confirmed) — adds metric_catalogue.csv + the football-analytics reviewer.
++> Written on a CLEAN tree (branch chore/handover-refresh-post-645 off main @ a08c634).
++> Bookkeeping only — brings `.claude/active_work.md` current from its stale post-#643 state (pointer 87598cc)
++> to post-#645 (a08c634). No code, no model, no metric change. Plan mode skipped per the CPO handover carve-out
++> (2026-06-30); still runs the contract + review + gate.
  
  objective: >
--  main @ 87598cc is SIX merges ahead of its handover (stuck at post-#636 / #637): #638 (Phase C brick 1 —
--  player YoY int_player_profile__yoy -> mart_player_profile), and the portfolio arc #640 (README funnel +
--  badges + architecture diagram) / #641 (MVP screenshot) / #642 (Design-decisions section) / #643 (public
--  dbt docs lineage site at /dbt-docs/, folded into the existing Pages deploy). Also bank this session's
--  BACKFILL FINDING (backfill effectively done — RAW + mart_player_career 5–10 seasons deep; "thin-until-backfill"
--  was STALE). The post-#638 refresh #639 was superseded by #640–643 and CLOSED; this replaces it. NEXT =
--  Phase C brick 2 (player streaks) / player season models / Phase D (a CPO pick). Records merged facts;
--  locks no next task.
--refs: #638; #640–#643; #391; #480; supersedes closed #639
-+  Build int_player_profile__contribution (a player-profile differentiator, mirroring int_player_profile__yoy) +
-+  compose it into mart_player_profile + CATALOGUE contribution_share (the new ratio metric). Numerator = goal
-+  involvements (scorer_points = goals + assists); denominator = the team's whole-season goals_for. Grain
-+  (player_sk, team_sk, season_sk); attached via the primary club; auto-carries to the export via select *.
-+refs: #391 Phase D bonus; content_architecture §6.4; mirrors #638 (player YoY) + int_team_season__deserved_vs_actual (#598 catalogued deserved_rank/sot_rank_gap)
+-  Build int_player_profile__contribution (a player-profile differentiator, mirroring int_player_profile__yoy) +
+-  compose it into mart_player_profile + CATALOGUE contribution_share (the new ratio metric). Numerator = goal
+-  involvements (scorer_points = goals + assists); denominator = the team's whole-season goals_for. Grain
+-  (player_sk, team_sk, season_sk); attached via the primary club; auto-carries to the export via select *.
+-refs: #391 Phase D bonus; content_architecture §6.4; mirrors #638 (player YoY) + int_team_season__deserved_vs_actual (#598 catalogued deserved_rank/sot_rank_gap)
++  Refresh the handover: record #645 (Phase D bonus — player contribution-share `int_player_profile__contribution`
++  composed into mart_player_profile + catalogued contribution_share) as MERGED; bump the main-GREEN pointer
++  87598cc -> a08c634; record that Phase C brick 2 (player streaks) is SKIPPED (CPO, 2026-07-03); leave NEXT as
++  an open CPO pick over the narrowed candidates (Phase D flagship opponent/schedule context + smaller carryovers).
++
++refs: #645 (a08c634 Phase D bonus contribution-share); prior refresh c375a99 (post-#643)
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/seeds/metric_catalogue.csv
++  - .claude/active_work.md
    - .claude/task/**
  
-+impact_map: >
-+  writers: NEW int_player_profile__contribution (4_intermediate/shared, table) reads int_legs__player_match +
-+    int_legs__team_match (composing intermediate; atoms not recomputed). mart_player_profile gains a contribution
-+    CTE + a left join + 3 columns (scorer_points, team_goals_season, contribution_share). metric_catalogue.csv
-+    gains ONE row: contribution_share (a NEW player ratio metric).
-+  downstream: int_player_profile__contribution -> mart_player_profile (the ONLY consumer) -> the v2 player export
-+    (`select *`, auto-carry, NO export edit). metric_catalogue.csv -> the catalogue-integrity CI tests
-+    (assert_metric_catalogue_expr_resolvable SKIPS blank-base_relation rows, so contribution_share is skipped like
-+    deserved_rank; assert_team_metric_meaning_complete exempts PLAYER rows; assert_metric_catalogue_unique_by_entity).
-+    The drift guard assert_no_uncatalogued_season_metric scans only the 3 season rollups — unaffected. dbt ls is
-+    CI-only; ref-graph cited from the files.
-+  layer_rules: intermediate reads two int legs (no mart ref) — layering.md compliant. check_layer_contract passes offline.
-+  deploy_order: ADDITIVE — a NEW model + 3 NEW nullable mart columns + 1 NEW catalogue row. No rename/drop of any
-+    EXISTING column/row. ci-data-build builds it; the catalogue seed reloads. No shared-warehouse migration hazard.
-+  blast_radius: mart_player_profile gains scorer_points + team_goals_season + contribution_share (existing columns/
-+    numbers UNCHANGED); the export gains them via select *; the catalogue gains contribution_share. No other
-+    mart / number / metric changed.
-+
+ impact_map: >
+-  writers: NEW int_player_profile__contribution (4_intermediate/shared, table) reads int_legs__player_match +
+-    int_legs__team_match (composing intermediate; atoms not recomputed). mart_player_profile gains a contribution
+-    CTE + a left join + 3 columns (scorer_points, team_goals_season, contribution_share). metric_catalogue.csv
+-    gains ONE row: contribution_share (a NEW player ratio metric).
+-  downstream: int_player_profile__contribution -> mart_player_profile (the ONLY consumer) -> the v2 player export
+-    (`select *`, auto-carry, NO export edit). metric_catalogue.csv -> the catalogue-integrity CI tests
+-    (assert_metric_catalogue_expr_resolvable SKIPS blank-base_relation rows, so contribution_share is skipped like
+-    deserved_rank; assert_team_metric_meaning_complete exempts PLAYER rows; assert_metric_catalogue_unique_by_entity).
+-    The drift guard assert_no_uncatalogued_season_metric scans only the 3 season rollups — unaffected. dbt ls is
+-    CI-only; ref-graph cited from the files.
+-  layer_rules: intermediate reads two int legs (no mart ref) — layering.md compliant. check_layer_contract passes offline.
+-  deploy_order: ADDITIVE — a NEW model + 3 NEW nullable mart columns + 1 NEW catalogue row. No rename/drop of any
+-    EXISTING column/row. ci-data-build builds it; the catalogue seed reloads. No shared-warehouse migration hazard.
+-  blast_radius: mart_player_profile gains scorer_points + team_goals_season + contribution_share (existing columns/
+-    numbers UNCHANGED); the export gains them via select *; the catalogue gains contribution_share. No other
+-    mart / number / metric changed.
++  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md` (the handover). No
++  dbt_project/** model, no scripts/export_*.py, no ingestion/**, no site*/ change — so no data/number/metric
++  moves and no downstream build impact. The task scaffolding (.claude/task/**) is artifact-only; contract.md is
++  artifact_only_never so this commit is NOT review-exempt (scope-auditor required).
+ 
  decisions_taken: >
--  Bookkeeping only. Header -> post-#643 / main @ 87598cc leading with Phase C brick 1 + the portfolio arc +
--  the backfill finding; add #638 + #640–643 to the "main carries" line + prepend them to RECENT PRs; replace
--  the "thin-until-backfill" framing with the finding (5–10 seasons deep); set NEXT = Phase C brick 2 / player
--  season models / Phase D; keep the open follow-ups; note the CLOSED-#639 supersession. Invents nothing;
--  locks no next task.
-+  Metric definition (CPO AskUserQuestion 2026-07-03, logged in escalations.log): numerator = goal involvements
-+  (goals + assists); denominator = the team's WHOLE-SEASON goals_for; DIRECTION = NEUTRAL (high share = central to
-+  the team's output but position-dependent; no good/bad colour; mirrors the 7 neutral benchmark metrics).
-+  contribution_share = safe_divide(scorer_points, team_goals_season); NULL when the team scored 0; invariant
-+  0 <= share <= 1. Grain (player_sk, team_sk, season_sk); NOT domestic-restricted. NAMING:
-+  int_player_profile__contribution (mirrors int_player_profile__yoy + shares int_player_profile.yml). The numerator
-+  atom is named `scorer_points` (the EXISTING catalogued metric goals+assists — reconciled per the analytics-engineer
-+  A1 finding, NOT a new duplicate name). CATALOGUE: contribution_share added to metric_catalogue.csv with BLANK
-+  base_relation / numerator_expr / denominator_expr — the deserved_rank/sot_rank_gap flagship-output pattern (the
-+  formula lives in the description prose + the model; the resolvability guard skips blank-base_relation rows);
-+  entity=player, format=percent, direction=neutral, metric_group=goals. team_goals_season is the ratio's DENOMINATOR
-+  COMPONENT carried for the "X of Y team goals · Z%" display triple (like the benchmark's carried num/den atoms) —
-+  not a standalone metric. Composed into mart_player_profile via the primary club (ta.team_sk). Auto-carry via
-+  select * (#606). Honest limit (CPO-accepted): the whole-season denominator vs the covered-appearance numerator
-+  understates the share where the player's match stats are missing — documented in the model header.
+-  Metric definition (CPO AskUserQuestion 2026-07-03, logged in escalations.log): numerator = goal involvements
+-  (goals + assists); denominator = the team's WHOLE-SEASON goals_for; DIRECTION = NEUTRAL (high share = central to
+-  the team's output but position-dependent; no good/bad colour; mirrors the 7 neutral benchmark metrics).
+-  contribution_share = safe_divide(scorer_points, team_goals_season); NULL when the team scored 0; invariant
+-  0 <= share <= 1. Grain (player_sk, team_sk, season_sk); NOT domestic-restricted. NAMING:
+-  int_player_profile__contribution (mirrors int_player_profile__yoy + shares int_player_profile.yml). The numerator
+-  atom is named `scorer_points` (the EXISTING catalogued metric goals+assists — reconciled per the analytics-engineer
+-  A1 finding, NOT a new duplicate name). CATALOGUE: contribution_share added to metric_catalogue.csv with BLANK
+-  base_relation / numerator_expr / denominator_expr — the deserved_rank/sot_rank_gap flagship-output pattern (the
+-  formula lives in the description prose + the model; the resolvability guard skips blank-base_relation rows);
+-  entity=player, format=percent, direction=neutral, metric_group=goals. team_goals_season is the ratio's DENOMINATOR
+-  COMPONENT carried for the "X of Y team goals · Z%" display triple (like the benchmark's carried num/den atoms) —
+-  not a standalone metric. Composed into mart_player_profile via the primary club (ta.team_sk). Auto-carry via
+-  select * (#606). Honest limit (CPO-accepted): the whole-season denominator vs the covered-appearance numerator
+-  understates the share where the player's match stats are missing — documented in the model header.
++  Record-only. #645 is already merged to main (a08c634) — this refresh does not decide anything new. Player
++  streaks (Phase C brick 2) recorded as SKIPPED per the CPO (2026-07-03, this session). NEXT stays an OPEN CPO
++  pick — no next task is locked in.
  
  decisions_reserved:
--  - The next task — CPO picks: Phase C brick 2 (player streaks, mirror int_team_profile__streaks), player
--    season/YoY-extension models, or Phase D flagship marts (§10 method). Present candidates; do NOT pre-decide.
--  - Portfolio remaining: the landscape social-preview image (a manual CPO step, per the #643 contract).
--  - Two tiny doc follow-ups (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only").
--  - Backfill marginal top-up (low value); not_null hardening on mart_player_career (non-blocking).
--  - All §10 unchanged.
-+  - A contribution-share SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
-+  - All §10 settled by the three AskUserQuestion rulings (numerator, denominator, direction). No other open decision.
+-  - A contribution-share SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
+-  - All §10 settled by the three AskUserQuestion rulings (numerator, denominator, direction). No other open decision.
++  - The actual next task (Phase D flagship opponent/schedule context method is §10; smaller carryovers) — CPO picks later.
  
  done_when:
--  - active_work.md: header post-#643 (main @ 87598cc); #638 + #640–643 in "main carries" + RECENT PRs; the
--    backfill finding banked; #639 supersession noted; NEXT = Phase C brick 2 / season / Phase D as a CPO pick;
--    self-contained for a cold chat.
--  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
-+  - int_player_profile__contribution builds; grain unique; keys not_null; 0 <= share <= 1 holds; ci-data-build green.
-+  - mart_player_profile gains scorer_points + team_goals_season + contribution_share; EXISTING numbers unchanged.
-+  - metric_catalogue.csv has the contribution_share row; the catalogue-integrity tests pass (blank-base_relation skip).
-+  - python scripts/check_layer_contract.py passes.
-+  - bq spot-check: a focal striker (Kane, BL1) ~32%; a squad player much lower.
-+  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
-+    review.md diff_sha256 binds; CPO merges.
+-  - int_player_profile__contribution builds; grain unique; keys not_null; 0 <= share <= 1 holds; ci-data-build green.
+-  - mart_player_profile gains scorer_points + team_goals_season + contribution_share; EXISTING numbers unchanged.
+-  - metric_catalogue.csv has the contribution_share row; the catalogue-integrity tests pass (blank-base_relation skip).
+-  - python scripts/check_layer_contract.py passes.
+-  - bq spot-check: a focal striker (Kane, BL1) ~32%; a squad player much lower.
+-  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
+-    review.md diff_sha256 binds; CPO merges.
++  - active_work.md header + FIRST STEPS point at a08c634; #645 recorded as the latest merged PR.
++  - The Phase D backlog entry marks the contribution-share bonus DONE #645; Phase C marks streaks SKIPPED.
++  - A #645 entry is prepended to RECENT PRs; the "main carries" line appends #645.
++  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
  
--amendments: (none)
-+amendments:
-+  - 2026-07-03: post-review scope widening (analytics-engineer A1 FAIL that contribution_share ships uncatalogued;
-+    CPO-confirmed via the direction AskUserQuestion) — added dbt_project/seeds/metric_catalogue.csv to scope
-+    (catalogue contribution_share; rename the goal_involvements atom -> the existing catalogued scorer_points).
-+    Authority: the AE A1 finding (governance-required) + the CPO ruling. Pulls in football-analytics-expert-reviewer.
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
-index c3e904d..939b691 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
-@@ -38,3 +38,39 @@ models:
-         tests: [not_null]
-       - name: goals_delta_yoy
-         description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
+-amendments:
+-  - 2026-07-03: post-review scope widening (analytics-engineer A1 FAIL that contribution_share ships uncatalogued;
+-    CPO-confirmed via the direction AskUserQuestion) — added dbt_project/seeds/metric_catalogue.csv to scope
+-    (catalogue contribution_share; rename the goal_involvements atom -> the existing catalogued scorer_points).
+-    Authority: the AE A1 finding (governance-required) + the CPO ruling. Pulls in football-analytics-expert-reviewer.
++amendments: []
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index b4de12a..99cde74 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -196,3 +196,6 @@
+       CPO ANSWER (AskUserQuestion, 2026-07-03): **(b) the team's whole-season goals** — a raw total-output share; CPO explicitly accepted the honest limit that the whole-season denominator vs the covered-appearance numerator UNDERSTATES the share where the player's match stats are missing.
+ This entry is the durable record of the metric-definition authority the contract's decisions_taken rests on.
+       CPO ANSWER (AskUserQuestion, 2026-07-03, direction) — after the analytics-engineer A1 FAIL: contribution_share must be CATALOGUED (a new ratio metric; the metric_catalogue is the SSoT, and the team flagship-read outputs deserved_rank/sot_rank_gap were catalogued at #598). Direction = **neutral** (high involvement-share = central to the team's output but position-dependent; a defender's naturally-low share is not "bad"; no good/bad colour, mirrors the 7 neutral benchmark metrics). Fix: add contribution_share to metric_catalogue.csv (blank base_relation, the deserved_rank/sot_rank_gap pattern; format percent) + reconcile goal_involvements -> the existing catalogued scorer_points. Scope widened to metric_catalogue.csv + football-analytics-expert-reviewer (CPO-confirmed).
 +
-+  - name: int_player_profile__contribution
-+    description: >
-+      Player contribution-share (content_architecture §6.4): the player's goal involvements (goals + assists)
-+      as a share of the club's WHOLE-SEASON goals_for — "involved in X% of the team's goals." A composing
-+      differentiator over the player + team legs; NULL when the club scored 0 that competition-season; range
-+      [0, 1]. Understates where the player's match stats are missing (CPO-accepted honest limit). Grain:
-+      (player_sk, team_sk, season_sk).
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [player_sk, team_sk, season_sk]
-+      - dbt_utils.expression_is_true:
-+          expression: "contribution_share is null or (contribution_share >= 0 and contribution_share <= 1)"
-+          name: player_contribution_share_within_unit
-+    columns:
-+      - name: player_sk
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_player')
-+              field: player_sk
-+      - name: team_sk
-+        description: "The player's club that competition-season (contribution is per-club)."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: season_sk
-+        tests: [not_null]
-+      - name: scorer_points
-+        description: "The player's goals + assists this club-competition-season (the numerator)."
-+      - name: team_goals_season
-+        description: "The club's whole-season goals_for (the denominator)."
-+      - name: contribution_share
-+        description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
-new file mode 100644
-index 0000000..0dec769
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
-@@ -0,0 +1,86 @@
-+{{ config(materialized='table') }}
-+
-+{#
-+  Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
-+  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
-+  int_player_profile__yoy). "Involved in 45% of Bayern's goals."
-+
-+  Metric definition (CPO, AskUserQuestion 2026-07-03):
-+    - numerator = scorer_points = goals_total + goals_assists (summed over the player's appearances-with-stats)
-+    - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
-+      authoritative scoreline), NOT just the matches the player appeared in.
-+    - contribution_share = scorer_points / team_goals_season. Range [0, 1] (a player's G+A over his
-+      appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
-+
-+  Honest limit (CPO-accepted): player stats are sparse (many matches lack statistics_players). Where the
-+  player's stats are missing for a game he played, his involvements there go uncounted while the whole-season
-+  denominator stays complete — so the share UNDERSTATES for players with coverage gaps. Absence is honest.
-+
-+  A COMPOSING intermediate: it reuses the leg atoms, never recomputing them (mirrors
-+  int_team_season__deserved_vs_actual). season_sk is inherited from the team leg (the player leg carries only
-+  season_api_year + league_code). NOT domestic-restricted — the ratio is valid in any competition and
-+  self-restricts to where player-stat data exists (no player leg -> no numerator -> no row).
-+
-+  Grain: (player_sk, team_sk, season_sk) — one row per player's club-competition-season; a mid-season transfer
-+  yields two rows. mart_player_profile attaches the player's primary-club row.
-+#}
-+
-+with player_legs as (
-+    select
-+        player_sk,
-+        team_sk,
-+        fixture_sk,
-+        goals_total,
-+        goals_assists
-+    from {{ ref('int_legs__player_match') }}
-+),
-+
-+team_legs as (
-+    select
-+        team_sk,
-+        season_sk,
-+        league_code,
-+        season_api_year,
-+        fixture_sk,
-+        goals_for
-+    from {{ ref('int_legs__team_match') }}
-+),
-+
-+-- Numerator: the player's goal involvements per (player, club, competition-season). The join to the team leg
-+-- on (fixture_sk, team_sk) supplies season_sk (absent on the player leg) and confirms the finished team match.
-+involvements as (
-+    select
-+        pl.player_sk,
-+        pl.team_sk,
-+        tl.season_sk,
-+        any_value(tl.league_code) as league_code,
-+        any_value(tl.season_api_year) as season_api_year,
-+        sum(pl.goals_total + pl.goals_assists) as scorer_points
-+    from player_legs as pl
-+    inner join team_legs as tl
-+        on pl.fixture_sk = tl.fixture_sk and pl.team_sk = tl.team_sk
-+    group by pl.player_sk, pl.team_sk, tl.season_sk
-+),
-+
-+-- Denominator: the club's whole-season goals_for (all its matches that competition-season).
-+team_goals as (
-+    select
-+        team_sk,
-+        season_sk,
-+        sum(goals_for) as team_goals_season
-+    from team_legs
-+    group by team_sk, season_sk
-+)
-+
-+select
-+    inv.player_sk,
-+    inv.team_sk,
-+    inv.season_sk,
-+    inv.league_code,
-+    inv.season_api_year,
-+    inv.scorer_points,
-+    tg.team_goals_season,
-+    safe_divide(inv.scorer_points, tg.team_goals_season) as contribution_share
-+from involvements as inv
-+inner join team_goals as tg
-+    on inv.team_sk = tg.team_sk and inv.season_sk = tg.season_sk
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index cf58b53..2b68f29 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -80,6 +80,12 @@ teams as (
- -- latest season per (player, club, league) has a YoY row; older seasons get NULL.
- yoy as (
-     select * from {{ ref('int_player_profile__yoy') }}
-+),
-+
-+-- Phase D bonus: goal-involvement share of the club's whole-season goals, for the player's PRIMARY club
-+-- that competition-season (content_architecture §6.4).
-+contribution as (
-+    select * from {{ ref('int_player_profile__contribution') }}
- )
++2026-07-03 chore/handover-refresh-post-645 — Phase C brick 2 (player streaks) SKIPPED. Recorded during the post-#645 handover refresh. The prior session (which got stuck) had already agreed with the CPO to drop player streaks (the player mirror of int_team_profile__streaks) from the Phase C chain; that decision was never logged because the chat stalled before the refresh landed. The CPO reaffirmed it at the start of this session ("We already agreed to skip player streaks"). This is a §10 scope/phase decision (deciding NOT to build a candidate feature).
++      CPO ANSWER (conversation, 2026-07-03): **SKIP Phase C brick 2 (player streaks)** — do NOT build the player streaks model; it is dropped from the candidate backlog, not merely deferred. Phase C remaining is limited to the optional player season / YoY-extension models. This entry is the durable record of the skip that the handover (active_work.md) and this refresh's contract decisions_taken rest on.
+diff --git a/.claude/task/review.md b/.claude/task/review.md
+index fa15355..2aba9f4 100644
+--- a/.claude/task/review.md
++++ b/.claude/task/review.md
+@@ -1,83 +1,43 @@
+-# Review — feat/player-contribution-share — 2026-07-03
++# Review — chore/handover-refresh-post-645 — 2026-07-03
  
- select
-@@ -159,7 +165,12 @@ select
-     y.key_passes_delta_yoy,
-     y.defensive_actions_this_season,
-     y.defensive_actions_prev_season,
--    y.defensive_actions_delta_yoy
-+    y.defensive_actions_delta_yoy,
-+    -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
-+    -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
-+    c.scorer_points,
-+    c.team_goals_season,
-+    c.contribution_share
- from season as a
- left join players as p
-     on a.player_sk = p.player_sk
-@@ -180,3 +191,8 @@ left join yoy as y
-         and ta.team_sk = y.team_sk
-         and a.league_code = y.league_code
-         and a.season_api_year = y.season_api_year
-+left join contribution as c
-+    on
-+        a.player_sk = c.player_sk
-+        and ta.team_sk = c.team_sk
-+        and a.season_sk = c.season_sk
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index a7c02a8..894b1b7 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -76,3 +76,4 @@ sot_difference,team,metrics.sot_difference.label,Average shots-on-target differe
- shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average shots on target conceded per match in the window. The defensive companion to sot_difference. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),true,decimal_1,shooting,,,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
- deserved_rank,team,metrics.deserved_rank.label,Rank of the team within its league-season by sot_difference (descending; 1 = best on-target difference) - the process-deserved table position. Not aggregated from match legs; computed by ranking the sot_difference metric. Null when the league-season is not fully rankable (some team lacks full shots-on-target coverage or a league rank).,,,,true,integer,,,,lower_better,Deserved league position - 1 = best on-target difference; where the process says the team should sit
- sot_rank_gap,team,metrics.sot_rank_gap.label,"Rank-space deserved-vs-actual gap: actual_rank - deserved_rank, where actual_rank = league_rank and deserved_rank = the team's rank by sot_difference within its league-season. Positive = under-performing (table position below where the on-target process deserves); negative = over-performing. Rank-derived, not an aggregate of match legs. Null when the league-season is not fully rankable.",,,,false,integer,,,,neutral,"Deserved-vs-actual gap - actual minus deserved rank; positive = results lag the process (due a correction), negative = results flatter it (regression risk). A narrative, not good or bad"
-+contribution_share,player,playerMetrics.contributionShare.label,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing (whole-season denominator vs covered-appearance numerator, CPO-accepted). Null when the club scored 0 that competition-season.",,,,false,percent,goals,,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
+-> G3 Lock artifact. Phase D "bonus" flagship read — player contribution-share: a NEW
+-> `int_player_profile__contribution` (goal-involvement share of the club's WHOLE-SEASON goals) +
+-> composition into `mart_player_profile` + a `metric_catalogue` row for `contribution_share`.
+-> Required set (routing): scope-auditor (always) + analytics-engineer-reviewer (`dbt_project/**`) +
+-> football-analytics-expert-reviewer (`dbt_project/seeds/metric_catalogue.csv`).
++> G3 Lock artifact. Bookkeeping/handover refresh — brings `.claude/active_work.md` current from its stale
++> post-#643 state (pointer 87598cc) to post-#645 (a08c634): records #645 (Phase D bonus — player
++> contribution-share `int_player_profile__contribution` composed into `mart_player_profile` + catalogued
++> `contribution_share`) as MERGED, and records that Phase C brick 2 (player streaks) is SKIPPED per the CPO.
++> Plan mode skipped per the CPO handover carve-out (2026-06-30); the contract + review + gate still run.
++> Required set (routing): scope-auditor only (always) — no `dbt_project/**`, `scripts/**`, CI, ingestion, or
++> wireframe/i18n path is touched, so no other reviewer is pulled in.
+ >
+-> Round 1 (hash 465f31e9) — scope-auditor PASS; analytics-engineer **FAIL (A1)**: `contribution_share`
+-> + its atoms shipped to the export with NO `metric_catalogue` row, and `goal_involvements` duplicated
+-> the already-catalogued `scorer_points`. Fix: catalogued `contribution_share` as a flagship-output row
+-> (BLANK base_relation — the `deserved_rank`/`sot_rank_gap` pattern; direction=neutral, CPO
+-> AskUserQuestion 2026-07-03) + renamed the numerator atom `goal_involvements` -> the existing
+-> `scorer_points` + amended the contract (added `metric_catalogue.csv` to scope; the widening pulled in
+-> the football-analytics reviewer). Round 2 (hash ccca23dd) — **analytics-engineer PASS** (A1 resolved),
+-> **football-analytics PASS**, **scope-auditor PASS**. All three required reviewers PASS on the SAME hash.
++> Round 1 (hash 406c7fc7) — scope-auditor **FAIL**: the refresh records "player streaks SKIPPED (CPO)" in the
++> handover + contract but there was NO `escalations.log` entry for that §10 scope decision, so the skip (and
++> the resulting narrowing of the NEXT candidate list) lacked an audit trail (§11). Fix: appended a dated
++> `escalations.log` entry recording the streaks-skip as a §10 decision with an explicit CPO ANSWER
++> (`escalations.log` is hash-excluded, so the gate SHA is unchanged; it is still committed with the branch).
++> Round 2 (hash 406c7fc7) — scope-auditor **PASS**, both prior risks cleared on the SAME hash.
+ 
+-diff_sha256: ccca23dd86b9bc235310530b7c695481179967151ebe2f60c5aa1b2e71e47685
++diff_sha256: 406c7fc706efb2fd8e496ac278ec1a8522658a0b4d18e78d2f34dca36d138529
+ 
+ ## scope-auditor
+-VERDICT: PASS  (round 2; round 1 also PASS)
++VERDICT: PASS  (round 2; round 1 FAILed on the missing escalations.log entry, now resolved)
+ risks_checked:
+-- **Scope widening authorized + logged.** The amendment adds `metric_catalogue.csv` to `scope_paths` with
+-  the authority stated (the AE A1 finding, which is governance-required + the CPO direction ruling); all
+-  five changed paths fall within the amended scope. The three metric-definition rulings (numerator,
+-  denominator, direction=neutral) are each a CPO AskUserQuestion 2026-07-03 recorded in `escalations.log`
+-  — no silent §10. The scope expansion (catalogue + the football-analytics reviewer) was CPO-confirmed.
+-- **Catalogue-fix honesty + impact_map fidelity.** `contribution_share` is catalogued as a flagship-output
+-  row (blank base_relation, the `deserved_rank`/`sot_rank_gap` precedent — the resolvability guard skips it);
+-  `goal_involvements` is reconciled to the catalogued `scorer_points` (not a new duplicate name);
+-  `team_goals_season` is the carried denominator component (the benchmark carried-atom precedent). The
+-  impact_map is evidenced (writers/downstream/layer_rules/deploy_order/blast_radius). No export / wireframe /
+-  layering / schema-drift churn. Grain (player_sk, team_sk, season_sk) unique; denominator-zero -> NULL via
+-  safe_divide; the 0..1 invariant test present.
+-
+-## analytics-engineer-reviewer
+-VERDICT: PASS  (round 2; the round-1 A1 FAIL is resolved)
+-risks_checked:
+-- **A1 resolution, mechanically verified.** Read `assert_metric_catalogue_expr_resolvable.sql` directly and
+-  confirmed the `{% if base in base_cols %}` gate genuinely SKIPS blank-`base_relation` rows —
+-  `contribution_share` is skipped exactly like `deserved_rank`/`sot_rank_gap`, NOT trusting the contract's
+-  prose. The other three catalogue-integrity tests each independently exempt/ignore the new row for a
+-  distinct verified reason: `assert_team_metric_meaning_complete` (entity in team/team+player — player is
+-  exempt), `assert_metric_catalogue_unique_by_entity` (fresh (metric_id, entity) key, no collision),
+-  `assert_no_uncatalogued_season_metric` (hardcoded to the three season rollups, none of which is this
+-  model). `team_goals_season` remaining uncatalogued is accepted as the ratio's display-denominator
+-  component (the benchmark carried-atom precedent — a defensible read, not a rubber stamp).
+-- **Rename correctness + no column collision.** Zero `goal_involvements` residue in code (repo-wide grep;
+-  the string survives only in doc/patch prose). The pre-existing `int_player_season__metrics.scorer_points`
+-  is NEVER selected into `mart_player_profile` (no `a.scorer_points`, no `a.*`) — so the new `c.scorer_points`
+-  off the contribution CTE is the sole occurrence reaching the mart's output schema; no ambiguous / shadowed
+-  column via `select *`. Model logic (grain, the `(fixture_sk, team_sk)` numerator join, the
+-  `(team_sk, season_sk)` denominator join, safe_divide, the 0..1 invariant) is byte-identical to round 1
+-  except the label swap; the mart join is additive/nullable (left join, mirrors the YoY join above it);
+-  layer placement complies with layering.md §4_intermediate (composes two int legs, no mart/staging ref).
+-
+-## football-analytics-expert-reviewer
+-VERDICT: PASS  (round 1 — added to the required set by the scope widening)
+-risks_checked:
+-- **Formula soundness + the 0..1 invariant.** "Goal involvements (goals + assists) / the club's whole-season
+-  goals" is a standard, meaningful "involved in X% of the team's goals" framing; the numerator reuses the
+-  catalogued `scorer_points` (closing the A1, not duplicating it). The 0..1 range is a STRUCTURAL guarantee of
+-  the `(fixture_sk, team_sk)` inner join (a player's counted goal only comes from a fixture whose team
+-  `goals_for` already includes it), not an artificial cap. The whole-season denominator is a defensible CPO
+-  product choice, coherent with the "share of the club's goals" read.
+-- **Metadata + the formula-vs-availability rule.** direction=neutral is football-correct (involvement-share is
+-  position-dependent — strikers high, defenders low by role, not by quality; consistent with the catalogue's
+-  neutral style metrics); format=percent, metric_group=goals, lower_is_better=false all correct. The honest
+-  limit (the share understates where the player's per-match stats are missing — whole-season denominator vs
+-  covered-appearance numerator) lives in the description/model prose ONLY — there is NO coalesce / countif /
+-  coverage-gate baked into the (blank) exprs, respecting the formula-vs-availability rule. No fabricated
+-  good/bad colour, no over-claimed cap. The mismatch is a CPO-accepted documented limit (escalations.log
+-  2026-07-03), not a defect this diff introduces.
++- **Audit-trail completeness for the §10 scope decision.** Round 1 FAILed because the handover's explicit
++  narrowing (removing player streaks as a candidate; reshuffling NEXT) recorded a §10 scope decision with no
++  `escalations.log` entry backing it (§11). Verified resolved: the log tail now carries a dated
++  (2026-07-03, branch `chore/handover-refresh-post-645`) entry with an explicit `CPO ANSWER: SKIP Phase C
++  brick 2 (player streaks)` classifying it as a §10 scope/phase decision and stating it is the durable record
++  the handover + contract `decisions_taken` rest on. With that entry present, both the skip authority and the
++  candidate-list narrowing are backed by a recorded decision, not an invented one.
++- **Scope-path discipline on bookkeeping artifacts.** `scope_paths` is locked to `.claude/active_work.md` +
++  `.claude/task/**`; diff inspection confirms ONLY those four files are touched (`active_work.md` +
++  `contract.md` + `escalations.log` + `review_input.patch`) — zero `dbt_project/**`, `scripts/export_*.py`,
++  `ingestion/**`, or `site*/` changes, so no data/number/metric moves and no downstream build impact. The
++  #645-merged claims match reality (the `int_player_profile__contribution` model, the `mart_player_profile`
++  composition, and the `contribution_share` catalogue row all exist; pointer bumped 87598cc→a08c634). No new
++  undocumented §10 decision is smuggled in — the only recorded decisions are the (already-merged) #645 and the
++  now-logged streaks skip.
+ 
+ ## escalations
+-- (metric definition — AskUserQuestion 2026-07-03, RULED) contribution-share's numerator / denominator /
+-  direction were put to the CPO before building: numerator = goal involvements (goals + assists); denominator
+-  = the club's WHOLE-SEASON goals_for (CPO accepted the understatement-where-stats-missing honest limit);
+-  direction = NEUTRAL. Durable record: `escalations.log` 2026-07-03.
+-- (scope — AskUserQuestion 2026-07-03, RULED) The analytics-engineer A1 FAIL required cataloguing
+-  `contribution_share`; the CPO confirmed widening scope to `metric_catalogue.csv` + adding the
+-  football-analytics reviewer (via the same direction ruling). Fixed: catalogued `contribution_share` +
+-  reconciled `goal_involvements` -> `scorer_points` + amended the contract. No open escalations.
++- (scope — conversation 2026-07-03, RULED) Phase C brick 2 (player streaks) is SKIPPED. The prior (stuck)
++  session had already agreed the skip with the CPO but never logged it; the CPO reaffirmed it at the start of
++  this session ("We already agreed to skip player streaks"). §10 scope/phase decision. Durable record:
++  `escalations.log` 2026-07-03 (branch `chore/handover-refresh-post-645`). No open escalations.
+diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+index 621d048..cb37384 100644
+--- a/.claude/task/review_input.patch
++++ b/.claude/task/review_input.patch
+@@ -1,296 +1,676 @@
++diff --git a/.claude/active_work.md b/.claude/active_work.md
++index 72a9ff1..94b74a3 100644
++--- a/.claude/active_work.md
+++++ b/.claude/active_work.md
++@@ -4,7 +4,7 @@
++ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
++ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
++ 
++-_Last updated: **2026-07-03** — main GREEN at **87598cc**. **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick**: **Phase C brick 2** (player streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models; or **Phase D** flagship marts (§10 method). Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
+++_Last updated: **2026-07-03** — main GREEN at **a08c634**. **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): **Phase D flagship marts** — opponent/schedule context (§10 method, football-analytics); player **season / YoY-extension** models (on `int_player_club_season__metrics` / `int_player_season_record`); or smaller catalogue/window carryovers (#530(b) player metric rows, #510, #484). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
++ 
++ ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
++ The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
++@@ -21,20 +21,22 @@ SQLFluff, CI-only — `validate` misses them): LT02 indent on the num/den `{% if
++ "Unrecognized name: goals_penalty" (aggregated-but-not-output) → exposed it via a CI-driven scope amendment.
++ Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based** screen, still un-spec'd.
++ 
++-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`) + **#645** (**Phase D bonus** — player contribution-share `int_player_profile__contribution` + `mart_player_profile` composition + catalogued `contribution_share`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
++ 
++ ### FIRST STEPS (cold chat — do in order)
++-1. `git checkout main && git pull`. **main GREEN at 87598cc** (or later if this refresh merged). Confirm tree clean.
++-2. Read this file top-to-bottom before touching anything (esp. the header lead + the #643 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
+++1. `git checkout main && git pull`. **main GREEN at a08c634** (or later if this refresh merged). Confirm tree clean.
+++2. Read this file top-to-bottom before touching anything (esp. the header lead + the #645 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
++ 3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **Phase C brick 1 (player YoY) is
++    MERGED (#638)** — `int_player_profile__yoy` composed into `mart_player_profile`; the **portfolio arc
++-   #640–643 is MERGED** (README funnel + dbt-docs site). **The history backfill is effectively DONE** (RAW +
++-   `mart_player_career` are 5–10 seasons deep across domestic leagues; the "thin-until-backfill" premise was
++-   STALE — do NOT re-scope a big backfill; see the header finding). Candidates: **Phase C brick 2** (player
++-   streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models (on
++-   `int_player_club_season__metrics` / `int_player_season_record`); **Phase D** flagship marts
++-   (opponent/schedule context + contribution-share — §10 method). (Doc-sync DONE #636; player YoY DONE #638.)
++-   Present candidates + get the CPO's pick;
+++   #640–643 is MERGED** (README funnel + dbt-docs site); **Phase D bonus (player contribution-share) is
+++   MERGED (#645)** — `int_player_profile__contribution` composed into `mart_player_profile` + catalogued
+++   `contribution_share`. **Player streaks (Phase C brick 2) is SKIPPED (CPO).** **The history backfill is
+++   effectively DONE** (RAW + `mart_player_career` are 5–10 seasons deep across domestic leagues; the
+++   "thin-until-backfill" premise was STALE — do NOT re-scope a big backfill; see the header finding).
+++   Candidates: **Phase D flagship marts** (opponent/schedule context — §10 method); player **season /
+++   YoY-extension** models (on `int_player_club_season__metrics` / `int_player_season_record`); or smaller
+++   catalogue/window carryovers (#530(b), #510, #484). (Doc-sync DONE #636; player YoY DONE #638; contribution
+++   DONE #645.) Present candidates + get the CPO's pick;
++    ENTER PLAN MODE for any code/model/metric task. #391 un-paused but NARROW — do NOT touch the live MVP or
++    start the frontend.
++ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
++@@ -97,10 +99,12 @@ carries it)** first, then build the frontend against a stable export. The live M
++   `int_player_club_season__metrics` + rebuilt `mart_player_career`; **Career screen SPEC'D (#632) + WIRED
++   (#634, GAP-22).** **Player YoY DONE (#638)** — `int_player_profile__yoy` (mirror of `int_team_profile__yoy`)
++   → `mart_player_profile`. The **history backfill is effectively DONE** (5–10 seasons deep; the premise was
++-  stale). Remaining: **brick 2 player streaks** (mirror `int_team_profile__streaks`) + player **season /
++-  YoY-extension** models. A chain.
++-- **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
++-  + contribution-share (§10 definition). New marts.
+++  stale). **Brick 2 player streaks is SKIPPED (CPO, 2026-07-03)** — not pending. Remaining: player **season /
+++  YoY-extension** models (optional).
+++- **Phase D — design-heavy flagship marts (DECIDE first):** **bonus contribution-share DONE (#645)** —
+++  `int_player_profile__contribution` (goal-involvement share of the club's whole-season goals; NEUTRAL;
+++  §10 definition CPO-locked 2026-07-03) → `mart_player_profile` + catalogued `contribution_share`. Remaining:
+++  **opponent/schedule context** (§10 method, football-analytics) — a NEW mart, still to DECIDE.
++ - **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
++ 
++ ### ⚠️ Two STALE-WIREFRAME flags (reconcile separately; NOT decided)
++@@ -117,6 +121,22 @@ carries it)** first, then build the frontend against a stable export. The live M
++ 
++ ### ⭐ RECENT PRs
++ 
+++- **#645 — Phase D bonus: player contribution-share (int_player_profile__contribution), MERGED.** dbt-only.
+++  NEW `int_player_profile__contribution` (4_intermediate/shared, table) = a player's goal-involvement share of
+++  the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). A composing intermediate over
+++  `int_legs__player_match` + `int_legs__team_match` (atoms NOT recomputed; mirrors
+++  `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL
+++  where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club
+++  (left join, additive/nullable) → auto-carries `scorer_points` + `team_goals_season` + `contribution_share`
+++  to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the
+++  deserved_rank/sot_rank_gap flagship-output pattern, resolvability guard skips it; entity=player,
+++  format=percent, direction=**NEUTRAL**, metric_group=goals); the numerator atom reuses the existing catalogued
+++  `scorer_points` (goals + assists). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator =
+++  goal involvements; denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only —
+++  no coverage-gate in the exprs): the share understates where the player's per-match stats are missing. Review:
+++  scope-auditor + analytics-engineer + football-analytics PASS; ci-data-build green. A contribution-share
+++  **screen** (wireframe + explicit export shaping) is a later gap, not this brick. Closes the Phase D **bonus**;
+++  the Phase D **flagship** (opponent/schedule context) is still to DECIDE.
++ - **#643 — publish dbt docs lineage site at /dbt-docs/, MERGED.** Portfolio/CI. Folded a public, static dbt
++   docs site (model lineage graph + descriptions + columns) into the EXISTING GitHub Pages deploy: one additive
++   `dbt docs generate --static` step (continue-on-error) in `pages-match-preview.yml`, a `-f`-guarded copy of
+ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+-index 546b84e..df939fe 100644
++index df939fe..7a4819e 100644
+ --- a/.claude/task/contract.md
+ +++ b/.claude/task/contract.md
+-@@ -1,45 +1,74 @@
+--# Task contract — handover refresh (post-#643; catch up #638 + #640–643)
+-+# Task contract — player contribution-share (int_player_profile__contribution + catalogue)
++@@ -1,74 +1,40 @@
++-# Task contract — player contribution-share (int_player_profile__contribution + catalogue)
+++# Task contract — handover refresh (post-#645, Phase D bonus contribution-share merged)
+  
+--> Written on a CLEAN tree (branch chore/handover-refresh-643 off main @ 87598cc).
+--> Bookkeeping only. main's active_work.md was STALE at post-#636 (the last landed refresh was #637); since
+--> then #638 (Phase C brick 1) + #640–643 (portfolio README + dbt-docs site) merged and NO handover landed
+--> (my post-#638 refresh #639 was superseded by #640–643 and CLOSED). Bring the handover current to post-#643.
+--> Handover refreshes skip plan mode (CPO carve-out 2026-06-30).
+-+> Written on a CLEAN tree (branch feat/player-contribution-share off main @ c375a99).
+-+> Phase D "bonus" flagship read (content_architecture §6.4): a player's goal-involvement share of the team's
+-+> WHOLE-SEASON goals ("involved in X% of Bayern's goals"). Scope widened post-review to CATALOGUE the new ratio
+-+> metric (analytics-engineer A1 finding, CPO-confirmed) — adds metric_catalogue.csv + the football-analytics reviewer.
++-> Written on a CLEAN tree (branch feat/player-contribution-share off main @ c375a99).
++-> Phase D "bonus" flagship read (content_architecture §6.4): a player's goal-involvement share of the team's
++-> WHOLE-SEASON goals ("involved in X% of Bayern's goals"). Scope widened post-review to CATALOGUE the new ratio
++-> metric (analytics-engineer A1 finding, CPO-confirmed) — adds metric_catalogue.csv + the football-analytics reviewer.
+++> Written on a CLEAN tree (branch chore/handover-refresh-post-645 off main @ a08c634).
+++> Bookkeeping only — brings `.claude/active_work.md` current from its stale post-#643 state (pointer 87598cc)
+++> to post-#645 (a08c634). No code, no model, no metric change. Plan mode skipped per the CPO handover carve-out
+++> (2026-06-30); still runs the contract + review + gate.
+  
+  objective: >
+--  main @ 87598cc is SIX merges ahead of its handover (stuck at post-#636 / #637): #638 (Phase C brick 1 —
+--  player YoY int_player_profile__yoy -> mart_player_profile), and the portfolio arc #640 (README funnel +
+--  badges + architecture diagram) / #641 (MVP screenshot) / #642 (Design-decisions section) / #643 (public
+--  dbt docs lineage site at /dbt-docs/, folded into the existing Pages deploy). Also bank this session's
+--  BACKFILL FINDING (backfill effectively done — RAW + mart_player_career 5–10 seasons deep; "thin-until-backfill"
+--  was STALE). The post-#638 refresh #639 was superseded by #640–643 and CLOSED; this replaces it. NEXT =
+--  Phase C brick 2 (player streaks) / player season models / Phase D (a CPO pick). Records merged facts;
+--  locks no next task.
+--refs: #638; #640–#643; #391; #480; supersedes closed #639
+-+  Build int_player_profile__contribution (a player-profile differentiator, mirroring int_player_profile__yoy) +
+-+  compose it into mart_player_profile + CATALOGUE contribution_share (the new ratio metric). Numerator = goal
+-+  involvements (scorer_points = goals + assists); denominator = the team's whole-season goals_for. Grain
+-+  (player_sk, team_sk, season_sk); attached via the primary club; auto-carries to the export via select *.
+-+refs: #391 Phase D bonus; content_architecture §6.4; mirrors #638 (player YoY) + int_team_season__deserved_vs_actual (#598 catalogued deserved_rank/sot_rank_gap)
++-  Build int_player_profile__contribution (a player-profile differentiator, mirroring int_player_profile__yoy) +
++-  compose it into mart_player_profile + CATALOGUE contribution_share (the new ratio metric). Numerator = goal
++-  involvements (scorer_points = goals + assists); denominator = the team's whole-season goals_for. Grain
++-  (player_sk, team_sk, season_sk); attached via the primary club; auto-carries to the export via select *.
++-refs: #391 Phase D bonus; content_architecture §6.4; mirrors #638 (player YoY) + int_team_season__deserved_vs_actual (#598 catalogued deserved_rank/sot_rank_gap)
+++  Refresh the handover: record #645 (Phase D bonus — player contribution-share `int_player_profile__contribution`
+++  composed into mart_player_profile + catalogued contribution_share) as MERGED; bump the main-GREEN pointer
+++  87598cc -> a08c634; record that Phase C brick 2 (player streaks) is SKIPPED (CPO, 2026-07-03); leave NEXT as
+++  an open CPO pick over the narrowed candidates (Phase D flagship opponent/schedule context + smaller carryovers).
+++
+++refs: #645 (a08c634 Phase D bonus contribution-share); prior refresh c375a99 (post-#643)
+  
+  scope_paths:
+--  - .claude/active_work.md
+-+  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+-+  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
+-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-+  - dbt_project/seeds/metric_catalogue.csv
++-  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++-  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
++-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++-  - dbt_project/seeds/metric_catalogue.csv
+++  - .claude/active_work.md
+    - .claude/task/**
+  
+-+impact_map: >
+-+  writers: NEW int_player_profile__contribution (4_intermediate/shared, table) reads int_legs__player_match +
+-+    int_legs__team_match (composing intermediate; atoms not recomputed). mart_player_profile gains a contribution
+-+    CTE + a left join + 3 columns (scorer_points, team_goals_season, contribution_share). metric_catalogue.csv
+-+    gains ONE row: contribution_share (a NEW player ratio metric).
+-+  downstream: int_player_profile__contribution -> mart_player_profile (the ONLY consumer) -> the v2 player export
+-+    (`select *`, auto-carry, NO export edit). metric_catalogue.csv -> the catalogue-integrity CI tests
+-+    (assert_metric_catalogue_expr_resolvable SKIPS blank-base_relation rows, so contribution_share is skipped like
+-+    deserved_rank; assert_team_metric_meaning_complete exempts PLAYER rows; assert_metric_catalogue_unique_by_entity).
+-+    The drift guard assert_no_uncatalogued_season_metric scans only the 3 season rollups — unaffected. dbt ls is
+-+    CI-only; ref-graph cited from the files.
+-+  layer_rules: intermediate reads two int legs (no mart ref) — layering.md compliant. check_layer_contract passes offline.
+-+  deploy_order: ADDITIVE — a NEW model + 3 NEW nullable mart columns + 1 NEW catalogue row. No rename/drop of any
+-+    EXISTING column/row. ci-data-build builds it; the catalogue seed reloads. No shared-warehouse migration hazard.
+-+  blast_radius: mart_player_profile gains scorer_points + team_goals_season + contribution_share (existing columns/
+-+    numbers UNCHANGED); the export gains them via select *; the catalogue gains contribution_share. No other
+-+    mart / number / metric changed.
+-+
++ impact_map: >
++-  writers: NEW int_player_profile__contribution (4_intermediate/shared, table) reads int_legs__player_match +
++-    int_legs__team_match (composing intermediate; atoms not recomputed). mart_player_profile gains a contribution
++-    CTE + a left join + 3 columns (scorer_points, team_goals_season, contribution_share). metric_catalogue.csv
++-    gains ONE row: contribution_share (a NEW player ratio metric).
++-  downstream: int_player_profile__contribution -> mart_player_profile (the ONLY consumer) -> the v2 player export
++-    (`select *`, auto-carry, NO export edit). metric_catalogue.csv -> the catalogue-integrity CI tests
++-    (assert_metric_catalogue_expr_resolvable SKIPS blank-base_relation rows, so contribution_share is skipped like
++-    deserved_rank; assert_team_metric_meaning_complete exempts PLAYER rows; assert_metric_catalogue_unique_by_entity).
++-    The drift guard assert_no_uncatalogued_season_metric scans only the 3 season rollups — unaffected. dbt ls is
++-    CI-only; ref-graph cited from the files.
++-  layer_rules: intermediate reads two int legs (no mart ref) — layering.md compliant. check_layer_contract passes offline.
++-  deploy_order: ADDITIVE — a NEW model + 3 NEW nullable mart columns + 1 NEW catalogue row. No rename/drop of any
++-    EXISTING column/row. ci-data-build builds it; the catalogue seed reloads. No shared-warehouse migration hazard.
++-  blast_radius: mart_player_profile gains scorer_points + team_goals_season + contribution_share (existing columns/
++-    numbers UNCHANGED); the export gains them via select *; the catalogue gains contribution_share. No other
++-    mart / number / metric changed.
+++  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md` (the handover). No
+++  dbt_project/** model, no scripts/export_*.py, no ingestion/**, no site*/ change — so no data/number/metric
+++  moves and no downstream build impact. The task scaffolding (.claude/task/**) is artifact-only; contract.md is
+++  artifact_only_never so this commit is NOT review-exempt (scope-auditor required).
++ 
+  decisions_taken: >
+--  Bookkeeping only. Header -> post-#643 / main @ 87598cc leading with Phase C brick 1 + the portfolio arc +
+--  the backfill finding; add #638 + #640–643 to the "main carries" line + prepend them to RECENT PRs; replace
+--  the "thin-until-backfill" framing with the finding (5–10 seasons deep); set NEXT = Phase C brick 2 / player
+--  season models / Phase D; keep the open follow-ups; note the CLOSED-#639 supersession. Invents nothing;
+--  locks no next task.
+-+  Metric definition (CPO AskUserQuestion 2026-07-03, logged in escalations.log): numerator = goal involvements
+-+  (goals + assists); denominator = the team's WHOLE-SEASON goals_for; DIRECTION = NEUTRAL (high share = central to
+-+  the team's output but position-dependent; no good/bad colour; mirrors the 7 neutral benchmark metrics).
+-+  contribution_share = safe_divide(scorer_points, team_goals_season); NULL when the team scored 0; invariant
+-+  0 <= share <= 1. Grain (player_sk, team_sk, season_sk); NOT domestic-restricted. NAMING:
+-+  int_player_profile__contribution (mirrors int_player_profile__yoy + shares int_player_profile.yml). The numerator
+-+  atom is named `scorer_points` (the EXISTING catalogued metric goals+assists — reconciled per the analytics-engineer
+-+  A1 finding, NOT a new duplicate name). CATALOGUE: contribution_share added to metric_catalogue.csv with BLANK
+-+  base_relation / numerator_expr / denominator_expr — the deserved_rank/sot_rank_gap flagship-output pattern (the
+-+  formula lives in the description prose + the model; the resolvability guard skips blank-base_relation rows);
+-+  entity=player, format=percent, direction=neutral, metric_group=goals. team_goals_season is the ratio's DENOMINATOR
+-+  COMPONENT carried for the "X of Y team goals · Z%" display triple (like the benchmark's carried num/den atoms) —
+-+  not a standalone metric. Composed into mart_player_profile via the primary club (ta.team_sk). Auto-carry via
+-+  select * (#606). Honest limit (CPO-accepted): the whole-season denominator vs the covered-appearance numerator
+-+  understates the share where the player's match stats are missing — documented in the model header.
++-  Metric definition (CPO AskUserQuestion 2026-07-03, logged in escalations.log): numerator = goal involvements
++-  (goals + assists); denominator = the team's WHOLE-SEASON goals_for; DIRECTION = NEUTRAL (high share = central to
++-  the team's output but position-dependent; no good/bad colour; mirrors the 7 neutral benchmark metrics).
++-  contribution_share = safe_divide(scorer_points, team_goals_season); NULL when the team scored 0; invariant
++-  0 <= share <= 1. Grain (player_sk, team_sk, season_sk); NOT domestic-restricted. NAMING:
++-  int_player_profile__contribution (mirrors int_player_profile__yoy + shares int_player_profile.yml). The numerator
++-  atom is named `scorer_points` (the EXISTING catalogued metric goals+assists — reconciled per the analytics-engineer
++-  A1 finding, NOT a new duplicate name). CATALOGUE: contribution_share added to metric_catalogue.csv with BLANK
++-  base_relation / numerator_expr / denominator_expr — the deserved_rank/sot_rank_gap flagship-output pattern (the
++-  formula lives in the description prose + the model; the resolvability guard skips blank-base_relation rows);
++-  entity=player, format=percent, direction=neutral, metric_group=goals. team_goals_season is the ratio's DENOMINATOR
++-  COMPONENT carried for the "X of Y team goals · Z%" display triple (like the benchmark's carried num/den atoms) —
++-  not a standalone metric. Composed into mart_player_profile via the primary club (ta.team_sk). Auto-carry via
++-  select * (#606). Honest limit (CPO-accepted): the whole-season denominator vs the covered-appearance numerator
++-  understates the share where the player's match stats are missing — documented in the model header.
+++  Record-only. #645 is already merged to main (a08c634) — this refresh does not decide anything new. Player
+++  streaks (Phase C brick 2) recorded as SKIPPED per the CPO (2026-07-03, this session). NEXT stays an OPEN CPO
+++  pick — no next task is locked in.
+  
+  decisions_reserved:
+--  - The next task — CPO picks: Phase C brick 2 (player streaks, mirror int_team_profile__streaks), player
+--    season/YoY-extension models, or Phase D flagship marts (§10 method). Present candidates; do NOT pre-decide.
+--  - Portfolio remaining: the landscape social-preview image (a manual CPO step, per the #643 contract).
+--  - Two tiny doc follow-ups (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only").
+--  - Backfill marginal top-up (low value); not_null hardening on mart_player_career (non-blocking).
+--  - All §10 unchanged.
+-+  - A contribution-share SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
+-+  - All §10 settled by the three AskUserQuestion rulings (numerator, denominator, direction). No other open decision.
++-  - A contribution-share SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
++-  - All §10 settled by the three AskUserQuestion rulings (numerator, denominator, direction). No other open decision.
+++  - The actual next task (Phase D flagship opponent/schedule context method is §10; smaller carryovers) — CPO picks later.
+  
+  done_when:
+--  - active_work.md: header post-#643 (main @ 87598cc); #638 + #640–643 in "main carries" + RECENT PRs; the
+--    backfill finding banked; #639 supersession noted; NEXT = Phase C brick 2 / season / Phase D as a CPO pick;
+--    self-contained for a cold chat.
+--  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+-+  - int_player_profile__contribution builds; grain unique; keys not_null; 0 <= share <= 1 holds; ci-data-build green.
+-+  - mart_player_profile gains scorer_points + team_goals_season + contribution_share; EXISTING numbers unchanged.
+-+  - metric_catalogue.csv has the contribution_share row; the catalogue-integrity tests pass (blank-base_relation skip).
+-+  - python scripts/check_layer_contract.py passes.
+-+  - bq spot-check: a focal striker (Kane, BL1) ~32%; a squad player much lower.
+-+  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
+-+    review.md diff_sha256 binds; CPO merges.
++-  - int_player_profile__contribution builds; grain unique; keys not_null; 0 <= share <= 1 holds; ci-data-build green.
++-  - mart_player_profile gains scorer_points + team_goals_season + contribution_share; EXISTING numbers unchanged.
++-  - metric_catalogue.csv has the contribution_share row; the catalogue-integrity tests pass (blank-base_relation skip).
++-  - python scripts/check_layer_contract.py passes.
++-  - bq spot-check: a focal striker (Kane, BL1) ~32%; a squad player much lower.
++-  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
++-    review.md diff_sha256 binds; CPO merges.
+++  - active_work.md header + FIRST STEPS point at a08c634; #645 recorded as the latest merged PR.
+++  - The Phase D backlog entry marks the contribution-share bonus DONE #645; Phase C marks streaks SKIPPED.
+++  - A #645 entry is prepended to RECENT PRs; the "main carries" line appends #645.
+++  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+  
+--amendments: (none)
+-+amendments:
+-+  - 2026-07-03: post-review scope widening (analytics-engineer A1 FAIL that contribution_share ships uncatalogued;
+-+    CPO-confirmed via the direction AskUserQuestion) — added dbt_project/seeds/metric_catalogue.csv to scope
+-+    (catalogue contribution_share; rename the goal_involvements atom -> the existing catalogued scorer_points).
+-+    Authority: the AE A1 finding (governance-required) + the CPO ruling. Pulls in football-analytics-expert-reviewer.
+-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+-index c3e904d..939b691 100644
+---- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+-@@ -38,3 +38,39 @@ models:
+-         tests: [not_null]
+-       - name: goals_delta_yoy
+-         description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
+-+
+-+  - name: int_player_profile__contribution
+-+    description: >
+-+      Player contribution-share (content_architecture §6.4): the player's goal involvements (goals + assists)
+-+      as a share of the club's WHOLE-SEASON goals_for — "involved in X% of the team's goals." A composing
+-+      differentiator over the player + team legs; NULL when the club scored 0 that competition-season; range
+-+      [0, 1]. Understates where the player's match stats are missing (CPO-accepted honest limit). Grain:
+-+      (player_sk, team_sk, season_sk).
+-+    tests:
+-+      - dbt_utils.unique_combination_of_columns:
+-+          combination_of_columns: [player_sk, team_sk, season_sk]
+-+      - dbt_utils.expression_is_true:
+-+          expression: "contribution_share is null or (contribution_share >= 0 and contribution_share <= 1)"
+-+          name: player_contribution_share_within_unit
+-+    columns:
+-+      - name: player_sk
+-+        tests:
+-+          - not_null
+-+          - relationships:
+-+              to: ref('dim_player')
+-+              field: player_sk
+-+      - name: team_sk
+-+        description: "The player's club that competition-season (contribution is per-club)."
+-+        tests:
+-+          - not_null
+-+          - relationships:
+-+              to: ref('dim_team')
+-+              field: team_sk
+-+      - name: season_sk
+-+        tests: [not_null]
+-+      - name: scorer_points
+-+        description: "The player's goals + assists this club-competition-season (the numerator)."
+-+      - name: team_goals_season
+-+        description: "The club's whole-season goals_for (the denominator)."
+-+      - name: contribution_share
+-+        description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
+-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+-new file mode 100644
+-index 0000000..0dec769
+---- /dev/null
+-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+-@@ -0,0 +1,86 @@
+-+{{ config(materialized='table') }}
++-amendments:
++-  - 2026-07-03: post-review scope widening (analytics-engineer A1 FAIL that contribution_share ships uncatalogued;
++-    CPO-confirmed via the direction AskUserQuestion) — added dbt_project/seeds/metric_catalogue.csv to scope
++-    (catalogue contribution_share; rename the goal_involvements atom -> the existing catalogued scorer_points).
++-    Authority: the AE A1 finding (governance-required) + the CPO ruling. Pulls in football-analytics-expert-reviewer.
+++amendments: []
++diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
++index b4de12a..99cde74 100644
++--- a/.claude/task/escalations.log
+++++ b/.claude/task/escalations.log
++@@ -196,3 +196,6 @@
++       CPO ANSWER (AskUserQuestion, 2026-07-03): **(b) the team's whole-season goals** — a raw total-output share; CPO explicitly accepted the honest limit that the whole-season denominator vs the covered-appearance numerator UNDERSTATES the share where the player's match stats are missing.
++ This entry is the durable record of the metric-definition authority the contract's decisions_taken rests on.
++       CPO ANSWER (AskUserQuestion, 2026-07-03, direction) — after the analytics-engineer A1 FAIL: contribution_share must be CATALOGUED (a new ratio metric; the metric_catalogue is the SSoT, and the team flagship-read outputs deserved_rank/sot_rank_gap were catalogued at #598). Direction = **neutral** (high involvement-share = central to the team's output but position-dependent; a defender's naturally-low share is not "bad"; no good/bad colour, mirrors the 7 neutral benchmark metrics). Fix: add contribution_share to metric_catalogue.csv (blank base_relation, the deserved_rank/sot_rank_gap pattern; format percent) + reconcile goal_involvements -> the existing catalogued scorer_points. Scope widened to metric_catalogue.csv + football-analytics-expert-reviewer (CPO-confirmed).
+ +
+-+{#
+-+  Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
+-+  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
+-+  int_player_profile__yoy). "Involved in 45% of Bayern's goals."
+-+
+-+  Metric definition (CPO, AskUserQuestion 2026-07-03):
+-+    - numerator = scorer_points = goals_total + goals_assists (summed over the player's appearances-with-stats)
+-+    - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
+-+      authoritative scoreline), NOT just the matches the player appeared in.
+-+    - contribution_share = scorer_points / team_goals_season. Range [0, 1] (a player's G+A over his
+-+      appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
+-+
+-+  Honest limit (CPO-accepted): player stats are sparse (many matches lack statistics_players). Where the
+-+  player's stats are missing for a game he played, his involvements there go uncounted while the whole-season
+-+  denominator stays complete — so the share UNDERSTATES for players with coverage gaps. Absence is honest.
+-+
+-+  A COMPOSING intermediate: it reuses the leg atoms, never recomputing them (mirrors
+-+  int_team_season__deserved_vs_actual). season_sk is inherited from the team leg (the player leg carries only
+-+  season_api_year + league_code). NOT domestic-restricted — the ratio is valid in any competition and
+-+  self-restricts to where player-stat data exists (no player leg -> no numerator -> no row).
+-+
+-+  Grain: (player_sk, team_sk, season_sk) — one row per player's club-competition-season; a mid-season transfer
+-+  yields two rows. mart_player_profile attaches the player's primary-club row.
+-+#}
+-+
+-+with player_legs as (
+-+    select
+-+        player_sk,
+-+        team_sk,
+-+        fixture_sk,
+-+        goals_total,
+-+        goals_assists
+-+    from {{ ref('int_legs__player_match') }}
+-+),
+-+
+-+team_legs as (
+-+    select
+-+        team_sk,
+-+        season_sk,
+-+        league_code,
+-+        season_api_year,
+-+        fixture_sk,
+-+        goals_for
+-+    from {{ ref('int_legs__team_match') }}
+-+),
+-+
+-+-- Numerator: the player's goal involvements per (player, club, competition-season). The join to the team leg
+-+-- on (fixture_sk, team_sk) supplies season_sk (absent on the player leg) and confirms the finished team match.
+-+involvements as (
+-+    select
+-+        pl.player_sk,
+-+        pl.team_sk,
+-+        tl.season_sk,
+-+        any_value(tl.league_code) as league_code,
+-+        any_value(tl.season_api_year) as season_api_year,
+-+        sum(pl.goals_total + pl.goals_assists) as scorer_points
+-+    from player_legs as pl
+-+    inner join team_legs as tl
+-+        on pl.fixture_sk = tl.fixture_sk and pl.team_sk = tl.team_sk
+-+    group by pl.player_sk, pl.team_sk, tl.season_sk
+-+),
+-+
+-+-- Denominator: the club's whole-season goals_for (all its matches that competition-season).
+-+team_goals as (
+-+    select
+-+        team_sk,
+-+        season_sk,
+-+        sum(goals_for) as team_goals_season
+-+    from team_legs
+-+    group by team_sk, season_sk
+-+)
+-+
+-+select
+-+    inv.player_sk,
+-+    inv.team_sk,
+-+    inv.season_sk,
+-+    inv.league_code,
+-+    inv.season_api_year,
+-+    inv.scorer_points,
+-+    tg.team_goals_season,
+-+    safe_divide(inv.scorer_points, tg.team_goals_season) as contribution_share
+-+from involvements as inv
+-+inner join team_goals as tg
+-+    on inv.team_sk = tg.team_sk and inv.season_sk = tg.season_sk
+-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+-index cf58b53..2b68f29 100644
+---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
+-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+-@@ -80,6 +80,12 @@ teams as (
+- -- latest season per (player, club, league) has a YoY row; older seasons get NULL.
+- yoy as (
+-     select * from {{ ref('int_player_profile__yoy') }}
+-+),
+-+
+-+-- Phase D bonus: goal-involvement share of the club's whole-season goals, for the player's PRIMARY club
+-+-- that competition-season (content_architecture §6.4).
+-+contribution as (
+-+    select * from {{ ref('int_player_profile__contribution') }}
+- )
+- 
+- select
+-@@ -159,7 +165,12 @@ select
+-     y.key_passes_delta_yoy,
+-     y.defensive_actions_this_season,
+-     y.defensive_actions_prev_season,
+--    y.defensive_actions_delta_yoy
+-+    y.defensive_actions_delta_yoy,
+-+    -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
+-+    -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
+-+    c.scorer_points,
+-+    c.team_goals_season,
+-+    c.contribution_share
+- from season as a
+- left join players as p
+-     on a.player_sk = p.player_sk
+-@@ -180,3 +191,8 @@ left join yoy as y
+-         and ta.team_sk = y.team_sk
+-         and a.league_code = y.league_code
+-         and a.season_api_year = y.season_api_year
+-+left join contribution as c
+-+    on
+-+        a.player_sk = c.player_sk
+-+        and ta.team_sk = c.team_sk
+-+        and a.season_sk = c.season_sk
+-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+-index a7c02a8..894b1b7 100644
+---- a/dbt_project/seeds/metric_catalogue.csv
+-+++ b/dbt_project/seeds/metric_catalogue.csv
+-@@ -76,3 +76,4 @@ sot_difference,team,metrics.sot_difference.label,Average shots-on-target differe
+- shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average shots on target conceded per match in the window. The defensive companion to sot_difference. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),true,decimal_1,shooting,,,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
+- deserved_rank,team,metrics.deserved_rank.label,Rank of the team within its league-season by sot_difference (descending; 1 = best on-target difference) - the process-deserved table position. Not aggregated from match legs; computed by ranking the sot_difference metric. Null when the league-season is not fully rankable (some team lacks full shots-on-target coverage or a league rank).,,,,true,integer,,,,lower_better,Deserved league position - 1 = best on-target difference; where the process says the team should sit
+- sot_rank_gap,team,metrics.sot_rank_gap.label,"Rank-space deserved-vs-actual gap: actual_rank - deserved_rank, where actual_rank = league_rank and deserved_rank = the team's rank by sot_difference within its league-season. Positive = under-performing (table position below where the on-target process deserves); negative = over-performing. Rank-derived, not an aggregate of match legs. Null when the league-season is not fully rankable.",,,,false,integer,,,,neutral,"Deserved-vs-actual gap - actual minus deserved rank; positive = results lag the process (due a correction), negative = results flatter it (regression risk). A narrative, not good or bad"
+-+contribution_share,player,playerMetrics.contributionShare.label,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing (whole-season denominator vs covered-appearance numerator, CPO-accepted). Null when the club scored 0 that competition-season.",,,,false,percent,goals,,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
+++2026-07-03 chore/handover-refresh-post-645 — Phase C brick 2 (player streaks) SKIPPED. Recorded during the post-#645 handover refresh. The prior session (which got stuck) had already agreed with the CPO to drop player streaks (the player mirror of int_team_profile__streaks) from the Phase C chain; that decision was never logged because the chat stalled before the refresh landed. The CPO reaffirmed it at the start of this session ("We already agreed to skip player streaks"). This is a §10 scope/phase decision (deciding NOT to build a candidate feature).
+++      CPO ANSWER (conversation, 2026-07-03): **SKIP Phase C brick 2 (player streaks)** — do NOT build the player streaks model; it is dropped from the candidate backlog, not merely deferred. Phase C remaining is limited to the optional player season / YoY-extension models. This entry is the durable record of the skip that the handover (active_work.md) and this refresh's contract decisions_taken rest on.
++diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
++index 621d048..b8e408e 100644
++--- a/.claude/task/review_input.patch
+++++ b/.claude/task/review_input.patch
++@@ -1,296 +1,190 @@
+++diff --git a/.claude/active_work.md b/.claude/active_work.md
+++index 72a9ff1..94b74a3 100644
+++--- a/.claude/active_work.md
++++++ b/.claude/active_work.md
+++@@ -4,7 +4,7 @@
+++ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+++ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
+++ 
+++-_Last updated: **2026-07-03** — main GREEN at **87598cc**. **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick**: **Phase C brick 2** (player streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models; or **Phase D** flagship marts (§10 method). Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
++++_Last updated: **2026-07-03** — main GREEN at **a08c634**. **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): **Phase D flagship marts** — opponent/schedule context (§10 method, football-analytics); player **season / YoY-extension** models (on `int_player_club_season__metrics` / `int_player_season_record`); or smaller catalogue/window carryovers (#530(b) player metric rows, #510, #484). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
+++ 
+++ ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
+++ The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
+++@@ -21,20 +21,22 @@ SQLFluff, CI-only — `validate` misses them): LT02 indent on the num/den `{% if
+++ "Unrecognized name: goals_penalty" (aggregated-but-not-output) → exposed it via a CI-driven scope amendment.
+++ Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based** screen, still un-spec'd.
+++ 
+++-main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
++++main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`) + **#645** (**Phase D bonus** — player contribution-share `int_player_profile__contribution` + `mart_player_profile` composition + catalogued `contribution_share`). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+++ 
+++ ### FIRST STEPS (cold chat — do in order)
+++-1. `git checkout main && git pull`. **main GREEN at 87598cc** (or later if this refresh merged). Confirm tree clean.
+++-2. Read this file top-to-bottom before touching anything (esp. the header lead + the #643 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
++++1. `git checkout main && git pull`. **main GREEN at a08c634** (or later if this refresh merged). Confirm tree clean.
++++2. Read this file top-to-bottom before touching anything (esp. the header lead + the #645 + #638 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
+++ 3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **Phase C brick 1 (player YoY) is
+++    MERGED (#638)** — `int_player_profile__yoy` composed into `mart_player_profile`; the **portfolio arc
+++-   #640–643 is MERGED** (README funnel + dbt-docs site). **The history backfill is effectively DONE** (RAW +
+++-   `mart_player_career` are 5–10 seasons deep across domestic leagues; the "thin-until-backfill" premise was
+++-   STALE — do NOT re-scope a big backfill; see the header finding). Candidates: **Phase C brick 2** (player
+++-   streaks, mirror `int_team_profile__streaks`); player **season / YoY-extension** models (on
+++-   `int_player_club_season__metrics` / `int_player_season_record`); **Phase D** flagship marts
+++-   (opponent/schedule context + contribution-share — §10 method). (Doc-sync DONE #636; player YoY DONE #638.)
+++-   Present candidates + get the CPO's pick;
++++   #640–643 is MERGED** (README funnel + dbt-docs site); **Phase D bonus (player contribution-share) is
++++   MERGED (#645)** — `int_player_profile__contribution` composed into `mart_player_profile` + catalogued
++++   `contribution_share`. **Player streaks (Phase C brick 2) is SKIPPED (CPO).** **The history backfill is
++++   effectively DONE** (RAW + `mart_player_career` are 5–10 seasons deep across domestic leagues; the
++++   "thin-until-backfill" premise was STALE — do NOT re-scope a big backfill; see the header finding).
++++   Candidates: **Phase D flagship marts** (opponent/schedule context — §10 method); player **season /
++++   YoY-extension** models (on `int_player_club_season__metrics` / `int_player_season_record`); or smaller
++++   catalogue/window carryovers (#530(b), #510, #484). (Doc-sync DONE #636; player YoY DONE #638; contribution
++++   DONE #645.) Present candidates + get the CPO's pick;
+++    ENTER PLAN MODE for any code/model/metric task. #391 un-paused but NARROW — do NOT touch the live MVP or
+++    start the frontend.
+++ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
+++@@ -97,10 +99,12 @@ carries it)** first, then build the frontend against a stable export. The live M
+++   `int_player_club_season__metrics` + rebuilt `mart_player_career`; **Career screen SPEC'D (#632) + WIRED
+++   (#634, GAP-22).** **Player YoY DONE (#638)** — `int_player_profile__yoy` (mirror of `int_team_profile__yoy`)
+++   → `mart_player_profile`. The **history backfill is effectively DONE** (5–10 seasons deep; the premise was
+++-  stale). Remaining: **brick 2 player streaks** (mirror `int_team_profile__streaks`) + player **season /
+++-  YoY-extension** models. A chain.
+++-- **Phase D — design-heavy flagship marts (DECIDE first):** opponent/schedule context (§10 method, football-analytics)
+++-  + contribution-share (§10 definition). New marts.
++++  stale). **Brick 2 player streaks is SKIPPED (CPO, 2026-07-03)** — not pending. Remaining: player **season /
++++  YoY-extension** models (optional).
++++- **Phase D — design-heavy flagship marts (DECIDE first):** **bonus contribution-share DONE (#645)** —
++++  `int_player_profile__contribution` (goal-involvement share of the club's whole-season goals; NEUTRAL;
++++  §10 definition CPO-locked 2026-07-03) → `mart_player_profile` + catalogued `contribution_share`. Remaining:
++++  **opponent/schedule context** (§10 method, football-analytics) — a NEW mart, still to DECIDE.
+++ - **Phase E (separate, the big lift, AFTER all green):** build the v2 frontend (Astro #366/#368) against the export.
+++ 
+++ ### ⚠️ Two STALE-WIREFRAME flags (reconcile separately; NOT decided)
+++@@ -117,6 +121,22 @@ carries it)** first, then build the frontend against a stable export. The live M
+++ 
+++ ### ⭐ RECENT PRs
+++ 
++++- **#645 — Phase D bonus: player contribution-share (int_player_profile__contribution), MERGED.** dbt-only.
++++  NEW `int_player_profile__contribution` (4_intermediate/shared, table) = a player's goal-involvement share of
++++  the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). A composing intermediate over
++++  `int_legs__player_match` + `int_legs__team_match` (atoms NOT recomputed; mirrors
++++  `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL
++++  where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club
++++  (left join, additive/nullable) → auto-carries `scorer_points` + `team_goals_season` + `contribution_share`
++++  to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the
++++  deserved_rank/sot_rank_gap flagship-output pattern, resolvability guard skips it; entity=player,
++++  format=percent, direction=**NEUTRAL**, metric_group=goals); the numerator atom reuses the existing catalogued
++++  `scorer_points` (goals + assists). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator =
++++  goal involvements; denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only —
++++  no coverage-gate in the exprs): the share understates where the player's per-match stats are missing. Review:
++++  scope-auditor + analytics-engineer + football-analytics PASS; ci-data-build green. A contribution-share
++++  **screen** (wireframe + explicit export shaping) is a later gap, not this brick. Closes the Phase D **bonus**;
++++  the Phase D **flagship** (opponent/schedule context) is still to DECIDE.
+++ - **#643 — publish dbt docs lineage site at /dbt-docs/, MERGED.** Portfolio/CI. Folded a public, static dbt
+++   docs site (model lineage graph + descriptions + columns) into the EXISTING GitHub Pages deploy: one additive
+++   `dbt docs generate --static` step (continue-on-error) in `pages-match-preview.yml`, a `-f`-guarded copy of
++ diff --git a/.claude/task/contract.md b/.claude/task/contract.md
++-index 546b84e..df939fe 100644
+++index df939fe..7a4819e 100644
++ --- a/.claude/task/contract.md
++ +++ b/.claude/task/contract.md
++-@@ -1,45 +1,74 @@
++--# Task contract — handover refresh (post-#643; catch up #638 + #640–643)
++-+# Task contract — player contribution-share (int_player_profile__contribution + catalogue)
+++@@ -1,74 +1,40 @@
+++-# Task contract — player contribution-share (int_player_profile__contribution + catalogue)
++++# Task contract — handover refresh (post-#645, Phase D bonus contribution-share merged)
++  
++--> Written on a CLEAN tree (branch chore/handover-refresh-643 off main @ 87598cc).
++--> Bookkeeping only. main's active_work.md was STALE at post-#636 (the last landed refresh was #637); since
++--> then #638 (Phase C brick 1) + #640–643 (portfolio README + dbt-docs site) merged and NO handover landed
++--> (my post-#638 refresh #639 was superseded by #640–643 and CLOSED). Bring the handover current to post-#643.
++--> Handover refreshes skip plan mode (CPO carve-out 2026-06-30).
++-+> Written on a CLEAN tree (branch feat/player-contribution-share off main @ c375a99).
++-+> Phase D "bonus" flagship read (content_architecture §6.4): a player's goal-involvement share of the team's
++-+> WHOLE-SEASON goals ("involved in X% of Bayern's goals"). Scope widened post-review to CATALOGUE the new ratio
++-+> metric (analytics-engineer A1 finding, CPO-confirmed) — adds metric_catalogue.csv + the football-analytics reviewer.
+++-> Written on a CLEAN tree (branch feat/player-contribution-share off main @ c375a99).
+++-> Phase D "bonus" flagship read (content_architecture §6.4): a player's goal-involvement share of the team's
+++-> WHOLE-SEASON goals ("involved in X% of Bayern's goals"). Scope widened post-review to CATALOGUE the new ratio
+++-> metric (analytics-engineer A1 finding, CPO-confirmed) — adds metric_catalogue.csv + the football-analytics reviewer.
++++> Written on a CLEAN tree (branch chore/handover-refresh-post-645 off main @ a08c634).
++++> Bookkeeping only — brings `.claude/active_work.md` current from its stale post-#643 state (pointer 87598cc)
++++> to post-#645 (a08c634). No code, no model, no metric change. Plan mode skipped per the CPO handover carve-out
++++> (2026-06-30); still runs the contract + review + gate.
++  
++  objective: >
++--  main @ 87598cc is SIX merges ahead of its handover (stuck at post-#636 / #637): #638 (Phase C brick 1 —
++--  player YoY int_player_profile__yoy -> mart_player_profile), and the portfolio arc #640 (README funnel +
++--  badges + architecture diagram) / #641 (MVP screenshot) / #642 (Design-decisions section) / #643 (public
++--  dbt docs lineage site at /dbt-docs/, folded into the existing Pages deploy). Also bank this session's
++--  BACKFILL FINDING (backfill effectively done — RAW + mart_player_career 5–10 seasons deep; "thin-until-backfill"
++--  was STALE). The post-#638 refresh #639 was superseded by #640–643 and CLOSED; this replaces it. NEXT =
++--  Phase C brick 2 (player streaks) / player season models / Phase D (a CPO pick). Records merged facts;
++--  locks no next task.
++--refs: #638; #640–#643; #391; #480; supersedes closed #639
++-+  Build int_player_profile__contribution (a player-profile differentiator, mirroring int_player_profile__yoy) +
++-+  compose it into mart_player_profile + CATALOGUE contribution_share (the new ratio metric). Numerator = goal
++-+  involvements (scorer_points = goals + assists); denominator = the team's whole-season goals_for. Grain
++-+  (player_sk, team_sk, season_sk); attached via the primary club; auto-carries to the export via select *.
++-+refs: #391 Phase D bonus; content_architecture §6.4; mirrors #638 (player YoY) + int_team_season__deserved_vs_actual (#598 catalogued deserved_rank/sot_rank_gap)
+++-  Build int_player_profile__contribution (a player-profile differentiator, mirroring int_player_profile__yoy) +
+++-  compose it into mart_player_profile + CATALOGUE contribution_share (the new ratio metric). Numerator = goal
+++-  involvements (scorer_points = goals + assists); denominator = the team's whole-season goals_for. Grain
+++-  (player_sk, team_sk, season_sk); attached via the primary club; auto-carries to the export via select *.
+++-refs: #391 Phase D bonus; content_architecture §6.4; mirrors #638 (player YoY) + int_team_season__deserved_vs_actual (#598 catalogued deserved_rank/sot_rank_gap)
++++  Refresh the handover: record #645 (Phase D bonus — player contribution-share `int_player_profile__contribution`
++++  composed into mart_player_profile + catalogued contribution_share) as MERGED; bump the main-GREEN pointer
++++  87598cc -> a08c634; record that Phase C brick 2 (player streaks) is SKIPPED (CPO, 2026-07-03); leave NEXT as
++++  an open CPO pick over the narrowed candidates (Phase D flagship opponent/schedule context + smaller carryovers).
++++
++++refs: #645 (a08c634 Phase D bonus contribution-share); prior refresh c375a99 (post-#643)
++  
++  scope_paths:
++--  - .claude/active_work.md
++-+  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++-+  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
++-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++-+  - dbt_project/seeds/metric_catalogue.csv
+++-  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+++-  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
+++-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+++-  - dbt_project/seeds/metric_catalogue.csv
++++  - .claude/active_work.md
++    - .claude/task/**
++  
++-+impact_map: >
++-+  writers: NEW int_player_profile__contribution (4_intermediate/shared, table) reads int_legs__player_match +
++-+    int_legs__team_match (composing intermediate; atoms not recomputed). mart_player_profile gains a contribution
++-+    CTE + a left join + 3 columns (scorer_points, team_goals_season, contribution_share). metric_catalogue.csv
++-+    gains ONE row: contribution_share (a NEW player ratio metric).
++-+  downstream: int_player_profile__contribution -> mart_player_profile (the ONLY consumer) -> the v2 player export
++-+    (`select *`, auto-carry, NO export edit). metric_catalogue.csv -> the catalogue-integrity CI tests
++-+    (assert_metric_catalogue_expr_resolvable SKIPS blank-base_relation rows, so contribution_share is skipped like
++-+    deserved_rank; assert_team_metric_meaning_complete exempts PLAYER rows; assert_metric_catalogue_unique_by_entity).
++-+    The drift guard assert_no_uncatalogued_season_metric scans only the 3 season rollups — unaffected. dbt ls is
++-+    CI-only; ref-graph cited from the files.
++-+  layer_rules: intermediate reads two int legs (no mart ref) — layering.md compliant. check_layer_contract passes offline.
++-+  deploy_order: ADDITIVE — a NEW model + 3 NEW nullable mart columns + 1 NEW catalogue row. No rename/drop of any
++-+    EXISTING column/row. ci-data-build builds it; the catalogue seed reloads. No shared-warehouse migration hazard.
++-+  blast_radius: mart_player_profile gains scorer_points + team_goals_season + contribution_share (existing columns/
++-+    numbers UNCHANGED); the export gains them via select *; the catalogue gains contribution_share. No other
++-+    mart / number / metric changed.
++-+
+++ impact_map: >
+++-  writers: NEW int_player_profile__contribution (4_intermediate/shared, table) reads int_legs__player_match +
+++-    int_legs__team_match (composing intermediate; atoms not recomputed). mart_player_profile gains a contribution
+++-    CTE + a left join + 3 columns (scorer_points, team_goals_season, contribution_share). metric_catalogue.csv
+++-    gains ONE row: contribution_share (a NEW player ratio metric).
+++-  downstream: int_player_profile__contribution -> mart_player_profile (the ONLY consumer) -> the v2 player export
+++-    (`select *`, auto-carry, NO export edit). metric_catalogue.csv -> the catalogue-integrity CI tests
+++-    (assert_metric_catalogue_expr_resolvable SKIPS blank-base_relation rows, so contribution_share is skipped like
+++-    deserved_rank; assert_team_metric_meaning_complete exempts PLAYER rows; assert_metric_catalogue_unique_by_entity).
+++-    The drift guard assert_no_uncatalogued_season_metric scans only the 3 season rollups — unaffected. dbt ls is
+++-    CI-only; ref-graph cited from the files.
+++-  layer_rules: intermediate reads two int legs (no mart ref) — layering.md compliant. check_layer_contract passes offline.
+++-  deploy_order: ADDITIVE — a NEW model + 3 NEW nullable mart columns + 1 NEW catalogue row. No rename/drop of any
+++-    EXISTING column/row. ci-data-build builds it; the catalogue seed reloads. No shared-warehouse migration hazard.
+++-  blast_radius: mart_player_profile gains scorer_points + team_goals_season + contribution_share (existing columns/
+++-    numbers UNCHANGED); the export gains them via select *; the catalogue gains contribution_share. No other
+++-    mart / number / metric changed.
++++  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md` (the handover). No
++++  dbt_project/** model, no scripts/export_*.py, no ingestion/**, no site*/ change — so no data/number/metric
++++  moves and no downstream build impact. The task scaffolding (.claude/task/**) is artifact-only; contract.md is
++++  artifact_only_never so this commit is NOT review-exempt (scope-auditor required).
+++ 
++  decisions_taken: >
++--  Bookkeeping only. Header -> post-#643 / main @ 87598cc leading with Phase C brick 1 + the portfolio arc +
++--  the backfill finding; add #638 + #640–643 to the "main carries" line + prepend them to RECENT PRs; replace
++--  the "thin-until-backfill" framing with the finding (5–10 seasons deep); set NEXT = Phase C brick 2 / player
++--  season models / Phase D; keep the open follow-ups; note the CLOSED-#639 supersession. Invents nothing;
++--  locks no next task.
++-+  Metric definition (CPO AskUserQuestion 2026-07-03, logged in escalations.log): numerator = goal involvements
++-+  (goals + assists); denominator = the team's WHOLE-SEASON goals_for; DIRECTION = NEUTRAL (high share = central to
++-+  the team's output but position-dependent; no good/bad colour; mirrors the 7 neutral benchmark metrics).
++-+  contribution_share = safe_divide(scorer_points, team_goals_season); NULL when the team scored 0; invariant
++-+  0 <= share <= 1. Grain (player_sk, team_sk, season_sk); NOT domestic-restricted. NAMING:
++-+  int_player_profile__contribution (mirrors int_player_profile__yoy + shares int_player_profile.yml). The numerator
++-+  atom is named `scorer_points` (the EXISTING catalogued metric goals+assists — reconciled per the analytics-engineer
++-+  A1 finding, NOT a new duplicate name). CATALOGUE: contribution_share added to metric_catalogue.csv with BLANK
++-+  base_relation / numerator_expr / denominator_expr — the deserved_rank/sot_rank_gap flagship-output pattern (the
++-+  formula lives in the description prose + the model; the resolvability guard skips blank-base_relation rows);
++-+  entity=player, format=percent, direction=neutral, metric_group=goals. team_goals_season is the ratio's DENOMINATOR
++-+  COMPONENT carried for the "X of Y team goals · Z%" display triple (like the benchmark's carried num/den atoms) —
++-+  not a standalone metric. Composed into mart_player_profile via the primary club (ta.team_sk). Auto-carry via
++-+  select * (#606). Honest limit (CPO-accepted): the whole-season denominator vs the covered-appearance numerator
++-+  understates the share where the player's match stats are missing — documented in the model header.
+++-  Metric definition (CPO AskUserQuestion 2026-07-03, logged in escalations.log): numerator = goal involvements
+++-  (goals + assists); denominator = the team's WHOLE-SEASON goals_for; DIRECTION = NEUTRAL (high share = central to
+++-  the team's output but position-dependent; no good/bad colour; mirrors the 7 neutral benchmark metrics).
+++-  contribution_share = safe_divide(scorer_points, team_goals_season); NULL when the team scored 0; invariant
+++-  0 <= share <= 1. Grain (player_sk, team_sk, season_sk); NOT domestic-restricted. NAMING:
+++-  int_player_profile__contribution (mirrors int_player_profile__yoy + shares int_player_profile.yml). The numerator
+++-  atom is named `scorer_points` (the EXISTING catalogued metric goals+assists — reconciled per the analytics-engineer
+++-  A1 finding, NOT a new duplicate name). CATALOGUE: contribution_share added to metric_catalogue.csv with BLANK
+++-  base_relation / numerator_expr / denominator_expr — the deserved_rank/sot_rank_gap flagship-output pattern (the
+++-  formula lives in the description prose + the model; the resolvability guard skips blank-base_relation rows);
+++-  entity=player, format=percent, direction=neutral, metric_group=goals. team_goals_season is the ratio's DENOMINATOR
+++-  COMPONENT carried for the "X of Y team goals · Z%" display triple (like the benchmark's carried num/den atoms) —
+++-  not a standalone metric. Composed into mart_player_profile via the primary club (ta.team_sk). Auto-carry via
+++-  select * (#606). Honest limit (CPO-accepted): the whole-season denominator vs the covered-appearance numerator
+++-  understates the share where the player's match stats are missing — documented in the model header.
++++  Record-only. #645 is already merged to main (a08c634) — this refresh does not decide anything new. Player
++++  streaks (Phase C brick 2) recorded as SKIPPED per the CPO (2026-07-03, this session). NEXT stays an OPEN CPO
++++  pick — no next task is locked in.
++  
++  decisions_reserved:
++--  - The next task — CPO picks: Phase C brick 2 (player streaks, mirror int_team_profile__streaks), player
++--    season/YoY-extension models, or Phase D flagship marts (§10 method). Present candidates; do NOT pre-decide.
++--  - Portfolio remaining: the landscape social-preview image (a manual CPO step, per the #643 contract).
++--  - Two tiny doc follow-ups (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only").
++--  - Backfill marginal top-up (low value); not_null hardening on mart_player_career (non-blocking).
++--  - All §10 unchanged.
++-+  - A contribution-share SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
++-+  - All §10 settled by the three AskUserQuestion rulings (numerator, denominator, direction). No other open decision.
+++-  - A contribution-share SCREEN (wireframe + explicit export shaping) is a later gap, not this brick.
+++-  - All §10 settled by the three AskUserQuestion rulings (numerator, denominator, direction). No other open decision.
++++  - The actual next task (Phase D flagship opponent/schedule context method is §10; smaller carryovers) — CPO picks later.
++  
++  done_when:
++--  - active_work.md: header post-#643 (main @ 87598cc); #638 + #640–643 in "main carries" + RECENT PRs; the
++--    backfill finding banked; #639 supersession noted; NEXT = Phase C brick 2 / season / Phase D as a CPO pick;
++--    self-contained for a cold chat.
++--  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
++-+  - int_player_profile__contribution builds; grain unique; keys not_null; 0 <= share <= 1 holds; ci-data-build green.
++-+  - mart_player_profile gains scorer_points + team_goals_season + contribution_share; EXISTING numbers unchanged.
++-+  - metric_catalogue.csv has the contribution_share row; the catalogue-integrity tests pass (blank-base_relation skip).
++-+  - python scripts/check_layer_contract.py passes.
++-+  - bq spot-check: a focal striker (Kane, BL1) ~32%; a squad player much lower.
++-+  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
++-+    review.md diff_sha256 binds; CPO merges.
++- 
++--amendments: (none)
++-+amendments:
++-+  - 2026-07-03: post-review scope widening (analytics-engineer A1 FAIL that contribution_share ships uncatalogued;
++-+    CPO-confirmed via the direction AskUserQuestion) — added dbt_project/seeds/metric_catalogue.csv to scope
++-+    (catalogue contribution_share; rename the goal_involvements atom -> the existing catalogued scorer_points).
++-+    Authority: the AE A1 finding (governance-required) + the CPO ruling. Pulls in football-analytics-expert-reviewer.
++-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++-index c3e904d..939b691 100644
++---- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++-@@ -38,3 +38,39 @@ models:
++-         tests: [not_null]
++-       - name: goals_delta_yoy
++-         description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
++-+
++-+  - name: int_player_profile__contribution
++-+    description: >
++-+      Player contribution-share (content_architecture §6.4): the player's goal involvements (goals + assists)
++-+      as a share of the club's WHOLE-SEASON goals_for — "involved in X% of the team's goals." A composing
++-+      differentiator over the player + team legs; NULL when the club scored 0 that competition-season; range
++-+      [0, 1]. Understates where the player's match stats are missing (CPO-accepted honest limit). Grain:
++-+      (player_sk, team_sk, season_sk).
++-+    tests:
++-+      - dbt_utils.unique_combination_of_columns:
++-+          combination_of_columns: [player_sk, team_sk, season_sk]
++-+      - dbt_utils.expression_is_true:
++-+          expression: "contribution_share is null or (contribution_share >= 0 and contribution_share <= 1)"
++-+          name: player_contribution_share_within_unit
++-+    columns:
++-+      - name: player_sk
++-+        tests:
++-+          - not_null
++-+          - relationships:
++-+              to: ref('dim_player')
++-+              field: player_sk
++-+      - name: team_sk
++-+        description: "The player's club that competition-season (contribution is per-club)."
++-+        tests:
++-+          - not_null
++-+          - relationships:
++-+              to: ref('dim_team')
++-+              field: team_sk
++-+      - name: season_sk
++-+        tests: [not_null]
++-+      - name: scorer_points
++-+        description: "The player's goals + assists this club-competition-season (the numerator)."
++-+      - name: team_goals_season
++-+        description: "The club's whole-season goals_for (the denominator)."
++-+      - name: contribution_share
++-+        description: "scorer_points / team_goals_season. NULL when the club scored 0 that competition-season."
++-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++-new file mode 100644
++-index 0000000..0dec769
++---- /dev/null
++-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++-@@ -0,0 +1,86 @@
++-+{{ config(materialized='table') }}
++-+
++-+{#
++-+  Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
++-+  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
++-+  int_player_profile__yoy). "Involved in 45% of Bayern's goals."
++-+
++-+  Metric definition (CPO, AskUserQuestion 2026-07-03):
++-+    - numerator = scorer_points = goals_total + goals_assists (summed over the player's appearances-with-stats)
++-+    - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
++-+      authoritative scoreline), NOT just the matches the player appeared in.
++-+    - contribution_share = scorer_points / team_goals_season. Range [0, 1] (a player's G+A over his
++-+      appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
++-+
++-+  Honest limit (CPO-accepted): player stats are sparse (many matches lack statistics_players). Where the
++-+  player's stats are missing for a game he played, his involvements there go uncounted while the whole-season
++-+  denominator stays complete — so the share UNDERSTATES for players with coverage gaps. Absence is honest.
++-+
++-+  A COMPOSING intermediate: it reuses the leg atoms, never recomputing them (mirrors
++-+  int_team_season__deserved_vs_actual). season_sk is inherited from the team leg (the player leg carries only
++-+  season_api_year + league_code). NOT domestic-restricted — the ratio is valid in any competition and
++-+  self-restricts to where player-stat data exists (no player leg -> no numerator -> no row).
++-+
++-+  Grain: (player_sk, team_sk, season_sk) — one row per player's club-competition-season; a mid-season transfer
++-+  yields two rows. mart_player_profile attaches the player's primary-club row.
++-+#}
++-+
++-+with player_legs as (
++-+    select
++-+        player_sk,
++-+        team_sk,
++-+        fixture_sk,
++-+        goals_total,
++-+        goals_assists
++-+    from {{ ref('int_legs__player_match') }}
++-+),
++-+
++-+team_legs as (
++-+    select
++-+        team_sk,
++-+        season_sk,
++-+        league_code,
++-+        season_api_year,
++-+        fixture_sk,
++-+        goals_for
++-+    from {{ ref('int_legs__team_match') }}
++-+),
++-+
++-+-- Numerator: the player's goal involvements per (player, club, competition-season). The join to the team leg
++-+-- on (fixture_sk, team_sk) supplies season_sk (absent on the player leg) and confirms the finished team match.
++-+involvements as (
++-+    select
++-+        pl.player_sk,
++-+        pl.team_sk,
++-+        tl.season_sk,
++-+        any_value(tl.league_code) as league_code,
++-+        any_value(tl.season_api_year) as season_api_year,
++-+        sum(pl.goals_total + pl.goals_assists) as scorer_points
++-+    from player_legs as pl
++-+    inner join team_legs as tl
++-+        on pl.fixture_sk = tl.fixture_sk and pl.team_sk = tl.team_sk
++-+    group by pl.player_sk, pl.team_sk, tl.season_sk
++-+),
++-+
++-+-- Denominator: the club's whole-season goals_for (all its matches that competition-season).
++-+team_goals as (
++-+    select
++-+        team_sk,
++-+        season_sk,
++-+        sum(goals_for) as team_goals_season
++-+    from team_legs
++-+    group by team_sk, season_sk
++-+)
++-+
++-+select
++-+    inv.player_sk,
++-+    inv.team_sk,
++-+    inv.season_sk,
++-+    inv.league_code,
++-+    inv.season_api_year,
++-+    inv.scorer_points,
++-+    tg.team_goals_season,
++-+    safe_divide(inv.scorer_points, tg.team_goals_season) as contribution_share
++-+from involvements as inv
++-+inner join team_goals as tg
++-+    on inv.team_sk = tg.team_sk and inv.season_sk = tg.season_sk
++-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
++-index cf58b53..2b68f29 100644
++---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
++-@@ -80,6 +80,12 @@ teams as (
++- -- latest season per (player, club, league) has a YoY row; older seasons get NULL.
++- yoy as (
++-     select * from {{ ref('int_player_profile__yoy') }}
++-+),
++-+
++-+-- Phase D bonus: goal-involvement share of the club's whole-season goals, for the player's PRIMARY club
++-+-- that competition-season (content_architecture §6.4).
++-+contribution as (
++-+    select * from {{ ref('int_player_profile__contribution') }}
++- )
+++-  - int_player_profile__contribution builds; grain unique; keys not_null; 0 <= share <= 1 holds; ci-data-build green.
+++-  - mart_player_profile gains scorer_points + team_goals_season + contribution_share; EXISTING numbers unchanged.
+++-  - metric_catalogue.csv has the contribution_share row; the catalogue-integrity tests pass (blank-base_relation skip).
+++-  - python scripts/check_layer_contract.py passes.
+++-  - bq spot-check: a focal striker (Kane, BL1) ~32%; a squad player much lower.
+++-  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
+++-    review.md diff_sha256 binds; CPO merges.
++++  - active_work.md header + FIRST STEPS point at a08c634; #645 recorded as the latest merged PR.
++++  - The Phase D backlog entry marks the contribution-share bonus DONE #645; Phase C marks streaks SKIPPED.
++++  - A #645 entry is prepended to RECENT PRs; the "main carries" line appends #645.
++++  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
++  
++- select
++-@@ -159,7 +165,12 @@ select
++-     y.key_passes_delta_yoy,
++-     y.defensive_actions_this_season,
++-     y.defensive_actions_prev_season,
++--    y.defensive_actions_delta_yoy
++-+    y.defensive_actions_delta_yoy,
++-+    -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
++-+    -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
++-+    c.scorer_points,
++-+    c.team_goals_season,
++-+    c.contribution_share
++- from season as a
++- left join players as p
++-     on a.player_sk = p.player_sk
++-@@ -180,3 +191,8 @@ left join yoy as y
++-         and ta.team_sk = y.team_sk
++-         and a.league_code = y.league_code
++-         and a.season_api_year = y.season_api_year
++-+left join contribution as c
++-+    on
++-+        a.player_sk = c.player_sk
++-+        and ta.team_sk = c.team_sk
++-+        and a.season_sk = c.season_sk
++-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
++-index a7c02a8..894b1b7 100644
++---- a/dbt_project/seeds/metric_catalogue.csv
++-+++ b/dbt_project/seeds/metric_catalogue.csv
++-@@ -76,3 +76,4 @@ sot_difference,team,metrics.sot_difference.label,Average shots-on-target differe
++- shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average shots on target conceded per match in the window. The defensive companion to sot_difference. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),true,decimal_1,shooting,,,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
++- deserved_rank,team,metrics.deserved_rank.label,Rank of the team within its league-season by sot_difference (descending; 1 = best on-target difference) - the process-deserved table position. Not aggregated from match legs; computed by ranking the sot_difference metric. Null when the league-season is not fully rankable (some team lacks full shots-on-target coverage or a league rank).,,,,true,integer,,,,lower_better,Deserved league position - 1 = best on-target difference; where the process says the team should sit
++- sot_rank_gap,team,metrics.sot_rank_gap.label,"Rank-space deserved-vs-actual gap: actual_rank - deserved_rank, where actual_rank = league_rank and deserved_rank = the team's rank by sot_difference within its league-season. Positive = under-performing (table position below where the on-target process deserves); negative = over-performing. Rank-derived, not an aggregate of match legs. Null when the league-season is not fully rankable.",,,,false,integer,,,,neutral,"Deserved-vs-actual gap - actual minus deserved rank; positive = results lag the process (due a correction), negative = results flatter it (regression risk). A narrative, not good or bad"
++-+contribution_share,player,playerMetrics.contributionShare.label,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing (whole-season denominator vs covered-appearance numerator, CPO-accepted). Null when the club scored 0 that competition-season.",,,,false,percent,goals,,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
+++-amendments:
+++-  - 2026-07-03: post-review scope widening (analytics-engineer A1 FAIL that contribution_share ships uncatalogued;
+++-    CPO-confirmed via the direction AskUserQuestion) — added dbt_project/seeds/metric_catalogue.csv to scope
+++-    (catalogue contribution_share; rename the goal_involvements atom -> the existing catalogued scorer_points).
+++-    Authority: the AE A1 finding (governance-required) + the CPO ruling. Pulls in football-analytics-expert-reviewer.
++++amendments: []
