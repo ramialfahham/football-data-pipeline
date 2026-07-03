@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: int_player_profile__yoy
+    description: >
+      Appearances-aligned year-over-year for the player profile (Phase C, #391), domestic
+      leagues only — the player mirror of int_team_profile__yoy. One row per player's CURRENT
+      club-league season: cumulative goals / assists / shots-on-target / key-passes /
+      defensive-actions through the latest N appearances this season vs the same player's prior
+      season AT THE SAME CLUB through its first N appearances. Aligned by appearances
+      (match_number); deltas NULL when the prior season at this club is absent (transfer / first
+      season). defensive_actions = tackles + interceptions + blocks (T+I+B). Grain:
+      (team_sk, player_sk, league_code, season_api_year).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
+    columns:
+      - name: team_sk
+        description: "The player's club this season (the YoY is per-club)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        description: "The player's current domestic season (the YoY anchor)."
+        tests: [not_null]
+      - name: yoy_appearances_cutoff
+        description: "N = appearances this season; the prior season is compared through its first N appearances."
+        tests: [not_null]
+      - name: goals_delta_yoy
+        description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."

@@ -73,6 +73,13 @@ teams as (
         team_logo_url,
         team_country
     from {{ ref('dim_team') }}
+),
+
+-- Phase C: appearances-aligned year-over-year for the player's PRIMARY club that
+-- competition-season (mirrors int_team_profile__yoy -> mart_team_profile). Only the
+-- latest season per (player, club, league) has a YoY row; older seasons get NULL.
+yoy as (
+    select * from {{ ref('int_player_profile__yoy') }}
 )
 
 select
@@ -134,7 +141,25 @@ select
     a.pass_accuracy_pct,
     a.duels_won_pct,
     a.dribbles_success_pct,
-    a.save_pct
+    a.save_pct,
+    -- year-over-year (domestic only; the player's primary club that season; NULL
+    -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
+    y.yoy_appearances_cutoff,
+    y.goals_this_season,
+    y.goals_prev_season,
+    y.goals_delta_yoy,
+    y.assists_this_season,
+    y.assists_prev_season,
+    y.assists_delta_yoy,
+    y.shots_on_goal_this_season,
+    y.shots_on_goal_prev_season,
+    y.shots_on_goal_delta_yoy,
+    y.key_passes_this_season,
+    y.key_passes_prev_season,
+    y.key_passes_delta_yoy,
+    y.defensive_actions_this_season,
+    y.defensive_actions_prev_season,
+    y.defensive_actions_delta_yoy
 from season as a
 left join players as p
     on a.player_sk = p.player_sk
@@ -149,3 +174,9 @@ left join team_affiliation as ta
         and a.season_api_year = ta.season_api_year
 left join teams as t
     on ta.team_sk = t.team_sk
+left join yoy as y
+    on
+        a.player_sk = y.player_sk
+        and ta.team_sk = y.team_sk
+        and a.league_code = y.league_code
+        and a.season_api_year = y.season_api_year
