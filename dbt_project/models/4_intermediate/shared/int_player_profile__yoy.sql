@@ -18,6 +18,12 @@
   target, key passes, defensive actions (tackles + interceptions + blocks). Raw
   cumulative counts (per-90 / ratios live elsewhere); the delta is this - prev.
 
+  Full-season reference: alongside the pace-matched prev figures, each metric also carries
+  the prior season's COMPLETE total (*_prev_season_full, its max appearances, no cutoff) —
+  the "how big was last season" anchor for the delta. Context only: it is NEVER differenced
+  against the still-running current season (a part season vs a full season would mislead,
+  the very trap this model avoids). NULL under the same honest-absence as the prev figures.
+
   Scope: competition_type = 'domestic_league' only — YoY is meaningful for league
   formats; cups/tournaments have no aligned comparison. Deltas are NULL where the prior
   season AT THIS CLUB is absent (a transfer, a first top-flight season, or
@@ -106,6 +112,33 @@ prev as (
         partition by d.team_sk, d.player_sk, d.league_code
         order by d.match_number desc
     ) = 1
+),
+
+-- Prior season at the same club, cumulative through its FULL extent (max match_number, no
+-- cutoff cap): the "how big was last season" anchor for the pace-matched delta above.
+-- Context only — never differenced against the running current season.
+prev_full as (
+    select
+        d.team_sk,
+        d.player_sk,
+        d.league_code,
+        d.match_number as appearances_prev_full,
+        d.goals_total as goals_prev_season_full,
+        d.goals_assists as assists_prev_season_full,
+        d.shots_on as shots_on_goal_prev_season_full,
+        d.passes_key as key_passes_prev_season_full,
+        d.defensive_actions as defensive_actions_prev_season_full
+    from dom as d
+    inner join cur as c
+        on
+            d.team_sk = c.team_sk
+            and d.player_sk = c.player_sk
+            and d.league_code = c.league_code
+    where d.season_api_year = c.cur_season - 1
+    qualify row_number() over (
+        partition by d.team_sk, d.player_sk, d.league_code
+        order by d.match_number desc
+    ) = 1
 )
 
 select
@@ -125,6 +158,13 @@ select
     prev.shots_on_goal_prev_season,
     prev.key_passes_prev_season,
     prev.defensive_actions_prev_season,
+    -- prior-season FULL totals (context anchor; NULL when no prior season at this club)
+    prev_full.appearances_prev_full,
+    prev_full.goals_prev_season_full,
+    prev_full.assists_prev_season_full,
+    prev_full.shots_on_goal_prev_season_full,
+    prev_full.key_passes_prev_season_full,
+    prev_full.defensive_actions_prev_season_full,
     cur.goals_this_season - prev.goals_prev_season as goals_delta_yoy,
     cur.assists_this_season - prev.assists_prev_season as assists_delta_yoy,
     cur.shots_on_goal_this_season - prev.shots_on_goal_prev_season
@@ -138,3 +178,8 @@ left join prev
         cur.team_sk = prev.team_sk
         and cur.player_sk = prev.player_sk
         and cur.league_code = prev.league_code
+left join prev_full
+    on
+        cur.team_sk = prev_full.team_sk
+        and cur.player_sk = prev_full.player_sk
+        and cur.league_code = prev_full.league_code

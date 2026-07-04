@@ -166,6 +166,14 @@ select
     y.defensive_actions_this_season,
     y.defensive_actions_prev_season,
     y.defensive_actions_delta_yoy,
+    -- prior-season FULL totals: the "how big was last season" anchor for the pace-matched
+    -- deltas above (context only, no delta-vs-full; NULL when the prior season is absent).
+    y.appearances_prev_full,
+    y.goals_prev_season_full,
+    y.assists_prev_season_full,
+    y.shots_on_goal_prev_season_full,
+    y.key_passes_prev_season_full,
+    y.defensive_actions_prev_season_full,
     -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
     -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
     c.scorer_points,
