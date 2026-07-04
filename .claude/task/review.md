@@ -1,34 +1,33 @@
-# Review — chore/handover-refresh-post-648 — 2026-07-04
+# Review — chore/handover-drop-untracked-candidates — 2026-07-04
 
-> G3 Lock artifact. Bookkeeping/handover refresh — brings `.claude/active_work.md` current from post-#647-shelve
-> state (pointer a6b90e9) to post-#648 (1966d4d): records #648 (player YoY full-season prior-year reference —
-> `int_player_profile__yoy` prev_full CTE + 6 `*_prev_season_full` context columns → `mart_player_profile`; a
-> full >= pace-matched invariant DQ test) as MERGED, appends it to "main carries", prepends a RECENT PRs entry,
-> marks the Phase C YoY-enrichment candidate DONE, reframes the remaining candidates (further player-season
-> models = display-spec-first), and notes the non-PR global commit-gate fix. Plan mode skipped per the CPO
-> handover carve-out (2026-06-30); the contract + review + gate still run.
+> G3 Lock artifact. Bookkeeping/handover correction — removes the brainstormed, UNTRACKED "further
+> player-season models" ideas (multi-season trend / per-position YoY / milestones) from `.claude/active_work.md`
+> at all three occurrences (header NEXT clause, FIRST STEPS step 3, Phase C backlog entry), keeping only the
+> genuinely tracked backlog (#530(b), #510, #484). Those ideas were an Explore-agent brainstorm offered as
+> declined options in a "which YoY-extension" AskUserQuestion (CPO picked "enrich existing YoY block" = #648);
+> the prior refresh (#649) over-formalized them as "remaining candidates". CPO ruled this session: DROP entirely.
+> Plan mode skipped per the CPO handover carve-out (2026-06-30); the contract + review + gate still run.
 > Required set (routing): scope-auditor only (always) — no `dbt_project/**`, `scripts/**`, CI, ingestion, or
-> wireframe/i18n path is touched, so no other reviewer is pulled in.
+> wireframe/i18n path is touched.
 
-diff_sha256: a7d84ed9917c82b9e41bdc482eef50f4c28f92bc4cf4822c240807978e99fccd
+diff_sha256: 209b5f665c597e9eb7057616d68778ff4f06d48262d7206687e17cd0be3a3a29
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Candidate-pool reframing under the display-first rule.** Verified the split of the old "player season /
-  YoY-extension" candidate into "YoY DONE (#648)" + "further player-season models (multi-season trend /
-  per-position YoY / milestones, display-homeless)" is truthful to the executed work: #638 shipped the base
-  appearances-aligned YoY and #648 enriched it with the full-season reference (both finished), while
-  trend/per-position/milestones are genuinely distinct un-built surfaces. The "display-spec FIRST" flag is a
-  faithful application of the pre-existing rule ([[feedback-display-first-flagship]], 2026-07-03), not a new
-  commitment; NEXT is correctly left as an OPEN CPO pick with no locked task.
-- **Handover pointer accuracy + cold-chat continuity.** Verified FIRST STEPS + header bump the main-GREEN
-  pointer 49b4157/a6b90e9 → 1966d4d (the #648 merge commit, per contract.refs), the RECENT PRs #648 entry and
-  the "main carries" append match what actually shipped (prev_full CTE + 6 `*_prev_season_full` columns, no
-  delta-vs-full, the `player_yoy_full_season_ref_ge_pace_matched` invariant test, zero catalogue rows, no
-  export edit), and the do-NOTs (CPO merges / #391 narrow / live-MVP untouched) are intact. Scope clean: only
-  `.claude/active_work.md` + `.claude/task/contract.md` staged; no code/model change smuggled into a
-  bookkeeping commit.
+- **Stray-reference survival + completeness.** Verified all three named occurrences (header NEXT clause,
+  FIRST STEPS step 3, Phase C backlog entry) are removed in the diff, and grep found no surviving reference to
+  the untracked ideas ("multi-season trend" / "per-position YoY" / "milestones" / "further player-season
+  models") anywhere in the live handover prose — only in the diff/artifact files. The real tracked backlog
+  (#530(b), #510, #484) remains intact as the only candidates; replacement language explicitly states no new
+  player-season surface is tracked (a brand-new one needs a display spec + CPO go first), preventing
+  re-introduction.
+- **Scope + no collateral damage.** Only `.claude/active_work.md` + `.claude/task/contract.md` are staged —
+  within scope_paths; no `dbt_project/**`, `scripts/**`, `ingestion/**`, or `site*/` change smuggled in. All
+  other handover facts left intact and correct: main-GREEN pointer 1966d4d, the #648/#645/#638 records, the
+  Phase D shelve note, the player-streaks skip, the history-backfill finding, #391 un-paused, and the full
+  RECENT PRs section. §10 hygiene sound: the diff executes a CPO decision already ruled this session
+  (drop-vs-relabel → drop), inventing nothing new.
 
 ## escalations
 - None. No open escalations; no ESCALATE verdict raised.
