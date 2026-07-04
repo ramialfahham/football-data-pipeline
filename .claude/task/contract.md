@@ -1,58 +1,42 @@
-# Task contract — enrich player YoY block with a full-season prior-year reference
+# Task contract — handover refresh (post-#648, player YoY full-season reference merged)
 
-> Written on a CLEAN tree (branch feat/player-yoy-full-season-reference off main @ a6b90e9).
-> dbt-only enrichment of the already-wired player YoY block. Plan approved via ExitPlanMode
-> (plan: C:\Users\Rami\.claude\plans\unified-pondering-music.md).
+> Written on a CLEAN tree (branch chore/handover-refresh-post-648 off main @ 1966d4d).
+> Bookkeeping only — brings `.claude/active_work.md` current from post-#647-shelve state
+> (pointer a6b90e9) to post-#648 (1966d4d). No code, no model, no metric change. Plan mode
+> skipped per the CPO handover carve-out (2026-06-30); still runs the contract + review + gate.
 
 objective: >
-  Add the prior season's FULL-season totals as a context anchor to the appearances-aligned
-  player YoY (int_player_profile__yoy, #638). For each of the existing 5 YoY metrics
-  (goals / assists / shots_on_goal / key_passes / defensive_actions) expose the prior
-  season's complete cumulative total (max match_number, no cutoff cap) plus an
-  appearances_prev_full count, so the profile can anchor the pace-matched delta against how
-  big last season actually was. Context only — NO delta-vs-full is computed. Surface the new
-  columns in mart_player_profile; they auto-carry to the v2 player export (select * + the
-  _strip_identity season-block spread — verified, no export edit).
+  Refresh the handover: record #648 (player YoY full-season prior-year reference —
+  int_player_profile__yoy prev_full CTE + 6 *_prev_season_full context columns composed into
+  mart_player_profile; a full >= pace-matched invariant DQ test; auto-carries to the v2 player
+  export) as MERGED; bump the main-GREEN pointer a6b90e9 -> 1966d4d; record that the
+  "enrich the YoY block" candidate is now DONE; leave NEXT as an open CPO pick over the
+  remaining candidates (#530(b) player metric rows, #510, #484, or further player-season models).
 
-refs: #638 (int_player_profile__yoy base); mirrors int_team_profile__yoy pattern. Plan approved this session.
+refs: #648 (1966d4d player YoY full-season reference); prior refresh a6b90e9 (post-#647 shelve)
 
 scope_paths:
-  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
-  - .claude/task/**
   - .claude/active_work.md
+  - .claude/task/**
 
 impact_map: >
-  dbt-only, additive. (1) int_player_profile__yoy gains a `prev_full` CTE (prior season at
-  the same club, max match_number, WITHOUT the `<= appearances_cutoff` cap) + 6 new nullable
-  columns (appearances_prev_full + 5 *_prev_season_full). Grain unchanged
-  (team_sk, player_sk, league_code, season_api_year); existing columns/deltas untouched.
-  (2) mart_player_profile selects the 6 new `y.` columns into its YoY block; grain
-  (player_sk, season_sk) unchanged; the existing left join key unchanged. (3) The 6 columns
-  auto-carry to scripts/export_site_data.py's player payload via `select *` + the generic
-  `_strip_identity` season-block spread — NO export edit. NO metric_catalogue.csv change (these
-  are uncatalogued windowed variants, exactly like the existing *_prev_season / *_delta_yoy;
-  the drift guard assert_no_uncatalogued_season_metric covers only the season-metrics models,
-  not this one). NO new model, NO live-MVP (site/) change, NO v2 frontend. New DQ test
-  (dbt_utils.expression_is_true): full-season cumulative total >= the pace-matched figure.
+  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md` (the handover). No
+  dbt_project/** model, no scripts/export_*.py, no ingestion/**, no site*/ change — so no data/number/metric
+  moves and no downstream build impact. The task scaffolding (.claude/task/**) is artifact-only; contract.md is
+  artifact_only_never so this commit is NOT review-exempt (scope-auditor required).
 
 decisions_taken: >
-  - Full-season figures are CONTEXT only; NO delta-vs-full (a part-season-so-far minus a full
-    prior season is apples-to-oranges — the model header already warns against it). The
-    existing pace-matched *_delta_yoy stays the only delta.
-  - Keep the #638 5-metric set exactly; do NOT re-open it.
-  - Naming: `_prev_season_full` / `appearances_prev_full` (CPO accepted the proposal at ExitPlanMode).
-  - Domestic-leagues-only + primary-club scope inherited from the base model, unchanged.
+  Record-only. #648 is already merged to main (1966d4d) — this refresh does not decide anything new. The
+  "enrich the existing YoY block" candidate (this session's pick) is recorded as DONE via #648. NEXT stays an
+  OPEN CPO pick — no next task is locked in.
 
 decisions_reserved:
-  - Widening the delta metric set beyond the 5 (CPO declined for this PR; a later toggle if wanted).
-  - A dedicated YoY display/wireframe screen (separate #391 gap, not this PR).
+  - The actual next task (further player-season models; or #530(b) / #510 / #484 carryovers) — CPO picks later.
 
 done_when:
-  - int_player_profile__yoy exposes appearances_prev_full + goals/assists/shots_on_goal/key_passes/defensive_actions _prev_season_full, NULL when no prior season at the club.
-  - mart_player_profile carries the 6 new columns in its YoY block.
-  - int_player_profile.yml documents the columns + adds the full >= pace-matched invariant DQ test.
-  - scope-auditor PASS + analytics-engineer-reviewer PASS (>=2 named risks each); review.md diff_sha256 binds; ci-data-build green. CPO merges.
+  - active_work.md header + FIRST STEPS point at 1966d4d; #648 recorded as the latest merged PR.
+  - The Phase C backlog entry marks the YoY-enrichment DONE #648; NEXT candidate list drops the now-done item.
+  - A #648 entry is prepended to RECENT PRs; the "main carries" line appends #648.
+  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
 
 amendments: []

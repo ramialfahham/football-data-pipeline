@@ -1,61 +1,34 @@
-# Review — feat/player-yoy-full-season-reference — 2026-07-04
+# Review — chore/handover-refresh-post-648 — 2026-07-04
 
-> G3 Lock artifact. dbt-only enrichment of the already-wired player YoY block
-> (`int_player_profile__yoy`, #638): adds a `prev_full` CTE surfacing the prior season's
-> FULL-season totals as a context anchor (6 new columns: `appearances_prev_full` + 5
-> `*_prev_season_full`), surfaces them in `mart_player_profile`, and adds one invariant DQ
-> test (full >= pace-matched). No metric_catalogue change, no export edit (auto-carries via
-> `select *` + `_strip_identity`), no new model. Plan CPO-approved via ExitPlanMode.
-> Required set (routing): scope-auditor (always) + analytics-engineer-reviewer (`dbt_project/**`).
->
-> Round 1 (hash 8bec99fa) — scope-auditor **PASS** + analytics-engineer-reviewer **PASS**; the
-> analytics-engineer flagged one NON-blocking nit: the 6 new simple `prev_full.*` columns sat
-> AFTER the calculated `_delta_yoy` expressions in the final SELECT, breaking the
-> simple-then-calculated order the sibling `int_team_profile__yoy` follows (a latent SQLFluff
-> ST06 risk — ST06 fires on `int_*` models per #621, and CI-only since SQLFluff can't run
-> locally). Fix: reordered the simple `prev_full.*` columns ahead of the calculated deltas
-> (pure reorder, identical logic). That changed the staged hash → BOTH reviewers re-run fresh.
-> Round 2 (hash 0cc56033) — scope-auditor **PASS** + analytics-engineer-reviewer **PASS**; the
-> analytics-engineer independently confirmed the SELECT is now ST06-compliant and matches the sibling.
+> G3 Lock artifact. Bookkeeping/handover refresh — brings `.claude/active_work.md` current from post-#647-shelve
+> state (pointer a6b90e9) to post-#648 (1966d4d): records #648 (player YoY full-season prior-year reference —
+> `int_player_profile__yoy` prev_full CTE + 6 `*_prev_season_full` context columns → `mart_player_profile`; a
+> full >= pace-matched invariant DQ test) as MERGED, appends it to "main carries", prepends a RECENT PRs entry,
+> marks the Phase C YoY-enrichment candidate DONE, reframes the remaining candidates (further player-season
+> models = display-spec-first), and notes the non-PR global commit-gate fix. Plan mode skipped per the CPO
+> handover carve-out (2026-06-30); the contract + review + gate still run.
+> Required set (routing): scope-auditor only (always) — no `dbt_project/**`, `scripts/**`, CI, ingestion, or
+> wireframe/i18n path is touched, so no other reviewer is pulled in.
 
-diff_sha256: 0cc56033457d2557baf1c34fb2dab13596ba602f70fe4c16fae6c811a9a28955
+diff_sha256: a7d84ed9917c82b9e41bdc482eef50f4c28f92bc4cf4822c240807978e99fccd
 
 ## scope-auditor
-VERDICT: PASS  (round 2 on the reordered hash; round 1 also PASS on hash 8bec99fa)
+VERDICT: PASS
 risks_checked:
-- **Scope-path discipline.** All 4 staged files are within `scope_paths`: `.claude/task/contract.md`
-  (`.claude/task/**`) + the 3 declared model files (`int_player_profile__yoy.sql`,
-  `mart_player_profile.sql`, `int_player_profile.yml`). No edit beyond scope, no drive-by fix,
-  no unauthorized change.
-- **Decision rights (§10).** The two design choices are legitimately settled, not smuggled: (a)
-  NO delta-vs-full is computed — the full figures are context only, aligned with the model's own
-  header philosophy (a part-season vs a full season would mislead), recorded in
-  `decisions_taken`; (b) naming `_prev_season_full` / `appearances_prev_full` was surfaced in the
-  plan and CPO-accepted at ExitPlanMode. No metric invented, no metric_catalogue.csv change, the
-  #638 5-metric set is preserved exactly — the new columns are uncatalogued windowed variants
-  matching the existing `*_prev_season` / `*_delta_yoy` precedent. No product/UX or permanent
-  decision that should have been the CPO's was taken here.
-
-## analytics-engineer-reviewer
-VERDICT: PASS  (round 2 on the reordered hash; round 1 also PASS on hash 8bec99fa)
-risks_checked:
-- **`prev_full` correctness / grain / fan-out.** `prev_full` mirrors `prev` (same `inner join cur`,
-  same `season_api_year = cur_season - 1`, same `qualify row_number() over (partition by team_sk,
-  player_sk, league_code order by match_number desc) = 1`) minus only the `<= appearances_cutoff`
-  cap, so it deterministically returns the prior season's full-season row. `match_number` is a
-  strict `row_number()` (int_player_season_record.sql:36), never tied, so the qualify picks exactly
-  one row; both LEFT JOINs are 1:1 — the grain `(team_sk, player_sk, league_code, season_api_year)`
-  is preserved (matches the unchanged `unique_combination_of_columns` test).
-- **Invariant test soundness.** `full >= pace-matched` is algebraically guaranteed: every metric is
-  a monotonic cumulative `sum() over w` (or `row_number()` for appearances), so a larger
-  `match_number` never yields a smaller value. Proven that a `prev_full` row can never exist without
-  a `prev` row (`prev`'s cap is satisfiable at `match_number = 1` whenever `cur` exists, since
-  `appearances_cutoff >= 1`), so the `appearances_prev is null or (...)` guard cannot silently mask
-  a real violation. Drift guard `assert_no_uncatalogued_season_metric` verified NOT to cover this
-  model (its hardcoded 3-model list excludes `int_player_profile__yoy`) → no catalogue row needed.
-  Layer contract clean (no `ref('mart_*')`, no hardcoded league_code); export auto-carry verified
-  via `_strip_identity` (no export edit); final SELECT now ST06-compliant (simple columns before
-  the calculated deltas), matching the sibling `int_team_profile__yoy`; no line > 120 chars.
+- **Candidate-pool reframing under the display-first rule.** Verified the split of the old "player season /
+  YoY-extension" candidate into "YoY DONE (#648)" + "further player-season models (multi-season trend /
+  per-position YoY / milestones, display-homeless)" is truthful to the executed work: #638 shipped the base
+  appearances-aligned YoY and #648 enriched it with the full-season reference (both finished), while
+  trend/per-position/milestones are genuinely distinct un-built surfaces. The "display-spec FIRST" flag is a
+  faithful application of the pre-existing rule ([[feedback-display-first-flagship]], 2026-07-03), not a new
+  commitment; NEXT is correctly left as an OPEN CPO pick with no locked task.
+- **Handover pointer accuracy + cold-chat continuity.** Verified FIRST STEPS + header bump the main-GREEN
+  pointer 49b4157/a6b90e9 → 1966d4d (the #648 merge commit, per contract.refs), the RECENT PRs #648 entry and
+  the "main carries" append match what actually shipped (prev_full CTE + 6 `*_prev_season_full` columns, no
+  delta-vs-full, the `player_yoy_full_season_ref_ge_pace_matched` invariant test, zero catalogue rows, no
+  export edit), and the do-NOTs (CPO merges / #391 narrow / live-MVP untouched) are intact. Scope clean: only
+  `.claude/active_work.md` + `.claude/task/contract.md` staged; no code/model change smuggled into a
+  bookkeeping commit.
 
 ## escalations
 - None. No open escalations; no ESCALATE verdict raised.
