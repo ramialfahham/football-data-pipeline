@@ -1,109 +1,142 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index bc38fd9..6b26de5 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,7 +4,7 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: **2026-07-04** — main GREEN at **1966d4d**. **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining = **further player-season models** (e.g. multi-season trend / per-position YoY / milestones — each is a NEW display-homeless surface, so **display-spec FIRST** per [[feedback-display-first-flagship]]), or smaller catalogue/window carryovers (#530(b) player metric rows, #510, #484). **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
-+_Last updated: **2026-07-04** — main GREEN at **1966d4d**. **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidates = the smaller catalogue/window carryovers (#530(b) player metric rows, #510, #484). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
- 
- ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
- The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
-@@ -34,9 +34,9 @@ main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391
-    effectively DONE** (RAW + `mart_player_career` are 5–10 seasons deep across domestic leagues; the
-    "thin-until-backfill" premise was STALE — do NOT re-scope a big backfill; see the header finding).
-    The **YoY-block enrichment is DONE (#648)** — that was this session's pick from the "player season /
--   YoY-extension" candidate. Remaining candidates: **further player-season models** (multi-season trend /
--   per-position YoY / milestones — each a NEW display-homeless surface → **display-spec FIRST**,
--   [[feedback-display-first-flagship]]); or smaller catalogue/window carryovers (#530(b), #510, #484). **⛔ Phase D
-+   YoY-extension" candidate. Remaining tracked candidates: the smaller catalogue/window carryovers
-+   (#530(b), #510, #484). (No new player-season surface is tracked; a brand-new one would need a display
-+   spec + CPO go first.) **⛔ Phase D
-    flagship opponent/schedule context is SHELVED (2026-07-03) — do NOT re-attempt without a display spec
-    first ([[feedback-display-first-flagship]]).** (Doc-sync DONE #636; player YoY DONE #638; contribution
-    DONE #645; YoY full-season reference DONE #648.) Present candidates + get the CPO's pick;
-@@ -104,8 +104,8 @@ carries it)** first, then build the frontend against a stable export. The live M
-   → `mart_player_profile`. The **history backfill is effectively DONE** (5–10 seasons deep; the premise was
-   stale). **Brick 2 player streaks is SKIPPED (CPO, 2026-07-03)** — not pending. **YoY full-season reference DONE
-   (#648)** — `int_player_profile__yoy` `prev_full` CTE + 6 `*_prev_season_full` context columns → the profile.
--  Remaining: **further player-season models** (multi-season trend / per-position YoY / milestones — each a NEW
--  display-homeless surface → **display-spec FIRST**), optional.
-+  The player YoY chain is complete (base #638 + enrichment #648; streaks skipped). No tracked player-season
-+  model remains; any new surface is a fresh CPO-directed spec (with a display home first).
- - **Phase D — design-heavy flagship marts:** **bonus contribution-share DONE (#645)** —
-   `int_player_profile__contribution` (goal-involvement share of the club's whole-season goals; NEUTRAL;
-   §10 definition CPO-locked 2026-07-03) → `mart_player_profile` + catalogued `contribution_share`.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index ccc33de..985d217 100644
+index 985d217..4e1c1ce 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,42 +1,44 @@
--# Task contract — handover refresh (post-#648, player YoY full-season reference merged)
-+# Task contract — handover fix: drop untracked "further player-season models" candidates
+@@ -1,44 +1,50 @@
+-# Task contract — handover fix: drop untracked "further player-season models" candidates
++# Task contract — #530(b): fill the two deferred player metric rows
  
--> Written on a CLEAN tree (branch chore/handover-refresh-post-648 off main @ 1966d4d).
--> Bookkeeping only — brings `.claude/active_work.md` current from post-#647-shelve state
--> (pointer a6b90e9) to post-#648 (1966d4d). No code, no model, no metric change. Plan mode
--> skipped per the CPO handover carve-out (2026-06-30); still runs the contract + review + gate.
-+> Written on a CLEAN tree (branch chore/handover-drop-untracked-candidates off main @ d5bacf4).
-+> Bookkeeping only — corrects `.claude/active_work.md`. Plan mode skipped per the CPO handover
-+> carve-out (2026-06-30); still runs the contract + review + gate.
+-> Written on a CLEAN tree (branch chore/handover-drop-untracked-candidates off main @ d5bacf4).
+-> Bookkeeping only — corrects `.claude/active_work.md`. Plan mode skipped per the CPO handover
+-> carve-out (2026-06-30); still runs the contract + review + gate.
++> Written on a CLEAN tree (branch feat/530b-player-penalty-openplay-catalogue off main @ f7a7d13).
++> Metric-catalogue completion. Plan approved via ExitPlanMode this session
++> (plan: C:\Users\Rami\.claude\plans\unified-pondering-music.md).
  
  objective: >
--  Refresh the handover: record #648 (player YoY full-season prior-year reference —
--  int_player_profile__yoy prev_full CTE + 6 *_prev_season_full context columns composed into
--  mart_player_profile; a full >= pace-matched invariant DQ test; auto-carries to the v2 player
--  export) as MERGED; bump the main-GREEN pointer a6b90e9 -> 1966d4d; record that the
--  "enrich the YoY block" candidate is now DONE; leave NEXT as an open CPO pick over the
--  remaining candidates (#530(b) player metric rows, #510, #484, or further player-season models).
-+  Remove the brainstormed, UNTRACKED "further player-season models" candidates (multi-season trend /
-+  per-position YoY / milestones) from the handover. These were surfaced by this session's Explore-agent
-+  landscape brainstorm and offered as declined options in the "which YoY-extension" AskUserQuestion (the CPO
-+  picked "enrich existing YoY block", now shipped as #648); they were never a tracked or CPO-agreed roadmap.
-+  The prior refresh (#649) over-formalized them into the durable handover as "remaining candidates", which
-+  reads as a real queue. CPO direction (this session): DROP them entirely; keep only the genuinely tracked
-+  backlog (#530(b), #510, #484) as candidates. Fix all three occurrences (header NEXT clause, FIRST STEPS
-+  step 3, the Phase C backlog entry).
+-  Remove the brainstormed, UNTRACKED "further player-season models" candidates (multi-season trend /
+-  per-position YoY / milestones) from the handover. These were surfaced by this session's Explore-agent
+-  landscape brainstorm and offered as declined options in the "which YoY-extension" AskUserQuestion (the CPO
+-  picked "enrich existing YoY block", now shipped as #648); they were never a tracked or CPO-agreed roadmap.
+-  The prior refresh (#649) over-formalized them into the durable handover as "remaining candidates", which
+-  reads as a real queue. CPO direction (this session): DROP them entirely; keep only the genuinely tracked
+-  backlog (#530(b), #510, #484) as candidates. Fix all three occurrences (header NEXT clause, FIRST STEPS
+-  step 3, the Phase C backlog entry).
++  Complete the two player metric_catalogue rows that carry a label + description but blank formula fields:
++  `goals_penalty` (player) and `goals_open_play` (player). Fill base_relation = int_legs__player_match,
++  numerator_expr (sum(goals_penalty); sum(goals_total - goals_penalty)), direction = higher_better, and a
++  short interpretation — mirroring the already-filled TEAM rows (#600) and the player finishing_efficiency
++  row. Then sync the seeds/schema.yml base_relation note that still lists these two as "still-deferred".
++  No new metric, no model change; the player values already flow from int_player_season__metrics.
  
--refs: #648 (1966d4d player YoY full-season reference); prior refresh a6b90e9 (post-#647 shelve)
-+refs: corrects #649 (post-#648 refresh); CPO direction this session (AskUserQuestion — "Drop them entirely").
+-refs: corrects #649 (post-#648 refresh); CPO direction this session (AskUserQuestion — "Drop them entirely").
++refs: #530(b) leg-gap follow-up; unblocked by #621 (goals_penalty atom on int_legs__player_match); mirrors #600/#604 team rows.
  
  scope_paths:
-   - .claude/active_work.md
+-  - .claude/active_work.md
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/schema.yml
    - .claude/task/**
  
  impact_map: >
--  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md` (the handover). No
--  dbt_project/** model, no scripts/export_*.py, no ingestion/**, no site*/ change — so no data/number/metric
--  moves and no downstream build impact. The task scaffolding (.claude/task/**) is artifact-only; contract.md is
--  artifact_only_never so this commit is NOT review-exempt (scope-auditor required).
-+  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
-+  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric moves, no build impact. The
-+  task scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is
-+  NOT review-exempt (scope-auditor required).
+-  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
+-  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric moves, no build impact. The
+-  task scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is
+-  NOT review-exempt (scope-auditor required).
++  Seed-only, catalogue completion. (1) metric_catalogue.csv: fill blank base_relation / numerator_expr /
++  direction / interpretation on exactly two existing rows (goals_penalty player; goals_open_play player);
++  denominator_expr + importance_tier + group_display_order stay blank (count metrics, matching the team rows).
++  numerator_expr stays a PURE formula (no coalesce/countif/null-gate). (2) seeds/schema.yml: drop the
++  "still-deferred player rows goals_penalty, goals_open_play (#530 …)" clause from the base_relation column
++  description; the numerator/denominator "Blank for the deferred rows above" notes stay valid (rank-derived +
++  raw-count rows). No dbt model, no export, no site change. The two metric_ids are ALREADY catalogued, so the
++  drift guard assert_no_uncatalogued_season_metric is unaffected; filling base_relation+expr brings them into
++  assert_metric_catalogue_expr_resolvable's coverage (it must confirm goals_penalty + goals_total resolve
++  against int_legs__player_match — both are exposed there and already used by finishing_efficiency player).
  
  decisions_taken: >
--  Record-only. #648 is already merged to main (1966d4d) — this refresh does not decide anything new. The
--  "enrich the existing YoY block" candidate (this session's pick) is recorded as DONE via #648. NEXT stays an
--  OPEN CPO pick — no next task is locked in.
-+  Record/correct-only. CPO ruled (this session) to DROP the untracked "further player-season models" ideas
-+  from the handover rather than relabel them. No new roadmap is created; the real tracked candidates
-+  (#530(b) player metric rows, #510 dribbles_success_pct retire, #484 player NT/tournament window) remain.
-+  NEXT stays an OPEN CPO pick.
+-  Record/correct-only. CPO ruled (this session) to DROP the untracked "further player-season models" ideas
+-  from the handover rather than relabel them. No new roadmap is created; the real tracked candidates
+-  (#530(b) player metric rows, #510 dribbles_success_pct retire, #484 player NT/tournament window) remain.
+-  NEXT stays an OPEN CPO pick.
++  - Formulas mirror the team rows + the player finishing_efficiency row: goals_penalty = sum(goals_penalty);
++    goals_open_play = sum(goals_total - goals_penalty) (player goals_total already excludes own goals).
++  - direction = higher_better for both — INHERITS the settled #600 team ruling (these are goals FOR the
++    player; they help the result). Direct analog, NOT a new §10 metric decision.
++  - Keep the existing (correct) description text; fill only the blank fields.
  
  decisions_reserved:
--  - The actual next task (further player-season models; or #530(b) / #510 / #484 carryovers) — CPO picks later.
-+  - The actual next task (from the tracked backlog, or a fresh CPO-directed spec) — CPO picks later.
+-  - The actual next task (from the tracked backlog, or a fresh CPO-directed spec) — CPO picks later.
++  - Any change to the metric DEFINITION beyond completing the deferred fields (out of scope).
  
  done_when:
--  - active_work.md header + FIRST STEPS point at 1966d4d; #648 recorded as the latest merged PR.
--  - The Phase C backlog entry marks the YoY-enrichment DONE #648; NEXT candidate list drops the now-done item.
--  - A #648 entry is prepended to RECENT PRs; the "main carries" line appends #648.
-+  - The header NEXT clause, FIRST STEPS step 3, and the Phase C backlog entry no longer list
-+    trend/per-position/milestones as "candidates"; only #530(b)/#510/#484 remain as tracked candidates.
-+  - Pointer/main-GREEN and all other handover facts left intact and correct.
-   - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+-  - The header NEXT clause, FIRST STEPS step 3, and the Phase C backlog entry no longer list
+-    trend/per-position/milestones as "candidates"; only #530(b)/#510/#484 remain as tracked candidates.
+-  - Pointer/main-GREEN and all other handover facts left intact and correct.
+-  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
++  - Both player rows have non-blank base_relation (int_legs__player_match), numerator_expr, direction, interpretation.
++  - schema.yml no longer calls goals_penalty/goals_open_play "still-deferred".
++  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
++    review.md diff_sha256 binds; ci-data-build green (resolvability guard passes). CPO merges.
  
  amendments: []
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 3205d28..d7f0c44 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -202,3 +202,6 @@ This entry is the durable record of the metric-definition authority the contract
+ 
+ 2026-07-03 chore/handover-shelve-opponent-schedule — Phase D flagship "opponent / schedule context" (content_architecture §6.4 #3) EVALUATED then SHELVED. It was picked as NEXT, method-decided (CPO AskUserQuestion: opponent league rank -> tiers; both directions), plan-approved, and PR1 (backward season-level int_team_season__schedule_strength + mart_team_profile composition) was BUILT — then BINNED before any commit (branch feat/team-schedule-strength deleted, 0 commits) after the CPO interrogated its value. Three failures surfaced in the review: (1) NO display home — no wireframe/UI block consumes it (unlike deserved/yoy/benchmarks which each had a display spec pinning the read); (2) the season-level backward slice is statistically ~constant across teams in a balanced double round-robin league (everyone plays everyone home-and-away) = dead signal; (3) the real output is a one-line caption ("4 of the next 5 are top-six") that mostly restates the fixture list + table a fan already sees — not worth a mart + gated index + a new catalogue metric. This is a §10 scope decision (deciding NOT to ship a feature).
+       CPO ANSWER (conversation, 2026-07-03): **BIN the whole opponent/schedule context feature** ("bin the whole thing"). Do NOT re-attempt without a DISPLAY SPEC first (design the one-line read + where it sits, THEN build only the minimal data). The only ever-worthwhile forms noted: a tiny opponent_tier tag on the existing mart_team_fixtures (if a caption is ever specced) or opponent-ADJUSTED performance (a bigger, speculative build). Lesson banked in memory [[feedback-display-first-flagship]]. This entry is the durable record the handover shelve rests on.
++
++2026-07-04 feat/530b-player-penalty-openplay-catalogue — #530(b): complete the two deferred player metric_catalogue rows (goals_penalty, goals_open_play). Filling their blank formula fields includes setting `direction` — a §10 metric-meaning field — so recording the classification for the audit trail (the scope-auditor flagged §11: a §10 field needs a logged record, not only a plan pre-claim; mirrors the #636 log-then-repass pattern).
++      DIRECTION = **higher_better** for both player rows (goals_penalty, goals_open_play). This is NOT a new §10 choice — it is the mechanical player analog of the SETTLED #600 team ruling (team goals_penalty / goals_open_play = higher_better: "goals FOR the team — they help the result") and follows the #621 precedent of setting direction on the player rows a completion touches (finishing_efficiency, duels_won_pct = higher_better). The football-analytics-expert reviewer independently confirmed it football-sound (direction = "is more better for the outcome", not a skill-weighting; a player's penalty/open-play goals are goals for the player and his team). Benchmarked WITHIN position-group, so more is better even for defenders — distinct from contribution_share's NEUTRAL, which is a cross-position output SHARE. Authority: surfaced explicitly in the plan's "Design notes (surfaced, not hidden)" and CPO-approved via ExitPlanMode this session. This entry is the durable record the contract's decisions_taken (direction) rests on. No open escalation — a settled-ruling inheritance, logged for trail completeness, not a new fork for the CPO.
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 894b1b7..3682345 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -28,8 +28,8 @@ corners_against_per_match,team,metrics.corners_against_per_match.label,Average c
+ save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),false,percent,goalkeeping,2,1,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
+ goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,int_legs__player_match,sum(goals_total),,false,integer,goals,,1,,
+ assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,int_legs__player_match,sum(goals_assists),,false,integer,goals,,1,,
+-goals_penalty,player,playerMetrics.goalsPenalty.label,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",,,,false,integer,goals,,,,
+-goals_open_play,player,playerMetrics.goalsOpenPlay.label,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency. (goals_total already excludes own goals.),,,,false,integer,goals,,,,
++goals_penalty,player,playerMetrics.goalsPenalty.label,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,false,integer,goals,,,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties
++goals_open_play,player,playerMetrics.goalsOpenPlay.label,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency. (goals_total already excludes own goals.),int_legs__player_match,sum(goals_total - goals_penalty),,false,integer,goals,,,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output
+ penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.,int_legs__player_match,sum(penalty_won),,false,integer,goals,,,,
+ shots_on_goal,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window.,int_legs__player_match,sum(shots_on),,false,integer,shooting,,1,,
+ duels_won,player,playerMetrics.duels.won,Duels won in the form window. A duel is any 1v1 physical contest (ground and aerial pooled).,int_legs__player_match,sum(duels_won),,false,integer,duels,,1,,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index cd112b9..0d1ce0a 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -104,10 +104,8 @@ seeds:
+         description: >
+           The int_legs__* per-(entity, fixture) building block the formula aggregates over
+           (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
+-          lookups not derived from legs (league_rank — sourced from fct_standings); rank-derived reads
+-          (deserved_rank, sot_rank_gap); and the still-deferred player rows goals_penalty, goals_open_play
+-          (#530 leg-gap follow-up (b) — int_legs__player_match now exposes the event-derived goals_penalty
+-          atom, so these can be filled next; finishing_efficiency is already done).
++          lookups not derived from legs (league_rank — sourced from fct_standings); and rank-derived reads
++          (deserved_rank, sot_rank_gap).
+         tests:
+           - accepted_values:
+               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
+@@ -117,14 +115,14 @@ seeds:
+           real columns (e.g. sum(goals_for); sum(goals_for - goals_penalty - goals_own)). The
+           expression is the DEFINITION only — data availability (missing stats) decides whether a
+           model can APPLY the formula (compute vs null); it is NOT encoded here (no coverage counts,
+-          no coalesce, no null gates). Blank for the deferred rows above.
++          no coalesce, no null gates). Blank for the blank-base_relation rows above (lookups + rank-derived reads).
+       - name: denominator_expr
+         description: >
+           The metric's fixed mathematical denominator: count(*) = number of matches in the window
+           (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
+           numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
+           only — coverage/availability handling lives in the model, never here. Blank for raw count
+-          metrics and the deferred rows above.
++          metrics and the blank-base_relation rows above.
+       - name: lower_is_better
+         description: "True when a lower value indicates better performance."
+         tests: [not_null]
