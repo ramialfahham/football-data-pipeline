@@ -104,10 +104,8 @@ seeds:
         description: >
           The int_legs__* per-(entity, fixture) building block the formula aggregates over
           (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
-          lookups not derived from legs (league_rank — sourced from fct_standings); rank-derived reads
-          (deserved_rank, sot_rank_gap); and the still-deferred player rows goals_penalty, goals_open_play
-          (#530 leg-gap follow-up (b) — int_legs__player_match now exposes the event-derived goals_penalty
-          atom, so these can be filled next; finishing_efficiency is already done).
+          lookups not derived from legs (league_rank — sourced from fct_standings); and rank-derived reads
+          (deserved_rank, sot_rank_gap).
         tests:
           - accepted_values:
               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
@@ -117,14 +115,14 @@ seeds:
           real columns (e.g. sum(goals_for); sum(goals_for - goals_penalty - goals_own)). The
           expression is the DEFINITION only — data availability (missing stats) decides whether a
           model can APPLY the formula (compute vs null); it is NOT encoded here (no coverage counts,
-          no coalesce, no null gates). Blank for the deferred rows above.
+          no coalesce, no null gates). Blank for the blank-base_relation rows above (lookups + rank-derived reads).
       - name: denominator_expr
         description: >
           The metric's fixed mathematical denominator: count(*) = number of matches in the window
           (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
           numerator_expr); 3 * count(*) for points_capture. Like the numerator it is the DEFINITION
           only — coverage/availability handling lives in the model, never here. Blank for raw count
-          metrics and the deferred rows above.
+          metrics and the blank-base_relation rows above.
       - name: lower_is_better
         description: "True when a lower value indicates better performance."
         tests: [not_null]
