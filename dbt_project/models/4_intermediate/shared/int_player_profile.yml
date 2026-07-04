@@ -14,6 +14,12 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
+      # The prior season's FULL total is a superset of its pace-matched cutoff figure, so
+      # full >= pace-matched for every metric (all are monotonic cumulative counts), and a
+      # pace-matched prev row implies a full prev row exists. Catches a broken prev_full window.
+      - dbt_utils.expression_is_true:
+          expression: "appearances_prev is null or (appearances_prev_full >= appearances_prev and goals_prev_season_full >= goals_prev_season and assists_prev_season_full >= assists_prev_season and shots_on_goal_prev_season_full >= shots_on_goal_prev_season and key_passes_prev_season_full >= key_passes_prev_season and defensive_actions_prev_season_full >= defensive_actions_prev_season)"
+          name: player_yoy_full_season_ref_ge_pace_matched
     columns:
       - name: team_sk
         description: "The player's club this season (the YoY is per-club)."
@@ -38,6 +44,10 @@ models:
         tests: [not_null]
       - name: goals_delta_yoy
         description: "goals_this_season - goals_prev_season through N appearances. NULL when no prior season."
+      - name: appearances_prev_full
+        description: "The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev). NULL when no prior season."
+      - name: goals_prev_season_full
+        description: "The prior season's FULL-season total, a context anchor for the pace-matched delta (assists / shots_on_goal / key_passes / defensive_actions follow the same *_prev_season_full pattern). Never differenced against the running season."
 
   - name: int_player_profile__contribution
     description: >
