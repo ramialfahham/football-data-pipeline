@@ -1,50 +1,44 @@
-# Task contract — #530(b): fill the two deferred player metric rows
+# Task contract — handover refresh (session-boundary batch, post-#651)
 
-> Written on a CLEAN tree (branch feat/530b-player-penalty-openplay-catalogue off main @ f7a7d13).
-> Metric-catalogue completion. Plan approved via ExitPlanMode this session
-> (plan: C:\Users\Rami\.claude\plans\unified-pondering-music.md).
+> Written on a CLEAN tree (branch chore/handover-refresh-post-651 off main @ cf36c19).
+> Bookkeeping only — the batched session-boundary refresh ([[feedback-handover-discipline]] cadence rule:
+> refresh ONCE at the boundary, not per-merge). Plan mode skipped per the CPO handover carve-out; still runs
+> the contract + review + gate.
 
 objective: >
-  Complete the two player metric_catalogue rows that carry a label + description but blank formula fields:
-  `goals_penalty` (player) and `goals_open_play` (player). Fill base_relation = int_legs__player_match,
-  numerator_expr (sum(goals_penalty); sum(goals_total - goals_penalty)), direction = higher_better, and a
-  short interpretation — mirroring the already-filled TEAM rows (#600) and the player finishing_efficiency
-  row. Then sync the seeds/schema.yml base_relation note that still lists these two as "still-deferred".
-  No new metric, no model change; the player values already flow from int_player_season__metrics.
+  Bring `.claude/active_work.md` current from post-#648 (pointer 1966d4d) to post-#651 (cf36c19), folding in the
+  session's net: #649 (post-#648 refresh), #650 (handover — drop untracked "further player-season models"),
+  #651 (#530(b) — player goals_penalty + goals_open_play catalogue rows completed). Record the ⭐ premise-check
+  finding that #510 (retire leftover team dribbles_success_pct) is ALREADY DONE (traced end-to-end: no team
+  dribbles catalogue row / momentum-model refs / range test; export dribbles is player-only; issue CLOSED) — do
+  NOT re-attempt; drop it from the carryovers. Note the spawned follow-up chip (task_f876b853: 2 stale "deferred"
+  doc comments). NEXT tracked candidate narrows to #484 (player NT/tournament window).
 
-refs: #530(b) leg-gap follow-up; unblocked by #621 (goals_penalty atom on int_legs__player_match); mirrors #600/#604 team rows.
+refs: #651 (cf36c19 #530(b)); #650 (drop untracked candidates); #649 (post-#648 refresh); #510 (verified already-done, CLOSED).
 
 scope_paths:
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/seeds/schema.yml
+  - .claude/active_work.md
   - .claude/task/**
 
 impact_map: >
-  Seed-only, catalogue completion. (1) metric_catalogue.csv: fill blank base_relation / numerator_expr /
-  direction / interpretation on exactly two existing rows (goals_penalty player; goals_open_play player);
-  denominator_expr + importance_tier + group_display_order stay blank (count metrics, matching the team rows).
-  numerator_expr stays a PURE formula (no coalesce/countif/null-gate). (2) seeds/schema.yml: drop the
-  "still-deferred player rows goals_penalty, goals_open_play (#530 …)" clause from the base_relation column
-  description; the numerator/denominator "Blank for the deferred rows above" notes stay valid (rank-derived +
-  raw-count rows). No dbt model, no export, no site change. The two metric_ids are ALREADY catalogued, so the
-  drift guard assert_no_uncatalogued_season_metric is unaffected; filling base_relation+expr brings them into
-  assert_metric_catalogue_expr_resolvable's coverage (it must confirm goals_penalty + goals_total resolve
-  against int_legs__player_match — both are exposed there and already used by finishing_efficiency player).
+  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
+  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric moves, no build impact. The
+  task scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is NOT
+  review-exempt (scope-auditor required).
 
 decisions_taken: >
-  - Formulas mirror the team rows + the player finishing_efficiency row: goals_penalty = sum(goals_penalty);
-    goals_open_play = sum(goals_total - goals_penalty) (player goals_total already excludes own goals).
-  - direction = higher_better for both — INHERITS the settled #600 team ruling (these are goals FOR the
-    player; they help the result). Direct analog, NOT a new §10 metric decision.
-  - Keep the existing (correct) description text; fill only the blank fields.
+  Record-only. #649/#650/#651 already merged (cf36c19). #510 recorded as already-done from a code-traced
+  premise check (not a new decision — a finding). NEXT stays an OPEN CPO pick; the only remaining tracked
+  candidate is #484. No new roadmap invented.
 
 decisions_reserved:
-  - Any change to the metric DEFINITION beyond completing the deferred fields (out of scope).
+  - The actual next task (#484, or a fresh CPO-directed spec) — CPO picks later.
 
 done_when:
-  - Both player rows have non-blank base_relation (int_legs__player_match), numerator_expr, direction, interpretation.
-  - schema.yml no longer calls goals_penalty/goals_open_play "still-deferred".
-  - scope-auditor + analytics-engineer-reviewer + football-analytics-expert-reviewer PASS (>=2 named risks each);
-    review.md diff_sha256 binds; ci-data-build green (resolvability guard passes). CPO merges.
+  - active_work.md header + FIRST STEPS point at cf36c19; #651 recorded as the latest merged PR.
+  - main-carries appends #649 + #650 + #651; a #651 entry is prepended to RECENT PRs.
+  - #530 follow-up (b) marked DONE #651; #510 recorded already-done and dropped from the carryovers; #484 is the remaining tracked candidate.
+  - The spawned doc-nit chip (task_f876b853) is noted.
+  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
 
 amendments: []
