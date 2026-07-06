@@ -1,72 +1,58 @@
-# Task contract — squad `/players` fetch-side skip (stop nightly quota bleed)
+# Task contract — exclude non-entity (All-Star) teams from the player affiliation mapping
 
-> Written on a CLEAN tree (branch `fix/ingest-squads-skip-cached` off main). CPO approved
-> the plan this session (2026-07-06): squads-only fetch-side skip + doc + skill checklist.
+> Written on a CLEAN tree (branch `fix/roster-exclude-non-entity-teams` off main @ #657 merged).
+> CPO approved option 1 this session (2026-07-06): exclude non-entity teams from the mapping.
 > See plan `C:\Users\Rami\.claude\plans\logical-moseying-noodle.md`.
 
 objective: >
-  The nightly `squad` phase re-fetches `/players` for every team × every history season across
-  all in-season competitions EVERY run (~2h22m, ~50% of the daily API quota), because
-  `squads.py` has storage-side merge but NO fetch-side skip. Give it the same skip the sibling
-  endpoints already have (fixtures `read_coverage`, per-player `players_needing`, squad-catchup
-  `captured_team_seasons`): fetch only the current (reference) season always + any un-captured
-  historical `(team, season)`; skip finished team-seasons already in RAW_APIF_PLAYERS (immutable).
-  Then document the invariant and add it to the onboard-endpoint checklist so it stops being
-  memory-dependent.
-refs: plan logical-moseying-noodle.md; CPO plan approval 2026-07-06; sibling pattern in
-  loads/player_squads.py (captured_team_seasons + select_squad_catchup_team_ids).
+  The nightly build has failed since ~Jun 30 on two relationship DQ tests (138 orphan rows each):
+  team_sk in dim_player_team_season_mapping / mart_roster with no dim_team match. Diagnosed
+  (BigQuery/prod): the orphans are two MLS All-Star exhibition squads — 17664 "Liga MX All-Stars",
+  17665 "MLS All-Stars" (118 players) — surfaced only by /players squad data; /teams does not model
+  them, so they are absent from dim_team (0 in /teams, 0 in fct_fixture). An All-Star selection is
+  not a club/national affiliation. Fix: keep only team_sks that exist in dim_team (a core→core
+  semi-join), so the affiliation mapping and mart_roster contain real team entities only.
+refs: plan logical-moseying-noodle.md; CPO ruling 2026-07-06 (option 1); failing tests
+  relationships_dim_player_team_season_mapping_team_sk__team_sk__ref_dim_team_ +
+  relationships_mart_roster_team_sk__team_sk__ref_dim_team_.
 
 scope_paths:
-  - ingestion/api_football/loads/squads.py
-  - ingestion/api_football/loads/competition_runner.py
-  - tests/test_squad_players_rows.py
-  - docs/data_contract.md
-  - .claude/skills/onboard-endpoint/SKILL.md
+  - dbt_project/models/3_core/dim_player_team_season_mapping.sql
   - .claude/task/**
 
 impact_map: >
-  writers: loads/squads.py is the sole writer of RAW_APIF_PLAYERS (one row per (team, season),
-    merge-on-write via _delete_superseded_player_rows). This change alters ONLY which (team,
-    season) keys are fetched from the API — the row shape, the write path, and the merge/delete
-    are untouched.
-  downstream (grep, no dbt file changed): RAW_APIF_PLAYERS -> stg_apif__players ->
-    base_apif__players + base_apif__player_team_season -> 3_core (dim_player,
-    dim_player_team_season_mapping) -> marts (mart_roster, leaderboards/benchmarks). dbt CLI is
-    broken locally; no model/SELECT/ref() change here, so lineage is unchanged by construction.
-  layer_rules: none — ingestion Python only; no dbt model or layer touched; check_layer_contract
-    unaffected.
-  deploy_order: no warehouse migration. Pure ingestion behaviour; takes effect on the next
-    scheduled/CI ingest, no --full-refresh or model rebuild needed. Safe to merge anytime.
-  blast_radius: DATA-EQUIVALENT / none. A finished season's /players response is immutable, so
-    not re-downloading it yields byte-identical downstream data while removing ~all historical
-    /players calls; steady state = current-season re-fetch only. A brand-new team or an
-    un-captured historical (team, season) is still fetched (backfill/gap-heal intact). RAW row
-    count only ever grows or holds, never shrinks.
+  writers: dim_player_team_season_mapping (3_core) — this change adds a WHERE semi-join to
+    dim_team; no grain change, no new column, no ref() change beyond adding sibling core dim_team.
+  downstream (grep dbt_project/models for the model name): only mart_roster (5_marts/shared)
+    JOINs it — it correctly sheds the 118 All-Star player rows. mart_player_career.sql and
+    dim_team_competition_season_mapping.sql name it in DOC COMMENTS ONLY (no join, no impact).
+    dbt CLI broken locally; downstream asserted from the grep + model reads, no dbt ls.
+  layer_rules: core→core ref (dim_team is 3_core) is layer-legal; check_layer_contract.py stays
+    green (no per-competition file, no cross-layer violation).
+  deploy_order: table model; the PR slim build (state:modified+) rebuilds dim_player_team_season_
+    mapping + mart_roster and re-runs the relationship tests. No --full-refresh (not incremental).
+  blast_radius: dim_player_team_season_mapping loses the 138 orphan rows; mart_roster loses the
+    118 All-Star player rows (junk). Both relationship tests flip FAIL(138)->PASS. No other mart
+    consumes the mapping. No user-facing surface consumes All-Star rows today.
 
 decisions_taken: >
-  Rests on the CPO's plan approval this session: (1) fix squads only; (2) finished-vs-live split
-  — always re-fetch the reference season (per-season stats accumulate), skip captured historical
-  seasons — mirroring the established fixtures/details and player_squads-catchup treatment of
-  finished data; (3) prevent recurrence via a documented invariant + onboard-endpoint checklist,
-  not a CI guard.
+  CPO ruling this session: option 1 — exclude non-entity teams from the affiliation mapping (vs
+  adding All-Star teams to dim_team, or downgrading the test). The mapping records real team
+  affiliations only; an affiliation to a team that is not even a modelled entity is not usable.
 
 decisions_reserved:
-  - transfers.py has the same class of re-fetch gap (cheaper: 1 call/team, no ×season×pages) —
-    deferred to its own PR (CPO, this session). Not touched here.
-  - Provider retroactive edits to a FINISHED season would not be re-pulled (accepted trade-off;
-    a periodic full refresh via API_FOOTBALL_INGEST_FORCE_FULL / a manual run remains available).
-  - A machine-enforced guard for the invariant was explicitly deferred in favour of doc + skill.
+  - The relationship test becomes correct-by-construction (kept as a regression guard). If the
+    signal for a REAL team accidentally missing from dim_team is wanted back, a warn-level count of
+    excluded (team_id) could be added — NOT in this PR unless the CPO asks.
+  - Whether to also stop the squad ingest from fetching exhibition-team squads (upstream option 2)
+    is a separate, deferred question — not touched here.
 
 done_when:
-  - squads.py fetches only (reference season × teams) + un-captured historical (team, season),
-    via a pure planner + a BQ coverage reader; emits `phase=squad /players to_fetch=N
-    skipped_cached=M` (fixtures-style).
-  - `pytest tests/test_squad_players_rows.py tests/test_player_squads_catchup.py` passes
-    (existing loader tests updated for the new reader; new pure-planner + reader tests added).
-  - validate-local gates pass (ruff/black/flake8, import checks).
-  - docs/data_contract.md states the fetch-side-skip invariant; onboard-endpoint SKILL.md carries
-    the checklist item.
-  - scope-auditor + data-engineer-reviewer + cto-reviewer PASS (>=2 risks each); review.md
-    diff_sha256 binds; CPO merges.
+  - dim_player_team_season_mapping keeps only team_sks present in dim_team (semi-join); docstring
+    notes the entity-integrity filter.
+  - `python scripts/check_layer_contract.py` passes; sqlfluff lint clean on the model.
+  - PR ci-data-build rebuilds the mapping + mart_roster; both team_sk->dim_team relationship tests
+    PASS; prod orphan re-query = 0; mart_roster drops exactly the 118 All-Star rows.
+  - scope-auditor + analytics-engineer-reviewer PASS (>=2 risks each); review.md hash binds; CPO merges.
 
 amendments: (none)
