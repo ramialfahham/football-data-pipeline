@@ -58,11 +58,13 @@ models:
 
   - name: int_player_momentum__metrics
     description: >
-      W1 last-5 momentum builder — player. For each upcoming fixture side, identifies the
-      team's last 5 finished matches (same logic as int_team_momentum__metrics) and aggregates raw
-      player stat totals for every player who appeared in those matches. No ratios.
-      A player absent from some matches contributes stats only for matches they appeared in.
-      Grain: (upcoming_fixture_sk, team_sk, player_sk).
+      W1 momentum builder — player. For each upcoming fixture side, aggregates raw player stat
+      totals for every player who appeared in the side's window legs. The window selection is
+      consumed from the shared int_team_momentum_window model (#323) — the SAME selection the team
+      aggregate uses — so the player top-players strip and the team form panel stay on one window
+      (last_5 default, or the cumulative tournament_to_date / qualifiers window on tournament
+      fixtures, GAP-18/#484). No ratios. A player absent from some legs contributes stats only for
+      matches they appeared in. Grain: (upcoming_fixture_sk, team_sk, player_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -81,12 +83,16 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
+        description: >
+          The form window, carried from int_team_momentum_window: last_5 (default) or
+          tournament_to_date / qualifiers for tournament fixtures (GAP-18/#484). Constant per
+          (upcoming_fixture_sk, team_sk).
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5"]
+              values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
-        description: "Team window size (max 5). Not the player's individual appearance count."
+        description: "The player's appearance count within the side's window (1..5 for last_5, uncapped for tournament windows)."
         tests: [not_null]
       - name: position_code
         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."

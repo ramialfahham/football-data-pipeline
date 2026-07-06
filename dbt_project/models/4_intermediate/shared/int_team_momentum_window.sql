@@ -22,8 +22,9 @@
     every finished leg in the tournament's qualifier competitions (registry parent_competition =
     this league_code) before kickoff, no season cap (a qualifying campaign spans seasons).
   A tournament side with neither tournament nor qualifier legs yields no rows (the mart renders
-  the empty-form state). `qualifying`-type previews keep last_5 here (#483); the player path
-  keeps last_5 (#484).
+  the empty-form state). `qualifying`-type previews keep last_5 here (#483). This selection also
+  feeds the player momentum builder (int_player_momentum__metrics), so the player top-players strip
+  and the team form panel share one window (#484).
 
   Returns no rows for a team with no finished matches yet (before phase for a club
   domestic_league); #326's season-to-date fallback covers that gap.

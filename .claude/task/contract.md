@@ -1,44 +1,69 @@
-# Task contract — handover refresh (session-boundary batch, post-#651)
+# Task contract — #484: player momentum uses the same form window as team
 
-> Written on a CLEAN tree (branch chore/handover-refresh-post-651 off main @ cf36c19).
-> Bookkeeping only — the batched session-boundary refresh ([[feedback-handover-discipline]] cadence rule:
-> refresh ONCE at the boundary, not per-merge). Plan mode skipped per the CPO handover carve-out; still runs
-> the contract + review + gate.
+> Written on a CLEAN tree (branch feat/484-player-tournament-window off main @ 28d751f).
+> Plan approved via ExitPlanMode this session. See docs/working_agreement.md §2/§10/§11, Appendix A.
 
 objective: >
-  Bring `.claude/active_work.md` current from post-#648 (pointer 1966d4d) to post-#651 (cf36c19), folding in the
-  session's net: #649 (post-#648 refresh), #650 (handover — drop untracked "further player-season models"),
-  #651 (#530(b) — player goals_penalty + goals_open_play catalogue rows completed). Record the ⭐ premise-check
-  finding that #510 (retire leftover team dribbles_success_pct) is ALREADY DONE (traced end-to-end: no team
-  dribbles catalogue row / momentum-model refs / range test; export dribbles is player-only; issue CLOSED) — do
-  NOT re-attempt; drop it from the carryovers. Note the spawned follow-up chip (task_f876b853: 2 stale "deferred"
-  doc comments). NEXT tracked candidate narrows to #484 (player NT/tournament window).
-
-refs: #651 (cf36c19 #530(b)); #650 (drop untracked candidates); #649 (post-#648 refresh); #510 (verified already-done, CLOSED).
+  Fix the #484 parity gap: on a tournament fixture (world_championship / continental_championship) the
+  fixture-page top-players strip still uses a last-5 window while the team form panel uses the GAP-18
+  cumulative tournament window. Re-point the player momentum builder at the shared window model
+  `int_team_momentum_window` (the same de-dup #323 did for the team aggregate) so both surfaces consume
+  ONE window selection. CPO decision this session: the player strip must use the SAME window as team form.
+refs: #484 (deferred from GAP-18); #323 (window extraction); docs/wireframes/01_fixture_page.md §5; docs/metrics_context_model.md §4.
 
 scope_paths:
-  - .claude/active_work.md
+  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+  - dbt_project/models/5_marts/shared/mart_player_momentum.sql
+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+  - dbt_project/tests/assert_player_momentum_window_matches_team.sql
   - .claude/task/**
 
 impact_map: >
-  Doc/bookkeeping only. The single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
-  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric moves, no build impact. The
-  task scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is NOT
-  review-exempt (scope-auditor required).
+  writers: `int_player_momentum__metrics` (materialized='table', full rebuild each run) — the only model
+    whose logic changes. `int_team_momentum_window` gains ONE new consumer (the player builder now ref()s it);
+    its own SQL is unchanged except a stale doc-comment.
+  downstream (traced by grep — dbt CLI is broken locally, so lineage is from ref() inspection, not `dbt ls`):
+    `int_player_momentum__metrics` → `mart_player_momentum` (sole model consumer) → `scripts/export_site_data.py`
+    (reads `mart_player_momentum`, shape_top_players → the top-players strip). No other model ref()s either.
+    `int_team_momentum_window` existing consumers (`int_team_momentum__metrics`, `mart_team_momentum_window`)
+    are UNTOUCHED — team path unchanged.
+  layer_rules: intermediate→intermediate ref (int_player_momentum__metrics → int_team_momentum_window, both
+    4_intermediate/shared) is allowed; no per-competition staging; check_layer_contract stays green. league_code
+    still flows via the leg rows (not hardcoded).
+  deploy_order: NON-breaking. The player builder is a full-rebuild table (no incremental column-rename trap —
+    columns are unchanged; only row VALUES shift on tournament sides + window_type gains 2 possible values).
+    Rebuilds cleanly on the next `dbt build`; no --full-refresh needed. Picked up by ci-data-build and the 04:00
+    nightly with no manual step.
+  blast_radius: `mart_player_momentum` VALUES change ONLY for tournament-fixture sides (window last_5 → cumulative
+    tournament_to_date/qualifiers). Non-tournament sides are byte-identical (the shared model's last_5 branch is
+    the same join + season boundary + recency_rank<=5 as the retired inline CTEs). No number moves on any team
+    mart, no export shape change (window_type is already in _TOPPLAYER_DROP so the payload shape is unchanged).
 
 decisions_taken: >
-  Record-only. #649/#650/#651 already merged (cf36c19). #510 recorded as already-done from a code-traced
-  premise check (not a new decision — a finding). NEXT stays an OPEN CPO pick; the only remaining tracked
-  candidate is #484. No new roadmap invented.
+  Rests on the CPO's explicit ruling this session ("team form and the player strip use different windows ->
+  should be the same window"). Approach (consume the shared model vs mirror the branch) is engineering judgment —
+  the shared window model already exists and is guarded; consuming it is the DRY, single-source choice #323
+  established. The new parity test (assert_player_momentum_window_matches_team) is my quality tool per the issue's
+  "add tests". Widening window_type accepted_values + correcting the stale games_in_window description are
+  mechanical consequences of the change.
 
 decisions_reserved:
-  - The actual next task (#484, or a fresh CPO-directed spec) — CPO picks later.
+  - A display LABEL for the player strip window ("in this tournament" vs "last 5") — §10 display/wireframe; NOT
+    in scope (export drops window_type from the strip payload today). Separate follow-up only if the CPO wants it.
+  - The broader national-team-as-context window (metrics_context_model.md §8.4) that the docs also hang on #484 —
+    a different, design-heavy surface; explicitly NOT this parity fix.
 
 done_when:
-  - active_work.md header + FIRST STEPS point at cf36c19; #651 recorded as the latest merged PR.
-  - main-carries appends #649 + #650 + #651; a #651 entry is prepended to RECENT PRs.
-  - #530 follow-up (b) marked DONE #651; #510 recorded already-done and dropped from the carryovers; #484 is the remaining tracked candidate.
-  - The spawned doc-nit chip (task_f876b853) is noted.
-  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+  - int_player_momentum__metrics reads int_team_momentum_window; the inline window CTEs are gone; window_type is
+    carried through (no more hardcoded 'last_5').
+  - window_type accepted_values widened to [last_5, tournament_to_date, qualifiers] in both int_momentum.yml
+    (builder) and shared.yml (mart); games_in_window "max 5" wording corrected.
+  - assert_player_momentum_window_matches_team.sql added (player vs team window_type must agree per shared side).
+  - `python scripts/check_layer_contract.py` passes.
+  - ci-data-build green: model builds, widened accepted_values pass, the new parity test passes, existing
+    assert_tournament_form_window + assert_momentum_window_matches_momentum still green.
+  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each); review.md diff_sha256 binds; CPO merges.
 
-amendments: []
+amendments: (none)

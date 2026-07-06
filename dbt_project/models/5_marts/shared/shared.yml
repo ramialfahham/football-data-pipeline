@@ -79,11 +79,13 @@ models:
 
   - name: mart_player_momentum
     description: >
-      W1 last-5 momentum mart — player. One row per player per upcoming fixture side.
+      W1 momentum mart — player. One row per player per upcoming fixture side.
       Raw counts (goals, assists, cards, …) are passed through directly from the builder.
       Ratios (save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct) are
       computed here via safe_divide. save_pct is only meaningful for goalkeepers
-      (position_code = 'G'). Grain: (upcoming_fixture_sk, team_sk, player_sk).
+      (position_code = 'G'). window_type is last_5 for most fixtures, or the cumulative
+      tournament_to_date / qualifiers window on tournament fixtures (GAP-18/#484) — the same
+      window the team form panel uses. Grain: (upcoming_fixture_sk, team_sk, player_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -110,11 +112,15 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
+        description: >
+          The form window, carried from the builder: last_5 (default) or tournament_to_date /
+          qualifiers for tournament fixtures (GAP-18/#484).
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5"]
+              values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
+        description: "The player's appearance count within the side's window (1..5 for last_5, uncapped for tournament windows)."
         tests: [not_null]
       - name: position_code
         description: "Player position code (e.g. G, D, M, F). Used to scope save_pct to goalkeepers."

@@ -1,12 +1,16 @@
 {{ config(materialized='table') }}
 
 {#
-  W1 last-5 momentum mart — player.
+  W1 momentum mart — player.
 
   Computes final displayed metrics from the raw sums in int_player_momentum__metrics.
   Raw counts (goals, assists, cards, …) are passed through directly. Ratios
   (save_pct, dribbles_success_pct, pass_accuracy_pct, duels_won_pct) are
   computed here via safe_divide — NULL when denominator is zero.
+
+  window_type is carried through from the builder: last_5 for most fixtures, or the
+  cumulative tournament_to_date / qualifiers window on tournament fixtures (GAP-18) —
+  the same window the team form panel uses (#484).
 
   Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
