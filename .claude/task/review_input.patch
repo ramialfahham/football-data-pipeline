@@ -1,487 +1,158 @@
-diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
-index 40f9e3a..a758f45 100644
---- a/.claude/skills/onboard-endpoint/SKILL.md
-+++ b/.claude/skills/onboard-endpoint/SKILL.md
-@@ -135,6 +135,13 @@ per-competition files):
-   `ingestion/api_football/coverage.py` (omitting this makes the fanout silently
-   re-fetch already-covered fixtures every run). Team-/player-keyed pulls (like
-   squads/transfers) are NOT fanout and do not go there.
-+- **Fetch-side skip (mandatory — see `docs/data_contract.md` → "Fetch-side skip").**
-+  Storage-side merge bounds the table, NOT the API cost. Before fetching, read the keys
-+  already in the target raw table and fetch only the delta; re-fetch only the live/current
-+  season (immutable finished data is fetched once). Because team-/player-keyed pulls are NOT
-+  part of the fixture fanout, they need their OWN skip — mirror `captured_player_team_seasons`
-+  / `players_needing`, do not ship a bare loop over every key (that re-pays the full quota
-+  every run). Log `to_fetch=/skipped_cached=` so a disabled skip shows up in the run log.
- - **Staging:** a generic `stg_apif__{entity}` (raw cleanup only).
- - **Base/Core/Marts:** as the feature needs — base dedup/clean (handle the noise
-   found in Step 1), core facts/dims, marts for consumption. Ship the mart first if
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 13274bc..27edb9a 100644
+index 27edb9a..68d7722 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,47 +1,72 @@
--# Task contract — handover refresh (session-boundary batch, post-#653)
-+# Task contract — squad `/players` fetch-side skip (stop nightly quota bleed)
+@@ -1,72 +1,58 @@
+-# Task contract — squad `/players` fetch-side skip (stop nightly quota bleed)
++# Task contract — exclude non-entity (All-Star) teams from the player affiliation mapping
  
--> Written on a CLEAN tree (branch chore/handover-refresh-post-653 off main @ c4489aa).
--> Bookkeeping only — batched session-boundary refresh ([[feedback-handover-discipline]] cadence:
--> refresh ONCE at the boundary, not per-merge). Plan mode skipped per the CPO handover carve-out;
--> still runs the contract + review + gate.
-+> Written on a CLEAN tree (branch `fix/ingest-squads-skip-cached` off main). CPO approved
-+> the plan this session (2026-07-06): squads-only fetch-side skip + doc + skill checklist.
-+> See plan `C:\Users\Rami\.claude\plans\logical-moseying-noodle.md`.
+-> Written on a CLEAN tree (branch `fix/ingest-squads-skip-cached` off main). CPO approved
+-> the plan this session (2026-07-06): squads-only fetch-side skip + doc + skill checklist.
++> Written on a CLEAN tree (branch `fix/roster-exclude-non-entity-teams` off main @ #657 merged).
++> CPO approved option 1 this session (2026-07-06): exclude non-entity teams from the mapping.
+ > See plan `C:\Users\Rami\.claude\plans\logical-moseying-noodle.md`.
  
  objective: >
--  Bring `.claude/active_work.md` current from post-#651 (pointer 28d751f) to post-#653 (c4489aa). Net of this
--  session: #653 (#484 — player momentum now consumes the shared int_team_momentum_window so the top-players strip
--  and team form share ONE window; tournament-cumulative on tournament fixtures; new parity DQ test) MERGED, and
--  issue #484 CLOSED (its literal scope — momentum tournament parity — is done). Record the national-team window
--  audit that followed: the window SET is closed/decided (§4 matrix + §8.4); the national FORM panel is fully built
--  (team + player), and the two buildable leftovers are now filed as issues with CPO rulings — #654 (NT context
--  block on the profile, presence-gated) and #655 (season-record "campaign is the season" — a phantom gap; each
--  qualifying campaign already carries ONE season_api_year, so it's a stale-note cleanup). #3 career-NT-by-type
--  stays parked on NT-history ingest. NEXT returns to an OPEN CPO pick.
--
--refs: #653 (c4489aa, #484 momentum parity); #484 CLOSED; #654 (NT profile context); #655 (campaign=season note cleanup).
-+  The nightly `squad` phase re-fetches `/players` for every team × every history season across
-+  all in-season competitions EVERY run (~2h22m, ~50% of the daily API quota), because
-+  `squads.py` has storage-side merge but NO fetch-side skip. Give it the same skip the sibling
-+  endpoints already have (fixtures `read_coverage`, per-player `players_needing`, squad-catchup
-+  `captured_team_seasons`): fetch only the current (reference) season always + any un-captured
-+  historical `(team, season)`; skip finished team-seasons already in RAW_APIF_PLAYERS (immutable).
-+  Then document the invariant and add it to the onboard-endpoint checklist so it stops being
-+  memory-dependent.
-+refs: plan logical-moseying-noodle.md; CPO plan approval 2026-07-06; sibling pattern in
-+  loads/player_squads.py (captured_team_seasons + select_squad_catchup_team_ids).
+-  The nightly `squad` phase re-fetches `/players` for every team × every history season across
+-  all in-season competitions EVERY run (~2h22m, ~50% of the daily API quota), because
+-  `squads.py` has storage-side merge but NO fetch-side skip. Give it the same skip the sibling
+-  endpoints already have (fixtures `read_coverage`, per-player `players_needing`, squad-catchup
+-  `captured_team_seasons`): fetch only the current (reference) season always + any un-captured
+-  historical `(team, season)`; skip finished team-seasons already in RAW_APIF_PLAYERS (immutable).
+-  Then document the invariant and add it to the onboard-endpoint checklist so it stops being
+-  memory-dependent.
+-refs: plan logical-moseying-noodle.md; CPO plan approval 2026-07-06; sibling pattern in
+-  loads/player_squads.py (captured_team_seasons + select_squad_catchup_team_ids).
++  The nightly build has failed since ~Jun 30 on two relationship DQ tests (138 orphan rows each):
++  team_sk in dim_player_team_season_mapping / mart_roster with no dim_team match. Diagnosed
++  (BigQuery/prod): the orphans are two MLS All-Star exhibition squads — 17664 "Liga MX All-Stars",
++  17665 "MLS All-Stars" (118 players) — surfaced only by /players squad data; /teams does not model
++  them, so they are absent from dim_team (0 in /teams, 0 in fct_fixture). An All-Star selection is
++  not a club/national affiliation. Fix: keep only team_sks that exist in dim_team (a core→core
++  semi-join), so the affiliation mapping and mart_roster contain real team entities only.
++refs: plan logical-moseying-noodle.md; CPO ruling 2026-07-06 (option 1); failing tests
++  relationships_dim_player_team_season_mapping_team_sk__team_sk__ref_dim_team_ +
++  relationships_mart_roster_team_sk__team_sk__ref_dim_team_.
  
  scope_paths:
--  - .claude/active_work.md
-+  - ingestion/api_football/loads/squads.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - tests/test_squad_players_rows.py
-+  - docs/data_contract.md
-+  - .claude/skills/onboard-endpoint/SKILL.md
+-  - ingestion/api_football/loads/squads.py
+-  - ingestion/api_football/loads/competition_runner.py
+-  - tests/test_squad_players_rows.py
+-  - docs/data_contract.md
+-  - .claude/skills/onboard-endpoint/SKILL.md
++  - dbt_project/models/3_core/dim_player_team_season_mapping.sql
    - .claude/task/**
  
  impact_map: >
--  Doc/bookkeeping only. Single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
--  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric move, no build impact. The task
--  scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is NOT
--  review-exempt (scope-auditor required).
-+  writers: loads/squads.py is the sole writer of RAW_APIF_PLAYERS (one row per (team, season),
-+    merge-on-write via _delete_superseded_player_rows). This change alters ONLY which (team,
-+    season) keys are fetched from the API — the row shape, the write path, and the merge/delete
-+    are untouched.
-+  downstream (grep, no dbt file changed): RAW_APIF_PLAYERS -> stg_apif__players ->
-+    base_apif__players + base_apif__player_team_season -> 3_core (dim_player,
-+    dim_player_team_season_mapping) -> marts (mart_roster, leaderboards/benchmarks). dbt CLI is
-+    broken locally; no model/SELECT/ref() change here, so lineage is unchanged by construction.
-+  layer_rules: none — ingestion Python only; no dbt model or layer touched; check_layer_contract
-+    unaffected.
-+  deploy_order: no warehouse migration. Pure ingestion behaviour; takes effect on the next
-+    scheduled/CI ingest, no --full-refresh or model rebuild needed. Safe to merge anytime.
-+  blast_radius: DATA-EQUIVALENT / none. A finished season's /players response is immutable, so
-+    not re-downloading it yields byte-identical downstream data while removing ~all historical
-+    /players calls; steady state = current-season re-fetch only. A brand-new team or an
-+    un-captured historical (team, season) is still fetched (backfill/gap-heal intact). RAW row
-+    count only ever grows or holds, never shrinks.
+-  writers: loads/squads.py is the sole writer of RAW_APIF_PLAYERS (one row per (team, season),
+-    merge-on-write via _delete_superseded_player_rows). This change alters ONLY which (team,
+-    season) keys are fetched from the API — the row shape, the write path, and the merge/delete
+-    are untouched.
+-  downstream (grep, no dbt file changed): RAW_APIF_PLAYERS -> stg_apif__players ->
+-    base_apif__players + base_apif__player_team_season -> 3_core (dim_player,
+-    dim_player_team_season_mapping) -> marts (mart_roster, leaderboards/benchmarks). dbt CLI is
+-    broken locally; no model/SELECT/ref() change here, so lineage is unchanged by construction.
+-  layer_rules: none — ingestion Python only; no dbt model or layer touched; check_layer_contract
+-    unaffected.
+-  deploy_order: no warehouse migration. Pure ingestion behaviour; takes effect on the next
+-    scheduled/CI ingest, no --full-refresh or model rebuild needed. Safe to merge anytime.
+-  blast_radius: DATA-EQUIVALENT / none. A finished season's /players response is immutable, so
+-    not re-downloading it yields byte-identical downstream data while removing ~all historical
+-    /players calls; steady state = current-season re-fetch only. A brand-new team or an
+-    un-captured historical (team, season) is still fetched (backfill/gap-heal intact). RAW row
+-    count only ever grows or holds, never shrinks.
++  writers: dim_player_team_season_mapping (3_core) — this change adds a WHERE semi-join to
++    dim_team; no grain change, no new column, no ref() change beyond adding sibling core dim_team.
++  downstream (grep dbt_project/models for the model name): only mart_roster (5_marts/shared)
++    JOINs it — it correctly sheds the 118 All-Star player rows. mart_player_career.sql and
++    dim_team_competition_season_mapping.sql name it in DOC COMMENTS ONLY (no join, no impact).
++    dbt CLI broken locally; downstream asserted from the grep + model reads, no dbt ls.
++  layer_rules: core→core ref (dim_team is 3_core) is layer-legal; check_layer_contract.py stays
++    green (no per-competition file, no cross-layer violation).
++  deploy_order: table model; the PR slim build (state:modified+) rebuilds dim_player_team_season_
++    mapping + mart_roster and re-runs the relationship tests. No --full-refresh (not incremental).
++  blast_radius: dim_player_team_season_mapping loses the 138 orphan rows; mart_roster loses the
++    118 All-Star player rows (junk). Both relationship tests flip FAIL(138)->PASS. No other mart
++    consumes the mapping. No user-facing surface consumes All-Star rows today.
  
  decisions_taken: >
--  Record-only. #653 merged + #484 closed already happened this session. #654/#655 already filed with their CPO
--  rulings recorded IN the issues (campaign=season; NT-profile-context presence-gated). No new roadmap invented;
--  no §10 decided here — the rulings were the CPO's this session.
-+  Rests on the CPO's plan approval this session: (1) fix squads only; (2) finished-vs-live split
-+  — always re-fetch the reference season (per-season stats accumulate), skip captured historical
-+  seasons — mirroring the established fixtures/details and player_squads-catchup treatment of
-+  finished data; (3) prevent recurrence via a documented invariant + onboard-endpoint checklist,
-+  not a CI guard.
+-  Rests on the CPO's plan approval this session: (1) fix squads only; (2) finished-vs-live split
+-  — always re-fetch the reference season (per-season stats accumulate), skip captured historical
+-  seasons — mirroring the established fixtures/details and player_squads-catchup treatment of
+-  finished data; (3) prevent recurrence via a documented invariant + onboard-endpoint checklist,
+-  not a CI guard.
++  CPO ruling this session: option 1 — exclude non-entity teams from the affiliation mapping (vs
++  adding All-Star teams to dim_team, or downgrading the test). The mapping records real team
++  affiliations only; an affiliation to a team that is not even a modelled entity is not usable.
  
  decisions_reserved:
--  - The actual next task — CPO picks later (candidates: #655 quick doc green; #654 needs a wireframe first;
--    the #545–#547 programs; task_f876b853 chip). NT career-by-type (#3) parked on a data/cost call.
-+  - transfers.py has the same class of re-fetch gap (cheaper: 1 call/team, no ×season×pages) —
-+    deferred to its own PR (CPO, this session). Not touched here.
-+  - Provider retroactive edits to a FINISHED season would not be re-pulled (accepted trade-off;
-+    a periodic full refresh via API_FOOTBALL_INGEST_FORCE_FULL / a manual run remains available).
-+  - A machine-enforced guard for the invariant was explicitly deferred in favour of doc + skill.
+-  - transfers.py has the same class of re-fetch gap (cheaper: 1 call/team, no ×season×pages) —
+-    deferred to its own PR (CPO, this session). Not touched here.
+-  - Provider retroactive edits to a FINISHED season would not be re-pulled (accepted trade-off;
+-    a periodic full refresh via API_FOOTBALL_INGEST_FORCE_FULL / a manual run remains available).
+-  - A machine-enforced guard for the invariant was explicitly deferred in favour of doc + skill.
++  - The relationship test becomes correct-by-construction (kept as a regression guard). If the
++    signal for a REAL team accidentally missing from dim_team is wanted back, a warn-level count of
++    excluded (team_id) could be added — NOT in this PR unless the CPO asks.
++  - Whether to also stop the squad ingest from fetching exhibition-team squads (upstream option 2)
++    is a separate, deferred question — not touched here.
  
  done_when:
--  - active_work.md header + FIRST STEPS point at c4489aa; #653 recorded as the latest merged PR.
--  - main-carries appends #653; a #653 entry is prepended to RECENT PRs.
--  - #484 recorded DONE+CLOSED; the national-window audit + #654/#655 (with rulings) captured; #3 noted parked.
--  - NEXT is an OPEN CPO pick again (no locked task).
--  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
-+  - squads.py fetches only (reference season × teams) + un-captured historical (team, season),
-+    via a pure planner + a BQ coverage reader; emits `phase=squad /players to_fetch=N
-+    skipped_cached=M` (fixtures-style).
-+  - `pytest tests/test_squad_players_rows.py tests/test_player_squads_catchup.py` passes
-+    (existing loader tests updated for the new reader; new pure-planner + reader tests added).
-+  - validate-local gates pass (ruff/black/flake8, import checks).
-+  - docs/data_contract.md states the fetch-side-skip invariant; onboard-endpoint SKILL.md carries
-+    the checklist item.
-+  - scope-auditor + data-engineer-reviewer + cto-reviewer PASS (>=2 risks each); review.md
-+    diff_sha256 binds; CPO merges.
+-  - squads.py fetches only (reference season × teams) + un-captured historical (team, season),
+-    via a pure planner + a BQ coverage reader; emits `phase=squad /players to_fetch=N
+-    skipped_cached=M` (fixtures-style).
+-  - `pytest tests/test_squad_players_rows.py tests/test_player_squads_catchup.py` passes
+-    (existing loader tests updated for the new reader; new pure-planner + reader tests added).
+-  - validate-local gates pass (ruff/black/flake8, import checks).
+-  - docs/data_contract.md states the fetch-side-skip invariant; onboard-endpoint SKILL.md carries
+-    the checklist item.
+-  - scope-auditor + data-engineer-reviewer + cto-reviewer PASS (>=2 risks each); review.md
+-    diff_sha256 binds; CPO merges.
++  - dim_player_team_season_mapping keeps only team_sks present in dim_team (semi-join); docstring
++    notes the entity-integrity filter.
++  - `python scripts/check_layer_contract.py` passes; sqlfluff lint clean on the model.
++  - PR ci-data-build rebuilds the mapping + mart_roster; both team_sk->dim_team relationship tests
++    PASS; prod orphan re-query = 0; mart_roster drops exactly the 118 All-Star rows.
++  - scope-auditor + analytics-engineer-reviewer PASS (>=2 risks each); review.md hash binds; CPO merges.
  
  amendments: (none)
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 9bf67ca..1ba5160 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -98,6 +98,23 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
+diff --git a/dbt_project/models/3_core/dim_player_team_season_mapping.sql b/dbt_project/models/3_core/dim_player_team_season_mapping.sql
+index 6252125..00d4c75 100644
+--- a/dbt_project/models/3_core/dim_player_team_season_mapping.sql
++++ b/dbt_project/models/3_core/dim_player_team_season_mapping.sql
+@@ -12,6 +12,11 @@
+     Use this to answer "which team/competition was a player part of, when". "Did they
+     play" lives in fct_fixture_player_stats.
  
- ---
++    Entity-integrity: only teams present in dim_team are kept. Exhibition / All-Star pseudo-teams
++    (e.g. "MLS All-Stars") are surfaced by the /players squad feed but not modelled by /teams, so
++    they are absent from dim_team; a roster membership in a non-entity team is not a usable
++    club/national affiliation, so it is excluded here.
++
+     A player legitimately produces multiple rows: a mid-season transfer (two teams,
+     same season) and club + national-team membership in the same window are both real.
  
-+## Fetch-side skip (ingested once → not re-requested)
+@@ -43,6 +48,14 @@ dim_competition_season as (
+         partition by league_code, season_api_year
+         order by season_sk
+     ) = 1
++),
 +
-+**Invariant — every per-entity endpoint must skip what it already holds.** Storage-side merge/dedup bounds the *table*; it does **not** bound the *API cost*. A loader that keeps one row per key but still calls the endpoint for every key every run re-pays the full quota nightly. This reached production once: the `/players` squad phase re-fetched every team × every history season each run (~50% of the daily quota) because it had the merge but not the skip.
-+
-+So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once. Mirror the canonical implementations, do not reinvent:
-+
-+| Endpoint axis | Coverage reader | Fetch planner |
-+|---------------|-----------------|---------------|
-+| per-fixture (`/fixtures?ids=`) | `read_coverage` / `covered_for_league` | fanout selection (above) |
-+| per-team-season (`/players`) | `captured_player_team_seasons` (`loads/squads.py`) | `plan_player_team_season_fetch` |
-+| per-team-season (`/players/squads`) | `captured_team_seasons` (`loads/player_squads.py`) | `select_squad_catchup_team_ids` |
-+| per-player (`/players/profiles`, `/players/teams`) | `players_needing` (`loads/player_universe.py`) | static bio/career — fetch each player once |
-+
-+Each fetch pass logs `to_fetch=N skipped_cached=M`, so a regression (skip silently disabled) shows up in the run log.
-+
-+---
-+
- ## Squad capture (in-season + finished-comp catch-up)
++-- Entity-integrity gate: keep only affiliations to teams that /teams models as real entities.
++-- Exhibition / All-Star pseudo-teams (e.g. "MLS All-Stars") are surfaced only by the /players
++-- squad feed, never by /teams, so they are absent from dim_team; a roster membership in a
++-- non-entity team is not a usable club/national affiliation.
++dim_team_keys as (
++    select distinct team_sk from {{ ref('dim_team') }}
+ )
  
- `/players/squads` is the squad-**membership** source (the full current roster, including selected players with no minutes) for **clubs and national teams alike**. A squad is a property of the **team**, not the competition, so capture is keyed by team and deduped across competitions:
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index 6451e3c..61f4440 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -127,7 +127,13 @@ def run_squads_for_competition(
-     """Run squad /players batch for one competition after global fanout."""
-     try:
-         _ingestion_phase(result.league_code, "squad /players batch")
--        load_squad_players_batch(ctx, result.league_code, result.seasons_list, result.team_ids)
-+        load_squad_players_batch(
-+            ctx,
-+            result.league_code,
-+            result.seasons_list,
-+            result.team_ids,
-+            reference_season=max(result.seasons_list) if result.seasons_list else None,
-+        )
-     except Exception as e:
-         ctx.errors.append(f"league {result.league_code} squads: {e}")
- 
-diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
-index 928600f..9c00c0c 100644
---- a/ingestion/api_football/loads/squads.py
-+++ b/ingestion/api_football/loads/squads.py
-@@ -11,6 +11,11 @@ the superseded prior rows for exactly those keys, so the table holds one row per
- touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a warning is
- logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
- is assembled in base.
-+
-+Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
-+stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
-+never re-requested — see ``plan_player_team_season_fetch`` / ``captured_player_team_seasons``.
-+This is the API-cost twin of the merge above (bounded storage did NOT bound the fetch).
- """
- 
- from __future__ import annotations
-@@ -61,11 +66,60 @@ def _delete_superseded_player_rows(
-     ).result()
- 
- 
-+def captured_player_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
-+    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_PLAYERS.
-+
-+    The fetch-side twin of the storage-side merge: a finished season's /players response is
-+    immutable, so ``load_squad_players_batch`` skips team-seasons we already hold and fetches
-+    only the delta. Mirrors ``captured_team_seasons`` in loads/player_squads.py and the
-+    RAW_APIF_PLAYERS unnest in loads/player_universe.py. Returns an empty set if the table does
-+    not exist yet or the read fails (then everything is fetched — a duplicate download, never a
-+    silent miss)."""
-+    table = f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('PLAYERS')}"
-+    sql = f"""
-+        SELECT DISTINCT
-+            SAFE_CAST(JSON_VALUE(team_block, '$.team_id') AS INT64) AS team_id,
-+            SAFE_CAST(JSON_VALUE(team_block, '$.season') AS INT64) AS season
-+        FROM `{table}`,
-+            UNNEST(JSON_QUERY_ARRAY(JSON_QUERY(payload, '$.response'), '$')) AS team_block
-+        WHERE JSON_VALUE(team_block, '$.season') IS NOT NULL
-+    """
-+    pairs: set[tuple[int, int]] = set()
-+    try:
-+        for row in ctx.client.query(sql).result():
-+            if row.team_id is not None and row.season is not None:
-+                pairs.add((int(row.team_id), int(row.season)))
-+    except Exception as e:
-+        ctx.errors.append(f"players: captured-seasons read failed: {e}")
-+    return pairs
-+
-+
-+def plan_player_team_season_fetch(
-+    seasons_list: list[int],
-+    team_ids: set[int],
-+    reference_season: int,
-+    already_captured: set[tuple[int, int]],
-+) -> list[tuple[int, int]]:
-+    """Pure policy: which ``(season, team_id)`` /players pulls this run still needs.
-+
-+    The reference (current) season is always re-fetched — its per-season stats keep accumulating
-+    as matches are played. Every earlier season is immutable, so it is fetched only when the
-+    ``(team_id, season)`` is not already held. Deterministic, no I/O; keys are returned in
-+    ``(season, sorted team_id)`` order."""
-+    plan: list[tuple[int, int]] = []
-+    for season in seasons_list:
-+        for team_id in sorted(team_ids):
-+            if season >= reference_season or (team_id, season) not in already_captured:
-+                plan.append((season, team_id))
-+    return plan
-+
-+
- def load_squad_players_batch(
-     ctx: PipelineContext,
-     league_code: str,
-     seasons_list: list[int],
-     team_ids: set[int],
-+    reference_season: int | None = None,
- ) -> None:
-     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
-         ctx.errors.append(
-@@ -73,44 +127,57 @@ def load_squad_players_batch(
-         )
-         return
- 
-+    # Fetch-side skip: only the live season (stats still accumulating) + un-captured historical
-+    # (team, season) — finished seasons already in RAW_APIF_PLAYERS are immutable and never
-+    # re-requested. Mirrors the fixtures fanout's to_fetch/covered split.
-+    ref = (
-+        reference_season
-+        if reference_season is not None
-+        else (max(seasons_list) if seasons_list else 0)
-+    )
-+    already_captured = captured_player_team_seasons(ctx)
-+    fetch_keys = plan_player_team_season_fetch(seasons_list, team_ids, ref, already_captured)
-+    total = len(seasons_list) * len(team_ids)
-+    print(
-+        f"[api-football] league={league_code} phase=squad /players "
-+        f"to_fetch={len(fetch_keys)} skipped_cached={total - len(fetch_keys)}",
-+        flush=True,
-+    )
-+
-     rows: list[dict] = []
-     written_keys: list[str] = []
-     quota_cut = False
--    for season in seasons_list:
-+    for season, team_id in fetch_keys:
-         if errors_quota._http_quota_exhausted:
-             quota_cut = True
-             break
--        for team_id in sorted(team_ids):
--            if errors_quota._http_quota_exhausted:
--                quota_cut = True
--                break
--            try:
--                players_rows = players_response_for_team(
--                    ctx.headers,
--                    team_id,
--                    season,
--                    ctx.errors,
--                    error_context=(
--                        f"players {league_code} team_id={team_id} season={season}"
--                    ),
--                )
--                rows.append(
--                    {
--                        "league_code": league_code,
--                        "response": [
--                            {
--                                "team_id": team_id,
--                                "season": season,
--                                "players_payload": players_rows,
--                            }
--                        ],
--                    }
--                )
--                written_keys.append(f"{team_id}-{season}")
--            except Exception as e:
--                ctx.errors.append(
--                    f"players {league_code} team {team_id} season={season}: {e}"
--                )
-+        try:
-+            players_rows = players_response_for_team(
-+                ctx.headers,
-+                team_id,
-+                season,
-+                ctx.errors,
-+                error_context=(
-+                    f"players {league_code} team_id={team_id} season={season}"
-+                ),
-+            )
-+            rows.append(
-+                {
-+                    "league_code": league_code,
-+                    "response": [
-+                        {
-+                            "team_id": team_id,
-+                            "season": season,
-+                            "players_payload": players_rows,
-+                        }
-+                    ],
-+                }
-+            )
-+            written_keys.append(f"{team_id}-{season}")
-+        except Exception as e:
-+            ctx.errors.append(
-+                f"players {league_code} team {team_id} season={season}: {e}"
-+            )
- 
-     if rows:
-         try:
-diff --git a/tests/test_squad_players_rows.py b/tests/test_squad_players_rows.py
-index 212ea4a..325f38a 100644
---- a/tests/test_squad_players_rows.py
-+++ b/tests/test_squad_players_rows.py
-@@ -15,6 +15,7 @@ from pathlib import Path
- 
- from ingestion.api_football.loads import squads as sq
- from ingestion.api_football import bigquery as bq
-+from ingestion.api_football.settings import DATASET_ID, GCP_PROJECT_ID
- 
- _FIXTURE = Path(__file__).parent / "fixtures" / "apif" / "players_cwc_sample.json"
- 
-@@ -37,6 +38,10 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
- 
-     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
-     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
-+    # The fetch-side skip reads BQ for captured (team, season); the fake ctx has no client, so
-+    # stub the reader to "nothing captured" — the single season here is the reference season and
-+    # is fetched regardless.
-+    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
- 
-     captured: dict = {}
- 
-@@ -85,6 +90,7 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
- 
- def test_no_rows_means_no_write(monkeypatch):
-     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
-+    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
-     monkeypatch.setattr(
-         sq, "players_response_for_team", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not fetch"))
-     )
-@@ -100,6 +106,7 @@ def test_no_rows_means_no_write(monkeypatch):
- def test_quota_cut_logs_partial_warning(monkeypatch):
-     # A quota cut mid-fetch must NOT report a silent success — a PARTIAL warning is logged.
-     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
-+    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
- 
-     def fake_fetch(headers, team_id, season, errors, error_context=""):
-         monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", True)  # exhaust after first
-@@ -164,3 +171,107 @@ def test_multi_row_loader_empty_writes_nothing():
-     )
-     assert written == 0
-     assert client.calls == []
-+
-+
-+# --- plan_player_team_season_fetch: fetch-side skip policy (pure, no I/O) ---
-+# The reference (live) season is always re-fetched (per-season stats accumulate); earlier
-+# seasons are immutable and fetched only when their (team, season) is not already held.
-+
-+
-+def test_plan_reference_season_always_fetched_even_if_captured():
-+    plan = sq.plan_player_team_season_fetch(
-+        seasons_list=[2024, 2025],
-+        team_ids={10, 11},
-+        reference_season=2025,
-+        already_captured={(10, 2025), (11, 2025), (10, 2024), (11, 2024)},
-+    )
-+    # 2025 (reference) re-fetched despite being held; 2024 fully held -> skipped.
-+    assert plan == [(2025, 10), (2025, 11)]
-+
-+
-+def test_plan_historical_gap_self_heals():
-+    plan = sq.plan_player_team_season_fetch(
-+        seasons_list=[2024, 2025],
-+        team_ids={10, 11},
-+        reference_season=2025,
-+        already_captured={(10, 2024)},
-+    )
-+    # 2024: only team 11 missing -> fetched; 2025 (reference): both.
-+    assert plan == [(2024, 11), (2025, 10), (2025, 11)]
-+
-+
-+def test_plan_first_run_fetches_full_product():
-+    plan = sq.plan_player_team_season_fetch(
-+        seasons_list=[2024, 2025],
-+        team_ids={10, 11},
-+        reference_season=2025,
-+        already_captured=set(),
-+    )
-+    # Nothing held (first run / backfill) -> the whole season×team product.
-+    assert plan == [(2024, 10), (2024, 11), (2025, 10), (2025, 11)]
-+
-+
-+def test_plan_empty_inputs():
-+    assert sq.plan_player_team_season_fetch([], {10}, 2025, set()) == []
-+    assert sq.plan_player_team_season_fetch([2025], set(), 2025, set()) == []
-+
-+
-+# --- captured_player_team_seasons: BigQuery read of already-stored (team, season) pairs ---
-+# Fake client so the Python row-handling runs with NO network; the JSON-path SQL itself is
-+# validated against real RAW_APIF_PLAYERS separately (mirrors test_player_squads_catchup).
-+
-+
-+class _FakeResult:
-+    def __init__(self, rows):
-+        self._rows = rows
-+
-+    def result(self):
-+        return self._rows
-+
-+
-+class _FakeClient:
-+    def __init__(self, rows=None, raise_exc=None):
-+        self._rows = rows or []
-+        self._raise = raise_exc
-+        self.last_sql = None
-+
-+    def query(self, sql):
-+        self.last_sql = sql
-+        if self._raise is not None:
-+            raise self._raise
-+        return _FakeResult(self._rows)
-+
-+
-+def _skip_ctx(rows=None, raise_exc=None):
-+    return types.SimpleNamespace(client=_FakeClient(rows=rows, raise_exc=raise_exc), errors=[])
-+
-+
-+def _row(team_id, season):
-+    return types.SimpleNamespace(team_id=team_id, season=season)
-+
-+
-+def test_captured_player_team_seasons_returns_pairs():
-+    ctx = _skip_ctx(rows=[_row(10, 2025), _row(11, 2025), _row(10, 2024)])
-+    assert sq.captured_player_team_seasons(ctx) == {(10, 2025), (11, 2025), (10, 2024)}
-+    assert ctx.errors == []
-+
-+
-+def test_captured_player_team_seasons_skips_null_rows():
-+    ctx = _skip_ctx(rows=[_row(10, 2025), _row(None, 2025), _row(11, None)])
-+    assert sq.captured_player_team_seasons(ctx) == {(10, 2025)}
-+
-+
-+def test_captured_player_team_seasons_failopen_on_query_error():
-+    # A read failure must not abort the run; return empty (re-capture is the safe direction).
-+    ctx = _skip_ctx(raise_exc=RuntimeError("boom"))
-+    assert sq.captured_player_team_seasons(ctx) == set()
-+    assert any("captured-seasons read failed" in e for e in ctx.errors)
-+
-+
-+def test_captured_player_team_seasons_query_is_fully_qualified():
-+    # Regression guard: a bare table name fails at runtime; the read must reference
-+    # project.dataset.RAW_APIF_PLAYERS (matches _fq in loads/player_universe.py).
-+    ctx = _skip_ctx(rows=[])
-+    sq.captured_player_team_seasons(ctx)
-+    assert f"{GCP_PROJECT_ID}.{DATASET_ID}." in ctx.client.last_sql
-+    assert "RAW_APIF_PLAYERS" in ctx.client.last_sql
+ select
+@@ -60,6 +73,8 @@ select
+     pts.season_year as season_api_year,
+     pts.raw_ingested_at
+ from base_apif__player_team_season as pts
++inner join dim_team_keys as dtk
++    on cast(pts.team_id as int64) = dtk.team_sk
+ left join dim_competition_season as cs
+     on
+         pts.league_code = cs.league_code

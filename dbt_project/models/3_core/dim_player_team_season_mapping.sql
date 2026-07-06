@@ -12,6 +12,11 @@
     Use this to answer "which team/competition was a player part of, when". "Did they
     play" lives in fct_fixture_player_stats.
 
+    Entity-integrity: only teams present in dim_team are kept. Exhibition / All-Star pseudo-teams
+    (e.g. "MLS All-Stars") are surfaced by the /players squad feed but not modelled by /teams, so
+    they are absent from dim_team; a roster membership in a non-entity team is not a usable
+    club/national affiliation, so it is excluded here.
+
     A player legitimately produces multiple rows: a mid-season transfer (two teams,
     same season) and club + national-team membership in the same window are both real.
 
@@ -43,6 +48,14 @@ dim_competition_season as (
         partition by league_code, season_api_year
         order by season_sk
     ) = 1
+),
+
+-- Entity-integrity gate: keep only affiliations to teams that /teams models as real entities.
+-- Exhibition / All-Star pseudo-teams (e.g. "MLS All-Stars") are surfaced only by the /players
+-- squad feed, never by /teams, so they are absent from dim_team; a roster membership in a
+-- non-entity team is not a usable club/national affiliation.
+dim_team_keys as (
+    select distinct team_sk from {{ ref('dim_team') }}
 )
 
 select
@@ -60,6 +73,8 @@ select
     pts.season_year as season_api_year,
     pts.raw_ingested_at
 from base_apif__player_team_season as pts
+inner join dim_team_keys as dtk
+    on cast(pts.team_id as int64) = dtk.team_sk
 left join dim_competition_season as cs
     on
         pts.league_code = cs.league_code
