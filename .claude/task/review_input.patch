@@ -1,196 +1,487 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index abbce5f..7a29bce 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,7 +4,7 @@
- > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
- > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
- 
--_Last updated: **2026-07-04** — main GREEN at **cf36c19**. **This session shipped #648 → #651 (all merged).** **Latest #651: player goals_penalty + goals_open_play catalogue completion (#530(b))** — filled the two deferred player metric_catalogue rows (base_relation=`int_legs__player_match`, `sum(goals_penalty)` / `sum(goals_total - goals_penalty)`, direction=higher_better inheriting the settled #600 team ruling) + synced the `schema.yml` deferred note. 3 reviewers PASS (scope-auditor r1 ESCALATE on the §10 `direction` field → RESOLVED not by asking the CPO but by logging the #600/#621 inheritance in `escalations.log`, the #636 pattern; a spawned follow-up chip **task_f876b853** covers 2 non-blocking stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + the `schema.yml:159-167` direction desc). **⭐ #510 (retire leftover team `dribbles_success_pct`) was found ALREADY DONE** — code-traced end-to-end (no team dribbles catalogue row; `int_team_momentum__metrics` + `mart_team_momentum` have 0 dribbles refs; no range test; export dribbles is the PLAYER leaderboard only). The 2026-06-11 drop got finished during a later momentum-model rename (`int_momentum__team`→`int_team_momentum__metrics`); issue CLOSED. **Do NOT re-attempt.** Prior: **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidate = **#484** (player NT/tournament context window) — the last open carryover (**#530(b) DONE #651**; **#510 found already-done** and CLOSED). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
-+_Last updated: **2026-07-06** — main GREEN at **c4489aa**. **This session shipped #653 (MERGED) + a national-team window audit that filed #654/#655.** **#653 (#484): player momentum uses the SAME form window as team** — re-pointed `int_player_momentum__metrics` at the shared `int_team_momentum_window` (the #323 de-dup) so the fixture-page top-players strip and the team form panel consume ONE window: on a tournament fixture the player strip now inherits the GAP-18 cumulative window (`tournament_to_date` / `qualifiers`) instead of last-5; non-tournament fixtures are byte-identical (same last_5 selection). Widened `window_type` accepted_values → `[last_5, tournament_to_date, qualifiers]` on builder + mart; corrected the stale `games_in_window` "max 5" wording; added `assert_player_momentum_window_matches_team` (player vs team `window_type` must agree per shared side). No export change (`window_type` already in `_TOPPLAYER_DROP`); team path untouched. scope-auditor + analytics-engineer PASS. **Issue #484 CLOSED** (its literal scope = momentum tournament parity, done). **⭐ National-team WINDOW AUDIT (the session's other half — read this before touching windows):** the window SET is CLOSED/decided (`docs/metrics_context_model.md` §4 matrix + §8.4 — 5 kinds: domestic prev-season · club last-5 · club/domestic full-season · national-team context ≤5 pooled · big-tournament cumulative). **Club side = DONE.** National FORM panel = **fully built** (team + player): last-5 (no season cap), `qualifiers`-cumulative, `tournament_to_date`-cumulative all work via momentum. Two buildable leftovers filed WITH CPO rulings: **#655** — season-record "campaign is the season" is a **PHANTOM gap** (checked `core.fct_fixture`: every WCQ campaign already carries ONE `season_api_year` spanning its full 2–3-yr run, e.g. WCQEU=2024 covers 2025-03→2026-03 — so the model already cumulates the whole campaign; action = **delete the stale "multi-season deferred" note only**, no logic); **#654** — national-team **context block on the profile** (§8.4), presence-gated (**CPO 2026-07-06: show if the player has NT context, show NOTHING if not** — drop-when-empty like roster/career), a **re-anchor** of the momentum-computed national numbers onto the profile (NOT a new window). #654 is the real body of the orphaned §8.7 "#484" docs pointer (repoint in its build PR) + notes the `form_window_kind` enum §8.4 promised was never added to the catalogue. **#3 career NT record by competition type = PARKED** on NT-history + friendlies ingest (a cost-gated §10 call). Superseded lead (still valid history): **Prior #651: player goals_penalty + goals_open_play catalogue completion (#530(b))** — filled the two deferred player metric_catalogue rows (base_relation=`int_legs__player_match`, `sum(goals_penalty)` / `sum(goals_total - goals_penalty)`, direction=higher_better inheriting the settled #600 team ruling) + synced the `schema.yml` deferred note. 3 reviewers PASS (scope-auditor r1 ESCALATE on the §10 `direction` field → RESOLVED not by asking the CPO but by logging the #600/#621 inheritance in `escalations.log`, the #636 pattern; a spawned follow-up chip **task_f876b853** covers 2 non-blocking stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + the `schema.yml:159-167` direction desc). **⭐ #510 (retire leftover team `dribbles_success_pct`) was found ALREADY DONE** — code-traced end-to-end (no team dribbles catalogue row; `int_team_momentum__metrics` + `mart_team_momentum` have 0 dribbles refs; no range test; export dribbles is the PLAYER leaderboard only). The 2026-06-11 drop got finished during a later momentum-model rename (`int_momentum__team`→`int_team_momentum__metrics`); issue CLOSED. **Do NOT re-attempt.** Prior: **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidate = **#484** (player NT/tournament context window) — the last open carryover (**#530(b) DONE #651**; **#510 found already-done** and CLOSED). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
- 
- ### ⭐ Stats-percentile track — CLOSED (spec #625 + wire #627)
- The Player Stats percentile-vs-peers screen is DONE end-to-end: wireframe `docs/wireframes/12_player_stats.md`
-@@ -21,28 +21,27 @@ SQLFluff, CI-only — `validate` misses them): LT02 indent on the num/den `{% if
- "Unrecognized name: goals_penalty" (aggregated-but-not-output) → exposed it via a CI-driven scope amendment.
- Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based** screen, still un-spec'd.
- 
--main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`) + **#645** (**Phase D bonus** — player contribution-share `int_player_profile__contribution` + `mart_player_profile` composition + catalogued `contribution_share`) + **#648** (player YoY full-season prior-year reference — `int_player_profile__yoy` `prev_full` CTE + 6 `*_prev_season_full` context columns → `mart_player_profile`; a `full >= pace-matched` invariant DQ test; auto-carries to the v2 player export) + **#649** (handover refresh) + **#650** (handover — drop untracked "further player-season models") + **#651** (**#530(b)** — player `goals_penalty` + `goals_open_play` catalogue rows completed: `int_legs__player_match` formulas + direction=higher_better + `schema.yml` deferred-note sync). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
-+main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`) + **#645** (**Phase D bonus** — player contribution-share `int_player_profile__contribution` + `mart_player_profile` composition + catalogued `contribution_share`) + **#648** (player YoY full-season prior-year reference — `int_player_profile__yoy` `prev_full` CTE + 6 `*_prev_season_full` context columns → `mart_player_profile`; a `full >= pace-matched` invariant DQ test; auto-carries to the v2 player export) + **#649** (handover refresh) + **#650** (handover — drop untracked "further player-season models") + **#651** (**#530(b)** — player `goals_penalty` + `goals_open_play` catalogue rows completed: `int_legs__player_match` formulas + direction=higher_better + `schema.yml` deferred-note sync) + **#653** (**#484** — player momentum consumes the shared `int_team_momentum_window`; the top-players strip + team form share ONE window; tournament-cumulative on tournament fixtures; `assert_player_momentum_window_matches_team` parity test). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
- 
- ### FIRST STEPS (cold chat — do in order)
--1. `git checkout main && git pull`. **main GREEN at cf36c19** (or later if this refresh merged). Confirm tree clean.
--2. Read this file top-to-bottom before touching anything (esp. the header lead + the #651 + #648 + #645 entries in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
--3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **Phase C brick 1 (player YoY) is
--   MERGED (#638)** — `int_player_profile__yoy` composed into `mart_player_profile`; the **portfolio arc
--   #640–643 is MERGED** (README funnel + dbt-docs site); **Phase D bonus (player contribution-share) is
--   MERGED (#645)** — `int_player_profile__contribution` composed into `mart_player_profile` + catalogued
--   `contribution_share`. **Player streaks (Phase C brick 2) is SKIPPED (CPO).** **The history backfill is
--   effectively DONE** (RAW + `mart_player_career` are 5–10 seasons deep across domestic leagues; the
--   "thin-until-backfill" premise was STALE — do NOT re-scope a big backfill; see the header finding).
--   The **YoY-block enrichment is DONE (#648)** and **#530(b) is DONE (#651)** (player goals_penalty +
--   goals_open_play catalogue rows). **#510 was found ALREADY DONE** (team dribbles retired in an earlier
--   refactor; issue CLOSED — do NOT re-attempt). Remaining tracked candidate: **#484** (player NT/tournament
--   context window). (No new player-season surface is tracked; a brand-new one would need a display
--   spec + CPO go first.) **⛔ Phase D
--   flagship opponent/schedule context is SHELVED (2026-07-03) — do NOT re-attempt without a display spec
--   first ([[feedback-display-first-flagship]]).** (Doc-sync DONE #636; player YoY DONE #638; contribution
--   DONE #645; YoY full-season reference DONE #648.) Present candidates + get the CPO's pick;
--   ENTER PLAN MODE for any code/model/metric task. #391 un-paused but NARROW — do NOT touch the live MVP or
--   start the frontend.
-+1. `git checkout main && git pull`. **main GREEN at c4489aa** (or later if this refresh merged). Confirm tree clean.
-+2. Read this file top-to-bottom before touching anything (esp. the header lead — the ⭐ national-team WINDOW AUDIT + the #653 entry in RECENT PRs; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
-+3. **NEXT = a CPO pick from the un-picked backlog** — no locked task. **#484 is DONE (#653) + the issue is
-+   CLOSED** — player momentum now shares the team form window; the national FORM panel is fully built. The
-+   **national-team window SET is CLOSED/decided** (§4 matrix + §8.4) — nothing left to *design*; see the header
-+   audit. Buildable-now candidates (both filed this session with CPO rulings):
-+   - **#655** — season-record "campaign is the season": a **PHANTOM gap** (each WCQ campaign already carries ONE
-+     `season_api_year`), so a **stale-comment cleanup only**, no logic. ~10-min green (scope-auditor + analytics-engineer).
-+   - **#654** — national-team **context block on the profile** (§8.4), presence-gated (CPO: show if NT context
-+     exists, else nothing). A **re-anchor** of momentum's national numbers onto the profile — NOT a new window.
-+     **Wants a wireframe/display-home FIRST** ([[feedback-display-first-flagship]]) before the mart/export.
-+   - **task_f876b853** chip — 2 stale "deferred" doc comments (`assert_metric_catalogue_expr_resolvable.sql:7-8`
-+     + `schema.yml:159-167` direction desc), both false after #621/#651. Doc-only.
-+   - **Programs** (#545 coverage · #546 DQ suite · #547 cost) — strategic, multi-session; #545 needs a CPO tranche pick.
-+   - **#3 career-NT-record-by-competition-type = PARKED** on NT-history + friendlies ingest (a cost-gated §10 call).
-+   **⛔ Phase D flagship opponent/schedule context is SHELVED (2026-07-03) — do NOT re-attempt without a display
-+   spec first ([[feedback-display-first-flagship]]).** Present candidates + get the CPO's pick; ENTER PLAN MODE
-+   for any code/model/metric task. #391 un-paused but NARROW — do NOT touch the live MVP or start the frontend.
- 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
- 
- ---
-@@ -131,6 +130,20 @@ carries it)** first, then build the frontend against a stable export. The live M
- 
- ### ⭐ RECENT PRs
- 
-+- **#653 — #484: player momentum uses the same form window as team, MERGED.** dbt-only. Re-pointed
-+  `int_player_momentum__metrics` at the shared `int_team_momentum_window` (the #323 window-extraction de-dup) so
-+  the fixture-page top-players strip and the team form panel consume ONE window selection. On a tournament fixture
-+  (world_championship / continental_championship) the strip now inherits the GAP-18 cumulative window
-+  (`tournament_to_date` / `qualifiers`) instead of last-5, matching the team form; **non-tournament fixtures are
-+  byte-identical** (the shared model's last_5 branch = the same join + club/national season boundary +
-+  recency_rank<=5 as the retired inline CTEs — both reviewers verified). Widened `window_type` accepted_values →
-+  `[last_5, tournament_to_date, qualifiers]` on both builder (`int_momentum.yml`) + mart (`shared.yml`); corrected
-+  the stale `games_in_window` "max 5" wording (it's the player's appearance count, uncapped on tournament windows).
-+  NEW `assert_player_momentum_window_matches_team` (player vs team `window_type` must agree per shared side — the
-+  parity guard). **No export change** (`window_type` already in `_TOPPLAYER_DROP`); **team path untouched.**
-+  scope-auditor (2 risks) + analytics-engineer (6 risks) PASS first round; ci-data-build green. **Issue #484
-+  CLOSED** (literal scope done). Followed by the national-team window audit → **#654** (NT profile context,
-+  presence-gated) + **#655** (campaign=season note cleanup) filed with CPO rulings; **#3** career-NT-by-type parked.
- - **#651 — #530(b): complete player goals_penalty + goals_open_play catalogue rows, MERGED.** Seed-only.
-   Filled the two deferred player `metric_catalogue.csv` rows (label+description existed; formula fields were
-   blank): base_relation=`int_legs__player_match`, numerator_expr `sum(goals_penalty)` / `sum(goals_total -
-@@ -314,7 +327,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
- - **Player-metric direction/interpretation classification** (v1.x deferral) — the completeness test is team-only; when the player benchmark matures, classify the ~28 blank player rows and widen the test. CPO call.
- - **Deserved-vs-actual extensions (NOT granted):** a consumption mart when a frontend consumer exists (#391 paused); `rank()` tie semantics revisit; other windows (form panel could compute sot_difference too).
- - **PROGRAMS** (enablers; never eclipse product): #545 coverage tranche · #546 data-quality suite · #547 cost sizing.
--- **Carryovers (open):** #484 (player NT/tournament window) — the last live catalogue/window carryover; team season-rollup → mapping spine; #483 (qualifying-type cumulative window, GAP-18); display-contract amendment (appearance/playing-time block); Pilot PR2 slugs (BLOCKED on blinded §10 rulings E2/E3); Coach + career CONSUMPTION marts (DEFERRED, #391 paused).
-+- **Carryovers (open):** **#484 DONE (#653) + CLOSED**; the national-team window audit spun off **#654** (NT context block on the profile, presence-gated — needs a wireframe first) + **#655** (season-record campaign=season note cleanup, phantom gap) + parked **#3** (career NT record by competition type — data/cost-gated). Also open: team season-rollup → mapping spine; #483 (qualifying-type cumulative window, GAP-18); display-contract amendment (appearance/playing-time block); Pilot PR2 slugs (BLOCKED on blinded §10 rulings E2/E3); Coach + career CONSUMPTION marts (DEFERRED, #391 paused).
- - **Trigger-block-rot follow-up** (background task_44698a18) — dead `build_metric_glossary_json.py` + stale flat mart paths in `pages-match-preview.yml`; PROTECTED-path unit.
- 
- ---
+diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
+index 40f9e3a..a758f45 100644
+--- a/.claude/skills/onboard-endpoint/SKILL.md
++++ b/.claude/skills/onboard-endpoint/SKILL.md
+@@ -135,6 +135,13 @@ per-competition files):
+   `ingestion/api_football/coverage.py` (omitting this makes the fanout silently
+   re-fetch already-covered fixtures every run). Team-/player-keyed pulls (like
+   squads/transfers) are NOT fanout and do not go there.
++- **Fetch-side skip (mandatory — see `docs/data_contract.md` → "Fetch-side skip").**
++  Storage-side merge bounds the table, NOT the API cost. Before fetching, read the keys
++  already in the target raw table and fetch only the delta; re-fetch only the live/current
++  season (immutable finished data is fetched once). Because team-/player-keyed pulls are NOT
++  part of the fixture fanout, they need their OWN skip — mirror `captured_player_team_seasons`
++  / `players_needing`, do not ship a bare loop over every key (that re-pays the full quota
++  every run). Log `to_fetch=/skipped_cached=` so a disabled skip shows up in the run log.
+ - **Staging:** a generic `stg_apif__{entity}` (raw cleanup only).
+ - **Base/Core/Marts:** as the feature needs — base dedup/clean (handle the noise
+   found in Step 1), core facts/dims, marts for consumption. Ship the mart first if
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 46085b1..13274bc 100644
+index 13274bc..27edb9a 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,69 +1,47 @@
--# Task contract — #484: player momentum uses the same form window as team
-+# Task contract — handover refresh (session-boundary batch, post-#653)
+@@ -1,47 +1,72 @@
+-# Task contract — handover refresh (session-boundary batch, post-#653)
++# Task contract — squad `/players` fetch-side skip (stop nightly quota bleed)
  
--> Written on a CLEAN tree (branch feat/484-player-tournament-window off main @ 28d751f).
--> Plan approved via ExitPlanMode this session. See docs/working_agreement.md §2/§10/§11, Appendix A.
-+> Written on a CLEAN tree (branch chore/handover-refresh-post-653 off main @ c4489aa).
-+> Bookkeeping only — batched session-boundary refresh ([[feedback-handover-discipline]] cadence:
-+> refresh ONCE at the boundary, not per-merge). Plan mode skipped per the CPO handover carve-out;
-+> still runs the contract + review + gate.
+-> Written on a CLEAN tree (branch chore/handover-refresh-post-653 off main @ c4489aa).
+-> Bookkeeping only — batched session-boundary refresh ([[feedback-handover-discipline]] cadence:
+-> refresh ONCE at the boundary, not per-merge). Plan mode skipped per the CPO handover carve-out;
+-> still runs the contract + review + gate.
++> Written on a CLEAN tree (branch `fix/ingest-squads-skip-cached` off main). CPO approved
++> the plan this session (2026-07-06): squads-only fetch-side skip + doc + skill checklist.
++> See plan `C:\Users\Rami\.claude\plans\logical-moseying-noodle.md`.
  
  objective: >
--  Fix the #484 parity gap: on a tournament fixture (world_championship / continental_championship) the
--  fixture-page top-players strip still uses a last-5 window while the team form panel uses the GAP-18
--  cumulative tournament window. Re-point the player momentum builder at the shared window model
--  `int_team_momentum_window` (the same de-dup #323 did for the team aggregate) so both surfaces consume
--  ONE window selection. CPO decision this session: the player strip must use the SAME window as team form.
--refs: #484 (deferred from GAP-18); #323 (window extraction); docs/wireframes/01_fixture_page.md §5; docs/metrics_context_model.md §4.
-+  Bring `.claude/active_work.md` current from post-#651 (pointer 28d751f) to post-#653 (c4489aa). Net of this
-+  session: #653 (#484 — player momentum now consumes the shared int_team_momentum_window so the top-players strip
-+  and team form share ONE window; tournament-cumulative on tournament fixtures; new parity DQ test) MERGED, and
-+  issue #484 CLOSED (its literal scope — momentum tournament parity — is done). Record the national-team window
-+  audit that followed: the window SET is closed/decided (§4 matrix + §8.4); the national FORM panel is fully built
-+  (team + player), and the two buildable leftovers are now filed as issues with CPO rulings — #654 (NT context
-+  block on the profile, presence-gated) and #655 (season-record "campaign is the season" — a phantom gap; each
-+  qualifying campaign already carries ONE season_api_year, so it's a stale-note cleanup). #3 career-NT-by-type
-+  stays parked on NT-history ingest. NEXT returns to an OPEN CPO pick.
-+
-+refs: #653 (c4489aa, #484 momentum parity); #484 CLOSED; #654 (NT profile context); #655 (campaign=season note cleanup).
+-  Bring `.claude/active_work.md` current from post-#651 (pointer 28d751f) to post-#653 (c4489aa). Net of this
+-  session: #653 (#484 — player momentum now consumes the shared int_team_momentum_window so the top-players strip
+-  and team form share ONE window; tournament-cumulative on tournament fixtures; new parity DQ test) MERGED, and
+-  issue #484 CLOSED (its literal scope — momentum tournament parity — is done). Record the national-team window
+-  audit that followed: the window SET is closed/decided (§4 matrix + §8.4); the national FORM panel is fully built
+-  (team + player), and the two buildable leftovers are now filed as issues with CPO rulings — #654 (NT context
+-  block on the profile, presence-gated) and #655 (season-record "campaign is the season" — a phantom gap; each
+-  qualifying campaign already carries ONE season_api_year, so it's a stale-note cleanup). #3 career-NT-by-type
+-  stays parked on NT-history ingest. NEXT returns to an OPEN CPO pick.
+-
+-refs: #653 (c4489aa, #484 momentum parity); #484 CLOSED; #654 (NT profile context); #655 (campaign=season note cleanup).
++  The nightly `squad` phase re-fetches `/players` for every team × every history season across
++  all in-season competitions EVERY run (~2h22m, ~50% of the daily API quota), because
++  `squads.py` has storage-side merge but NO fetch-side skip. Give it the same skip the sibling
++  endpoints already have (fixtures `read_coverage`, per-player `players_needing`, squad-catchup
++  `captured_team_seasons`): fetch only the current (reference) season always + any un-captured
++  historical `(team, season)`; skip finished team-seasons already in RAW_APIF_PLAYERS (immutable).
++  Then document the invariant and add it to the onboard-endpoint checklist so it stops being
++  memory-dependent.
++refs: plan logical-moseying-noodle.md; CPO plan approval 2026-07-06; sibling pattern in
++  loads/player_squads.py (captured_team_seasons + select_squad_catchup_team_ids).
  
  scope_paths:
--  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
--  - dbt_project/models/5_marts/shared/mart_player_momentum.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
--  - dbt_project/tests/assert_player_momentum_window_matches_team.sql
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - ingestion/api_football/loads/squads.py
++  - ingestion/api_football/loads/competition_runner.py
++  - tests/test_squad_players_rows.py
++  - docs/data_contract.md
++  - .claude/skills/onboard-endpoint/SKILL.md
    - .claude/task/**
  
  impact_map: >
--  writers: `int_player_momentum__metrics` (materialized='table', full rebuild each run) — the only model
--    whose logic changes. `int_team_momentum_window` gains ONE new consumer (the player builder now ref()s it);
--    its own SQL is unchanged except a stale doc-comment.
--  downstream (traced by grep — dbt CLI is broken locally, so lineage is from ref() inspection, not `dbt ls`):
--    `int_player_momentum__metrics` → `mart_player_momentum` (sole model consumer) → `scripts/export_site_data.py`
--    (reads `mart_player_momentum`, shape_top_players → the top-players strip). No other model ref()s either.
--    `int_team_momentum_window` existing consumers (`int_team_momentum__metrics`, `mart_team_momentum_window`)
--    are UNTOUCHED — team path unchanged.
--  layer_rules: intermediate→intermediate ref (int_player_momentum__metrics → int_team_momentum_window, both
--    4_intermediate/shared) is allowed; no per-competition staging; check_layer_contract stays green. league_code
--    still flows via the leg rows (not hardcoded).
--  deploy_order: NON-breaking. The player builder is a full-rebuild table (no incremental column-rename trap —
--    columns are unchanged; only row VALUES shift on tournament sides + window_type gains 2 possible values).
--    Rebuilds cleanly on the next `dbt build`; no --full-refresh needed. Picked up by ci-data-build and the 04:00
--    nightly with no manual step.
--  blast_radius: `mart_player_momentum` VALUES change ONLY for tournament-fixture sides (window last_5 → cumulative
--    tournament_to_date/qualifiers). Non-tournament sides are byte-identical (the shared model's last_5 branch is
--    the same join + season boundary + recency_rank<=5 as the retired inline CTEs). No number moves on any team
--    mart, no export shape change (window_type is already in _TOPPLAYER_DROP so the payload shape is unchanged).
-+  Doc/bookkeeping only. Single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
-+  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric move, no build impact. The task
-+  scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is NOT
-+  review-exempt (scope-auditor required).
+-  Doc/bookkeeping only. Single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
+-  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric move, no build impact. The task
+-  scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is NOT
+-  review-exempt (scope-auditor required).
++  writers: loads/squads.py is the sole writer of RAW_APIF_PLAYERS (one row per (team, season),
++    merge-on-write via _delete_superseded_player_rows). This change alters ONLY which (team,
++    season) keys are fetched from the API — the row shape, the write path, and the merge/delete
++    are untouched.
++  downstream (grep, no dbt file changed): RAW_APIF_PLAYERS -> stg_apif__players ->
++    base_apif__players + base_apif__player_team_season -> 3_core (dim_player,
++    dim_player_team_season_mapping) -> marts (mart_roster, leaderboards/benchmarks). dbt CLI is
++    broken locally; no model/SELECT/ref() change here, so lineage is unchanged by construction.
++  layer_rules: none — ingestion Python only; no dbt model or layer touched; check_layer_contract
++    unaffected.
++  deploy_order: no warehouse migration. Pure ingestion behaviour; takes effect on the next
++    scheduled/CI ingest, no --full-refresh or model rebuild needed. Safe to merge anytime.
++  blast_radius: DATA-EQUIVALENT / none. A finished season's /players response is immutable, so
++    not re-downloading it yields byte-identical downstream data while removing ~all historical
++    /players calls; steady state = current-season re-fetch only. A brand-new team or an
++    un-captured historical (team, season) is still fetched (backfill/gap-heal intact). RAW row
++    count only ever grows or holds, never shrinks.
  
  decisions_taken: >
--  Rests on the CPO's explicit ruling this session ("team form and the player strip use different windows ->
--  should be the same window"). Approach (consume the shared model vs mirror the branch) is engineering judgment —
--  the shared window model already exists and is guarded; consuming it is the DRY, single-source choice #323
--  established. The new parity test (assert_player_momentum_window_matches_team) is my quality tool per the issue's
--  "add tests". Widening window_type accepted_values + correcting the stale games_in_window description are
--  mechanical consequences of the change.
-+  Record-only. #653 merged + #484 closed already happened this session. #654/#655 already filed with their CPO
-+  rulings recorded IN the issues (campaign=season; NT-profile-context presence-gated). No new roadmap invented;
-+  no §10 decided here — the rulings were the CPO's this session.
+-  Record-only. #653 merged + #484 closed already happened this session. #654/#655 already filed with their CPO
+-  rulings recorded IN the issues (campaign=season; NT-profile-context presence-gated). No new roadmap invented;
+-  no §10 decided here — the rulings were the CPO's this session.
++  Rests on the CPO's plan approval this session: (1) fix squads only; (2) finished-vs-live split
++  — always re-fetch the reference season (per-season stats accumulate), skip captured historical
++  seasons — mirroring the established fixtures/details and player_squads-catchup treatment of
++  finished data; (3) prevent recurrence via a documented invariant + onboard-endpoint checklist,
++  not a CI guard.
  
  decisions_reserved:
--  - A display LABEL for the player strip window ("in this tournament" vs "last 5") — §10 display/wireframe; NOT
--    in scope (export drops window_type from the strip payload today). Separate follow-up only if the CPO wants it.
--  - The broader national-team-as-context window (metrics_context_model.md §8.4) that the docs also hang on #484 —
--    a different, design-heavy surface; explicitly NOT this parity fix.
-+  - The actual next task — CPO picks later (candidates: #655 quick doc green; #654 needs a wireframe first;
-+    the #545–#547 programs; task_f876b853 chip). NT career-by-type (#3) parked on a data/cost call.
+-  - The actual next task — CPO picks later (candidates: #655 quick doc green; #654 needs a wireframe first;
+-    the #545–#547 programs; task_f876b853 chip). NT career-by-type (#3) parked on a data/cost call.
++  - transfers.py has the same class of re-fetch gap (cheaper: 1 call/team, no ×season×pages) —
++    deferred to its own PR (CPO, this session). Not touched here.
++  - Provider retroactive edits to a FINISHED season would not be re-pulled (accepted trade-off;
++    a periodic full refresh via API_FOOTBALL_INGEST_FORCE_FULL / a manual run remains available).
++  - A machine-enforced guard for the invariant was explicitly deferred in favour of doc + skill.
  
  done_when:
--  - int_player_momentum__metrics reads int_team_momentum_window; the inline window CTEs are gone; window_type is
--    carried through (no more hardcoded 'last_5').
--  - window_type accepted_values widened to [last_5, tournament_to_date, qualifiers] in both int_momentum.yml
--    (builder) and shared.yml (mart); games_in_window "max 5" wording corrected.
--  - assert_player_momentum_window_matches_team.sql added (player vs team window_type must agree per shared side).
--  - `python scripts/check_layer_contract.py` passes.
--  - ci-data-build green: model builds, widened accepted_values pass, the new parity test passes, existing
--    assert_tournament_form_window + assert_momentum_window_matches_momentum still green.
--  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks each); review.md diff_sha256 binds; CPO merges.
-+  - active_work.md header + FIRST STEPS point at c4489aa; #653 recorded as the latest merged PR.
-+  - main-carries appends #653; a #653 entry is prepended to RECENT PRs.
-+  - #484 recorded DONE+CLOSED; the national-window audit + #654/#655 (with rulings) captured; #3 noted parked.
-+  - NEXT is an OPEN CPO pick again (no locked task).
-+  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+-  - active_work.md header + FIRST STEPS point at c4489aa; #653 recorded as the latest merged PR.
+-  - main-carries appends #653; a #653 entry is prepended to RECENT PRs.
+-  - #484 recorded DONE+CLOSED; the national-window audit + #654/#655 (with rulings) captured; #3 noted parked.
+-  - NEXT is an OPEN CPO pick again (no locked task).
+-  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
++  - squads.py fetches only (reference season × teams) + un-captured historical (team, season),
++    via a pure planner + a BQ coverage reader; emits `phase=squad /players to_fetch=N
++    skipped_cached=M` (fixtures-style).
++  - `pytest tests/test_squad_players_rows.py tests/test_player_squads_catchup.py` passes
++    (existing loader tests updated for the new reader; new pure-planner + reader tests added).
++  - validate-local gates pass (ruff/black/flake8, import checks).
++  - docs/data_contract.md states the fetch-side-skip invariant; onboard-endpoint SKILL.md carries
++    the checklist item.
++  - scope-auditor + data-engineer-reviewer + cto-reviewer PASS (>=2 risks each); review.md
++    diff_sha256 binds; CPO merges.
  
  amendments: (none)
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 9bf67ca..1ba5160 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -98,6 +98,23 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
+ 
+ ---
+ 
++## Fetch-side skip (ingested once → not re-requested)
++
++**Invariant — every per-entity endpoint must skip what it already holds.** Storage-side merge/dedup bounds the *table*; it does **not** bound the *API cost*. A loader that keeps one row per key but still calls the endpoint for every key every run re-pays the full quota nightly. This reached production once: the `/players` squad phase re-fetched every team × every history season each run (~50% of the daily quota) because it had the merge but not the skip.
++
++So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once. Mirror the canonical implementations, do not reinvent:
++
++| Endpoint axis | Coverage reader | Fetch planner |
++|---------------|-----------------|---------------|
++| per-fixture (`/fixtures?ids=`) | `read_coverage` / `covered_for_league` | fanout selection (above) |
++| per-team-season (`/players`) | `captured_player_team_seasons` (`loads/squads.py`) | `plan_player_team_season_fetch` |
++| per-team-season (`/players/squads`) | `captured_team_seasons` (`loads/player_squads.py`) | `select_squad_catchup_team_ids` |
++| per-player (`/players/profiles`, `/players/teams`) | `players_needing` (`loads/player_universe.py`) | static bio/career — fetch each player once |
++
++Each fetch pass logs `to_fetch=N skipped_cached=M`, so a regression (skip silently disabled) shows up in the run log.
++
++---
++
+ ## Squad capture (in-season + finished-comp catch-up)
+ 
+ `/players/squads` is the squad-**membership** source (the full current roster, including selected players with no minutes) for **clubs and national teams alike**. A squad is a property of the **team**, not the competition, so capture is keyed by team and deduped across competitions:
+diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
+index 6451e3c..61f4440 100644
+--- a/ingestion/api_football/loads/competition_runner.py
++++ b/ingestion/api_football/loads/competition_runner.py
+@@ -127,7 +127,13 @@ def run_squads_for_competition(
+     """Run squad /players batch for one competition after global fanout."""
+     try:
+         _ingestion_phase(result.league_code, "squad /players batch")
+-        load_squad_players_batch(ctx, result.league_code, result.seasons_list, result.team_ids)
++        load_squad_players_batch(
++            ctx,
++            result.league_code,
++            result.seasons_list,
++            result.team_ids,
++            reference_season=max(result.seasons_list) if result.seasons_list else None,
++        )
+     except Exception as e:
+         ctx.errors.append(f"league {result.league_code} squads: {e}")
+ 
+diff --git a/ingestion/api_football/loads/squads.py b/ingestion/api_football/loads/squads.py
+index 928600f..9c00c0c 100644
+--- a/ingestion/api_football/loads/squads.py
++++ b/ingestion/api_football/loads/squads.py
+@@ -11,6 +11,11 @@ the superseded prior rows for exactly those keys, so the table holds one row per
+ touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a warning is
+ logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
+ is assembled in base.
++
++Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
++stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
++never re-requested — see ``plan_player_team_season_fetch`` / ``captured_player_team_seasons``.
++This is the API-cost twin of the merge above (bounded storage did NOT bound the fetch).
+ """
+ 
+ from __future__ import annotations
+@@ -61,11 +66,60 @@ def _delete_superseded_player_rows(
+     ).result()
+ 
+ 
++def captured_player_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
++    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_PLAYERS.
++
++    The fetch-side twin of the storage-side merge: a finished season's /players response is
++    immutable, so ``load_squad_players_batch`` skips team-seasons we already hold and fetches
++    only the delta. Mirrors ``captured_team_seasons`` in loads/player_squads.py and the
++    RAW_APIF_PLAYERS unnest in loads/player_universe.py. Returns an empty set if the table does
++    not exist yet or the read fails (then everything is fetched — a duplicate download, never a
++    silent miss)."""
++    table = f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('PLAYERS')}"
++    sql = f"""
++        SELECT DISTINCT
++            SAFE_CAST(JSON_VALUE(team_block, '$.team_id') AS INT64) AS team_id,
++            SAFE_CAST(JSON_VALUE(team_block, '$.season') AS INT64) AS season
++        FROM `{table}`,
++            UNNEST(JSON_QUERY_ARRAY(JSON_QUERY(payload, '$.response'), '$')) AS team_block
++        WHERE JSON_VALUE(team_block, '$.season') IS NOT NULL
++    """
++    pairs: set[tuple[int, int]] = set()
++    try:
++        for row in ctx.client.query(sql).result():
++            if row.team_id is not None and row.season is not None:
++                pairs.add((int(row.team_id), int(row.season)))
++    except Exception as e:
++        ctx.errors.append(f"players: captured-seasons read failed: {e}")
++    return pairs
++
++
++def plan_player_team_season_fetch(
++    seasons_list: list[int],
++    team_ids: set[int],
++    reference_season: int,
++    already_captured: set[tuple[int, int]],
++) -> list[tuple[int, int]]:
++    """Pure policy: which ``(season, team_id)`` /players pulls this run still needs.
++
++    The reference (current) season is always re-fetched — its per-season stats keep accumulating
++    as matches are played. Every earlier season is immutable, so it is fetched only when the
++    ``(team_id, season)`` is not already held. Deterministic, no I/O; keys are returned in
++    ``(season, sorted team_id)`` order."""
++    plan: list[tuple[int, int]] = []
++    for season in seasons_list:
++        for team_id in sorted(team_ids):
++            if season >= reference_season or (team_id, season) not in already_captured:
++                plan.append((season, team_id))
++    return plan
++
++
+ def load_squad_players_batch(
+     ctx: PipelineContext,
+     league_code: str,
+     seasons_list: list[int],
+     team_ids: set[int],
++    reference_season: int | None = None,
+ ) -> None:
+     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
+         ctx.errors.append(
+@@ -73,44 +127,57 @@ def load_squad_players_batch(
+         )
+         return
+ 
++    # Fetch-side skip: only the live season (stats still accumulating) + un-captured historical
++    # (team, season) — finished seasons already in RAW_APIF_PLAYERS are immutable and never
++    # re-requested. Mirrors the fixtures fanout's to_fetch/covered split.
++    ref = (
++        reference_season
++        if reference_season is not None
++        else (max(seasons_list) if seasons_list else 0)
++    )
++    already_captured = captured_player_team_seasons(ctx)
++    fetch_keys = plan_player_team_season_fetch(seasons_list, team_ids, ref, already_captured)
++    total = len(seasons_list) * len(team_ids)
++    print(
++        f"[api-football] league={league_code} phase=squad /players "
++        f"to_fetch={len(fetch_keys)} skipped_cached={total - len(fetch_keys)}",
++        flush=True,
++    )
++
+     rows: list[dict] = []
+     written_keys: list[str] = []
+     quota_cut = False
+-    for season in seasons_list:
++    for season, team_id in fetch_keys:
+         if errors_quota._http_quota_exhausted:
+             quota_cut = True
+             break
+-        for team_id in sorted(team_ids):
+-            if errors_quota._http_quota_exhausted:
+-                quota_cut = True
+-                break
+-            try:
+-                players_rows = players_response_for_team(
+-                    ctx.headers,
+-                    team_id,
+-                    season,
+-                    ctx.errors,
+-                    error_context=(
+-                        f"players {league_code} team_id={team_id} season={season}"
+-                    ),
+-                )
+-                rows.append(
+-                    {
+-                        "league_code": league_code,
+-                        "response": [
+-                            {
+-                                "team_id": team_id,
+-                                "season": season,
+-                                "players_payload": players_rows,
+-                            }
+-                        ],
+-                    }
+-                )
+-                written_keys.append(f"{team_id}-{season}")
+-            except Exception as e:
+-                ctx.errors.append(
+-                    f"players {league_code} team {team_id} season={season}: {e}"
+-                )
++        try:
++            players_rows = players_response_for_team(
++                ctx.headers,
++                team_id,
++                season,
++                ctx.errors,
++                error_context=(
++                    f"players {league_code} team_id={team_id} season={season}"
++                ),
++            )
++            rows.append(
++                {
++                    "league_code": league_code,
++                    "response": [
++                        {
++                            "team_id": team_id,
++                            "season": season,
++                            "players_payload": players_rows,
++                        }
++                    ],
++                }
++            )
++            written_keys.append(f"{team_id}-{season}")
++        except Exception as e:
++            ctx.errors.append(
++                f"players {league_code} team {team_id} season={season}: {e}"
++            )
+ 
+     if rows:
+         try:
+diff --git a/tests/test_squad_players_rows.py b/tests/test_squad_players_rows.py
+index 212ea4a..325f38a 100644
+--- a/tests/test_squad_players_rows.py
++++ b/tests/test_squad_players_rows.py
+@@ -15,6 +15,7 @@ from pathlib import Path
+ 
+ from ingestion.api_football.loads import squads as sq
+ from ingestion.api_football import bigquery as bq
++from ingestion.api_football.settings import DATASET_ID, GCP_PROJECT_ID
+ 
+ _FIXTURE = Path(__file__).parent / "fixtures" / "apif" / "players_cwc_sample.json"
+ 
+@@ -37,6 +38,10 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
+ 
+     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
+     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++    # The fetch-side skip reads BQ for captured (team, season); the fake ctx has no client, so
++    # stub the reader to "nothing captured" — the single season here is the reference season and
++    # is fetched regardless.
++    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
+ 
+     captured: dict = {}
+ 
+@@ -85,6 +90,7 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
+ 
+ def test_no_rows_means_no_write(monkeypatch):
+     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
+     monkeypatch.setattr(
+         sq, "players_response_for_team", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not fetch"))
+     )
+@@ -100,6 +106,7 @@ def test_no_rows_means_no_write(monkeypatch):
+ def test_quota_cut_logs_partial_warning(monkeypatch):
+     # A quota cut mid-fetch must NOT report a silent success — a PARTIAL warning is logged.
+     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
++    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
+ 
+     def fake_fetch(headers, team_id, season, errors, error_context=""):
+         monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", True)  # exhaust after first
+@@ -164,3 +171,107 @@ def test_multi_row_loader_empty_writes_nothing():
+     )
+     assert written == 0
+     assert client.calls == []
++
++
++# --- plan_player_team_season_fetch: fetch-side skip policy (pure, no I/O) ---
++# The reference (live) season is always re-fetched (per-season stats accumulate); earlier
++# seasons are immutable and fetched only when their (team, season) is not already held.
++
++
++def test_plan_reference_season_always_fetched_even_if_captured():
++    plan = sq.plan_player_team_season_fetch(
++        seasons_list=[2024, 2025],
++        team_ids={10, 11},
++        reference_season=2025,
++        already_captured={(10, 2025), (11, 2025), (10, 2024), (11, 2024)},
++    )
++    # 2025 (reference) re-fetched despite being held; 2024 fully held -> skipped.
++    assert plan == [(2025, 10), (2025, 11)]
++
++
++def test_plan_historical_gap_self_heals():
++    plan = sq.plan_player_team_season_fetch(
++        seasons_list=[2024, 2025],
++        team_ids={10, 11},
++        reference_season=2025,
++        already_captured={(10, 2024)},
++    )
++    # 2024: only team 11 missing -> fetched; 2025 (reference): both.
++    assert plan == [(2024, 11), (2025, 10), (2025, 11)]
++
++
++def test_plan_first_run_fetches_full_product():
++    plan = sq.plan_player_team_season_fetch(
++        seasons_list=[2024, 2025],
++        team_ids={10, 11},
++        reference_season=2025,
++        already_captured=set(),
++    )
++    # Nothing held (first run / backfill) -> the whole season×team product.
++    assert plan == [(2024, 10), (2024, 11), (2025, 10), (2025, 11)]
++
++
++def test_plan_empty_inputs():
++    assert sq.plan_player_team_season_fetch([], {10}, 2025, set()) == []
++    assert sq.plan_player_team_season_fetch([2025], set(), 2025, set()) == []
++
++
++# --- captured_player_team_seasons: BigQuery read of already-stored (team, season) pairs ---
++# Fake client so the Python row-handling runs with NO network; the JSON-path SQL itself is
++# validated against real RAW_APIF_PLAYERS separately (mirrors test_player_squads_catchup).
++
++
++class _FakeResult:
++    def __init__(self, rows):
++        self._rows = rows
++
++    def result(self):
++        return self._rows
++
++
++class _FakeClient:
++    def __init__(self, rows=None, raise_exc=None):
++        self._rows = rows or []
++        self._raise = raise_exc
++        self.last_sql = None
++
++    def query(self, sql):
++        self.last_sql = sql
++        if self._raise is not None:
++            raise self._raise
++        return _FakeResult(self._rows)
++
++
++def _skip_ctx(rows=None, raise_exc=None):
++    return types.SimpleNamespace(client=_FakeClient(rows=rows, raise_exc=raise_exc), errors=[])
++
++
++def _row(team_id, season):
++    return types.SimpleNamespace(team_id=team_id, season=season)
++
++
++def test_captured_player_team_seasons_returns_pairs():
++    ctx = _skip_ctx(rows=[_row(10, 2025), _row(11, 2025), _row(10, 2024)])
++    assert sq.captured_player_team_seasons(ctx) == {(10, 2025), (11, 2025), (10, 2024)}
++    assert ctx.errors == []
++
++
++def test_captured_player_team_seasons_skips_null_rows():
++    ctx = _skip_ctx(rows=[_row(10, 2025), _row(None, 2025), _row(11, None)])
++    assert sq.captured_player_team_seasons(ctx) == {(10, 2025)}
++
++
++def test_captured_player_team_seasons_failopen_on_query_error():
++    # A read failure must not abort the run; return empty (re-capture is the safe direction).
++    ctx = _skip_ctx(raise_exc=RuntimeError("boom"))
++    assert sq.captured_player_team_seasons(ctx) == set()
++    assert any("captured-seasons read failed" in e for e in ctx.errors)
++
++
++def test_captured_player_team_seasons_query_is_fully_qualified():
++    # Regression guard: a bare table name fails at runtime; the read must reference
++    # project.dataset.RAW_APIF_PLAYERS (matches _fq in loads/player_universe.py).
++    ctx = _skip_ctx(rows=[])
++    sq.captured_player_team_seasons(ctx)
++    assert f"{GCP_PROJECT_ID}.{DATASET_ID}." in ctx.client.last_sql
++    assert "RAW_APIF_PLAYERS" in ctx.client.last_sql

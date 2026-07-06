@@ -98,6 +98,23 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
 
 ---
 
+## Fetch-side skip (ingested once → not re-requested)
+
+**Invariant — every per-entity endpoint must skip what it already holds.** Storage-side merge/dedup bounds the *table*; it does **not** bound the *API cost*. A loader that keeps one row per key but still calls the endpoint for every key every run re-pays the full quota nightly. This reached production once: the `/players` squad phase re-fetched every team × every history season each run (~50% of the daily quota) because it had the merge but not the skip.
+
+So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once. Mirror the canonical implementations, do not reinvent:
+
+| Endpoint axis | Coverage reader | Fetch planner |
+|---------------|-----------------|---------------|
+| per-fixture (`/fixtures?ids=`) | `read_coverage` / `covered_for_league` | fanout selection (above) |
+| per-team-season (`/players`) | `captured_player_team_seasons` (`loads/squads.py`) | `plan_player_team_season_fetch` |
+| per-team-season (`/players/squads`) | `captured_team_seasons` (`loads/player_squads.py`) | `select_squad_catchup_team_ids` |
+| per-player (`/players/profiles`, `/players/teams`) | `players_needing` (`loads/player_universe.py`) | static bio/career — fetch each player once |
+
+Each fetch pass logs `to_fetch=N skipped_cached=M`, so a regression (skip silently disabled) shows up in the run log.
+
+---
+
 ## Squad capture (in-season + finished-comp catch-up)
 
 `/players/squads` is the squad-**membership** source (the full current roster, including selected players with no minutes) for **clubs and national teams alike**. A squad is a property of the **team**, not the competition, so capture is keyed by team and deduped across competitions:

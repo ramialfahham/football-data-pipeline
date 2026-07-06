@@ -1,31 +1,34 @@
-# Review — chore/handover-refresh-post-653 — 2026-07-06
+# Review — fix/ingest-squads-skip-cached — 2026-07-06
 
-> G3 Lock artifact. Session-boundary batched handover refresh — brings `.claude/active_work.md` current from
-> post-#651 (pointer 28d751f) to post-#653 (c4489aa): records #653 (#484 — player momentum consumes the shared
-> int_team_momentum_window; strip + team form share ONE window; parity test) MERGED + issue #484 CLOSED, and the
-> national-team window audit that filed #654 (NT profile context, presence-gated) + #655 (campaign=season note
-> cleanup, phantom gap) with CPO rulings, and parked #3 (career-NT-by-type). NEXT returns to an OPEN CPO pick.
-> No code/model/metric change. Plan mode skipped per the CPO handover carve-out; contract + review + gate still run.
-> Required set (routing): scope-auditor only (always) — no dbt_project/**, scripts/**, CI, ingestion, or
-> wireframe/i18n path is touched.
+> Blinded G3 review of the squad `/players` fetch-side skip. Three required reviewers for the
+> staged paths (scope-auditor always; data-engineer-reviewer for ingestion/** + data_contract.md;
+> cto-reviewer for tests/**). All PASS, no escalations.
 
-diff_sha256: a6e7bd3c989fe21a8ee29cdf0e4199c2d7bdf6338225468e057ee9c0a3c01ef1
+diff_sha256: 7cde48951c93d9ff9696c0df364742e7f35b1a6c580fc0ae25af5e96a2d30026
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **External fact-verification: #654/#655 CPO rulings claimed as "recorded IN the issues".** The refresh binds the
-  #654 display rule ("show if NT context exists, show NOTHING if not") and the #655 campaign=season claim to
-  external issues, making them falsifiable rather than secretly invented. Confirmed the handover text is internally
-  consistent with the contract and adds NO new decision beyond what it records as already CPO-decided this session;
-  the CPO reading this can verify #654/#655 carry the stated rulings.
-- **season_api_year spanning multi-year WCQ campaigns (#655 phantom-gap claim).** Verified `core.fct_fixture`
-  carries `season_api_year`, which structurally supports the claim that a single season_api_year row represents a
-  full WCQ campaign (2–3-yr span) — the "phantom gap" characterization is grounded in the data (checked this
-  session against fct_fixture), not asserted from memory; the action (delete a stale note, no logic) is
-  proportional. Scope (2 artifact files ⊆ scope_paths), §10 (record-only, nothing decided by analogy), and
-  handover continuity (pointer c4489aa, NEXT = open CPO pick with candidates, do-NOTs present) all clean.
+- All six changed paths fall within the contract `scope_paths`; no scope creep, no drive-by edits, transfers.py correctly untouched (deferred per decisions_reserved).
+- No silent §10 decisions — skip-cached-historical, always-refetch-reference-season, the `to_fetch/skipped_cached` log format, fail-open on read error, and doc+skill-over-CI-guard are each pre-approved in the cited plan or listed in decisions_reserved.
+- impact_map is honest: verified the row shape, the write path (`load_json_payload_rows_to_bq`), and the merge/delete (`_delete_superseded_player_rows`) are all unchanged and no dbt model is touched — only WHICH (team, season) keys are fetched changes.
+- `reference_season` inferred via `max(result.seasons_list)` is identical to `catalog.py:60`; a wrong value would surface as stale live-season stats caught downstream, not a silent corruption.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- JSON path in `captured_player_team_seasons` (squads.py) traced against the proven `player_universe._query_universe` unnest and the writer's actual row shape (`payload.response[].team_id/.season`) — matches, no wrong-path bug.
+- `plan_player_team_season_fetch`'s `season >= reference_season` guard checked for off-by-one against `reference_season = max(seasons_list)` — the reference season is always the re-fetch branch, every earlier season only when not already held; confirmed by the "reference re-fetched despite being held" unit test.
+- Poll-mode/finished competitions never reach `run_squads_for_competition` (orchestrator calls it only on `run_cheap_phases` full-mode results), so the truncated `seasons_list=[reference_season]` in the poll path cannot interact with the planner unexpectedly.
+- Merge-on-write delete (`_delete_superseded_player_rows`) and quota-cut PARTIAL bookkeeping (`written_keys`, `quota_cut` break) are byte-identical pre/post the nested→flattened loop refactor; no WRITE_TRUNCATE introduced anywhere in the diff.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- New planner/reader tests are non-tautological with discriminating assertions (reference-always-fetched, historical-gap-self-heals, first-run-full-product, fail-open-on-error, fully-qualified-SQL) — a buggy planner would fail them.
+- The three adapted existing loader tests stub `captured_player_team_seasons` to `set()` honestly: each uses a single-season `[2016]` list, so 2016 is the reference season and is fetched regardless of the stub — the stub is not load-bearing to hide a regression, and `ctx.errors == []` remains a real assertion.
+- `load_squad_players_batch` gained an optional `reference_season` kwarg with a safe default; grep-confirmed `competition_runner.py` is the sole call site and passes `max(result.seasons_list)`; no other caller left on the old signature.
+- Doc/skill references (`captured_player_team_seasons`, `players_needing`, the `to_fetch=/skipped_cached=` log format) all cross-checked against real source — not invented.
 
 ## escalations
-- None open. No ESCALATE verdict raised. The refresh records already-merged work (#653), an already-closed issue
-  (#484), and two already-filed issues (#654/#655) whose rulings were the CPO's this session — no new decision.
+(none)
