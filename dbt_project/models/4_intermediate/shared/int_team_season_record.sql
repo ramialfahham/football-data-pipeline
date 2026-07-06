@@ -18,7 +18,10 @@
 
   Season-bounded: partitioned by (league_code, season_api_year). This covers clubs and
   single-season tournaments (WC/continental — the latest row is "all matches so far in
-  the tournament"). Multi-season national qualifier campaigns are a separate follow-up.
+  the tournament"). A national qualifying campaign is one season here: the provider stamps
+  a whole campaign with a single season_api_year even though its matches span 2–3 calendar
+  years (e.g. WCQEU = season 2024, matches 2025-03→2026-03), so this partition already
+  cumulates the full campaign — matching the momentum qualifiers window (§4 / #655).
 
   Coverage rule (same as #320): per-match team stats are sparse in some competitions, so
   the builder carries cumulative per-input coverage counts and coverage-restricted

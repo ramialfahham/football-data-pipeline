@@ -1,58 +1,45 @@
-# Task contract — exclude non-entity (All-Star) teams from the player affiliation mapping
+# Task contract — #655: season-record "campaign is the season" (drop stale note)
 
-> Written on a CLEAN tree (branch `fix/roster-exclude-non-entity-teams` off main @ #657 merged).
-> CPO approved option 1 this session (2026-07-06): exclude non-entity teams from the mapping.
-> See plan `C:\Users\Rami\.claude\plans\logical-moseying-noodle.md`.
+> Written on a CLEAN tree (branch chore/655-campaign-is-season-note off main @ 81eb1ed).
+> Comment/doc-only in model files — no logic, no compiled-SQL change. The CPO ruled the action in issue #655;
+> contract + review + gate still run. (Redone in the primary tree after a concurrent session cleared.)
 
 objective: >
-  The nightly build has failed since ~Jun 30 on two relationship DQ tests (138 orphan rows each):
-  team_sk in dim_player_team_season_mapping / mart_roster with no dim_team match. Diagnosed
-  (BigQuery/prod): the orphans are two MLS All-Star exhibition squads — 17664 "Liga MX All-Stars",
-  17665 "MLS All-Stars" (118 players) — surfaced only by /players squad data; /teams does not model
-  them, so they are absent from dim_team (0 in /teams, 0 in fct_fixture). An All-Star selection is
-  not a club/national affiliation. Fix: keep only team_sks that exist in dim_team (a core→core
-  semi-join), so the affiliation mapping and mart_roster contain real team entities only.
-refs: plan logical-moseying-noodle.md; CPO ruling 2026-07-06 (option 1); failing tests
-  relationships_dim_player_team_season_mapping_team_sk__team_sk__ref_dim_team_ +
-  relationships_mart_roster_team_sk__team_sk__ref_dim_team_.
+  Remove the stale "multi-season national qualifier campaigns are a separate follow-up" deferral notes from the
+  two season-record model docstrings. CPO ruling (#655, 2026-07-06): "the campaign is the season" — confirmed
+  already true in the data (each WCQ campaign carries ONE season_api_year spanning its full 2–3-yr run, checked
+  core.fct_fixture: WCQEU=2024 covers 2025-03→2026-03, etc.), so the (league_code, season_api_year) partition
+  already cumulates the whole campaign as one unit. The notes describe a gap that does not exist. Replace them
+  with a one-line statement of the correct behavior.
+refs: #655; docs/metrics_context_model.md §4 (qualifying row) + §8.4; CPO ruling 2026-07-06.
 
 scope_paths:
-  - dbt_project/models/3_core/dim_player_team_season_mapping.sql
+  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
   - .claude/task/**
 
 impact_map: >
-  writers: dim_player_team_season_mapping (3_core) — this change adds a WHERE semi-join to
-    dim_team; no grain change, no new column, no ref() change beyond adding sibling core dim_team.
-  downstream (grep dbt_project/models for the model name): only mart_roster (5_marts/shared)
-    JOINs it — it correctly sheds the 118 All-Star player rows. mart_player_career.sql and
-    dim_team_competition_season_mapping.sql name it in DOC COMMENTS ONLY (no join, no impact).
-    dbt CLI broken locally; downstream asserted from the grep + model reads, no dbt ls.
-  layer_rules: core→core ref (dim_team is 3_core) is layer-legal; check_layer_contract.py stays
-    green (no per-competition file, no cross-layer violation).
-  deploy_order: table model; the PR slim build (state:modified+) rebuilds dim_player_team_season_
-    mapping + mart_roster and re-runs the relationship tests. No --full-refresh (not incremental).
-  blast_radius: dim_player_team_season_mapping loses the 138 orphan rows; mart_roster loses the
-    118 All-Star player rows (junk). Both relationship tests flip FAIL(138)->PASS. No other mart
-    consumes the mapping. No user-facing surface consumes All-Star rows today.
+  Trivial/cosmetic: docstring comment text only, in two 4_intermediate model files. No SELECT/CTE/logic/config
+  change — the compiled SQL is byte-identical, so zero data/number/mart/export impact and no build risk. Evidence:
+  the edits touch only the `{# ... #}` docstring blocks; the models' query bodies (the `with` CTEs, the `select`
+  column lists, both `window` clauses) are untouched. No new model, no ref() change. `dbt ls` not needed (no
+  lineage change); dbt CLI is broken locally regardless. The two files are unchanged by the just-merged
+  81eb1ed/450c205 (ingestion + affiliation-mapping), so #655 applies cleanly on current main.
 
 decisions_taken: >
-  CPO ruling this session: option 1 — exclude non-entity teams from the affiliation mapping (vs
-  adding All-Star teams to dim_team, or downgrading the test). The mapping records real team
-  affiliations only; an affiliation to a team that is not even a modelled entity is not usable.
+  Rests on the CPO's #655 ruling ("campaign is the season") + the data check this session (each qualifying
+  campaign = one season_api_year). No new decision — records a finding and removes a stale note. The corrected
+  wording states the model already handles a qualifying campaign as one season (matching the momentum qualifiers
+  window's OUTCOME — both cumulate the whole campaign, via different mechanisms), which the data + §4 matrix imply.
 
 decisions_reserved:
-  - The relationship test becomes correct-by-construction (kept as a regression guard). If the
-    signal for a REAL team accidentally missing from dim_team is wanted back, a warn-level count of
-    excluded (team_id) could be added — NOT in this PR unless the CPO asks.
-  - Whether to also stop the squad ingest from fetching exhibition-team squads (upstream option 2)
-    is a separate, deferred question — not touched here.
+  - The inconsistent season_api_year label ACROSS confederations (WCQAF=2023 vs WCQEU=2024 vs WCQSA=2026) is a
+    SEPARATE observation — not touched here; linkage to the WC edition is via parent_competition, not the year.
 
 done_when:
-  - dim_player_team_season_mapping keeps only team_sks present in dim_team (semi-join); docstring
-    notes the entity-integrity filter.
-  - `python scripts/check_layer_contract.py` passes; sqlfluff lint clean on the model.
-  - PR ci-data-build rebuilds the mapping + mart_roster; both team_sk->dim_team relationship tests
-    PASS; prod orphan re-query = 0; mart_roster drops exactly the 118 All-Star rows.
-  - scope-auditor + analytics-engineer-reviewer PASS (>=2 risks each); review.md hash binds; CPO merges.
+  - Both docstrings no longer claim multi-season qualifier campaigns are deferred; they state the campaign is one
+    season (one season_api_year), already cumulated.
+  - Compiled SQL unchanged (comment-only); `python scripts/check_layer_contract.py` passes.
+  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)
