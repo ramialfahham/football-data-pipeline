@@ -1,142 +1,58 @@
 {{ config(materialized='table') }}
 
 {#
-  W1 last-5 momentum builder — player.
+  W1 momentum builder — player.
 
-  For each upcoming fixture side, identifies the team's last 5 finished matches
-  (same entity_type, same season_api_year, before this fixture's kickoff) and
-  aggregates raw player stat totals for every player who appeared in those matches.
+  For each upcoming fixture side, aggregates raw player stat totals for every player who appeared
+  in the side's window legs. The window selection is NOT re-derived here — it is consumed from the
+  shared int_team_momentum_window model (extracted in #323), the SAME selection the team aggregate
+  (int_team_momentum__metrics) and the drill-down list (mart_team_momentum_window) use. This keeps
+  the player top-players strip and the team form panel on ONE window and prevents drift (#484).
   No ratios — those are computed in mart_player_momentum.
+
+  Window (carried through from int_team_momentum_window):
+  - window_type='last_5' (default): the team's last 5 finished matches, cross-competition within
+    the same entity_type; season-capped for clubs, recency-only for national teams.
+  - window_type='tournament_to_date' / 'qualifiers' (GAP-18, matrix §4): on a tournament fixture
+    (world_championship / continental_championship) the window is the CUMULATIVE within-tournament
+    (or qualifier) set, uncapped — so the player strip matches the team form on tournament fixtures.
 
   Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
-  Scope: all competition types — club and national. W1 (last 5) is shown
-  alongside W2 for every fixture; both numbers are always presented together.
+  Scope: all competition types — club and national. W1 is shown alongside W2 for every fixture;
+  both numbers are always presented together.
 
-  Season boundary:
-  - Club: season_api_year = upcoming fixture's season (real calendar boundary).
-  - National: no season_api_year cap — qualifying campaigns and tournament
-    cycles span multiple API seasons; recency alone is the correct boundary.
+  A player absent from some of the window legs contributes stats only for the matches they appeared
+  in — honest absence, not zero. games_in_window is the player's appearance count within the side's
+  window (1..5 for last_5, uncapped for tournament windows), not the team window size.
 
-  A player absent from some of the 5 matches contributes stats only for the
-  matches they appeared in — honest absence, not zero. games_in_window reflects
-  the team window (max 5), not the player's individual appearance count.
+  passes_accurate is derived per fixture as ROUND(passes_total * passes_accuracy_percent / 100)
+  then summed; inherits small rounding error.
 
-  passes_accurate is derived per fixture as ROUND(passes_total *
-  passes_accuracy_percent / 100) then summed; inherits small rounding error.
-
-  save_pct requires goals_against which is not currently carried in
-  int_legs__player_match — mart_player_momentum will emit null for that metric.
+  save_pct requires goals_against which is not currently carried in int_legs__player_match —
+  mart_player_momentum will emit null for that metric.
 #}
 
-with upcoming as (
-    select
-        fixture_sk,
-        home_team_sk,
-        away_team_sk,
-        league_code,
-        season_api_year,
-        kickoff_datetime
-    from {{ ref('fct_fixture') }}
-    where
-        status_short in ('NS', 'TBD')
-        and fixture_date >= current_date()
-),
-
-registry as (
-    select * from {{ ref('competition_registry') }}
-),
-
-types as (
-    select * from {{ ref('competition_types') }}
-),
-
-upcoming_with_type as (
-    select
-        u.fixture_sk,
-        u.home_team_sk,
-        u.away_team_sk,
-        u.league_code,
-        u.season_api_year,
-        u.kickoff_datetime,
-        reg.competition_type,
-        typ.entity_type
-    from upcoming as u
-    left join registry as reg
-        on u.league_code = reg.league_code
-    left join types as typ
-        on reg.competition_type = typ.competition_type
-),
-
--- Expand each fixture into two sides (home + away)
-upcoming_sides as (
-    select
-        fixture_sk as upcoming_fixture_sk,
-        home_team_sk as team_sk,
-        league_code,
-        season_api_year,
-        kickoff_datetime,
-        entity_type
-    from upcoming_with_type
-
-    union all
-
-    select
-        fixture_sk as upcoming_fixture_sk,
-        away_team_sk as team_sk,
-        league_code,
-        season_api_year,
-        kickoff_datetime,
-        entity_type
-    from upcoming_with_type
-),
-
--- Identify the team's last 5 match fixture_sks (mirrors int_team_momentum__metrics logic)
-ranked_team_legs as (
-    select
-        s.upcoming_fixture_sk,
-        s.team_sk,
-        s.season_api_year,
-        s.entity_type,
-        l.fixture_sk as leg_fixture_sk,
-        row_number() over (
-            partition by s.upcoming_fixture_sk, s.team_sk
-            order by l.kickoff_datetime desc
-        ) as recency_rank
-    from upcoming_sides as s
-    inner join {{ ref('int_legs__team_match') }} as l
-        on
-            s.team_sk = l.team_sk
-            and s.entity_type = l.entity_type
-            and s.kickoff_datetime > l.kickoff_datetime
-            -- Club: restrict to current season (seasons are real calendar boundaries).
-            -- National: no season cap — a WC campaign spans multiple season_api_years
-            -- (qualifiers 2024/25 + tournament 2026); recency alone is the boundary.
-            and (
-                s.entity_type = 'national'
-                or s.season_api_year = l.season_api_year
-            )
-),
-
-last_5_fixtures as (
+with window_legs as (
     select
         upcoming_fixture_sk,
         team_sk,
         season_api_year,
         entity_type,
+        window_type,
         leg_fixture_sk
-    from ranked_team_legs
-    where recency_rank <= 5
+    from {{ ref('int_team_momentum_window') }}
 ),
 
--- Aggregate player stats across the team's last 5 matches
+-- Aggregate player stats across the side's window legs
 player_agg as (
     select
-        lf.upcoming_fixture_sk,
-        lf.team_sk,
+        wl.upcoming_fixture_sk,
+        wl.team_sk,
         p.player_sk,
-        lf.season_api_year,
-        lf.entity_type,
+        wl.season_api_year,
+        wl.entity_type,
+        wl.window_type,
         count(*) as games_in_window,
         any_value(p.position_code) as position_code,
         sum(p.goals_total) as goals_total,
@@ -166,17 +82,18 @@ player_agg as (
                 round(p.passes_total * p.passes_accuracy_percent / 100.0) as int64
             )
         ) as passes_accurate
-    from last_5_fixtures as lf
+    from window_legs as wl
     inner join {{ ref('int_legs__player_match') }} as p
         on
-            lf.leg_fixture_sk = p.fixture_sk
-            and lf.team_sk = p.team_sk
+            wl.leg_fixture_sk = p.fixture_sk
+            and wl.team_sk = p.team_sk
     group by
-        lf.upcoming_fixture_sk,
-        lf.team_sk,
+        wl.upcoming_fixture_sk,
+        wl.team_sk,
         p.player_sk,
-        lf.season_api_year,
-        lf.entity_type
+        wl.season_api_year,
+        wl.entity_type,
+        wl.window_type
 )
 
 select
@@ -185,7 +102,7 @@ select
     player_sk,
     season_api_year,
     entity_type,
-    'last_5' as window_type,
+    window_type,
     games_in_window,
     position_code,
     goals_total,
