@@ -14,8 +14,10 @@
   scoreline-vs-stat mix). Raw sums only — ratios live in the mart.
 
   Carries round_order + match_number for the deferred year-over-year surface.
-  Season-bounded (partition by league_code, season_api_year); national qualifier
-  campaigns are a separate follow-up.
+  Season-bounded (partition by league_code, season_api_year). A national qualifying
+  campaign is one season here — the provider stamps a whole campaign with a single
+  season_api_year even though its matches span 2–3 calendar years — so this partition
+  already cumulates the full campaign (§4 / #655).
 #}
 
 with player_legs as (
