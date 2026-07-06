@@ -15,6 +15,7 @@ from pathlib import Path
 
 from ingestion.api_football.loads import squads as sq
 from ingestion.api_football import bigquery as bq
+from ingestion.api_football.settings import DATASET_ID, GCP_PROJECT_ID
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "apif" / "players_cwc_sample.json"
 
@@ -37,6 +38,10 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
 
     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
+    # The fetch-side skip reads BQ for captured (team, season); the fake ctx has no client, so
+    # stub the reader to "nothing captured" — the single season here is the reference season and
+    # is fetched regardless.
+    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
 
     captured: dict = {}
 
@@ -85,6 +90,7 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
 
 def test_no_rows_means_no_write(monkeypatch):
     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
+    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
     monkeypatch.setattr(
         sq, "players_response_for_team", lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not fetch"))
     )
@@ -100,6 +106,7 @@ def test_no_rows_means_no_write(monkeypatch):
 def test_quota_cut_logs_partial_warning(monkeypatch):
     # A quota cut mid-fetch must NOT report a silent success — a PARTIAL warning is logged.
     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
+    monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
 
     def fake_fetch(headers, team_id, season, errors, error_context=""):
         monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", True)  # exhaust after first
@@ -164,3 +171,107 @@ def test_multi_row_loader_empty_writes_nothing():
     )
     assert written == 0
     assert client.calls == []
+
+
+# --- plan_player_team_season_fetch: fetch-side skip policy (pure, no I/O) ---
+# The reference (live) season is always re-fetched (per-season stats accumulate); earlier
+# seasons are immutable and fetched only when their (team, season) is not already held.
+
+
+def test_plan_reference_season_always_fetched_even_if_captured():
+    plan = sq.plan_player_team_season_fetch(
+        seasons_list=[2024, 2025],
+        team_ids={10, 11},
+        reference_season=2025,
+        already_captured={(10, 2025), (11, 2025), (10, 2024), (11, 2024)},
+    )
+    # 2025 (reference) re-fetched despite being held; 2024 fully held -> skipped.
+    assert plan == [(2025, 10), (2025, 11)]
+
+
+def test_plan_historical_gap_self_heals():
+    plan = sq.plan_player_team_season_fetch(
+        seasons_list=[2024, 2025],
+        team_ids={10, 11},
+        reference_season=2025,
+        already_captured={(10, 2024)},
+    )
+    # 2024: only team 11 missing -> fetched; 2025 (reference): both.
+    assert plan == [(2024, 11), (2025, 10), (2025, 11)]
+
+
+def test_plan_first_run_fetches_full_product():
+    plan = sq.plan_player_team_season_fetch(
+        seasons_list=[2024, 2025],
+        team_ids={10, 11},
+        reference_season=2025,
+        already_captured=set(),
+    )
+    # Nothing held (first run / backfill) -> the whole season×team product.
+    assert plan == [(2024, 10), (2024, 11), (2025, 10), (2025, 11)]
+
+
+def test_plan_empty_inputs():
+    assert sq.plan_player_team_season_fetch([], {10}, 2025, set()) == []
+    assert sq.plan_player_team_season_fetch([2025], set(), 2025, set()) == []
+
+
+# --- captured_player_team_seasons: BigQuery read of already-stored (team, season) pairs ---
+# Fake client so the Python row-handling runs with NO network; the JSON-path SQL itself is
+# validated against real RAW_APIF_PLAYERS separately (mirrors test_player_squads_catchup).
+
+
+class _FakeResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def result(self):
+        return self._rows
+
+
+class _FakeClient:
+    def __init__(self, rows=None, raise_exc=None):
+        self._rows = rows or []
+        self._raise = raise_exc
+        self.last_sql = None
+
+    def query(self, sql):
+        self.last_sql = sql
+        if self._raise is not None:
+            raise self._raise
+        return _FakeResult(self._rows)
+
+
+def _skip_ctx(rows=None, raise_exc=None):
+    return types.SimpleNamespace(client=_FakeClient(rows=rows, raise_exc=raise_exc), errors=[])
+
+
+def _row(team_id, season):
+    return types.SimpleNamespace(team_id=team_id, season=season)
+
+
+def test_captured_player_team_seasons_returns_pairs():
+    ctx = _skip_ctx(rows=[_row(10, 2025), _row(11, 2025), _row(10, 2024)])
+    assert sq.captured_player_team_seasons(ctx) == {(10, 2025), (11, 2025), (10, 2024)}
+    assert ctx.errors == []
+
+
+def test_captured_player_team_seasons_skips_null_rows():
+    ctx = _skip_ctx(rows=[_row(10, 2025), _row(None, 2025), _row(11, None)])
+    assert sq.captured_player_team_seasons(ctx) == {(10, 2025)}
+
+
+def test_captured_player_team_seasons_failopen_on_query_error():
+    # A read failure must not abort the run; return empty (re-capture is the safe direction).
+    ctx = _skip_ctx(raise_exc=RuntimeError("boom"))
+    assert sq.captured_player_team_seasons(ctx) == set()
+    assert any("captured-seasons read failed" in e for e in ctx.errors)
+
+
+def test_captured_player_team_seasons_query_is_fully_qualified():
+    # Regression guard: a bare table name fails at runtime; the read must reference
+    # project.dataset.RAW_APIF_PLAYERS (matches _fq in loads/player_universe.py).
+    ctx = _skip_ctx(rows=[])
+    sq.captured_player_team_seasons(ctx)
+    assert f"{GCP_PROJECT_ID}.{DATASET_ID}." in ctx.client.last_sql
+    assert "RAW_APIF_PLAYERS" in ctx.client.last_sql

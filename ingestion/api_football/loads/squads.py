@@ -11,6 +11,11 @@ the superseded prior rows for exactly those keys, so the table holds one row per
 touched, so a quota cut mid-run leaves un-fetched keys' prior rows intact (a warning is
 logged). Staging reads all rows faithfully (no latest-snapshot qualify); current-per-entity
 is assembled in base.
+
+Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
+stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
+never re-requested — see ``plan_player_team_season_fetch`` / ``captured_player_team_seasons``.
+This is the API-cost twin of the merge above (bounded storage did NOT bound the fetch).
 """
 
 from __future__ import annotations
@@ -61,11 +66,60 @@ def _delete_superseded_player_rows(
     ).result()
 
 
+def captured_player_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
+    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_PLAYERS.
+
+    The fetch-side twin of the storage-side merge: a finished season's /players response is
+    immutable, so ``load_squad_players_batch`` skips team-seasons we already hold and fetches
+    only the delta. Mirrors ``captured_team_seasons`` in loads/player_squads.py and the
+    RAW_APIF_PLAYERS unnest in loads/player_universe.py. Returns an empty set if the table does
+    not exist yet or the read fails (then everything is fetched — a duplicate download, never a
+    silent miss)."""
+    table = f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('PLAYERS')}"
+    sql = f"""
+        SELECT DISTINCT
+            SAFE_CAST(JSON_VALUE(team_block, '$.team_id') AS INT64) AS team_id,
+            SAFE_CAST(JSON_VALUE(team_block, '$.season') AS INT64) AS season
+        FROM `{table}`,
+            UNNEST(JSON_QUERY_ARRAY(JSON_QUERY(payload, '$.response'), '$')) AS team_block
+        WHERE JSON_VALUE(team_block, '$.season') IS NOT NULL
+    """
+    pairs: set[tuple[int, int]] = set()
+    try:
+        for row in ctx.client.query(sql).result():
+            if row.team_id is not None and row.season is not None:
+                pairs.add((int(row.team_id), int(row.season)))
+    except Exception as e:
+        ctx.errors.append(f"players: captured-seasons read failed: {e}")
+    return pairs
+
+
+def plan_player_team_season_fetch(
+    seasons_list: list[int],
+    team_ids: set[int],
+    reference_season: int,
+    already_captured: set[tuple[int, int]],
+) -> list[tuple[int, int]]:
+    """Pure policy: which ``(season, team_id)`` /players pulls this run still needs.
+
+    The reference (current) season is always re-fetched — its per-season stats keep accumulating
+    as matches are played. Every earlier season is immutable, so it is fetched only when the
+    ``(team_id, season)`` is not already held. Deterministic, no I/O; keys are returned in
+    ``(season, sorted team_id)`` order."""
+    plan: list[tuple[int, int]] = []
+    for season in seasons_list:
+        for team_id in sorted(team_ids):
+            if season >= reference_season or (team_id, season) not in already_captured:
+                plan.append((season, team_id))
+    return plan
+
+
 def load_squad_players_batch(
     ctx: PipelineContext,
     league_code: str,
     seasons_list: list[int],
     team_ids: set[int],
+    reference_season: int | None = None,
 ) -> None:
     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
@@ -73,44 +127,57 @@ def load_squad_players_batch(
         )
         return
 
+    # Fetch-side skip: only the live season (stats still accumulating) + un-captured historical
+    # (team, season) — finished seasons already in RAW_APIF_PLAYERS are immutable and never
+    # re-requested. Mirrors the fixtures fanout's to_fetch/covered split.
+    ref = (
+        reference_season
+        if reference_season is not None
+        else (max(seasons_list) if seasons_list else 0)
+    )
+    already_captured = captured_player_team_seasons(ctx)
+    fetch_keys = plan_player_team_season_fetch(seasons_list, team_ids, ref, already_captured)
+    total = len(seasons_list) * len(team_ids)
+    print(
+        f"[api-football] league={league_code} phase=squad /players "
+        f"to_fetch={len(fetch_keys)} skipped_cached={total - len(fetch_keys)}",
+        flush=True,
+    )
+
     rows: list[dict] = []
     written_keys: list[str] = []
     quota_cut = False
-    for season in seasons_list:
+    for season, team_id in fetch_keys:
         if errors_quota._http_quota_exhausted:
             quota_cut = True
             break
-        for team_id in sorted(team_ids):
-            if errors_quota._http_quota_exhausted:
-                quota_cut = True
-                break
-            try:
-                players_rows = players_response_for_team(
-                    ctx.headers,
-                    team_id,
-                    season,
-                    ctx.errors,
-                    error_context=(
-                        f"players {league_code} team_id={team_id} season={season}"
-                    ),
-                )
-                rows.append(
-                    {
-                        "league_code": league_code,
-                        "response": [
-                            {
-                                "team_id": team_id,
-                                "season": season,
-                                "players_payload": players_rows,
-                            }
-                        ],
-                    }
-                )
-                written_keys.append(f"{team_id}-{season}")
-            except Exception as e:
-                ctx.errors.append(
-                    f"players {league_code} team {team_id} season={season}: {e}"
-                )
+        try:
+            players_rows = players_response_for_team(
+                ctx.headers,
+                team_id,
+                season,
+                ctx.errors,
+                error_context=(
+                    f"players {league_code} team_id={team_id} season={season}"
+                ),
+            )
+            rows.append(
+                {
+                    "league_code": league_code,
+                    "response": [
+                        {
+                            "team_id": team_id,
+                            "season": season,
+                            "players_payload": players_rows,
+                        }
+                    ],
+                }
+            )
+            written_keys.append(f"{team_id}-{season}")
+        except Exception as e:
+            ctx.errors.append(
+                f"players {league_code} team {team_id} season={season}: {e}"
+            )
 
     if rows:
         try:

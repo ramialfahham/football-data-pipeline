@@ -135,6 +135,13 @@ per-competition files):
   `ingestion/api_football/coverage.py` (omitting this makes the fanout silently
   re-fetch already-covered fixtures every run). Team-/player-keyed pulls (like
   squads/transfers) are NOT fanout and do not go there.
+- **Fetch-side skip (mandatory — see `docs/data_contract.md` → "Fetch-side skip").**
+  Storage-side merge bounds the table, NOT the API cost. Before fetching, read the keys
+  already in the target raw table and fetch only the delta; re-fetch only the live/current
+  season (immutable finished data is fetched once). Because team-/player-keyed pulls are NOT
+  part of the fixture fanout, they need their OWN skip — mirror `captured_player_team_seasons`
+  / `players_needing`, do not ship a bare loop over every key (that re-pays the full quota
+  every run). Log `to_fetch=/skipped_cached=` so a disabled skip shows up in the run log.
 - **Staging:** a generic `stg_apif__{entity}` (raw cleanup only).
 - **Base/Core/Marts:** as the feature needs — base dedup/clean (handle the noise
   found in Step 1), core facts/dims, marts for consumption. Ship the mart first if

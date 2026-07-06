@@ -127,7 +127,13 @@ def run_squads_for_competition(
     """Run squad /players batch for one competition after global fanout."""
     try:
         _ingestion_phase(result.league_code, "squad /players batch")
-        load_squad_players_batch(ctx, result.league_code, result.seasons_list, result.team_ids)
+        load_squad_players_batch(
+            ctx,
+            result.league_code,
+            result.seasons_list,
+            result.team_ids,
+            reference_season=max(result.seasons_list) if result.seasons_list else None,
+        )
     except Exception as e:
         ctx.errors.append(f"league {result.league_code} squads: {e}")
 
