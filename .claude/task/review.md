@@ -1,55 +1,49 @@
-# Review — feat/competition-header-identity — 2026-07-07
+# Review — docs/391-team-stats-benchmark-spec — 2026-07-07
 
-> G3 Lock artifact. Surface the registry identity fields (country, confederation, tier) on the competition-season
-> hub payload — they already flow through `_registry_competitions` but were dropped when the `meta` dict is built
-> in `fetch_competition_payloads`; `shape_competition_payload` now surfaces them. Export-only registry pass-through
-> (the GAP-01/#613 pattern), no BigQuery, no model. + 2 unit tests + a content_architecture.md §3 board flip
-> (Competition header partial → green). Required set (routing): scope-auditor (always) + analytics-engineer +
-> cto (scripts/export_*.py + tests/**).
+> G3 Lock artifact. Team → Stats (vs-league benchmark) wireframe SPEC — new `docs/wireframes/14_team_stats.md`,
+> field-bound to the built-but-orphaned `mart_team_competition_benchmarks` (rank-based "k of N" + vs-median +
+> spread bar; no position dimension). Doc-only; the export wiring is GAP-23 (a later PR). Companion syncs:
+> 00_overview (inventory + census), 99_gaps_register (GAP-23), 02_team_profile (▸Stats link). No board flip
+> (the team-benchmark row goes green only when wired). Required set (routing): scope-auditor (always) + bi-analyst.
+>
+> Review journey (4 rounds): the bi-analyst caught four genuine LOCKED-contract defects in the draft, all fixed
+> with judgment ([[feedback-decide-dont-escalate]]): (r1) `shot_accuracy` rendered despite being "defined but not
+> displayed"; (r1) unbound `games` caption + clean_sheets "x/y" (mart carries only the rate); (r2) Shooting-funnel
+> row order swapped; (r2) an ill-defined single-N header (team_count is per-metric); (r3) the Defending T·I·B trio
+> rendered as separate rows despite being "sub-display of row 10 only". Round 4: both reviewers PASS on the
+> corrected spec, whose rendered set now maps 1:1 to the LOCKED 16-row metrics_display team table (20 ranked, 16
+> rendered; 10 higher_better + 5 neutral + 1 lower_better).
 
-diff_sha256: a046cbae48ad4aca16b9e2fdff6a788816eab4ef65ea1819cc27620568d277c3
+diff_sha256: 0d029ac1ee8716c58d929077a2212897b1c76b574d35724284f67595f6f34239
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Consumption-layer contract (A5).** The three fields are pure pass-throughs from the registry `meta` via `.get()`
-  — no computation, derivation, conditional logic, or taxonomy mapping in either `fetch_competition_payloads` or
-  `shape_competition_payload`. Two unit tests cover presence + absence-as-None. No derived facts.
-- **Board-status honesty (A6).** The content_architecture.md flip partial → green is accurate and precedented
-  (GAP-01/#613: same shape — add registry/dim identity → flip green). The note "name/slug + country/confederation/
-  tier surfaced" matches exactly what shipped; not aspirational. Scope 100% surgical (only the declared files);
-  no §10 decision invented (the field set was CPO-approved via the plan).
+- **Scope + no board flip.** All staged files within docs/wireframes/** + .claude/task/**; `content_architecture.md`
+  is NOT in the diff — the team-benchmark row stays ⚠ orphan until wired (GAP-23), per the contract. Nothing
+  code/model/seed/export smuggled.
+- **§10 — no new decision.** The Defending fix (one ranked `defensive_actions_per_match` row + T·I·B sub-display)
+  aligns to the LOCKED metrics_display 16-row table; the spec invents no metric/mechanism/product decision, and
+  the rank-based display is what metrics_display already declares for the team benchmark. The separate-sub-screen
+  placement was the CPO's approved plan call.
 
-## analytics-engineer-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- **Safe-default (None-on-absent).** Verified `tier` is genuinely absent from non-domestic_league registry entries
-  (WC/qualifying) per the registry's own contract; the `.get()` chain (3 hops) yields None, not a crash or a wrong
-  0/1 — exercised by `test_shape_competition_payload_identity_absent_is_none`.
-- **Second meta-dict collision.** Two structurally identical `meta = {...}` comprehensions exist
-  (`fetch_competition_payloads` + `fetch_leaderboard_payloads`, ~80 lines apart); confirmed by direct read that only
-  the first was touched — the leaderboards meta still carries only name/slug.
-- **Consumption-layer computation.** Every added expression is a bare `.get(key)` — no transform/lookup/fallback;
-  no taxonomy mapping introduced (the pre-existing `_by_tier`/nav logic is untouched). Matches layering.md.
-- **Governance/scope-inflation.** The doc change is a single one-line status flip on a row that shipped in the same
-  diff; the contract's impact_map/blast_radius (no writers, no dbt, one export entity, three fields, safe `.get`)
-  matches the actual diff exactly.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- **Blast radius.** `fetch_leaderboard_payloads`'s meta dict is byte-for-byte unchanged; `shape_competition_payload`
-  has exactly one production call site (line 838), so no second differently-shaped caller drops/breaks on the new keys.
-- **Field-name correctness + None-safety.** `_registry_competitions` reads country/confederation/tier from the same
-  registry YAML keys the meta comprehension uses (no typo/drift); international/qualifier entries genuinely omit
-  `tier` — the None-test covers it, not a fabricated edge case.
-- **JSON serialization.** `_payload_bytes` uses `json.dumps(..., default=str, ensure_ascii=False)`; str/str/int + None
-  all serialize natively, no encoder gap.
-- **Hidden downstream coupling.** No `site_v2` consumer of `shape_competition_payload`/`competitions.json` exists yet;
-  no jsonschema/strict-key validator gates the export — additive keys are safe.
-- **Test-suite integration.** Both new test names unique; python-ci runs `pytest tests/ -v` unfiltered, so both are
-  collected regardless of the `-k competition` shorthand.
+- **Defending-block LOCKED-contract compliance (the round-3 finding).** Re-verified against the wireframe + the
+  actual `int_team_competition_benchmark_metrics_long` UNPIVOT: `defensive_actions_per_match` is now one ranked
+  row with T·I·B as an explicit sub-display (not separate rows); tackles/interceptions/blocks appear only in the
+  4-item mart-ranked-but-unrendered list, matching metrics_display's "defined but not displayed" list verbatim.
+- **Rendered-set / count / direction-tally vs ground truth.** Counted the real UNPIVOT (20 metrics) and the real
+  `metric_catalogue.csv` `direction` column for all 16 rendered ids: 20 ranked − 4 unrendered (shot_accuracy +
+  T/I/B) = 16, block-by-block matching the LOCKED table; 10 higher_better + 5 neutral + 1 lower_better = 16 ties
+  out exactly (`goals_against_per_match` the sole lower_better). Every rendered §5 row binds to a real column.
+- **Naming variance (noted, non-blocking).** metrics_display spells `shots_on_target_per_match`; the real
+  catalogue/mart/wireframe use `shots_on_goal_per_match` (the i18n key reconciles them). The wireframe uses the
+  REAL column name; the variance is a pre-existing metrics_display transcription quirk, out of this doc's scope.
 
 ## escalations
-- None open. No ESCALATE. The {country, confederation, tier} field set was CPO-approved via the plan; the board flip
-  is directly-coupled doc-sync (GAP-01 precedent). Pure consumption-layer pass-through — no computed fact.
+- None open. No ESCALATE. All four bi-analyst findings across rounds 1–3 were display-correctness defects fixed
+  with judgment (align to the LOCKED metrics_display contract + real mart columns); no CPO-class fork arose. The
+  metrics_display `shots_on_target_per_match` vs `shots_on_goal_per_match` naming quirk is a separate, out-of-scope
+  cleanup candidate (flag only).

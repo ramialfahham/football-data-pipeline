@@ -1,51 +1,49 @@
-# Task contract — competition header identity fields (→ green)
+# Task contract — Team → Stats (vs-league benchmark) wireframe spec (#391)
 
-> Written on a CLEAN tree (branch feat/competition-header-identity off main @ 91bbcb1).
-> Plan approved via ExitPlanMode this session. Export-only registry surfacing (the GAP-01 #613 pattern).
+> Written on a CLEAN tree (branch docs/391-team-stats-benchmark-spec off main @ f35b99f).
+> Plan approved via ExitPlanMode this session. Doc-only wireframe SPEC (the #625 player-Stats pattern) —
+> the export wiring is a SEPARATE follow-up PR, registered here as GAP-23.
 
 objective: >
-  Make the competition-header block green: surface the registry identity fields `country`, `confederation`,
-  `tier` on the competition-season hub payload. They already flow through `_registry_competitions` but are dropped
-  when the `meta` dict is built in `fetch_competition_payloads`; the header today carries only name/slug/season.
-  Pure registry pass-through — no BigQuery, no new fetch, no new model. CPO confirmed the {country, confederation,
-  tier} field set via plan approval (mirrors GAP-01's CPO-ruled team founded/venue set).
-refs: v2 board (content_architecture.md §3 "Competition header · partial"); GAP-01/#613 (team identity precedent); plan approved this session.
+  Spec the Team → Stats (vs-league) sub-screen — a new wireframe `docs/wireframes/14_team_stats.md`,
+  field-bound to the built-but-orphaned `mart_team_competition_benchmarks`. CPO decision this session: a SEPARATE
+  Team → Stats sub-screen (not an in-place enrichment of the profile's single-value season-metrics block),
+  mirroring the player Stats screen (12). Rank-based ("k of N" + vs-median + p25/median/p75 spread bar, honest at
+  league N≈18 — never percentile, per metrics_display.md), direction-aware from the catalogue (only
+  `goals_against_per_match` is lower_better → rank mirrored), no position dimension (season selector only), the 20
+  team metrics grouped by the metrics_display block order. Ratios use the adjacent-count-row no-naked-% mechanism
+  (team convention). This is the SPEC; export wiring = GAP-23 (a later PR).
+refs: #391; mart_team_competition_benchmarks (built); 12_player_stats.md + #625/#627 (player precedent); metrics_display.md (LOCKED); content_architecture §3 "Vs-benchmark · team orphan".
 
 scope_paths:
-  - scripts/export_site_data.py
-  - tests/test_export_site_data.py
-  - docs/content_architecture.md
+  - docs/wireframes/**
   - .claude/task/**
 
 impact_map: >
-  writers: none — no model/mart touched. Consumption layer only (`scripts/export_site_data.py`).
-  downstream: `shape_competition_payload` feeds the `competitions` export entity (competitions.json hub). The
-    three added fields are select/pass-through from the registry `meta` dict — NO derivation, NO computed facts
-    (consumption-layer contract: the export may select/rename, never derive). GAP-01 (#613) is the precedent for
-    surfacing registry/dim identity on an entity header.
-  layer_rules: N/A (no dbt model). The consumption-layer contract applies — verified the change only selects
-    existing registry values, computes nothing.
-  deploy_order: NON-breaking. Export-only; the next pipeline export run emits the enriched competition payload.
-    No dbt build, no --full-refresh, no migration ordering.
-  blast_radius: `competitions.json` gains three top-level header fields (country/confederation/tier), None where a
-    registry entry omits one (safe `.get`). No other entity payload changes; no number/metric moves; no data-build.
+  Doc-only, no structural surface. New wireframe `docs/wireframes/14_team_stats.md` + companion doc-syncs
+  (00_overview inventory/census, 99_gaps_register GAP-23, 02_team_profile §10 ▸Stats link). No dbt model, no
+  scripts/**, no ingestion — zero data/number/metric/build impact. The wireframe is field-bound to REAL columns
+  of `mart_team_competition_benchmarks` (verified: metric_value, rank, team_count, league_median/mean/p25/p75,
+  vs_median_delta; metric set = the 20 metric_keys in int_team_competition_benchmark_metrics_long) — a binding
+  doc, not a consumer. contract.md is artifact_only_never → scope-auditor required.
 
 decisions_taken: >
-  CPO-approved via the plan: surface {country, confederation, tier}. Excluded (not new decisions): competition_type/
-  display_group (already power nav), sort_order (display constant), logo (not in the registry — provider-sourced,
-  deferred). Folding the directly-coupled content_architecture.md §3 board flip (partial → green) into this PR
-  follows the GAP-01 precedent; kept in scope per the plan.
+  CPO-approved via the plan: (1) a separate Team → Stats sub-screen; (2) rank-based display ("k of N" + vs-median
+  + spread bar), which metrics_display.md already declares for the team benchmark — not a new invention; (3) the
+  20-metric set + block order come from the shipped mart + the LOCKED metrics_display contract; (4) directions
+  from the catalogue (verified). No new metric, no new mechanism. The board flip is NOT taken here — the
+  team-benchmark row goes green only when WIRED (GAP-23), not at spec.
 
 decisions_reserved:
-  - A full competition-page wireframe spec (none exists in 00–13) — a separate, later item; NOT this change.
-  - Competition logo (provider-sourced) — deferred.
+  - The export wiring (GAP-23) — a separate follow-up PR (the #627 analog); NOT this change.
+  - Spread-bar colour — deferred to the design pass (#366).
+  - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
 
 done_when:
-  - `fetch_competition_payloads` meta dict carries country/confederation/tier; `shape_competition_payload` surfaces
-    them in the returned payload (safe `.get`, None when absent).
-  - A unit test in tests/test_export_site_data.py asserts the three fields surface from meta.
-  - `python -m pytest tests/test_export_site_data.py -k competition` passes; python-ci green.
-  - content_architecture.md §3 "Competition header" flipped partial → green.
-  - scope-auditor + analytics-engineer + cto PASS (>=2 named risks each); review.md diff_sha256 binds; CPO merges.
+  - docs/wireframes/14_team_stats.md exists, §1–10, every §5 row bound to a real mart column, rank rule +
+    direction mirror + floor + no-colour rules internally consistent with 12 + metrics_display.
+  - Companion doc-syncs: 00_overview (screen 14 + census), 99_gaps_register (GAP-23 export wiring), 02 §10 link.
+  - No board flip (green only on wiring); no code/model/data change.
+  - scope-auditor + bi-analyst-reviewer PASS (>=2 named risks each); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)
