@@ -1,35 +1,55 @@
-# Review — chore/reconcile-content-arch-post-648 — 2026-07-07
+# Review — feat/competition-header-identity — 2026-07-07
 
-> G3 Lock artifact. Doc-only status reconciliation (the #615/#620/#636 pattern): flip stale ✓/⚠/✗ markers in
-> `docs/content_architecture.md` §3 (block↔mart board) + §7 (new-mart status) to match shipped reality — the
-> legend predated #638/#645/#648. Flips: player Season (#630), player Season-over-season (#638+#648),
-> Contribution-share (#645) → ✓; Opponent/schedule-context → ✗ SHELVED 2026-07-03; player Streaks → SKIPPED;
-> Career backfill note → effectively done. Team benchmark stays ⚠ orphan; "17 marts" unchanged.
-> Required set (routing): scope-auditor only.
->
-> **REBIND (sibling-PR, #661 merged first):** rebased onto main@#661. The reviewed content is BYTE-IDENTICAL —
-> the `docs/content_architecture.md` diff patch-id (`1569bd82…`) is unchanged from the pre-rebase reviewed commit
-> (5f5229c), and contract.md content is this task's version verbatim. Only contract.md's diff BASE shifted
-> (#655→#661), moving diff_sha256 40e03450 → 789f1f93. The scope-auditor PASS below verified the identical bytes;
-> no content changed, so the verdict stands and only the hash is rebound ([[feedback-sibling-pr-rebase-rebind]]).
+> G3 Lock artifact. Surface the registry identity fields (country, confederation, tier) on the competition-season
+> hub payload — they already flow through `_registry_competitions` but were dropped when the `meta` dict is built
+> in `fetch_competition_payloads`; `shape_competition_payload` now surfaces them. Export-only registry pass-through
+> (the GAP-01/#613 pattern), no BigQuery, no model. + 2 unit tests + a content_architecture.md §3 board flip
+> (Competition header partial → green). Required set (routing): scope-auditor (always) + analytics-engineer +
+> cto (scripts/export_*.py + tests/**).
 
-diff_sha256: 789f1f93f6603976ff6c9ec35cb135daeb8c56cbc2fc80fa367efffa95435b64
+diff_sha256: a046cbae48ad4aca16b9e2fdff6a788816eab4ef65ea1819cc27620568d277c3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Wiring verification (Season / Season-over-season / Contribution-share).** Confirmed all three intermediate
-  models (`int_player_profile__yoy`, `int_player_profile__contribution`, `int_player_season__metrics`) are
-  genuinely `ref()`-ed in `mart_player_profile`, and `mart_player_profile` is consumed end-to-end by the v2 export
-  via `fetch_player_payloads` with `select *` — so "wired to the export" is honest (not merely existing in an
-  internal layer); no silent filtering masks them. The ✓ flips do not overclaim.
-- **Shelving-claim boundary (opponent/schedule context).** Verified the "✗ SHELVED 2026-07-03" flip rests on an
-  explicit CPO ruling already recorded in active_work.md ("Phase D flagship opponent/schedule context is SHELVED
-  … no display home"), not a retrospectively invented judgment; elevating "not built" → "SHELVED" (a decision NOT
-  to build) is significant and correctly grounded in existing CPO authority. Also spot-checked: team benchmark
-  stays ⚠ orphan (not falsely flipped), "17 marts" unchanged (new intermediates enrich mart_player_profile, add
-  no new wired mart), scope = content_architecture.md + .claude/task/** only, §10 record-only.
+- **Consumption-layer contract (A5).** The three fields are pure pass-throughs from the registry `meta` via `.get()`
+  — no computation, derivation, conditional logic, or taxonomy mapping in either `fetch_competition_payloads` or
+  `shape_competition_payload`. Two unit tests cover presence + absence-as-None. No derived facts.
+- **Board-status honesty (A6).** The content_architecture.md flip partial → green is accurate and precedented
+  (GAP-01/#613: same shape — add registry/dim identity → flip green). The note "name/slug + country/confederation/
+  tier surfaced" matches exactly what shipped; not aspirational. Scope 100% surgical (only the declared files);
+  no §10 decision invented (the field set was CPO-approved via the plan).
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- **Safe-default (None-on-absent).** Verified `tier` is genuinely absent from non-domestic_league registry entries
+  (WC/qualifying) per the registry's own contract; the `.get()` chain (3 hops) yields None, not a crash or a wrong
+  0/1 — exercised by `test_shape_competition_payload_identity_absent_is_none`.
+- **Second meta-dict collision.** Two structurally identical `meta = {...}` comprehensions exist
+  (`fetch_competition_payloads` + `fetch_leaderboard_payloads`, ~80 lines apart); confirmed by direct read that only
+  the first was touched — the leaderboards meta still carries only name/slug.
+- **Consumption-layer computation.** Every added expression is a bare `.get(key)` — no transform/lookup/fallback;
+  no taxonomy mapping introduced (the pre-existing `_by_tier`/nav logic is untouched). Matches layering.md.
+- **Governance/scope-inflation.** The doc change is a single one-line status flip on a row that shipped in the same
+  diff; the contract's impact_map/blast_radius (no writers, no dbt, one export entity, three fields, safe `.get`)
+  matches the actual diff exactly.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- **Blast radius.** `fetch_leaderboard_payloads`'s meta dict is byte-for-byte unchanged; `shape_competition_payload`
+  has exactly one production call site (line 838), so no second differently-shaped caller drops/breaks on the new keys.
+- **Field-name correctness + None-safety.** `_registry_competitions` reads country/confederation/tier from the same
+  registry YAML keys the meta comprehension uses (no typo/drift); international/qualifier entries genuinely omit
+  `tier` — the None-test covers it, not a fabricated edge case.
+- **JSON serialization.** `_payload_bytes` uses `json.dumps(..., default=str, ensure_ascii=False)`; str/str/int + None
+  all serialize natively, no encoder gap.
+- **Hidden downstream coupling.** No `site_v2` consumer of `shape_competition_payload`/`competitions.json` exists yet;
+  no jsonschema/strict-key validator gates the export — additive keys are safe.
+- **Test-suite integration.** Both new test names unique; python-ci runs `pytest tests/ -v` unfiltered, so both are
+  collected regardless of the `-k competition` shorthand.
 
 ## escalations
-- None open. No ESCALATE. Record-only: every flip is bound to a merged PR (#630/#638/#645/#648) or an existing CPO
-  ruling (opponent-context SHELVED / player streaks SKIPPED / backfill-effectively-done); no new status invented.
+- None open. No ESCALATE. The {country, confederation, tier} field set was CPO-approved via the plan; the board flip
+  is directly-coupled doc-sync (GAP-01 precedent). Pure consumption-layer pass-through — no computed fact.

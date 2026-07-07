@@ -124,6 +124,24 @@ def test_shape_competition_payload_sorts_sections():
     assert [f["kickoff_datetime"] for f in p["fixtures"]] == ["2025-09-01", "2025-09-02"]
 
 
+def test_shape_competition_payload_surfaces_registry_identity():
+    p = shape_competition_payload(
+        "BL1", 2025,
+        {"name": "Bundesliga", "slug": "bundesliga",
+         "country": "Germany", "confederation": "UEFA", "tier": 1},
+        standings=[], top_scorers=[], fixtures=[],
+    )
+    assert p["country"] == "Germany"
+    assert p["confederation"] == "UEFA"
+    assert p["tier"] == 1
+
+
+def test_shape_competition_payload_identity_absent_is_none():
+    p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
+                                  standings=[], top_scorers=[], fixtures=[])
+    assert p["country"] is None and p["confederation"] is None and p["tier"] is None
+
+
 def test_fixture_slug_date_home_vs_away():
     assert fixture_slug("2026-06-11T19:00:00", "Mexico", "South Africa", 7) \
         == "2026-06-11-mexico-vs-south-africa"

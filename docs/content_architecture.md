@@ -69,7 +69,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 |---|---|---|---|---|
 | **Identity** | Team header | team | `dim_team` (+ founded/venue, + standing chip) | ✓ (founded/venue #613; coach pending) |
 | | Player header | player | `dim_player` (+ current club, + birth date) | ✓ (current club #611, birth date #609) |
-| | Competition header | comp | registry / dim | partial |
+| | Competition header | comp | registry / dim | ✓ (name/slug + country/confederation/tier surfaced) |
 | **Performance** | Form (recent) | team, player | `mart_momentum__{team,player}` (+ `_window` drill-down) | ✓ (player `_window` gap) |
 | | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ✓ team · ✓ player (per-club foundation #630, wired via `mart_player_profile`) |
 | | Season-over-season | team, player | YoY model | ✓ team · ✓ player (#638 + #648, via `mart_player_profile`) |

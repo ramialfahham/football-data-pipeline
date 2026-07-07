@@ -466,6 +466,9 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
         "season": season,
         "slug": (meta or {}).get("slug"),
         "name": (meta or {}).get("name"),
+        "country": (meta or {}).get("country"),
+        "confederation": (meta or {}).get("confederation"),
+        "tier": (meta or {}).get("tier"),
         "standings": sorted(
             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
         ),
@@ -774,7 +777,11 @@ _STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
 def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     meta = {
-        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+        c["league_code"]: {
+            "name": c.get("name"), "slug": c.get("slug"),
+            "country": c.get("country"), "confederation": c.get("confederation"),
+            "tier": c.get("tier"),
+        }
         for c in _registry_competitions(registry_path)
     }
     combos = sorted({
