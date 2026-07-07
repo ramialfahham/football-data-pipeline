@@ -5,9 +5,9 @@
 > `int_team_competition_benchmark_metrics_long` → the `int_team_competition_benchmarks` engine → the
 > mart; both read the one long form, so the metric set cannot drift). **Rank-based, not percentile** —
 > "k of N" + vs-median, honest at a league of N≈18; `metrics_display.md` §"Percentile display" is explicit
-> that the team benchmark is never a percentile. The benchmark payload is **NOT yet wired** — the export
-> gap is registered ([GAP-23](99_gaps_register.md)); this spec precedes the wiring PR, the same way the
-> player Stats screen ([12](12_player_stats.md)) preceded its wiring (#627). Display rules follow the
+> that the team benchmark is never a percentile. The benchmark payload is **wired** — the team export
+> carries a per-season flat `benchmarks[]` block ([GAP-23](99_gaps_register.md), shipped), the same way the
+> player Stats screen ([12](12_player_stats.md)) was wired (#627). Display rules follow the
 > LOCKED contract in [`metrics_display.md`](metrics_display.md).
 
 ## 1. Purpose
@@ -184,10 +184,11 @@ has that this does not; the per-row "of N" carries the sample size instead.)
 
 ## 10. Gaps
 
-- [GAP-23](99_gaps_register.md) — **export wiring** (the follow-up PR): `shape_team_payload` gains a
-  per-season `benchmarks[]` block from `mart_team_competition_benchmarks` (select/reshape only,
-  consumption-layer contract; the "k of N"/vs-median/spread labels applied at render from the catalogue
-  `direction`). Mirrors GAP-21/#627 for the player. Until it ships, this screen has no payload.
+- [GAP-23](99_gaps_register.md) — **export wiring: SHIPPED.** `shape_team_payload` carries a per-season
+  flat `benchmarks[]` block from `mart_team_competition_benchmarks` (one member per `metric_key`, no
+  position nesting; select/reshape only, consumption-layer contract; the "k of N"/vs-median/spread labels
+  applied at render from the catalogue `direction`). All 20 mart rows are carried — this screen renders the
+  LOCKED 16. Mirrors GAP-21/#627 for the player.
 - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
 - `clean_sheets` renders the **rate** here (the mart carries no count atoms); the x/y form (02 §8) would
   need `clean_sheet_games` + `games` on the mart — same GAP-11 family, not this screen.

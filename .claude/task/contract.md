@@ -1,49 +1,57 @@
-# Task contract — Team → Stats (vs-league benchmark) wireframe spec (#391)
+# Task contract — #391 GAP-23: wire mart_team_competition_benchmarks into the team payload
 
-> Written on a CLEAN tree (branch docs/391-team-stats-benchmark-spec off main @ f35b99f).
-> Plan approved via ExitPlanMode this session. Doc-only wireframe SPEC (the #625 player-Stats pattern) —
-> the export wiring is a SEPARATE follow-up PR, registered here as GAP-23.
+> Written on a CLEAN tree (branch feat/391-gap23-team-benchmark-export off main @ bb368c0).
+> Plan approved via ExitPlanMode this session. The #627-for-teams follow-up; flips the team-benchmark board green.
 
 objective: >
-  Spec the Team → Stats (vs-league) sub-screen — a new wireframe `docs/wireframes/14_team_stats.md`,
-  field-bound to the built-but-orphaned `mart_team_competition_benchmarks`. CPO decision this session: a SEPARATE
-  Team → Stats sub-screen (not an in-place enrichment of the profile's single-value season-metrics block),
-  mirroring the player Stats screen (12). Rank-based ("k of N" + vs-median + p25/median/p75 spread bar, honest at
-  league N≈18 — never percentile, per metrics_display.md), direction-aware from the catalogue (only
-  `goals_against_per_match` is lower_better → rank mirrored), no position dimension (season selector only), the 20
-  team metrics grouped by the metrics_display block order. Ratios use the adjacent-count-row no-naked-% mechanism
-  (team convention). This is the SPEC; export wiring = GAP-23 (a later PR).
-refs: #391; mart_team_competition_benchmarks (built); 12_player_stats.md + #625/#627 (player precedent); metrics_display.md (LOCKED); content_architecture §3 "Vs-benchmark · team orphan".
+  Wire the built-but-orphaned `mart_team_competition_benchmarks` into the v2 team export (`shape_team_payload`)
+  as a per-season flat `benchmarks[]` block — the export analog of GAP-21/#627 for players, team-simplified (no
+  position dimension, no num/den atoms). Select/reshape only (consumption-layer contract); the "k of N" /
+  direction-mirror / spread-bar / LOCKED-16 render happens in the frontend, not here. This is the wiring that
+  makes the team-benchmark row green on the content_architecture board; the spec is screen 14 (#664).
+refs: #391 GAP-23; #664 (14_team_stats spec); #627/GAP-21 (player benchmark wiring — the pattern); mart_team_competition_benchmarks (built).
 
 scope_paths:
+  - scripts/export_site_data.py
+  - tests/test_export_site_data.py
+  - docs/content_architecture.md
   - docs/wireframes/**
   - .claude/task/**
 
 impact_map: >
-  Doc-only, no structural surface. New wireframe `docs/wireframes/14_team_stats.md` + companion doc-syncs
-  (00_overview inventory/census, 99_gaps_register GAP-23, 02_team_profile §10 ▸Stats link). No dbt model, no
-  scripts/**, no ingestion — zero data/number/metric/build impact. The wireframe is field-bound to REAL columns
-  of `mart_team_competition_benchmarks` (verified: metric_value, rank, team_count, league_median/mean/p25/p75,
-  vs_median_delta; metric set = the 20 metric_keys in int_team_competition_benchmark_metrics_long) — a binding
-  doc, not a consumer. contract.md is artifact_only_never → scope-auditor required.
+  writers: none — no model/mart touched. Consumption layer only (`scripts/export_site_data.py`).
+  downstream: `fetch_team_payloads` reads `mart_team_competition_benchmarks` (grouped by team_sk, scoped on a
+    sample run like mart_roster); `shape_team_payload` attaches a per-(league_code, season_api_year)
+    `benchmarks[]` list via two NEW pure shapers (`_shape_team_benchmark_member`, `_shape_team_benchmarks`).
+    Feeds the `teams` export entity (teams/*.json). Pure select/reshape — the shapers carry existing mart columns
+    (metric_key, metric_value, rank, team_count, league_median/p25/p75, vs_median_delta), compute NOTHING (no
+    ranking, no derivation, no direction verdict). Mirrors _shape_benchmark_member (player, #627).
+  layer_rules: consumption-layer contract (layering.md) — verified the shapers only select existing values. All 20
+    mart metric_keys are carried (no metric filtering — the frontend renders the LOCKED 16 per the display
+    contract; filtering here would encode a display decision in the wrong layer, matching #627 which carried all rows).
+  deploy_order: NON-breaking. Export-only; the next pipeline export run emits the enriched team payload. No dbt
+    build, no --full-refresh.
+  blast_radius: each team season row in teams/*.json gains a `benchmarks[]` list. No other entity changes; no
+    number/metric moves; no data-build. content_architecture board team-benchmark row flips orphan → wired.
 
 decisions_taken: >
-  CPO-approved via the plan: (1) a separate Team → Stats sub-screen; (2) rank-based display ("k of N" + vs-median
-  + spread bar), which metrics_display.md already declares for the team benchmark — not a new invention; (3) the
-  20-metric set + block order come from the shipped mart + the LOCKED metrics_display contract; (4) directions
-  from the catalogue (verified). No new metric, no new mechanism. The board flip is NOT taken here — the
-  team-benchmark row goes green only when WIRED (GAP-23), not at spec.
+  CPO-approved via the plan: mirror #627 team-simplified; flat benchmarks[] (no position nesting); carry the spec
+  §5 columns; carry all 20 mart rows (frontend renders 16). Folding the directly-coupled doc-syncs (content_
+  architecture board flip team-benchmark → green; 99_gaps_register GAP-23 → shipped; 14_team_stats banner/§10 →
+  shipped) into this PR follows the GAP-01 precedent — the wiring is exactly what makes them true. No new metric,
+  no derivation, no display decision in the export.
 
 decisions_reserved:
-  - The export wiring (GAP-23) — a separate follow-up PR (the #627 analog); NOT this change.
-  - Spread-bar colour — deferred to the design pass (#366).
-  - `save_ratio` naked % (no count peer in the set) — a catalogue matter (GAP-11 family), not this screen.
+  - The matchday-schedule board correction (a different §3 row, unrelated) — a separate follow-up.
+  - Frontend rendering (the LOCKED-16 display contract) — not built.
+  - A season_games_played mart column (games caption) — deferred (14 spec §10).
 
 done_when:
-  - docs/wireframes/14_team_stats.md exists, §1–10, every §5 row bound to a real mart column, rank rule +
-    direction mirror + floor + no-colour rules internally consistent with 12 + metrics_display.
-  - Companion doc-syncs: 00_overview (screen 14 + census), 99_gaps_register (GAP-23 export wiring), 02 §10 link.
-  - No board flip (green only on wiring); no code/model/data change.
-  - scope-auditor + bi-analyst-reviewer PASS (>=2 named risks each); review.md diff_sha256 binds; CPO merges.
+  - `_shape_team_benchmark_member` + `_shape_team_benchmarks` added; `shape_team_payload` attaches per-season
+    `benchmarks[]`; `fetch_team_payloads` fetches + passes the benchmark rows (scoped on sample runs).
+  - Unit tests: member surfaces real columns (+ None-safe); flat byte-stable list; payload attaches per season.
+  - `python -m pytest tests/test_export_site_data.py` green; python-ci green.
+  - content_architecture §3/§7 team benchmark → ✓ wired; 99_gaps_register GAP-23 → shipped; 14 banner/§10 updated.
+  - scope-auditor + analytics-engineer + cto + bi-analyst PASS (>=2 named risks each); review.md binds; CPO merges.
 
 amendments: (none)

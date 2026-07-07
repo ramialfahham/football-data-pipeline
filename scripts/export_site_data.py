@@ -164,12 +164,15 @@ def shape_team_payload(
     profile_rows: list[dict],
     fixture_rows: list[dict] | None = None,
     roster_rows: list[dict] | None = None,
+    benchmark_rows: list[dict] | None = None,
 ) -> dict:
-    """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster rows) -> the team page payload.
+    """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
+    mart_team_competition_benchmarks rows) -> the team page payload.
 
     profile_rows: every (team, competition-season) profile row for a single team_sk.
     fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
     roster_rows: that team's mart_roster rows (identity-only squad, per season; GAP-20).
+    benchmark_rows: that team's mart_team_competition_benchmarks rows (rank-vs-league per season; GAP-23).
     """
     latest = _latest_season_row(profile_rows)
     team_id = int(latest["team_sk"])
@@ -188,6 +191,11 @@ def shape_team_payload(
         roster_by_season.setdefault(
             (rr.get("league_code"), rr.get("season_api_year")), []
         ).append(rr)
+    benchmark_by_season: dict = {}
+    for br in benchmark_rows or []:
+        benchmark_by_season.setdefault(
+            (br.get("league_code"), br.get("season_api_year")), []
+        ).append(br)
 
     seasons_out = []
     for r in seasons:
@@ -209,6 +217,11 @@ def shape_team_payload(
             for rr in sorted(squad_rows, key=lambda rr: rr["player_sk"])
             if rr.get("player_name") is not None
         ]
+        # GAP-23: rank-vs-league benchmark for this (competition, season) — a flat metrics[] list
+        # (no position dimension); the frontend renders the LOCKED 16 per metrics_display.md.
+        s["benchmarks"] = _shape_team_benchmarks(
+            benchmark_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+        )
         seasons_out.append(s)
 
     return {
@@ -280,6 +293,34 @@ def _shape_benchmarks(rows: list[dict]) -> list[dict]:
             ],
         })
     return out
+
+
+def _shape_team_benchmark_member(row: dict) -> dict:
+    """One mart_team_competition_benchmarks row -> a Team-Stats metric entry (GAP-23). Select/reshape
+    only — the "k of N" / vs-median / spread-bar labels and the direction-mirror (only lower_better rows)
+    are applied at render from the catalogue direction (the mart is direction-agnostic: rank is by value
+    DESC). No num/den atoms — the team mart carries none; team ratios use the adjacent-count-row mechanism
+    (metrics_display.md). The frontend renders the LOCKED 16 (dropping shot_accuracy + the T/I/B sub-display)."""
+    return {
+        "metric_key": row.get("metric_key"),
+        "metric_value": row.get("metric_value"),
+        "rank": row.get("rank"),
+        "team_count": row.get("team_count"),
+        "league_median": row.get("league_median"),
+        "league_p25": row.get("league_p25"),
+        "league_p75": row.get("league_p75"),
+        "vs_median_delta": row.get("vs_median_delta"),
+    }
+
+
+def _shape_team_benchmarks(rows: list[dict]) -> list[dict]:
+    """A season's mart_team_competition_benchmarks rows -> a flat metrics[] list (GAP-23). No position
+    grouping (teams have no positional peers, unlike the player Stats screen); ordered byte-stable by
+    metric_key (the frontend re-orders per the metrics_display block order). No derivation."""
+    return [
+        _shape_team_benchmark_member(r)
+        for r in sorted(rows, key=lambda r: r.get("metric_key") or "")
+    ]
 
 
 def _shape_career_row(row: dict) -> dict:
@@ -580,8 +621,21 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     else:
         roster_sql = f"select * from {roster_table}"
     roster_by_team = _group_by(_query(client, roster_sql), "team_sk")
+    # GAP-23: rank-vs-league benchmark per (team, competition-season) from
+    # mart_team_competition_benchmarks. Scope to the sampled teams on a sample run; whole-table
+    # otherwise (selection, not derivation), exactly like the roster block above.
+    bench_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_competition_benchmarks`"
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        bench_sql = f"select * from {bench_table} where team_sk in ({id_list})"
+    else:
+        bench_sql = f"select * from {bench_table}"
+    bench_by_team = _group_by(_query(client, bench_sql), "team_sk")
     return [
-        shape_team_payload(grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []))
+        shape_team_payload(
+            grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
+            bench_by_team.get(t, []),
+        )
         for t in team_ids
     ]
 
