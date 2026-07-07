@@ -10,6 +10,7 @@ from scripts.export_site_data import (
     _shape_benchmark_member,
     _shape_benchmarks,
     _shape_career_row,
+    _shape_team_benchmark_member,
     build_manifest,
     build_nav,
     fetch_glossary,
@@ -309,6 +310,57 @@ def test_shape_team_payload_squad_defaults_empty_without_roster():
              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
     p = shape_team_payload(rows)
     assert p["seasons"][0]["squad"] == []
+
+
+def test_shape_team_benchmark_member_carries_mart_columns():
+    # GAP-23: select/reshape only — the eight spec §5 columns, no num/den (team mart has none)
+    m = _shape_team_benchmark_member({
+        "team_benchmark_sk": 1, "team_sk": 157, "season_sk": 2, "league_sk": 3,
+        "league_code": "BL1", "season_api_year": 2025, "metric_key": "goals_per_match",
+        "metric_value": 2.2, "league_mean": 1.6, "league_median": 1.5,
+        "league_p25": 1.1, "league_p75": 2.0, "team_count": 18, "rank": 3,
+        "vs_median_delta": 0.7,
+    })
+    assert m == {
+        "metric_key": "goals_per_match", "metric_value": 2.2, "rank": 3, "team_count": 18,
+        "league_median": 1.5, "league_p25": 1.1, "league_p75": 2.0, "vs_median_delta": 0.7,
+    }
+    # internal keys + league_mean (unbound by the screen) are not carried
+    for k in ("team_benchmark_sk", "team_sk", "season_sk", "league_sk", "league_mean"):
+        assert k not in m
+
+
+def test_shape_team_payload_attaches_benchmarks_per_season_flat_and_ordered():
+    rows = [
+        {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
+         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"},
+        {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
+         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2"},
+    ]
+
+    def bench(metric, value, *, season=2025):
+        return {"team_sk": 157, "league_code": "BL1", "season_api_year": season,
+                "metric_key": metric, "metric_value": value, "rank": 1, "team_count": 18,
+                "league_median": 1.0, "league_p25": 0.5, "league_p75": 1.5, "vs_median_delta": 0.2}
+
+    # deliberately out of metric_key order; one row on the other season
+    benchmark = [bench("shots_per_match", 14.1), bench("goals_per_match", 2.2),
+                 bench("goals_against_per_match", 0.8, season=2024)]
+    p = shape_team_payload(rows, None, None, benchmark)
+    s2025 = p["seasons"][0]
+    assert s2025["season_api_year"] == 2025
+    # flat metrics list (no position nesting), byte-stable by metric_key
+    assert [m["metric_key"] for m in s2025["benchmarks"]] == ["goals_per_match", "shots_per_match"]
+    # rows are routed to the right season by (league_code, season_api_year)
+    s2024 = p["seasons"][1]
+    assert [m["metric_key"] for m in s2024["benchmarks"]] == ["goals_against_per_match"]
+
+
+def test_shape_team_payload_benchmarks_default_empty_without_rows():
+    rows = [{"team_sk": 9, "season_api_year": 2025, "league_code": "PL",
+             "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
+    p = shape_team_payload(rows)
+    assert p["seasons"][0]["benchmarks"] == []
 
 
 def test_shape_player_payload_orders_match_log_desc():
