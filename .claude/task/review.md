@@ -1,29 +1,35 @@
-# Review — chore/handover-nt-docsync-post-655 — 2026-07-07
+# Review — chore/reconcile-content-arch-post-648 — 2026-07-07
 
-> G3 Lock artifact. Doc-only: (1) session-boundary handover refresh to post-#655 (pointer 712f16b) — records
-> #653/#484 shipped+closed, #655 merged, #654 closed no-consumer, the concurrent-session merges (450c205/81eb1ed),
-> national-team thread SETTLED, #3 parked; (2) de-stale metrics_context_model.md §8 — the §8-intro + §8.7
-> "#480/#484 build follow-ups (not built)" references and the §8.4 form_window_kind enum claim (never added; the
-> window kinds live as the models' window_type accepted_values). Plan mode skipped per the CPO handover carve-out
-> + explicit go on the doc loose ends; contract + review + gate run. Required set (routing): scope-auditor only.
+> G3 Lock artifact. Doc-only status reconciliation (the #615/#620/#636 pattern): flip stale ✓/⚠/✗ markers in
+> `docs/content_architecture.md` §3 (block↔mart board) + §7 (new-mart status) to match shipped reality — the
+> legend predated #638/#645/#648. Flips: player Season (#630), player Season-over-season (#638+#648),
+> Contribution-share (#645) → ✓; Opponent/schedule-context → ✗ SHELVED 2026-07-03; player Streaks → SKIPPED;
+> Career backfill note → effectively done. Team benchmark stays ⚠ orphan; "17 marts" unchanged.
+> Required set (routing): scope-auditor only.
+>
+> **REBIND (sibling-PR, #661 merged first):** rebased onto main@#661. The reviewed content is BYTE-IDENTICAL —
+> the `docs/content_architecture.md` diff patch-id (`1569bd82…`) is unchanged from the pre-rebase reviewed commit
+> (5f5229c), and contract.md content is this task's version verbatim. Only contract.md's diff BASE shifted
+> (#655→#661), moving diff_sha256 40e03450 → 789f1f93. The scope-auditor PASS below verified the identical bytes;
+> no content changed, so the verdict stands and only the hash is rebound ([[feedback-sibling-pr-rebase-rebind]]).
 
-diff_sha256: 0a863e1a7eddd539d8325058c3ed7610f9f6a9b1381b9a7bf1793bad2c1b5d2e
+diff_sha256: 789f1f93f6603976ff6c9ec35cb135daeb8c56cbc2fc80fa367efffa95435b64
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Handover continuity.** active_work.md correctly records the session's four state changes (#653/#484 shipped,
-  #655 merged, #654 closed, #3 parked); the national-team window thread is fully settled; FIRST STEPS §3 + §8.7
-  both explicitly forbid re-opening #654 without new display justification, so a cold chat would not misallocate
-  effort to phantom gaps. Do-NOTs present; pointer updated to 712f16b; NEXT is an open CPO pick. All three staged
-  files ⊆ scope_paths; nothing else smuggled.
-- **Documentation de-staling accuracy.** Verified the three load-bearing claims against ground truth: (1)
-  metric_catalogue.csv contains NO `form_window_kind` column (inspected the seed); (2) the window kinds ARE
-  realized as `window_type` accepted_values in the dbt YAML, not a catalogue enum; (3) the context #654 wanted is
-  already served by #653 (momentum on national fixtures) + #634 (Career screen national_appearances_total), so the
-  closure is justified. The de-staled doc now matches reality rather than describing phantom gaps. §10 clean
-  (record-only; the §4 window SET is unchanged; no new decision by analogy); Appendix A A1–A6 clean.
+- **Wiring verification (Season / Season-over-season / Contribution-share).** Confirmed all three intermediate
+  models (`int_player_profile__yoy`, `int_player_profile__contribution`, `int_player_season__metrics`) are
+  genuinely `ref()`-ed in `mart_player_profile`, and `mart_player_profile` is consumed end-to-end by the v2 export
+  via `fetch_player_payloads` with `select *` — so "wired to the export" is honest (not merely existing in an
+  internal layer); no silent filtering masks them. The ✓ flips do not overclaim.
+- **Shelving-claim boundary (opponent/schedule context).** Verified the "✗ SHELVED 2026-07-03" flip rests on an
+  explicit CPO ruling already recorded in active_work.md ("Phase D flagship opponent/schedule context is SHELVED
+  … no display home"), not a retrospectively invented judgment; elevating "not built" → "SHELVED" (a decision NOT
+  to build) is significant and correctly grounded in existing CPO authority. Also spot-checked: team benchmark
+  stays ⚠ orphan (not falsely flipped), "17 marts" unchanged (new intermediates enrich mart_player_profile, add
+  no new wired mart), scope = content_architecture.md + .claude/task/** only, §10 record-only.
 
 ## escalations
-- None open. No ESCALATE. Record-only: the refresh + §8 de-stale record already-merged/-closed work (#653/#655
-  merged, #654/#484 closed, #480 shipped) directed by the CPO this session; no product decision taken here.
+- None open. No ESCALATE. Record-only: every flip is bound to a merged PR (#630/#638/#645/#648) or an existing CPO
+  ruling (opponent-context SHELVED / player streaks SKIPPED / backfill-effectively-done); no new status invented.

@@ -1,49 +1,45 @@
-# Task contract — handover refresh + §8 NT-context doc-sync (post-#655/#654)
+# Task contract — reconcile content_architecture.md §3/§7 board to reality (post-#648)
 
-> Written on a CLEAN tree (branch chore/handover-nt-docsync-post-655 off main @ 712f16b).
-> Doc-only. Handover refresh (bookkeeping) + de-stale metrics_context_model.md §8 after the NT-context
-> thread closed. Plan mode skipped per the CPO handover carve-out + CPO's explicit go on the doc loose ends;
-> contract + review + gate run. Required reviewer (routing): scope-auditor only (no dbt/scripts/CI/wireframe path).
+> Written on a CLEAN tree (branch chore/reconcile-content-arch-post-648 off main @ 712f16b).
+> Doc-only status reconciliation (the #615/#620/#636 pattern) — flip stale board markers to match shipped
+> reality. Plan mode skipped (doc-sync/bookkeeping + CPO's explicit go); contract + review + gate run.
+> Scoped to content_architecture.md ONLY (NOT active_work.md) so it cannot conflict with the open #661.
+> Required reviewer (routing): scope-auditor only.
 
 objective: >
-  (1) Bring `.claude/active_work.md` current from post-#653 (pointer c4489aa) to post-#655 (712f16b): record #655
-  MERGED+CLOSED (season-record campaign=season note cleanup), #654 CLOSED as no-consumer (recent NT context is
-  served on the national fixture preview via momentum #653 + the career NT record via the Career screen #634; a
-  standing profile block failed display-first), the two concurrent-session merges (450c205 squad /players
-  skip-if-cached; 81eb1ed exclude All-Star teams from player affiliation), and this doc-sync. National-team window
-  thread is now fully SETTLED; #3 (career NT by competition type) stays PARKED on ingest. NEXT = an open CPO pick.
-  (2) De-stale `docs/metrics_context_model.md` §8: the §8-intro + §8.7 "#480/#484 build follow-ups (not built)"
-  references and the §8.4 `form_window_kind` enum claim — #480 shipped (#630), #484 closed, #654 closed, and the
-  promised catalogue enum was never added (the window kinds live as the models' window_type accepted_values).
-refs: #655 (712f16b, merged+closed); #654 (closed, no consumer); #653 (#484, merged); #630 (#480); #634 (Career); #3 (parked).
+  Re-reconcile `docs/content_architecture.md` §3 (block↔mart board) + §7 (new-mart status) to the shipped state —
+  the legend was last reconciled 2026-07-02 (post-#634) and predates #638/#645/#648. Flip the stale markers:
+  the player **Season** block (per-club foundation shipped #630, wired via mart_player_profile), player
+  **Season-over-season/YoY** (#638 + #648), and **Contribution-share** (#645, catalogued) are now ✓; correct the
+  **Opponent/schedule context** flagship from "✗ not built" to "✗ SHELVED 2026-07-03" (no display home); note
+  player **Streaks** SKIPPED (CPO 2026-07-03); update the Career "thin/needs backfill" notes (backfill effectively
+  done, 5–10 seasons deep). The **team benchmark** stays ⚠ orphan (built, not wired, screen unspec'd) — unchanged.
+refs: #630 (#480 §8.3); #638 + #648 (player YoY); #645 (contribution-share); opponent-context SHELVED 2026-07-03; player streaks SKIPPED 2026-07-03.
 
 scope_paths:
-  - .claude/active_work.md
-  - docs/metrics_context_model.md
+  - docs/content_architecture.md
   - .claude/task/**
 
 impact_map: >
-  Doc-only, no structural surface. `.claude/active_work.md` (handover) + `docs/metrics_context_model.md` (a spec
-  doc, no code binding) + the task scaffolding. No dbt_project/** model, no scripts/export_*.py, no ingestion/**,
-  no site*/ — zero data/number/metric/build impact. metrics_context_model.md is not referenced by any model
-  (it's prose governance), so editing it changes no compiled SQL. contract.md is artifact_only_never → scope-auditor required.
+  Doc-only, no structural surface. `docs/content_architecture.md` is prose governance (a block/mart board), not
+  referenced by any model or the export — editing it changes no compiled SQL, no data/number/metric, no build. No
+  dbt_project/**, no scripts/**, no ingestion/**. contract.md is artifact_only_never → scope-auditor required.
 
 decisions_taken: >
-  Record-only. #655 merged+closed, #654 closed, #480 shipped — all already happened (CPO-directed this session).
-  The §8 edits REMOVE stale build-follow-up references + a false "enum was set in the catalogue" claim; they
-  invent no new decision. The window SET stays fixed by the §4 matrix (unchanged); only the realization note is
-  corrected (window_type accepted_values, not a catalogue form_window_kind column).
+  Record-only. Every flip reflects work already merged (#630/#638/#645/#648) or a CPO ruling already made
+  (opponent-context SHELVED 2026-07-03, player streaks SKIPPED 2026-07-03, backfill-effectively-done finding).
+  Invents no new status; the team-benchmark orphan and the un-spec'd screens stay exactly as they are.
 
 decisions_reserved:
-  - The actual next task — CPO picks later (candidates: task_f876b853 chip; #545–#547 programs; #530(c)
-    model-conformance test; portfolio social-preview image). #3 career-NT-by-type parked on a data/cost call.
+  - Whether/when to wire the team benchmark (needs its screen spec'd first) — unchanged, a later CPO pick.
+  - The remaining foundation tail (GAP-07 report pages, GAP-17 MVP denominators) — untouched here; still open.
 
 done_when:
-  - active_work.md header + FIRST STEPS point at 712f16b; #655 recorded merged+closed; #654 recorded closed
-    (no consumer); the concurrent merges noted; NEXT is an open CPO pick (national-team thread fully settled).
-  - metrics_context_model.md §8-intro + §8.4 + §8.7 no longer claim #480/#484 are unbuilt follow-ups or that a
-    form_window_kind catalogue enum was set; they reflect: #480 shipped, national context served (fixture strip +
-    Career section), #654 closed, window kinds = window_type accepted_values.
+  - §3 legend date + note bumped to post-#648; player Season / Season-over-season / Contribution-share rows show ✓
+    with the shipping PR; Opponent-context marked SHELVED; player Streaks noted SKIPPED; Career "backfill" notes
+    updated; team benchmark stays ⚠ orphan.
+  - §7 status date bumped; Career "needs backfill" note updated.
+  - No mart-count change (17 — #638/#645/#648 enrich mart_player_profile, add no new wired mart).
   - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)
