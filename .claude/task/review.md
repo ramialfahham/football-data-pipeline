@@ -1,46 +1,29 @@
-# Review — chore/655-campaign-is-season-note — 2026-07-06
+# Review — chore/handover-nt-docsync-post-655 — 2026-07-07
 
-> G3 Lock artifact. #655: remove the stale "multi-season national qualifier campaigns are a separate follow-up"
-> deferral notes from the two season-record model docstrings (int_team_season_record + int_player_season_record),
-> replacing them with a one-line statement that a qualifying campaign is one season_api_year already cumulated by
-> the (league_code, season_api_year) partition. CPO ruling (#655): "the campaign is the season" — confirmed in the
-> data (each WCQ campaign carries one season_api_year). Comment/doc-only; compiled SQL byte-identical.
-> Required set (routing): scope-auditor (always) + analytics-engineer-reviewer (dbt_project/**).
-> (Redone in the primary tree off main @ 81eb1ed after a concurrent session cleared; earlier PASS runs on the
-> byte-identical model edits are superseded by these fresh verdicts bound to the current hash.)
+> G3 Lock artifact. Doc-only: (1) session-boundary handover refresh to post-#655 (pointer 712f16b) — records
+> #653/#484 shipped+closed, #655 merged, #654 closed no-consumer, the concurrent-session merges (450c205/81eb1ed),
+> national-team thread SETTLED, #3 parked; (2) de-stale metrics_context_model.md §8 — the §8-intro + §8.7
+> "#480/#484 build follow-ups (not built)" references and the §8.4 form_window_kind enum claim (never added; the
+> window kinds live as the models' window_type accepted_values). Plan mode skipped per the CPO handover carve-out
+> + explicit go on the doc loose ends; contract + review + gate run. Required set (routing): scope-auditor only.
 
-diff_sha256: 7cade53e73c1be33bb67c787b7fc9bda45ee417061ac5d51302b5474fa701239
+diff_sha256: 0a863e1a7eddd539d8325058c3ed7610f9f6a9b1381b9a7bf1793bad2c1b5d2e
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Docstring truthfulness under temporal edge cases.** Verified "this partition already cumulates the full
-  campaign" is a factual statement about the partition's SCOPE (all rows with that season_api_year), not an
-  implicit coverage-completeness claim — it correctly allows mid-campaign gaps / API lags (permitted by soft
-  ingest gates); the cumulation is mechanical and holds regardless of lag/gap patterns. No overclaim.
-- **"Matching the momentum qualifiers window" — outcome vs mechanism.** Confirmed the team docstring uses
-  outcome-parity language ("matching"), not mechanism identity; the parenthetical ("the provider stamps a whole
-  campaign with a single season_api_year") signals the different mechanism (partition key) while justifying the
-  same outcome, and the §4 reference is verifiable. Scope (contract.md is now the #655 one; both models ⊆
-  scope_paths; nothing smuggled), §10 (record-only, no new decision), and Appendix A (A1–A6 clean) all hold.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- **Comment-only scope.** Read both full model files end-to-end; the diff hunks fall entirely within the `{# #}`
-  blocks and every subsequent line (CTEs, select columns, both window clauses w/w_seq, config, refs) is unchanged;
-  `int_season_record.yml` needed no update (no test encoded the removed "separate follow-up" language).
-- **Substantive correctness.** Verified against competition_registry.yml (all seven WCQ* entries carry exactly one
-  `current_season` scalar, season_type calendar_year) and the model bodies (no competition_type/entity_type filter
-  or extra branching beyond the stated (…, league_code, season_api_year) partition), consistent with
-  metrics_context_model §4's qualifying-campaign row — the "single season_api_year cumulates the whole campaign"
-  claim is structurally true, not merely asserted.
-- **Mechanism-vs-outcome.** Read int_team_momentum_window.sql in full; its qualifier window is parent-competition-
-  keyed and explicitly uncapped/cross-season (no season_api_year partition), structurally different from the
-  season-record single-partition cumulation — so the docstring's "matching" phrasing supports OUTCOME parity only,
-  no mechanism-identity overclaim.
+- **Handover continuity.** active_work.md correctly records the session's four state changes (#653/#484 shipped,
+  #655 merged, #654 closed, #3 parked); the national-team window thread is fully settled; FIRST STEPS §3 + §8.7
+  both explicitly forbid re-opening #654 without new display justification, so a cold chat would not misallocate
+  effort to phantom gaps. Do-NOTs present; pointer updated to 712f16b; NEXT is an open CPO pick. All three staged
+  files ⊆ scope_paths; nothing else smuggled.
+- **Documentation de-staling accuracy.** Verified the three load-bearing claims against ground truth: (1)
+  metric_catalogue.csv contains NO `form_window_kind` column (inspected the seed); (2) the window kinds ARE
+  realized as `window_type` accepted_values in the dbt YAML, not a catalogue enum; (3) the context #654 wanted is
+  already served by #653 (momentum on national fixtures) + #634 (Career screen national_appearances_total), so the
+  closure is justified. The de-staled doc now matches reality rather than describing phantom gaps. §10 clean
+  (record-only; the §4 window SET is unchanged; no new decision by analogy); Appendix A A1–A6 clean.
 
 ## escalations
-- None open. No ESCALATE verdict raised. Record-only: removes a stale note per the CPO's #655 ruling; the corrected
-  wording states behavior the data + §4 already imply. The WCQEU date example is a session data check (registry
-  corroborates the single-season structural claim); no CPO-class decision taken.
+- None open. No ESCALATE. Record-only: the refresh + §8 de-stale record already-merged/-closed work (#653/#655
+  merged, #654/#484 closed, #480 shipped) directed by the CPO this session; no product decision taken here.
