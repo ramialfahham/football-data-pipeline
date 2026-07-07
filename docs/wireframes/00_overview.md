@@ -68,6 +68,7 @@ Every screen file follows this structure:
 | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster list, identity-only) | **spec'd** | #391 ⁑ |
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
 | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
+| 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats (rank vs league) | **spec'd** | #391 ⁑ |
 | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
 
 Order rationale: the fixture page first — the product's heart and the most
@@ -98,20 +99,21 @@ inventory, flagged as new for the design system (#366).
 | Result chip (W/D/L) | 01 | part of form string family |
 | Player row (photo, name, stat columns) | 01 | player row ✓ |
 | H2H record block (aggregate W-D-L bar + counts) | 01 | ➕ |
-| Empty/absent state | 01, 02, 03, 11, 12, 13 | ✓ |
+| Empty/absent state | 01, 02, 03, 11, 12, 13, 14 | ✓ |
 | Narrative block (data-to-text slot) | 01 | ➕ (slot only — GAP-03) |
-| Internal-links footer | 01, 02, 03, 11, 12, 13 | ➕ (SEO-driven) |
-| Profile header (team/player) | 02, 03, 11, 12, 13 | ✓ |
-| Competition-/season selector | 02, 03, 11, 12 | ➕ |
+| Internal-links footer | 01, 02, 03, 11, 12, 13, 14 | ➕ (SEO-driven) |
+| Profile header (team/player) | 02, 03, 11, 12, 13, 14 | ✓ |
+| Competition-/season selector | 02, 03, 11, 12, 14 | ➕ |
 | Position selector | 12 | ➕ |
 | Percentile rank bar (single fill + track + dashed median) | 12 | ➕ |
+| Rank + spread bar (value · k-of-N · vs-median · p25/median/p75 track) | 14 | ➕ |
 | Sample caption (peers · minutes · apps) | 12 | ➕ |
 | Big-number record block | 02 | big-number callout ✓ |
 | Single-bar ratio row + gap callout (deserved vs actual) | 02 | ➕ |
 | Aligned-comparison row (YoY) | 02 | sparkline/trend family ✓ |
 | Streak chip | 02 | ➕ |
 | Stat row (label + value + direction) | 02 | ✓ |
-| Group subhead | 01, 02, 03, 12 | ➕ |
+| Group subhead | 01, 02, 03, 12, 14 | ➕ |
 | Position badge | 03 | ➕ |
 | Fact summary line | 03 | ➕ |
 | Bundled stat row (player contract) | 03 | player row ✓ |
