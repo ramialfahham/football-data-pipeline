@@ -1,45 +1,51 @@
-# Task contract — reconcile content_architecture.md §3/§7 board to reality (post-#648)
+# Task contract — competition header identity fields (→ green)
 
-> Written on a CLEAN tree (branch chore/reconcile-content-arch-post-648 off main @ 712f16b).
-> Doc-only status reconciliation (the #615/#620/#636 pattern) — flip stale board markers to match shipped
-> reality. Plan mode skipped (doc-sync/bookkeeping + CPO's explicit go); contract + review + gate run.
-> Scoped to content_architecture.md ONLY (NOT active_work.md) so it cannot conflict with the open #661.
-> Required reviewer (routing): scope-auditor only.
+> Written on a CLEAN tree (branch feat/competition-header-identity off main @ 91bbcb1).
+> Plan approved via ExitPlanMode this session. Export-only registry surfacing (the GAP-01 #613 pattern).
 
 objective: >
-  Re-reconcile `docs/content_architecture.md` §3 (block↔mart board) + §7 (new-mart status) to the shipped state —
-  the legend was last reconciled 2026-07-02 (post-#634) and predates #638/#645/#648. Flip the stale markers:
-  the player **Season** block (per-club foundation shipped #630, wired via mart_player_profile), player
-  **Season-over-season/YoY** (#638 + #648), and **Contribution-share** (#645, catalogued) are now ✓; correct the
-  **Opponent/schedule context** flagship from "✗ not built" to "✗ SHELVED 2026-07-03" (no display home); note
-  player **Streaks** SKIPPED (CPO 2026-07-03); update the Career "thin/needs backfill" notes (backfill effectively
-  done, 5–10 seasons deep). The **team benchmark** stays ⚠ orphan (built, not wired, screen unspec'd) — unchanged.
-refs: #630 (#480 §8.3); #638 + #648 (player YoY); #645 (contribution-share); opponent-context SHELVED 2026-07-03; player streaks SKIPPED 2026-07-03.
+  Make the competition-header block green: surface the registry identity fields `country`, `confederation`,
+  `tier` on the competition-season hub payload. They already flow through `_registry_competitions` but are dropped
+  when the `meta` dict is built in `fetch_competition_payloads`; the header today carries only name/slug/season.
+  Pure registry pass-through — no BigQuery, no new fetch, no new model. CPO confirmed the {country, confederation,
+  tier} field set via plan approval (mirrors GAP-01's CPO-ruled team founded/venue set).
+refs: v2 board (content_architecture.md §3 "Competition header · partial"); GAP-01/#613 (team identity precedent); plan approved this session.
 
 scope_paths:
+  - scripts/export_site_data.py
+  - tests/test_export_site_data.py
   - docs/content_architecture.md
   - .claude/task/**
 
 impact_map: >
-  Doc-only, no structural surface. `docs/content_architecture.md` is prose governance (a block/mart board), not
-  referenced by any model or the export — editing it changes no compiled SQL, no data/number/metric, no build. No
-  dbt_project/**, no scripts/**, no ingestion/**. contract.md is artifact_only_never → scope-auditor required.
+  writers: none — no model/mart touched. Consumption layer only (`scripts/export_site_data.py`).
+  downstream: `shape_competition_payload` feeds the `competitions` export entity (competitions.json hub). The
+    three added fields are select/pass-through from the registry `meta` dict — NO derivation, NO computed facts
+    (consumption-layer contract: the export may select/rename, never derive). GAP-01 (#613) is the precedent for
+    surfacing registry/dim identity on an entity header.
+  layer_rules: N/A (no dbt model). The consumption-layer contract applies — verified the change only selects
+    existing registry values, computes nothing.
+  deploy_order: NON-breaking. Export-only; the next pipeline export run emits the enriched competition payload.
+    No dbt build, no --full-refresh, no migration ordering.
+  blast_radius: `competitions.json` gains three top-level header fields (country/confederation/tier), None where a
+    registry entry omits one (safe `.get`). No other entity payload changes; no number/metric moves; no data-build.
 
 decisions_taken: >
-  Record-only. Every flip reflects work already merged (#630/#638/#645/#648) or a CPO ruling already made
-  (opponent-context SHELVED 2026-07-03, player streaks SKIPPED 2026-07-03, backfill-effectively-done finding).
-  Invents no new status; the team-benchmark orphan and the un-spec'd screens stay exactly as they are.
+  CPO-approved via the plan: surface {country, confederation, tier}. Excluded (not new decisions): competition_type/
+  display_group (already power nav), sort_order (display constant), logo (not in the registry — provider-sourced,
+  deferred). Folding the directly-coupled content_architecture.md §3 board flip (partial → green) into this PR
+  follows the GAP-01 precedent; kept in scope per the plan.
 
 decisions_reserved:
-  - Whether/when to wire the team benchmark (needs its screen spec'd first) — unchanged, a later CPO pick.
-  - The remaining foundation tail (GAP-07 report pages, GAP-17 MVP denominators) — untouched here; still open.
+  - A full competition-page wireframe spec (none exists in 00–13) — a separate, later item; NOT this change.
+  - Competition logo (provider-sourced) — deferred.
 
 done_when:
-  - §3 legend date + note bumped to post-#648; player Season / Season-over-season / Contribution-share rows show ✓
-    with the shipping PR; Opponent-context marked SHELVED; player Streaks noted SKIPPED; Career "backfill" notes
-    updated; team benchmark stays ⚠ orphan.
-  - §7 status date bumped; Career "needs backfill" note updated.
-  - No mart-count change (17 — #638/#645/#648 enrich mart_player_profile, add no new wired mart).
-  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+  - `fetch_competition_payloads` meta dict carries country/confederation/tier; `shape_competition_payload` surfaces
+    them in the returned payload (safe `.get`, None when absent).
+  - A unit test in tests/test_export_site_data.py asserts the three fields surface from meta.
+  - `python -m pytest tests/test_export_site_data.py -k competition` passes; python-ci green.
+  - content_architecture.md §3 "Competition header" flipped partial → green.
+  - scope-auditor + analytics-engineer + cto PASS (>=2 named risks each); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)
