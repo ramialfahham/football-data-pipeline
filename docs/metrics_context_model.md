@@ -215,8 +215,9 @@ It fixes the one real gap: the player season rollup exists three ways today with
 numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
 in another) because each re-implements its own aggregation. Definitions stay in the
 `metric_catalogue.csv` seed; the locked display rows stay in
-`docs/wireframes/metrics_display.md`. Build follow-ups: **#480** (consolidate to one
-player-season model) and **#484** (player national / tournament context) — not built here.
+`docs/wireframes/metrics_display.md`. Build status: **#480** (consolidate to one
+player-season model) shipped (#630); the player national / tournament context (§8.4) is
+served without a separate build — see §8.7.
 
 ### 8.1 One aggregation, two windows (the core rule)
 
@@ -302,9 +303,10 @@ comps. Big national tournaments are the cumulative exception (same shape as the 
 
 The distinct **window kinds** this matrix produces are: domestic previous-season · club last-5 ·
 domestic/club full-season · national-team context (≤5 NT appearances pooled) · big-tournament
-cumulative. #480/#484 set the final `form_window_kind` enum values in the catalogue from this list
-(replacing the superseded `wc_pre_via_domestic`); the **set is fixed by this matrix**, the labels
-are a build-time naming call.
+cumulative. The **set is fixed by this matrix.** These kinds are realized as the models' `window_type`
+values — `last_5` / `tournament_to_date` / `qualifiers` in the momentum path, `season_to_date` /
+`prev_season` in the season-record path — each guarded by an `accepted_values` test. A catalogue
+`form_window_kind` enum column was once envisaged but never added; the `window_type` columns are the SSoT.
 
 ### 8.5 Override of the legacy form-window dispatch
 
@@ -323,18 +325,20 @@ confirms the football-correctness.
 declares scope per state and carries the distinction through its copy (club → "form";
 national → "appearances / record"). Final wording is set at i18n.
 
-### 8.7 Build follow-ups (not built here)
+### 8.7 Build status
 
-- **#480** — consolidate the three player-season rollups onto the one model (§8.3) using the one
-  shared aggregation (§8.1). Changes shipped numbers (e.g. pass accuracy to the weighted,
-  catalogue-correct value) → analytics-engineer + football-analytics review on that PR.
-- **#484** — player national / tournament context per §8.4. Requires a **new intermediate
-  selector**: the NT-context window (cross-competition *within national*, no season cap, ≤5 by
-  recency) is a **third** selection shape that neither existing selector covers (last-5 momentum =
-  cross-comp this season; season-record = within-comp per season). It stays in the **intermediate**
-  layer — it must NOT be built inside a mart. The selector is **national-team-anchored**
-  (`entity_type = 'national'`, the national `team_sk`), distinct from the upcoming-fixture-anchored
-  momentum builder; its exact model name and grain are #484's design.
-- **Cost-gated data** — friendlies ingest (for the NT pool); national-team history (≈ #477, for
-  the grouped-by-type career view). The rules are defined; the data lights up only when ingest is
-  CPO-approved.
+- **#480** — SHIPPED (#630): the three player-season rollups were consolidated onto the per-club
+  foundation `int_player_club_season__metrics` (§8.3) using the one shared aggregation (§8.1);
+  `int_player_season__metrics` re-expresses it byte-identically.
+- **National / tournament context (§8.4)** — served WITHOUT a separate standing selector. On a
+  national **fixture preview**, the momentum path supplies the recent NT context (last-5 pooled /
+  `tournament_to_date` / `qualifiers`, #653), framed as "appearances / record" via the §8.6 meta-line;
+  the national momentum window is already cross-competition with no season cap, so it IS the §8.4 shape
+  (no third selector needed). On the **player profile**, the Career screen's national section
+  (`mart_player_career` national rows + `national_appearances_total`, #634) carries the career national
+  record. A standing NT-context block on the profile was evaluated (#654) and **CLOSED — no consumer**:
+  the fixture strip + Career section already cover it, so a standing block had no display-first
+  justification. #484 (the original momentum-parity gap) shipped as #653.
+- **Cost-gated data** — friendlies ingest (for the NT pool); national-team history (≈ #477, for a
+  grouped-by-competition-type career view). PARKED: the rules are defined; the data lights up only when
+  ingest is CPO-approved.

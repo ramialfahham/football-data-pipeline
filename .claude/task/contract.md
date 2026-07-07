@@ -1,45 +1,49 @@
-# Task contract — #655: season-record "campaign is the season" (drop stale note)
+# Task contract — handover refresh + §8 NT-context doc-sync (post-#655/#654)
 
-> Written on a CLEAN tree (branch chore/655-campaign-is-season-note off main @ 81eb1ed).
-> Comment/doc-only in model files — no logic, no compiled-SQL change. The CPO ruled the action in issue #655;
-> contract + review + gate still run. (Redone in the primary tree after a concurrent session cleared.)
+> Written on a CLEAN tree (branch chore/handover-nt-docsync-post-655 off main @ 712f16b).
+> Doc-only. Handover refresh (bookkeeping) + de-stale metrics_context_model.md §8 after the NT-context
+> thread closed. Plan mode skipped per the CPO handover carve-out + CPO's explicit go on the doc loose ends;
+> contract + review + gate run. Required reviewer (routing): scope-auditor only (no dbt/scripts/CI/wireframe path).
 
 objective: >
-  Remove the stale "multi-season national qualifier campaigns are a separate follow-up" deferral notes from the
-  two season-record model docstrings. CPO ruling (#655, 2026-07-06): "the campaign is the season" — confirmed
-  already true in the data (each WCQ campaign carries ONE season_api_year spanning its full 2–3-yr run, checked
-  core.fct_fixture: WCQEU=2024 covers 2025-03→2026-03, etc.), so the (league_code, season_api_year) partition
-  already cumulates the whole campaign as one unit. The notes describe a gap that does not exist. Replace them
-  with a one-line statement of the correct behavior.
-refs: #655; docs/metrics_context_model.md §4 (qualifying row) + §8.4; CPO ruling 2026-07-06.
+  (1) Bring `.claude/active_work.md` current from post-#653 (pointer c4489aa) to post-#655 (712f16b): record #655
+  MERGED+CLOSED (season-record campaign=season note cleanup), #654 CLOSED as no-consumer (recent NT context is
+  served on the national fixture preview via momentum #653 + the career NT record via the Career screen #634; a
+  standing profile block failed display-first), the two concurrent-session merges (450c205 squad /players
+  skip-if-cached; 81eb1ed exclude All-Star teams from player affiliation), and this doc-sync. National-team window
+  thread is now fully SETTLED; #3 (career NT by competition type) stays PARKED on ingest. NEXT = an open CPO pick.
+  (2) De-stale `docs/metrics_context_model.md` §8: the §8-intro + §8.7 "#480/#484 build follow-ups (not built)"
+  references and the §8.4 `form_window_kind` enum claim — #480 shipped (#630), #484 closed, #654 closed, and the
+  promised catalogue enum was never added (the window kinds live as the models' window_type accepted_values).
+refs: #655 (712f16b, merged+closed); #654 (closed, no consumer); #653 (#484, merged); #630 (#480); #634 (Career); #3 (parked).
 
 scope_paths:
-  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
-  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+  - .claude/active_work.md
+  - docs/metrics_context_model.md
   - .claude/task/**
 
 impact_map: >
-  Trivial/cosmetic: docstring comment text only, in two 4_intermediate model files. No SELECT/CTE/logic/config
-  change — the compiled SQL is byte-identical, so zero data/number/mart/export impact and no build risk. Evidence:
-  the edits touch only the `{# ... #}` docstring blocks; the models' query bodies (the `with` CTEs, the `select`
-  column lists, both `window` clauses) are untouched. No new model, no ref() change. `dbt ls` not needed (no
-  lineage change); dbt CLI is broken locally regardless. The two files are unchanged by the just-merged
-  81eb1ed/450c205 (ingestion + affiliation-mapping), so #655 applies cleanly on current main.
+  Doc-only, no structural surface. `.claude/active_work.md` (handover) + `docs/metrics_context_model.md` (a spec
+  doc, no code binding) + the task scaffolding. No dbt_project/** model, no scripts/export_*.py, no ingestion/**,
+  no site*/ — zero data/number/metric/build impact. metrics_context_model.md is not referenced by any model
+  (it's prose governance), so editing it changes no compiled SQL. contract.md is artifact_only_never → scope-auditor required.
 
 decisions_taken: >
-  Rests on the CPO's #655 ruling ("campaign is the season") + the data check this session (each qualifying
-  campaign = one season_api_year). No new decision — records a finding and removes a stale note. The corrected
-  wording states the model already handles a qualifying campaign as one season (matching the momentum qualifiers
-  window's OUTCOME — both cumulate the whole campaign, via different mechanisms), which the data + §4 matrix imply.
+  Record-only. #655 merged+closed, #654 closed, #480 shipped — all already happened (CPO-directed this session).
+  The §8 edits REMOVE stale build-follow-up references + a false "enum was set in the catalogue" claim; they
+  invent no new decision. The window SET stays fixed by the §4 matrix (unchanged); only the realization note is
+  corrected (window_type accepted_values, not a catalogue form_window_kind column).
 
 decisions_reserved:
-  - The inconsistent season_api_year label ACROSS confederations (WCQAF=2023 vs WCQEU=2024 vs WCQSA=2026) is a
-    SEPARATE observation — not touched here; linkage to the WC edition is via parent_competition, not the year.
+  - The actual next task — CPO picks later (candidates: task_f876b853 chip; #545–#547 programs; #530(c)
+    model-conformance test; portfolio social-preview image). #3 career-NT-by-type parked on a data/cost call.
 
 done_when:
-  - Both docstrings no longer claim multi-season qualifier campaigns are deferred; they state the campaign is one
-    season (one season_api_year), already cumulated.
-  - Compiled SQL unchanged (comment-only); `python scripts/check_layer_contract.py` passes.
-  - scope-auditor + analytics-engineer-reviewer PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
+  - active_work.md header + FIRST STEPS point at 712f16b; #655 recorded merged+closed; #654 recorded closed
+    (no consumer); the concurrent merges noted; NEXT is an open CPO pick (national-team thread fully settled).
+  - metrics_context_model.md §8-intro + §8.4 + §8.7 no longer claim #480/#484 are unbuilt follow-ups or that a
+    form_window_kind catalogue enum was set; they reflect: #480 shipped, national context served (fixture strip +
+    Career section), #654 closed, window kinds = window_type accepted_values.
+  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
 
 amendments: (none)
