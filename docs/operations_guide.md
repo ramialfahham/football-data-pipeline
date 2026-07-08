@@ -255,6 +255,20 @@ Both workflows generate a temporary `/home/runner/.dbt/profiles.yml` for the
 `football_data_pipeline` profile in CI to avoid relying on machine-local
 profiles files.
 
+### Environment isolation (dbt targets)
+
+The warehouse is split by dbt **target** so non-prod builds cannot touch production
+(details in [`dbt_project/docs/layering.md`](../dbt_project/docs/layering.md#environment-isolation-prod--ci--dev)):
+
+- **`prod`** — `dbt-scheduled` (nightly), `ci-data-build` on main-push, and `pages-match-preview`
+  write the canonical **bare** datasets (`marts`, `core`, …) the site export reads. The only
+  target that does.
+- **`ci`** — `ci-data-build` PR builds write **`ci_*`** datasets and `--defer` unchanged
+  upstreams to prod, so a PR validates its changes layered over prod without mutating it.
+- **`dev`** — local `dbt build` writes **`dev_*`** datasets.
+
+Because prod stays unprefixed, `scripts/export_*.py` (hardcoded `marts`/`core`) needs no change.
+
 Local equivalent hard-fail check:
 
 ```powershell

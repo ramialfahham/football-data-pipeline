@@ -15,9 +15,21 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 | **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
 | **`marts`** | `5_marts` models (tables): **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
 
-dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema`; with [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), configured layer models use **only** the custom name (`staging`, `base`, …), not `dbt_scratch_staging`.
+dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema` (base views + seeds). Configured layer models take their dataset from [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), which prefixes the name by dbt target — see **Environment isolation** below.
 
 **Ingestion vs dbt:** Python loads **`project.raw.*`**. dbt builds **`project.staging.*`**, **`project.base.*`**, etc. Same GCP **project**, different datasets.
+
+### Environment isolation (prod / CI / dev)
+
+`generate_schema_name` prefixes the layer datasets by the **dbt target name**, so each environment writes its own copy and can never clobber another:
+
+| Target | Written by | Layer datasets | base + seeds (profile `dataset`) |
+|--------|-----------|----------------|----------------------------------|
+| `prod` | `dbt-scheduled` (nightly), `ci-data-build` main-push, `pages-match-preview` | `marts`, `core`, `staging`, `intermediate` (**bare**) | `dbt_analytics` |
+| `ci`   | `ci-data-build` PR builds (slim + `--defer` to prod) | `ci_marts`, `ci_core`, … | `ci_analytics` |
+| `dev`  | local `dbt build` | `dev_marts`, `dev_core`, … | `dev_scratch` |
+
+`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a PR build or a local run cannot overwrite production. PR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod (`--defer --favor-state`). Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
 
 The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
 
