@@ -102,6 +102,10 @@ models:
       +schema: marts
 
 # Snapshots: SCD Type-2 history tables (used for sources the API only exposes as "current").
+# Currently DORMANT — no snapshot .sql files exist, so this block binds nothing. NOTE: snapshot
+# `target_schema` is applied verbatim and does NOT pass through generate_schema_name, so it is
+# NOT environment-isolated. When the first real snapshot lands, make it target-aware, e.g.
+#   +target_schema: "{{ 'snapshots' if target.name == 'prod' else target.name ~ '_snapshots' }}"
 snapshots:
   football_data_pipeline:
     +target_schema: snapshots

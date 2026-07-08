@@ -29,14 +29,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ../requirements.txt
 
-      - name: Create dbt profile for CI
+      - name: Create dbt profile (prod)
         run: |
           mkdir -p /home/runner/.dbt
           cat > /home/runner/.dbt/profiles.yml <<'EOF'
           football_data_pipeline:
-            target: ci
+            target: prod
             outputs:
-              ci:
+              # The nightly prod build — writes the canonical bare datasets the site reads.
+              prod:
                 type: bigquery
                 method: oauth
                 project: football-data-pipeline-gcp

@@ -51,6 +51,14 @@ jobs:
   data-build:
     runs-on: ubuntu-latest
     needs: changes
+    # Serialize warehouse-writing runs: all PR builds share ONE physical ci_* dataset
+    # (the locked "shared, not per-PR ephemeral" choice), so two concurrent incremental
+    # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not serialize
+    # access". A fixed per-event group queues them; cancel-in-progress:false never drops
+    # an in-flight prod (main-push) build mid-way.
+    concurrency:
+      group: ci-data-build-write-${{ github.event_name == 'pull_request' && 'ci' || 'prod' }}
+      cancel-in-progress: false
     if: |
       github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.data == 'true'
@@ -83,7 +91,18 @@ jobs:
           football_data_pipeline:
             target: ci
             outputs:
+              # PR builds — slim + deferred to prod. Writes ci_* datasets (isolated from prod).
               ci:
+                type: bigquery
+                method: oauth
+                project: football-data-pipeline-gcp
+                dataset: ci_analytics
+                threads: 4
+                timeout_seconds: 300
+                location: EU
+                priority: interactive
+              # main-push / dispatch full builds. Writes the canonical bare datasets the site reads.
+              prod:
                 type: bigquery
                 method: oauth
                 project: football-data-pipeline-gcp
@@ -109,8 +128,13 @@ jobs:
       - name: Lint SQL (sqlfluff + dbt templater needs GCP)
         run: sqlfluff lint models
 
-      - name: dbt seed
-        run: dbt seed
+      - name: dbt seed (PR — ci)
+        if: github.event_name == 'pull_request'
+        run: dbt seed --target ci
+
+      - name: dbt seed (main push / dispatch — prod)
+        if: github.event_name != 'pull_request'
+        run: dbt seed --target prod
 
       - name: Compute leagues needing bootstrap ingest
         id: new_leagues
@@ -165,30 +189,41 @@ jobs:
           git -C "$GITHUB_WORKSPACE" fetch --no-tags --depth=1 origin main
           git -C "$GITHUB_WORKSPACE" worktree add --detach /tmp/main-src FETCH_HEAD
           # Compile main's project into a state dir (manifest only — no model execution).
-          ( cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target-path /tmp/main-state )
+          # PROD target so deferred refs resolve to prod's bare datasets (marts/core/…), not ci_*.
+          ( cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state )
 
-      - name: Build changed models + children (PR — slim)
+      - name: Build changed models + children (PR — slim, deferred to prod)
         if: github.event_name == 'pull_request'
-        # CLI --exclude IS honoured with --select (only a named --selector drops it),
-        # so freshness_check stays excluded as on the full path. An empty selection
-        # (a PR that changes no models) is a no-op success.
-        run: dbt build --select state:modified+ --exclude tag:freshness_check --state /tmp/main-state
+        # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to prod
+        # (never a stale ci_ copy left by a prior PR). CLI --exclude IS honoured with
+        # --select (only a named --selector drops it), so freshness_check stays excluded.
+        # An empty selection (a PR that changes no models) is a no-op success.
+        run: >-
+          dbt build --select state:modified+ --exclude tag:freshness_check
+          --defer --favor-state --state /tmp/main-state --target ci
 
       - name: Build staging (full — main push / dispatch)
         if: github.event_name != 'pull_request'
-        run: dbt build --selector staging
+        run: dbt build --selector staging --target prod
 
       - name: Build base through marts (full — main push / dispatch)
         if: github.event_name != 'pull_request'
         # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
         # dbt ignores a CLI --exclude when --selector is supplied.
-        run: dbt build --selector downstream
+        run: dbt build --selector downstream --target prod
 
-      - name: Run singular data quality tests
-        # DQ is non-negotiable: the full singular suite runs on every build (PR + push),
-        # validating the warehouse (prod state + this PR's rebuilt models). Slimming
-        # applies to model BUILDS only, never to the DQ gate.
-        run: dbt test --select test_type:singular --exclude tag:freshness_check
+      - name: Run singular data quality tests (PR — ci + deferred prod)
+        if: github.event_name == 'pull_request'
+        # DQ is non-negotiable and the full singular suite always runs. On a PR it validates
+        # this PR's rebuilt ci_* models layered over prod (via defer) — an ISOLATED view, not
+        # the shared prod state. Slimming applies to model BUILDS only, never to the DQ gate.
+        run: >-
+          dbt test --select test_type:singular --exclude tag:freshness_check
+          --defer --favor-state --state /tmp/main-state --target ci
+
+      - name: Run singular data quality tests (main push / dispatch — prod)
+        if: github.event_name != 'pull_request'
+        run: dbt test --select test_type:singular --exclude tag:freshness_check --target prod
 
   # Terminal gate: always runs, reports a single deterministic pass/fail that
   # branch protection can require regardless of whether `data-build` was

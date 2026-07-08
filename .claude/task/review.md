@@ -1,29 +1,32 @@
-# Review — chore/handover-refresh-post-665 — 2026-07-07
+# Review — chore/dbt-warehouse-env-isolation — 2026-07-08
 
-> G3 Lock artifact. Session-boundary batched handover refresh — brings `.claude/active_work.md` current from
-> post-#653 (712f16b) to post-#665 (c1d9b2c): records the competition-header + team-benchmark arc (#661 handover/
-> §8 de-stale, #662 board reconcile, #663 competition header, #664 team-stats spec, #665 GAP-23 wiring), the ⭐
-> no-orphans MILESTONE (the data foundation is all-green for builds; only the 2 deliberate deferrals remain), and
-> names the v2 frontend (Phase E) as the CPO-gated next frontier. Compressed the bloated lead. No code/model/metric
-> change. Plan mode skipped per the CPO carve-out; contract + review + gate still run. Required set: scope-auditor only.
+> Machine-checked review artifact (governance G3). Written in step 4 (Lock), after staging and after the
+> blinded reviewers returned. Required reviewers for the staged paths (review_routing.json): scope-auditor
+> (always), analytics-engineer-reviewer (dbt_project/**), cto-reviewer (.github/workflows/**). Final round:
+> the two prior-round FAILs are fixed — push-path `dbt seed` target split, and the concurrent-PR `ci_*` MERGE
+> race guarded — and the pre-existing cross-workflow PROD race is CPO-accepted as a residual (issue #667).
 
-diff_sha256: 19ea31de361c1b3464302afa39b8df744c0e83f475ebc3bf0d9379667039fed8
+diff_sha256: 3e531b2d6f54016a8025bc4436f0bc1c63b9787c19c4cb3490cc9fccf16d66d9
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Milestone accuracy.** Verified the "no orphans / team benchmark was the last one" claim against
-  content_architecture.md §3 legend ("**none today**" for orphans post-#665) — the milestone is grounded in the
-  board reconciliation (#662) + the GAP-23 wiring (#665), not overclaimed; the two remaining non-green rows
-  (opponent/schedule-context SHELVED + coach un-ingested) are policy deferrals, not build gaps, as framed. Scope:
-  both staged files ⊆ scope_paths; nothing else.
-- **Frontend-gating fidelity + §10.** Phase E is explicitly reserved to the CPO ("CPO-GATED (not auto-started)")
-  and the live-MVP protection is restated (cutover #377); enforcement is prose + working_agreement §10 (no machine
-  gate on site_v2/ — an acceptable handover boundary; a protected-path guard is a possible future governance item
-  if drift materializes). The refresh records merged work + a finding; no new decision by analogy. Continuity
-  intact (pointer c1d9b2c, NEXT = open CPO pick with the gated frontend + small backlog, do-NOTs present).
+- All modified paths are within scope_paths; the three protected `.github/workflows/` edits are covered by the contract's protected_override + the 2026-07-08 amendment, and every decision is CPO-locked or reserved (no silent §10 call). The #667 residual is a correctly-classified, disclosed deferral, not scope drift.
+- The PR-build defer chain depends on the CI profile carrying a `prod` output before the baseline compile; verified the "Create dbt profile" step writes both `ci` and `prod` outputs before `dbt compile --target prod`, so deferred refs resolve to prod's bare datasets, not `ci_*`.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Push-path `dbt seed --target prod` writes the same `dbt_analytics` dataset that core/marts/base read seeds from via generate_schema_name's unprefixed fallback; verified no `seeds:` schema-override block exists and that the `staging`/`downstream` selectors structurally exclude seeds — so the single prod seed write is sufficient and not stale (the prior-round defect is fixed).
+- The `--defer --favor-state` baseline is compiled with `--target prod` (not ci), so unselected upstream refs deferred during a PR build resolve to prod's real bare-dataset relation names, not a `ci_*` copy that would break the defer chain — traced against generate_schema_name's prefix logic.
+- Consumption layer unaffected: export_site_data.py / export_pages_data.py hardcode bare `marts`/`core`, and the only workflow invoking an exporter (pages-match-preview) pins `--target prod` (the sole unprefixed target) — export needs no change, verified from source.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- The in-scope `concurrency:` guard on the data-build job (`ci-data-build-write-${{ pull_request && 'ci' || 'prod' }}`, cancel-in-progress:false) serialises concurrent PR writes to the shared `ci_*` dataset (closing the fct_fixture_* MERGE race) while isolating the PR and push lanes; checked against all three event types and the step-level `if:` predicates.
+- The cross-workflow prod-vs-prod race is pre-existing: the three prod-writers' `on:` triggers are byte-for-byte untouched, so trigger cardinality/collision probability is unchanged from pre-PR state; it is disclosed and CPO-accepted in decisions_reserved with a named follow-up (#667) — a correctly-scoped deferral, not a cover for a new defect.
+- Guard-path governance integrity intact: the patch touches no path-filter, no ingest skip-if-exists logic (`new_data`/`get_new_league_codes`), and not the terminal `gate` job body; permissions/secrets/requirements untouched — matching the protected_override's stated scope.
 
 ## escalations
-- None open. No ESCALATE. Record-only: #661–#665 already merged; the no-orphans milestone is a recorded finding;
-  the frontend (Phase E) is named as the frontier but stays CPO-gated. (Noted, non-blocking: no machine gate
-  enforces "don't start site_v2/" — prose + §10 only; a governance follow-up candidate if the CPO wants a guard.)
+(none)
