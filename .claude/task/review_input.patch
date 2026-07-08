@@ -1,433 +1,188 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0555b62..ec4788b 100644
+index ec4788b..9093c61 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,45 +1,83 @@
--# Task contract — handover refresh (session-boundary batch, post-#665)
-+# Task contract — warehouse environment isolation (prod / CI / dev)
+@@ -1,83 +1,60 @@
+-# Task contract — warehouse environment isolation (prod / CI / dev)
++# Task contract — serialize the prod-writing workflows (#667)
  
--> Written on a CLEAN tree (branch chore/handover-refresh-post-665 off main @ c1d9b2c).
--> Bookkeeping only — batched session-boundary refresh ([[feedback-handover-discipline]]: refresh ONCE at the
--> boundary). Plan mode skipped per the CPO carve-out; still runs the contract + review + gate.
-+> Written on a CLEAN tree (branch chore/dbt-warehouse-env-isolation off main @ f35b99f).
-+> Plan floating-finding-deer.md CPO-approved 2026-07-07 via ExitPlanMode (Option 2, full isolation).
+-> Written on a CLEAN tree (branch chore/dbt-warehouse-env-isolation off main @ f35b99f).
+-> Plan floating-finding-deer.md CPO-approved 2026-07-07 via ExitPlanMode (Option 2, full isolation).
++> Written on a CLEAN tree (branch fix/667-prod-writer-concurrency off main @ b96cf76).
++> Follow-up to #668 (env isolation): closes the cross-workflow PROD-write race deferred there.
++> CPO-directed this conversation 2026-07-08 ("go ahead" on issue #667).
  
  objective: >
--  Bring `.claude/active_work.md` current from post-#653 (pointer 712f16b) to post-#665 (c1d9b2c). Session arc:
--  #661 (handover + metrics_context_model §8 de-stale), #662 (content_architecture board reconcile), #663
--  (competition-header registry identity fields → competition hub), #664 (Team → Stats vs-league benchmark
--  wireframe spec, screen 14), #665 (GAP-23 — wire mart_team_competition_benchmarks into the team payload). Record
--  the ⭐ MILESTONE: after #665 the v2 data-foundation board has **NO orphans** — every built mart the frontend
--  needs is wired (team benchmark spec #664 + wiring #665 was the last orphan). Remaining non-green rows are the
--  TWO deliberate deferrals only: opponent-context (SHELVED) + coach (un-ingested) — both CPO policy calls.
--  Compress the bloated lead. NEXT = an OPEN CPO pick; the natural big frontier is now the v2 FRONTEND (Phase E),
--  unblocked by the green foundation (but still CPO-gated; live MVP untouched until cutover #377).
--refs: #665 (GAP-23 wiring, c1d9b2c); #664 (screen 14 spec); #663 (competition header); #662 (board reconcile); #661 (handover + §8 de-stale).
-+  Isolate the dbt warehouse into three environments so non-prod builds (PR CI, local laptop) can no longer write
-+  the canonical datasets the live site reads. Mechanism: target-name-derived dataset prefix in
-+  `generate_schema_name` — `prod` writes bare `marts`/`core`/`staging`/`intermediate` (unchanged; the export reads
-+  these), every other target is auto-prefixed (`ci_*`, `dev_*`). The CI slim build defers unchanged upstreams to
-+  prod; the three main/schedule workflows pin explicit `--target`. Fixes the shared-dataset clobber
-+  (`mart_player_momentum`, 2026-07-06) and the singular-DQ false-fails that run against half-mutated shared state.
-+refs: plan floating-finding-deer.md (CPO-approved 2026-07-07); [[project-dbt-shared-ci-prod-datasets]] diagnosis.
-+
-+protected_override: >
-+  CPO-authorized 2026-07-07 (this conversation, explicit "yes") to edit the PROTECTED `.github/workflows/` guard
-+  paths in scope — ci-data-build.yml, dbt-scheduled.yml, pages-match-preview.yml. Override scope: the dbt
-+  `--target` / `--defer` / `--favor-state` flags and the profile heredocs; the per-event `dbt seed` target split;
-+  and a job-level `concurrency:` guard on ci-data-build's data-build job (the last two are reviewer-surfaced
-+  remediation WITHIN this task — CPO-approved 2026-07-08, see amendments). The guards' governance BEHAVIOUR is
-+  otherwise unchanged — no edit to path filters, the terminal `gate` job, required-check logic, or the ingest
-+  skip-if-exists. Basis: approved plan floating-finding-deer.md.
+-  Isolate the dbt warehouse into three environments so non-prod builds (PR CI, local laptop) can no longer write
+-  the canonical datasets the live site reads. Mechanism: target-name-derived dataset prefix in
+-  `generate_schema_name` — `prod` writes bare `marts`/`core`/`staging`/`intermediate` (unchanged; the export reads
+-  these), every other target is auto-prefixed (`ci_*`, `dev_*`). The CI slim build defers unchanged upstreams to
+-  prod; the three main/schedule workflows pin explicit `--target`. Fixes the shared-dataset clobber
+-  (`mart_player_momentum`, 2026-07-06) and the singular-DQ false-fails that run against half-mutated shared state.
+-refs: plan floating-finding-deer.md (CPO-approved 2026-07-07); [[project-dbt-shared-ci-prod-datasets]] diagnosis.
++  Give the three PROD-writing workflows one shared GitHub Actions concurrency group so they can no longer write
++  the bare prod datasets (`marts`/`core`/`staging`/`intermediate`) concurrently and hit BigQuery
++  `Could not serialize access` on the incremental `fct_fixture_*` MERGE targets. This is the pre-existing race
++  #668 isolated non-prod from but explicitly deferred (issue #667). PR CI builds are unaffected — they keep their
++  own `ci`-scoped group and their `ci_*` datasets.
++refs: #667 (this task); #668 (env isolation that surfaced + deferred it); [[project-dbt-shared-ci-prod-datasets]].
+ 
+ protected_override: >
+-  CPO-authorized 2026-07-07 (this conversation, explicit "yes") to edit the PROTECTED `.github/workflows/` guard
+-  paths in scope — ci-data-build.yml, dbt-scheduled.yml, pages-match-preview.yml. Override scope: the dbt
+-  `--target` / `--defer` / `--favor-state` flags and the profile heredocs; the per-event `dbt seed` target split;
+-  and a job-level `concurrency:` guard on ci-data-build's data-build job (the last two are reviewer-surfaced
+-  remediation WITHIN this task — CPO-approved 2026-07-08, see amendments). The guards' governance BEHAVIOUR is
+-  otherwise unchanged — no edit to path filters, the terminal `gate` job, required-check logic, or the ingest
+-  skip-if-exists. Basis: approved plan floating-finding-deer.md.
++  CPO-authorized 2026-07-08 (this conversation, "go ahead" on #667) to edit the PROTECTED `.github/workflows/`
++  guard paths in scope — ci-data-build.yml, dbt-scheduled.yml, pages-match-preview.yml. Override scope:
++  `concurrency:` groups ONLY. No change to triggers, path filters, the terminal `gate` job, required-check logic,
++  the ingest skip-if-exists, dbt targets/flags, or any build step.
  
  scope_paths:
--  - .claude/active_work.md
-+  - dbt_project/macros/generate_schema_name.sql
-+  - dbt_project/dbt_project.yml
-+  - dbt_project/profiles.example.yml
-+  - .github/workflows/ci-data-build.yml
-+  - .github/workflows/dbt-scheduled.yml
-+  - .github/workflows/pages-match-preview.yml
-+  - docs/operations_guide.md
-+  - dbt_project/docs/layering.md
+-  - dbt_project/macros/generate_schema_name.sql
+-  - dbt_project/dbt_project.yml
+-  - dbt_project/profiles.example.yml
+   - .github/workflows/ci-data-build.yml
+   - .github/workflows/dbt-scheduled.yml
+   - .github/workflows/pages-match-preview.yml
+-  - docs/operations_guide.md
+-  - dbt_project/docs/layering.md
    - .claude/task/**
  
  impact_map: >
--  Doc/bookkeeping only. Single substantive file is `.claude/active_work.md`. No dbt_project/** model, no
--  scripts/export_*.py, no ingestion/**, no site*/ change — no data/number/metric move, no build impact. The task
--  scaffolding (.claude/task/**) is artifact-only; contract.md is artifact_only_never so this commit is NOT
--  review-exempt (scope-auditor required).
-+  STRUCTURAL — changes target-schema resolution for EVERY model. Under target `prod` (nightly, main-push, Pages)
-+  datasets stay bare → ZERO change to what `scripts/export_*.py` reads and NO prod data migration (prod already IS
-+  today's shared state). Under `ci` models land in new `ci_*` datasets; under `dev`, `dev_*`. base + seeds keep
-+  riding `target.schema` (the profile `dataset`) — mechanism unchanged, already per-env. Workflow edits:
-+  ci-data-build PR path gains `--defer --favor-state` against a baseline manifest compiled with the PROD target
-+  plus `--target ci`; the push path adds `--target prod`; the `dbt seed` AND DQ steps are split by event (PR =
-+  ci+defer, push = prod) so the push path seeds the same prod dataset its build reads (the `staging`/`downstream`
-+  selectors exclude seeds). dbt-scheduled + pages-match-preview pin `--target prod`. Export scripts, model SQL,
-+  seeds, the registry and sync_dbt_vars are untouched — no metric/number/grain moves. Risk surface: (1) the defer
-+  baseline MUST compile with the prod target or deferred refs mis-resolve to `ci_*`; (2) a shared `ci_*` dataset
-+  can hold stale tables from prior PRs — neutralised by `--favor-state` forcing unselected refs to prod; (3) the
-+  CI service account (WIF) must be able to create `ci_*` datasets — same project and same permission set it
-+  already uses to write `marts`/`core` today; (4) two concurrent PR builds share the one `ci_*` dataset and the
-+  three incremental core facts (fct_fixture_*) compile to BigQuery MERGE (serialize-access race) — mitigated by a
-+  fixed-group `concurrency:` guard queueing PR data-builds.
+-  STRUCTURAL — changes target-schema resolution for EVERY model. Under target `prod` (nightly, main-push, Pages)
+-  datasets stay bare → ZERO change to what `scripts/export_*.py` reads and NO prod data migration (prod already IS
+-  today's shared state). Under `ci` models land in new `ci_*` datasets; under `dev`, `dev_*`. base + seeds keep
+-  riding `target.schema` (the profile `dataset`) — mechanism unchanged, already per-env. Workflow edits:
+-  ci-data-build PR path gains `--defer --favor-state` against a baseline manifest compiled with the PROD target
+-  plus `--target ci`; the push path adds `--target prod`; the `dbt seed` AND DQ steps are split by event (PR =
+-  ci+defer, push = prod) so the push path seeds the same prod dataset its build reads (the `staging`/`downstream`
+-  selectors exclude seeds). dbt-scheduled + pages-match-preview pin `--target prod`. Export scripts, model SQL,
+-  seeds, the registry and sync_dbt_vars are untouched — no metric/number/grain moves. Risk surface: (1) the defer
+-  baseline MUST compile with the prod target or deferred refs mis-resolve to `ci_*`; (2) a shared `ci_*` dataset
+-  can hold stale tables from prior PRs — neutralised by `--favor-state` forcing unselected refs to prod; (3) the
+-  CI service account (WIF) must be able to create `ci_*` datasets — same project and same permission set it
+-  already uses to write `marts`/`core` today; (4) two concurrent PR builds share the one `ci_*` dataset and the
+-  three incremental core facts (fct_fixture_*) compile to BigQuery MERGE (serialize-access race) — mitigated by a
+-  fixed-group `concurrency:` guard queueing PR data-builds.
++  Adds a single shared repo-wide concurrency group `prod-warehouse-write` (cancel-in-progress:false) across the
++  three prod-writers, so at most one prod dbt run executes at a time. Edits: (1) ci-data-build's `data-build` job
++  group becomes `${{ pull_request && 'ci-data-build-write-ci' || 'prod-warehouse-write' }}` — the PR arm keeps its
++  own ci group (PR isolation unchanged), the push/dispatch (prod) arm joins the shared group. (2) dbt-scheduled
++  gains a workflow-level `prod-warehouse-write` group (its single nightly job is entirely a prod write).
++  (3) pages-match-preview gains a JOB-level `prod-warehouse-write` group on the `build` job only — NOT workflow
++  level — so its dbt writes serialise with the others while its existing workflow-level `pages-match-preview` group
++  and its separate `deploy` job are untouched (the Pages deploy is not blocked behind unrelated dbt runs).
++  GitHub treats a group name identically whether declared at workflow or job level, so the three queue as one.
++  NO change to triggers, targets, build/seed/test steps, path filters, permissions, secrets, or the `gate` job —
++  purely a scheduling (serialization) change. Risk surface: (1) over-serialization — the pages `build` job's
++  non-dbt tail (export/assemble/upload) also queues behind other prod writers; acceptable, these workflows run at
++  distinct times (04:00 nightly / 07:30 pages / on-merge) so real contention is rare and correctness > a few
++  minutes of queueing. (2) cancel-in-progress:false is required so a queued run never cancels an in-flight prod
++  build mid-MERGE.
  
  decisions_taken: >
--  Record-only. #661–#665 already merged (c1d9b2c). The "foundation has no orphans" milestone is a recorded finding,
--  not a new decision. NEXT stays an OPEN CPO pick; the frontend (Phase E) is named as the natural next frontier but
--  remains CPO-gated (not auto-started). No new roadmap invented.
-+  All CPO-locked in the approving chat 2026-07-07: Option 2 (full dev + CI + prod isolation); one shared `ci_*`
-+  dataset (not per-PR ephemeral); naming = prod bare / `ci_` / `dev_` (single `dev_`, solo repo — not per-user).
-+  Snapshots are dormant (no `.sql` under dbt_project/snapshots/) → documentation note only, no snapshot code.
+-  All CPO-locked in the approving chat 2026-07-07: Option 2 (full dev + CI + prod isolation); one shared `ci_*`
+-  dataset (not per-PR ephemeral); naming = prod bare / `ci_` / `dev_` (single `dev_`, solo repo — not per-user).
+-  Snapshots are dormant (no `.sql` under dbt_project/snapshots/) → documentation note only, no snapshot code.
++  Shared group name `prod-warehouse-write`; `cancel-in-progress: false`. pages joins via JOB-level concurrency on
++  `build` (deliberate — protects the Pages deploy from being serialised behind dbt). ci-data-build's PR arm stays
++  on its own `ci-data-build-write-ci` group (PR builds must NOT serialise behind prod). All within the CPO "go
++  ahead" for #667.
  
  decisions_reserved:
--  - The actual next task (frontend Phase E; the 2 policy calls opponent-context/coach; matchday-schedule board
--    note; task_f876b853 chip; the #545–#547 programs; #530(c)) — CPO picks later.
-+  - `ci_*` dataset default-table-expiration/TTL — optional best-practice follow-up, not this PR.
-+  - Per-user dev prefixes — not needed for a solo repo.
-+  - Target-aware `target_schema` for any FUTURE snapshot — noted in dbt_project.yml, built when a snapshot lands.
-+  - Cross-workflow PROD-write serialization (issue #667) — the three prod-writers (dbt-scheduled nightly,
-+    ci-data-build main-push, pages-match-preview) share no concurrency group, so two could write the bare prod
-+    datasets concurrently (e.g. a merge near the 04:00 UTC cron) and hit the same `fct_fixture_*` MERGE
-+    serialize-access race. PRE-EXISTING — this PR neither introduces nor worsens it (it only pulls non-prod builds
-+    off prod). CPO-ACCEPTED as residual for this PR (2026-07-08, this conversation); deferred to #667 (shared prod
-+    concurrency group; pages needs a job-level group so its Pages deploy isn't serialised behind dbt runs).
+-  - `ci_*` dataset default-table-expiration/TTL — optional best-practice follow-up, not this PR.
+-  - Per-user dev prefixes — not needed for a solo repo.
+-  - Target-aware `target_schema` for any FUTURE snapshot — noted in dbt_project.yml, built when a snapshot lands.
+-  - Cross-workflow PROD-write serialization (issue #667) — the three prod-writers (dbt-scheduled nightly,
+-    ci-data-build main-push, pages-match-preview) share no concurrency group, so two could write the bare prod
+-    datasets concurrently (e.g. a merge near the 04:00 UTC cron) and hit the same `fct_fixture_*` MERGE
+-    serialize-access race. PRE-EXISTING — this PR neither introduces nor worsens it (it only pulls non-prod builds
+-    off prod). CPO-ACCEPTED as residual for this PR (2026-07-08, this conversation); deferred to #667 (shared prod
+-    concurrency group; pages needs a job-level group so its Pages deploy isn't serialised behind dbt runs).
++  - Splitting the pages `build` job so ONLY the dbt steps (not export/assemble/upload) serialise — not worth the
++    workflow restructure now; the tail is short and pages is low-frequency. Revisit only if queueing bites.
  
  done_when:
--  - active_work.md header + FIRST STEPS point at c1d9b2c; #665 recorded as the latest merged PR; the bloated lead compressed.
--  - main-carries appends #661–#665; RECENT PRs prepends #663/#664/#665.
--  - The ⭐ no-orphans / foundation-green milestone is recorded; NEXT names the frontend (Phase E) as the frontier
--    (CPO-gated) + the small backlog; the 2 policy deferrals (opponent-context/coach) noted.
--  - scope-auditor PASS (>=2 named risks); review.md diff_sha256 binds; CPO merges.
-+  - generate_schema_name prefixes the custom-schema branch by target.name; `prod` bare, all other targets prefixed.
-+  - ci-data-build.yml: PR = `--target ci` + `--defer --favor-state` against a prod-compiled baseline; push =
-+    `--target prod`; the `dbt seed` AND singular-DQ steps are split PR-vs-push; the data-build job carries a
-+    `concurrency:` guard serialising writes to the shared `ci_*` dataset.
-+  - dbt-scheduled.yml + pages-match-preview.yml pin `--target prod` (canonical bare datasets).
-+  - profiles.example.yml documents dev/ci/prod outputs + the "prod is the only bare target" rule.
-+  - operations_guide.md + layering.md carry a short environments/targets note.
-+  - validate-local gates green; analytics-engineer-reviewer + cto-reviewer PASS; review.md diff_sha256 binds; CPO merges.
+-  - generate_schema_name prefixes the custom-schema branch by target.name; `prod` bare, all other targets prefixed.
+-  - ci-data-build.yml: PR = `--target ci` + `--defer --favor-state` against a prod-compiled baseline; push =
+-    `--target prod`; the `dbt seed` AND singular-DQ steps are split PR-vs-push; the data-build job carries a
+-    `concurrency:` guard serialising writes to the shared `ci_*` dataset.
+-  - dbt-scheduled.yml + pages-match-preview.yml pin `--target prod` (canonical bare datasets).
+-  - profiles.example.yml documents dev/ci/prod outputs + the "prod is the only bare target" rule.
+-  - operations_guide.md + layering.md carry a short environments/targets note.
+-  - validate-local gates green; analytics-engineer-reviewer + cto-reviewer PASS; review.md diff_sha256 binds; CPO merges.
++  - ci-data-build data-build job: prod arm on `prod-warehouse-write`, PR arm on `ci-data-build-write-ci`.
++  - dbt-scheduled carries a workflow-level `prod-warehouse-write` group.
++  - pages-match-preview `build` job carries a job-level `prod-warehouse-write` group; workflow-level group + deploy job untouched.
++  - YAML valid; scope-auditor + cto-reviewer PASS; review.md diff_sha256 binds; CPO merges; #667 closed.
  
--amendments: (none)
-+amendments:
-+  - 2026-07-08 (CPO-approved this conversation): broadened protected_override + the ci-data-build.yml edit scope to
-+    add (a) the per-event `dbt seed` target split and (b) a job-level `concurrency:` guard — both remediation of
-+    blinded-review FAILs (analytics-engineer: the push-path `dbt seed` wrote to `ci_analytics` while the prod build
-+    reads seeds from `dbt_analytics`, so post-merge prod builds would read stale seeds / fail; cto: concurrent-PR
-+    MERGE serialize-access race on the shared `ci_*` dataset). No governance-behaviour change to the guards.
+-amendments:
+-  - 2026-07-08 (CPO-approved this conversation): broadened protected_override + the ci-data-build.yml edit scope to
+-    add (a) the per-event `dbt seed` target split and (b) a job-level `concurrency:` guard — both remediation of
+-    blinded-review FAILs (analytics-engineer: the push-path `dbt seed` wrote to `ci_analytics` while the prod build
+-    reads seeds from `dbt_analytics`, so post-merge prod builds would read stale seeds / fail; cto: concurrent-PR
+-    MERGE serialize-access race on the shared `ci_*` dataset). No governance-behaviour change to the guards.
++amendments: (none)
 diff --git a/.github/workflows/ci-data-build.yml b/.github/workflows/ci-data-build.yml
-index 4ab358a..7134f49 100644
+index 7134f49..a0f146f 100644
 --- a/.github/workflows/ci-data-build.yml
 +++ b/.github/workflows/ci-data-build.yml
-@@ -51,6 +51,14 @@ jobs:
+@@ -51,13 +51,14 @@ jobs:
    data-build:
      runs-on: ubuntu-latest
      needs: changes
-+    # Serialize warehouse-writing runs: all PR builds share ONE physical ci_* dataset
-+    # (the locked "shared, not per-PR ephemeral" choice), so two concurrent incremental
-+    # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not serialize
-+    # access". A fixed per-event group queues them; cancel-in-progress:false never drops
-+    # an in-flight prod (main-push) build mid-way.
-+    concurrency:
-+      group: ci-data-build-write-${{ github.event_name == 'pull_request' && 'ci' || 'prod' }}
-+      cancel-in-progress: false
+-    # Serialize warehouse-writing runs: all PR builds share ONE physical ci_* dataset
+-    # (the locked "shared, not per-PR ephemeral" choice), so two concurrent incremental
+-    # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not serialize
+-    # access". A fixed per-event group queues them; cancel-in-progress:false never drops
+-    # an in-flight prod (main-push) build mid-way.
++    # Serialize warehouse-writing runs. PR builds share ONE physical ci_* dataset (the locked
++    # "shared, not per-PR ephemeral" choice), so concurrent incremental builds (fct_fixture_*
++    # compile to BigQuery MERGE) could hit "Could not serialize access" — the PR arm queues them
++    # on its own ci group. The push/dispatch (prod) arm joins the repo-wide `prod-warehouse-write`
++    # group shared with dbt-scheduled + pages, so the three prod-writers never MERGE the bare prod
++    # tables concurrently (#667). cancel-in-progress:false never drops an in-flight build mid-way.
+     concurrency:
+-      group: ci-data-build-write-${{ github.event_name == 'pull_request' && 'ci' || 'prod' }}
++      group: ${{ github.event_name == 'pull_request' && 'ci-data-build-write-ci' || 'prod-warehouse-write' }}
+       cancel-in-progress: false
      if: |
        github.event_name == 'workflow_dispatch' ||
-       needs.changes.outputs.data == 'true'
-@@ -83,7 +91,18 @@ jobs:
-           football_data_pipeline:
-             target: ci
-             outputs:
-+              # PR builds — slim + deferred to prod. Writes ci_* datasets (isolated from prod).
-               ci:
-+                type: bigquery
-+                method: oauth
-+                project: football-data-pipeline-gcp
-+                dataset: ci_analytics
-+                threads: 4
-+                timeout_seconds: 300
-+                location: EU
-+                priority: interactive
-+              # main-push / dispatch full builds. Writes the canonical bare datasets the site reads.
-+              prod:
-                 type: bigquery
-                 method: oauth
-                 project: football-data-pipeline-gcp
-@@ -109,8 +128,13 @@ jobs:
-       - name: Lint SQL (sqlfluff + dbt templater needs GCP)
-         run: sqlfluff lint models
- 
--      - name: dbt seed
--        run: dbt seed
-+      - name: dbt seed (PR — ci)
-+        if: github.event_name == 'pull_request'
-+        run: dbt seed --target ci
-+
-+      - name: dbt seed (main push / dispatch — prod)
-+        if: github.event_name != 'pull_request'
-+        run: dbt seed --target prod
- 
-       - name: Compute leagues needing bootstrap ingest
-         id: new_leagues
-@@ -165,30 +189,41 @@ jobs:
-           git -C "$GITHUB_WORKSPACE" fetch --no-tags --depth=1 origin main
-           git -C "$GITHUB_WORKSPACE" worktree add --detach /tmp/main-src FETCH_HEAD
-           # Compile main's project into a state dir (manifest only — no model execution).
--          ( cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target-path /tmp/main-state )
-+          # PROD target so deferred refs resolve to prod's bare datasets (marts/core/…), not ci_*.
-+          ( cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state )
- 
--      - name: Build changed models + children (PR — slim)
-+      - name: Build changed models + children (PR — slim, deferred to prod)
-         if: github.event_name == 'pull_request'
--        # CLI --exclude IS honoured with --select (only a named --selector drops it),
--        # so freshness_check stays excluded as on the full path. An empty selection
--        # (a PR that changes no models) is a no-op success.
--        run: dbt build --select state:modified+ --exclude tag:freshness_check --state /tmp/main-state
-+        # Writes ci_* datasets; --defer --favor-state resolves unbuilt upstreams to prod
-+        # (never a stale ci_ copy left by a prior PR). CLI --exclude IS honoured with
-+        # --select (only a named --selector drops it), so freshness_check stays excluded.
-+        # An empty selection (a PR that changes no models) is a no-op success.
-+        run: >-
-+          dbt build --select state:modified+ --exclude tag:freshness_check
-+          --defer --favor-state --state /tmp/main-state --target ci
- 
-       - name: Build staging (full — main push / dispatch)
-         if: github.event_name != 'pull_request'
--        run: dbt build --selector staging
-+        run: dbt build --selector staging --target prod
- 
-       - name: Build base through marts (full — main push / dispatch)
-         if: github.event_name != 'pull_request'
-         # freshness_check exclusion lives in the `downstream` selector (selectors.yml):
-         # dbt ignores a CLI --exclude when --selector is supplied.
--        run: dbt build --selector downstream
-+        run: dbt build --selector downstream --target prod
- 
--      - name: Run singular data quality tests
--        # DQ is non-negotiable: the full singular suite runs on every build (PR + push),
--        # validating the warehouse (prod state + this PR's rebuilt models). Slimming
--        # applies to model BUILDS only, never to the DQ gate.
--        run: dbt test --select test_type:singular --exclude tag:freshness_check
-+      - name: Run singular data quality tests (PR — ci + deferred prod)
-+        if: github.event_name == 'pull_request'
-+        # DQ is non-negotiable and the full singular suite always runs. On a PR it validates
-+        # this PR's rebuilt ci_* models layered over prod (via defer) — an ISOLATED view, not
-+        # the shared prod state. Slimming applies to model BUILDS only, never to the DQ gate.
-+        run: >-
-+          dbt test --select test_type:singular --exclude tag:freshness_check
-+          --defer --favor-state --state /tmp/main-state --target ci
-+
-+      - name: Run singular data quality tests (main push / dispatch — prod)
-+        if: github.event_name != 'pull_request'
-+        run: dbt test --select test_type:singular --exclude tag:freshness_check --target prod
- 
-   # Terminal gate: always runs, reports a single deterministic pass/fail that
-   # branch protection can require regardless of whether `data-build` was
 diff --git a/.github/workflows/dbt-scheduled.yml b/.github/workflows/dbt-scheduled.yml
-index 5e6b2c0..55ed9ed 100644
+index 55ed9ed..00f6a88 100644
 --- a/.github/workflows/dbt-scheduled.yml
 +++ b/.github/workflows/dbt-scheduled.yml
-@@ -29,14 +29,15 @@ jobs:
-           python -m pip install --upgrade pip
-           pip install -r ../requirements.txt
+@@ -5,6 +5,12 @@ on:
+     - cron: "0 4 * * *"
+   workflow_dispatch:
  
--      - name: Create dbt profile for CI
-+      - name: Create dbt profile (prod)
-         run: |
-           mkdir -p /home/runner/.dbt
-           cat > /home/runner/.dbt/profiles.yml <<'EOF'
-           football_data_pipeline:
--            target: ci
-+            target: prod
-             outputs:
--              ci:
-+              # The nightly prod build — writes the canonical bare datasets the site reads.
-+              prod:
-                 type: bigquery
-                 method: oauth
-                 project: football-data-pipeline-gcp
++# Shared with ci-data-build (prod arm) + pages so the three prod-writers never MERGE the bare
++# prod tables concurrently (#667). The whole nightly workflow is a prod write — workflow-level.
++concurrency:
++  group: prod-warehouse-write
++  cancel-in-progress: false
++
+ jobs:
+   nightly-build:
+     runs-on: ubuntu-latest
 diff --git a/.github/workflows/pages-match-preview.yml b/.github/workflows/pages-match-preview.yml
-index a721a3a..c785865 100644
+index c785865..1943bab 100644
 --- a/.github/workflows/pages-match-preview.yml
 +++ b/.github/workflows/pages-match-preview.yml
-@@ -66,14 +66,15 @@ jobs:
-           python -m pip install --upgrade pip
-           pip install -r requirements.txt
- 
--      - name: Create dbt profile for CI
-+      - name: Create dbt profile (prod)
-         run: |
-           mkdir -p /home/runner/.dbt
-           cat > /home/runner/.dbt/profiles.yml <<'EOF'
-           football_data_pipeline:
--            target: ci
-+            target: prod
-             outputs:
--              ci:
-+              # Pages builds + reads the canonical bare datasets; only runs on main-push / schedule.
-+              prod:
-                 type: bigquery
-                 method: oauth
-                 project: football-data-pipeline-gcp
-diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
-index 78b3b9d..efef9b5 100644
---- a/dbt_project/dbt_project.yml
-+++ b/dbt_project/dbt_project.yml
-@@ -102,6 +102,10 @@ models:
-       +schema: marts
- 
- # Snapshots: SCD Type-2 history tables (used for sources the API only exposes as "current").
-+# Currently DORMANT — no snapshot .sql files exist, so this block binds nothing. NOTE: snapshot
-+# `target_schema` is applied verbatim and does NOT pass through generate_schema_name, so it is
-+# NOT environment-isolated. When the first real snapshot lands, make it target-aware, e.g.
-+#   +target_schema: "{{ 'snapshots' if target.name == 'prod' else target.name ~ '_snapshots' }}"
- snapshots:
-   football_data_pipeline:
-     +target_schema: snapshots
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 80a4765..17d02d8 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -15,10 +15,22 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
- | **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
- | **`marts`** | `5_marts` models (tables): **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
- 
--dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema`; with [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), configured layer models use **only** the custom name (`staging`, `base`, …), not `dbt_scratch_staging`.
-+dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema` (base views + seeds). Configured layer models take their dataset from [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), which prefixes the name by dbt target — see **Environment isolation** below.
- 
- **Ingestion vs dbt:** Python loads **`project.raw.*`**. dbt builds **`project.staging.*`**, **`project.base.*`**, etc. Same GCP **project**, different datasets.
- 
-+### Environment isolation (prod / CI / dev)
-+
-+`generate_schema_name` prefixes the layer datasets by the **dbt target name**, so each environment writes its own copy and can never clobber another:
-+
-+| Target | Written by | Layer datasets | base + seeds (profile `dataset`) |
-+|--------|-----------|----------------|----------------------------------|
-+| `prod` | `dbt-scheduled` (nightly), `ci-data-build` main-push, `pages-match-preview` | `marts`, `core`, `staging`, `intermediate` (**bare**) | `dbt_analytics` |
-+| `ci`   | `ci-data-build` PR builds (slim + `--defer` to prod) | `ci_marts`, `ci_core`, … | `ci_analytics` |
-+| `dev`  | local `dbt build` | `dev_marts`, `dev_core`, … | `dev_scratch` |
-+
-+`prod` is the **only** target that writes the bare datasets the site export (`scripts/export_*.py`) reads — every other target is auto-prefixed, so a PR build or a local run cannot overwrite production. PR builds in CI stay fast by rebuilding only changed models (`state:modified+`) and **deferring** unchanged upstreams to prod (`--defer --favor-state`). Snapshots are not yet target-aware (none exist today; see the note in `dbt_project.yml`).
-+
- The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
- 
- `dbt build --project-dir .\dbt_project --vars '{raw_schema: raw_dev}'`
-diff --git a/dbt_project/macros/generate_schema_name.sql b/dbt_project/macros/generate_schema_name.sql
-index aaf1b18..6d46b0b 100644
---- a/dbt_project/macros/generate_schema_name.sql
-+++ b/dbt_project/macros/generate_schema_name.sql
-@@ -1,8 +1,14 @@
--{# BigQuery: profile `dataset` is dbt's target.schema. Use layer names as dataset ids. #}
-+{# BigQuery: profile `dataset` is dbt's target.schema. Layer names are the dataset ids. #}
-+{# Environment isolation: layer datasets (staging/core/intermediate/marts) are prefixed by  #}
-+{# the target name, so each environment writes its own copy. `prod` is the ONLY target that #}
-+{# writes the canonical bare datasets the site export reads — every other target (ci, dev,  #}
-+{# …) is auto-prefixed, so a non-prod build can never clobber prod. base + seeds carry no    #}
-+{# custom schema and ride target.schema (the profile `dataset`), which is already per-env.   #}
- {% macro generate_schema_name(custom_schema_name, node) -%}
-+    {%- set prefix = "" if target.name == "prod" else target.name ~ "_" -%}
-     {%- if custom_schema_name is none or (custom_schema_name | trim) == "" -%}
-         {{ target.schema }}
-     {%- else -%}
--        {{ custom_schema_name | trim }}
-+        {{ prefix ~ (custom_schema_name | trim) }}
-     {%- endif -%}
- {%- endmacro %}
-diff --git a/dbt_project/profiles.example.yml b/dbt_project/profiles.example.yml
-index 21a7287..b19bd18 100644
---- a/dbt_project/profiles.example.yml
-+++ b/dbt_project/profiles.example.yml
-@@ -1,26 +1,52 @@
-+# dbt connection profile — copy to ~/.dbt/profiles.yml and adjust for your machine.
-+#
-+# ENVIRONMENT ISOLATION (see macros/generate_schema_name.sql):
-+#   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME.
-+#   `prod` is the ONLY target that writes the canonical BARE datasets the live site export
-+#   reads (`marts`, `core`, …). Every other target is auto-prefixed:
-+#     target dev  -> dev_marts,  dev_core,  …   (local development)
-+#     target ci   -> ci_marts,   ci_core,   …   (set by the CI workflows)
-+#     target prod -> marts,      core,      …   (nightly / main-push / Pages only)
-+#   So a local build can NEVER clobber prod as long as your target is named anything but
-+#   `prod`. Keep your local default target = `dev`.
-+#   Models WITHOUT a `+schema` (base views + seeds) fall back to the profile `dataset` below,
-+#   which is already per-environment.
-+
- football_data_pipeline:
-   target: dev
-   outputs:
-+    # Local development — the default. Writes dev_* datasets.
-     dev:
-       type: bigquery
-       method: oauth
-       project: football-data-pipeline-gcp
--      # Fallback dataset for models without `+schema` (see `macros/generate_schema_name.sql`).
--      # Layer models use datasets: raw (ingestion only), staging, base, core, intermediate, marts.
--      dataset: dbt_scratch
-+      # Fallback dataset for models without `+schema` (base views + seeds).
-+      dataset: dev_scratch
-       threads: 4
-       timeout_seconds: 300
-       location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
-       priority: interactive
- 
--    # Recommended for CI/CD:
--    # prod:
--    #   type: bigquery
--    #   method: service-account
--    #   project: football-data-pipeline-gcp
--    #   dataset: analytics
--    #   keyfile: /path/to/service-account.json
--    #   threads: 4
--    #   timeout_seconds: 300
--    #   location: EU
--    #   priority: interactive
-+    # CI / PR builds — reference only; the ci-data-build workflow writes this profile itself
-+    # (WIF/oauth). Slim builds run here and defer unchanged upstreams to prod. Writes ci_*.
-+    ci:
-+      type: bigquery
-+      method: oauth
-+      project: football-data-pipeline-gcp
-+      dataset: ci_analytics  # fallback for base + seeds under CI
-+      threads: 4
-+      timeout_seconds: 300
-+      location: EU
-+      priority: interactive
-+
-+    # Production — reference only; written by dbt-scheduled / main-push / pages workflows
-+    # (WIF/oauth). This is the ONLY target that writes the bare, site-facing datasets.
-+    prod:
-+      type: bigquery
-+      method: oauth
-+      project: football-data-pipeline-gcp
-+      dataset: dbt_analytics  # fallback for base + seeds in prod
-+      threads: 4
-+      timeout_seconds: 300
-+      location: EU
-+      priority: interactive
-diff --git a/docs/operations_guide.md b/docs/operations_guide.md
-index 0c62140..f36a3c5 100644
---- a/docs/operations_guide.md
-+++ b/docs/operations_guide.md
-@@ -255,6 +255,20 @@ Both workflows generate a temporary `/home/runner/.dbt/profiles.yml` for the
- `football_data_pipeline` profile in CI to avoid relying on machine-local
- profiles files.
- 
-+### Environment isolation (dbt targets)
-+
-+The warehouse is split by dbt **target** so non-prod builds cannot touch production
-+(details in [`dbt_project/docs/layering.md`](../dbt_project/docs/layering.md#environment-isolation-prod--ci--dev)):
-+
-+- **`prod`** — `dbt-scheduled` (nightly), `ci-data-build` on main-push, and `pages-match-preview`
-+  write the canonical **bare** datasets (`marts`, `core`, …) the site export reads. The only
-+  target that does.
-+- **`ci`** — `ci-data-build` PR builds write **`ci_*`** datasets and `--defer` unchanged
-+  upstreams to prod, so a PR validates its changes layered over prod without mutating it.
-+- **`dev`** — local `dbt build` writes **`dev_*`** datasets.
-+
-+Because prod stays unprefixed, `scripts/export_*.py` (hardcoded `marts`/`core`) needs no change.
-+
- Local equivalent hard-fail check:
- 
- ```powershell
+@@ -42,6 +42,13 @@ concurrency:
+ jobs:
+   build:
+     runs-on: ubuntu-latest
++    # Serialize this job's dbt prod writes with dbt-scheduled + ci-data-build via the shared
++    # repo-wide group (#667). JOB-level (not workflow-level) so the existing pages-match-preview
++    # group and the separate `deploy` job stay untouched — the Pages deploy is never queued
++    # behind unrelated dbt runs.
++    concurrency:
++      group: prod-warehouse-write
++      cancel-in-progress: false
+     permissions:
+       contents: read
+       id-token: write

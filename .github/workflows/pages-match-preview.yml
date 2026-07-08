@@ -42,6 +42,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Serialize this job's dbt prod writes with dbt-scheduled + ci-data-build via the shared
+    # repo-wide group (#667). JOB-level (not workflow-level) so the existing pages-match-preview
+    # group and the separate `deploy` job stay untouched — the Pages deploy is never queued
+    # behind unrelated dbt runs.
+    concurrency:
+      group: prod-warehouse-write
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write

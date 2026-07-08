@@ -5,6 +5,12 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
 
+# Shared with ci-data-build (prod arm) + pages so the three prod-writers never MERGE the bare
+# prod tables concurrently (#667). The whole nightly workflow is a prod write — workflow-level.
+concurrency:
+  group: prod-warehouse-write
+  cancel-in-progress: false
+
 jobs:
   nightly-build:
     runs-on: ubuntu-latest
