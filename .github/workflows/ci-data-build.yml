@@ -51,13 +51,14 @@ jobs:
   data-build:
     runs-on: ubuntu-latest
     needs: changes
-    # Serialize warehouse-writing runs: all PR builds share ONE physical ci_* dataset
-    # (the locked "shared, not per-PR ephemeral" choice), so two concurrent incremental
-    # builds (fct_fixture_* compile to BigQuery MERGE) could hit "Could not serialize
-    # access". A fixed per-event group queues them; cancel-in-progress:false never drops
-    # an in-flight prod (main-push) build mid-way.
+    # Serialize warehouse-writing runs. PR builds share ONE physical ci_* dataset (the locked
+    # "shared, not per-PR ephemeral" choice), so concurrent incremental builds (fct_fixture_*
+    # compile to BigQuery MERGE) could hit "Could not serialize access" — the PR arm queues them
+    # on its own ci group. The push/dispatch (prod) arm joins the repo-wide `prod-warehouse-write`
+    # group shared with dbt-scheduled + pages, so the three prod-writers never MERGE the bare prod
+    # tables concurrently (#667). cancel-in-progress:false never drops an in-flight build mid-way.
     concurrency:
-      group: ci-data-build-write-${{ github.event_name == 'pull_request' && 'ci' || 'prod' }}
+      group: ${{ github.event_name == 'pull_request' && 'ci-data-build-write-ci' || 'prod-warehouse-write' }}
       cancel-in-progress: false
     if: |
       github.event_name == 'workflow_dispatch' ||
