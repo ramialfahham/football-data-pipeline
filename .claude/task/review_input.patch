@@ -1,118 +1,2446 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 4062fd5..0c47338 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -132,6 +132,17 @@ carries it)** first, then build the frontend against a stable export. The live M
- 
- ### ⭐ RECENT PRs
- 
-+- **#670 — CI-failure watchdog now watches dbt-scheduled, MERGED; follow-up adds ci-site-v2 + pages.**
-+  One-line add to `.github/workflows/ci-failure-watchdog.yml` `on.workflow_run.workflows:` so a failed
-+  nightly prod build (dbt-scheduled: ingest + `dbt build --target prod` + prod DQ tests) opens/updates a
-+  triage issue instead of only GitHub's easily-missed scheduled-failure email — it was the only significant
-+  workflow absent from the watch list. **This follow-up branch adds the two remaining unwatched significant
-+  workflows**: `Deploy match preview (GitHub Pages)` (pages-match-preview — a genuine prod-writer: `dbt
-+  run --target prod` + DQ on a 07:30 cron) and `ci-site-v2` (NOT a prod-writer — the v2 `npm run build`
-+  check, added for parity with the already-watched `ci-ui`). Watch entries key on each workflow's `name:`,
-+  not filename (pages → the display-name string). Protected-path (`.github/workflows/`) change under
-+  `protected_override`; scope-auditor + cto-reviewer (opus, guard path) PASS. All significant workflows
-+  now watched; no further watchdog candidates remain.
- - **#665 — #391 GAP-23: wire mart_team_competition_benchmarks into the team payload, MERGED.** Export + docs.
-   `shape_team_payload` gains a per-season **flat** `benchmarks[]` block from `mart_team_competition_benchmarks`
-   (the #627-for-teams analog, team-simplified: NO position nesting, NO num/den atoms — team ratios use the
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3bc84af..a40cf3a 100644
+index a40cf3a..f2f58a2 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,42 +1,54 @@
--# Task contract — watch dbt-scheduled in the CI-failure watchdog
-+# Task contract — watch ci-site-v2 + pages-match-preview in the CI-failure watchdog
+@@ -1,54 +1,106 @@
+-# Task contract — watch ci-site-v2 + pages-match-preview in the CI-failure watchdog
++# Task contract — v2 frontend: design system + fixture template (Phase E, increment 1)
  
--> Written on a CLEAN tree (branch fix/watchdog-watch-dbt-scheduled off main @ 7fd56f9).
--> CPO-directed this conversation 2026-07-11 ("make only that one-line edit, push, open a PR").
-+> Written on a CLEAN tree (branch fix/watchdog-watch-site-and-pages off main @ 4f19d60).
-+> Follow-up to #670, which added dbt-scheduled and flagged these two for a separate owner decision.
-+> CPO-directed this conversation 2026-07-11 ("do the follow-ups").
+-> Written on a CLEAN tree (branch fix/watchdog-watch-site-and-pages off main @ 4f19d60).
+-> Follow-up to #670, which added dbt-scheduled and flagged these two for a separate owner decision.
+-> CPO-directed this conversation 2026-07-11 ("do the follow-ups").
++> Written on a CLEAN tree (branch `feat/site-v2-fixture-page` off main @ 7005052).
++> CPO-directed this conversation 2026-07-11 ("Start the v2 frontend build — Phase E").
++> Design is LOCKED (do not re-litigate): memory `project_v2_frontend_design.md` +
++> the reference mockup artifact d70aae67 (tokens/components/layout extracted).
++> See docs/working_agreement.md §1 (E→P→C→I→V), §2 (contract), §10 (decision rights),
++> §11 (blinded escalation), Appendix A (anti-patterns).
  
  objective: >
--  Add `dbt-scheduled` to the CI-failure watchdog's `on.workflow_run.workflows:` watch list so a failed
--  nightly prod build — ingestion + `dbt build --target prod` + the prod data-quality tests — opens/updates
--  a GitHub issue like every other watched workflow. Today `dbt-scheduled` is the ONLY significant workflow
--  absent from the list, so its failures (including a DQ test failing on real prod data) have no backstop
--  beyond GitHub's default "scheduled workflow failed" email, which is easy to miss. It reads as an
--  accidental omission; this closes the alerting blind spot. One line, no other changes.
--refs: CPO-directed 2026-07-11 (this conversation). Watchdog: .github/workflows/ci-failure-watchdog.yml;
--  the unwatched producer: .github/workflows/dbt-scheduled.yml (nightly cron `0 4 * * *`).
-+  Add the two remaining unwatched significant workflows to the CI-failure watchdog's
-+  `on.workflow_run.workflows:` list, so a failure of either opens/updates a triage issue like every
-+  other watched workflow. #670 deferred these for the owner to decide; the owner has now decided to add
-+  both. Two lines, no other changes:
-+    - `pages-match-preview` (name: `Deploy match preview (GitHub Pages)`) — a genuine prod-writer:
-+      `dbt seed` + `dbt run --target prod` + DQ tests on a 07:30 cron, then Pages export/deploy. Same
-+      high-stakes class as dbt-scheduled; its failure was otherwise only a missable email.
-+    - `ci-site-v2` (name: `ci-site-v2`) — NOT a prod-writer (the "may also write prod" premise from #670
-+      is off for this one): it is an `npm run build` check path-filtered to `site_v2/**`, i.e. the v2
-+      analog of ci-ui, which is already watched. Added for parity — a significant CI workflow whose
-+      failure should raise an issue.
-+  Also record the outcome in the handover (`.claude/active_work.md`, artifact-only follow-up commit).
-+refs: #670 (parent — added dbt-scheduled, flagged these two); CPO-directed 2026-07-11 (this conversation).
-+  Watchdog: .github/workflows/ci-failure-watchdog.yml.
- 
- protected_override: >
--  CPO-authorized 2026-07-11 (this conversation, "make only that one-line edit ... Follow this repo's own
--  working agreement / guardrails") to edit the PROTECTED `.github/workflows/` guard path
--  ci-failure-watchdog.yml. Override scope: add exactly one list item (`- dbt-scheduled`) to the existing
--  `on.workflow_run.workflows:` list. No change to any other workflow, trigger, job, permission, or script.
-+  CPO-authorized 2026-07-11 (this conversation, "do the follow-ups") to edit the PROTECTED
-+  `.github/workflows/` guard path ci-failure-watchdog.yml. Override scope: add exactly two list items to
-+  the existing `on.workflow_run.workflows:` list — `ci-site-v2` and `"Deploy match preview (GitHub
-+  Pages)"` (the pages-match-preview workflow's `name:`, since workflow_run keys on `name:` not filename).
-+  No change to any other workflow, trigger, job, permission, or script.
+-  Add the two remaining unwatched significant workflows to the CI-failure watchdog's
+-  `on.workflow_run.workflows:` list, so a failure of either opens/updates a triage issue like every
+-  other watched workflow. #670 deferred these for the owner to decide; the owner has now decided to add
+-  both. Two lines, no other changes:
+-    - `pages-match-preview` (name: `Deploy match preview (GitHub Pages)`) — a genuine prod-writer:
+-      `dbt seed` + `dbt run --target prod` + DQ tests on a 07:30 cron, then Pages export/deploy. Same
+-      high-stakes class as dbt-scheduled; its failure was otherwise only a missable email.
+-    - `ci-site-v2` (name: `ci-site-v2`) — NOT a prod-writer (the "may also write prod" premise from #670
+-      is off for this one): it is an `npm run build` check path-filtered to `site_v2/**`, i.e. the v2
+-      analog of ci-ui, which is already watched. Added for parity — a significant CI workflow whose
+-      failure should raise an issue.
+-  Also record the outcome in the handover (`.claude/active_work.md`, artifact-only follow-up commit).
+-refs: #670 (parent — added dbt-scheduled, flagged these two); CPO-directed 2026-07-11 (this conversation).
+-  Watchdog: .github/workflows/ci-failure-watchdog.yml.
+-
+-protected_override: >
+-  CPO-authorized 2026-07-11 (this conversation, "do the follow-ups") to edit the PROTECTED
+-  `.github/workflows/` guard path ci-failure-watchdog.yml. Override scope: add exactly two list items to
+-  the existing `on.workflow_run.workflows:` list — `ci-site-v2` and `"Deploy match preview (GitHub
+-  Pages)"` (the pages-match-preview workflow's `name:`, since workflow_run keys on `name:` not filename).
+-  No change to any other workflow, trigger, job, permission, or script.
++  Stand up the shared v2 design system in site_v2/ — the token layer, base components,
++  and a Layout — and prove it by rendering ONE real exported fixture through a fixture
++  template, built as the /v2/ preview artifact. The design system is the deliverable;
++  the fixture page is the proof it composes. Import the system, never hand-style the
++  screen. The live MVP (site/) and its Pages deploy stay untouched (cutover = #377).
++
++refs: >
++  epic #361 (v2 site) · design system #366 · fixture template #368 · export #365 ·
++  Phase E. Binding specs: docs/wireframes/01_fixture_page.md (layout + JSON bindings),
++  docs/wireframes/metrics_display.md (LOCKED 16-row team table), docs/site_architecture.md
++  (IA/URLs/i18n/deploy), docs/content_architecture.md (fixture block = composed v2 export).
++  Data schema: scripts/export_site_data.py :: shape_fixture_payload / fetch_fixture_payloads.
++  Reference mockup: https://claude.ai/code/artifact/d70aae67-0c0a-43c3-86df-9d983742a881
  
  scope_paths:
-   - .github/workflows/ci-failure-watchdog.yml
-+  - .claude/active_work.md
-   - .claude/task/**
+-  - .github/workflows/ci-failure-watchdog.yml
+-  - .claude/active_work.md
+-  - .claude/task/**
++  - site_v2/**            # astro config (base), Layout, tokens CSS, components, fixture template, committed sample fixture JSON, minimal i18n strings
++  - .claude/task/**       # this contract, review.md, review_input.patch
++  - .claude/active_work.md # handover bullet (artifact-only follow-up commit)
++
++# STRUCTURAL SURFACE = consumption (site*/). Short-form evidenced (new, isolated, leaf consumer):
++impact_map: >
++  New, isolated v2 frontend consumer under site_v2/ (already scaffolded: Astro 5, static,
++  i18n de/en/fi, `base` unset). Touches NO dbt model, NO live export script, NO live Pages
++  deploy, and NOTHING under site/. Reads ONE committed sample fixture JSON produced READ-ONLY
++  by `python scripts/export_site_data.py --entities fixtures` (BigQuery ADC verified OK,
++  rami.fahham@gmail.com; SELECT-only, no warehouse writes — the clobber risk is dbt-build-only,
++  not read queries). No fact derivation in the frontend (select/display only, per the
++  consumption-layer contract). Blast radius: the non-deployed v2 build only; the live product
++  is unaffected by construction (separate directory, separate CI = ci-site-v2.yml npm build,
++  which does NOT deploy). deploy_order: none — nothing is wired into the live Pages artifact
++  this increment (see decisions_reserved: /v2/ deploy wiring is deferred to a follow-up PR).
++  Gate: ci-site-v2.yml (`npm ci && npm run build` + existing dist index-page assertions).
  
  decisions_taken: >
--  Add `dbt-scheduled` and only `dbt-scheduled`. This mirrors the six workflows already watched and requires
--  no new mechanism — the watchdog already keys off `workflow_run.conclusion == 'failure'` for whatever is in
--  the list, so adding a name is pure configuration within the CPO "make only that one-line edit" go.
-+  Add both workflows. The owner ("do the follow-ups") approved adding the two deferred candidates from
-+  #670. Each list entry uses the workflow's exact `name:` field (verified against the source files):
-+  `ci-site-v2` and `Deploy match preview (GitHub Pages)`. The ci-site-v2 clarification (build-check, not a
-+  prod-writer) is a factual note, not a new decision — it still belongs on the list for parity with the
-+  already-watched ci-ui. Pure configuration within the existing watchdog mechanism.
+-  Add both workflows. The owner ("do the follow-ups") approved adding the two deferred candidates from
+-  #670. Each list entry uses the workflow's exact `name:` field (verified against the source files):
+-  `ci-site-v2` and `Deploy match preview (GitHub Pages)`. The ci-site-v2 clarification (build-check, not a
+-  prod-writer) is a factual note, not a new decision — it still belongs on the list for parity with the
+-  already-watched ci-ui. Pure configuration within the existing watchdog mechanism.
++  1. Phase E is GO. active_work.md held "do NOT start the v2 frontend (Phase E) until the
++     data+export is all green"; the CPO has now directed the start, and content_architecture.md
++     (2026-07-07) confirms green — 18 marts wired, fixture screen ✓. This contract records that
++     the hold is lifted by CPO direction this conversation.
++  2. Design is LOCKED — extracted verbatim from the reference mockup: token set (dark-default
++     `.fx` custom properties + `[data-theme=light]` swap), component classes, and the fixture
++     layout/section order. Colour = meaning only (green = better value by catalogue `direction`,
++     RESERVED — never links/labels); hierarchy = tone/weight/size. Not re-litigated.
++  3. Data bindings follow docs/wireframes/01_fixture_page.md (each field verified against the
++     v2 fixture payload) and the LOCKED 16-row table (metrics_display.md). Rows/fields absent
++     from today's payload render the designed empty state ("-", no bar; W2 counts fall back to
++     the window header) — data honesty, never fabricated. The committed sample JSON is the
++     ground truth for what has data today.
++  4. Sample-data source: ONE real fixture, exported READ-ONLY via export_site_data.py and
++     committed inside site_v2/ so the static build (and ci-site-v2, which has no BigQuery) is
++     self-contained. Clearly labelled a temporary committed sample, to be replaced when the v2
++     export is wired as the build data source (#365 deploy).
++  5. /v2/ = enact the preview-phase routing (`base: "/v2/"`, the value the astro.config comment
++     already earmarks) WITHOUT touching the live Pages deploy — Option A below.
  
  decisions_reserved:
--  - `ci-site-v2` and any `pages` / `pages-match-preview` workflow may ALSO write prod and are likewise absent
--    from the watchdog list. Whether to add them is a separate call for the owner — DEFERRED, not decided here.
--    Flagged in the PR body; explicitly OUT of this task's scope per the CPO's instruction to change only the
--    one line. Escalating it blinded is unnecessary — the CPO already scoped it out and asked only for the note.
-+  - (none) — #670's single deferred decision (whether to watch these two) is the one the owner just made.
-+    No further watchdog candidates remain: all significant workflows are now on the list.
+-  - (none) — #670's single deferred decision (whether to watch these two) is the one the owner just made.
+-    No further watchdog candidates remain: all significant workflows are now on the list.
++  - "/v2/ LIVE DEPLOY WIRING (§10 — platform + live artifact) — RESOLVED 2026-07-11 (CPO ruled
++     Option A this session: build-and-prove now, defer the live-deploy wiring; no scope change —
++     the contract already baselines A). Option A (this
++     contract): set base:\"/v2/\" + build the /v2/ artifact; verify via ci-site-v2 build +
++     local astro preview + preview tooling; DEFER wiring the live Pages deploy. Option B: also
++     wire the deploy now — edits PROTECTED .github/workflows/pages-match-preview.yml +
++     scripts/build_match_preview_site.sh and changes the LIVE Pages artifact; the repo itself
++     documents this as 'a separate, deliberately-reviewed change' (ci-site-v2.yml header).
++     Option B requires a contract AMENDMENT adding a protected_override (CPO authority) + those
++     paths + cto-review on the guard path. Surfaced in the plan-back; CPO rules at Confirm."
++  - "WHICH real fixture to feature. --sample picks the earliest kickoff globally; a well-covered
++     upcoming fixture (full w1/w2/form_window/top_players/h2h) makes a stronger proof. If none
++     has full coverage today, the honest empty states render. CPO may prefer a specific league."
++  - "i18n depth in increment 1. Rec: generate the fixture route under all 3 locale prefixes
++     (routing is the point), chrome from a small site_v2/src/i18n strings map (the ~dozen fixture
++     UI labels), metric ROW labels in English from the catalogue for now; full catalogue-i18n key
++     wiring + DE/FI metric labels = the #370 follow-up slice. (Label completeness is a separate
++     workstream, not this increment.)"
++  - "Route shape. Rec: the real URL /{lang}/{competition-slug}/matches/{slug}/ via getStaticPaths
++     over the one committed fixture (proves the programmatic pattern), vs a placeholder route."
++  - "None of the above are decided by me — each is flagged blinded (§11) in the plan-back."
  
  done_when:
--  - `on.workflow_run.workflows:` in ci-failure-watchdog.yml contains `- dbt-scheduled` alongside the existing six.
--  - Exactly one line added; `git diff` shows a single `+  - dbt-scheduled` and nothing else.
-+  - `on.workflow_run.workflows:` in ci-failure-watchdog.yml contains `- ci-site-v2` and
-+    `- "Deploy match preview (GitHub Pages)"` alongside the existing seven.
-+  - Exactly two lines added to the workflow; `git diff` shows nothing else in that file.
-+  - Each added name matches the `name:` of its source workflow character-for-character.
-   - YAML valid; scope-auditor + cto-reviewer (opus, guard path) PASS; review.md diff_sha256 binds; CPO merges.
-+  - Handover bullet added to `.claude/active_work.md` (artifact-only commit) noting #670 + this PR.
+-  - `on.workflow_run.workflows:` in ci-failure-watchdog.yml contains `- ci-site-v2` and
+-    `- "Deploy match preview (GitHub Pages)"` alongside the existing seven.
+-  - Exactly two lines added to the workflow; `git diff` shows nothing else in that file.
+-  - Each added name matches the `name:` of its source workflow character-for-character.
+-  - YAML valid; scope-auditor + cto-reviewer (opus, guard path) PASS; review.md diff_sha256 binds; CPO merges.
+-  - Handover bullet added to `.claude/active_work.md` (artifact-only commit) noting #670 + this PR.
++  - site_v2 builds clean locally (`npm run build`) AND under ci-site-v2 (`npm ci && npm run build`);
++    the existing dist index-page assertions still pass (base prefixes URLs, not the output dir — verified by the build).
++  - The fixture route renders the ONE committed real fixture: dark-default; tokens + components
++    imported (no hand-styled screen); masthead + standing chips (omitted when null) + segment
++    (Last 5 / This season) + form (W1 pills / W2 counts-or-header) + the LOCKED comparison table
++    (group order, direction-driven green, honest "-" for rows without data) + recent matches +
++    players-to-watch + h2h + explore links + footnote — each section rendering real data or its
++    designed empty state.
++  - Verified in the preview tooling: screenshot dark + light, console/network clean; no fact
++    derived in the frontend (grep the template — select/format/display only).
++  - ONE substantive commit; ci-site-v2 green; required reviewers PASS (scope-auditor + cto-reviewer
++    per review_routing.json — bi-analyst NOT required, site/i18n untouched); review.md diff_sha256
++    binds; CPO merges (I never merge).
++  - Handover bullet added to .claude/active_work.md (artifact-only follow-up commit).
  
  amendments: (none)
-diff --git a/.github/workflows/ci-failure-watchdog.yml b/.github/workflows/ci-failure-watchdog.yml
-index 3859964..dfe6668 100644
---- a/.github/workflows/ci-failure-watchdog.yml
-+++ b/.github/workflows/ci-failure-watchdog.yml
-@@ -10,6 +10,8 @@ on:
-       - security-secrets
-       - board-request-sync
-       - dbt-scheduled
-+      - ci-site-v2
-+      - "Deploy match preview (GitHub Pages)"
-     types: [completed]
-   workflow_dispatch:
++# On amendment (clean tree only):
++#   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
+diff --git a/site_v2/.gitignore b/site_v2/.gitignore
+index ddce69b..16c9b00 100644
+--- a/site_v2/.gitignore
++++ b/site_v2/.gitignore
+@@ -1,3 +1,7 @@
+ node_modules/
+ dist/
+ .astro/
++
++# The repo-root .gitignore has a Python-packaging `lib/` pattern (unanchored, so it
++# matches **/lib/ — dead boilerplate here). Re-include our frontend source dir.
++!src/lib/
+diff --git a/site_v2/astro.config.mjs b/site_v2/astro.config.mjs
+index 592cfa0..d9173aa 100644
+--- a/site_v2/astro.config.mjs
++++ b/site_v2/astro.config.mjs
+@@ -3,13 +3,15 @@
+ // Static output only (GitHub Pages, no SSR). All locales are URL-prefixed
+ // (/de/…, /en/…); the root performs a browser-language redirect with `en`
+ // fallback (§3 of the architecture doc — CPO-overridable default).
+-// `base` is intentionally NOT set yet: it is decided by the deploy step
+-// (preview under /v2/ while the MVP owns the live URL; flipped at cutover #377).
++// `base` is "/v2/" for the build-phase preview — the MVP owns the live URL until the
++// parity cutover (#377), when this flips to root. Wiring the live Pages publish of this
++// /v2/ artifact is a separate, deliberately-reviewed change (CPO ruling 2026-07-11).
+ import { defineConfig } from "astro/config";
  
+ export default defineConfig({
+   site: "https://ramialfahham.github.io",
+   output: "static",
++  base: "/v2/",
+   trailingSlash: "always",
+   i18n: {
+     // Live locales today (mirrors site/i18n.js SUPPORTED). Scale-out: #370.
+diff --git a/site_v2/src/components/fixture/Breadcrumb.astro b/site_v2/src/components/fixture/Breadcrumb.astro
+new file mode 100644
+index 0000000..4c7ad8f
+--- /dev/null
++++ b/site_v2/src/components/fixture/Breadcrumb.astro
+@@ -0,0 +1,22 @@
++---
++// Breadcrumb: Home › {competition} › Matches. Items with an href render as links;
++// targets not yet built in v2 (competition hub) are passed hrefless → plain text
++// (no dead links this increment; wire hrefs when those pages land).
++export interface Crumb {
++  label: string;
++  href?: string;
++}
++interface Props {
++  items: Crumb[];
++}
++const { items } = Astro.props;
++---
++
++<nav class="crumb" aria-label="Breadcrumb">
++  {items.map((c, i) => (
++    <>
++      {i > 0 && <span class="sep">›</span>}
++      {c.href ? <a class="lnk" href={c.href}>{c.label}</a> : <span>{c.label}</span>}
++    </>
++  ))}
++</nav>
+diff --git a/site_v2/src/components/fixture/FormSegment.astro b/site_v2/src/components/fixture/FormSegment.astro
+new file mode 100644
+index 0000000..294cc1a
+--- /dev/null
++++ b/site_v2/src/components/fixture/FormSegment.astro
+@@ -0,0 +1,108 @@
++---
++// Form comparison: the Last-5 (W1) / This-season (W2) segment + both windows'
++// headers, form strings, captions and the 16-row comparison. The toggle is JS-FREE
++// — two hidden radios drive a CSS `:checked` sibling switch (both windows are in the
++// HTML and crawlable), which defers the island-framework decision (#362). W1 shows
++// result pills; W2 shows W/D/L count chips (falls back to the header when the counts
++// are absent). Captions declare the window's scope (all-competitions vs this league).
++import SectionHead from "../ui/SectionHead.astro";
++import MetricComparison from "./MetricComparison.astro";
++import { pointsFraction } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import { asNumber } from "../../lib/types";
++import type { Fixture, Side } from "../../lib/types";
++
++interface Props {
++  fixture: Fixture;
++  lang: Lang;
++}
++const { fixture, lang } = Astro.props;
++const { home, away } = fixture;
++
++// form_window is served already ordered by recency_rank (export_site_data.py) — the
++// display order is the served order; no client-side sort (never re-rank served rows).
++const results = (side: Side): string[] =>
++  (side.form_window ?? []).map((m) => m.result ?? "").filter(Boolean);
++
++// W1 scope caption: cross-competition, plus any competitions beyond this fixture's own
++// (unioned across both sides, from the served contributing_competitions), plus a
++// coverage note when a window has fewer stat-covered games than games played.
++function w1Caption(): string {
++  const own = fixture.league_code;
++  const others = new Set<string>();
++  for (const s of [home, away]) {
++    for (const c of s.w1?.contributing_competitions ?? []) if (c !== own) others.add(c);
++  }
++  let cap = others.size
++    ? `${t(lang, "scopeAllComps")} · ${t(lang, "incl")} ${[...others].join(", ")}`
++    : t(lang, "scopeAllComps");
++  for (const s of [home, away]) {
++    const gts = asNumber(s.w1?.games_with_team_stats);
++    const giw = asNumber(s.w1?.games_in_window);
++    if (gts != null && giw != null && gts < giw) {
++      cap += ` · ${t(lang, "statsCoverage", { a: gts, b: giw })}`;
++      break;
++    }
++  }
++  return cap;
++}
++
++function w2Caption(): string {
++  const n = asNumber(home.w2?.games_played) ?? asNumber(away.w2?.games_played);
++  const league = fixture.league_name ?? fixture.league_code;
++  return n != null ? `${league} · ${t(lang, "throughMatchday", { n })}` : league;
++}
++---
++
++<section aria-label={t(lang, "secForm")}>
++  <SectionHead label={t(lang, "secForm")} />
++  <input class="seg-in" type="radio" name="win" id="seg-w1" checked />
++  <input class="seg-in" type="radio" name="win" id="seg-w2" />
++  <div class="seg" role="group" aria-label={t(lang, "secForm")}>
++    <label class="seg-btn" for="seg-w1">{t(lang, "segLast5")}</label>
++    <label class="seg-btn" for="seg-w2">{t(lang, "segSeason")}</label>
++  </div>
++
++  <div class="win win-w1">
++    <div class="formrow">
++      {[home, away].map((side, i) => (
++        <div class:list={["side", i === 0 ? "home" : "away"]}>
++          <div class="wmeta">
++            <b>{pointsFraction(side.w1?.points_won, side.w1?.games_in_window, lang)}</b> {t(lang, "pts")}
++          </div>
++          {results(side).length ? (
++            <div class="pills">
++              {results(side).map((r) => <span class:list={["pill", r]}>{r}</span>)}
++            </div>
++          ) : (
++            <div class="scope">{t(lang, "noRecentForm")}</div>
++          )}
++        </div>
++      ))}
++    </div>
++    <div class="caption">{w1Caption()}</div>
++    <MetricComparison home={home.w1} away={away.w1} windowKey="w1" lang={lang} homeName={home.name} awayName={away.name} />
++  </div>
++
++  <div class="win win-w2">
++    <div class="formrow">
++      {[home, away].map((side, i) => (
++        <div class:list={["side", i === 0 ? "home" : "away"]}>
++          <div class="wmeta">
++            <b>{pointsFraction(side.w2?.points_won, side.w2?.games_played, lang)}</b> {t(lang, "pts")}
++          </div>
++          {side.w2?.wins != null && side.w2?.draws != null && side.w2?.losses != null && (
++            <div class="cchips">
++              <span class="cchip W">{side.w2.wins} <small>W</small></span>
++              <span class="cchip D">{side.w2.draws} <small>D</small></span>
++              <span class="cchip L">{side.w2.losses} <small>L</small></span>
++            </div>
++          )}
++        </div>
++      ))}
++    </div>
++    <div class="caption">{w2Caption()}</div>
++    <MetricComparison home={home.w2} away={away.w2} windowKey="w2" lang={lang} homeName={home.name} awayName={away.name} />
++  </div>
++</section>
+diff --git a/site_v2/src/components/fixture/HeadToHead.astro b/site_v2/src/components/fixture/HeadToHead.astro
+new file mode 100644
+index 0000000..c4399b3
+--- /dev/null
++++ b/site_v2/src/components/fixture/HeadToHead.astro
+@@ -0,0 +1,59 @@
++---
++// Head-to-head (perspective = home team): record numbers coloured to the W/D/L bar,
++// the stacked record bar, and the recent-meetings list (which leads with the last
++// meeting — the separate "last meeting" line was dropped as a duplicate). "First-ever
++// meeting" when there is no record. All raw served facts; the bar widths are display.
++import SectionHead from "../ui/SectionHead.astro";
++import { formatShortDate } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { stackShares } from "../../lib/bars";
++import { t } from "../../i18n/strings";
++import type { HeadToHead } from "../../lib/types";
++
++interface Props {
++  h2h?: HeadToHead | null;
++  homeName?: string | null;
++  awayName?: string | null;
++  lang: Lang;
++}
++const { h2h, homeName, awayName, lang } = Astro.props;
++const has = Boolean(h2h && (h2h.total_meetings ?? 0) > 0);
++const shares = stackShares(h2h?.wins, h2h?.draws, h2h?.losses);
++const meetings = h2h?.recent_meetings ?? [];
++---
++
++<section aria-label={t(lang, "secH2H")}>
++  <SectionHead label={t(lang, "secH2H")} />
++  {has ? (
++    <>
++      <div class="h2h-top">
++        <div class="h2h-rec">
++          <b class="cw">{h2h?.wins}</b> <span class="nm">{homeName}</span> &nbsp;·&nbsp;
++          <b>{h2h?.draws}</b> <span class="nm">{t(lang, "draws")}</span> &nbsp;·&nbsp;
++          <b class="cl">{h2h?.losses}</b> <span class="nm">{awayName}</span>
++        </div>
++        <div class="h2h-meta">
++          {h2h?.total_meetings} {t(lang, "meetings")}<br />
++          {h2h?.goals_for}:{h2h?.goals_against} {t(lang, "goalsWord")}
++        </div>
++      </div>
++      <div class="h2h-bar" aria-hidden="true">
++        <span class="w" style={`width:${shares.w}%`}></span>
++        <span class="d" style={`width:${shares.d}%`}></span>
++        <span class="l" style={`width:${shares.l}%`}></span>
++      </div>
++      <div class="h2h-list">
++        {meetings.map((m) => (
++          <div class="rmatch">
++            <span class:list={["res", m.result]}>{m.result}</span>
++            <span class="rscore">{m.goals_for}–{m.goals_against}</span>
++            <span class="ropp">{m.league_code}</span>
++            <span class="rmeta">{formatShortDate(m.kickoff_datetime, lang)}</span>
++          </div>
++        ))}
++      </div>
++    </>
++  ) : (
++    <div class="h2h-last">{t(lang, "firstMeeting")}</div>
++  )}
++</section>
+diff --git a/site_v2/src/components/fixture/LinksFooter.astro b/site_v2/src/components/fixture/LinksFooter.astro
+new file mode 100644
+index 0000000..9bd9620
+--- /dev/null
++++ b/site_v2/src/components/fixture/LinksFooter.astro
+@@ -0,0 +1,23 @@
++---
++// The SEO/navigation internal-links footer. Chips are inert this increment (team,
++// competition-table and top-scorers pages are not built yet); they render as the
++// designed chips and become links when those targets land.
++import SectionHead from "../ui/SectionHead.astro";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import type { Fixture } from "../../lib/types";
++
++interface Props {
++  fixture: Fixture;
++  lang: Lang;
++}
++const { fixture, lang } = Astro.props;
++const chips = [fixture.home.name, fixture.away.name, t(lang, "table"), t(lang, "topScorers")].filter(Boolean);
++---
++
++<section aria-label={t(lang, "secExplore")}>
++  <SectionHead label={t(lang, "secExplore")} />
++  <div class="linkrow">
++    {chips.map((c) => <span class="linkchip">{c}</span>)}
++  </div>
++</section>
+diff --git a/site_v2/src/components/fixture/Masthead.astro b/site_v2/src/components/fixture/Masthead.astro
+new file mode 100644
+index 0000000..2150227
+--- /dev/null
++++ b/site_v2/src/components/fixture/Masthead.astro
+@@ -0,0 +1,45 @@
++---
++// Match header: eyebrow + kickoff line + the two teams (crest, name, standing chip)
++// + venue. Standing is omitted entirely when null (knockout / overlapping tables) —
++// by design, not an empty state (01_fixture_page.md §2a). Team names are inert this
++// increment (team pages not built).
++import Crest from "../ui/Crest.astro";
++import { formatDate, formatTime, signedInteger } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import type { Fixture } from "../../lib/types";
++
++interface Props {
++  fixture: Fixture;
++  lang: Lang;
++}
++const { fixture, lang } = Astro.props;
++const { home, away } = fixture;
++
++const dateStr = formatDate(fixture.kickoff, lang);
++const timeStr = fixture.status === "TBD" ? t(lang, "timeTBD") : formatTime(fixture.kickoff, lang);
++const kick = [fixture.round, dateStr, timeStr].filter(Boolean).join(" · ");
++---
++
++<header class="mast">
++  <div class="eyebrow" style="margin-top:14px">{t(lang, "eyebrowPreview")}</div>
++  <div class="kick">{kick}</div>
++  <div class="teams">
++    {[home, away].map((side, i) => (
++      <>
++        {i === 1 && <div class="vs">{t(lang, "vs")}</div>}
++        <div class="team">
++          <Crest name={side.name} crest={side.crest} />
++          <span class="tname">{side.name}</span>
++          {side.standing && (
++            <div class="stand num">
++              #<b>{side.standing.league_rank}</b> · <b>{side.standing.standing_points}</b>{" "}
++              {t(lang, "pts")} · GD <b>{signedInteger(side.standing.standing_goals_diff, lang)}</b>
++            </div>
++          )}
++        </div>
++      </>
++    ))}
++  </div>
++  {fixture.venue && <div class="venue">{fixture.venue}</div>}
++</header>
+diff --git a/site_v2/src/components/fixture/MetricComparison.astro b/site_v2/src/components/fixture/MetricComparison.astro
+new file mode 100644
+index 0000000..6a1b0ee
+--- /dev/null
++++ b/site_v2/src/components/fixture/MetricComparison.astro
+@@ -0,0 +1,46 @@
++---
++// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups
++// in the fixed order with a subhead, rows in the fixed order within each group
++// (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a
++// wall of dashes); a row missing on one side shows "-" there. No reordering by value.
++import MetricRow from "./MetricRow.astro";
++import { GROUP_ORDER, METRIC_ROWS } from "../../lib/metricRows";
++import type { MetricRowDef } from "../../lib/metricRows";
++import { asNumber } from "../../lib/types";
++import type { WindowStats } from "../../lib/types";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  home?: WindowStats | null;
++  away?: WindowStats | null;
++  windowKey: "w1" | "w2";
++  lang: Lang;
++  homeName?: string | null;
++  awayName?: string | null;
++}
++const { home, away, windowKey, lang, homeName, awayName } = Astro.props;
++
++const hasData = (def: MetricRowDef): boolean =>
++  asNumber(home?.[def.field]) !== null || asNumber(away?.[def.field]) !== null;
++
++const groups = GROUP_ORDER.map((group) => ({
++  group,
++  rows: METRIC_ROWS.filter((r) => r.group === group && hasData(r)),
++})).filter((g) => g.rows.length > 0);
++---
++
++<div class="cmp">
++  <div class="cmp-head">
++    <div class="h">{homeName}</div>
++    <div></div>
++    <div class="h">{awayName}</div>
++  </div>
++  {groups.map(({ group, rows }) => (
++    <>
++      <div class="mgroup">{group}</div>
++      {rows.map((def) => (
++        <MetricRow def={def} home={home} away={away} windowKey={windowKey} lang={lang} />
++      ))}
++    </>
++  ))}
++</div>
+diff --git a/site_v2/src/components/fixture/MetricRow.astro b/site_v2/src/components/fixture/MetricRow.astro
+new file mode 100644
+index 0000000..47b61f7
+--- /dev/null
++++ b/site_v2/src/components/fixture/MetricRow.astro
+@@ -0,0 +1,53 @@
++---
++// One comparison row: home value · centred label + diverging bar · away value.
++// All arithmetic here is DISPLAY (format the served value; bar width = relative
++// share; green = the served `direction`'s better side) — no metric facts computed.
++import { formatValue, countFraction, DASH } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { barWidth, betterSide } from "../../lib/bars";
++import { asNumber } from "../../lib/types";
++import type { WindowStats } from "../../lib/types";
++import type { MetricRowDef } from "../../lib/metricRows";
++
++interface Props {
++  def: MetricRowDef;
++  home?: WindowStats | null;
++  away?: WindowStats | null;
++  windowKey: "w1" | "w2";
++  lang: Lang;
++}
++const { def, home, away, windowKey, lang } = Astro.props;
++
++const hv = asNumber(home?.[def.field]);
++const av = asNumber(away?.[def.field]);
++
++function display(side: WindowStats | null | undefined, v: number | null): string {
++  if (def.format === "count_fraction") {
++    const denomField = windowKey === "w1" ? def.denom!.w1 : def.denom!.w2;
++    return countFraction(v, asNumber(side?.[denomField]), lang);
++  }
++  return v == null ? DASH : formatValue(v, def.format, lang);
++}
++
++const hDisp = display(home, hv);
++const aDisp = display(away, av);
++const better = betterSide(hv, av, def.direction);
++const hWidth = barWidth(hv, av);
++const aWidth = barWidth(av, hv);
++---
++
++<div class="mrow">
++  <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
++  <div class="mmid">
++    <div class="mlabel">{def.label}{def.sublabel && <small>{def.sublabel}</small>}</div>
++    <div class="mbar" aria-hidden="true">
++      <div class="bside home">
++        <span class:list={["fill", { better: better === "home" }]} style={`width:${hWidth}%`}></span>
++      </div>
++      <div class="bside away">
++        <span class:list={["fill", { better: better === "away" }]} style={`width:${aWidth}%`}></span>
++      </div>
++    </div>
++  </div>
++  <div class:list={["mval", "away", { better: better === "away" }]}>{aDisp}</div>
++</div>
+diff --git a/site_v2/src/components/fixture/NarrativeSlot.astro b/site_v2/src/components/fixture/NarrativeSlot.astro
+new file mode 100644
+index 0000000..49e257f
+--- /dev/null
++++ b/site_v2/src/components/fixture/NarrativeSlot.astro
+@@ -0,0 +1,33 @@
++---
++// "About this match" — sits at the TOP under the header (design memory
++// project_v2_frontend_design). A TEMPLATED factual sentence built only from served
++// values (matchup, round, h2h count + record); never fabricated prose. The
++// data-to-text / grounded-generation version is GAP-03 (a future AI consumer).
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import type { Fixture } from "../../lib/types";
++
++interface Props {
++  fixture: Fixture;
++  lang: Lang;
++}
++const { fixture, lang } = Astro.props;
++const h2h = fixture.head_to_head;
++const base = {
++  home: fixture.home.name ?? "",
++  away: fixture.away.name ?? "",
++  round: fixture.round ?? "",
++};
++
++let text: string;
++if (h2h && h2h.total_meetings != null) {
++  const record = `${h2h.wins ?? 0}–${h2h.draws ?? 0}–${h2h.losses ?? 0}`;
++  text = t(lang, "aboutWithH2h", { ...base, meetings: h2h.total_meetings, record });
++} else {
++  text = t(lang, "aboutNoH2h", base);
++}
++---
++
++<div class="lede">
++  <p>{text}</p>
++</div>
+diff --git a/site_v2/src/components/fixture/PlayerRow.astro b/site_v2/src/components/fixture/PlayerRow.astro
+new file mode 100644
+index 0000000..1f68b8d
+--- /dev/null
++++ b/site_v2/src/components/fixture/PlayerRow.astro
+@@ -0,0 +1,42 @@
++---
++// One "players to watch" row: photo · name + position · headline stats. Outfielders
++// show goals · assists; goalkeepers show saves · save %. Player per-match nulls mean
++// zero (a recorded 0, not missing) so counts coalesce to 0; save % (a ratio) shows
++// "-" when it has no denominator. Name is inert this increment (player pages not built).
++import { percent } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t, positionLabel } from "../../i18n/strings";
++import type { TopPlayer } from "../../lib/types";
++
++interface Props {
++  player: TopPlayer;
++  lang: Lang;
++}
++const { player, lang } = Astro.props;
++const isGK = player.position_code === "G";
++const initials = (player.player_name ?? "")
++  .split(/\s+/)
++  .map((w) => w[0] ?? "")
++  .join("")
++  .slice(0, 2)
++  .toUpperCase();
++---
++
++<div class="prow">
++  <span class="pphoto">
++    {player.player_photo_url
++      ? <img src={player.player_photo_url} alt="" loading="lazy" width="34" height="34" />
++      : <span>{initials}</span>}
++  </span>
++  <span class="pname">
++    <div class="nm">{player.player_name}</div>
++    <div class="ps">{positionLabel(lang, player.position_code)}</div>
++  </span>
++  <span class="pstat">
++    {isGK ? (
++      <><b>{player.saves ?? 0}</b> {t(lang, "saves")} · <b>{percent(player.save_pct, lang)}</b></>
++    ) : (
++      <><b>{player.goals_total ?? 0}</b> {t(lang, "goals")} · <b>{player.goals_assists ?? 0}</b> {t(lang, "assists")}</>
++    )}
++  </span>
++</div>
+diff --git a/site_v2/src/components/fixture/RecentMatch.astro b/site_v2/src/components/fixture/RecentMatch.astro
+new file mode 100644
+index 0000000..0192e23
+--- /dev/null
++++ b/site_v2/src/components/fixture/RecentMatch.astro
+@@ -0,0 +1,28 @@
++---
++// One recent-form row (a form_window entry): result chip · score (this team's
++// perspective) · opponent + H/A · competition + date. Rows are inert this increment
++// (the matchstats drill-down page isn't built); a match with no stats gets the
++// designed "not clickable" state + microcopy (a real, common provider-coverage gap).
++import { formatShortDate } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import type { FormMatch } from "../../lib/types";
++
++interface Props {
++  match: FormMatch;
++  lang: Lang;
++}
++const { match, lang } = Astro.props;
++const hasStats = Boolean(match.has_team_stats || match.has_player_stats);
++const ha = match.home_away === "home" ? "H" : match.home_away === "away" ? "A" : "";
++const meta = [match.played_league_code, formatShortDate(match.played_kickoff_datetime, lang)]
++  .filter(Boolean)
++  .join(" · ");
++---
++
++<div class:list={["rmatch", { noclick: !hasStats }]} title={hasStats ? undefined : t(lang, "noMatchStats")}>
++  <span class:list={["res", match.result]}>{match.result}</span>
++  <span class="rscore">{match.goals_for}–{match.goals_against}</span>
++  <span class="ropp">{match.opponent_name}{ha && <span class="ha">{ha}</span>}</span>
++  <span class="rmeta">{meta}</span>
++</div>
+diff --git a/site_v2/src/components/fixture/SplitSection.astro b/site_v2/src/components/fixture/SplitSection.astro
+new file mode 100644
+index 0000000..d3a826a
+--- /dev/null
++++ b/site_v2/src/components/fixture/SplitSection.astro
+@@ -0,0 +1,28 @@
++---
++// Two-column section (home | away), reused by Recent matches and Players to watch.
++// Reflows to two columns on wide containers (system.css @container). The rows are
++// provided via the `home` / `away` named slots.
++import SectionHead from "../ui/SectionHead.astro";
++
++interface Props {
++  label: string;
++  note?: string | null;
++  homeLabel?: string | null;
++  awayLabel?: string | null;
++}
++const { label, note, homeLabel, awayLabel } = Astro.props;
++---
++
++<section aria-label={label}>
++  <SectionHead label={label} note={note} />
++  <div class="split">
++    <div>
++      <div class="colhead">{homeLabel}</div>
++      <slot name="home" />
++    </div>
++    <div>
++      <div class="colhead">{awayLabel}</div>
++      <slot name="away" />
++    </div>
++  </div>
++</section>
+diff --git a/site_v2/src/components/ui/Crest.astro b/site_v2/src/components/ui/Crest.astro
+new file mode 100644
+index 0000000..c402bd2
+--- /dev/null
++++ b/site_v2/src/components/ui/Crest.astro
+@@ -0,0 +1,19 @@
++---
++// Team crest. Uses the served logo URL; falls back to a monogram of the served
++// name when there is no crest (a display fallback — not an identifier).
++interface Props {
++  name?: string | null;
++  crest?: string | null;
++}
++const { name, crest } = Astro.props;
++const mono = (name ?? "")
++  .split(/\s+/)
++  .map((w) => w[0] ?? "")
++  .join("")
++  .slice(0, 3)
++  .toUpperCase();
++---
++
++<div class="crest">
++  {crest ? <img src={crest} alt="" loading="lazy" width="52" height="52" /> : <span>{mono}</span>}
++</div>
+diff --git a/site_v2/src/components/ui/SectionHead.astro b/site_v2/src/components/ui/SectionHead.astro
+new file mode 100644
+index 0000000..788c845
+--- /dev/null
++++ b/site_v2/src/components/ui/SectionHead.astro
+@@ -0,0 +1,14 @@
++---
++// Section header: an eyebrow label + a divider line (from ::after) + an optional
++// right-side note (e.g. the "Last 5 matches" window note on Players to watch).
++interface Props {
++  label: string;
++  note?: string | null;
++}
++const { label, note } = Astro.props;
++---
++
++<div class="sechead">
++  <span class="eyebrow">{label}</span>
++  {note && <span class="win-note">{note}</span>}
++</div>
+diff --git a/site_v2/src/data/README.md b/site_v2/src/data/README.md
+new file mode 100644
+index 0000000..a5182f4
+--- /dev/null
++++ b/site_v2/src/data/README.md
+@@ -0,0 +1,15 @@
++# site_v2/src/data — committed build inputs (temporary)
++
++Static JSON the Astro build reads at build time. In the finished v2 site these come from the
++per-entity export (`scripts/export_site_data.py`) wired as the build data source (#365 deploy);
++until then a single real sample is committed here so the build (and `ci-site-v2`, which has no
++BigQuery) is self-contained.
++
++- `fixtures/1492306.json` — ONE real exported fixture (BSA · Palmeiras vs Atlético-MG, MD20,
++  kickoff 2026-07-26), produced verbatim by `python scripts/export_site_data.py --entities fixtures`.
++  Ground truth for the fixture-payload schema (`shape_fixture_payload`). Replace with the wired
++  export at #365. (BL1 was the first pick but is off-season — no live W1 form right now — so a
++  fully-populated in-season fixture was chosen to exercise every component.)
++- `competitions.json` — `league_code → { slug }` from `docs/competition_registry.yml` (the
++  registry's authored slug; the frontend never generates slugs). Only the featured competition is
++  listed for this increment; at scale this is the export's `nav.json` / `slug_map.json`.
+diff --git a/site_v2/src/data/competitions.json b/site_v2/src/data/competitions.json
+new file mode 100644
+index 0000000..6eb2ad3
+--- /dev/null
++++ b/site_v2/src/data/competitions.json
+@@ -0,0 +1,3 @@
++{
++  "BSA": { "slug": "brasileirao" }
++}
+diff --git a/site_v2/src/data/fixtures/1492306.json b/site_v2/src/data/fixtures/1492306.json
+new file mode 100644
+index 0000000..3d882de
+--- /dev/null
++++ b/site_v2/src/data/fixtures/1492306.json
+@@ -0,0 +1,760 @@
++{
++  "type": "fixture",
++  "fixture_id": 1492306,
++  "slug": "2026-07-26-palmeiras-vs-atletico-mg",
++  "kickoff": "2026-07-26 22:30:00+00:00",
++  "status": "NS",
++  "league_code": "BSA",
++  "league_name": "Serie A",
++  "season": 2026,
++  "round": "Regular Season - 20",
++  "venue": "Nubank Parque",
++  "home": {
++    "team_id": 121,
++    "name": "Palmeiras",
++    "crest": "https://media.api-sports.io/football/teams/121.png",
++    "country": "Brazil",
++    "w1": {
++      "league_code": "BSA",
++      "entity_type": "club",
++      "season_api_year": 2026,
++      "window_type": "last_5",
++      "games_in_window": 5,
++      "games_with_team_stats": 5,
++      "contributing_competitions": [
++        "BSA",
++        "LIBER"
++      ],
++      "games_with_player_stats": 5,
++      "points_won": 10,
++      "clean_sheets": 2,
++      "goals_per_match": 1.8,
++      "goals_against_per_match": 0.6,
++      "shots_per_match": 13.8,
++      "shot_accuracy": 0.36231884057971014,
++      "danger_zone_ratio": 0.6521739130434783,
++      "shots_on_goal_per_match": 5.0,
++      "finishing_efficiency": 0.36,
++      "passes_per_match": 467.8,
++      "pass_accuracy": 0.8730226592560923,
++      "corner_kicks_per_match": 3.8,
++      "corners_against_per_match": 5.0,
++      "save_ratio": 0.7692307692307693,
++      "key_passes_per_match": 11.4,
++      "tackles_per_match": 17.8,
++      "interceptions_per_match": 7.4,
++      "blocks_per_match": 5.2,
++      "defensive_actions_per_match": 30.4,
++      "duels_per_match": 94.2,
++      "duels_won_pct": 0.4819532908704883
++    },
++    "w2": {
++      "league_code": "BSA",
++      "entity_type": "club",
++      "season_api_year": 2026,
++      "window_type": "season_to_date",
++      "games_played": 18,
++      "games_with_team_stats": 18,
++      "points_won": 41,
++      "wins": 12,
++      "draws": 5,
++      "losses": 1,
++      "clean_sheets": 7,
++      "goals_per_match": 1.6666666666666667,
++      "goals_against_per_match": 0.7222222222222222,
++      "shots_per_match": 13.11111111111111,
++      "shot_accuracy": 0.3432203389830508,
++      "danger_zone_ratio": 0.5847457627118644,
++      "shots_on_goal_per_match": 4.5,
++      "finishing_efficiency": 0.345679012345679,
++      "passes_per_match": 399.6666666666667,
++      "pass_accuracy": 0.8419516263552961,
++      "corner_kicks_per_match": 6.0,
++      "corners_against_per_match": 5.944444444444445,
++      "save_ratio": 0.8059701492537313,
++      "key_passes_per_match": 10.444444444444445,
++      "tackles_per_match": 14.944444444444445,
++      "interceptions_per_match": 7.388888888888889,
++      "blocks_per_match": 4.5,
++      "defensive_actions_per_match": 26.833333333333332,
++      "duels_per_match": 95.77777777777777,
++      "duels_won_pct": 0.4988399071925754
++    },
++    "standing": {
++      "group_name": "Serie A",
++      "is_knockout": false,
++      "league_rank": 1,
++      "standing_points": 41,
++      "standing_played": 18,
++      "standing_goals_diff": 17,
++      "standing_form": null
++    },
++    "form_window": [
++      {
++        "league_code": "BSA",
++        "recency_rank": 1,
++        "played_fixture_sk": 1492286,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-31 19:00:00+00:00",
++        "played_round_name": "Regular Season - 18",
++        "home_away": "home",
++        "goals_for": 1,
++        "goals_against": 0,
++        "result": "W",
++        "opponent_team_sk": 132,
++        "opponent_name": "Chapecoense-sc",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/132.png",
++        "is_home": true,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 2,
++        "played_fixture_sk": 1535327,
++        "played_league_code": "LIBER",
++        "played_kickoff_datetime": "2026-05-28 22:00:00+00:00",
++        "played_round_name": "Group Stage - 6",
++        "home_away": "home",
++        "goals_for": 4,
++        "goals_against": 1,
++        "result": "W",
++        "opponent_team_sk": 1135,
++        "opponent_name": "Junior",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/1135.png",
++        "is_home": true,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 3,
++        "played_fixture_sk": 1492273,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-24 00:00:00+00:00",
++        "played_round_name": "Regular Season - 17",
++        "home_away": "away",
++        "goals_for": 3,
++        "goals_against": 0,
++        "result": "W",
++        "opponent_team_sk": 127,
++        "opponent_name": "Flamengo",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/127.png",
++        "is_home": true,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 4,
++        "played_fixture_sk": 1535309,
++        "played_league_code": "LIBER",
++        "played_kickoff_datetime": "2026-05-21 00:30:00+00:00",
++        "played_round_name": "Group Stage - 5",
++        "home_away": "home",
++        "goals_for": 0,
++        "goals_against": 1,
++        "result": "L",
++        "opponent_team_sk": 1176,
++        "opponent_name": "Cerro Porteno",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/1176.png",
++        "is_home": true,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 5,
++        "played_fixture_sk": 1492268,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-17 00:00:00+00:00",
++        "played_round_name": "Regular Season - 16",
++        "home_away": "home",
++        "goals_for": 1,
++        "goals_against": 1,
++        "result": "D",
++        "opponent_team_sk": 135,
++        "opponent_name": "Cruzeiro",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/135.png",
++        "is_home": true,
++        "has_team_stats": true,
++        "has_player_stats": true
++      }
++    ],
++    "top_players": [
++      {
++        "player_sk": 425714,
++        "games_in_window": 4,
++        "position_code": "F",
++        "goals_total": 2,
++        "goals_assists": 1,
++        "saves": null,
++        "shots_on": 5,
++        "passes_key": 12,
++        "passes_accurate": 40,
++        "passes_total": 127,
++        "tackles_total": 6,
++        "tackles_blocks": null,
++        "tackles_interceptions": 1,
++        "duels_won": 20,
++        "duels_total": 48,
++        "dribbles_success": 12,
++        "dribbles_attempts": 21,
++        "dribbles_past": 7,
++        "offsides": null,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 0,
++        "cards_red": 1,
++        "save_pct": null,
++        "dribbles_success_pct": 0.5714285714285714,
++        "pass_accuracy_pct": 0.31496062992125984,
++        "duels_won_pct": 0.4166666666666667,
++        "player_name": "Allan",
++        "player_photo_url": "https://media.api-sports.io/football/players/425714.png"
++      },
++      {
++        "player_sk": 13708,
++        "games_in_window": 4,
++        "position_code": "M",
++        "goals_total": 2,
++        "goals_assists": 0,
++        "saves": null,
++        "shots_on": 5,
++        "passes_key": 5,
++        "passes_accurate": 27,
++        "passes_total": 108,
++        "tackles_total": 4,
++        "tackles_blocks": 2,
++        "tackles_interceptions": 4,
++        "duels_won": 18,
++        "duels_total": 44,
++        "dribbles_success": 4,
++        "dribbles_attempts": 8,
++        "dribbles_past": 2,
++        "offsides": null,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 1,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": 0.5,
++        "pass_accuracy_pct": 0.25,
++        "duels_won_pct": 0.4090909090909091,
++        "player_name": "J. Arias",
++        "player_photo_url": "https://media.api-sports.io/football/players/13708.png"
++      },
++      {
++        "player_sk": 987,
++        "games_in_window": 5,
++        "position_code": "F",
++        "goals_total": 2,
++        "goals_assists": 0,
++        "saves": null,
++        "shots_on": 3,
++        "passes_key": 1,
++        "passes_accurate": 7,
++        "passes_total": 60,
++        "tackles_total": null,
++        "tackles_blocks": null,
++        "tackles_interceptions": null,
++        "duels_won": 8,
++        "duels_total": 15,
++        "dribbles_success": 4,
++        "dribbles_attempts": 5,
++        "dribbles_past": null,
++        "offsides": null,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 1,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": 0.8,
++        "pass_accuracy_pct": 0.11666666666666667,
++        "duels_won_pct": 0.5333333333333333,
++        "player_name": "Paulinho",
++        "player_photo_url": "https://media.api-sports.io/football/players/987.png"
++      },
++      {
++        "player_sk": 295513,
++        "games_in_window": 4,
++        "position_code": "F",
++        "goals_total": 1,
++        "goals_assists": 3,
++        "saves": null,
++        "shots_on": 3,
++        "passes_key": 7,
++        "passes_accurate": 13,
++        "passes_total": 85,
++        "tackles_total": 3,
++        "tackles_blocks": null,
++        "tackles_interceptions": 2,
++        "duels_won": 25,
++        "duels_total": 59,
++        "dribbles_success": 10,
++        "dribbles_attempts": 19,
++        "dribbles_past": 3,
++        "offsides": 3,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 2,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": 0.5263157894736842,
++        "pass_accuracy_pct": 0.15294117647058825,
++        "duels_won_pct": 0.423728813559322,
++        "player_name": "J. López",
++        "player_photo_url": "https://media.api-sports.io/football/players/295513.png"
++      },
++      {
++        "player_sk": 2412,
++        "games_in_window": 4,
++        "position_code": "M",
++        "goals_total": 1,
++        "goals_assists": 1,
++        "saves": null,
++        "shots_on": 1,
++        "passes_key": 5,
++        "passes_accurate": 15,
++        "passes_total": 73,
++        "tackles_total": 6,
++        "tackles_blocks": null,
++        "tackles_interceptions": 1,
++        "duels_won": 11,
++        "duels_total": 19,
++        "dribbles_success": 1,
++        "dribbles_attempts": 3,
++        "dribbles_past": 2,
++        "offsides": null,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 0,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": 0.3333333333333333,
++        "pass_accuracy_pct": 0.2054794520547945,
++        "duels_won_pct": 0.5789473684210527,
++        "player_name": "Felipe Anderson",
++        "player_photo_url": "https://media.api-sports.io/football/players/2412.png"
++      }
++    ]
++  },
++  "away": {
++    "team_id": 1062,
++    "name": "Atletico-MG",
++    "crest": "https://media.api-sports.io/football/teams/1062.png",
++    "country": "Brazil",
++    "w1": {
++      "league_code": "BSA",
++      "entity_type": "club",
++      "season_api_year": 2026,
++      "window_type": "last_5",
++      "games_in_window": 5,
++      "games_with_team_stats": 5,
++      "contributing_competitions": [
++        "BSA"
++      ],
++      "games_with_player_stats": 5,
++      "points_won": 10,
++      "clean_sheets": 1,
++      "goals_per_match": 1.6,
++      "goals_against_per_match": 0.8,
++      "shots_per_match": 11.8,
++      "shot_accuracy": 0.3898305084745763,
++      "danger_zone_ratio": 0.711864406779661,
++      "shots_on_goal_per_match": 4.6,
++      "finishing_efficiency": 0.2608695652173913,
++      "passes_per_match": 326.2,
++      "pass_accuracy": 0.8038013488657265,
++      "corner_kicks_per_match": 3.2,
++      "corners_against_per_match": 4.2,
++      "save_ratio": 0.8095238095238095,
++      "key_passes_per_match": 9.0,
++      "tackles_per_match": 12.4,
++      "interceptions_per_match": 7.6,
++      "blocks_per_match": 3.8,
++      "defensive_actions_per_match": 23.8,
++      "duels_per_match": 87.6,
++      "duels_won_pct": 0.4680365296803653
++    },
++    "w2": {
++      "league_code": "BSA",
++      "entity_type": "club",
++      "season_api_year": 2026,
++      "window_type": "season_to_date",
++      "games_played": 18,
++      "games_with_team_stats": 18,
++      "points_won": 24,
++      "wins": 7,
++      "draws": 3,
++      "losses": 8,
++      "clean_sheets": 4,
++      "goals_per_match": 1.2222222222222223,
++      "goals_against_per_match": 1.2777777777777777,
++      "shots_per_match": 13.555555555555555,
++      "shot_accuracy": 0.3319672131147541,
++      "danger_zone_ratio": 0.6188524590163934,
++      "shots_on_goal_per_match": 4.5,
++      "finishing_efficiency": 0.24691358024691357,
++      "passes_per_match": 396.8888888888889,
++      "pass_accuracy": 0.8359462486002239,
++      "corner_kicks_per_match": 4.888888888888889,
++      "corners_against_per_match": 5.0,
++      "save_ratio": 0.7125,
++      "key_passes_per_match": 9.88888888888889,
++      "tackles_per_match": 12.5,
++      "interceptions_per_match": 8.444444444444445,
++      "blocks_per_match": 4.0,
++      "defensive_actions_per_match": 24.944444444444443,
++      "duels_per_match": 90.16666666666667,
++      "duels_won_pct": 0.49168207024029575
++    },
++    "standing": {
++      "group_name": "Serie A",
++      "is_knockout": false,
++      "league_rank": 9,
++      "standing_points": 24,
++      "standing_played": 18,
++      "standing_goals_diff": -1,
++      "standing_form": null
++    },
++    "form_window": [
++      {
++        "league_code": "BSA",
++        "recency_rank": 1,
++        "played_fixture_sk": 1492289,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-31 19:00:00+00:00",
++        "played_round_name": "Regular Season - 18",
++        "home_away": "away",
++        "goals_for": 1,
++        "goals_against": 0,
++        "result": "W",
++        "opponent_team_sk": 133,
++        "opponent_name": "Vasco DA Gama",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/133.png",
++        "is_home": false,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 2,
++        "played_fixture_sk": 1492270,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-24 21:30:00+00:00",
++        "played_round_name": "Regular Season - 17",
++        "home_away": "away",
++        "goals_for": 0,
++        "goals_against": 1,
++        "result": "L",
++        "opponent_team_sk": 131,
++        "opponent_name": "Corinthians",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/131.png",
++        "is_home": false,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 3,
++        "played_fixture_sk": 1492261,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-16 21:30:00+00:00",
++        "played_round_name": "Regular Season - 16",
++        "home_away": "home",
++        "goals_for": 3,
++        "goals_against": 1,
++        "result": "W",
++        "opponent_team_sk": 7848,
++        "opponent_name": "Mirassol",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/7848.png",
++        "is_home": false,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 4,
++        "played_fixture_sk": 1492250,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-10 19:00:00+00:00",
++        "played_round_name": "Regular Season - 15",
++        "home_away": "home",
++        "goals_for": 1,
++        "goals_against": 1,
++        "result": "D",
++        "opponent_team_sk": 120,
++        "opponent_name": "Botafogo",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/120.png",
++        "is_home": false,
++        "has_team_stats": true,
++        "has_player_stats": true
++      },
++      {
++        "league_code": "BSA",
++        "recency_rank": 5,
++        "played_fixture_sk": 1492243,
++        "played_league_code": "BSA",
++        "played_kickoff_datetime": "2026-05-03 00:00:00+00:00",
++        "played_round_name": "Regular Season - 14",
++        "home_away": "away",
++        "goals_for": 3,
++        "goals_against": 1,
++        "result": "W",
++        "opponent_team_sk": 135,
++        "opponent_name": "Cruzeiro",
++        "opponent_logo_url": "https://media.api-sports.io/football/teams/135.png",
++        "is_home": false,
++        "has_team_stats": true,
++        "has_player_stats": true
++      }
++    ],
++    "top_players": [
++      {
++        "player_sk": 5923,
++        "games_in_window": 4,
++        "position_code": "F",
++        "goals_total": 2,
++        "goals_assists": 1,
++        "saves": null,
++        "shots_on": 4,
++        "passes_key": 4,
++        "passes_accurate": 8,
++        "passes_total": 62,
++        "tackles_total": 2,
++        "tackles_blocks": null,
++        "tackles_interceptions": null,
++        "duels_won": 14,
++        "duels_total": 40,
++        "dribbles_success": null,
++        "dribbles_attempts": 2,
++        "dribbles_past": 1,
++        "offsides": 4,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 1,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": null,
++        "pass_accuracy_pct": 0.12903225806451613,
++        "duels_won_pct": 0.35,
++        "player_name": "M. Cassierra",
++        "player_photo_url": "https://media.api-sports.io/football/players/5923.png"
++      },
++      {
++        "player_sk": 687,
++        "games_in_window": 4,
++        "position_code": "M",
++        "goals_total": 2,
++        "goals_assists": 0,
++        "saves": null,
++        "shots_on": 3,
++        "passes_key": 6,
++        "passes_accurate": 30,
++        "passes_total": 112,
++        "tackles_total": 2,
++        "tackles_blocks": 2,
++        "tackles_interceptions": 5,
++        "duels_won": 4,
++        "duels_total": 11,
++        "dribbles_success": null,
++        "dribbles_attempts": 1,
++        "dribbles_past": 2,
++        "offsides": null,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 0,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": null,
++        "pass_accuracy_pct": 0.26785714285714285,
++        "duels_won_pct": 0.36363636363636365,
++        "player_name": "Maycon",
++        "player_photo_url": "https://media.api-sports.io/football/players/687.png"
++      },
++      {
++        "player_sk": 280695,
++        "games_in_window": 4,
++        "position_code": "F",
++        "goals_total": 2,
++        "goals_assists": 0,
++        "saves": null,
++        "shots_on": 4,
++        "passes_key": 4,
++        "passes_accurate": 7,
++        "passes_total": 56,
++        "tackles_total": 1,
++        "tackles_blocks": null,
++        "tackles_interceptions": null,
++        "duels_won": 8,
++        "duels_total": 26,
++        "dribbles_success": 4,
++        "dribbles_attempts": 15,
++        "dribbles_past": 1,
++        "offsides": 1,
++        "penalty_won": 1,
++        "penalty_committed": null,
++        "cards_yellow": 0,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": 0.26666666666666666,
++        "pass_accuracy_pct": 0.125,
++        "duels_won_pct": 0.3076923076923077,
++        "player_name": "A. Minda",
++        "player_photo_url": "https://media.api-sports.io/football/players/280695.png"
++      },
++      {
++        "player_sk": 30398,
++        "games_in_window": 4,
++        "position_code": "D",
++        "goals_total": 1,
++        "goals_assists": 0,
++        "saves": null,
++        "shots_on": 1,
++        "passes_key": null,
++        "passes_accurate": 8,
++        "passes_total": 34,
++        "tackles_total": 1,
++        "tackles_blocks": 1,
++        "tackles_interceptions": 1,
++        "duels_won": 7,
++        "duels_total": 13,
++        "dribbles_success": null,
++        "dribbles_attempts": 1,
++        "dribbles_past": 1,
++        "offsides": null,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 0,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": null,
++        "pass_accuracy_pct": 0.23529411764705882,
++        "duels_won_pct": 0.5384615384615384,
++        "player_name": "Vitor Hugo",
++        "player_photo_url": "https://media.api-sports.io/football/players/30398.png"
++      },
++      {
++        "player_sk": 615196,
++        "games_in_window": 4,
++        "position_code": "M",
++        "goals_total": 1,
++        "goals_assists": 0,
++        "saves": null,
++        "shots_on": 2,
++        "passes_key": null,
++        "passes_accurate": 3,
++        "passes_total": 35,
++        "tackles_total": 1,
++        "tackles_blocks": null,
++        "tackles_interceptions": null,
++        "duels_won": 6,
++        "duels_total": 18,
++        "dribbles_success": 1,
++        "dribbles_attempts": 1,
++        "dribbles_past": 4,
++        "offsides": 1,
++        "penalty_won": null,
++        "penalty_committed": null,
++        "cards_yellow": 0,
++        "cards_red": 0,
++        "save_pct": null,
++        "dribbles_success_pct": 1.0,
++        "pass_accuracy_pct": 0.08571428571428572,
++        "duels_won_pct": 0.3333333333333333,
++        "player_name": "Mamady Cisse",
++        "player_photo_url": "https://media.api-sports.io/football/players/615196.png"
++      }
++    ]
++  },
++  "head_to_head": {
++    "total_meetings": 15,
++    "wins": 6,
++    "draws": 8,
++    "losses": 1,
++    "goals_for": 20,
++    "goals_against": 11,
++    "meetings_last5": 5,
++    "wins_last5": 4,
++    "draws_last5": 1,
++    "losses_last5": 0,
++    "last_meeting_at": "2026-01-28 22:00:00+00:00",
++    "last_meeting_league_code": "BSA",
++    "last_meeting_goals_for": 2,
++    "last_meeting_goals_against": 2,
++    "last_meeting_result": "D",
++    "recent_meetings": [
++      {
++        "kickoff_datetime": "2026-01-28 22:00:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 2,
++        "goals_against": 2,
++        "result": "D"
++      },
++      {
++        "kickoff_datetime": "2025-12-04 00:30:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 3,
++        "goals_against": 0,
++        "result": "W"
++      },
++      {
++        "kickoff_datetime": "2025-07-20 20:30:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 3,
++        "goals_against": 2,
++        "result": "W"
++      },
++      {
++        "kickoff_datetime": "2024-09-28 21:30:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 2,
++        "goals_against": 1,
++        "result": "W"
++      },
++      {
++        "kickoff_datetime": "2024-06-17 23:30:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 4,
++        "goals_against": 0,
++        "result": "W"
++      },
++      {
++        "kickoff_datetime": "2023-10-19 22:00:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 0,
++        "goals_against": 2,
++        "result": "L"
++      },
++      {
++        "kickoff_datetime": "2023-08-10 00:30:00+00:00",
++        "league_code": "LIBER",
++        "goals_for": 0,
++        "goals_against": 0,
++        "result": "D"
++      },
++      {
++        "kickoff_datetime": "2023-08-03 00:30:00+00:00",
++        "league_code": "LIBER",
++        "goals_for": 1,
++        "goals_against": 0,
++        "result": "W"
++      },
++      {
++        "kickoff_datetime": "2023-05-28 21:30:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 1,
++        "goals_against": 1,
++        "result": "D"
++      },
++      {
++        "kickoff_datetime": "2022-09-29 00:45:00+00:00",
++        "league_code": "BSA",
++        "goals_for": 1,
++        "goals_against": 0,
++        "result": "W"
++      }
++    ]
++  }
++}
+\ No newline at end of file
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+new file mode 100644
+index 0000000..9c5f897
+--- /dev/null
++++ b/site_v2/src/i18n/strings.ts
+@@ -0,0 +1,148 @@
++// Fixture-page chrome strings (DE / EN / FI). The ~two dozen UI labels the fixture
++// template needs. Metric ROW labels are the CPO-locked display strings in
++// lib/metricRows.ts (identical across locales for now); wiring per-locale metric
++// labels from the catalogue i18n keys is a follow-up (#370). Fresh to site_v2 — the
++// MVP's site/i18n/ is a separate surface. Translations are standard football-UI terms;
++// native DE/FI review welcome (noted in the handover).
++
++import type { Lang } from "../lib/format";
++
++type Dict = Record<string, string>;
++
++const EN: Dict = {
++  crumbHome: "Home",
++  crumbMatches: "Matches",
++  eyebrowPreview: "Match preview",
++  secForm: "Form comparison",
++  secRecent: "Recent matches",
++  secPlayers: "Players to watch",
++  secH2H: "Head to head",
++  secAbout: "About this match",
++  secExplore: "Explore",
++  segLast5: "Last 5",
++  segSeason: "This season",
++  scopeAllComps: "all competitions",
++  vs: "vs",
++  pts: "pts",
++  goals: "goals",
++  assists: "assists",
++  saves: "saves",
++  incl: "incl.",
++  throughMatchday: "through matchday {n}",
++  lastSeason: "last season ({year})",
++  playersWindow: "Last 5 matches",
++  statsCoverage: "stats from {a} of {b} matches",
++  meetings: "meetings",
++  draws: "draws",
++  goalsWord: "goals",
++  lastMeeting: "Last",
++  firstMeeting: "First-ever meeting",
++  noRecentForm: "No recent matches",
++  noMatchStats: "match stats not available",
++  timeTBD: "time TBD",
++  table: "Table",
++  topScorers: "Top scorers",
++  fullH2H: "Full head-to-head",
++  footnote: "Sample data · v2 preview (Matchday IQ)",
++  aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times — {record}.",
++  aboutNoH2h: "{home} vs {away} · {round}.",
++  posF: "Forward", posM: "Midfield", posD: "Defence", posG: "Goalkeeper",
++};
++
++const DE: Dict = {
++  crumbHome: "Startseite",
++  crumbMatches: "Spiele",
++  eyebrowPreview: "Spielvorschau",
++  secForm: "Formvergleich",
++  secRecent: "Letzte Spiele",
++  secPlayers: "Spieler im Fokus",
++  secH2H: "Direkter Vergleich",
++  secAbout: "Über dieses Spiel",
++  secExplore: "Entdecken",
++  segLast5: "Letzte 5",
++  segSeason: "Diese Saison",
++  scopeAllComps: "alle Wettbewerbe",
++  vs: "gegen",
++  pts: "Pkt.",
++  goals: "Tore",
++  assists: "Vorlagen",
++  saves: "Paraden",
++  incl: "inkl.",
++  throughMatchday: "bis Spieltag {n}",
++  lastSeason: "letzte Saison ({year})",
++  playersWindow: "Letzte 5 Spiele",
++  statsCoverage: "Statistik aus {a} von {b} Spielen",
++  meetings: "Begegnungen",
++  draws: "Remis",
++  goalsWord: "Tore",
++  lastMeeting: "Zuletzt",
++  firstMeeting: "Erstes Aufeinandertreffen",
++  noRecentForm: "Keine aktuellen Spiele",
++  noMatchStats: "Keine Spielstatistik",
++  timeTBD: "Uhrzeit offen",
++  table: "Tabelle",
++  topScorers: "Torjäger",
++  fullH2H: "Kompletter Vergleich",
++  footnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
++  aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander — {record}.",
++  aboutNoH2h: "{home} gegen {away} · {round}.",
++  posF: "Angriff", posM: "Mittelfeld", posD: "Abwehr", posG: "Tor",
++};
++
++const FI: Dict = {
++  crumbHome: "Etusivu",
++  crumbMatches: "Ottelut",
++  eyebrowPreview: "Otteluennakko",
++  secForm: "Muotovertailu",
++  secRecent: "Viimeisimmät ottelut",
++  secPlayers: "Seurattavat pelaajat",
++  secH2H: "Keskinäiset ottelut",
++  secAbout: "Tietoa ottelusta",
++  secExplore: "Tutustu",
++  segLast5: "Viimeiset 5",
++  segSeason: "Tällä kaudella",
++  scopeAllComps: "kaikki kilpailut",
++  vs: "vs",
++  pts: "pistettä",
++  goals: "maalia",
++  assists: "syöttöä",
++  saves: "torjuntaa",
++  incl: "ml.",
++  throughMatchday: "kierrokseen {n} asti",
++  lastSeason: "viime kausi ({year})",
++  playersWindow: "5 viimeistä ottelua",
++  statsCoverage: "tilastot {a}/{b} ottelusta",
++  meetings: "kohtaamista",
++  draws: "tasapeliä",
++  goalsWord: "maalia",
++  lastMeeting: "Viimeksi",
++  firstMeeting: "Ensimmäinen kohtaaminen",
++  noRecentForm: "Ei viimeaikaisia otteluita",
++  noMatchStats: "Ei ottelutilastoja",
++  timeTBD: "Aika auki",
++  table: "Sarjataulukko",
++  topScorers: "Maalintekijät",
++  fullH2H: "Kaikki kohtaamiset",
++  footnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
++  aboutWithH2h: "{home} vs {away} · {round}. Joukkueet ovat kohdanneet {meetings} kertaa — {record}.",
++  aboutNoH2h: "{home} vs {away} · {round}.",
++  posF: "Hyökkäys", posM: "Keskikenttä", posD: "Puolustus", posG: "Maalivahti",
++};
++
++const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
++
++/** Look up a chrome string; {placeholders} filled from `params`. Falls back to EN then the key. */
++export function t(lang: Lang, key: string, params?: Record<string, string | number>): string {
++  let s = STRINGS[lang]?.[key] ?? EN[key] ?? key;
++  if (params) {
++    for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, String(v));
++  }
++  return s;
++}
++
++/** Spelled position from the payload `position_code` (F/M/D/G). Raw code shown for anything else. */
++export function positionLabel(lang: Lang, code: string | null | undefined): string {
++  const key = code ? `pos${code.toUpperCase()}` : "";
++  const label = STRINGS[lang]?.[key] ?? EN[key];
++  return label ?? (code ?? "");
++}
+diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
+new file mode 100644
+index 0000000..c6becd8
+--- /dev/null
++++ b/site_v2/src/layouts/Layout.astro
+@@ -0,0 +1,30 @@
++---
++// The shared v2 shell. Imports the design system GLOBALLY (bare CSS import → not
++// Astro-scoped) so every page renders the identical tokens + components — the
++// "consistency by construction" lever. Hosts the `.fx` token context on <body>;
++// dark is the default theme (the token block); light is `data-theme="light"`.
++import "../styles/system.css";
++import type { Lang } from "../lib/format";
++
++interface Props {
++  lang: Lang;
++  title: string;
++  description?: string;
++}
++const { lang, title, description } = Astro.props;
++---
++
++<!doctype html>
++<html lang={lang}>
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1" />
++    <!-- v2 is a build-phase preview; keep it out of the index until the parity cutover (#377). -->
++    <meta name="robots" content="noindex" />
++    <title>{title}</title>
++    {description && <meta name="description" content={description} />}
++  </head>
++  <body class="fx" data-theme="dark">
++    <slot />
++  </body>
++</html>
+diff --git a/site_v2/src/lib/bars.ts b/site_v2/src/lib/bars.ts
+new file mode 100644
+index 0000000..5def2d5
+--- /dev/null
++++ b/site_v2/src/lib/bars.ts
+@@ -0,0 +1,49 @@
++// Pure DISPLAY helpers for the comparison row. No metric facts are produced here:
++// a bar width is how long to draw a rectangle (a different frontend could draw it
++// differently); the "better" side is the locked design's green encoding of the
++// served `direction` (project_v2_frontend_design: "better value coloured green per
++// metric_catalogue.direction"). Neither is a stored fact — no DQ test asserts them.
++
++export type Direction = "higher_better" | "lower_better" | "neutral";
++export type Side = "home" | "away" | null;
++
++const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
++
++// Relative bar length: each side's value as a share of the larger of the two present
++// values → 0..100. Presentation only (never a probability).
++export function barWidth(
++  value: number | null | undefined,
++  other: number | null | undefined,
++): number {
++  if (!isNum(value)) return 0;
++  const max = Math.max(Math.abs(value), isNum(other) ? Math.abs(other) : 0);
++  if (max <= 0) return 0;
++  return Math.round((Math.abs(value) / max) * 100);
++}
++
++// Which side is the better value, for the green highlight. Null (no green) when a
++// value is missing, the metric is directionless (neutral), or the two are equal.
++export function betterSide(
++  home: number | null | undefined,
++  away: number | null | undefined,
++  direction: Direction,
++): Side {
++  if (!isNum(home) || !isNum(away) || direction === "neutral" || home === away) return null;
++  const homeBetter = direction === "higher_better" ? home > away : home < away;
++  return homeBetter ? "home" : "away";
++}
++
++// Stacked-bar shares for the head-to-head record bar: each of W/D/L as a % of the
++// total meetings. Presentation widths (how wide to draw each segment), not facts.
++export function stackShares(
++  wins: number | null | undefined,
++  draws: number | null | undefined,
++  losses: number | null | undefined,
++): { w: number; d: number; l: number } {
++  const w = isNum(wins) ? wins : 0;
++  const d = isNum(draws) ? draws : 0;
++  const l = isNum(losses) ? losses : 0;
++  const total = w + d + l;
++  if (total <= 0) return { w: 0, d: 0, l: 0 };
++  return { w: (w / total) * 100, d: (d / total) * 100, l: (l / total) * 100 };
++}
+diff --git a/site_v2/src/lib/format.ts b/site_v2/src/lib/format.ts
+new file mode 100644
+index 0000000..93ef8fb
+--- /dev/null
++++ b/site_v2/src/lib/format.ts
+@@ -0,0 +1,105 @@
++// Display formatting for the v2 site. FORMAT-ONLY — this file may format served
++// values (locale number/date, percent = ratio×100, fraction denominators defined
++// by the metric's `format`); it computes no metric facts. Nulls render as the
++// en-dash "–" (never a fabricated 0), per site_architecture.md data-honesty.
++
++export type Lang = "de" | "en" | "fi";
++export const DASH = "–";
++
++const LOCALE: Record<Lang, string> = { de: "de-DE", en: "en-GB", fi: "fi-FI" };
++const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
++
++function nf(lang: Lang, min: number, max: number): Intl.NumberFormat {
++  return new Intl.NumberFormat(LOCALE[lang], {
++    minimumFractionDigits: min,
++    maximumFractionDigits: max,
++  });
++}
++
++export function decimal1(v: number | null | undefined, lang: Lang): string {
++  return isNum(v) ? nf(lang, 1, 1).format(v) : DASH;
++}
++export function decimal0(v: number | null | undefined, lang: Lang): string {
++  return isNum(v) ? nf(lang, 0, 0).format(v) : DASH;
++}
++export function integer(v: number | null | undefined, lang: Lang): string {
++  return isNum(v) ? nf(lang, 0, 0).format(v) : DASH;
++}
++// Signed integer ("+17" / "−1" / "0"), for goal difference. Formatting only.
++export function signedInteger(v: number | null | undefined, lang: Lang): string {
++  return isNum(v)
++    ? new Intl.NumberFormat(LOCALE[lang], { signDisplay: "exceptZero", maximumFractionDigits: 0 }).format(v)
++    : DASH;
++}
++// `percent` metrics are served as a 0..1 ratio; the format multiplies by 100 for
++// display (no naked %, the adjacent count row carries the volume — metrics_display.md).
++export function percent(ratio: number | null | undefined, lang: Lang): string {
++  return isNum(ratio) ? `${nf(lang, 0, 0).format(ratio * 100)}%` : DASH;
++}
++// `count_fraction` (e.g. clean sheets 3/5): numerator and denominator are both
++// served (count + games); this only renders them as a fraction.
++export function countFraction(
++  num: number | null | undefined,
++  den: number | null | undefined,
++  lang: Lang,
++): string {
++  if (!isNum(num) || !isNum(den)) return DASH;
++  return `${nf(lang, 0, 0).format(num)}/${nf(lang, 0, 0).format(den)}`;
++}
++// `points_fraction` (e.g. 13/15): the format's denominator is the maximum points
++// obtainable = games × 3 (3 per game), per the display contract (metrics_display.md
++// §window header / 01_fixture_page.md §5.3a). Presentation scaffold of the format,
++// not a metric fact.
++export function pointsFraction(
++  points: number | null | undefined,
++  games: number | null | undefined,
++  lang: Lang,
++): string {
++  if (!isNum(points) || !isNum(games)) return DASH;
++  return `${nf(lang, 0, 0).format(points)}/${nf(lang, 0, 0).format(games * 3)}`;
++}
++
++// Metric formats that take a single value (see metric_catalogue.csv `format`).
++export type SingleFormat = "decimal_1" | "decimal_0" | "percent" | "integer";
++export function formatValue(
++  v: number | null | undefined,
++  format: SingleFormat,
++  lang: Lang,
++): string {
++  switch (format) {
++    case "decimal_1": return decimal1(v, lang);
++    case "decimal_0": return decimal0(v, lang);
++    case "percent": return percent(v, lang);
++    case "integer": return integer(v, lang);
++  }
++}
++
++// ---- dates ---- kickoff is served as a UTC ISO string ("2026-07-26 22:30:00+00:00").
++// Rendered in UTC so the static build is deterministic across machines and matches the
++// stored kickoff; local-timezone display is a later enhancement (01_fixture_page.md §5.2).
++function toDate(iso: string | null | undefined): Date | null {
++  if (!iso) return null;
++  const d = new Date(iso.replace(" ", "T"));
++  return Number.isNaN(d.getTime()) ? null : d;
++}
++export function formatDate(iso: string | null | undefined, lang: Lang): string {
++  const d = toDate(iso);
++  if (!d) return DASH;
++  return new Intl.DateTimeFormat(LOCALE[lang], {
++    weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
++  }).format(d);
++}
++export function formatShortDate(iso: string | null | undefined, lang: Lang): string {
++  const d = toDate(iso);
++  if (!d) return DASH;
++  return new Intl.DateTimeFormat(LOCALE[lang], {
++    day: "numeric", month: "short", timeZone: "UTC",
++  }).format(d);
++}
++export function formatTime(iso: string | null | undefined, lang: Lang): string {
++  const d = toDate(iso);
++  if (!d) return DASH;
++  return new Intl.DateTimeFormat(LOCALE[lang], {
++    hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC",
++  }).format(d);
++}
+diff --git a/site_v2/src/lib/href.ts b/site_v2/src/lib/href.ts
+new file mode 100644
+index 0000000..7c3ae8a
+--- /dev/null
++++ b/site_v2/src/lib/href.ts
+@@ -0,0 +1,18 @@
++// Base-aware internal links. Astro serves the site under `import.meta.env.BASE_URL`
++// (this preview: "/v2/"); every internal href must carry that prefix so links keep
++// working when the base changes at cutover (#377). Routing only — no identity/slug
++// generation (slugs come from the payload / the registry-derived competitions map).
++
++const BASE = import.meta.env.BASE_URL; // e.g. "/v2/", always ends with "/"
++
++/** Join the deploy base with an app-absolute path ("/en/…" -> "/v2/en/…"). */
++export function href(path: string): string {
++  const clean = path.startsWith("/") ? path.slice(1) : path;
++  return `${BASE}${clean}`;
++}
++
++/** A locale-prefixed app path, e.g. localeHref("en", "brasileirao/") -> "/v2/en/brasileirao/". */
++export function localeHref(lang: string, path = ""): string {
++  const clean = path.startsWith("/") ? path.slice(1) : path;
++  return href(`${lang}/${clean}`);
++}
+diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
+new file mode 100644
+index 0000000..eb28946
+--- /dev/null
++++ b/site_v2/src/lib/metricRows.ts
+@@ -0,0 +1,54 @@
++// The LOCKED 16-row team comparison contract for the fixture page.
++//
++// This is DISPLAY CONFIG, not computation: order + groups + tiers come from
++// docs/wireframes/metrics_display.md (CPO-locked 2026-06-11); `format` + `direction`
++// mirror dbt_project/seeds/metric_catalogue.csv (the metric SSoT) — the frontend
++// renders these definitions, it does not invent them. Until the catalogue exposes
++// group/tier/order columns (GAP-09) this file is their frontend home, per that doc.
++//
++// `field` is the payload key on w1/w2 (the bare metric name) — NOT the display id.
++// Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
++
++import type { Direction } from "./bars";
++
++export type RowFormat = "decimal_1" | "decimal_0" | "percent" | "count_fraction";
++export type MetricGroup =
++  | "Goals" | "Shooting" | "Duels" | "Defending" | "Passing" | "Set pieces" | "Goalkeeping";
++
++export interface MetricRowDef {
++  field: string;              // payload key on w1 / w2
++  label: string;              // locked display label (metrics_display.md); EN for now
++  labelKey: string;           // catalogue i18n key — per-locale wiring is #370
++  group: MetricGroup;
++  tier: 1 | 2 | 3;            // visibility under constraint (never reorders — display doc)
++  format: RowFormat;
++  direction: Direction;       // drives the green "better" side (never `lower_is_better`)
++  sublabel?: string;          // small caption under the label (e.g. the T·I·B aggregate)
++  // count_fraction denominator field per window (both served: count + games).
++  denom?: { w1: string; w2: string };
++}
++
++// Fixed group order (metrics_display.md block order). The comparison renders groups
++// in this order with a subhead, and rows in array order within each group.
++export const GROUP_ORDER: MetricGroup[] = [
++  "Goals", "Shooting", "Duels", "Defending", "Passing", "Set pieces", "Goalkeeping",
++];
++
++export const METRIC_ROWS: MetricRowDef[] = [
++  { field: "goals_per_match", label: "Ø Goals", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
++  { field: "goals_against_per_match", label: "Ø Goals against", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
++  { field: "clean_sheets", label: "Clean sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" } },
++  { field: "shots_per_match", label: "Ø Shots", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
++  { field: "danger_zone_ratio", label: "% Shots from box", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "shots_on_goal_per_match", label: "Ø Shots on target", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
++  { field: "finishing_efficiency", label: "% Goals per shot on target", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
++  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "neutral" },
++  { field: "duels_won_pct", label: "% Duels won", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "neutral", sublabel: "tackles + interceptions + blocks" },
++  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "neutral" },
++  { field: "pass_accuracy", label: "% Pass accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "key_passes_per_match", label: "Ø Key passes", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
++  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "neutral" },
++  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "neutral" },
++  { field: "save_ratio", label: "% Save percentage", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
++];
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+new file mode 100644
+index 0000000..2c21c5e
+--- /dev/null
++++ b/site_v2/src/lib/types.ts
+@@ -0,0 +1,113 @@
++// Types for the fixture payload (scripts/export_site_data.py :: shape_fixture_payload).
++// Mirrors the served shape; the frontend reads these, never reshapes facts.
++
++export interface WindowStats {
++  window_type?: string | null;
++  games_in_window?: number | null;   // W1
++  games_played?: number | null;      // W2
++  games_with_team_stats?: number | null;
++  contributing_competitions?: string[] | null;
++  points_won?: number | null;
++  wins?: number | null;              // W2
++  draws?: number | null;             // W2
++  losses?: number | null;            // W2
++  season_api_year?: number | null;
++  // metric fields (goals_per_match, pass_accuracy, clean_sheets, games, …)
++  [key: string]: number | string | string[] | null | undefined;
++}
++
++export interface Standing {
++  group_name?: string | null;
++  is_knockout?: boolean | null;
++  league_rank?: number | null;
++  standing_points?: number | null;
++  standing_played?: number | null;
++  standing_goals_diff?: number | null;
++  standing_form?: string | null;
++}
++
++export interface FormMatch {
++  recency_rank: number;
++  played_fixture_sk?: number | null;
++  played_league_code?: string | null;
++  played_kickoff_datetime?: string | null;
++  played_round_name?: string | null;
++  home_away?: string | null;
++  goals_for?: number | null;
++  goals_against?: number | null;
++  result?: string | null;
++  opponent_name?: string | null;
++  opponent_logo_url?: string | null;
++  has_team_stats?: boolean | null;
++  has_player_stats?: boolean | null;
++}
++
++export interface TopPlayer {
++  player_sk: number;
++  position_code?: string | null;
++  goals_total?: number | null;
++  goals_assists?: number | null;
++  saves?: number | null;
++  save_pct?: number | null;
++  shots_on?: number | null;
++  passes_key?: number | null;
++  player_name?: string | null;
++  player_photo_url?: string | null;
++}
++
++export interface Side {
++  team_id: number;
++  name?: string | null;
++  crest?: string | null;
++  country?: string | null;
++  w1?: WindowStats | null;
++  w2?: WindowStats | null;
++  standing?: Standing | null;
++  form_window?: FormMatch[];
++  top_players?: TopPlayer[];
++}
++
++export interface RecentMeeting {
++  kickoff_datetime?: string | null;
++  league_code?: string | null;
++  goals_for?: number | null;
++  goals_against?: number | null;
++  result?: string | null;
++}
++
++export interface HeadToHead {
++  total_meetings?: number | null;
++  wins?: number | null;
++  draws?: number | null;
++  losses?: number | null;
++  goals_for?: number | null;
++  goals_against?: number | null;
++  meetings_last5?: number | null;
++  last_meeting_at?: string | null;
++  last_meeting_league_code?: string | null;
++  last_meeting_goals_for?: number | null;
++  last_meeting_goals_against?: number | null;
++  last_meeting_result?: string | null;
++  recent_meetings?: RecentMeeting[];
++}
++
++export interface Fixture {
++  type: string;
++  fixture_id: number;
++  slug: string;
++  kickoff?: string | null;
++  status?: string | null;
++  league_code: string;
++  league_name?: string | null;
++  season?: number | null;
++  round?: string | null;
++  venue?: string | null;
++  home: Side;
++  away: Side;
++  head_to_head?: HeadToHead | null;
++}
++
++/** Narrow a payload value to a finite number (metric fields arrive as number | null). */
++export function asNumber(v: unknown): number | null {
++  return typeof v === "number" && Number.isFinite(v) ? v : null;
++}
+diff --git a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
+new file mode 100644
+index 0000000..950465e
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
+@@ -0,0 +1,97 @@
++---
++// Fixture page (screen 01) — the v2 design system's first real screen.
++// URL: /{lang}/{competition-slug}/matches/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
++// This increment renders ONE committed real fixture across the three locales; at scale
++// getStaticPaths iterates every exported fixture (data/fixtures/*.json). The page only
++// COMPOSES the shared components in order — it holds no styling and derives no facts.
++import Layout from "../../../../layouts/Layout.astro";
++import Breadcrumb from "../../../../components/fixture/Breadcrumb.astro";
++import Masthead from "../../../../components/fixture/Masthead.astro";
++import NarrativeSlot from "../../../../components/fixture/NarrativeSlot.astro";
++import FormSegment from "../../../../components/fixture/FormSegment.astro";
++import SplitSection from "../../../../components/fixture/SplitSection.astro";
++import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
++import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
++import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
++import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
++import { t } from "../../../../i18n/strings";
++import { localeHref } from "../../../../lib/href";
++import type { Lang } from "../../../../lib/format";
++import type { Fixture } from "../../../../lib/types";
++import fixtureData from "../../../../data/fixtures/1492306.json";
++import competitions from "../../../../data/competitions.json";
++
++export function getStaticPaths() {
++  const locales: Lang[] = ["de", "en", "fi"];
++  const fixture = fixtureData as unknown as Fixture;
++  const comp = (competitions as Record<string, { slug: string }>)[fixture.league_code];
++  if (!comp) {
++    throw new Error(
++      `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
++    );
++  }
++  return locales.map((lang) => ({
++    params: { lang, competition: comp.slug, fixture: fixture.slug },
++    props: { fixture, lang },
++  }));
++}
++
++interface Props {
++  fixture: Fixture;
++  lang: Lang;
++}
++const { fixture, lang } = Astro.props;
++const { home, away } = fixture;
++
++const title = `${home.name} vs ${away.name} — ${fixture.league_name}`;
++const description = t(lang, "aboutNoH2h", {
++  home: home.name ?? "",
++  away: away.name ?? "",
++  round: fixture.round ?? "",
++});
++
++// Home is a real target (the locale landing); competition hub + Matches are not built
++// yet → hrefless (plain text), no dead links.
++const crumbs = [
++  { label: t(lang, "crumbHome"), href: localeHref(lang) },
++  { label: fixture.league_name ?? fixture.league_code },
++  { label: t(lang, "crumbMatches") },
++];
++---
++
++<Layout lang={lang} title={title} description={description}>
++  <div class="inner">
++    <Breadcrumb items={crumbs} />
++    <Masthead fixture={fixture} lang={lang} />
++    <NarrativeSlot fixture={fixture} lang={lang} />
++    <FormSegment fixture={fixture} lang={lang} />
++
++    <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
++      <Fragment slot="home">
++        {(home.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
++      </Fragment>
++      <Fragment slot="away">
++        {(away.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
++      </Fragment>
++    </SplitSection>
++
++    <SplitSection
++      label={t(lang, "secPlayers")}
++      note={t(lang, "playersWindow")}
++      homeLabel={home.name}
++      awayLabel={away.name}
++    >
++      <Fragment slot="home">
++        {(home.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
++      </Fragment>
++      <Fragment slot="away">
++        {(away.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
++      </Fragment>
++    </SplitSection>
++
++    <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
++    <LinksFooter fixture={fixture} lang={lang} />
++
++    <div class="footnote">{t(lang, "footnote")}</div>
++  </div>
++</Layout>
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+new file mode 100644
+index 0000000..4ae698d
+--- /dev/null
++++ b/site_v2/src/styles/system.css
+@@ -0,0 +1,197 @@
++/* ================================================================ *
++ *  MATCHDAY IQ — v2 DESIGN SYSTEM  (global; every screen imports it) *
++ *                                                                    *
++ *  Tokens + component classes transcribed VERBATIM from the LOCKED   *
++ *  reference mockup (artifact d70aae67; design memory                *
++ *  project_v2_frontend_design). Imported globally by Layout.astro so *
++ *  every page shares one system → consistency by construction. Do    *
++ *  NOT hand-style screens; emit these class names and style here.     *
++ *                                                                    *
++ *  COLOUR = MEANING ONLY (never hierarchy):                          *
++ *    --accent green = better value / Win · --loss red = Loss         *
++ *    --draw gray = Draw · neutrals = everything else. Green is       *
++ *    RESERVED — links/names/labels never get green.                  *
++ *  HIERARCHY = TONE + WEIGHT + SIZE (never hue). Three rungs:        *
++ *    1 --ink bold    → numbers that matter (values/scores/stats)     *
++ *    2 --ink regular → entity names (players, teams)                 *
++ *    3 --muted       → labels/metadata (metric names, positions,     *
++ *                      dates, section + group headers)               *
++ *  TYPE 11/13/15/18/20 + team-clamp · SPACING 8px base / 36px sec    *
++ *  Dark is default; light = the token swap below.                    *
++ * ================================================================ */
++
++*,
++*::before,
++*::after { box-sizing: border-box; }
++
++/* ---- token host (dark default) ---- */
++.fx {
++  --page: #0d0f13; --surface: #161920; --sunk: #1c1f27; --line: #272b33; --div: #333844;
++  --ink: #f1f3f7; --ink-2: #c1c6ce; --muted: #8b9099;                 /* cool-neutral gray ramp */
++  --accent: #3bb072;                 /* one green: better value · links */
++  --win: #1a854a; --draw: #6b7079; --loss: #b53b3b; --pill-ink: #fff; /* reserved status */
++  --track: #22262e;                                                   /* faint bar track */
++  --sp: 8px;
++  margin: 0;
++  background: var(--page); color: var(--ink);
++  font: 400 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
++  -webkit-font-smoothing: antialiased;
++  container-type: inline-size;
++}
++.fx[data-theme="light"] {
++  --page: #f3f3f0; --surface: #fbfbf9; --sunk: #edece7; --line: #e2e1da; --div: #cfcec5;
++  --ink: #141410; --ink-2: #4c4c45; --muted: #77776e;
++  --accent: #0a6e3a;
++  --win: #157f43; --draw: #6f756d; --loss: #b23b3b; --pill-ink: #fff;
++  --track: #e7e6e0;
++}
++
++img { max-width: 100%; }
++
++/* ---- primitives ---- */
++.fx a { color: inherit; text-decoration: none; }
++.fx a.lnk { color: inherit; font-weight: 600; }
++.fx a.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
++.fx a:focus-visible,
++.fx button:focus-visible,
++.fx .seg-in:focus-visible ~ .seg { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
++.inner { max-width: 680px; margin: 0 auto; padding: 0 clamp(16px, 4cqw, 28px) 40px; }
++.num { font-variant-numeric: tabular-nums; }
++.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
++section { margin-top: 36px; }
++.sechead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
++.sechead::after { content: ""; flex: 1; height: 1px; background: var(--line); }
++.win-note { font-size: 11px; font-weight: 600; color: var(--muted); }
++
++.crumb { font-size: 13px; color: var(--muted); padding: 18px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
++.crumb .sep { opacity: .4; }
++
++/* ---- masthead ---- */
++.mast { text-align: center; padding: 14px 0 26px; border-bottom: 1px solid var(--line); }
++.mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; }
++.mast .kick b { color: var(--ink-2); font-weight: 600; }
++.teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: clamp(8px, 3cqw, 20px); margin-top: 20px; }
++.team { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; }
++.crest { width: 52px; height: 52px; border-radius: 6px; display: grid; place-items: center; background: var(--sunk); border: 1px solid var(--line); color: var(--ink); font-weight: 700; font-size: 17px; overflow: hidden; }
++.crest img { width: 100%; height: 100%; object-fit: contain; }
++.tname { font-size: clamp(20px, 4.4cqw, 27px); font-weight: 700; line-height: 1.05; text-wrap: balance; }
++.vs { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
++.stand { font-size: 13px; color: var(--muted); }
++.stand b { color: var(--ink); font-weight: 700; }
++.mast .venue { font-size: 13px; color: var(--muted); margin-top: 16px; }
++
++/* ---- lede (about, at top) ---- */
++.lede { margin-top: 22px; }
++.lede p { font-size: 16px; line-height: 1.66; margin: 0; color: var(--ink-2); }
++.lede b { color: var(--ink); font-weight: 700; }
++
++/* ---- segment (JS-free radio toggle) ---- */
++.seg-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
++.seg { display: flex; background: var(--sunk); border: 1px solid var(--line); border-radius: 9px; padding: 3px; margin-top: 4px; }
++.seg .seg-btn { flex: 1; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); padding: 9px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; text-align: center; user-select: none; }
++/* active label + which window shows — driven by the checked radio */
++.win { display: none; }
++#seg-w1:checked ~ .win-w1,
++#seg-w2:checked ~ .win-w2 { display: block; }
++#seg-w1:checked ~ .seg .seg-btn[for="seg-w1"],
++#seg-w2:checked ~ .seg .seg-btn[for="seg-w2"] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
++
++/* ---- form row (pills / counts) ---- */
++.formrow { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 18px; margin-top: 18px; }
++.formrow .side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
++.formrow .home { align-items: flex-end; }
++.formrow .away { align-items: flex-start; }
++.wmeta { font-size: 13px; color: var(--muted); }
++.wmeta b { color: var(--ink); font-weight: 700; }
++.pills { display: flex; gap: 5px; }
++.pill { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--pill-ink); font-variant-numeric: tabular-nums; }
++.pill.W { background: var(--win); }
++.pill.D { background: var(--draw); }
++.pill.L { background: var(--loss); }
++.cchips { display: flex; gap: 6px; }
++.cchip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 5px; font-size: 12.5px; font-weight: 700; color: var(--pill-ink); font-variant-numeric: tabular-nums; }
++.cchip.W { background: var(--win); }
++.cchip.D { background: var(--draw); }
++.cchip.L { background: var(--loss); }
++.cchip small { font-weight: 600; opacity: .85; font-size: 11px; }
++.formrow .scope { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: center; max-width: 12ch; }
++.caption { font-size: 12px; color: var(--muted); text-align: center; margin: 16px 0 4px; }
++
++/* ============================================================ *
++ *  COMPARISON — 3 columns: home value · centred name+bar · away  *
++ *  value. Numbers aligned in their columns; better value green.  *
++ * ============================================================ */
++.cmp { margin-top: 22px; }
++.cmp-head,
++.mrow { display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: center; gap: 12px; }
++.cmp-head { padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
++.cmp-head .h { font-size: 12px; font-weight: 700; color: var(--muted); text-align: center; letter-spacing: .02em; }
++.mgroup { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 22px 0 8px; }
++.mrow { padding: 10px 0; }
++.mmid { display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; }
++.mlabel { font-size: 13px; color: var(--muted); line-height: 1.25; text-align: center; }
++.mlabel small { display: block; font-size: 11px; opacity: .8; }
++.mval { font-size: 18px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: center; }
++.mval.better { color: var(--accent); }
++.mval .sub { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
++.mbar { display: flex; align-items: center; height: 5px; width: 100%; max-width: 250px; }
++.bside { flex: 1; height: 100%; display: flex; background: var(--track); border-radius: 3px; }
++.bside.home { justify-content: flex-end; margin-right: 1px; }
++.bside.away { justify-content: flex-start; margin-left: 1px; }
++.bside.home .fill { border-radius: 3px 0 0 3px; }
++.bside.away .fill { border-radius: 0 3px 3px 0; }
++.fill { height: 100%; background: var(--ink); transition: width .45s cubic-bezier(.4, 0, .2, 1); }
++.fill.better { background: var(--accent); }
++
++/* ---- two-column sections ---- */
++.split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
++@container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
++.colhead { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 8px; }
++.rmatch { display: grid; grid-template-columns: 24px 42px 1fr auto; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
++.rmatch:last-child { border-bottom: 0; }
++.res { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
++.res.W { background: var(--win); }
++.res.D { background: var(--draw); }
++.res.L { background: var(--loss); }
++.rscore { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
++.ropp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
++.ropp .ha { color: var(--muted); font-weight: 600; font-size: 11px; margin-left: 5px; }
++.rmeta { color: var(--muted); white-space: nowrap; font-size: 12px; text-align: right; }
++.noclick .rscore,
++.noclick .ropp { opacity: .55; }
++
++.prow { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
++.prow:last-child { border-bottom: 0; }
++.pphoto { width: 34px; height: 34px; border-radius: 50%; background: var(--sunk); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--muted); overflow: hidden; }
++.pphoto img { width: 100%; height: 100%; object-fit: cover; }
++.pname { min-width: 0; }
++.pname .nm { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.pname .ps { font-size: 11.5px; color: var(--muted); }
++.pstat { font-size: 13px; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
++.pstat b { color: var(--ink); font-weight: 700; }
++
++/* ---- h2h ---- */
++.h2h-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
++.h2h-rec { font-size: 15px; }
++.h2h-rec b { font-size: 20px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
++.h2h-rec b.cw { color: var(--win); }
++.h2h-rec b.cl { color: var(--loss); }
++.h2h-rec .nm { color: var(--muted); font-size: 13px; }
++.h2h-meta { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
++.h2h-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; background: var(--track); }
++.h2h-bar span { display: block; height: 100%; border-radius: 2px; }
++.h2h-bar .w { background: var(--win); }
++.h2h-bar .d { background: var(--draw); }
++.h2h-bar .l { background: var(--loss); }
++.h2h-last { margin-top: 12px; font-size: 13px; color: var(--muted); }
++.h2h-last b { color: var(--ink); font-weight: 700; }
++.h2h-list { margin-top: 14px; }
++
++/* ---- links / footer ---- */
++.linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
++.linkchip { font-size: 13px; font-weight: 600; color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 13px; }
++.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
++.footnote { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; opacity: .8; }
++.err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
++
++@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

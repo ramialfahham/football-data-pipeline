@@ -1,0 +1,30 @@
+---
+// The shared v2 shell. Imports the design system GLOBALLY (bare CSS import → not
+// Astro-scoped) so every page renders the identical tokens + components — the
+// "consistency by construction" lever. Hosts the `.fx` token context on <body>;
+// dark is the default theme (the token block); light is `data-theme="light"`.
+import "../styles/system.css";
+import type { Lang } from "../lib/format";
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description?: string;
+}
+const { lang, title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- v2 is a build-phase preview; keep it out of the index until the parity cutover (#377). -->
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+  </head>
+  <body class="fx" data-theme="dark">
+    <slot />
+  </body>
+</html>

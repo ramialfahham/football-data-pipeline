@@ -1,0 +1,23 @@
+---
+// The SEO/navigation internal-links footer. Chips are inert this increment (team,
+// competition-table and top-scorers pages are not built yet); they render as the
+// designed chips and become links when those targets land.
+import SectionHead from "../ui/SectionHead.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { Fixture } from "../../lib/types";
+
+interface Props {
+  fixture: Fixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const chips = [fixture.home.name, fixture.away.name, t(lang, "table"), t(lang, "topScorers")].filter(Boolean);
+---
+
+<section aria-label={t(lang, "secExplore")}>
+  <SectionHead label={t(lang, "secExplore")} />
+  <div class="linkrow">
+    {chips.map((c) => <span class="linkchip">{c}</span>)}
+  </div>
+</section>

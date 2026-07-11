@@ -1,0 +1,22 @@
+---
+// Breadcrumb: Home › {competition} › Matches. Items with an href render as links;
+// targets not yet built in v2 (competition hub) are passed hrefless → plain text
+// (no dead links this increment; wire hrefs when those pages land).
+export interface Crumb {
+  label: string;
+  href?: string;
+}
+interface Props {
+  items: Crumb[];
+}
+const { items } = Astro.props;
+---
+
+<nav class="crumb" aria-label="Breadcrumb">
+  {items.map((c, i) => (
+    <>
+      {i > 0 && <span class="sep">›</span>}
+      {c.href ? <a class="lnk" href={c.href}>{c.label}</a> : <span>{c.label}</span>}
+    </>
+  ))}
+</nav>

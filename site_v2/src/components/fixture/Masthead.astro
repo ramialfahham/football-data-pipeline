@@ -1,0 +1,45 @@
+---
+// Match header: eyebrow + kickoff line + the two teams (crest, name, standing chip)
+// + venue. Standing is omitted entirely when null (knockout / overlapping tables) —
+// by design, not an empty state (01_fixture_page.md §2a). Team names are inert this
+// increment (team pages not built).
+import Crest from "../ui/Crest.astro";
+import { formatDate, formatTime, signedInteger } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { Fixture } from "../../lib/types";
+
+interface Props {
+  fixture: Fixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const { home, away } = fixture;
+
+const dateStr = formatDate(fixture.kickoff, lang);
+const timeStr = fixture.status === "TBD" ? t(lang, "timeTBD") : formatTime(fixture.kickoff, lang);
+const kick = [fixture.round, dateStr, timeStr].filter(Boolean).join(" · ");
+---
+
+<header class="mast">
+  <div class="eyebrow" style="margin-top:14px">{t(lang, "eyebrowPreview")}</div>
+  <div class="kick">{kick}</div>
+  <div class="teams">
+    {[home, away].map((side, i) => (
+      <>
+        {i === 1 && <div class="vs">{t(lang, "vs")}</div>}
+        <div class="team">
+          <Crest name={side.name} crest={side.crest} />
+          <span class="tname">{side.name}</span>
+          {side.standing && (
+            <div class="stand num">
+              #<b>{side.standing.league_rank}</b> · <b>{side.standing.standing_points}</b>{" "}
+              {t(lang, "pts")} · GD <b>{signedInteger(side.standing.standing_goals_diff, lang)}</b>
+            </div>
+          )}
+        </div>
+      </>
+    ))}
+  </div>
+  {fixture.venue && <div class="venue">{fixture.venue}</div>}
+</header>

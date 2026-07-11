@@ -1,0 +1,108 @@
+---
+// Form comparison: the Last-5 (W1) / This-season (W2) segment + both windows'
+// headers, form strings, captions and the 16-row comparison. The toggle is JS-FREE
+// — two hidden radios drive a CSS `:checked` sibling switch (both windows are in the
+// HTML and crawlable), which defers the island-framework decision (#362). W1 shows
+// result pills; W2 shows W/D/L count chips (falls back to the header when the counts
+// are absent). Captions declare the window's scope (all-competitions vs this league).
+import SectionHead from "../ui/SectionHead.astro";
+import MetricComparison from "./MetricComparison.astro";
+import { pointsFraction } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { asNumber } from "../../lib/types";
+import type { Fixture, Side } from "../../lib/types";
+
+interface Props {
+  fixture: Fixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const { home, away } = fixture;
+
+// form_window is served already ordered by recency_rank (export_site_data.py) — the
+// display order is the served order; no client-side sort (never re-rank served rows).
+const results = (side: Side): string[] =>
+  (side.form_window ?? []).map((m) => m.result ?? "").filter(Boolean);
+
+// W1 scope caption: cross-competition, plus any competitions beyond this fixture's own
+// (unioned across both sides, from the served contributing_competitions), plus a
+// coverage note when a window has fewer stat-covered games than games played.
+function w1Caption(): string {
+  const own = fixture.league_code;
+  const others = new Set<string>();
+  for (const s of [home, away]) {
+    for (const c of s.w1?.contributing_competitions ?? []) if (c !== own) others.add(c);
+  }
+  let cap = others.size
+    ? `${t(lang, "scopeAllComps")} · ${t(lang, "incl")} ${[...others].join(", ")}`
+    : t(lang, "scopeAllComps");
+  for (const s of [home, away]) {
+    const gts = asNumber(s.w1?.games_with_team_stats);
+    const giw = asNumber(s.w1?.games_in_window);
+    if (gts != null && giw != null && gts < giw) {
+      cap += ` · ${t(lang, "statsCoverage", { a: gts, b: giw })}`;
+      break;
+    }
+  }
+  return cap;
+}
+
+function w2Caption(): string {
+  const n = asNumber(home.w2?.games_played) ?? asNumber(away.w2?.games_played);
+  const league = fixture.league_name ?? fixture.league_code;
+  return n != null ? `${league} · ${t(lang, "throughMatchday", { n })}` : league;
+}
+---
+
+<section aria-label={t(lang, "secForm")}>
+  <SectionHead label={t(lang, "secForm")} />
+  <input class="seg-in" type="radio" name="win" id="seg-w1" checked />
+  <input class="seg-in" type="radio" name="win" id="seg-w2" />
+  <div class="seg" role="group" aria-label={t(lang, "secForm")}>
+    <label class="seg-btn" for="seg-w1">{t(lang, "segLast5")}</label>
+    <label class="seg-btn" for="seg-w2">{t(lang, "segSeason")}</label>
+  </div>
+
+  <div class="win win-w1">
+    <div class="formrow">
+      {[home, away].map((side, i) => (
+        <div class:list={["side", i === 0 ? "home" : "away"]}>
+          <div class="wmeta">
+            <b>{pointsFraction(side.w1?.points_won, side.w1?.games_in_window, lang)}</b> {t(lang, "pts")}
+          </div>
+          {results(side).length ? (
+            <div class="pills">
+              {results(side).map((r) => <span class:list={["pill", r]}>{r}</span>)}
+            </div>
+          ) : (
+            <div class="scope">{t(lang, "noRecentForm")}</div>
+          )}
+        </div>
+      ))}
+    </div>
+    <div class="caption">{w1Caption()}</div>
+    <MetricComparison home={home.w1} away={away.w1} windowKey="w1" lang={lang} homeName={home.name} awayName={away.name} />
+  </div>
+
+  <div class="win win-w2">
+    <div class="formrow">
+      {[home, away].map((side, i) => (
+        <div class:list={["side", i === 0 ? "home" : "away"]}>
+          <div class="wmeta">
+            <b>{pointsFraction(side.w2?.points_won, side.w2?.games_played, lang)}</b> {t(lang, "pts")}
+          </div>
+          {side.w2?.wins != null && side.w2?.draws != null && side.w2?.losses != null && (
+            <div class="cchips">
+              <span class="cchip W">{side.w2.wins} <small>W</small></span>
+              <span class="cchip D">{side.w2.draws} <small>D</small></span>
+              <span class="cchip L">{side.w2.losses} <small>L</small></span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+    <div class="caption">{w2Caption()}</div>
+    <MetricComparison home={home.w2} away={away.w2} windowKey="w2" lang={lang} homeName={home.name} awayName={away.name} />
+  </div>
+</section>

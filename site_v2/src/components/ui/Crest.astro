@@ -1,0 +1,19 @@
+---
+// Team crest. Uses the served logo URL; falls back to a monogram of the served
+// name when there is no crest (a display fallback — not an identifier).
+interface Props {
+  name?: string | null;
+  crest?: string | null;
+}
+const { name, crest } = Astro.props;
+const mono = (name ?? "")
+  .split(/\s+/)
+  .map((w) => w[0] ?? "")
+  .join("")
+  .slice(0, 3)
+  .toUpperCase();
+---
+
+<div class="crest">
+  {crest ? <img src={crest} alt="" loading="lazy" width="52" height="52" /> : <span>{mono}</span>}
+</div>
