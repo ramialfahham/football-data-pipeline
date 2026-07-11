@@ -1,0 +1,26 @@
+---
+// Fixtures block: the next fixture (when present) + the last-5 results, from the
+// served next_fixture + recent_results (GAP-15). Omitted entirely when the team has
+// neither.
+import SectionHead from "../ui/SectionHead.astro";
+import TeamFixtureRow from "./TeamFixtureRow.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/team";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+const recent = s.recent_results ?? [];
+const hasAny = Boolean(s.next_fixture) || recent.length > 0;
+---
+
+{hasAny && (
+  <section aria-label={t(lang, "secFixtures")}>
+    <SectionHead label={t(lang, "secFixtures")} />
+    {s.next_fixture && <TeamFixtureRow fx={s.next_fixture} lang={lang} />}
+    {recent.map((fx) => <TeamFixtureRow fx={fx} lang={lang} />)}
+  </section>
+)}

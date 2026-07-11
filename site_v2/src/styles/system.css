@@ -194,4 +194,55 @@ section { margin-top: 36px; }
 .footnote { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; opacity: .8; }
 .err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
 
+/* ================================================================ *
+ *  TEAM PROFILE components (extend the system; screen 02).          *
+ *  Single-team surface → no comparison green. Colour = meaning only: *
+ *  form pills = W/D/L status; YoY delta = better/worse; winless = a  *
+ *  negative streak. Hierarchy = tone/weight/size, as everywhere.     *
+ * ================================================================ */
+/* identity header */
+.thead { display: flex; align-items: center; gap: 16px; padding: 18px 0 22px; border-bottom: 1px solid var(--line); }
+.thead .id { min-width: 0; }
+.thead .nm { font-size: clamp(22px, 5cqw, 30px); font-weight: 700; line-height: 1.1; text-wrap: balance; }
+.thead .meta { font-size: 13px; color: var(--muted); margin-top: 5px; }
+.season-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; background: var(--sunk); border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+
+/* record block */
+.record { margin-top: 22px; }
+.record .top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; }
+.record .headline { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.record .headline b { font-size: 22px; font-weight: 700; color: var(--ink); }
+.record .line { font-size: 13px; color: var(--muted); margin-top: 12px; font-variant-numeric: tabular-nums; }
+.record .line b { color: var(--ink); font-weight: 700; }
+
+/* single-value stat row (season metrics list) */
+.srow { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.srow:last-child { border-bottom: 0; }
+.srow .lbl { font-size: 13px; color: var(--muted); }
+.srow .lbl small { display: block; font-size: 11px; opacity: .8; }
+.srow .val { font-size: 16px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* year-over-year aligned rows */
+.yoy-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.yoy-row:last-child { border-bottom: 0; }
+.yoy-row .lbl { font-size: 13px; color: var(--muted); }
+.yoy-row .now { font-size: 16px; font-weight: 700; color: var(--ink); }
+.yoy-row .delta { font-size: 13px; font-weight: 700; }
+.yoy-row .delta.up { color: var(--accent); }
+.yoy-row .delta.down { color: var(--loss); }
+.yoy-row .delta.flat { color: var(--muted); }
+.yoy-row .prev { font-size: 12px; color: var(--muted); }
+.absent { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+/* streak chips */
+.streaks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.streak { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 7px; font-size: 12.5px; font-weight: 600; background: var(--sunk); border: 1px solid var(--line); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.streak b { color: var(--ink); font-weight: 700; }
+.streak.neg, .streak.neg b { color: var(--loss); }
+
+/* profile body: two columns on wide containers */
+@container (min-width: 720px) {
+  .tcols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 34px; align-items: start; }
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

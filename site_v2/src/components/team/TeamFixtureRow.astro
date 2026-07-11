@@ -1,0 +1,24 @@
+---
+// One team fixture row (reuses the .rmatch grid). Played result → result chip + score
+// (this team's perspective) + opponent + H/A + comp/date. An upcoming fixture (no
+// result) → a neutral placeholder chip, no score. Deep-links inert this increment (GAP-19).
+import { formatShortDate, integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import type { TeamFixture } from "../../lib/team";
+
+interface Props {
+  fx: TeamFixture;
+  lang: Lang;
+}
+const { fx, lang } = Astro.props;
+const played = fx.result != null;
+const ha = fx.is_home === true ? "H" : fx.is_home === false ? "A" : "";
+const meta = [fx.round_name, formatShortDate(fx.kickoff_datetime, lang)].filter(Boolean).join(" · ");
+---
+
+<div class="rmatch">
+  {played ? <span class:list={["res", fx.result]}>{fx.result}</span> : <span class="res">–</span>}
+  <span class="rscore">{played ? `${integer(fx.goals_for, lang)}–${integer(fx.goals_against, lang)}` : ""}</span>
+  <span class="ropp">{fx.opponent_name}{ha && <span class="ha">{ha}</span>}</span>
+  <span class="rmeta">{meta}</span>
+</div>

@@ -1,0 +1,33 @@
+---
+// Season record: rank · points + form pills; a played/W-D-L · goals · GD line; clean
+// sheets. Single team → no comparison green; form pills carry the reserved W/D/L status
+// colour (form string is standings-derived, this competition). All served facts.
+import { integer, signedInteger } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/team";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+const formResults = (s.latest_form ?? "").split("").filter((c) => "WDL".includes(c));
+---
+
+<div class="record">
+  <div class="top">
+    <div class="headline num">
+      {s.latest_rank != null && <>#<b>{integer(s.latest_rank, lang)}</b> · </>}<b>{integer(s.points, lang)}</b> {t(lang, "pts")}
+    </div>
+    {formResults.length > 0 && (
+      <div class="pills">{formResults.map((r) => <span class:list={["pill", r]}>{r}</span>)}</div>
+    )}
+  </div>
+  <div class="line">
+    <b>{integer(s.played, lang)}</b> {t(lang, "teamPlayed")} · <b>{integer(s.wins, lang)}</b>W <b>{integer(s.draws, lang)}</b>D <b>{integer(s.losses, lang)}</b>L · <b>{integer(s.goals_for, lang)}</b>:<b>{integer(s.goals_against, lang)}</b> · <b>{signedInteger(s.goal_diff, lang)}</b>
+  </div>
+  {s.clean_sheets != null && (
+    <div class="line">{t(lang, "cleanSheetsLabel")}: <b>{integer(s.clean_sheets, lang)}</b></div>
+  )}
+</div>

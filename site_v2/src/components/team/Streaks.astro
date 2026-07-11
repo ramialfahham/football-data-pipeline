@@ -1,0 +1,38 @@
+---
+// Active streak chips — trailing runs ≥ 2 only (positive first; winless is a negative
+// signal, styled red). All runs < 2 → the whole section is omitted. The chip bolds the
+// count (rung-1 number) by splitting the i18n template on {n}.
+import SectionHead from "../ui/SectionHead.astro";
+import { integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/team";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const chips = [
+  { n: s.unbeaten_run, key: "streakUnbeaten", neg: false },
+  { n: s.win_run, key: "streakWins", neg: false },
+  { n: s.clean_sheet_run, key: "streakCleanSheets", neg: false },
+  { n: s.scoring_run, key: "streakScoring", neg: false },
+  { n: s.winless_run, key: "streakWinless", neg: true },
+].filter((c) => (c.n ?? 0) >= 2);
+---
+
+{chips.length > 0 && (
+  <section aria-label={t(lang, "secStreaks")}>
+    <SectionHead label={t(lang, "secStreaks")} />
+    <div class="streaks">
+      {chips.map((c) => {
+        const [before, after] = t(lang, c.key).split("{n}");
+        return (
+          <span class:list={["streak", { neg: c.neg }]}>{before}<b>{integer(c.n, lang)}</b>{after}</span>
+        );
+      })}
+    </div>
+  </section>
+)}

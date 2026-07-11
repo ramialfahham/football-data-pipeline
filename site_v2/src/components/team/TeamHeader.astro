@@ -1,0 +1,34 @@
+---
+// Team identity header: crest + name + meta (country · founded · venue) + the
+// competition-season label (static this increment — the multi-season selector swap
+// is deferred, #362). Competition display name from the registry-derived map.
+import Crest from "../ui/Crest.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamPayload, TeamSeason } from "../../lib/team";
+import competitions from "../../data/competitions.json";
+
+interface Props {
+  team: TeamPayload;
+  season: TeamSeason;
+  lang: Lang;
+}
+const { team, season, lang } = Astro.props;
+
+const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
+const compName = comp?.name ?? season.league_code;
+const meta = [
+  team.country,
+  team.founded_year ? `${t(lang, "founded")} ${team.founded_year}` : null,
+  team.venue?.name,
+].filter(Boolean).join(" · ");
+---
+
+<header class="thead">
+  <Crest name={team.name} crest={team.crest} />
+  <div class="id">
+    <div class="nm">{team.name}</div>
+    {meta && <div class="meta">{meta}</div>}
+    <div class="season-chip">{compName} {season.season_api_year}</div>
+  </div>
+</header>

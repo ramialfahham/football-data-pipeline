@@ -1,0 +1,78 @@
+---
+// Team profile — Overview (screen 02), reusing the #672 design system. URL:
+// /{lang}/teams/{kebab-name}-{team_id}/ (site_architecture.md §3). This increment
+// renders ONE committed real team's DEFAULT season across three locales; at scale
+// getStaticPaths iterates every exported team. The page only COMPOSES components in
+// order — no styling, no fact derivation. Flagship deserved-vs-actual is deferred.
+import Layout from "../../../layouts/Layout.astro";
+import Breadcrumb from "../../../components/fixture/Breadcrumb.astro";
+import SectionHead from "../../../components/ui/SectionHead.astro";
+import TeamHeader from "../../../components/team/TeamHeader.astro";
+import RecordBlock from "../../../components/team/RecordBlock.astro";
+import YearOverYear from "../../../components/team/YearOverYear.astro";
+import Streaks from "../../../components/team/Streaks.astro";
+import SeasonStats from "../../../components/team/SeasonStats.astro";
+import TeamFixtures from "../../../components/team/TeamFixtures.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref } from "../../../lib/href";
+import type { Lang } from "../../../lib/format";
+import { pickDefaultSeason } from "../../../lib/team";
+import type { TeamPayload } from "../../../lib/team";
+import teamData from "../../../data/teams/42.json";
+
+export function getStaticPaths() {
+  const locales: Lang[] = ["de", "en", "fi"];
+  const team = teamData as unknown as TeamPayload;
+  return locales.map((lang) => ({
+    params: { lang, team: team.slug },
+    props: { team, lang },
+  }));
+}
+
+interface Props {
+  team: TeamPayload;
+  lang: Lang;
+}
+const { team, lang } = Astro.props;
+const season = pickDefaultSeason(team.seasons);
+
+const title = `${team.name} — Matchday IQ`;
+const description = [team.name, team.country].filter(Boolean).join(" · ");
+
+// Home is a real target; Teams index + entity targets are not built yet → hrefless.
+const crumbs = [
+  { label: t(lang, "crumbHome"), href: localeHref(lang) },
+  { label: t(lang, "crumbTeams") },
+  { label: team.name ?? "" },
+];
+const links = [t(lang, "table"), t(lang, "topScorers"), t(lang, "linkSquad"), t(lang, "linkStats")];
+---
+
+<Layout lang={lang} title={title} description={description}>
+  <div class="inner">
+    <Breadcrumb items={crumbs} />
+    {season ? (
+      <>
+        <TeamHeader team={team} season={season} lang={lang} />
+        <RecordBlock season={season} lang={lang} />
+        <div class="tcols">
+          <div>
+            <YearOverYear season={season} lang={lang} />
+            <Streaks season={season} lang={lang} />
+            <TeamFixtures season={season} lang={lang} />
+          </div>
+          <div>
+            <SeasonStats season={season} lang={lang} />
+          </div>
+        </div>
+        <section aria-label={t(lang, "secExplore")}>
+          <SectionHead label={t(lang, "secExplore")} />
+          <div class="linkrow">{links.map((l) => <span class="linkchip">{l}</span>)}</div>
+        </section>
+      </>
+    ) : (
+      <div class="absent">{t(lang, "noSeasonData")}</div>
+    )}
+    <div class="footnote">{t(lang, "footnote")}</div>
+  </div>
+</Layout>

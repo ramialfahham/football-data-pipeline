@@ -1,0 +1,31 @@
+---
+// One single-value season-metric row (label + value). Single team → no bar, no green.
+// Same locked labels/formats as the fixture comparison (metricRows.ts); clean sheets
+// renders as count_fraction over games played. Null → "–" (never a fabricated 0).
+import { formatValue, countFraction, DASH } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { asNumber } from "../../lib/types";
+import type { MetricRowDef } from "../../lib/metricRows";
+import type { TeamSeason } from "../../lib/team";
+
+interface Props {
+  def: MetricRowDef;
+  season: TeamSeason;
+  lang: Lang;
+}
+const { def, season, lang } = Astro.props;
+const row = season as unknown as Record<string, unknown>;
+const v = asNumber(row[def.field]);
+
+let display: string;
+if (def.format === "count_fraction") {
+  display = countFraction(v, asNumber(row["played"]), lang); // season clean sheets: count of games played
+} else {
+  display = v == null ? DASH : formatValue(v, def.format, lang);
+}
+---
+
+<div class="srow">
+  <div class="lbl">{def.label}{def.sublabel && <small>{def.sublabel}</small>}</div>
+  <div class="val">{display}</div>
+</div>

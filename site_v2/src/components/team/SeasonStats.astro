@@ -1,0 +1,32 @@
+---
+// The LOCKED 16-row team table, single-value (one team's season). Same groups + order
+// as the fixture comparison (metricRows.ts); a row missing on the season row is hidden.
+import StatRow from "./StatRow.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { GROUP_ORDER, METRIC_ROWS } from "../../lib/metricRows";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/team";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season, lang } = Astro.props;
+// Render the full LOCKED 16-row table; StatRow shows "–" for any metric the season row
+// lacks (honest absence, wireframe 02 §6) — a single-value row is never hidden.
+const groups = GROUP_ORDER.map((group) => ({
+  group,
+  rows: METRIC_ROWS.filter((r) => r.group === group),
+}));
+---
+
+<section aria-label={t(lang, "secSeasonMetrics")}>
+  <SectionHead label={t(lang, "secSeasonMetrics")} />
+  {groups.map(({ group, rows }) => (
+    <>
+      <div class="mgroup">{group}</div>
+      {rows.map((def) => <StatRow def={def} season={season} lang={lang} />)}
+    </>
+  ))}
+</section>

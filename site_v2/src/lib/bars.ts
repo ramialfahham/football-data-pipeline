@@ -47,3 +47,16 @@ export function stackShares(
   if (total <= 0) return { w: 0, d: 0, l: 0 };
   return { w: (w / total) * 100, d: (d / total) * 100, l: (l / total) * 100 };
 }
+
+// Year-over-year delta display: the arrow (↑/↓ by the raw sign of the change) + a
+// class resolved from the metric's direction (up = better → green, down = worse →
+// red, flat = no change → muted). Display encoding of served values, not a fact.
+export function deltaView(
+  delta: number | null | undefined,
+  lowerIsBetter: boolean,
+): { arrow: string; cls: "up" | "down" | "flat" } {
+  if (!isNum(delta) || delta === 0) return { arrow: "", cls: "flat" };
+  const rose = delta > 0;
+  const better = lowerIsBetter ? !rose : rose;
+  return { arrow: rose ? "↑" : "↓", cls: better ? "up" : "down" };
+}

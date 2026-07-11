@@ -1,0 +1,48 @@
+---
+// Games-aligned year-over-year (domestic leagues only): this season · delta · prev,
+// for points / goals for / goals against. The delta's arrow is the raw sign; its
+// colour is meaning (better = green, worse = red) resolved from direction (goals
+// against is better when lower). All-null → the designed absent state.
+import SectionHead from "../ui/SectionHead.astro";
+import { integer, signedInteger } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { deltaView } from "../../lib/bars";
+import { asNumber } from "../../lib/types";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/team";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const rows = [
+  { labelKey: "yoyPoints", now: s.points_this_season, prev: s.points_prev_season, delta: s.points_delta_yoy, lowerBetter: false },
+  { labelKey: "yoyGoalsFor", now: s.goals_for_this_season, prev: s.goals_for_prev_season, delta: s.goals_for_delta_yoy, lowerBetter: false },
+  { labelKey: "yoyGoalsAgainst", now: s.goals_against_this_season, prev: s.goals_against_prev_season, delta: s.goals_against_delta_yoy, lowerBetter: true },
+];
+const hasYoy = rows.some((r) => asNumber(r.delta) !== null || asNumber(r.now) !== null);
+const note = s.yoy_games_played_cutoff != null ? t(lang, "yoyAfterGames", { n: s.yoy_games_played_cutoff }) : "";
+---
+
+<section aria-label={t(lang, "secYoY")}>
+  <SectionHead label={t(lang, "secYoY")} note={note} />
+  {hasYoy ? (
+    <div class="yoy">
+      {rows.map((r) => {
+        const dv = deltaView(r.delta, r.lowerBetter);
+        return (
+          <div class="yoy-row">
+            <div class="lbl">{t(lang, r.labelKey)}</div>
+            <div class="now">{integer(r.now, lang)}</div>
+            <div class:list={["delta", dv.cls]}>{dv.arrow} {signedInteger(r.delta, lang)}</div>
+            <div class="prev">({integer(r.prev, lang)})</div>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div class="absent">{t(lang, "noYoY")}</div>
+  )}
+</section>
