@@ -1,0 +1,14 @@
+---
+// Section header: an eyebrow label + a divider line (from ::after) + an optional
+// right-side note (e.g. the "Last 5 matches" window note on Players to watch).
+interface Props {
+  label: string;
+  note?: string | null;
+}
+const { label, note } = Astro.props;
+---
+
+<div class="sechead">
+  <span class="eyebrow">{label}</span>
+  {note && <span class="win-note">{note}</span>}
+</div>

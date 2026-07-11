@@ -1,0 +1,28 @@
+---
+// One recent-form row (a form_window entry): result chip · score (this team's
+// perspective) · opponent + H/A · competition + date. Rows are inert this increment
+// (the matchstats drill-down page isn't built); a match with no stats gets the
+// designed "not clickable" state + microcopy (a real, common provider-coverage gap).
+import { formatShortDate } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { FormMatch } from "../../lib/types";
+
+interface Props {
+  match: FormMatch;
+  lang: Lang;
+}
+const { match, lang } = Astro.props;
+const hasStats = Boolean(match.has_team_stats || match.has_player_stats);
+const ha = match.home_away === "home" ? "H" : match.home_away === "away" ? "A" : "";
+const meta = [match.played_league_code, formatShortDate(match.played_kickoff_datetime, lang)]
+  .filter(Boolean)
+  .join(" · ");
+---
+
+<div class:list={["rmatch", { noclick: !hasStats }]} title={hasStats ? undefined : t(lang, "noMatchStats")}>
+  <span class:list={["res", match.result]}>{match.result}</span>
+  <span class="rscore">{match.goals_for}–{match.goals_against}</span>
+  <span class="ropp">{match.opponent_name}{ha && <span class="ha">{ha}</span>}</span>
+  <span class="rmeta">{meta}</span>
+</div>

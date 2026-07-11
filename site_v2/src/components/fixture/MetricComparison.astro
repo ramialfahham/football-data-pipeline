@@ -1,0 +1,46 @@
+---
+// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups
+// in the fixed order with a subhead, rows in the fixed order within each group
+// (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a
+// wall of dashes); a row missing on one side shows "-" there. No reordering by value.
+import MetricRow from "./MetricRow.astro";
+import { GROUP_ORDER, METRIC_ROWS } from "../../lib/metricRows";
+import type { MetricRowDef } from "../../lib/metricRows";
+import { asNumber } from "../../lib/types";
+import type { WindowStats } from "../../lib/types";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  home?: WindowStats | null;
+  away?: WindowStats | null;
+  windowKey: "w1" | "w2";
+  lang: Lang;
+  homeName?: string | null;
+  awayName?: string | null;
+}
+const { home, away, windowKey, lang, homeName, awayName } = Astro.props;
+
+const hasData = (def: MetricRowDef): boolean =>
+  asNumber(home?.[def.field]) !== null || asNumber(away?.[def.field]) !== null;
+
+const groups = GROUP_ORDER.map((group) => ({
+  group,
+  rows: METRIC_ROWS.filter((r) => r.group === group && hasData(r)),
+})).filter((g) => g.rows.length > 0);
+---
+
+<div class="cmp">
+  <div class="cmp-head">
+    <div class="h">{homeName}</div>
+    <div></div>
+    <div class="h">{awayName}</div>
+  </div>
+  {groups.map(({ group, rows }) => (
+    <>
+      <div class="mgroup">{group}</div>
+      {rows.map((def) => (
+        <MetricRow def={def} home={home} away={away} windowKey={windowKey} lang={lang} />
+      ))}
+    </>
+  ))}
+</div>

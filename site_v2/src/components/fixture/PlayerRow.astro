@@ -1,0 +1,42 @@
+---
+// One "players to watch" row: photo · name + position · headline stats. Outfielders
+// show goals · assists; goalkeepers show saves · save %. Player per-match nulls mean
+// zero (a recorded 0, not missing) so counts coalesce to 0; save % (a ratio) shows
+// "-" when it has no denominator. Name is inert this increment (player pages not built).
+import { percent } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t, positionLabel } from "../../i18n/strings";
+import type { TopPlayer } from "../../lib/types";
+
+interface Props {
+  player: TopPlayer;
+  lang: Lang;
+}
+const { player, lang } = Astro.props;
+const isGK = player.position_code === "G";
+const initials = (player.player_name ?? "")
+  .split(/\s+/)
+  .map((w) => w[0] ?? "")
+  .join("")
+  .slice(0, 2)
+  .toUpperCase();
+---
+
+<div class="prow">
+  <span class="pphoto">
+    {player.player_photo_url
+      ? <img src={player.player_photo_url} alt="" loading="lazy" width="34" height="34" />
+      : <span>{initials}</span>}
+  </span>
+  <span class="pname">
+    <div class="nm">{player.player_name}</div>
+    <div class="ps">{positionLabel(lang, player.position_code)}</div>
+  </span>
+  <span class="pstat">
+    {isGK ? (
+      <><b>{player.saves ?? 0}</b> {t(lang, "saves")} · <b>{percent(player.save_pct, lang)}</b></>
+    ) : (
+      <><b>{player.goals_total ?? 0}</b> {t(lang, "goals")} · <b>{player.goals_assists ?? 0}</b> {t(lang, "assists")}</>
+    )}
+  </span>
+</div>

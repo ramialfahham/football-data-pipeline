@@ -1,0 +1,28 @@
+---
+// Two-column section (home | away), reused by Recent matches and Players to watch.
+// Reflows to two columns on wide containers (system.css @container). The rows are
+// provided via the `home` / `away` named slots.
+import SectionHead from "../ui/SectionHead.astro";
+
+interface Props {
+  label: string;
+  note?: string | null;
+  homeLabel?: string | null;
+  awayLabel?: string | null;
+}
+const { label, note, homeLabel, awayLabel } = Astro.props;
+---
+
+<section aria-label={label}>
+  <SectionHead label={label} note={note} />
+  <div class="split">
+    <div>
+      <div class="colhead">{homeLabel}</div>
+      <slot name="home" />
+    </div>
+    <div>
+      <div class="colhead">{awayLabel}</div>
+      <slot name="away" />
+    </div>
+  </div>
+</section>

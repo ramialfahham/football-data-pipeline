@@ -1,0 +1,59 @@
+---
+// Head-to-head (perspective = home team): record numbers coloured to the W/D/L bar,
+// the stacked record bar, and the recent-meetings list (which leads with the last
+// meeting — the separate "last meeting" line was dropped as a duplicate). "First-ever
+// meeting" when there is no record. All raw served facts; the bar widths are display.
+import SectionHead from "../ui/SectionHead.astro";
+import { formatShortDate } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { stackShares } from "../../lib/bars";
+import { t } from "../../i18n/strings";
+import type { HeadToHead } from "../../lib/types";
+
+interface Props {
+  h2h?: HeadToHead | null;
+  homeName?: string | null;
+  awayName?: string | null;
+  lang: Lang;
+}
+const { h2h, homeName, awayName, lang } = Astro.props;
+const has = Boolean(h2h && (h2h.total_meetings ?? 0) > 0);
+const shares = stackShares(h2h?.wins, h2h?.draws, h2h?.losses);
+const meetings = h2h?.recent_meetings ?? [];
+---
+
+<section aria-label={t(lang, "secH2H")}>
+  <SectionHead label={t(lang, "secH2H")} />
+  {has ? (
+    <>
+      <div class="h2h-top">
+        <div class="h2h-rec">
+          <b class="cw">{h2h?.wins}</b> <span class="nm">{homeName}</span> &nbsp;·&nbsp;
+          <b>{h2h?.draws}</b> <span class="nm">{t(lang, "draws")}</span> &nbsp;·&nbsp;
+          <b class="cl">{h2h?.losses}</b> <span class="nm">{awayName}</span>
+        </div>
+        <div class="h2h-meta">
+          {h2h?.total_meetings} {t(lang, "meetings")}<br />
+          {h2h?.goals_for}:{h2h?.goals_against} {t(lang, "goalsWord")}
+        </div>
+      </div>
+      <div class="h2h-bar" aria-hidden="true">
+        <span class="w" style={`width:${shares.w}%`}></span>
+        <span class="d" style={`width:${shares.d}%`}></span>
+        <span class="l" style={`width:${shares.l}%`}></span>
+      </div>
+      <div class="h2h-list">
+        {meetings.map((m) => (
+          <div class="rmatch">
+            <span class:list={["res", m.result]}>{m.result}</span>
+            <span class="rscore">{m.goals_for}–{m.goals_against}</span>
+            <span class="ropp">{m.league_code}</span>
+            <span class="rmeta">{formatShortDate(m.kickoff_datetime, lang)}</span>
+          </div>
+        ))}
+      </div>
+    </>
+  ) : (
+    <div class="h2h-last">{t(lang, "firstMeeting")}</div>
+  )}
+</section>

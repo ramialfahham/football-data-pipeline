@@ -1,0 +1,97 @@
+---
+// Fixture page (screen 01) — the v2 design system's first real screen.
+// URL: /{lang}/{competition-slug}/matches/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
+// This increment renders ONE committed real fixture across the three locales; at scale
+// getStaticPaths iterates every exported fixture (data/fixtures/*.json). The page only
+// COMPOSES the shared components in order — it holds no styling and derives no facts.
+import Layout from "../../../../layouts/Layout.astro";
+import Breadcrumb from "../../../../components/fixture/Breadcrumb.astro";
+import Masthead from "../../../../components/fixture/Masthead.astro";
+import NarrativeSlot from "../../../../components/fixture/NarrativeSlot.astro";
+import FormSegment from "../../../../components/fixture/FormSegment.astro";
+import SplitSection from "../../../../components/fixture/SplitSection.astro";
+import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
+import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
+import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
+import { t } from "../../../../i18n/strings";
+import { localeHref } from "../../../../lib/href";
+import type { Lang } from "../../../../lib/format";
+import type { Fixture } from "../../../../lib/types";
+import fixtureData from "../../../../data/fixtures/1492306.json";
+import competitions from "../../../../data/competitions.json";
+
+export function getStaticPaths() {
+  const locales: Lang[] = ["de", "en", "fi"];
+  const fixture = fixtureData as unknown as Fixture;
+  const comp = (competitions as Record<string, { slug: string }>)[fixture.league_code];
+  if (!comp) {
+    throw new Error(
+      `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
+    );
+  }
+  return locales.map((lang) => ({
+    params: { lang, competition: comp.slug, fixture: fixture.slug },
+    props: { fixture, lang },
+  }));
+}
+
+interface Props {
+  fixture: Fixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const { home, away } = fixture;
+
+const title = `${home.name} vs ${away.name} — ${fixture.league_name}`;
+const description = t(lang, "aboutNoH2h", {
+  home: home.name ?? "",
+  away: away.name ?? "",
+  round: fixture.round ?? "",
+});
+
+// Home is a real target (the locale landing); competition hub + Matches are not built
+// yet → hrefless (plain text), no dead links.
+const crumbs = [
+  { label: t(lang, "crumbHome"), href: localeHref(lang) },
+  { label: fixture.league_name ?? fixture.league_code },
+  { label: t(lang, "crumbMatches") },
+];
+---
+
+<Layout lang={lang} title={title} description={description}>
+  <div class="inner">
+    <Breadcrumb items={crumbs} />
+    <Masthead fixture={fixture} lang={lang} />
+    <NarrativeSlot fixture={fixture} lang={lang} />
+    <FormSegment fixture={fixture} lang={lang} />
+
+    <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
+      <Fragment slot="home">
+        {(home.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
+      </Fragment>
+      <Fragment slot="away">
+        {(away.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
+      </Fragment>
+    </SplitSection>
+
+    <SplitSection
+      label={t(lang, "secPlayers")}
+      note={t(lang, "playersWindow")}
+      homeLabel={home.name}
+      awayLabel={away.name}
+    >
+      <Fragment slot="home">
+        {(home.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
+      </Fragment>
+      <Fragment slot="away">
+        {(away.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
+      </Fragment>
+    </SplitSection>
+
+    <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
+    <LinksFooter fixture={fixture} lang={lang} />
+
+    <div class="footnote">{t(lang, "footnote")}</div>
+  </div>
+</Layout>
