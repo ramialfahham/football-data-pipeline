@@ -132,6 +132,17 @@ carries it)** first, then build the frontend against a stable export. The live M
 
 ### ⭐ RECENT PRs
 
+- **#670 — CI-failure watchdog now watches dbt-scheduled, MERGED; follow-up adds ci-site-v2 + pages.**
+  One-line add to `.github/workflows/ci-failure-watchdog.yml` `on.workflow_run.workflows:` so a failed
+  nightly prod build (dbt-scheduled: ingest + `dbt build --target prod` + prod DQ tests) opens/updates a
+  triage issue instead of only GitHub's easily-missed scheduled-failure email — it was the only significant
+  workflow absent from the watch list. **This follow-up branch adds the two remaining unwatched significant
+  workflows**: `Deploy match preview (GitHub Pages)` (pages-match-preview — a genuine prod-writer: `dbt
+  run --target prod` + DQ on a 07:30 cron) and `ci-site-v2` (NOT a prod-writer — the v2 `npm run build`
+  check, added for parity with the already-watched `ci-ui`). Watch entries key on each workflow's `name:`,
+  not filename (pages → the display-name string). Protected-path (`.github/workflows/`) change under
+  `protected_override`; scope-auditor + cto-reviewer (opus, guard path) PASS. All significant workflows
+  now watched; no further watchdog candidates remain.
 - **#665 — #391 GAP-23: wire mart_team_competition_benchmarks into the team payload, MERGED.** Export + docs.
   `shape_team_payload` gains a per-season **flat** `benchmarks[]` block from `mart_team_competition_benchmarks`
   (the #627-for-teams analog, team-simplified: NO position nesting, NO num/den atoms — team ratios use the

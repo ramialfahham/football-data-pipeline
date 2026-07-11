@@ -1,26 +1,33 @@
-# Review — fix/watchdog-watch-dbt-scheduled — 2026-07-11
+# Review — fix/watchdog-watch-site-and-pages — 2026-07-11
 
 > Governance G3 review artifact. Required reviewers for the staged paths (review_routing.json):
 > scope-auditor (always), cto-reviewer (.github/workflows/**). Blinded reviewers ran cold against the
 > cumulative staged branch diff (`.claude/task/review_input.patch`) after Code Lock. cto-reviewer was
 > spawned on opus (guard-path override: the diff touches `.github/workflows/**`).
+>
+> Process note (transparency): the first scope-auditor pass FAILed because `.claude/active_work.md` was
+> declared in scope_paths/done_when but absent from the reviewed diff (it had been planned as a separate
+> post-review commit). Fixed by folding the handover edit INTO this reviewed commit; scope-auditor was
+> re-run and PASSes. `.claude/active_work.md` is in `hash_exclude_paths`, so the diff_sha256 below is
+> unchanged (it covers the workflow + contract only), and it does not route to cto-reviewer — whose review
+> covers the workflow, which is byte-identical to what it saw. cto-reviewer's verdict therefore stands.
 
-diff_sha256: 9fa56f838ac6017e4633dd474fd3fb22b0ada5037db9430831576fb19ef5395f
+diff_sha256: e621ad6b391abb8634d88eeef71c045118c293f49b177f204607d41daf3c23e4
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Protected-path override boundary: contract carries the CPO-authorized override for `.github/workflows/ci-failure-watchdog.yml` scoped to "add exactly one list item (`- dbt-scheduled`) ... no change to any other workflow, trigger, job, permission, or script". The diff shows exactly one added line; both changed files (`ci-failure-watchdog.yml`, `.claude/task/contract.md`) fall inside `scope_paths`; no undeclared or creeping change. Boundary honored, tight.
-- Decision rights (§10) + deferred-decision handling: adding a workflow name to an existing watch list is pure configuration within an already-proven mechanism (no new mechanism, no user-visible naming, no changed shipped numbers). The `ci-site-v2` / `pages` prod-writers are correctly recorded in `decisions_reserved` as DEFERRED (flagged for the PR, not silently decided nor silently scoped away); deferring rather than blinded-escalating is defensible because the CPO explicitly scoped the change to the single line.
+- Protected-path scope drift on the watchdog file: the diff touches the protected `.github/workflows/ci-failure-watchdog.yml`. Verified it adds exactly the two authorized list items to `on.workflow_run.workflows:`, with no change to triggers, permissions, job definitions, or the github-script — a hidden mechanism/trigger/permission injection would be a critical breach; the surgical limitation to the two named override items rules out drift.
+- Handover artifact completeness and accuracy (the prior-round FAIL): verified `.claude/active_work.md` is now present in the diff, the change is confined to a handover bullet (no code/config smuggled as a doc edit), and it accurately records both workflows (pages-match-preview as prod-writer; ci-site-v2 as build-check for parity with the already-watched ci-ui) and the decision chain (#670 flagged both → CPO "do the follow-ups"). Decision rights: the CPO named both items in the protected_override, so adding them — including ci-site-v2 despite the corrected "not a prod-writer" premise — is executing granted scope, not a builder-manufactured §10 decision.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Silently-dead watch entry (the whole point): `workflow_run.workflows:` keys on the producer's `name:`, not filename. Verified `dbt-scheduled` matches `name: dbt-scheduled` in `.github/workflows/dbt-scheduled.yml:1` character-for-character, and cross-checked all six pre-existing entries against their own `name:` fields — the list is consistently name-keyed, so the new entry actually fires (confirmed by contrast with the deferred `pages-match-preview`, whose name is `Deploy match preview (GitHub Pages)`).
-- YAML validity / reparenting: the single added line `- dbt-scheduled` is at 6-space indent, a correct sibling under `on.workflow_run.workflows:`, above `types: [completed]`; still inside `on.workflow_run`, valid parse, no accidental reparent.
-- Issue storm / self-trigger / permissions: de-dup by exact title on the default branch yields one open issue that gets comments (not new issues) on repeat nightly failures; `run.name` != `ci-failure-watchdog` avoids the self-ignore false-positive and the watchdog isn't in its own list (no infinite loop); `issues: write` present — no new failure mode.
-- Trigger + concurrency edge cases: cron runs only on the default branch so `head_branch`=main and `workflow_run` uses the merged default-branch watchdog; `cancel-in-progress: false` on the shared prod group prevents a concurrency-cancel producing a spurious failure conclusion.
-- Scope/guard integrity: diff is exactly one workflow line + the in-scope contract rewrite; `protected_override` quotes the CPO go for this exact guard path and one-item scope; pure config, no new mechanism, not a gate (fail-open N/A), no cost change.
+- Name-match (workflow_run keys on `name:` not filename): verified both entries against source `name:` fields character-for-character — `ci-site-v2`==`ci-site-v2` (ci-site-v2.yml:6) and `"Deploy match preview (GitHub Pages)"`==`Deploy match preview (GitHub Pages)` (pages-match-preview.yml:1; parens, spaces, GitHub capitalization all identical). Neither entry is silently dead. Double-quoting resolves to the exact literal and is correct/harmless.
+- YAML placement: both new items are 6-space-indented siblings under `on.workflow_run.workflows:`, directly above `types: [completed]`, still inside `workflow_run` (no reparenting of `types`/`workflow_dispatch`); the list now has 9 entries. Parses cleanly.
+- De-dup / issue-storm / parentheses in title: title is exact-string matched (`item.title === issueTitle`), so `[CI Failure] Deploy match preview (GitHub Pages) on main` de-dups correctly despite parentheses; body wraps the name in backticks so parens render literally. Repeated cron/main failures comment on the one open issue rather than spawning duplicates. No storm.
+- Trigger/noise profile: `ci-site-v2` is PR+push — but `ci-validate`, `ci-ui`, `python-ci` are already PR-triggered watched producers, so this adds no new noise class; `ci-site-v2` is path-filtered to `site_v2/**` (narrower than existing). Fork-PR issue creation is possible but is the same already-accepted behavior, with no permission widening in this diff. `pages-match-preview` failures (prod dbt/DQ) are exactly the intended high-stakes alerts, mirroring the already-watched `dbt-scheduled`.
+- Self-trigger / permissions / guard integrity: the watchdog (`ci-failure-watchdog`) is not in its own list and has a self-ignore-by-name guard; neither new producer loops back. `permissions:` (contents:read, issues:write) and the github-script are untouched. Contract carries `protected_override` quoting the CPO authorization ("do the follow-ups", 2026-07-11); #670 deferred the watch decision to the owner and the owner made it, so no §10 mechanism/product decision is left to approve. Non-blocking pre-existing gap noted: no automated test asserts watched names still match producer `name:` fields (covered here by manual verification, which passed).
 
 ## escalations
 (none)

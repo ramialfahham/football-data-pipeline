@@ -10,6 +10,8 @@ on:
       - security-secrets
       - board-request-sync
       - dbt-scheduled
+      - ci-site-v2
+      - "Deploy match preview (GitHub Pages)"
     types: [completed]
   workflow_dispatch:
 
