@@ -9,6 +9,7 @@ on:
       - python-ci
       - security-secrets
       - board-request-sync
+      - dbt-scheduled
     types: [completed]
   workflow_dispatch:
 
