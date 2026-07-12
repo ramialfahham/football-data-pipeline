@@ -4,15 +4,34 @@ models:
   - name: int_team_profile__yoy
     description: >
       Games-played-aligned year-over-year for the team profile (#324), domestic leagues
-      only. One row per team's CURRENT domestic season: cumulative points/goals through
-      the latest N games this season vs the same team's prior season through its first N
-      games. Aligned by games played (match_number), which equals matchday for fixed-
-      matchday leagues and is the only safe cross-format key (parsed round numbers collide
-      across phases in multi-phase formats). Deltas NULL when the prior season is absent.
-      Grain: (team_sk, league_code, season_api_year).
+      only. One row per team's CURRENT domestic season: the 3 scoreline totals (points /
+      goals for / against) AND the LOCKED 16-row rate metrics, each through the latest N
+      games this season vs the same team's prior season through its first N games (composed
+      from int_team_season__metrics_cumulative). Aligned by games played (match_number),
+      which equals matchday for fixed-matchday leagues and is the only safe cross-format key
+      (parsed round numbers collide across phases in multi-phase formats). Each metric has
+      _this_season / _prev_season / _delta_yoy; a rate is NULL on a side when that season's
+      first N games are not fully stat-covered, and the delta is NULL when either side is
+      (no prior season, or a coverage gap). Grain: (team_sk, league_code, season_api_year).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, league_code, season_api_year]
+      # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
+      # (the composed source): the YoY cutoff N is low by construction early in every season, so a
+      # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
+      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
+      # goals); clean_sheets = clean_sheet_games/games) stay strict [0,1] on both sides.
+      - dbt_utils.expression_is_true:
+          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_this_season is null or clean_sheets_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_prev_season is null or clean_sheets_prev_season between 0 and 1)"
+          name: team_profile_yoy_structural_ratios_in_range
+      # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
+      # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
+      # where the provider reports numerator > denominator (a known API inconsistency) is not yet
+      # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
+      # sign-flip). Per-match count rates are unbounded, so not tested here.
+      - dbt_utils.expression_is_true:
+          expression: "(danger_zone_ratio_this_season is null or danger_zone_ratio_this_season >= 0) and (pass_accuracy_this_season is null or pass_accuracy_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (danger_zone_ratio_prev_season is null or danger_zone_ratio_prev_season >= 0) and (pass_accuracy_prev_season is null or pass_accuracy_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
+          name: team_profile_yoy_subset_ratios_non_negative
     columns:
       - name: team_sk
         tests: [not_null]
@@ -26,6 +45,11 @@ models:
         tests: [not_null]
       - name: points_delta_yoy
         description: "points_this_season - points_prev_season through N games. NULL when no prior season."
+      - name: goals_per_match_delta_yoy
+        description: >
+          Representative rate-metric YoY delta (this season − last, through the same N games). Every
+          LOCKED 16-row rate metric carries _this_season / _prev_season / _delta_yoy; NULL where the
+          prior season is absent or coverage is incomplete through N.
 
   - name: int_team_profile__streaks
     description: >

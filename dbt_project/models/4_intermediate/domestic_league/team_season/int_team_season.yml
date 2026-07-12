@@ -82,6 +82,64 @@ models:
           Shots on target conceded per match (opponent-SoT companion to shots_on_goal_per_match).
           NULL unless opponent SoT covers every season game.
 
+  - name: int_team_season__metrics_cumulative
+    description: >
+      Per-matchday cumulative team-season rate metrics — the int_team_season__metrics rate formulas
+      applied to EVERY cumulative row of int_team_season_record (not just the final). The single home
+      of the team-season rate formulas (#500 one-aggregation): int_team_season__metrics is this
+      model's final-row projection (byte-identical), and int_team_profile__yoy composes it at the
+      games-played cutoff N to align two seasons by matchday for ALL metrics. All-competitions.
+      The _sum_season / season_games_played names are inherited from the projection for byte-identity;
+      here they mean "cumulative through this matchday". Grain: (team_sk, league_code, season_api_year,
+      match_number).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - team_sk
+            - league_code
+            - season_api_year
+            - match_number
+      # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
+      # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
+      # construction: points_capture (points <= 3*games), clean_sheets (clean_sheet_games <= games),
+      # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
+      # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
+      - dbt_utils.expression_is_true:
+          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets is null or clean_sheets between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
+          name: int_team_season_cumulative_structural_ratios_in_range
+      # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
+      # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
+      # won/total) are bounded >= 0 ONLY. At a low matchday a single game where the provider reports
+      # numerator > denominator (a known API inconsistency, e.g. inside_box > total shots) is not yet
+      # diluted, so a cumulative value > 1 is a genuine data reality — not a model bug (clamping would
+      # hide it). The whole-season projection keeps strict [0,1] (dilution holds at season scale). A
+      # negative would still be a real sign-flip bug.
+      - dbt_utils.expression_is_true:
+          expression: "(shot_accuracy is null or shot_accuracy >= 0) and (danger_zone_ratio is null or danger_zone_ratio >= 0) and (pass_accuracy is null or pass_accuracy >= 0) and (duels_won_pct is null or duels_won_pct >= 0)"
+          name: int_team_season_cumulative_subset_ratios_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
+          name: int_team_season_cumulative_sot_against_non_negative
+    columns:
+      - name: team_sk
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        tests: [not_null]
+      - name: season_api_year
+        tests: [not_null]
+      - name: match_number
+        description: "Games played through this cumulative row (= games_played). The grain key + the YoY alignment cutoff N."
+        tests: [not_null]
+      - name: season_games_played
+        description: "Games played through this matchday (name inherited from the whole-season projection for byte-identity)."
+        tests: [not_null]
+
   - name: int_team_season__deserved_vs_actual
     description: >
       TEAM deserved-vs-actual read (rank-space), one row per (team_sk, season_sk): actual league
