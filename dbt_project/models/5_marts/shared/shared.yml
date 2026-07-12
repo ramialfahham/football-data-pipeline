@@ -295,6 +295,12 @@ models:
         description: "From the registry; YoY columns are populated only for domestic_league."
       - name: points_delta_yoy
         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
+      - name: goals_per_match_delta_yoy
+        description: >
+          Representative rate-metric YoY delta — every LOCKED 16-row rate metric has _this_season /
+          _prev_season / _delta_yoy (matchday-aligned this-vs-last, the team Stats tab's per-metric
+          vs-last-season column). Passthrough from int_team_profile__yoy; domestic only, NULL where
+          no prior season or coverage is incomplete through N.
       - name: deserved_rank
         description: "Rank by shots-on-target difference within the league-season (1 = best) — the process-deserved table position. From int_team_season__deserved_vs_actual. NULL when the league-season is not fully rankable (knockouts / incomplete SoT coverage)."
       - name: sot_rank_gap

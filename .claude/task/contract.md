@@ -1,106 +1,114 @@
-# Task contract — v2 frontend: design system + fixture template (Phase E, increment 1)
+# Task contract — matchday-aligned team YoY for ALL metrics (Option A)
 
-> Written on a CLEAN tree (branch `feat/site-v2-fixture-page` off main @ 7005052).
-> CPO-directed this conversation 2026-07-11 ("Start the v2 frontend build — Phase E").
-> Design is LOCKED (do not re-litigate): memory `project_v2_frontend_design.md` +
-> the reference mockup artifact d70aae67 (tokens/components/layout extracted).
-> See docs/working_agreement.md §1 (E→P→C→I→V), §2 (contract), §10 (decision rights),
-> §11 (blinded escalation), Appendix A (anti-patterns).
+> Written on a CLEAN tree (branch `feat/team-yoy-all-metrics` off main @ d674905).
+> CPO-directed this conversation 2026-07-11: the team page's "vs last season" must cover
+> EVERY season metric, matchday-aligned — "extend the model" (not a frontend shortcut).
+> CPO chose Option A (the COMPOSE architecture) for formula placement.
+> See docs/working_agreement.md §1 (E→P→C→I→V), §2, §10, §11, Appendix A;
+> feedback: [[feedback-metric-calc-layer-placement]] [[feedback-macros-maintainability]]
+> [[project-dbt-shared-ci-prod-datasets]] [[reference-incremental-rename-full-refresh]].
 
 objective: >
-  Stand up the shared v2 design system in site_v2/ — the token layer, base components,
-  and a Layout — and prove it by rendering ONE real exported fixture through a fixture
-  template, built as the /v2/ preview artifact. The design system is the deliverable;
-  the fixture page is the proof it composes. Import the system, never hand-style the
-  screen. The live MVP (site/) and its Pages deploy stay untouched (cutover = #377).
+  Extend the team year-over-year surface from 3 metrics (points, goals for, goals against)
+  to ALL season metrics, matchday-aligned (this season through N games vs the SAME team's
+  prior season through its first N games), so the v2 team "Stats" tab can show a per-metric
+  this/last column. Option A: lift the season-metric rate formulas into ONE cumulative model
+  (rates at every matchday), make the existing whole-season int_team_season__metrics its
+  final-row PROJECTION (byte-identical → zero downstream number change), and have
+  int_team_profile__yoy COMPOSE the cumulative model at the cutoff N for both seasons.
 
 refs: >
-  epic #361 (v2 site) · design system #366 · fixture template #368 · export #365 ·
-  Phase E. Binding specs: docs/wireframes/01_fixture_page.md (layout + JSON bindings),
-  docs/wireframes/metrics_display.md (LOCKED 16-row team table), docs/site_architecture.md
-  (IA/URLs/i18n/deploy), docs/content_architecture.md (fixture block = composed v2 export).
-  Data schema: scripts/export_site_data.py :: shape_fixture_payload / fetch_fixture_payloads.
-  Reference mockup: https://claude.ai/code/artifact/d70aae67-0c0a-43c3-86df-9d983742a881
+  #324 (team profile + YoY) · #500 (one-aggregation philosophy) · wireframe 02 §6 ·
+  the team-page redesign (this conversation). Source model already anticipates this:
+  int_team_season_record header — carries match_number "so the deferred year-over-year
+  surface can align two seasons by matchday without a rewrite."
 
 scope_paths:
-  - site_v2/**            # astro config (base), Layout, tokens CSS, components, fixture template, committed sample fixture JSON, minimal i18n strings
-  - .claude/task/**       # this contract, review.md, review_input.patch
-  - .claude/active_work.md # handover bullet (artifact-only follow-up commit)
+  - dbt_project/models/4_intermediate/domestic_league/team_season/**   # new cumulative model + int_team_season__metrics (→ projection) + int_team_season.yml
+  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql # +all-metric aligned YoY
+  - dbt_project/models/4_intermediate/shared/int_team_profile.yml      # YoY tests/docs
+  - dbt_project/models/5_marts/shared/mart_team_profile.sql            # + YoY columns (passthrough)
+  - dbt_project/models/5_marts/shared/shared.yml                       # mart tests/docs
+  - .claude/task/**
+  - .claude/active_work.md
 
-# STRUCTURAL SURFACE = consumption (site*/). Short-form evidenced (new, isolated, leaf consumer):
 impact_map: >
-  New, isolated v2 frontend consumer under site_v2/ (already scaffolded: Astro 5, static,
-  i18n de/en/fi, `base` unset). Touches NO dbt model, NO live export script, NO live Pages
-  deploy, and NOTHING under site/. Reads ONE committed sample fixture JSON produced READ-ONLY
-  by `python scripts/export_site_data.py --entities fixtures` (BigQuery ADC verified OK,
-  rami.fahham@gmail.com; SELECT-only, no warehouse writes — the clobber risk is dbt-build-only,
-  not read queries). No fact derivation in the frontend (select/display only, per the
-  consumption-layer contract). Blast radius: the non-deployed v2 build only; the live product
-  is unaffected by construction (separate directory, separate CI = ci-site-v2.yml npm build,
-  which does NOT deploy). deploy_order: none — nothing is wired into the live Pages artifact
-  this increment (see decisions_reserved: /v2/ deploy wiring is deferred to a follow-up PR).
-  Gate: ci-site-v2.yml (`npm ci && npm run build` + existing dist index-page assertions).
+  writers: none — all models read int_team_season_record (the cumulative raw-sums source,
+    UNCHANGED). No raw/staging/ingestion touched.
+  downstream (grep ref-graph; full `dbt ls --select int_team_season__metrics+` runs in
+    ci-data-build — dbt CLI is broken locally): int_team_season__metrics is read by SIX
+    models → int_team_season__deserved_vs_actual, int_team_competition_benchmark_metrics_long
+    (→ int/mart_team_competition_benchmarks → v2 benchmark export), mart_team_season,
+    mart_team_season_insights (→ LIVE MVP team-season JSON via export_pages_data.py),
+    mart_team_profile (→ v2 team export), mart_team_season_record (→ v2 W2 window + fixture).
+  layer_rules: intermediate materialization=table (like int_team_season__metrics + siblings);
+    check_layer_contract (no per-competition staging; generic model reading league_code).
+    int_team_season__metrics is ALL-competitions (verified: no domestic filter) — the new
+    cumulative base must keep that scope; the YoY consumer filters to domestic_league + aligns.
+  deploy_order: the refactor is BYTE-IDENTICAL (int_team_season__metrics = final row of the
+    same formulas over the same input) → zero prod number change on the 04:00 nightly. dbt
+    shares CI/prod datasets, so ci-data-build runs the full singular DQ suite vs shared prod —
+    that suite on all 6 consumers is the byte-identity gate (any drift fails a test). The new
+    YoY columns are ADDITIVE.
+  blast_radius: int_team_season__metrics OUTPUT unchanged (the LIVE MVP team-season numbers +
+    every v2 team/benchmark number stay identical — proven by the existing DQ suite staying
+    green). NEW = matchday-aligned this/prev/delta for the ~13 rate metrics on
+    int_team_profile__yoy → mart_team_profile → v2 team export only (additive; the live MVP
+    does not read YoY). NO catalogue rows (windowed YoY variants are exempt from the drift
+    guard — same as today's 3-metric YoY).
 
 decisions_taken: >
-  1. Phase E is GO. active_work.md held "do NOT start the v2 frontend (Phase E) until the
-     data+export is all green"; the CPO has now directed the start, and content_architecture.md
-     (2026-07-07) confirms green — 18 marts wired, fixture screen ✓. This contract records that
-     the hold is lifted by CPO direction this conversation.
-  2. Design is LOCKED — extracted verbatim from the reference mockup: token set (dark-default
-     `.fx` custom properties + `[data-theme=light]` swap), component classes, and the fixture
-     layout/section order. Colour = meaning only (green = better value by catalogue `direction`,
-     RESERVED — never links/labels); hierarchy = tone/weight/size. Not re-litigated.
-  3. Data bindings follow docs/wireframes/01_fixture_page.md (each field verified against the
-     v2 fixture payload) and the LOCKED 16-row table (metrics_display.md). Rows/fields absent
-     from today's payload render the designed empty state ("-", no bar; W2 counts fall back to
-     the window header) — data honesty, never fabricated. The committed sample JSON is the
-     ground truth for what has data today.
-  4. Sample-data source: ONE real fixture, exported READ-ONLY via export_site_data.py and
-     committed inside site_v2/ so the static build (and ci-site-v2, which has no BigQuery) is
-     self-contained. Clearly labelled a temporary committed sample, to be replaced when the v2
-     export is wired as the build data source (#365 deploy).
-  5. /v2/ = enact the preview-phase routing (`base: "/v2/"`, the value the astro.config comment
-     already earmarks) WITHOUT touching the live Pages deploy — Option A below.
+  1. Option A (CPO-approved this session): a cumulative team-season RATES model (the current
+     int_team_season__metrics SELECT applied to EVERY cumulative row of int_team_season_record,
+     not just the final), with int_team_season__metrics becoming its final-row projection.
+     Formulas live in ONE place; no macro (inline SQL, per [[feedback-macros-maintainability]]).
+  2. Matchday alignment is by GAMES PLAYED (match_number), reusing the existing YoY mechanism
+     (cur = latest cumulative row this season → cutoff N; prev = prior season's largest
+     match_number ≤ N). The rate coverage gates carry over unchanged: a metric is NULL on a
+     side when that season's first N games are not fully stat-covered — honest, never fabricated.
+  3. Byte-identity of int_team_season__metrics is REQUIRED (it feeds the live MVP). Verified by
+     ci-data-build's existing DQ suite on the 6 consumers staying green.
+  4. No catalogue changes; YoY stays domestic-league only (cups/tournaments have no aligned
+     comparison — the existing scope).
+  5. BOTH new ratio DQ tests — on int_team_season__metrics_cumulative AND on the composed
+     int_team_profile__yoy (which reads the cumulative model at cutoff N) — are split by INVARIANT
+     FAMILY, not a verbatim copy of the whole-season [0,1] test (that over-strict copy failed
+     ci-data-build on exactly one row, LIBER 2024 team 2546 match 1, danger_zone_ratio 1.25).
+     Structurally-bounded ratios (points_capture / clean_sheets / shot_share / save_ratio /
+     finishing_efficiency — the last guarded to NULL when goals>SoT) keep strict [0,1] at every
+     matchday. Provider-subset ratios (shot_accuracy / danger_zone_ratio / pass_accuracy /
+     duels_won_pct = one provider stat over another) are bounded ≥0 only: at low N a single game
+     where the provider reports numerator > denominator (verified at source: fixture 1149592 has
+     shots_inside_box 5 > shots_total 4) is not yet diluted, so >1 is a genuine data reality, not a
+     model bug — clamping would hide it. The YoY cutoff N is low by construction early in every
+     season, so it inherits the same split (the caught round-3 gap). The whole-season test keeps
+     its strict [0,1] (dilution holds at season scale). Both bounds still catch real defects
+     (a structural ratio >1, or any ratio <0). Whether the display layer should ever surface a
+     provider-subset ratio >1 mid-season is a downstream product/legibility call, deferred to the
+     Stats-tab build (this data layer stays honest — never clamps).
 
 decisions_reserved:
-  - "/v2/ LIVE DEPLOY WIRING (§10 — platform + live artifact) — RESOLVED 2026-07-11 (CPO ruled
-     Option A this session: build-and-prove now, defer the live-deploy wiring; no scope change —
-     the contract already baselines A). Option A (this
-     contract): set base:\"/v2/\" + build the /v2/ artifact; verify via ci-site-v2 build +
-     local astro preview + preview tooling; DEFER wiring the live Pages deploy. Option B: also
-     wire the deploy now — edits PROTECTED .github/workflows/pages-match-preview.yml +
-     scripts/build_match_preview_site.sh and changes the LIVE Pages artifact; the repo itself
-     documents this as 'a separate, deliberately-reviewed change' (ci-site-v2.yml header).
-     Option B requires a contract AMENDMENT adding a protected_override (CPO authority) + those
-     paths + cto-review on the guard path. Surfaced in the plan-back; CPO rules at Confirm."
-  - "WHICH real fixture to feature. --sample picks the earliest kickoff globally; a well-covered
-     upcoming fixture (full w1/w2/form_window/top_players/h2h) makes a stronger proof. If none
-     has full coverage today, the honest empty states render. CPO may prefer a specific league."
-  - "i18n depth in increment 1. Rec: generate the fixture route under all 3 locale prefixes
-     (routing is the point), chrome from a small site_v2/src/i18n strings map (the ~dozen fixture
-     UI labels), metric ROW labels in English from the catalogue for now; full catalogue-i18n key
-     wiring + DE/FI metric labels = the #370 follow-up slice. (Label completeness is a separate
-     workstream, not this increment.)"
-  - "Route shape. Rec: the real URL /{lang}/{competition-slug}/matches/{slug}/ via getStaticPaths
-     over the one committed fixture (proves the programmatic pattern), vs a placeholder route."
-  - "None of the above are decided by me — each is flagged blinded (§11) in the plan-back."
+  - "NAME of the new cumulative model (proposal: int_team_season__metrics_cumulative) — a naming
+     call; surfaced in the plan-back for CPO ok."
+  - "Exactly which metrics get aligned YoY: the ~13 displayed rate metrics (goals/goals-against/
+     shots/danger-zone/SoT/finishing/passes/pass-acc/corners/corners-against/save/key-passes/
+     duels/duels-won/defensive-actions per metrics_display), plus the existing 3 totals kept as-is.
+     The T·I·B atoms feed defensive_actions only (not their own YoY), mirroring the display. Confirm set."
+  - "Cumulative model materialization (table like the sibling, vs view) — an analytics call; table
+     unless the per-matchday row count argues otherwise."
+  - "Whether a new invariant DQ test is warranted (e.g. cur/prev computed through the same N; the
+     byte-identity is already covered by the existing downstream suite) — analytics-engineer call."
 
 done_when:
-  - site_v2 builds clean locally (`npm run build`) AND under ci-site-v2 (`npm ci && npm run build`);
-    the existing dist index-page assertions still pass (base prefixes URLs, not the output dir — verified by the build).
-  - The fixture route renders the ONE committed real fixture: dark-default; tokens + components
-    imported (no hand-styled screen); masthead + standing chips (omitted when null) + segment
-    (Last 5 / This season) + form (W1 pills / W2 counts-or-header) + the LOCKED comparison table
-    (group order, direction-driven green, honest "-" for rows without data) + recent matches +
-    players-to-watch + h2h + explore links + footnote — each section rendering real data or its
-    designed empty state.
-  - Verified in the preview tooling: screenshot dark + light, console/network clean; no fact
-    derived in the frontend (grep the template — select/format/display only).
-  - ONE substantive commit; ci-site-v2 green; required reviewers PASS (scope-auditor + cto-reviewer
-    per review_routing.json — bi-analyst NOT required, site/i18n untouched); review.md diff_sha256
-    binds; CPO merges (I never merge).
+  - The new cumulative model builds; int_team_season__metrics = its final-row projection and is
+    BYTE-IDENTICAL (ci-data-build DQ suite on all 6 consumers green — no number drift).
+  - int_team_profile__yoy carries matchday-aligned this/prev/delta for every in-scope metric;
+    NULL on either side where coverage is incomplete through N; domestic-league only.
+  - mart_team_profile carries the new YoY columns; the v2 team export auto-carries them
+    (mart passthrough — confirm no export edit, or a minimal one).
+  - ci-data-build GREEN (parse + build + full DQ). Required reviewers PASS (scope-auditor +
+    analytics-engineer per review_routing.json for dbt_project/**); review.md diff_sha256 binds;
+    CPO merges (I never merge).
   - Handover bullet added to .claude/active_work.md (artifact-only follow-up commit).
 
 amendments: (none)
-# On amendment (clean tree only):
-#   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
