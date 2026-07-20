@@ -1,1022 +1,265 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f2f58a2..a187297 100644
+index a187297..42139e3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,106 +1,114 @@
--# Task contract — v2 frontend: design system + fixture template (Phase E, increment 1)
-+# Task contract — matchday-aligned team YoY for ALL metrics (Option A)
- 
--> Written on a CLEAN tree (branch `feat/site-v2-fixture-page` off main @ 7005052).
--> CPO-directed this conversation 2026-07-11 ("Start the v2 frontend build — Phase E").
--> Design is LOCKED (do not re-litigate): memory `project_v2_frontend_design.md` +
--> the reference mockup artifact d70aae67 (tokens/components/layout extracted).
--> See docs/working_agreement.md §1 (E→P→C→I→V), §2 (contract), §10 (decision rights),
--> §11 (blinded escalation), Appendix A (anti-patterns).
-+> Written on a CLEAN tree (branch `feat/team-yoy-all-metrics` off main @ d674905).
-+> CPO-directed this conversation 2026-07-11: the team page's "vs last season" must cover
-+> EVERY season metric, matchday-aligned — "extend the model" (not a frontend shortcut).
-+> CPO chose Option A (the COMPOSE architecture) for formula placement.
-+> See docs/working_agreement.md §1 (E→P→C→I→V), §2, §10, §11, Appendix A;
-+> feedback: [[feedback-metric-calc-layer-placement]] [[feedback-macros-maintainability]]
-+> [[project-dbt-shared-ci-prod-datasets]] [[reference-incremental-rename-full-refresh]].
- 
+@@ -1,114 +1,108 @@
+-# Task contract — matchday-aligned team YoY for ALL metrics (Option A)
++# Task contract — define `direction` for the 5 style team metrics (metric layer + fixture-bar mirror)
+
+-> Written on a CLEAN tree (branch `feat/team-yoy-all-metrics` off main @ d674905).
+-> CPO-directed this conversation 2026-07-11: the team page's "vs last season" must cover
+-> EVERY season metric, matchday-aligned — "extend the model" (not a frontend shortcut).
+-> CPO chose Option A (the COMPOSE architecture) for formula placement.
++> Written on a CLEAN tree (branch `feat/team-metric-directions` off main @ 16b4e1c).
++> CPO-directed this conversation 2026-07-20: the v2 team Stats "vs the league" verdict view must show
++> NO `neutral` metric — "we shouldn't allow neutral classification. It has to be clearly defined as
++> better or worse" — then "define the direction in the metric layer first" + "adjust the fixture bars
++> accordingly." CPO chose (AskUserQuestion) "Give each a direction" over dropping the style metrics.
+ > See docs/working_agreement.md §1 (E→P→C→I→V), §2, §10, §11, Appendix A;
+-> feedback: [[feedback-metric-calc-layer-placement]] [[feedback-macros-maintainability]]
+-> [[project-dbt-shared-ci-prod-datasets]] [[reference-incremental-rename-full-refresh]].
++> feedback: [[feedback-metric-catalogue-governance]] [[feedback-v2-design-schema-first]].
+
  objective: >
--  Stand up the shared v2 design system in site_v2/ — the token layer, base components,
--  and a Layout — and prove it by rendering ONE real exported fixture through a fixture
--  template, built as the /v2/ preview artifact. The design system is the deliverable;
--  the fixture page is the proof it composes. Import the system, never hand-style the
--  screen. The live MVP (site/) and its Pages deploy stay untouched (cutover = #377).
-+  Extend the team year-over-year surface from 3 metrics (points, goals for, goals against)
-+  to ALL season metrics, matchday-aligned (this season through N games vs the SAME team's
-+  prior season through its first N games), so the v2 team "Stats" tab can show a per-metric
-+  this/last column. Option A: lift the season-metric rate formulas into ONE cumulative model
-+  (rates at every matchday), make the existing whole-season int_team_season__metrics its
-+  final-row PROJECTION (byte-identical → zero downstream number change), and have
-+  int_team_profile__yoy COMPOSE the cumulative model at the cutoff N for both seasons.
- 
+-  Extend the team year-over-year surface from 3 metrics (points, goals for, goals against)
+-  to ALL season metrics, matchday-aligned (this season through N games vs the SAME team's
+-  prior season through its first N games), so the v2 team "Stats" tab can show a per-metric
+-  this/last column. Option A: lift the season-metric rate formulas into ONE cumulative model
+-  (rates at every matchday), make the existing whole-season int_team_season__metrics its
+-  final-row PROJECTION (byte-identical → zero downstream number change), and have
+-  int_team_profile__yoy COMPOSE the cumulative model at the cutoff N for both seasons.
++  Set a real performance `direction` on the 5 team metrics currently classified `neutral` in the
++  metric catalogue (passes/duels/defensive-actions/corners → higher_better; corners-against →
++  lower_better), aligning `direction` to the long-standing `lower_is_better` boolean (only dropping
++  the v2 `neutral` abstention), and update each `interpretation` to state the good direction. Mirror
++  the same 5 directions on the fixture comparison's display config (metricRows.ts). The metric layer
++  becomes the source of truth for the good/bad reading so the team Stats "vs the league" view and the
++  fixture bars render every metric as clearly better or worse (green = beats the league median).
+
  refs: >
--  epic #361 (v2 site) · design system #366 · fixture template #368 · export #365 ·
--  Phase E. Binding specs: docs/wireframes/01_fixture_page.md (layout + JSON bindings),
--  docs/wireframes/metrics_display.md (LOCKED 16-row team table), docs/site_architecture.md
--  (IA/URLs/i18n/deploy), docs/content_architecture.md (fixture block = composed v2 export).
--  Data schema: scripts/export_site_data.py :: shape_fixture_payload / fetch_fixture_payloads.
--  Reference mockup: https://claude.ai/code/artifact/d70aae67-0c0a-43c3-86df-9d983742a881
-+  #324 (team profile + YoY) · #500 (one-aggregation philosophy) · wireframe 02 §6 ·
-+  the team-page redesign (this conversation). Source model already anticipates this:
-+  int_team_season_record header — carries match_number "so the deferred year-over-year
-+  surface can align two seasons by matchday without a rewrite."
- 
+-  #324 (team profile + YoY) · #500 (one-aggregation philosophy) · wireframe 02 §6 ·
+-  the team-page redesign (this conversation). Source model already anticipates this:
+-  int_team_season_record header — carries match_number "so the deferred year-over-year
+-  surface can align two seasons by matchday without a rewrite."
++  The team Stats-tab design (this conversation) · metrics_display.md (fixture comparison contract) ·
++  [[feedback-v2-design-schema-first]] Stats-tab section. Design-driven; no issue number.
+
  scope_paths:
--  - site_v2/**            # astro config (base), Layout, tokens CSS, components, fixture template, committed sample fixture JSON, minimal i18n strings
--  - .claude/task/**       # this contract, review.md, review_input.patch
--  - .claude/active_work.md # handover bullet (artifact-only follow-up commit)
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/**   # new cumulative model + int_team_season__metrics (→ projection) + int_team_season.yml
-+  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql # +all-metric aligned YoY
-+  - dbt_project/models/4_intermediate/shared/int_team_profile.yml      # YoY tests/docs
-+  - dbt_project/models/5_marts/shared/mart_team_profile.sql            # + YoY columns (passthrough)
-+  - dbt_project/models/5_marts/shared/shared.yml                       # mart tests/docs
-+  - .claude/task/**
-+  - .claude/active_work.md
- 
--# STRUCTURAL SURFACE = consumption (site*/). Short-form evidenced (new, isolated, leaf consumer):
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/**   # new cumulative model + int_team_season__metrics (→ projection) + int_team_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql # +all-metric aligned YoY
+-  - dbt_project/models/4_intermediate/shared/int_team_profile.yml      # YoY tests/docs
+-  - dbt_project/models/5_marts/shared/mart_team_profile.sql            # + YoY columns (passthrough)
+-  - dbt_project/models/5_marts/shared/shared.yml                       # mart tests/docs
++  - dbt_project/seeds/metric_catalogue.csv        # direction + interpretation for the 5 team metrics
++  - site_v2/src/lib/metricRows.ts                 # mirror the 5 direction values (fixture bars)
+   - .claude/task/**
+   - .claude/active_work.md
+
  impact_map: >
--  New, isolated v2 frontend consumer under site_v2/ (already scaffolded: Astro 5, static,
--  i18n de/en/fi, `base` unset). Touches NO dbt model, NO live export script, NO live Pages
--  deploy, and NOTHING under site/. Reads ONE committed sample fixture JSON produced READ-ONLY
--  by `python scripts/export_site_data.py --entities fixtures` (BigQuery ADC verified OK,
--  rami.fahham@gmail.com; SELECT-only, no warehouse writes — the clobber risk is dbt-build-only,
--  not read queries). No fact derivation in the frontend (select/display only, per the
--  consumption-layer contract). Blast radius: the non-deployed v2 build only; the live product
--  is unaffected by construction (separate directory, separate CI = ci-site-v2.yml npm build,
--  which does NOT deploy). deploy_order: none — nothing is wired into the live Pages artifact
--  this increment (see decisions_reserved: /v2/ deploy wiring is deferred to a follow-up PR).
--  Gate: ci-site-v2.yml (`npm ci && npm run build` + existing dist index-page assertions).
-+  writers: none — all models read int_team_season_record (the cumulative raw-sums source,
-+    UNCHANGED). No raw/staging/ingestion touched.
-+  downstream (grep ref-graph; full `dbt ls --select int_team_season__metrics+` runs in
-+    ci-data-build — dbt CLI is broken locally): int_team_season__metrics is read by SIX
-+    models → int_team_season__deserved_vs_actual, int_team_competition_benchmark_metrics_long
-+    (→ int/mart_team_competition_benchmarks → v2 benchmark export), mart_team_season,
-+    mart_team_season_insights (→ LIVE MVP team-season JSON via export_pages_data.py),
-+    mart_team_profile (→ v2 team export), mart_team_season_record (→ v2 W2 window + fixture).
-+  layer_rules: intermediate materialization=table (like int_team_season__metrics + siblings);
-+    check_layer_contract (no per-competition staging; generic model reading league_code).
-+    int_team_season__metrics is ALL-competitions (verified: no domestic filter) — the new
-+    cumulative base must keep that scope; the YoY consumer filters to domestic_league + aligns.
-+  deploy_order: the refactor is BYTE-IDENTICAL (int_team_season__metrics = final row of the
-+    same formulas over the same input) → zero prod number change on the 04:00 nightly. dbt
-+    shares CI/prod datasets, so ci-data-build runs the full singular DQ suite vs shared prod —
-+    that suite on all 6 consumers is the byte-identity gate (any drift fails a test). The new
-+    YoY columns are ADDITIVE.
-+  blast_radius: int_team_season__metrics OUTPUT unchanged (the LIVE MVP team-season numbers +
-+    every v2 team/benchmark number stay identical — proven by the existing DQ suite staying
-+    green). NEW = matchday-aligned this/prev/delta for the ~13 rate metrics on
-+    int_team_profile__yoy → mart_team_profile → v2 team export only (additive; the live MVP
-+    does not read YoY). NO catalogue rows (windowed YoY variants are exempt from the drift
-+    guard — same as today's 3-metric YoY).
- 
+-  writers: none — all models read int_team_season_record (the cumulative raw-sums source,
+-    UNCHANGED). No raw/staging/ingestion touched.
+-  downstream (grep ref-graph; full `dbt ls --select int_team_season__metrics+` runs in
+-    ci-data-build — dbt CLI is broken locally): int_team_season__metrics is read by SIX
+-    models → int_team_season__deserved_vs_actual, int_team_competition_benchmark_metrics_long
+-    (→ int/mart_team_competition_benchmarks → v2 benchmark export), mart_team_season,
+-    mart_team_season_insights (→ LIVE MVP team-season JSON via export_pages_data.py),
+-    mart_team_profile (→ v2 team export), mart_team_season_record (→ v2 W2 window + fixture).
+-  layer_rules: intermediate materialization=table (like int_team_season__metrics + siblings);
+-    check_layer_contract (no per-competition staging; generic model reading league_code).
+-    int_team_season__metrics is ALL-competitions (verified: no domestic filter) — the new
+-    cumulative base must keep that scope; the YoY consumer filters to domestic_league + aligns.
+-  deploy_order: the refactor is BYTE-IDENTICAL (int_team_season__metrics = final row of the
+-    same formulas over the same input) → zero prod number change on the 04:00 nightly. dbt
+-    shares CI/prod datasets, so ci-data-build runs the full singular DQ suite vs shared prod —
+-    that suite on all 6 consumers is the byte-identity gate (any drift fails a test). The new
+-    YoY columns are ADDITIVE.
+-  blast_radius: int_team_season__metrics OUTPUT unchanged (the LIVE MVP team-season numbers +
+-    every v2 team/benchmark number stay identical — proven by the existing DQ suite staying
+-    green). NEW = matchday-aligned this/prev/delta for the ~13 rate metrics on
+-    int_team_profile__yoy → mart_team_profile → v2 team export only (additive; the live MVP
+-    does not read YoY). NO catalogue rows (windowed YoY variants are exempt from the drift
+-    guard — same as today's 3-metric YoY).
++  writers: none — a seed VALUE change (the `direction`/`interpretation` cells of 5 existing rows; no
++    new column, no row added/removed) + a frontend display constant. No model/raw/ingestion touched.
++  downstream (evidence: `grep -r direction` over dbt_project + scripts, every hit READ; dbt CLI is
++    broken locally so no `dbt ls`): every consumer of the catalogue `direction` is direction-AGNOSTIC
++    or non-breaking —
++      - mart_team_competition_benchmarks.sql + mart_player_competition_benchmarks.sql: "DIRECTION-
++        AGNOSTIC by design" (rank by metric_value DESC; good/bad applied at DISPLAY from the catalogue
++        direction). No output/number change; benchmark DQ tests unaffected.
++      - tests/assert_team_metric_meaning_complete.sql: FAILs only if direction OR interpretation is
++        NULL/empty — the 5 stay non-empty (neutral -> higher/lower_better). Still passes.
++      - seeds/schema.yml: `direction` accepted_values [higher_better, lower_better, neutral] — new
++        values in-set. Still passes.
++      - mart_head_to_head.sql: does NOT use metric direction (H2H record facts only).
++      - shared.yml: `direction` appears only in column DESCRIPTIONS (still accurate). No test.
++      - scripts/export_metric_definitions_json.py (LIVE MVP): reads `lower_is_better`, NOT `direction`
++        — UNCHANGED, so the live MVP good/bad reading is untouched.
++      - scripts/export_site_data.py (v2): direction "applied at render"; the mart carries no direction
++        column — no payload change.
++      - site_v2/src/lib/metricRows.ts: the fixture comparison's hand-mirror of the catalogue direction
++        — the 5 rows now show a green better-side (display only; sample fixture data unchanged).
++  layer_rules: seed change (no dbt model layer touched; check_layer_contract N/A). metricRows.ts is
++    DISPLAY CONFIG whose own header says `direction` mirrors metric_catalogue.csv — keeping them in
++    lockstep is the rule.
++  deploy_order: NO prod number moves (direction is a display semantic; benchmarks agnostic; live MVP
++    reads lower_is_better). Nothing breaks the deployed model on the 04:00 nightly. ci-data-build
++    (shared prod dataset, full DQ suite) is the byte-safety gate.
++  blast_radius: ZERO number change anywhere. The good/bad reading of the 5 metrics flips from "no
++    verdict" to a verdict — a green better-side on the fixture comparison for those rows, and the
++    catalogue becomes the SoT for the not-yet-built team Stats "vs the league" view.
+
  decisions_taken: >
--  1. Phase E is GO. active_work.md held "do NOT start the v2 frontend (Phase E) until the
--     data+export is all green"; the CPO has now directed the start, and content_architecture.md
--     (2026-07-07) confirms green — 18 marts wired, fixture screen ✓. This contract records that
--     the hold is lifted by CPO direction this conversation.
--  2. Design is LOCKED — extracted verbatim from the reference mockup: token set (dark-default
--     `.fx` custom properties + `[data-theme=light]` swap), component classes, and the fixture
--     layout/section order. Colour = meaning only (green = better value by catalogue `direction`,
--     RESERVED — never links/labels); hierarchy = tone/weight/size. Not re-litigated.
--  3. Data bindings follow docs/wireframes/01_fixture_page.md (each field verified against the
--     v2 fixture payload) and the LOCKED 16-row table (metrics_display.md). Rows/fields absent
--     from today's payload render the designed empty state ("-", no bar; W2 counts fall back to
--     the window header) — data honesty, never fabricated. The committed sample JSON is the
--     ground truth for what has data today.
--  4. Sample-data source: ONE real fixture, exported READ-ONLY via export_site_data.py and
--     committed inside site_v2/ so the static build (and ci-site-v2, which has no BigQuery) is
--     self-contained. Clearly labelled a temporary committed sample, to be replaced when the v2
--     export is wired as the build data source (#365 deploy).
--  5. /v2/ = enact the preview-phase routing (`base: "/v2/"`, the value the astro.config comment
--     already earmarks) WITHOUT touching the live Pages deploy — Option A below.
-+  1. Option A (CPO-approved this session): a cumulative team-season RATES model (the current
-+     int_team_season__metrics SELECT applied to EVERY cumulative row of int_team_season_record,
-+     not just the final), with int_team_season__metrics becoming its final-row projection.
-+     Formulas live in ONE place; no macro (inline SQL, per [[feedback-macros-maintainability]]).
-+  2. Matchday alignment is by GAMES PLAYED (match_number), reusing the existing YoY mechanism
-+     (cur = latest cumulative row this season → cutoff N; prev = prior season's largest
-+     match_number ≤ N). The rate coverage gates carry over unchanged: a metric is NULL on a
-+     side when that season's first N games are not fully stat-covered — honest, never fabricated.
-+  3. Byte-identity of int_team_season__metrics is REQUIRED (it feeds the live MVP). Verified by
-+     ci-data-build's existing DQ suite on the 6 consumers staying green.
-+  4. No catalogue changes; YoY stays domestic-league only (cups/tournaments have no aligned
-+     comparison — the existing scope).
-+  5. BOTH new ratio DQ tests — on int_team_season__metrics_cumulative AND on the composed
-+     int_team_profile__yoy (which reads the cumulative model at cutoff N) — are split by INVARIANT
-+     FAMILY, not a verbatim copy of the whole-season [0,1] test (that over-strict copy failed
-+     ci-data-build on exactly one row, LIBER 2024 team 2546 match 1, danger_zone_ratio 1.25).
-+     Structurally-bounded ratios (points_capture / clean_sheets / shot_share / save_ratio /
-+     finishing_efficiency — the last guarded to NULL when goals>SoT) keep strict [0,1] at every
-+     matchday. Provider-subset ratios (shot_accuracy / danger_zone_ratio / pass_accuracy /
-+     duels_won_pct = one provider stat over another) are bounded ≥0 only: at low N a single game
-+     where the provider reports numerator > denominator (verified at source: fixture 1149592 has
-+     shots_inside_box 5 > shots_total 4) is not yet diluted, so >1 is a genuine data reality, not a
-+     model bug — clamping would hide it. The YoY cutoff N is low by construction early in every
-+     season, so it inherits the same split (the caught round-3 gap). The whole-season test keeps
-+     its strict [0,1] (dilution holds at season scale). Both bounds still catch real defects
-+     (a structural ratio >1, or any ratio <0). Whether the display layer should ever surface a
-+     provider-subset ratio >1 mid-season is a downstream product/legibility call, deferred to the
-+     Stats-tab build (this data layer stays honest — never clamps).
- 
+-  1. Option A (CPO-approved this session): a cumulative team-season RATES model (the current
+-     int_team_season__metrics SELECT applied to EVERY cumulative row of int_team_season_record,
+-     not just the final), with int_team_season__metrics becoming its final-row projection.
+-     Formulas live in ONE place; no macro (inline SQL, per [[feedback-macros-maintainability]]).
+-  2. Matchday alignment is by GAMES PLAYED (match_number), reusing the existing YoY mechanism
+-     (cur = latest cumulative row this season → cutoff N; prev = prior season's largest
+-     match_number ≤ N). The rate coverage gates carry over unchanged: a metric is NULL on a
+-     side when that season's first N games are not fully stat-covered — honest, never fabricated.
+-  3. Byte-identity of int_team_season__metrics is REQUIRED (it feeds the live MVP). Verified by
+-     ci-data-build's existing DQ suite on the 6 consumers staying green.
+-  4. No catalogue changes; YoY stays domestic-league only (cups/tournaments have no aligned
+-     comparison — the existing scope).
+-  5. BOTH new ratio DQ tests — on int_team_season__metrics_cumulative AND on the composed
+-     int_team_profile__yoy (which reads the cumulative model at cutoff N) — are split by INVARIANT
+-     FAMILY, not a verbatim copy of the whole-season [0,1] test (that over-strict copy failed
+-     ci-data-build on exactly one row, LIBER 2024 team 2546 match 1, danger_zone_ratio 1.25).
+-     Structurally-bounded ratios (points_capture / clean_sheets / shot_share / save_ratio /
+-     finishing_efficiency — the last guarded to NULL when goals>SoT) keep strict [0,1] at every
+-     matchday. Provider-subset ratios (shot_accuracy / danger_zone_ratio / pass_accuracy /
+-     duels_won_pct = one provider stat over another) are bounded ≥0 only: at low N a single game
+-     where the provider reports numerator > denominator (verified at source: fixture 1149592 has
+-     shots_inside_box 5 > shots_total 4) is not yet diluted, so >1 is a genuine data reality, not a
+-     model bug — clamping would hide it. The YoY cutoff N is low by construction early in every
+-     season, so it inherits the same split (the caught round-3 gap). The whole-season test keeps
+-     its strict [0,1] (dilution holds at season scale). Both bounds still catch real defects
+-     (a structural ratio >1, or any ratio <0). Whether the display layer should ever surface a
+-     provider-subset ratio >1 mid-season is a downstream product/legibility call, deferred to the
+-     Stats-tab build (this data layer stays honest — never clamps).
++  1. CPO ruled (this session): the team Stats "vs the league" verdict view must not classify any
++     displayed metric `neutral` — every metric reads clearly better or worse. CPO chose (AskUserQuestion)
++     "Give each a direction" over dropping the style metrics, then directed "define the direction in the
++     metric layer first" + "adjust the fixture bars accordingly."
++  2. Direction values ALIGN to the existing `lower_is_better` boolean (passes/duels/defensive-actions/
++     corners: lower_is_better=false -> higher_better; corners-against: lower_is_better=true -> lower_better).
++     Not a new football judgment invented here — the boolean (which the live MVP already reads) has
++     classified these all along; we only drop the v2 `neutral` abstention and make `direction` consistent.
++  3. FOOTBALL-HONESTY OVERRIDE (CPO-accepted; flagged for football-analytics-expert-reviewer):
++     higher_better on duels_per_match + defensive_actions_per_match is a VOLUME signal — a possession-
++     dominant side that duels/defends less reads "below par" despite being strong (the reason the
++     catalogue authors chose `neutral`). The CPO chose display clarity (a clear verdict) over the
++     abstention. The interpretation text keeps the volume caveat honest. §10 metrics decision the CPO
++     ruled in-conversation (recorded in escalations.log) — the reviewer's expected objection is
++     documented, not re-litigated.
++  4. `lower_is_better` is NOT touched (retained until the full migration; the live MVP depends on it).
++     T/I/B atoms (tackles/interceptions/blocks) + sot_rank_gap stay `neutral` (not verdict bars).
++  5. INTERPRETATION SWEEP (CPO-directed 2026-07-20, same PR): after the direction-is-judgement framing
++     was settled ([[feedback-metric-direction-judgement]] — `direction` is "all else equal, is more
++     better?", NOT a rank/results correlation), the CPO asked to review the `interpretation` text of ALL
++     metrics and adjust where applicable. Revised the volume/style interpretations to LEAD with the
++     direction reading and keep the honest style/volume caveat SECOND (shots_per_match + the 5 style
++     metrics). The rest were reviewed and already lead with the judgement (kept as-is). Neutral metrics
++     (T/I/B atoms, sot_rank_gap, contribution_share, the deferred player per-90 volume metrics) keep
++     their neutral/no-verdict interpretation, consistent with their neutral direction. No further
++     direction flips.
+
  decisions_reserved:
--  - "/v2/ LIVE DEPLOY WIRING (§10 — platform + live artifact) — RESOLVED 2026-07-11 (CPO ruled
--     Option A this session: build-and-prove now, defer the live-deploy wiring; no scope change —
--     the contract already baselines A). Option A (this
--     contract): set base:\"/v2/\" + build the /v2/ artifact; verify via ci-site-v2 build +
--     local astro preview + preview tooling; DEFER wiring the live Pages deploy. Option B: also
--     wire the deploy now — edits PROTECTED .github/workflows/pages-match-preview.yml +
--     scripts/build_match_preview_site.sh and changes the LIVE Pages artifact; the repo itself
--     documents this as 'a separate, deliberately-reviewed change' (ci-site-v2.yml header).
--     Option B requires a contract AMENDMENT adding a protected_override (CPO authority) + those
--     paths + cto-review on the guard path. Surfaced in the plan-back; CPO rules at Confirm."
--  - "WHICH real fixture to feature. --sample picks the earliest kickoff globally; a well-covered
--     upcoming fixture (full w1/w2/form_window/top_players/h2h) makes a stronger proof. If none
--     has full coverage today, the honest empty states render. CPO may prefer a specific league."
--  - "i18n depth in increment 1. Rec: generate the fixture route under all 3 locale prefixes
--     (routing is the point), chrome from a small site_v2/src/i18n strings map (the ~dozen fixture
--     UI labels), metric ROW labels in English from the catalogue for now; full catalogue-i18n key
--     wiring + DE/FI metric labels = the #370 follow-up slice. (Label completeness is a separate
--     workstream, not this increment.)"
--  - "Route shape. Rec: the real URL /{lang}/{competition-slug}/matches/{slug}/ via getStaticPaths
--     over the one committed fixture (proves the programmatic pattern), vs a placeholder route."
--  - "None of the above are decided by me — each is flagged blinded (§11) in the plan-back."
-+  - "NAME of the new cumulative model (proposal: int_team_season__metrics_cumulative) — a naming
-+     call; surfaced in the plan-back for CPO ok."
-+  - "Exactly which metrics get aligned YoY: the ~13 displayed rate metrics (goals/goals-against/
-+     shots/danger-zone/SoT/finishing/passes/pass-acc/corners/corners-against/save/key-passes/
-+     duels/duels-won/defensive-actions per metrics_display), plus the existing 3 totals kept as-is.
-+     The T·I·B atoms feed defensive_actions only (not their own YoY), mirroring the display. Confirm set."
-+  - "Cumulative model materialization (table like the sibling, vs view) — an analytics call; table
-+     unless the per-matchday row count argues otherwise."
-+  - "Whether a new invariant DQ test is warranted (e.g. cur/prev computed through the same N; the
-+     byte-identity is already covered by the existing downstream suite) — analytics-engineer call."
- 
+-  - "NAME of the new cumulative model (proposal: int_team_season__metrics_cumulative) — a naming
+-     call; surfaced in the plan-back for CPO ok."
+-  - "Exactly which metrics get aligned YoY: the ~13 displayed rate metrics (goals/goals-against/
+-     shots/danger-zone/SoT/finishing/passes/pass-acc/corners/corners-against/save/key-passes/
+-     duels/duels-won/defensive-actions per metrics_display), plus the existing 3 totals kept as-is.
+-     The T·I·B atoms feed defensive_actions only (not their own YoY), mirroring the display. Confirm set."
+-  - "Cumulative model materialization (table like the sibling, vs view) — an analytics call; table
+-     unless the per-matchday row count argues otherwise."
+-  - "Whether a new invariant DQ test is warranted (e.g. cur/prev computed through the same N; the
+-     byte-identity is already covered by the existing downstream suite) — analytics-engineer call."
++  - "Player per-90 volume analogs (passes_per90, tackles_per90, interceptions_per90, blocks_per90,
++     defensive_actions_per90, duels_won_per90, saves_per90) stay `neutral` — out of scope; a consistency
++     call for when the player page is designed. Do NOT touch here."
++  - "The exact interpretation WORDING for duels/defensive-actions (volume-caveat phrasing) — the
++     football reviewer may refine; the CPO has the final call. Not a blocker to the direction."
+
  done_when:
--  - site_v2 builds clean locally (`npm run build`) AND under ci-site-v2 (`npm ci && npm run build`);
--    the existing dist index-page assertions still pass (base prefixes URLs, not the output dir — verified by the build).
--  - The fixture route renders the ONE committed real fixture: dark-default; tokens + components
--    imported (no hand-styled screen); masthead + standing chips (omitted when null) + segment
--    (Last 5 / This season) + form (W1 pills / W2 counts-or-header) + the LOCKED comparison table
--    (group order, direction-driven green, honest "-" for rows without data) + recent matches +
--    players-to-watch + h2h + explore links + footnote — each section rendering real data or its
--    designed empty state.
--  - Verified in the preview tooling: screenshot dark + light, console/network clean; no fact
--    derived in the frontend (grep the template — select/format/display only).
--  - ONE substantive commit; ci-site-v2 green; required reviewers PASS (scope-auditor + cto-reviewer
--    per review_routing.json — bi-analyst NOT required, site/i18n untouched); review.md diff_sha256
--    binds; CPO merges (I never merge).
-+  - The new cumulative model builds; int_team_season__metrics = its final-row projection and is
-+    BYTE-IDENTICAL (ci-data-build DQ suite on all 6 consumers green — no number drift).
-+  - int_team_profile__yoy carries matchday-aligned this/prev/delta for every in-scope metric;
-+    NULL on either side where coverage is incomplete through N; domestic-league only.
-+  - mart_team_profile carries the new YoY columns; the v2 team export auto-carries them
-+    (mart passthrough — confirm no export edit, or a minimal one).
-+  - ci-data-build GREEN (parse + build + full DQ). Required reviewers PASS (scope-auditor +
-+    analytics-engineer per review_routing.json for dbt_project/**); review.md diff_sha256 binds;
-+    CPO merges (I never merge).
-   - Handover bullet added to .claude/active_work.md (artifact-only follow-up commit).
- 
+-  - The new cumulative model builds; int_team_season__metrics = its final-row projection and is
+-    BYTE-IDENTICAL (ci-data-build DQ suite on all 6 consumers green — no number drift).
+-  - int_team_profile__yoy carries matchday-aligned this/prev/delta for every in-scope metric;
+-    NULL on either side where coverage is incomplete through N; domestic-league only.
+-  - mart_team_profile carries the new YoY columns; the v2 team export auto-carries them
+-    (mart passthrough — confirm no export edit, or a minimal one).
+-  - ci-data-build GREEN (parse + build + full DQ). Required reviewers PASS (scope-auditor +
+-    analytics-engineer per review_routing.json for dbt_project/**); review.md diff_sha256 binds;
+-    CPO merges (I never merge).
+-  - Handover bullet added to .claude/active_work.md (artifact-only follow-up commit).
++  - metric_catalogue.csv: the 5 team rows carry the new `direction` + a consistent `interpretation`;
++    `neutral` no longer appears on those 5 rows (grep-verified).
++  - metricRows.ts: the same 5 rows carry the mirrored `direction`; compiles (ci-site-v2).
++  - ci-data-build GREEN (seed loads; assert_team_metric_meaning_complete + accepted_values + the full
++    DQ suite pass; no number drift — benchmarks are direction-agnostic).
++  - ci-site-v2 GREEN; the fixture sample renders a green better-side on the 5 rows (Browser spot-check).
++  - Required reviewers PASS: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-
++    reviewer (metric_catalogue.csv) + cto-reviewer (site_v2/**), per review_routing.json. review.md
++    diff_sha256 binds; CPO merges (I never merge).
++  - Handover bullet added to .claude/active_work.md.
+
  amendments: (none)
--# On amendment (clean tree only):
--#   - <date>: + <path> — authority: <CPO answer / standing rule>; content: <what>
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 398f265..d0c020d 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -82,6 +82,64 @@ models:
-           Shots on target conceded per match (opponent-SoT companion to shots_on_goal_per_match).
-           NULL unless opponent SoT covers every season game.
- 
-+  - name: int_team_season__metrics_cumulative
-+    description: >
-+      Per-matchday cumulative team-season rate metrics — the int_team_season__metrics rate formulas
-+      applied to EVERY cumulative row of int_team_season_record (not just the final). The single home
-+      of the team-season rate formulas (#500 one-aggregation): int_team_season__metrics is this
-+      model's final-row projection (byte-identical), and int_team_profile__yoy composes it at the
-+      games-played cutoff N to align two seasons by matchday for ALL metrics. All-competitions.
-+      The _sum_season / season_games_played names are inherited from the projection for byte-identity;
-+      here they mean "cumulative through this matchday". Grain: (team_sk, league_code, season_api_year,
-+      match_number).
-+    config:
-+      tags: ["intermediate", "football", "team_season"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns:
-+            - team_sk
-+            - league_code
-+            - season_api_year
-+            - match_number
-+      # Ratio bounds are split by invariant FAMILY (the cumulative grain is weaker than the whole-
-+      # season one — see below). Structurally-bounded ratios hold [0,1] at EVERY matchday by
-+      # construction: points_capture (points <= 3*games), clean_sheets (clean_sheet_games <= games),
-+      # shot_share (for/(for+against)), save_ratio (saves/(saves+goals)), finishing_efficiency
-+      # (nulled when goals>SoT). A value out of [0,1] here is a real coverage-window/formula bug.
-+      - dbt_utils.expression_is_true:
-+          expression: "(save_ratio is null or save_ratio between 0 and 1) and (shot_share is null or shot_share between 0 and 1) and (points_capture is null or points_capture between 0 and 1) and (clean_sheets is null or clean_sheets between 0 and 1) and (finishing_efficiency is null or finishing_efficiency between 0 and 1)"
-+          name: int_team_season_cumulative_structural_ratios_in_range
-+      # Provider-subset ratios (one provider stat over another: shot_accuracy = SoT/shots,
-+      # danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total, duels_won_pct =
-+      # won/total) are bounded >= 0 ONLY. At a low matchday a single game where the provider reports
-+      # numerator > denominator (a known API inconsistency, e.g. inside_box > total shots) is not yet
-+      # diluted, so a cumulative value > 1 is a genuine data reality — not a model bug (clamping would
-+      # hide it). The whole-season projection keeps strict [0,1] (dilution holds at season scale). A
-+      # negative would still be a real sign-flip bug.
-+      - dbt_utils.expression_is_true:
-+          expression: "(shot_accuracy is null or shot_accuracy >= 0) and (danger_zone_ratio is null or danger_zone_ratio >= 0) and (pass_accuracy is null or pass_accuracy >= 0) and (duels_won_pct is null or duels_won_pct >= 0)"
-+          name: int_team_season_cumulative_subset_ratios_non_negative
-+      - dbt_utils.expression_is_true:
-+          expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
-+          name: int_team_season_cumulative_sot_against_non_negative
-+    columns:
-+      - name: team_sk
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: league_code
-+        tests: [not_null]
-+      - name: season_api_year
-+        tests: [not_null]
-+      - name: match_number
-+        description: "Games played through this cumulative row (= games_played). The grain key + the YoY alignment cutoff N."
-+        tests: [not_null]
-+      - name: season_games_played
-+        description: "Games played through this matchday (name inherited from the whole-season projection for byte-identity)."
-+        tests: [not_null]
-+
-   - name: int_team_season__deserved_vs_actual
-     description: >
-       TEAM deserved-vs-actual read (rank-space), one row per (team_sk, season_sk): actual league
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-index 0fbab21..d5e87d0 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
-@@ -1,33 +1,36 @@
- {{ config(materialized='table') }}
- 
- {#
--  Whole-season team rollup — the FINAL ROW of int_team_season_record (#500 PR1: one season
--  aggregation, not two). Per (league_code, season_api_year, team_sk) over all finished legs in the
--  season — identical numbers to the prior independent re-aggregation, now a projection of the
--  cumulative season-to-date model rather than a second pass over the legs.
--  Grain: (team_sk, season_sk). mart_team_season_insights keeps latest season per league.
-+  Whole-season team rollup — now the FINAL-ROW PROJECTION of int_team_season__metrics_cumulative
-+  (#500 one-aggregation; the rate formulas moved there, applied at every matchday). Per
-+  (league_code, season_api_year, team_sk): the last cumulative row of the season (max match_number)
-+  + the whole-season-only extras — team_season_sk and season_matchdays_used — re-attached here.
- 
--  The shared per-match / ratio formulas are plain inline SQL below — the same window-form as
--  mart_team_momentum / mart_team_season_record (the latter COMPOSES this model, never re-derives).
--  The metric columns now match the catalogue ids — the `_season` suffix was dropped end-to-end in
--  #500 Stage 2 (the live team_season_insights.json keys moved in lockstep). Window-specific season metrics
--  (points_capture, shot_share, clean-sheets RATE) stay inline — they are not shared across windows.
-+  Output is BYTE-IDENTICAL to the prior model (same formulas over the same input, same final row):
-+  every downstream consumer (mart_team_season / _insights / _profile / _record, the benchmark
-+  chain, deserved-vs-actual) is unchanged. mart_team_season_insights exposes only the latest
-+  season_api_year per league_code.
- 
--  Incomplete-data → NULL (CPO 2026-06-25; reverse #320) is enforced inline (a team-feed rate is
--  NULL unless its stat covers every season game); scoreline + player-derived are not gated.
-+  Grain: (team_sk, season_sk).
- #}
- 
--with season_final as (
--    -- the last cumulative row per (team, competition, season) = the whole-season totals
--    select * from {{ ref('int_team_season_record') }}
-+with cumulative as (
-+    select * from {{ ref('int_team_season__metrics_cumulative') }}
-+),
-+
-+-- the season's final cumulative row = its greatest match_number (= latest kickoff, since
-+-- match_number is row_number over kickoff asc; the whole-season totals live here).
-+season_final as (
-+    select * from cumulative
-     qualify row_number() over (
-         partition by team_sk, league_code, season_api_year
--        order by kickoff_datetime desc, fixture_sk desc
-+        order by match_number desc
-     ) = 1
- ),
- 
-+-- distinct matchdays used across the whole season (round_name lives on the leg, not the
-+-- cumulative row) — a whole-season-only field, so it is attached here, not in the base model.
- matchdays as (
--    -- distinct matchdays used (round_name lives on the leg, not the cumulative row)
-     select
-         team_sk,
-         league_code,
-@@ -35,160 +38,17 @@ matchdays as (
-         count(distinct round_name) as season_matchdays_used
-     from {{ ref('int_legs__team_match') }}
-     group by team_sk, league_code, season_api_year
--),
--
--final as (
--    select
--        sf.*,
--        md.season_matchdays_used
--    from season_final as sf
--    left join matchdays as md
--        on
--            sf.team_sk = md.team_sk
--            and sf.league_code = md.league_code
--            and sf.season_api_year = md.season_api_year
- )
- 
- select
--    {{ dbt_utils.generate_surrogate_key(['team_sk', 'season_sk']) }} as team_season_sk,
--    team_sk,
--    league_sk,
--    season_sk,
--    league_code,
--    season_api_year,
--    entity_type,
--    games_played as season_games_played,
--    season_matchdays_used,
--    games_with_sot_stats as stat_coverage_season_games,
--    games_with_player_stats as player_stat_coverage_season_games,
--    games_with_team_stats,
--    -- raw season-total counts (kept under the _sum_season names — live JSON keys; the metric columns
--    -- dropped their _season suffix in #500 Stage 2, but these raw sums keep the window marker)
--    points_won as points_won_sum_season,
--    wins as wins_sum_season,
--    draws as draws_sum_season,
--    losses as losses_sum_season,
--    clean_sheet_games as clean_sheets_sum_season,
--    goals_for as goals_for_sum_season,
--    goals_against as goals_against_sum_season,
--    goals_penalty,
--    goals_own,
--    goals_for - goals_penalty - goals_own as goals_open_play,
--    -- team-feed sum columns: NULL ('—') on partial coverage (incomplete-data rule, CPO 2026-06-25).
--    -- These are the DISPLAYED season totals; the per-match rates below gate independently off the
--    -- raw cumulative columns. Scoreline sums above are always present, so they are NOT gated.
--    case
--        when games_with_team_stats < games_played then null else shots_total
--    end as total_shots_sum_season,
--    case
--        when games_with_opp_stats < games_played then null else opponent_shots_total
--    end as opponent_total_shots_sum_season,
--    case
--        when games_with_team_stats < games_played then null else shots_inside_box
--    end as shots_inside_box_sum_season,
--    case
--        when games_with_sot_stats < games_played then null else shots_on_goal
--    end as shots_on_goal_sum_season,
--    case
--        when games_with_team_stats < games_played then null else corner_kicks
--    end as corner_kicks_sum_season,
--    case
--        when games_with_opp_stats < games_played then null else opponent_corner_kicks
--    end as opponent_corner_kicks_sum_season,
--    case
--        when games_with_team_stats < games_played then null else passes_accurate
--    end as passes_accurate_sum_season,
--    case
--        when games_with_team_stats < games_played then null else passes_total
--    end as passes_total_sum_season,
--    case
--        when games_with_save_stats < games_played then null else goalkeeper_saves
--    end as goalkeeper_saves_sum_season,
--    -- window-specific season metrics (not shared across windows; stay inline)
--    safe_divide(points_won, 3 * games_played) as points_capture,
--    -- shot share: NULL unless BOTH own and opponent shots cover every game (else a partial value)
--    case
--        when games_with_team_stats < games_played then null
--        when games_with_opp_stats < games_played then null
--        else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
--    end as shot_share,
--    safe_divide(clean_sheet_games, games_played) as clean_sheets,
--    -- shared per-match / ratio formulas (plain inline SQL — same window-form as the marts; the
--    -- metric columns match the catalogue ids since #500 Stage 2). Composed (not recomputed)
--    -- by mart_team_season_record.
--    safe_divide(goals_for, games_played) as goals_per_match,
--    safe_divide(goals_against, games_played) as goals_against_per_match,
--    case
--        when games_with_team_stats < games_played then null
--        else safe_divide(shots_total, games_with_team_stats)
--    end as shots_per_match,
--    case
--        -- gate on BOTH SoT (numerator) and team (denominator) coverage: in rare old data a game
--        -- carries shots_on_goal but null shots_total, so SoT coverage alone is not sufficient.
--        when games_with_sot_stats < games_played then null
--        when games_with_team_stats < games_played then null
--        else safe_divide(shots_on_goal, shots_total)
--    end as shot_accuracy,
--    case
--        when games_with_team_stats < games_played then null
--        else safe_divide(shots_inside_box, shots_total)
--    end as danger_zone_ratio,
--    case
--        when games_with_sot_stats < games_played then null
--        else safe_divide(shots_on_goal, games_with_sot_stats)
--    end as shots_on_goal_per_match,
--    -- shots-on-target conceded per match: opponent-SoT companion to shots_on_goal_per_match;
--    -- NULL unless opponent SoT covers every game (incomplete-data rule, CPO 2026-06-25).
--    case
--        when games_with_opp_sot_stats < games_played then null
--        else safe_divide(opponent_shots_on_goal, games_with_opp_sot_stats)
--    end as shots_on_goal_against_per_match,
--    -- sot_difference (deserved signal): per-match shots-on-target difference (for - against). The
--    -- catalogue denominator is count(*) = matches; this APPLIES it only when BOTH own and opponent
--    -- SoT cover every game (availability gate — never part of the formula). Signed: can be negative.
--    case
--        when games_with_sot_stats < games_played then null
--        when games_with_opp_sot_stats < games_played then null
--        else safe_divide(shots_on_goal - opponent_shots_on_goal, games_played)
--    end as sot_difference,
--    case
--        when games_with_sot_stats < games_played then null
--        when (goals_for - goals_penalty - goals_own) < 0 then null
--        when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
--        else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
--    end as finishing_efficiency,
--    case
--        when games_with_team_stats < games_played then null
--        else safe_divide(passes_total, games_with_team_stats)
--    end as passes_per_match,
--    case
--        when games_with_team_stats < games_played then null
--        else safe_divide(passes_accurate, passes_total)
--    end as pass_accuracy,
--    case
--        when games_with_team_stats < games_played then null
--        else safe_divide(corner_kicks, games_with_team_stats)
--    end as corner_kicks_per_match,
--    case
--        when games_with_opp_stats < games_played then null
--        else safe_divide(opponent_corner_kicks, games_with_opp_stats)
--    end as corners_against_per_match,
--    -- save_ratio: byte-identical to the prior model (which divided by goals_against TOTAL) — the
--    -- gate makes BOTH null on partial save coverage, and when fully covered every game is
--    -- save-covered so goals_against_in_save_games == goals_against (verified 0/12537).
--    case
--        when games_with_save_stats < games_played then null
--        else safe_divide(
--            goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
--        )
--    end as save_ratio,
--    safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
--    safe_divide(tackles, games_with_player_stats) as tackles_per_match,
--    safe_divide(interceptions, games_with_player_stats)
--        as interceptions_per_match,
--    safe_divide(blocks, games_with_player_stats) as blocks_per_match,
--    safe_divide(tackles + interceptions + blocks, games_with_player_stats)
--        as defensive_actions_per_match,
--    safe_divide(duels_total, games_with_player_stats) as duels_per_match,
--    safe_divide(duels_won, duels_total) as duels_won_pct
--from final
-+    {{ dbt_utils.generate_surrogate_key(['sf.team_sk', 'sf.season_sk']) }} as team_season_sk,
-+    -- everything from the final cumulative row except its per-matchday grain key; the
-+    -- _sum_season / season_games_played names now denote the whole season (final matchday).
-+    sf.* except (match_number),
-+    md.season_matchdays_used
-+from season_final as sf
-+left join matchdays as md
-+    on
-+        sf.team_sk = md.team_sk
-+        and sf.league_code = md.league_code
-+        and sf.season_api_year = md.season_api_year
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-new file mode 100644
-index 0000000..a4cb84d
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-@@ -0,0 +1,159 @@
-+{{ config(materialized='table') }}
-+
-+{#
-+  Per-matchday cumulative team-season metrics — the season rate formulas applied to EVERY
-+  cumulative row of int_team_season_record (not just the final one). This is the single home of
-+  the team-season rate formulas (#500 one-aggregation philosophy):
-+
-+    - int_team_season__metrics is the FINAL-ROW PROJECTION of this model (whole-season rollup) —
-+      byte-identical output, so every downstream consumer (mart_team_season / _insights /
-+      _profile / _record, the benchmark chain, deserved-vs-actual) is unchanged.
-+    - int_team_profile__yoy COMPOSES this model at the games-played cutoff N to align two seasons
-+      by matchday for ALL metrics ("this season through N vs last season through its first N").
-+      int_team_season_record's header keeps match_number for exactly this.
-+
-+  Grain: (team_sk, league_code, season_api_year, match_number). All-competitions, like
-+  int_team_season__metrics (no domestic filter — the YoY consumer applies that).
-+
-+  NAMING NOTE: the `_sum_season` / `season_games_played` / `stat_coverage_season_games` column
-+  names are inherited verbatim from the whole-season projection so the projection is a trivial
-+  final-row select (guaranteeing byte-identity). HERE they mean "cumulative THROUGH THIS matchday",
-+  not the whole season. Formulas + coverage gates are lifted verbatim from int_team_season__metrics.
-+
-+  Incomplete-data → NULL (CPO 2026-06-25): a team-feed rate is NULL unless its stat covers every
-+  game through this matchday (games_with_* == games_played); scoreline + player-derived are not gated.
-+#}
-+
-+with rec as (
-+    select * from {{ ref('int_team_season_record') }}
-+)
-+
-+select
-+    team_sk,
-+    league_sk,
-+    season_sk,
-+    league_code,
-+    season_api_year,
-+    entity_type,
-+    -- the matchday cutoff key (this model's grain; the YoY alignment key). games_played is the
-+    -- same value carried under the season name below for the byte-identical projection.
-+    match_number,
-+    games_played as season_games_played,
-+    games_with_sot_stats as stat_coverage_season_games,
-+    games_with_player_stats as player_stat_coverage_season_games,
-+    games_with_team_stats,
-+    -- raw cumulative counts (kept under the _sum_season names — the projection's live JSON keys)
-+    points_won as points_won_sum_season,
-+    wins as wins_sum_season,
-+    draws as draws_sum_season,
-+    losses as losses_sum_season,
-+    clean_sheet_games as clean_sheets_sum_season,
-+    goals_for as goals_for_sum_season,
-+    goals_against as goals_against_sum_season,
-+    goals_penalty,
-+    goals_own,
-+    goals_for - goals_penalty - goals_own as goals_open_play,
-+    -- team-feed sum columns: NULL ('—') on partial coverage through this matchday.
-+    case
-+        when games_with_team_stats < games_played then null else shots_total
-+    end as total_shots_sum_season,
-+    case
-+        when games_with_opp_stats < games_played then null else opponent_shots_total
-+    end as opponent_total_shots_sum_season,
-+    case
-+        when games_with_team_stats < games_played then null else shots_inside_box
-+    end as shots_inside_box_sum_season,
-+    case
-+        when games_with_sot_stats < games_played then null else shots_on_goal
-+    end as shots_on_goal_sum_season,
-+    case
-+        when games_with_team_stats < games_played then null else corner_kicks
-+    end as corner_kicks_sum_season,
-+    case
-+        when games_with_opp_stats < games_played then null else opponent_corner_kicks
-+    end as opponent_corner_kicks_sum_season,
-+    case
-+        when games_with_team_stats < games_played then null else passes_accurate
-+    end as passes_accurate_sum_season,
-+    case
-+        when games_with_team_stats < games_played then null else passes_total
-+    end as passes_total_sum_season,
-+    case
-+        when games_with_save_stats < games_played then null else goalkeeper_saves
-+    end as goalkeeper_saves_sum_season,
-+    -- window-specific metrics (stay inline; same as the whole-season model)
-+    safe_divide(points_won, 3 * games_played) as points_capture,
-+    case
-+        when games_with_team_stats < games_played then null
-+        when games_with_opp_stats < games_played then null
-+        else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
-+    end as shot_share,
-+    safe_divide(clean_sheet_games, games_played) as clean_sheets,
-+    -- shared per-match / ratio formulas (plain inline SQL; catalogue-id names). Lifted verbatim
-+    -- from int_team_season__metrics — this model is now their single home.
-+    safe_divide(goals_for, games_played) as goals_per_match,
-+    safe_divide(goals_against, games_played) as goals_against_per_match,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(shots_total, games_with_team_stats)
-+    end as shots_per_match,
-+    case
-+        when games_with_sot_stats < games_played then null
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(shots_on_goal, shots_total)
-+    end as shot_accuracy,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(shots_inside_box, shots_total)
-+    end as danger_zone_ratio,
-+    case
-+        when games_with_sot_stats < games_played then null
-+        else safe_divide(shots_on_goal, games_with_sot_stats)
-+    end as shots_on_goal_per_match,
-+    case
-+        when games_with_opp_sot_stats < games_played then null
-+        else safe_divide(opponent_shots_on_goal, games_with_opp_sot_stats)
-+    end as shots_on_goal_against_per_match,
-+    case
-+        when games_with_sot_stats < games_played then null
-+        when games_with_opp_sot_stats < games_played then null
-+        else safe_divide(shots_on_goal - opponent_shots_on_goal, games_played)
-+    end as sot_difference,
-+    case
-+        when games_with_sot_stats < games_played then null
-+        when (goals_for - goals_penalty - goals_own) < 0 then null
-+        when (goals_for - goals_penalty - goals_own) > shots_on_goal then null
-+        else safe_divide(goals_for - goals_penalty - goals_own, shots_on_goal)
-+    end as finishing_efficiency,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(passes_total, games_with_team_stats)
-+    end as passes_per_match,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(passes_accurate, passes_total)
-+    end as pass_accuracy,
-+    case
-+        when games_with_team_stats < games_played then null
-+        else safe_divide(corner_kicks, games_with_team_stats)
-+    end as corner_kicks_per_match,
-+    case
-+        when games_with_opp_stats < games_played then null
-+        else safe_divide(opponent_corner_kicks, games_with_opp_stats)
-+    end as corners_against_per_match,
-+    case
-+        when games_with_save_stats < games_played then null
-+        else safe_divide(
-+            goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
-+        )
-+    end as save_ratio,
-+    safe_divide(key_passes, games_with_player_stats) as key_passes_per_match,
-+    safe_divide(tackles, games_with_player_stats) as tackles_per_match,
-+    safe_divide(interceptions, games_with_player_stats)
-+        as interceptions_per_match,
-+    safe_divide(blocks, games_with_player_stats) as blocks_per_match,
-+    safe_divide(tackles + interceptions + blocks, games_with_player_stats)
-+        as defensive_actions_per_match,
-+    safe_divide(duels_total, games_with_player_stats) as duels_per_match,
-+    safe_divide(duels_won, duels_total) as duels_won_pct
-+from rec
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
-index 61b21bd..136cd80 100644
---- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
-@@ -4,15 +4,34 @@ models:
-   - name: int_team_profile__yoy
-     description: >
-       Games-played-aligned year-over-year for the team profile (#324), domestic leagues
--      only. One row per team's CURRENT domestic season: cumulative points/goals through
--      the latest N games this season vs the same team's prior season through its first N
--      games. Aligned by games played (match_number), which equals matchday for fixed-
--      matchday leagues and is the only safe cross-format key (parsed round numbers collide
--      across phases in multi-phase formats). Deltas NULL when the prior season is absent.
--      Grain: (team_sk, league_code, season_api_year).
-+      only. One row per team's CURRENT domestic season: the 3 scoreline totals (points /
-+      goals for / against) AND the LOCKED 16-row rate metrics, each through the latest N
-+      games this season vs the same team's prior season through its first N games (composed
-+      from int_team_season__metrics_cumulative). Aligned by games played (match_number),
-+      which equals matchday for fixed-matchday leagues and is the only safe cross-format key
-+      (parsed round numbers collide across phases in multi-phase formats). Each metric has
-+      _this_season / _prev_season / _delta_yoy; a rate is NULL on a side when that season's
-+      first N games are not fully stat-covered, and the delta is NULL when either side is
-+      (no prior season, or a coverage gap). Grain: (team_sk, league_code, season_api_year).
-     tests:
-       - dbt_utils.unique_combination_of_columns:
-           combination_of_columns: [team_sk, league_code, season_api_year]
-+      # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
-+      # (the composed source): the YoY cutoff N is low by construction early in every season, so a
-+      # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
-+      # ratios (finishing_efficiency — guarded to NULL when goals>SoT; save_ratio = saves/(saves+
-+      # goals); clean_sheets = clean_sheet_games/games) stay strict [0,1] on both sides.
-+      - dbt_utils.expression_is_true:
-+          expression: "(finishing_efficiency_this_season is null or finishing_efficiency_this_season between 0 and 1) and (save_ratio_this_season is null or save_ratio_this_season between 0 and 1) and (clean_sheets_this_season is null or clean_sheets_this_season between 0 and 1) and (finishing_efficiency_prev_season is null or finishing_efficiency_prev_season between 0 and 1) and (save_ratio_prev_season is null or save_ratio_prev_season between 0 and 1) and (clean_sheets_prev_season is null or clean_sheets_prev_season between 0 and 1)"
-+          name: team_profile_yoy_structural_ratios_in_range
-+      # Provider-subset ratios (danger_zone_ratio = inside_box/shots, pass_accuracy = accurate/total,
-+      # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
-+      # where the provider reports numerator > denominator (a known API inconsistency) is not yet
-+      # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
-+      # sign-flip). Per-match count rates are unbounded, so not tested here.
-+      - dbt_utils.expression_is_true:
-+          expression: "(danger_zone_ratio_this_season is null or danger_zone_ratio_this_season >= 0) and (pass_accuracy_this_season is null or pass_accuracy_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (danger_zone_ratio_prev_season is null or danger_zone_ratio_prev_season >= 0) and (pass_accuracy_prev_season is null or pass_accuracy_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
-+          name: team_profile_yoy_subset_ratios_non_negative
-     columns:
-       - name: team_sk
-         tests: [not_null]
-@@ -26,6 +45,11 @@ models:
-         tests: [not_null]
-       - name: points_delta_yoy
-         description: "points_this_season - points_prev_season through N games. NULL when no prior season."
-+      - name: goals_per_match_delta_yoy
-+        description: >
-+          Representative rate-metric YoY delta (this season − last, through the same N games). Every
-+          LOCKED 16-row rate metric carries _this_season / _prev_season / _delta_yoy; NULL where the
-+          prior season is absent or coverage is incomplete through N.
- 
-   - name: int_team_profile__streaks
-     description: >
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-index 6956b40..43798cd 100644
---- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
-@@ -1,41 +1,34 @@
- {{ config(materialized='table') }}
- 
- {#
--  Games-played-aligned year-over-year — team, domestic leagues only (#324).
-+  Games-played-aligned year-over-year — team, domestic leagues only (#324). Now covers ALL
-+  season metrics (not just the 3 totals): COMPOSES int_team_season__metrics_cumulative (the rate
-+  formulas applied at every matchday) at the cutoff N.
- 
--  For each domestic-league (team, current season), compares cumulative
--  performance through the latest games played this season (N) against the SAME
--  team's immediately prior season through its first N games. "This season vs
--  last season, at the same point" — the only honest comparison while a season is
--  running (a part-season vs a full season would mislead).
-+  For each domestic-league (team, current season), compares performance through the latest games
-+  played this season (N) against the SAME team's immediately prior season through its first N
-+  games. "This season vs last season, at the same point" — the only honest comparison while a
-+  season is running (a part-season vs a full season would mislead).
- 
--  Alignment is by GAMES PLAYED (match_number from int_team_season_record), not
--  by date and not by the round-name number. For fixed-matchday European leagues
--  (one match per matchday) games-played == matchday, which is the intended
--  comparison. Parsed round numbers are NOT safe to align on: multi-phase domestic
--  formats (e.g. Veikkausliiga regular + championship rounds) reuse the same
--  trailing digit across phases, so a round_order cutoff double-counts. Games
--  played is unambiguous in every format.
-+  Alignment is by GAMES PLAYED (match_number), not date and not the round-name number. For fixed-
-+  matchday leagues (one match per matchday) games-played == matchday. Games played is unambiguous
-+  in every format (parsed round numbers collide across multi-phase domestic formats).
- 
--  Scope: competition_type = 'domestic_league' only. YoY is meaningful for league
--  formats; cups/tournaments have no aligned comparison. Deltas are NULL where the
--  prior season is not ingested (history_seasons = 1, or a promoted/relegated team
--  with no prior top-flight season).
-+  Metrics:
-+    - Totals (points / goals for / against): the cumulative scoreline sums (always present).
-+    - Rates (the LOCKED 16-row team display set): each is NULL on a side when that season's first
-+      N games are not fully stat-covered (the coverage gate carries over from the cumulative model)
-+      — an honest "no comparison", never a fabricated number.
-+    - delta = this − prev; NULL when either side is NULL (no prior season, or a coverage gap).
- 
--  Grain: (team_sk, league_code, season_api_year) — one row per team's CURRENT
--  domestic season. season_sk is attached downstream in mart_team_profile.
-+  Columns are grouped this-season / prev-season (simple selects) then the deltas (calculations),
-+  matching the model's prior shape (ST06). The rate formulas live once, in the cumulative model —
-+  here we only select + subtract. Scope: domestic_league only. Grain: (team_sk, league_code,
-+  season_api_year) — one row per team's CURRENT domestic season.
- #}
- 
--with std as (
--    select
--        team_sk,
--        league_code,
--        season_api_year,
--        match_number,
--        points_won,
--        goals_for,
--        goals_against
--    from {{ ref('int_team_season_record') }}
-+with cml as (
-+    select * from {{ ref('int_team_season__metrics_cumulative') }}
- ),
- 
- registry as (
-@@ -45,50 +38,38 @@ registry as (
-     from {{ ref('competition_registry') }}
- ),
- 
-+-- domestic-league cumulative rows only (YoY is meaningful for league formats; cups/tournaments
-+-- have no aligned comparison).
- dom as (
--    select s.*
--    from std as s
-+    select c.*
-+    from cml as c
-     inner join registry as r
--        on s.league_code = r.league_code
-+        on c.league_code = r.league_code
-     where r.competition_type = 'domestic_league'
- ),
- 
---- Current season per (team, league) and its latest games-played count N: the
---- single most-recent cumulative row (max season, then max match_number).
-+-- current season per (team, league) and its latest games-played count N: the single most-recent
-+-- cumulative row (max season, then max match_number).
- cur as (
--    select
--        team_sk,
--        league_code,
--        season_api_year as cur_season,
--        match_number as games_played_cutoff,
--        points_won as points_this_season,
--        goals_for as goals_for_this_season,
--        goals_against as goals_against_this_season
--    from dom
-+    select * from dom
-     qualify row_number() over (
-         partition by team_sk, league_code
-         order by season_api_year desc, match_number desc
-     ) = 1
- ),
- 
---- Prior season cumulative through the same games-played cutoff (largest
---- match_number <= N; a complete prior season normally has >= N games).
-+-- prior season through the same games-played cutoff (largest match_number <= N; a complete prior
-+-- season normally has >= N games).
- prev as (
--    select
--        d.team_sk,
--        d.league_code,
--        d.match_number as games_played_prev,
--        d.points_won as points_prev_season,
--        d.goals_for as goals_for_prev_season,
--        d.goals_against as goals_against_prev_season
-+    select d.*
-     from dom as d
-     inner join cur as c
-         on
-             d.team_sk = c.team_sk
-             and d.league_code = c.league_code
-     where
--        d.season_api_year = c.cur_season - 1
--        and d.match_number <= c.games_played_cutoff
-+        d.season_api_year = c.season_api_year - 1
-+        and d.match_number <= c.match_number
-     qualify row_number() over (
-         partition by d.team_sk, d.league_code
-         order by d.match_number desc
-@@ -98,19 +79,69 @@ prev as (
- select
-     cur.team_sk,
-     cur.league_code,
--    cur.cur_season as season_api_year,
--    cur.games_played_cutoff as yoy_games_played_cutoff,
--    cur.points_this_season,
--    cur.goals_for_this_season,
--    cur.goals_against_this_season,
--    prev.games_played_prev,
--    prev.points_prev_season,
--    prev.goals_for_prev_season,
--    prev.goals_against_prev_season,
--    cur.points_this_season - prev.points_prev_season as points_delta_yoy,
--    cur.goals_for_this_season - prev.goals_for_prev_season as goals_for_delta_yoy,
--    cur.goals_against_this_season - prev.goals_against_prev_season
--        as goals_against_delta_yoy
-+    cur.season_api_year,
-+    cur.match_number as yoy_games_played_cutoff,
-+    prev.match_number as games_played_prev,
-+    -- this-season values (through N): 3 scoreline totals + the LOCKED 16-row rate metrics
-+    cur.points_won_sum_season as points_this_season,
-+    cur.goals_for_sum_season as goals_for_this_season,
-+    cur.goals_against_sum_season as goals_against_this_season,
-+    cur.goals_per_match as goals_per_match_this_season,
-+    cur.goals_against_per_match as goals_against_per_match_this_season,
-+    cur.clean_sheets as clean_sheets_this_season,
-+    cur.shots_per_match as shots_per_match_this_season,
-+    cur.danger_zone_ratio as danger_zone_ratio_this_season,
-+    cur.shots_on_goal_per_match as shots_on_goal_per_match_this_season,
-+    cur.finishing_efficiency as finishing_efficiency_this_season,
-+    cur.duels_per_match as duels_per_match_this_season,
-+    cur.duels_won_pct as duels_won_pct_this_season,
-+    cur.defensive_actions_per_match as defensive_actions_per_match_this_season,
-+    cur.passes_per_match as passes_per_match_this_season,
-+    cur.pass_accuracy as pass_accuracy_this_season,
-+    cur.key_passes_per_match as key_passes_per_match_this_season,
-+    cur.corner_kicks_per_match as corner_kicks_per_match_this_season,
-+    cur.corners_against_per_match as corners_against_per_match_this_season,
-+    cur.save_ratio as save_ratio_this_season,
-+    -- prior-season values (through the same N)
-+    prev.points_won_sum_season as points_prev_season,
-+    prev.goals_for_sum_season as goals_for_prev_season,
-+    prev.goals_against_sum_season as goals_against_prev_season,
-+    prev.goals_per_match as goals_per_match_prev_season,
-+    prev.goals_against_per_match as goals_against_per_match_prev_season,
-+    prev.clean_sheets as clean_sheets_prev_season,
-+    prev.shots_per_match as shots_per_match_prev_season,
-+    prev.danger_zone_ratio as danger_zone_ratio_prev_season,
-+    prev.shots_on_goal_per_match as shots_on_goal_per_match_prev_season,
-+    prev.finishing_efficiency as finishing_efficiency_prev_season,
-+    prev.duels_per_match as duels_per_match_prev_season,
-+    prev.duels_won_pct as duels_won_pct_prev_season,
-+    prev.defensive_actions_per_match as defensive_actions_per_match_prev_season,
-+    prev.passes_per_match as passes_per_match_prev_season,
-+    prev.pass_accuracy as pass_accuracy_prev_season,
-+    prev.key_passes_per_match as key_passes_per_match_prev_season,
-+    prev.corner_kicks_per_match as corner_kicks_per_match_prev_season,
-+    prev.corners_against_per_match as corners_against_per_match_prev_season,
-+    prev.save_ratio as save_ratio_prev_season,
-+    -- year-over-year deltas (this − prev; NULL when either side is NULL)
-+    cur.points_won_sum_season - prev.points_won_sum_season as points_delta_yoy,
-+    cur.goals_for_sum_season - prev.goals_for_sum_season as goals_for_delta_yoy,
-+    cur.goals_against_sum_season - prev.goals_against_sum_season as goals_against_delta_yoy,
-+    cur.goals_per_match - prev.goals_per_match as goals_per_match_delta_yoy,
-+    cur.goals_against_per_match - prev.goals_against_per_match as goals_against_per_match_delta_yoy,
-+    cur.clean_sheets - prev.clean_sheets as clean_sheets_delta_yoy,
-+    cur.shots_per_match - prev.shots_per_match as shots_per_match_delta_yoy,
-+    cur.danger_zone_ratio - prev.danger_zone_ratio as danger_zone_ratio_delta_yoy,
-+    cur.shots_on_goal_per_match - prev.shots_on_goal_per_match as shots_on_goal_per_match_delta_yoy,
-+    cur.finishing_efficiency - prev.finishing_efficiency as finishing_efficiency_delta_yoy,
-+    cur.duels_per_match - prev.duels_per_match as duels_per_match_delta_yoy,
-+    cur.duels_won_pct - prev.duels_won_pct as duels_won_pct_delta_yoy,
-+    cur.defensive_actions_per_match - prev.defensive_actions_per_match as defensive_actions_per_match_delta_yoy,
-+    cur.passes_per_match - prev.passes_per_match as passes_per_match_delta_yoy,
-+    cur.pass_accuracy - prev.pass_accuracy as pass_accuracy_delta_yoy,
-+    cur.key_passes_per_match - prev.key_passes_per_match as key_passes_per_match_delta_yoy,
-+    cur.corner_kicks_per_match - prev.corner_kicks_per_match as corner_kicks_per_match_delta_yoy,
-+    cur.corners_against_per_match - prev.corners_against_per_match as corners_against_per_match_delta_yoy,
-+    cur.save_ratio - prev.save_ratio as save_ratio_delta_yoy
- from cur
- left join prev
-     on
-diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index 00b543a..20245ee 100644
---- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -119,6 +119,57 @@ select
-     y.goals_against_this_season,
-     y.goals_against_prev_season,
-     y.goals_against_delta_yoy,
-+    -- rate-metric YoY: matchday-aligned this/prev/delta for the LOCKED 16-row display set — the
-+    -- data for the team Stats tab's per-metric vs-last-season column. All simple passthrough from
-+    -- int_team_profile__yoy (the deltas were computed there).
-+    y.goals_per_match_this_season,
-+    y.goals_per_match_prev_season,
-+    y.goals_per_match_delta_yoy,
-+    y.goals_against_per_match_this_season,
-+    y.goals_against_per_match_prev_season,
-+    y.goals_against_per_match_delta_yoy,
-+    y.clean_sheets_this_season,
-+    y.clean_sheets_prev_season,
-+    y.clean_sheets_delta_yoy,
-+    y.shots_per_match_this_season,
-+    y.shots_per_match_prev_season,
-+    y.shots_per_match_delta_yoy,
-+    y.danger_zone_ratio_this_season,
-+    y.danger_zone_ratio_prev_season,
-+    y.danger_zone_ratio_delta_yoy,
-+    y.shots_on_goal_per_match_this_season,
-+    y.shots_on_goal_per_match_prev_season,
-+    y.shots_on_goal_per_match_delta_yoy,
-+    y.finishing_efficiency_this_season,
-+    y.finishing_efficiency_prev_season,
-+    y.finishing_efficiency_delta_yoy,
-+    y.duels_per_match_this_season,
-+    y.duels_per_match_prev_season,
-+    y.duels_per_match_delta_yoy,
-+    y.duels_won_pct_this_season,
-+    y.duels_won_pct_prev_season,
-+    y.duels_won_pct_delta_yoy,
-+    y.defensive_actions_per_match_this_season,
-+    y.defensive_actions_per_match_prev_season,
-+    y.defensive_actions_per_match_delta_yoy,
-+    y.passes_per_match_this_season,
-+    y.passes_per_match_prev_season,
-+    y.passes_per_match_delta_yoy,
-+    y.pass_accuracy_this_season,
-+    y.pass_accuracy_prev_season,
-+    y.pass_accuracy_delta_yoy,
-+    y.key_passes_per_match_this_season,
-+    y.key_passes_per_match_prev_season,
-+    y.key_passes_per_match_delta_yoy,
-+    y.corner_kicks_per_match_this_season,
-+    y.corner_kicks_per_match_prev_season,
-+    y.corner_kicks_per_match_delta_yoy,
-+    y.corners_against_per_match_this_season,
-+    y.corners_against_per_match_prev_season,
-+    y.corners_against_per_match_delta_yoy,
-+    y.save_ratio_this_season,
-+    y.save_ratio_prev_season,
-+    y.save_ratio_delta_yoy,
-     -- streaks (trailing run as of the latest match)
-     s.unbeaten_run,
-     s.win_run,
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index ddb1c30..29bbb42 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -295,6 +295,12 @@ models:
-         description: "From the registry; YoY columns are populated only for domestic_league."
-       - name: points_delta_yoy
-         description: "This season minus last season, points through the same games played. Domestic only; NULL when no prior season."
-+      - name: goals_per_match_delta_yoy
-+        description: >
-+          Representative rate-metric YoY delta — every LOCKED 16-row rate metric has _this_season /
-+          _prev_season / _delta_yoy (matchday-aligned this-vs-last, the team Stats tab's per-metric
-+          vs-last-season column). Passthrough from int_team_profile__yoy; domestic only, NULL where
-+          no prior season or coverage is incomplete through N.
-       - name: deserved_rank
-         description: "Rank by shots-on-target difference within the league-season (1 = best) — the process-deserved table position. From int_team_season__deserved_vs_actual. NULL when the league-season is not fully rankable (knockouts / incomplete SoT coverage)."
-       - name: sot_rank_gap
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 3682345..587e6b1 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -7,24 +7,24 @@ clean_sheets,team,metrics.clean_sheets.label,"Matches with zero goals conceded i
+ goals_penalty,team,metrics.goals_penalty.label,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,false,integer,goals,,,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls
+ goals_own,team,metrics.goals_own.label,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,false,integer,goals,,,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
+ goals_open_play,team,metrics.goals_open_play.label,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,false,integer,goals,,,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
+-shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempted per match with available team stats in the window. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),false,decimal_1,shooting,2,1,higher_better,Shot volume - attacking attempts per game; high-volume but not necessarily high-quality
++shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempted per match with available team stats in the window. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),false,decimal_1,shooting,2,1,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality)
+ shot_accuracy,team,metrics.shot_accuracy.label,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),false,percent,shooting,,,higher_better,Striking precision - share of shots on target
+ danger_zone_ratio,team,metrics.danger_zone_ratio.label,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),false,percent,shooting,2,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
+ shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average shots on target per match with available shots-on-target stats in the window (its own coverage count — same-window rule).,int_legs__team_match,sum(shots_on_goal),count(*),false,decimal_1,shooting,1,3,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
+ finishing_efficiency,team,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, over a fully shot-covered window (numerator and denominator share the window). In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null when the window is not fully shot-covered or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),false,percent,shooting,1,4,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
+ finishing_efficiency,player,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].",int_legs__player_match,sum(goals_total - goals_penalty),sum(shots_on),false,percent,shooting,,,higher_better,
+-duels_per_match,team,metrics.duels_per_match.label,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),false,decimal_0,duels,2,1,neutral,Duel engagement - physical contests per game; a combative/contested style
++duels_per_match,team,metrics.duels_per_match.label,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),false,decimal_0,duels,2,1,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure)
+ duels_won_pct,team,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,int_legs__team_from_players,sum(duels_won),sum(duels_total),false,percent,duels,2,2,higher_better,Duel success - share of duels won; high = wins the physical battle
+ duels_won_pct,player,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero.,int_legs__player_match,sum(duels_won),sum(duels_total),false,percent,duels,,1,higher_better,
+-defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),false,decimal_1,defending,2,1,neutral,Defensive workload - tackles + interceptions + blocks per game; high = a deep block or an aggressive press
++defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),false,decimal_1,defending,2,1,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending)
+ tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),false,decimal_1,defending,,,neutral,Tackling volume - ball-winning challenges per game
+ interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),false,decimal_1,defending,,,neutral,Interception volume - reading and cutting out passes
+ blocks_per_match,team,metrics.blocks_per_match.label,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(blocks),count(*),false,decimal_1,defending,,,neutral,Block volume - bodies in front of shots
+-passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,int_legs__team_match,sum(passes_total),count(*),false,decimal_0,passing,3,1,neutral,Possession volume - high = possession-based style; low = direct
++passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,int_legs__team_match,sum(passes_total),count(*),false,decimal_0,passing,3,1,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept)
+ pass_accuracy,team,metrics.pass_accuracy.label,Share of passes successfully completed. Null when passes_total is zero.,int_legs__team_match,sum(passes_accurate),sum(passes_total),false,percent,passing,2,2,higher_better,Passing security - completion rate; high = keeps the ball well
+ key_passes_per_match,team,metrics.key_passes_per_match.label,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),false,decimal_1,passing,2,3,higher_better,Creativity - passes leading to a shot; high = creates chances
+-corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,int_legs__team_match,sum(corner_kicks),count(*),false,decimal_1,set_pieces,3,1,neutral,Corner volume won - sustained attacking pressure (a weak proxy)
+-corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,int_legs__team_match,sum(opponent_corner_kicks),count(*),true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
++corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,int_legs__team_match,sum(corner_kicks),count(*),false,decimal_1,set_pieces,3,1,higher_better,Corners won - high = sustained attacking pressure (a weak proxy)
++corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,int_legs__team_match,sum(opponent_corner_kicks),count(*),true,decimal_1,set_pieces,3,2,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy)
+ save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),false,percent,goalkeeping,2,1,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
+ goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,int_legs__player_match,sum(goals_total),,false,integer,goals,,1,,
+ assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,int_legs__player_match,sum(goals_assists),,false,integer,goals,,1,,
+diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
+index eb28946..433a1e6 100644
+--- a/site_v2/src/lib/metricRows.ts
++++ b/site_v2/src/lib/metricRows.ts
+@@ -42,13 +42,13 @@ export const METRIC_ROWS: MetricRowDef[] = [
+   { field: "danger_zone_ratio", label: "% Shots from box", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
+   { field: "shots_on_goal_per_match", label: "Ø Shots on target", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
+   { field: "finishing_efficiency", label: "% Goals per shot on target", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
+-  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "neutral" },
++  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
+   { field: "duels_won_pct", label: "% Duels won", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
+-  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "neutral", sublabel: "tackles + interceptions + blocks" },
+-  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "neutral" },
++  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
++  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
+   { field: "pass_accuracy", label: "% Pass accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
+   { field: "key_passes_per_match", label: "Ø Key passes", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
+-  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "neutral" },
+-  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "neutral" },
++  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
++  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
+   { field: "save_ratio", label: "% Save percentage", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
+ ];

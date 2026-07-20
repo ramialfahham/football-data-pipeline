@@ -1,53 +1,34 @@
-# Review — feat/team-yoy-all-metrics — 2026-07-12
+# Review — feat/team-metric-directions — 2026-07-20
 
-> Extend team YoY to ALL season metrics, matchday-aligned (Option A / COMPOSE). Round 5.
-> History: R1 diff PASSED but ci-data-build's new cumulative ratio test failed on one provider-noise
-> row (danger_zone_ratio 1.25 — fixture 1149592 has shots_inside_box 5 > shots_total 4). R3 split the
-> cumulative ratio test by invariant family; the AE reviewer correctly FAILED it because the same
-> over-strict bound survived in the composed-YoY test. R4 split that too — both reviewers PASSED
-> (c0ad071f) — but ci-data-build THEN failed to BUILD int_team_season__metrics: "team_sk is
-> ambiguous". Root cause: the projection's final SELECT joins season_final (sf) to a matchdays CTE
-> (md) that also exposes team_sk, so the unqualified team_sk inside generate_surrogate_key was
-> ambiguous. It was MASKED in R1–R3 because the upstream cumulative test failure skipped building the
-> whole downstream (the projection + its direct consumer mart_team_profile never ran). R5 fix = ONE
-> line: qualify the surrogate-key inputs to sf.team_sk / sf.season_sk. Verified against BigQuery:
-> `bq --dry_run` of the full projection AND the new int_team_profile__yoy both "successfully
-> validated"; every mart y.<col> confirmed present in the YoY output. Required reviewers for
-> `dbt_project/**`: scope-auditor (always) + analytics-engineer-reviewer. Both PASS.
-> dbt CLI broken locally — ci-data-build is the executable gate.
+> Machine-checked review artifact (G3). Written after staging and after the blinded
+> reviewers returned. The commit gate binds diff_sha256 to the live staged diff.
 
-diff_sha256: b90f02d3674754f94b9aaf88dd98008631b187cf1b10289ad6d15a8b4b9d8959
+diff_sha256: 2902772682e2f4a8aeccc64fc2e17a4652389f7abc0947c6b121ef76979356f6
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: the one-line change is inside int_team_season__metrics.sql (already in scope); staged diff
-  still touches ONLY the authorized set (4 dbt models + 3 yml + contract.md). Nothing new out of scope.
-- §10: qualifying ['team_sk','season_sk'] → ['sf.team_sk','sf.season_sk'] is a pure SQL correctness
-  fix — no metric formula / catalogue / displayed-number / naming / mechanism change.
-- Contract honesty: byte-identity claim unaffected (identical surrogate hash); contract not edited
-  this round, correctly (the fix introduces no new decision to document).
+- Every staged code/contract path is inside scope_paths (metric_catalogue.csv, metricRows.ts, contract.md; escalations.log + review_input.patch are artifact-only). The diff matches the contract, including the new decisions_taken #5 (CPO-directed interpretation sweep). No scope creep, no unauthorized extra edits.
+- All §10 direction + interpretation-wording decisions are recorded (contract decisions_taken #1-5 + escalations.log 2026-07-20, incl. the CPO "badge all five" ruling and the interpretation-sweep note); decisions_reserved (player per-90 analogs) held open, not decided here.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Ambiguity source + fix completeness: confirmed team_sk is genuinely dual-sourced (sf via
-  season_final = select * from cumulative; AND md = the int_legs__team_match distinct-round CTE which
-  selects team_sk/league_code/season_api_year/season_matchdays_used). season_sk is NOT in md (only sf),
-  so qualifying it too is harmless. No other bare/unqualified reference remains: sf.* except(match_number)
-  is a scoped wildcard, md.season_matchdays_used qualified, ON clause fully qualified.
-- Byte-identity of team_season_sk: traced team_sk/season_sk as unmodified passthrough
-  (int_team_season_record → cumulative → sf); the row picked by qualify order by match_number desc is
-  provably the same physical row as the old kickoff desc/fixture_sk desc (match_number = row_number
-  over that exact order). Qualification changes column resolution scope, not the value fed to the hash
-  → team_season_sk identical.
-- Never-before-built downstream swept: read int_team_profile__yoy + mart_team_profile end-to-end — every
-  reference alias-qualified or single-source, no analogous dual-source-bare-name pattern; cross-checked
-  all 62 mart y.<col> against the YoY's 62 outputs (1:1). Refinement: the genuinely-unverified node was
-  mart_team_profile (direct ref to the projection), not the YoY (which refs only the cumulative model).
-- Re-derived the int_team_season__metrics consumer list via grep — exact match to the contract's six.
-  Formula-move verbatim (no metric redefinition); no hardcoded league; matchdays/season_final are
-  1-row-per-team-season so the projection join is 1:1 (no fan-out).
+- CSV well-formed: the 6 changed rows are each 14 fields against the header, and the reworded interpretation strings use semicolons/parentheses (no raw comma in the trailing unquoted field), so no field-shift on seed load.
+- Benchmark marts (team + player) never select/join `direction` (rank is by metric_value DESC; the team benchmark metric set is a hardcoded UNPIVOT list, not direction-derived) so the flip moves no number and trips no benchmark DQ test; assert_team_metric_meaning_complete + the accepted_values test still pass; the LIVE MVP export reads lower_is_better (untouched), so the live site is byte-identical.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- First pass FAILed two reworded interpretations as overclaims (duels "proactive front-foot side"; passes "more control of the ball"); after the fix, re-checked both: duels now reads "high = a physically engaged side (volume; can also reflect a side under sustained pressure)" and passes reads "high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept)" — both drop the unsupported narrative, mirror the honest defensive_actions caveat, and passes no longer collides with pass_accuracy's "control" framing.
+- Re-verified direction/interpretation internal consistency across all 6 rows (the 4 higher_better rows read "high = …", corners_against reads "low = …"), and confirmed the other style rows kept their honest caveats ("a weak proxy", "volume not shot quality"). Directions themselves are the CPO's settled ruling, not re-litigated.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Type-safe: the 5 written values are existing members of the Direction union ("higher_better"/"lower_better"), MetricRowDef gives each object literal contextual typing so the astro build type-checks; catalogue<->metricRows.ts direction values match 1:1 for all 5 rows.
+- Only `direction` values changed in site_v2; bars.ts (betterSide/barWidth) and MetricRow.astro are byte-unchanged, so the frontend still consumes a served enum for a green-highlight decision and computes no facts (display config, not computation); no src-level test or sample-fixture JSON references these rows or assumes `neutral`.
 
 ## escalations
-(none)
+- question: The `direction` values for the 5 team style metrics (a §10 metric-meaning choice) rest on a CPO ruling, and the football-analytics-expert-reviewer had (in the prior commit's review) escalated whether volume metrics should carry a verdict at all, citing the 2026-06-28 correlation sweep.
+  CPO ANSWER: "Give each a direction" then "Badge all five as decided" (AskUserQuestion, 2026-07-20) — proceed with all 5 team metrics directional, per the direction-is-judgement principle (direction = "all else equal, is more better?", not a rank/results correlation). Full record in escalations.log 2026-07-20. This round's four reviewers returned no open ESCALATE.
