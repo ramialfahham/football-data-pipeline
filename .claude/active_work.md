@@ -31,7 +31,7 @@ _Last updated: **2026-07-21** — main GREEN at **1bc6087**, tree clean. **The m
 
 #### The road to a live site (proposed order — CPO confirms or reorders)
 
-0. **Finish the metric layer** — write the missing `interpretation` for the 28 player metrics ← DO THIS FIRST
+0. **Finish the metric layer** — fill the 28 missing `interpretation` values **and install the tests that stop the gaps returning** (three steps, see TASK 0) ← DO THIS FIRST
 1. **Finish the player page design**
 2. Build the remaining page templates in `site_v2/` (team, player, then competition + landing)
 3. Wire the real export into the build (replace the single sample file)
@@ -54,7 +54,7 @@ The mock (`6c21ef71`) already composes from the LOCKED screen specs: Performance
 - **Is a repo/doc cleanup session wanted at all?** Raised 2026-07-21 ("I'm not even sure if I need to do some cleanups, ensure consistency in the repo") and left undecided. Nothing is known-broken; it is hygiene, and it competes with shipping pages.
 - (none currently beyond the cleanup question above)
 
-#### TASK 0 — finish the metric layer: 28 missing `interpretation` values
+#### TASK 0 — finish the metric layer: 28 missing values + the tests that keep it closed
 
 **CPO ruling 2026-07-21:** *"The metric layer is not a nice to have. It is the foundation of the metrics and their meaning. So I can't imagine where we could allow empty fields like explanations or interpretations."* An earlier handover draft called this a non-blocker — that was wrong and is retracted.
 
@@ -66,7 +66,25 @@ Note the first two already carry a `direction` but no interpretation — they ar
 
 **How to write them** (match the existing team rows' style, e.g. *"Attacking output - goals scored per game; high = a potent attack"*): lead with what the metric captures, then what a notably high value signals, keeping any honest style/volume caveat second. Use ` - ` and `;` as separators, **never a comma inside an unquoted CSV cell**, and never an em dash.
 
-**Scope note:** seed VALUES only (the `interpretation` column). Routes to analytics-engineer-reviewer + football-analytics-expert-reviewer. Consider widening `assert_team_metric_meaning_complete` to players once they are populated — that test is currently team-scoped *only because* these rows were empty (see its docstring).
+**Scope note:** seed VALUES only for step (a). Routes to analytics-engineer-reviewer + football-analytics-expert-reviewer.
+
+##### TASK 0 is NOT done when the 28 cells are filled — it is done when the gaps CANNOT come back
+
+**CPO ruling 2026-07-21:** *"We need proper tests for the metric layer as well so there are no sudden gaps or surprising ambiguities."* Said alongside a standing criticism that is the whole reason this is written as a gate and not a reminder: *"The problem is that it happens frequently and you're always saying something like 'writing it down' but it doesn't improve your behaviour. It will happen again and then you are writing down again to dead documents without impact."*
+
+A handover paragraph has no enforcement. A dbt test fails the build regardless of what anyone remembers. **Do all three steps, in this order.**
+
+**(a) Fill the 28 `interpretation` values** (the list and house style above). Seed values only.
+
+**(b) Widen the meaning-completeness test to EVERY metric.** `dbt_project/tests/assert_team_metric_meaning_complete.sql` currently only checks `entity in ('team','team and player')`. **That team-only scope is exactly why 28 player rows sat empty and nothing complained.** Drop the entity predicate so the test fails if ANY row has an empty `direction` or an empty `interpretation`, and rename it accordingly (it is no longer team-specific). Its docstring already says to broaden it once the player sweep lands. **This can only pass after (a)** — do not add it first and then weaken it to get green.
+
+**(c) Resolve the `lower_is_better` vs `direction` contradiction, then lock the two together.** Nothing today checks that these two columns agree, and **they currently contradict each other on 4 rows**: `cards_yellow`, `cards_red`, `cards_total`, `shots_on_goal_against` — each reads `lower_is_better=false` while `direction=lower_better`. Two columns asserting different things about the same metric is precisely the "surprising ambiguity" to eliminate.
+- **This is a real CPO decision, not a mechanical fix.** `lower_is_better` is the column the **LIVE MVP** reads (`scripts/export_metric_definitions_json.py`); `direction` is what v2 reads. Changing the boolean MOVES LIVE BEHAVIOUR. Two options, neither pre-approved: flip the 4 booleans to `true` (correct, but changes the live MVP's good/bad reading) **or** revisit those 4 directions (they were reviewed and confirmed football-correct, so this is the weaker option).
+- After the data is consistent, add a test that FAILS whenever `lower_is_better=true` and `direction != 'lower_better'`, or `lower_is_better=false` and `direction = 'lower_better'`. **This test cannot pass before the 4 are resolved** — land the fix and the test together.
+
+**Not in TASK 0:** widening `assert_no_uncatalogued_season_metric` beyond the two season models it covers. That is issue **#530** and is deliberately left out to keep TASK 0 finishable in one sitting.
+
+**The existing metric-layer tests** (know them before adding a sixth): `assert_metric_catalogue_expr_resolvable` (formulas resolve) · `assert_metric_catalogue_unique_by_entity` (no duplicate metric per entity) · `assert_no_uncatalogued_season_metric` (2 season models only) · `assert_team_metric_meaning_complete` (the one to widen in (b)) · `assert_mart_team_season_insights_metric_consistency`.
 
 #### DO NOT (standing)
 
@@ -153,7 +171,7 @@ main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 
 ### FIRST STEPS (cold chat — do in order)
 1. `git checkout main && git pull --ff-only` then `git status --porcelain` (expect empty). **main is GREEN at 1bc6087** or later. If the tree is dirty, STOP and ask the CPO before touching anything.
 2. Read **only the ⭐ ACTIVE section at the top of this file**. Do not read the history sections unless you need the backstory on a specific PR — they are long and several describe finished phases.
-3. **Start with TASK 0 in the ACTIVE section: finish the metric layer.** 28 player metrics have an empty `interpretation` — no written meaning. The catalogue is the source of truth for what a metric MEANS, so this is a foundation gap, not a nice-to-have (CPO ruling 2026-07-21). The **marts and the export ARE finished** — do not re-run that phase. Only after TASK 0 comes step 1, the **player page design** (see NEXT AFTER TASK 0), with its two open decisions to put to the CPO plainly, one at a time.
+3. **Start with TASK 0 in the ACTIVE section: finish the metric layer** — the 28 missing values **and** the two tests that stop the gaps returning (TASK 0 lists all three steps and their required order). 28 player metrics have an empty `interpretation` — no written meaning. The catalogue is the source of truth for what a metric MEANS, so this is a foundation gap, not a nice-to-have (CPO ruling 2026-07-21). The **marts and the export ARE finished** — do not re-run that phase. Only after TASK 0 comes step 1, the **player page design** (see NEXT AFTER TASK 0), with its two open decisions to put to the CPO plainly, one at a time.
 4. Design work = Artifacts only, no repo code, publish the mock and get the CPO's verdict before building anything in `site_v2/`. Compose ONLY from the locked pattern sheet; never invent a per-page treatment.
 5. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file; use PLAN MODE for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline, get a quick go, same contract+review+gate).
 
