@@ -1,265 +1,408 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 8d67668..eacd27c 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -6,6 +6,22 @@
+ 
+ _Last updated: **2026-07-11** — **⭐ v2 FRONTEND (Phase E) IN PROGRESS. #672 (design system + fixture page) MERGED. #673 (team Overview) open but BEING REDESIGNED (CPO: cluttered + inconsistent → the team page becomes a TABBED entity page à la kicker; design pass pending). THIS branch = [PR #674](https://github.com/ramialfahham/football-data-pipeline/pull/674) — matchday-aligned team YoY for ALL metrics (the dbt DATA for the redesigned Stats tab), awaiting ci-data-build + CPO merge. See the ⭐ ACTIVE section below.** Prior refresh **2026-07-07** — main GREEN at **c1d9b2c**. **⭐ MILESTONE: the v2 data-foundation board now has NO orphans** — every built mart the frontend needs is wired. This session shipped the competition-header + team-benchmark arc: **#663** (competition-header registry identity — country/confederation/tier surfaced on the competition hub, GAP-01 pattern), **#664** (Team → Stats vs-league benchmark **wireframe spec**, screen 14 — rank-based "k of N" + vs-median + spread bar, no position dimension, field-bound to `mart_team_competition_benchmarks`, renders the LOCKED 16-row metrics_display set), **#665** (**GAP-23** — wired `mart_team_competition_benchmarks` into the team payload as a per-season flat `benchmarks[]`, the #627-for-teams analog; **this flipped the LAST orphan green** → content_architecture now "18 marts, no orphans"). Plus **#661** (handover + `metrics_context_model.md` §8 de-stale) + **#662** (content_architecture §3/§7 board reconcile to post-#648 reality). **The honest answer to "is the data foundation all green?" is now YES for everything that's a build** — the only non-green rows are the **two deliberate deferrals**: opponent/schedule-context (SHELVED 2026-07-03, no display home) + coach (un-ingested, a cost call) — both CPO policy decisions, not build gaps. So the **v2 FRONTEND (Phase E) is now the natural big frontier** — unblocked by the green export, but still **CPO-GATED** (the live MVP `site/` stays untouched until cutover #377; do NOT start the frontend without an explicit CPO go). **Review-process note (#664):** the team-stats spec took **4 bi-analyst rounds — all FOUR were REAL locked-contract catches** (rendered a display-excluded metric `shot_accuracy`; two unbound display fields `games`/clean_sheets-x-y; a shooting-funnel row-order violation; the Defending T·I·B "sub-display of row 10 only" rule), each fixed with judgment ([[feedback-decide-dont-escalate]]); the final spec maps 1:1 to the LOCKED 16-row team table. Team-benchmark carries all 20 mart rows; the FRONTEND renders 16 (drops shot_accuracy + T/I/B-as-separate). **NEXT = an OPEN CPO pick** (nothing locked/hot): (a) the **frontend, Phase E** — the big one, CPO-gated; (b) the **2 policy calls** — un-shelve opponent-context (needs a display spec) / approve a coach ingest (cost); (c) a tiny **matchday-schedule board note** (fixtures+`round_name` are already exported in the competition payload — a content_architecture §3 legend correction "~ → green", not a build); (d) the **`task_f876b853`** chip (2 stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + `schema.yml:159-167`); (e) the **programs** #545 coverage / #546 DQ / #547 cost; (f) **#530(c)** model-conformance test. Prior-arc detail is in RECENT PRs below. Superseded lead (still valid history): **Prior #651: player goals_penalty + goals_open_play catalogue completion (#530(b))** — filled the two deferred player metric_catalogue rows (base_relation=`int_legs__player_match`, `sum(goals_penalty)` / `sum(goals_total - goals_penalty)`, direction=higher_better inheriting the settled #600 team ruling) + synced the `schema.yml` deferred note. 3 reviewers PASS (scope-auditor r1 ESCALATE on the §10 `direction` field → RESOLVED not by asking the CPO but by logging the #600/#621 inheritance in `escalations.log`, the #636 pattern; a spawned follow-up chip **task_f876b853** covers 2 non-blocking stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + the `schema.yml:159-167` direction desc). **⭐ #510 (retire leftover team `dribbles_success_pct`) was found ALREADY DONE** — code-traced end-to-end (no team dribbles catalogue row; `int_team_momentum__metrics` + `mart_team_momentum` have 0 dribbles refs; no range test; export dribbles is the PLAYER leaderboard only). The 2026-06-11 drop got finished during a later momentum-model rename (`int_momentum__team`→`int_team_momentum__metrics`); issue CLOSED. **Do NOT re-attempt.** Prior: **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidate = **#484** (player NT/tournament context window) — the last open carryover (**#530(b) DONE #651**; **#510 found already-done** and CLOSED). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
+ 
++### ⭐ ACTIVE (2026-07-21) — metric-layer direction sweep [branch `feat/metric-direction-sweep`]
++
++**THIS branch = `feat/metric-direction-sweep` off main @ 9e7f8da — EVERY metric in `metric_catalogue.csv` now carries a `direction`.** CPO-directed 2026-07-21 ("apply this framing for every metric that has no direction yet" + "double check with the football analyst every metric"), governed by [[feedback-metric-direction-judgement]]: `direction` is an ALL-ELSE-EQUAL judgement ("is more of this better?"), NOT a rank/results correlation; a style/volume metric STILL gets a direction; `neutral` only for a genuinely no-pole metric. CPO also restated the governing principle: **"the metric layer defines what's in the mock not vice versa."**
++
++**Change (seed VALUES only — 36 lines, ZERO number movement):** 26 previously-BLANK `direction` cells filled (18 higher_better + 8 lower_better, all player rows) + 10 previously-`neutral` rows flipped to higher_better (3 team T/I/B per-match atoms + the 7 player per-90 volume metrics) + those same 10 `interpretation` cells rewritten to LEAD with the direction and keep the style/volume caveat second (the #676 precedent). **Final tally: 63 higher_better · 13 lower_better · 2 neutral.** The only 2 `neutral` left are `sot_rank_gap` (a narrative) and `contribution_share` (a position-dependent share).
++
++**Executes the decision #676 explicitly RESERVED** ("player per-90 volume analogs stay `neutral` — a consistency call for when the player page is designed"; the player page is now designed). **Consciously REVERSES #676 decision 4** (T/I/B atoms were kept `neutral` as "not verdict bars") — under the framing, direction is a property of the METRIC, not of whether it is drawn as a verdict bar.
++
++**Do-NOTs:** `lower_is_better` is NOT touched — the LIVE MVP (`scripts/export_metric_definitions_json.py`) reads it, so changing it would move live behaviour. 4 rows now disagree with their new direction (`cards_yellow`, `cards_red`, `cards_total`, `shots_on_goal_against`); logged in the contract's `decisions_reserved` as their own CPO decision + PR. The 26 newly-directional player rows still have a BLANK `interpretation` — a separate sweep, deliberately not smuggled in.
++
++**Reviews (3 required: scope-auditor + analytics-engineer + football-analytics-expert):** football-analytics-expert **PASS** (every assigned value verified football-correct; confirmed the 4 `lower_is_better` divergences are exactly the logged set with no hidden 5th; both `neutral` rows verified against their descriptions; confirmed `offsides`/`dribbles_past` were correctly NOT swept into the volume→higher_better treatment). analytics-engineer **FAIL r1 → PASS r2**: r1 caught (config-as-code rule #5) that `seeds/schema.yml` and the `assert_team_metric_meaning_complete` docstring still claimed player metrics were "not yet classified / exempt while v1.x", which this change falsifies and `dbt docs generate` would publish as truth — that FAIL drove **AMENDMENT r1** (added those 2 files to scope, PROSE ONLY, test predicate untouched); r2 independently re-derived the 63/13/2 tally from the seed and confirmed the test SQL byte-identical. scope-auditor **FAIL r1** (this handover bullet was missing) **→ PASS r2 → FAIL r3** (this Reviews line was stale, still calling the analytics-engineer vote "pending" after it had voted) **→ PASS r4**. **All 3 required reviewers PASS.** CPO merges; never self-merge.
++
++**Known follow-up (NOT in this PR):** `docs/wireframes/metrics_display.md` §"Percentile display" still reads "11 higher_better + 7 neutral" for the player benchmark set — that goes STALE with this change (0 neutral player metrics remain). It is outside `scope_paths` and routes to bi-analyst-reviewer; fix it before the percentile bar is built.
++
++**Waiting on this:** the v2 player Performance percentile bar (mock artifact `6c21ef71`) colours direction-aware green off these values and is deliberately NOT republished until this lands.
++
+ ### ⭐ ACTIVE (2026-07-11) — team YoY ALL-metrics data [#674] · team-page REDESIGN pending
+ 
+ **THIS branch = [PR #674](https://github.com/ramialfahham/football-data-pipeline/pull/674): matchday-aligned team YoY for ALL season metrics (dbt) — awaiting ci-data-build + CPO merge (dbt CLI broken locally; CI is the gate).** Extends `int_team_profile__yoy` from 3 metrics (points/goals) to all 16 LOCKED display rate metrics, matchday-aligned (this season through N games vs last season through its first N). **Option A / COMPOSE (CPO-approved):** NEW `int_team_season__metrics_cumulative` (the rate formulas applied at every matchday) → `int_team_season__metrics` is its **BYTE-IDENTICAL final-row projection** (zero downstream number change — the live MVP `mart_team_season_insights` + all v2 team numbers are unmoved; proven by the DQ suite on all 6 consumers) → `int_team_profile__yoy` composes it at cutoff N → `mart_team_profile` passthrough → auto-carries to the v2 team export (`select *` + `_strip_identity`, no export edit). Coverage gates carry over (a rate is NULL on a side when that season's first N games aren't fully covered). NO catalogue rows (windowed YoY variants are drift-exempt). scope-auditor + analytics-engineer PASS (the AE verified byte-identity character-for-character + all 6 consumers select by name). **ci-data-build caught one over-strict DQ test** — my new cumulative ratio test copied the whole-season strict [0,1] bounds, but LIBER 2024 team 2546 match 1 has danger_zone_ratio 1.25 because the PROVIDER reports shots_inside_box 5 > shots_total 4 for fixture 1149592 (genuine data, diluted ≤1 by season end, so the whole-season test passes). **Fix = split the ratio DQ tests (both the cumulative model AND the composed YoY) by invariant family:** structurally-capped ratios (points_capture/clean_sheets/shot_share/save_ratio/finishing_efficiency) stay strict [0,1]; provider-subset ratios (shot_accuracy/danger_zone_ratio/pass_accuracy/duels_won_pct) are bounded ≥0 only (the data layer stays honest, never clamps). The AE reviewer FAILED round 3 for catching the same over-strict bound still in the YoY test one layer down; round 4 fixed it and both reviewers re-PASS (hash c0ad071f). **Whether the display should ever surface a >1 ratio mid-season is deferred to the Stats-tab build.** Then ci-data-build (round 4) failed to BUILD `int_team_season__metrics` — "team_sk is ambiguous": the projection's final SELECT joins `season_final sf` to a `matchdays md` CTE that also exposes team_sk, so the unqualified `team_sk` inside `generate_surrogate_key` was ambiguous. **This was MASKED in rounds 1-3** because the upstream cumulative-test failure SKIPPED building the whole downstream (projection + its direct consumer `mart_team_profile` never ran — so CI had never actually built them). **Round-5 fix = qualify the surrogate-key inputs `sf.team_sk`/`sf.season_sk`** (byte-identity preserved — same hash). Verified via `bq --dry_run`: the projection AND the new YoY both validate, and every mart `y.<col>` exists in the YoY output (hash b90f02d3, both reviewers PASS). **Lesson: a failing upstream test hides downstream BUILD errors in a slim CI run — dry-run the never-built downstream against BQ rather than discovering errors one CI round at a time.** This is the DATA behind the redesigned team Stats tab's per-metric vs-last-season column.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a187297..42139e3 100644
+index 42139e3..a58b880 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,114 +1,108 @@
--# Task contract — matchday-aligned team YoY for ALL metrics (Option A)
-+# Task contract — define `direction` for the 5 style team metrics (metric layer + fixture-bar mirror)
-
--> Written on a CLEAN tree (branch `feat/team-yoy-all-metrics` off main @ d674905).
--> CPO-directed this conversation 2026-07-11: the team page's "vs last season" must cover
--> EVERY season metric, matchday-aligned — "extend the model" (not a frontend shortcut).
--> CPO chose Option A (the COMPOSE architecture) for formula placement.
-+> Written on a CLEAN tree (branch `feat/team-metric-directions` off main @ 16b4e1c).
-+> CPO-directed this conversation 2026-07-20: the v2 team Stats "vs the league" verdict view must show
-+> NO `neutral` metric — "we shouldn't allow neutral classification. It has to be clearly defined as
-+> better or worse" — then "define the direction in the metric layer first" + "adjust the fixture bars
-+> accordingly." CPO chose (AskUserQuestion) "Give each a direction" over dropping the style metrics.
+@@ -1,108 +1,126 @@
+-# Task contract — define `direction` for the 5 style team metrics (metric layer + fixture-bar mirror)
++# Task contract — assign `direction` to every metric in the metric layer (catalogue-wide sweep)
+ 
+-> Written on a CLEAN tree (branch `feat/team-metric-directions` off main @ 16b4e1c).
+-> CPO-directed this conversation 2026-07-20: the v2 team Stats "vs the league" verdict view must show
+-> NO `neutral` metric — "we shouldn't allow neutral classification. It has to be clearly defined as
+-> better or worse" — then "define the direction in the metric layer first" + "adjust the fixture bars
+-> accordingly." CPO chose (AskUserQuestion) "Give each a direction" over dropping the style metrics.
++> Written on a CLEAN tree (branch `feat/metric-direction-sweep` off main @ 9e7f8da).
++> CPO-directed this conversation 2026-07-21: "I gave you the framing for why we want direction for all
++> metrics. Apply this framing for every metric that has no direction yet" + "double check with the
++> football analyst every metric". The CPO also restated the governing principle: "the metric layer
++> defines what's in the mock not vice versa" — the catalogue is the SoT; the v2 mocks follow it.
  > See docs/working_agreement.md §1 (E→P→C→I→V), §2, §10, §11, Appendix A;
--> feedback: [[feedback-metric-calc-layer-placement]] [[feedback-macros-maintainability]]
--> [[project-dbt-shared-ci-prod-datasets]] [[reference-incremental-rename-full-refresh]].
-+> feedback: [[feedback-metric-catalogue-governance]] [[feedback-v2-design-schema-first]].
-
+-> feedback: [[feedback-metric-catalogue-governance]] [[feedback-v2-design-schema-first]].
++> feedback: [[feedback-metric-direction-judgement]] [[feedback-metric-catalogue-governance]].
+ 
  objective: >
--  Extend the team year-over-year surface from 3 metrics (points, goals for, goals against)
--  to ALL season metrics, matchday-aligned (this season through N games vs the SAME team's
--  prior season through its first N games), so the v2 team "Stats" tab can show a per-metric
--  this/last column. Option A: lift the season-metric rate formulas into ONE cumulative model
--  (rates at every matchday), make the existing whole-season int_team_season__metrics its
--  final-row PROJECTION (byte-identical → zero downstream number change), and have
--  int_team_profile__yoy COMPOSE the cumulative model at the cutoff N for both seasons.
-+  Set a real performance `direction` on the 5 team metrics currently classified `neutral` in the
-+  metric catalogue (passes/duels/defensive-actions/corners → higher_better; corners-against →
-+  lower_better), aligning `direction` to the long-standing `lower_is_better` boolean (only dropping
-+  the v2 `neutral` abstention), and update each `interpretation` to state the good direction. Mirror
-+  the same 5 directions on the fixture comparison's display config (metricRows.ts). The metric layer
-+  becomes the source of truth for the good/bad reading so the team Stats "vs the league" view and the
-+  fixture bars render every metric as clearly better or worse (green = beats the league median).
-
+-  Set a real performance `direction` on the 5 team metrics currently classified `neutral` in the
+-  metric catalogue (passes/duels/defensive-actions/corners → higher_better; corners-against →
+-  lower_better), aligning `direction` to the long-standing `lower_is_better` boolean (only dropping
+-  the v2 `neutral` abstention), and update each `interpretation` to state the good direction. Mirror
+-  the same 5 directions on the fixture comparison's display config (metricRows.ts). The metric layer
+-  becomes the source of truth for the good/bad reading so the team Stats "vs the league" view and the
+-  fixture bars render every metric as clearly better or worse (green = beats the league median).
++  Make `direction` non-empty for EVERY row of metric_catalogue.csv, applying the CPO's all-else-equal
++  framing. 36 rows change: 26 rows whose `direction` cell was BLANK get a value (18 higher_better,
++  8 lower_better), and 10 rows currently mis-classified `neutral` become higher_better (the volume/style
++  metrics — 3 team T/I/B per-match atoms + the 7 player per-90 volume metrics). Exactly 2 rows keep
++  `neutral` because they genuinely have no better/worse pole: `sot_rank_gap` (a narrative) and
++  `contribution_share` (a position-dependent share). The 10 rows flipping off `neutral` also get their
++  `interpretation` rewritten to LEAD with the direction reading and keep the honest style/volume caveat
++  SECOND — the same treatment PR #676 applied to the 5 team style metrics.
+ 
  refs: >
--  #324 (team profile + YoY) · #500 (one-aggregation philosophy) · wireframe 02 §6 ·
--  the team-page redesign (this conversation). Source model already anticipates this:
--  int_team_season_record header — carries match_number "so the deferred year-over-year
--  surface can align two seasons by matchday without a rewrite."
-+  The team Stats-tab design (this conversation) · metrics_display.md (fixture comparison contract) ·
-+  [[feedback-v2-design-schema-first]] Stats-tab section. Design-driven; no issue number.
-
+-  The team Stats-tab design (this conversation) · metrics_display.md (fixture comparison contract) ·
+-  [[feedback-v2-design-schema-first]] Stats-tab section. Design-driven; no issue number.
++  [[feedback-metric-direction-judgement]] (the framing) · PR #676 contract (this task executes its
++  explicitly RESERVED player-per-90 decision) · the v2 player-page design conversation (2026-07-21).
++  Design/governance-driven; no issue number.
+ 
  scope_paths:
--  - dbt_project/models/4_intermediate/domestic_league/team_season/**   # new cumulative model + int_team_season__metrics (→ projection) + int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql # +all-metric aligned YoY
--  - dbt_project/models/4_intermediate/shared/int_team_profile.yml      # YoY tests/docs
--  - dbt_project/models/5_marts/shared/mart_team_profile.sql            # + YoY columns (passthrough)
--  - dbt_project/models/5_marts/shared/shared.yml                       # mart tests/docs
-+  - dbt_project/seeds/metric_catalogue.csv        # direction + interpretation for the 5 team metrics
-+  - site_v2/src/lib/metricRows.ts                 # mirror the 5 direction values (fixture bars)
+-  - dbt_project/seeds/metric_catalogue.csv        # direction + interpretation for the 5 team metrics
+-  - site_v2/src/lib/metricRows.ts                 # mirror the 5 direction values (fixture bars)
++  - dbt_project/seeds/metric_catalogue.csv        # `direction` for 36 rows + `interpretation` for the 10 un-neutralled
++  - dbt_project/seeds/schema.yml                  # AMENDMENT r1 — de-stale the `direction`/`interpretation` column docs (prose only)
++  - dbt_project/tests/assert_team_metric_meaning_complete.sql   # AMENDMENT r1 — de-stale the docstring (prose only, NO logic change)
    - .claude/task/**
    - .claude/active_work.md
-
+ 
  impact_map: >
--  writers: none — all models read int_team_season_record (the cumulative raw-sums source,
--    UNCHANGED). No raw/staging/ingestion touched.
--  downstream (grep ref-graph; full `dbt ls --select int_team_season__metrics+` runs in
--    ci-data-build — dbt CLI is broken locally): int_team_season__metrics is read by SIX
--    models → int_team_season__deserved_vs_actual, int_team_competition_benchmark_metrics_long
--    (→ int/mart_team_competition_benchmarks → v2 benchmark export), mart_team_season,
--    mart_team_season_insights (→ LIVE MVP team-season JSON via export_pages_data.py),
--    mart_team_profile (→ v2 team export), mart_team_season_record (→ v2 W2 window + fixture).
--  layer_rules: intermediate materialization=table (like int_team_season__metrics + siblings);
--    check_layer_contract (no per-competition staging; generic model reading league_code).
--    int_team_season__metrics is ALL-competitions (verified: no domestic filter) — the new
--    cumulative base must keep that scope; the YoY consumer filters to domestic_league + aligns.
--  deploy_order: the refactor is BYTE-IDENTICAL (int_team_season__metrics = final row of the
--    same formulas over the same input) → zero prod number change on the 04:00 nightly. dbt
--    shares CI/prod datasets, so ci-data-build runs the full singular DQ suite vs shared prod —
--    that suite on all 6 consumers is the byte-identity gate (any drift fails a test). The new
--    YoY columns are ADDITIVE.
--  blast_radius: int_team_season__metrics OUTPUT unchanged (the LIVE MVP team-season numbers +
--    every v2 team/benchmark number stay identical — proven by the existing DQ suite staying
--    green). NEW = matchday-aligned this/prev/delta for the ~13 rate metrics on
--    int_team_profile__yoy → mart_team_profile → v2 team export only (additive; the live MVP
--    does not read YoY). NO catalogue rows (windowed YoY variants are exempt from the drift
--    guard — same as today's 3-metric YoY).
-+  writers: none — a seed VALUE change (the `direction`/`interpretation` cells of 5 existing rows; no
-+    new column, no row added/removed) + a frontend display constant. No model/raw/ingestion touched.
-+  downstream (evidence: `grep -r direction` over dbt_project + scripts, every hit READ; dbt CLI is
-+    broken locally so no `dbt ls`): every consumer of the catalogue `direction` is direction-AGNOSTIC
-+    or non-breaking —
-+      - mart_team_competition_benchmarks.sql + mart_player_competition_benchmarks.sql: "DIRECTION-
-+        AGNOSTIC by design" (rank by metric_value DESC; good/bad applied at DISPLAY from the catalogue
-+        direction). No output/number change; benchmark DQ tests unaffected.
-+      - tests/assert_team_metric_meaning_complete.sql: FAILs only if direction OR interpretation is
-+        NULL/empty — the 5 stay non-empty (neutral -> higher/lower_better). Still passes.
-+      - seeds/schema.yml: `direction` accepted_values [higher_better, lower_better, neutral] — new
-+        values in-set. Still passes.
-+      - mart_head_to_head.sql: does NOT use metric direction (H2H record facts only).
-+      - shared.yml: `direction` appears only in column DESCRIPTIONS (still accurate). No test.
-+      - scripts/export_metric_definitions_json.py (LIVE MVP): reads `lower_is_better`, NOT `direction`
-+        — UNCHANGED, so the live MVP good/bad reading is untouched.
-+      - scripts/export_site_data.py (v2): direction "applied at render"; the mart carries no direction
-+        column — no payload change.
-+      - site_v2/src/lib/metricRows.ts: the fixture comparison's hand-mirror of the catalogue direction
-+        — the 5 rows now show a green better-side (display only; sample fixture data unchanged).
-+  layer_rules: seed change (no dbt model layer touched; check_layer_contract N/A). metricRows.ts is
-+    DISPLAY CONFIG whose own header says `direction` mirrors metric_catalogue.csv — keeping them in
-+    lockstep is the rule.
-+  deploy_order: NO prod number moves (direction is a display semantic; benchmarks agnostic; live MVP
-+    reads lower_is_better). Nothing breaks the deployed model on the 04:00 nightly. ci-data-build
-+    (shared prod dataset, full DQ suite) is the byte-safety gate.
-+  blast_radius: ZERO number change anywhere. The good/bad reading of the 5 metrics flips from "no
-+    verdict" to a verdict — a green better-side on the fixture comparison for those rows, and the
-+    catalogue becomes the SoT for the not-yet-built team Stats "vs the league" view.
-
+-  writers: none — a seed VALUE change (the `direction`/`interpretation` cells of 5 existing rows; no
+-    new column, no row added/removed) + a frontend display constant. No model/raw/ingestion touched.
+-  downstream (evidence: `grep -r direction` over dbt_project + scripts, every hit READ; dbt CLI is
+-    broken locally so no `dbt ls`): every consumer of the catalogue `direction` is direction-AGNOSTIC
+-    or non-breaking —
+-      - mart_team_competition_benchmarks.sql + mart_player_competition_benchmarks.sql: "DIRECTION-
+-        AGNOSTIC by design" (rank by metric_value DESC; good/bad applied at DISPLAY from the catalogue
+-        direction). No output/number change; benchmark DQ tests unaffected.
+-      - tests/assert_team_metric_meaning_complete.sql: FAILs only if direction OR interpretation is
+-        NULL/empty — the 5 stay non-empty (neutral -> higher/lower_better). Still passes.
+-      - seeds/schema.yml: `direction` accepted_values [higher_better, lower_better, neutral] — new
+-        values in-set. Still passes.
+-      - mart_head_to_head.sql: does NOT use metric direction (H2H record facts only).
+-      - shared.yml: `direction` appears only in column DESCRIPTIONS (still accurate). No test.
+-      - scripts/export_metric_definitions_json.py (LIVE MVP): reads `lower_is_better`, NOT `direction`
+-        — UNCHANGED, so the live MVP good/bad reading is untouched.
+-      - scripts/export_site_data.py (v2): direction "applied at render"; the mart carries no direction
+-        column — no payload change.
+-      - site_v2/src/lib/metricRows.ts: the fixture comparison's hand-mirror of the catalogue direction
+-        — the 5 rows now show a green better-side (display only; sample fixture data unchanged).
+-  layer_rules: seed change (no dbt model layer touched; check_layer_contract N/A). metricRows.ts is
+-    DISPLAY CONFIG whose own header says `direction` mirrors metric_catalogue.csv — keeping them in
+-    lockstep is the rule.
+-  deploy_order: NO prod number moves (direction is a display semantic; benchmarks agnostic; live MVP
+-    reads lower_is_better). Nothing breaks the deployed model on the 04:00 nightly. ci-data-build
+-    (shared prod dataset, full DQ suite) is the byte-safety gate.
+-  blast_radius: ZERO number change anywhere. The good/bad reading of the 5 metrics flips from "no
+-    verdict" to a verdict — a green better-side on the fixture comparison for those rows, and the
+-    catalogue becomes the SoT for the not-yet-built team Stats "vs the league" view.
++  writers: none — a seed VALUE change only (the `direction` cell of 36 existing rows + the
++    `interpretation` cell of 10 of them). No new column, no row added or removed, no formula touched
++    (numerator_expr/denominator_expr/base_relation all unchanged). No model, raw table or ingestion code.
++  downstream (evidence: `grep -r direction` + `grep -r lower_is_better` over dbt_project + scripts +
++    site_v2, every hit read):
++      - mart_team_competition_benchmarks.sql + mart_player_competition_benchmarks.sql: DIRECTION-AGNOSTIC
++        by design (rank by metric_value; good/bad applied at DISPLAY). ZERO number change; benchmark DQ
++        tests unaffected.
++      - seeds/schema.yml: `direction` accepted_values [higher_better, lower_better, neutral] — every new
++        value is in-set. Still passes.
++      - tests/assert_team_metric_meaning_complete.sql: FAILs if a TEAM metric has NULL/empty direction OR
++        interpretation. The only team rows touched (tackles/interceptions/blocks_per_match) keep a
++        non-empty interpretation (rewritten, not cleared). Still passes.
++      - tests/assert_metric_catalogue_expr_resolvable.sql: reads the expression columns, which are
++        untouched. Unaffected.
++      - scripts/export_metric_definitions_json.py (LIVE MVP): reads `lower_is_better`, NOT `direction`.
++        `lower_is_better` is NOT touched here, so the live MVP good/bad reading is BYTE-IDENTICAL.
++      - scripts/export_site_data.py (v2): direction is applied at render; the marts carry no direction
++        column. No payload shape change.
++      - site_v2/src/lib/metricRows.ts: mirrors direction for the FIXTURE comparison's 16 TEAM display
++        rows only. None of the 36 rows changed here is one of those 16 (they are player metrics, player
++        per-90s, and the 3 team T/I/B atoms which render as a sub-breakdown "15 tkl · 8 int · 3 blk",
++        not as their own comparison bar). So metricRows.ts needs NO mirror edit and is out of scope.
++  layer_rules: seed value change; no dbt model layer touched (check_layer_contract N/A).
++  deploy_order: no prod number moves. Nothing changes on the 04:00 nightly. ci-data-build (shared prod
++    dataset, full DQ suite) is the byte-safety gate.
++  blast_radius: ZERO number change anywhere. 36 metrics gain a good/bad reading they did not have. The
++    only currently-rendered surface affected is the v2 player Performance percentile bar (not yet built),
++    which is precisely why the CPO asked for this now.
+ 
  decisions_taken: >
--  1. Option A (CPO-approved this session): a cumulative team-season RATES model (the current
--     int_team_season__metrics SELECT applied to EVERY cumulative row of int_team_season_record,
--     not just the final), with int_team_season__metrics becoming its final-row projection.
--     Formulas live in ONE place; no macro (inline SQL, per [[feedback-macros-maintainability]]).
--  2. Matchday alignment is by GAMES PLAYED (match_number), reusing the existing YoY mechanism
--     (cur = latest cumulative row this season → cutoff N; prev = prior season's largest
--     match_number ≤ N). The rate coverage gates carry over unchanged: a metric is NULL on a
--     side when that season's first N games are not fully stat-covered — honest, never fabricated.
--  3. Byte-identity of int_team_season__metrics is REQUIRED (it feeds the live MVP). Verified by
--     ci-data-build's existing DQ suite on the 6 consumers staying green.
--  4. No catalogue changes; YoY stays domestic-league only (cups/tournaments have no aligned
--     comparison — the existing scope).
--  5. BOTH new ratio DQ tests — on int_team_season__metrics_cumulative AND on the composed
--     int_team_profile__yoy (which reads the cumulative model at cutoff N) — are split by INVARIANT
--     FAMILY, not a verbatim copy of the whole-season [0,1] test (that over-strict copy failed
--     ci-data-build on exactly one row, LIBER 2024 team 2546 match 1, danger_zone_ratio 1.25).
--     Structurally-bounded ratios (points_capture / clean_sheets / shot_share / save_ratio /
--     finishing_efficiency — the last guarded to NULL when goals>SoT) keep strict [0,1] at every
--     matchday. Provider-subset ratios (shot_accuracy / danger_zone_ratio / pass_accuracy /
--     duels_won_pct = one provider stat over another) are bounded ≥0 only: at low N a single game
--     where the provider reports numerator > denominator (verified at source: fixture 1149592 has
--     shots_inside_box 5 > shots_total 4) is not yet diluted, so >1 is a genuine data reality, not a
--     model bug — clamping would hide it. The YoY cutoff N is low by construction early in every
--     season, so it inherits the same split (the caught round-3 gap). The whole-season test keeps
--     its strict [0,1] (dilution holds at season scale). Both bounds still catch real defects
--     (a structural ratio >1, or any ratio <0). Whether the display layer should ever surface a
--     provider-subset ratio >1 mid-season is a downstream product/legibility call, deferred to the
--     Stats-tab build (this data layer stays honest — never clamps).
-+  1. CPO ruled (this session): the team Stats "vs the league" verdict view must not classify any
-+     displayed metric `neutral` — every metric reads clearly better or worse. CPO chose (AskUserQuestion)
-+     "Give each a direction" over dropping the style metrics, then directed "define the direction in the
-+     metric layer first" + "adjust the fixture bars accordingly."
-+  2. Direction values ALIGN to the existing `lower_is_better` boolean (passes/duels/defensive-actions/
-+     corners: lower_is_better=false -> higher_better; corners-against: lower_is_better=true -> lower_better).
-+     Not a new football judgment invented here — the boolean (which the live MVP already reads) has
-+     classified these all along; we only drop the v2 `neutral` abstention and make `direction` consistent.
-+  3. FOOTBALL-HONESTY OVERRIDE (CPO-accepted; flagged for football-analytics-expert-reviewer):
-+     higher_better on duels_per_match + defensive_actions_per_match is a VOLUME signal — a possession-
-+     dominant side that duels/defends less reads "below par" despite being strong (the reason the
-+     catalogue authors chose `neutral`). The CPO chose display clarity (a clear verdict) over the
-+     abstention. The interpretation text keeps the volume caveat honest. §10 metrics decision the CPO
-+     ruled in-conversation (recorded in escalations.log) — the reviewer's expected objection is
-+     documented, not re-litigated.
-+  4. `lower_is_better` is NOT touched (retained until the full migration; the live MVP depends on it).
-+     T/I/B atoms (tackles/interceptions/blocks) + sot_rank_gap stay `neutral` (not verdict bars).
-+  5. INTERPRETATION SWEEP (CPO-directed 2026-07-20, same PR): after the direction-is-judgement framing
-+     was settled ([[feedback-metric-direction-judgement]] — `direction` is "all else equal, is more
-+     better?", NOT a rank/results correlation), the CPO asked to review the `interpretation` text of ALL
-+     metrics and adjust where applicable. Revised the volume/style interpretations to LEAD with the
-+     direction reading and keep the honest style/volume caveat SECOND (shots_per_match + the 5 style
-+     metrics). The rest were reviewed and already lead with the judgement (kept as-is). Neutral metrics
-+     (T/I/B atoms, sot_rank_gap, contribution_share, the deferred player per-90 volume metrics) keep
-+     their neutral/no-verdict interpretation, consistent with their neutral direction. No further
-+     direction flips.
-
+-  1. CPO ruled (this session): the team Stats "vs the league" verdict view must not classify any
+-     displayed metric `neutral` — every metric reads clearly better or worse. CPO chose (AskUserQuestion)
+-     "Give each a direction" over dropping the style metrics, then directed "define the direction in the
+-     metric layer first" + "adjust the fixture bars accordingly."
+-  2. Direction values ALIGN to the existing `lower_is_better` boolean (passes/duels/defensive-actions/
+-     corners: lower_is_better=false -> higher_better; corners-against: lower_is_better=true -> lower_better).
+-     Not a new football judgment invented here — the boolean (which the live MVP already reads) has
+-     classified these all along; we only drop the v2 `neutral` abstention and make `direction` consistent.
+-  3. FOOTBALL-HONESTY OVERRIDE (CPO-accepted; flagged for football-analytics-expert-reviewer):
+-     higher_better on duels_per_match + defensive_actions_per_match is a VOLUME signal — a possession-
+-     dominant side that duels/defends less reads "below par" despite being strong (the reason the
+-     catalogue authors chose `neutral`). The CPO chose display clarity (a clear verdict) over the
+-     abstention. The interpretation text keeps the volume caveat honest. §10 metrics decision the CPO
+-     ruled in-conversation (recorded in escalations.log) — the reviewer's expected objection is
+-     documented, not re-litigated.
+-  4. `lower_is_better` is NOT touched (retained until the full migration; the live MVP depends on it).
+-     T/I/B atoms (tackles/interceptions/blocks) + sot_rank_gap stay `neutral` (not verdict bars).
+-  5. INTERPRETATION SWEEP (CPO-directed 2026-07-20, same PR): after the direction-is-judgement framing
+-     was settled ([[feedback-metric-direction-judgement]] — `direction` is "all else equal, is more
+-     better?", NOT a rank/results correlation), the CPO asked to review the `interpretation` text of ALL
+-     metrics and adjust where applicable. Revised the volume/style interpretations to LEAD with the
+-     direction reading and keep the honest style/volume caveat SECOND (shots_per_match + the 5 style
+-     metrics). The rest were reviewed and already lead with the judgement (kept as-is). Neutral metrics
+-     (T/I/B atoms, sot_rank_gap, contribution_share, the deferred player per-90 volume metrics) keep
+-     their neutral/no-verdict interpretation, consistent with their neutral direction. No further
+-     direction flips.
++  1. THE FRAMING (CPO, restated 2026-07-21, already recorded in [[feedback-metric-direction-judgement]]):
++     `direction` is a JUDGEMENT — "all else equal, is MORE of this better?" — NOT a correlation with
++     results or final rank. A style/volume metric STILL gets a direction; it is not `neutral` merely
++     because it is also a style attribute or a weak predictor of rank. `neutral` is reserved for a
++     metric with genuinely NO better/worse pole.
++  2. VALIDATION: two INDEPENDENT derivations over all 78 rows (a general pass and the
++     football-analytics-expert-reviewer) agreed on the direction for EVERY row — no disagreement. The
++     football reviewer's contestable calls are documented in decisions_reserved, not re-litigated.
++  3. This executes the decision PR #676 explicitly RESERVED: "Player per-90 volume analogs
++     (passes_per90, tackles_per90, interceptions_per90, blocks_per90, defensive_actions_per90,
++     duels_won_per90, saves_per90) stay `neutral` — out of scope; a consistency call for when the player
++     page is designed." The player page is now designed, so the call is made: all 7 become higher_better.
++  4. CONSCIOUS REVERSAL of PR #676 decision 4 ("T/I/B atoms + sot_rank_gap stay `neutral` — not verdict
++     bars"). Under the framing, direction is a property of the METRIC, not of whether it is drawn as a
++     verdict bar, so tackles/interceptions/blocks_per_match become higher_better. `sot_rank_gap` still
++     stays `neutral`, on the framing's own no-pole test, not on the display argument.
++  5. `lower_is_better` is NOT touched. The LIVE MVP export reads it, so changing it would move live
++     behaviour; #676 set the same precedent. Four rows where the boolean now disagrees with the new
++     direction are logged in decisions_reserved.
+ 
  decisions_reserved:
--  - "NAME of the new cumulative model (proposal: int_team_season__metrics_cumulative) — a naming
--     call; surfaced in the plan-back for CPO ok."
--  - "Exactly which metrics get aligned YoY: the ~13 displayed rate metrics (goals/goals-against/
--     shots/danger-zone/SoT/finishing/passes/pass-acc/corners/corners-against/save/key-passes/
--     duels/duels-won/defensive-actions per metrics_display), plus the existing 3 totals kept as-is.
--     The T·I·B atoms feed defensive_actions only (not their own YoY), mirroring the display. Confirm set."
--  - "Cumulative model materialization (table like the sibling, vs view) — an analytics call; table
--     unless the per-matchday row count argues otherwise."
--  - "Whether a new invariant DQ test is warranted (e.g. cur/prev computed through the same N; the
--     byte-identity is already covered by the existing downstream suite) — analytics-engineer call."
-+  - "Player per-90 volume analogs (passes_per90, tackles_per90, interceptions_per90, blocks_per90,
-+     defensive_actions_per90, duels_won_per90, saves_per90) stay `neutral` — out of scope; a consistency
-+     call for when the player page is designed. Do NOT touch here."
-+  - "The exact interpretation WORDING for duels/defensive-actions (volume-caveat phrasing) — the
-+     football reviewer may refine; the CPO has the final call. Not a blocker to the direction."
-
+-  - "Player per-90 volume analogs (passes_per90, tackles_per90, interceptions_per90, blocks_per90,
+-     defensive_actions_per90, duels_won_per90, saves_per90) stay `neutral` — out of scope; a consistency
+-     call for when the player page is designed. Do NOT touch here."
+-  - "The exact interpretation WORDING for duels/defensive-actions (volume-caveat phrasing) — the
+-     football reviewer may refine; the CPO has the final call. Not a blocker to the direction."
++  - "`lower_is_better` vs `direction` divergence on 4 player rows (cards_yellow, cards_red, cards_total,
++     shots_on_goal_against read lower_is_better=false while direction is now lower_better). Fixing the
++     boolean CHANGES THE LIVE MVP good/bad reading, so it is its own CPO decision + PR. Not touched here."
++  - "The 26 newly-directional player rows still have a BLANK `interpretation`. A catalogue-wide
++     interpretation sweep is a separate task; this PR only rewrites the 10 interpretations that would
++     otherwise contradict their own new direction (the un-neutralled ones)."
++  - "Football-reviewer contestable calls, CPO-accepted per the framing and NOT to be re-litigated:
++     `saves` + `saves_per90` = higher_better (a save is a good act, though volume also tracks shots
++     faced) and `shots_on_goal_against` = lower_better (fewer on-target shots faced is better, though
++     it is mostly the outfield defence's doing). The honest caveat belongs in `interpretation`."
++  - "Whether `contribution_share` ever gets a display home (it is built and wired but rendered on no
++     screen) — a v2 design decision, not this PR."
+ 
  done_when:
--  - The new cumulative model builds; int_team_season__metrics = its final-row projection and is
--    BYTE-IDENTICAL (ci-data-build DQ suite on all 6 consumers green — no number drift).
--  - int_team_profile__yoy carries matchday-aligned this/prev/delta for every in-scope metric;
--    NULL on either side where coverage is incomplete through N; domestic-league only.
--  - mart_team_profile carries the new YoY columns; the v2 team export auto-carries them
--    (mart passthrough — confirm no export edit, or a minimal one).
--  - ci-data-build GREEN (parse + build + full DQ). Required reviewers PASS (scope-auditor +
--    analytics-engineer per review_routing.json for dbt_project/**); review.md diff_sha256 binds;
--    CPO merges (I never merge).
--  - Handover bullet added to .claude/active_work.md (artifact-only follow-up commit).
-+  - metric_catalogue.csv: the 5 team rows carry the new `direction` + a consistent `interpretation`;
-+    `neutral` no longer appears on those 5 rows (grep-verified).
-+  - metricRows.ts: the same 5 rows carry the mirrored `direction`; compiles (ci-site-v2).
-+  - ci-data-build GREEN (seed loads; assert_team_metric_meaning_complete + accepted_values + the full
-+    DQ suite pass; no number drift — benchmarks are direction-agnostic).
-+  - ci-site-v2 GREEN; the fixture sample renders a green better-side on the 5 rows (Browser spot-check).
-+  - Required reviewers PASS: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-
-+    reviewer (metric_catalogue.csv) + cto-reviewer (site_v2/**), per review_routing.json. review.md
-+    diff_sha256 binds; CPO merges (I never merge).
-+  - Handover bullet added to .claude/active_work.md.
-
- amendments: (none)
+-  - metric_catalogue.csv: the 5 team rows carry the new `direction` + a consistent `interpretation`;
+-    `neutral` no longer appears on those 5 rows (grep-verified).
+-  - metricRows.ts: the same 5 rows carry the mirrored `direction`; compiles (ci-site-v2).
+-  - ci-data-build GREEN (seed loads; assert_team_metric_meaning_complete + accepted_values + the full
+-    DQ suite pass; no number drift — benchmarks are direction-agnostic).
+-  - ci-site-v2 GREEN; the fixture sample renders a green better-side on the 5 rows (Browser spot-check).
++  - metric_catalogue.csv: EVERY row has a non-empty `direction`; the only `neutral` values remaining are
++    `sot_rank_gap` and `contribution_share` (grep-verified, exactly 2).
++  - The 10 un-neutralled rows carry an `interpretation` that leads with the direction reading and keeps
++    the style/volume caveat second; no interpretation is cleared.
++  - No other column changed anywhere in the seed (diff-verified: only the `direction` and
++    `interpretation` cells move).
++  - ci-data-build GREEN (seed loads; accepted_values + assert_team_metric_meaning_complete + the full DQ
++    suite pass; no number drift — benchmarks are direction-agnostic).
+   - Required reviewers PASS: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-
+-    reviewer (metric_catalogue.csv) + cto-reviewer (site_v2/**), per review_routing.json. review.md
+-    diff_sha256 binds; CPO merges (I never merge).
++    reviewer (metric_catalogue.csv), per review_routing.json. review.md diff_sha256 binds; CPO merges
++    (I never merge).
+   - Handover bullet added to .claude/active_work.md.
+ 
+-amendments: (none)
++amendments:
++  - >
++    r1 (2026-07-21, REVIEWER-DRIVEN — analytics-engineer-reviewer FAIL, MEDIUM, config-as-code rule #5):
++    the seed's OWN governing docs assert an invariant this change falsifies. `dbt_project/seeds/schema.yml`
++    describes `direction` as "Populated for team metrics; null for the not-yet-classified player metrics
++    (player benchmark, v1.x) ... player rows exempt while v1.x", and the docstring of
++    `dbt_project/tests/assert_team_metric_meaning_complete.sql` repeats the same claim. Both become FALSE
++    once every player row carries a direction, and `dbt docs generate` would publish them as current truth.
++    Added both files to scope_paths to correct the PROSE ONLY. Explicitly NOT changed: the test's LOGIC and
++    its team-only enforcement scope, which is RETAINED DELIBERATELY and re-justified in the docstring — the
++    26 newly-directional player rows still carry a blank `interpretation` (a reserved follow-up sweep), so
++    broadening the test to players would fail on interpretation, not on direction. Both files route to
++    analytics-engineer-reviewer, already in the required reviewer set, so the review gate is UNCHANGED by
++    this amendment. scope-auditor had already PASSed the pre-amendment scope; it is re-run after this.
 diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index 3682345..587e6b1 100644
+index fc2f162..91d19c3 100644
 --- a/dbt_project/seeds/metric_catalogue.csv
 +++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -7,24 +7,24 @@ clean_sheets,team,metrics.clean_sheets.label,"Matches with zero goals conceded i
- goals_penalty,team,metrics.goals_penalty.label,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,false,integer,goals,,,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls
- goals_own,team,metrics.goals_own.label,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,false,integer,goals,,,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
- goals_open_play,team,metrics.goals_open_play.label,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,false,integer,goals,,,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
--shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempted per match with available team stats in the window. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),false,decimal_1,shooting,2,1,higher_better,Shot volume - attacking attempts per game; high-volume but not necessarily high-quality
-+shots_per_match,team,metrics.shots_per_match.label,"Average total shots attempted per match with available team stats in the window. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),false,decimal_1,shooting,2,1,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality)
- shot_accuracy,team,metrics.shot_accuracy.label,Share of shots that were on target. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),false,percent,shooting,,,higher_better,Striking precision - share of shots on target
- danger_zone_ratio,team,metrics.danger_zone_ratio.label,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),false,percent,shooting,2,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
- shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average shots on target per match with available shots-on-target stats in the window (its own coverage count — same-window rule).,int_legs__team_match,sum(shots_on_goal),count(*),false,decimal_1,shooting,1,3,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
- finishing_efficiency,team,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, over a fully shot-covered window (numerator and denominator share the window). In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null when the window is not fully shot-covered or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),false,percent,shooting,1,4,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
- finishing_efficiency,player,metrics.finishing_efficiency.label,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].",int_legs__player_match,sum(goals_total - goals_penalty),sum(shots_on),false,percent,shooting,,,higher_better,
--duels_per_match,team,metrics.duels_per_match.label,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),false,decimal_0,duels,2,1,neutral,Duel engagement - physical contests per game; a combative/contested style
-+duels_per_match,team,metrics.duels_per_match.label,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),false,decimal_0,duels,2,1,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure)
+@@ -17,61 +17,61 @@ duels_per_match,team,metrics.duels_per_match.label,Average duels contested per m
  duels_won_pct,team,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero. Aggregated from player stats.,int_legs__team_from_players,sum(duels_won),sum(duels_total),false,percent,duels,2,2,higher_better,Duel success - share of duels won; high = wins the physical battle
  duels_won_pct,player,metrics.duels_won_pct.label,Duel win rate in the form window. Null when duels_total is zero.,int_legs__player_match,sum(duels_won),sum(duels_total),false,percent,duels,,1,higher_better,
--defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),false,decimal_1,defending,2,1,neutral,Defensive workload - tackles + interceptions + blocks per game; high = a deep block or an aggressive press
-+defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),false,decimal_1,defending,2,1,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending)
- tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),false,decimal_1,defending,,,neutral,Tackling volume - ball-winning challenges per game
- interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),false,decimal_1,defending,,,neutral,Interception volume - reading and cutting out passes
- blocks_per_match,team,metrics.blocks_per_match.label,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(blocks),count(*),false,decimal_1,defending,,,neutral,Block volume - bodies in front of shots
--passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,int_legs__team_match,sum(passes_total),count(*),false,decimal_0,passing,3,1,neutral,Possession volume - high = possession-based style; low = direct
-+passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,int_legs__team_match,sum(passes_total),count(*),false,decimal_0,passing,3,1,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept)
+ defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),false,decimal_1,defending,2,1,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending)
+-tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),false,decimal_1,defending,,,neutral,Tackling volume - ball-winning challenges per game
+-interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),false,decimal_1,defending,,,neutral,Interception volume - reading and cutting out passes
+-blocks_per_match,team,metrics.blocks_per_match.label,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(blocks),count(*),false,decimal_1,defending,,,neutral,Block volume - bodies in front of shots
++tackles_per_match,team,metrics.tackles_per_match.label,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),false,decimal_1,defending,,,higher_better,Tackling volume - more ball-winning challenges per game is better all else equal; high can also reflect a side that defends more
++interceptions_per_match,team,metrics.interceptions_per_match.label,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),false,decimal_1,defending,,,higher_better,Interception volume - more passes read and cut out per game is better all else equal; high can also reflect a side that defends more
++blocks_per_match,team,metrics.blocks_per_match.label,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(blocks),count(*),false,decimal_1,defending,,,higher_better,Block volume - more shots blocked per game is better all else equal; high can also reflect a side under sustained pressure
+ passes_per_match,team,metrics.passes_per_match.label,Average passes attempted per match with available team stats in the window.,int_legs__team_match,sum(passes_total),count(*),false,decimal_0,passing,3,1,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept)
  pass_accuracy,team,metrics.pass_accuracy.label,Share of passes successfully completed. Null when passes_total is zero.,int_legs__team_match,sum(passes_accurate),sum(passes_total),false,percent,passing,2,2,higher_better,Passing security - completion rate; high = keeps the ball well
  key_passes_per_match,team,metrics.key_passes_per_match.label,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),false,decimal_1,passing,2,3,higher_better,Creativity - passes leading to a shot; high = creates chances
--corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,int_legs__team_match,sum(corner_kicks),count(*),false,decimal_1,set_pieces,3,1,neutral,Corner volume won - sustained attacking pressure (a weak proxy)
--corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,int_legs__team_match,sum(opponent_corner_kicks),count(*),true,decimal_1,set_pieces,3,2,neutral,Corners conceded - defensive pressure faced (a weak proxy)
-+corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,int_legs__team_match,sum(corner_kicks),count(*),false,decimal_1,set_pieces,3,1,higher_better,Corners won - high = sustained attacking pressure (a weak proxy)
-+corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,int_legs__team_match,sum(opponent_corner_kicks),count(*),true,decimal_1,set_pieces,3,2,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy)
+ corner_kicks_per_match,team,metrics.corner_kicks_per_match.label,Average corner kicks won per match with available team stats in the window.,int_legs__team_match,sum(corner_kicks),count(*),false,decimal_1,set_pieces,3,1,higher_better,Corners won - high = sustained attacking pressure (a weak proxy)
+ corners_against_per_match,team,metrics.corners_against_per_match.label,Average corner kicks conceded per match with available opponent stats in the window.,int_legs__team_match,sum(opponent_corner_kicks),count(*),true,decimal_1,set_pieces,3,2,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy)
  save_ratio,team,metrics.save_ratio.label,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),false,percent,goalkeeping,2,1,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
- goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,int_legs__player_match,sum(goals_total),,false,integer,goals,,1,,
- assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,int_legs__player_match,sum(goals_assists),,false,integer,goals,,1,,
-diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
-index eb28946..433a1e6 100644
---- a/site_v2/src/lib/metricRows.ts
-+++ b/site_v2/src/lib/metricRows.ts
-@@ -42,13 +42,13 @@ export const METRIC_ROWS: MetricRowDef[] = [
-   { field: "danger_zone_ratio", label: "% Shots from box", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
-   { field: "shots_on_goal_per_match", label: "Ø Shots on target", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
-   { field: "finishing_efficiency", label: "% Goals per shot on target", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
--  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "neutral" },
-+  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
-   { field: "duels_won_pct", label: "% Duels won", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
--  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "neutral", sublabel: "tackles + interceptions + blocks" },
--  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "neutral" },
-+  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
-+  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
-   { field: "pass_accuracy", label: "% Pass accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
-   { field: "key_passes_per_match", label: "Ø Key passes", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
--  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "neutral" },
--  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "neutral" },
-+  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
-+  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
-   { field: "save_ratio", label: "% Save percentage", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
- ];
+-goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,int_legs__player_match,sum(goals_total),,false,integer,goals,,1,,
+-assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,int_legs__player_match,sum(goals_assists),,false,integer,goals,,1,,
++goals,player,playerMetrics.scorerPoints.goals,Goals scored in the form window.,int_legs__player_match,sum(goals_total),,false,integer,goals,,1,higher_better,
++assists,player,playerMetrics.scorerPoints.assists,Goal assists in the form window.,int_legs__player_match,sum(goals_assists),,false,integer,goals,,1,higher_better,
+ goals_penalty,player,playerMetrics.goalsPenalty.label,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,false,integer,goals,,,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties
+ goals_open_play,player,playerMetrics.goalsOpenPlay.label,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency. (goals_total already excludes own goals.),int_legs__player_match,sum(goals_total - goals_penalty),,false,integer,goals,,,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output
+-penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.,int_legs__player_match,sum(penalty_won),,false,integer,goals,,,,
+-shots_on_goal,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window.,int_legs__player_match,sum(shots_on),,false,integer,shooting,,1,,
+-duels_won,player,playerMetrics.duels.won,Duels won in the form window. A duel is any 1v1 physical contest (ground and aerial pooled).,int_legs__player_match,sum(duels_won),,false,integer,duels,,1,,
+-duels_total,player,playerMetrics.duels.total,Total duels contested in the form window.,int_legs__player_match,sum(duels_total),,false,integer,duels,,1,,
+-dribbles_success,player,playerMetrics.dribbles.success,Successful dribbles in the form window.,int_legs__player_match,sum(dribbles_success),,false,integer,duels,,2,,
+-dribbles_attempts,player,playerMetrics.dribbles.attempts,Dribble attempts in the form window.,int_legs__player_match,sum(dribbles_attempts),,false,integer,duels,,2,,
++penalty_won,player,playerMetrics.penalties.won,Penalties won in the form window.,int_legs__player_match,sum(penalty_won),,false,integer,goals,,,higher_better,
++shots_on_goal,player,playerMetrics.shotsOnTarget.label,Shots on target in the form window.,int_legs__player_match,sum(shots_on),,false,integer,shooting,,1,higher_better,
++duels_won,player,playerMetrics.duels.won,Duels won in the form window. A duel is any 1v1 physical contest (ground and aerial pooled).,int_legs__player_match,sum(duels_won),,false,integer,duels,,1,higher_better,
++duels_total,player,playerMetrics.duels.total,Total duels contested in the form window.,int_legs__player_match,sum(duels_total),,false,integer,duels,,1,higher_better,
++dribbles_success,player,playerMetrics.dribbles.success,Successful dribbles in the form window.,int_legs__player_match,sum(dribbles_success),,false,integer,duels,,2,higher_better,
++dribbles_attempts,player,playerMetrics.dribbles.attempts,Dribble attempts in the form window.,int_legs__player_match,sum(dribbles_attempts),,false,integer,duels,,2,higher_better,
+ dribbles_success_pct,player,playerMetrics.dribbles.successPct,Dribble success rate. Null when dribbles_attempts is zero.,int_legs__player_match,sum(dribbles_success),sum(dribbles_attempts),false,percent,duels,,2,higher_better,Share of take-ons completed; high = a reliable dribbler.
+-tackles_total,player,playerMetrics.defensiveActions.tackles,Tackles made in the form window.,int_legs__player_match,sum(tackles_total),,false,integer,defending,,1,,
+-tackles_interceptions,player,playerMetrics.defensiveActions.interceptions,Interceptions in the form window.,int_legs__player_match,sum(tackles_interceptions),,false,integer,defending,,1,,
+-tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the form window.,int_legs__player_match,sum(tackles_blocks),,false,integer,defending,,1,,
+-dribbles_past,player,playerMetrics.dribbles.past,Times dribbled past by an opponent in the form window.,int_legs__player_match,sum(dribbles_past),,true,integer,defending,,,,
+-passes_accurate,player,playerMetrics.passAccuracy.accurate,Accurate passes in the form window. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.,int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),,false,integer,passing,,1,,
+-passes_total,player,playerMetrics.passAccuracy.total,Total passes attempted in the form window.,int_legs__player_match,sum(passes_total),,false,integer,passing,,1,,
++tackles_total,player,playerMetrics.defensiveActions.tackles,Tackles made in the form window.,int_legs__player_match,sum(tackles_total),,false,integer,defending,,1,higher_better,
++tackles_interceptions,player,playerMetrics.defensiveActions.interceptions,Interceptions in the form window.,int_legs__player_match,sum(tackles_interceptions),,false,integer,defending,,1,higher_better,
++tackles_blocks,player,playerMetrics.defensiveActions.blocks,Shots blocked in the form window.,int_legs__player_match,sum(tackles_blocks),,false,integer,defending,,1,higher_better,
++dribbles_past,player,playerMetrics.dribbles.past,Times dribbled past by an opponent in the form window.,int_legs__player_match,sum(dribbles_past),,true,integer,defending,,,lower_better,
++passes_accurate,player,playerMetrics.passAccuracy.accurate,Accurate passes in the form window. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.,int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),,false,integer,passing,,1,higher_better,
++passes_total,player,playerMetrics.passAccuracy.total,Total passes attempted in the form window.,int_legs__player_match,sum(passes_total),,false,integer,passing,,1,higher_better,
+ pass_accuracy_pct,player,playerMetrics.passAccuracy.label,Pass completion rate. Null when passes_total is zero.,int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),sum(passes_total),false,percent,passing,,1,higher_better,Share of passes completed; high = a secure and reliable passer.
+-passes_key,player,playerMetrics.keyPasses.label,Key passes in the form window. API definition: a pass leading directly to a shot.,int_legs__player_match,sum(passes_key),,false,integer,passing,,2,,
+-cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,int_legs__player_match,sum(cards_yellow),,false,integer,discipline,,1,,
+-cards_red,player,playerMetrics.cards.red,Red cards in the form window.,int_legs__player_match,sum(cards_red),,false,integer,discipline,,1,,
+-offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.,int_legs__player_match,sum(offsides),,true,integer,discipline,,,,
+-penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,int_legs__player_match,sum(penalty_committed),,true,integer,discipline,,,,
+-saves,player,playerMetrics.savePct.saves,Saves made in the form window.,int_legs__player_match,sum(saves),,false,integer,goalkeeping,,1,,
+-shots_on_goal_against,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,false,integer,goalkeeping,,1,,
++passes_key,player,playerMetrics.keyPasses.label,Key passes in the form window. API definition: a pass leading directly to a shot.,int_legs__player_match,sum(passes_key),,false,integer,passing,,2,higher_better,
++cards_yellow,player,playerMetrics.cards.yellow,Yellow cards in the form window.,int_legs__player_match,sum(cards_yellow),,false,integer,discipline,,1,lower_better,
++cards_red,player,playerMetrics.cards.red,Red cards in the form window.,int_legs__player_match,sum(cards_red),,false,integer,discipline,,1,lower_better,
++offsides,player,playerMetrics.offsides.label,Offsides caught in the form window.,int_legs__player_match,sum(offsides),,true,integer,discipline,,,lower_better,
++penalty_committed,player,playerMetrics.penalties.committed,Penalties committed in the form window.,int_legs__player_match,sum(penalty_committed),,true,integer,discipline,,,lower_better,
++saves,player,playerMetrics.savePct.saves,Saves made in the form window.,int_legs__player_match,sum(saves),,false,integer,goalkeeping,,1,higher_better,
++shots_on_goal_against,player,playerMetrics.savePct.faced,Shots on target faced in the form window. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,false,integer,goalkeeping,,1,lower_better,
+ save_pct,player,playerMetrics.savePct.label,Goalkeeper save percentage. Null when denominator is zero.,int_legs__player_match,sum(saves),sum(saves + goals_against),false,percent,goalkeeping,,1,higher_better,Share of shots on target saved; high = a strong shot-stopper.
+-shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,int_legs__player_match,sum(shots_total),,false,integer,shooting,,,,
+-goals_against,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,int_legs__player_match,sum(goals_against),,true,integer,goalkeeping,,,,
++shots_total,player,playerMetrics.shots.label,Total shots (on and off target) in the form window.,int_legs__player_match,sum(shots_total),,false,integer,shooting,,,higher_better,
++goals_against,player,playerMetrics.goalsConceded.label,Goals conceded by the team while the player was on the pitch (GK-relevant). Form window.,int_legs__player_match,sum(goals_against),,true,integer,goalkeeping,,,lower_better,
+ shot_share,team,metrics.shot_share.label,Share of all shots in the team's matches taken by the team. Null when no shots.,int_legs__team_match,sum(shots_total),sum(shots_total + opponent_shots_total),false,percent,shooting,,,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
+ points_capture,team,metrics.points_capture.label,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),false,percent,,,,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
+-scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,int_legs__player_match,sum(goals_total + goals_assists),,false,integer,goals,,,,
+-defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks),,false,integer,defending,,,,
+-cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",int_legs__player_match,sum(cards_yellow + cards_red),,false,integer,discipline,,,,
++scorer_points,player,playerMetrics.scorerPoints.label,Goals plus assists (combined goal contributions).,int_legs__player_match,sum(goals_total + goals_assists),,false,integer,goals,,,higher_better,
++defensive_actions,player,playerMetrics.defensiveActions.label,Tackles plus interceptions plus blocks (combined defensive actions).,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks),,false,integer,defending,,,higher_better,
++cards_total,player,playerMetrics.cards.label,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",int_legs__player_match,sum(cards_yellow + cards_red),,false,integer,discipline,,,lower_better,
+ goals_per90,player,playerMetrics.goalsPer90.label,Goals per 90 minutes played. Minutes-normalised so playing time does not distort the comparison. Null when minutes is zero.,int_legs__player_match,sum(goals_total) * 90,sum(minutes_played),false,decimal_1,goals,,1,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.
+ assists_per90,player,playerMetrics.assistsPer90.label,Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_assists) * 90,sum(minutes_played),false,decimal_1,goals,,1,higher_better,How often the player creates goals for others; high = a frequent creator.
+ scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_total + goals_assists) * 90,sum(minutes_played),false,decimal_1,goals,,1,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.
+ shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Shots on target per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),false,decimal_1,shooting,,1,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
+ key_passes_per90,player,playerMetrics.keyPassesPer90.label,Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_key) * 90,sum(minutes_played),false,decimal_1,passing,,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.
+ dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(dribbles_success) * 90,sum(minutes_played),false,decimal_1,duels,,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.
+-passes_per90,player,playerMetrics.passesPer90.label,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_total) * 90,sum(minutes_played),false,decimal_1,passing,,1,neutral,Passing involvement; high = a possession-anchoring role; low = a more direct role. Style not quality.
+-tackles_per90,player,playerMetrics.tacklesPer90.label,Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total) * 90,sum(minutes_played),false,decimal_1,defending,,1,neutral,Tackling volume; high = an aggressive ball-winner; low = positional. Style not quality - high can reflect a side often defending.
+-interceptions_per90,player,playerMetrics.interceptionsPer90.label,Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_interceptions) * 90,sum(minutes_played),false,decimal_1,defending,,1,neutral,Interception volume; high = reads play and steps into passing lanes. Style not quality.
+-blocks_per90,player,playerMetrics.blocksPer90.label,Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_blocks) * 90,sum(minutes_played),false,decimal_1,defending,,1,neutral,Blocks made; high = throws the body in; often a side under pressure. Style not quality.
+-defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks) * 90,sum(minutes_played),false,decimal_1,defending,,1,neutral,Overall defensive workload (tackles + interceptions + blocks); high = a deep block or aggressive press. Style not quality.
+-duels_won_per90,player,playerMetrics.duelsWonPer90.label,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(duels_won) * 90,sum(minutes_played),false,decimal_1,duels,,1,neutral,Physical duels won; high = heavily and successfully involved in duels. Volume - the win rate captures efficiency.
+-saves_per90,player,playerMetrics.savesPer90.label,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(saves) * 90,sum(minutes_played),false,decimal_1,goalkeeping,,1,neutral,Save volume; high = a busy keeper facing many shots; not shot-stopping quality - the save rate captures that.
++passes_per90,player,playerMetrics.passesPer90.label,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_total) * 90,sum(minutes_played),false,decimal_1,passing,,1,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one
++tackles_per90,player,playerMetrics.tacklesPer90.label,Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total) * 90,sum(minutes_played),false,decimal_1,defending,,1,higher_better,More tackles per 90 is better all else equal; volume also reads as role - high = an aggressive ball-winner; can also reflect a side often defending
++interceptions_per90,player,playerMetrics.interceptionsPer90.label,Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_interceptions) * 90,sum(minutes_played),false,decimal_1,defending,,1,higher_better,More interceptions per 90 is better all else equal; volume also reads as role - high = reads play and steps into passing lanes
++blocks_per90,player,playerMetrics.blocksPer90.label,Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_blocks) * 90,sum(minutes_played),false,decimal_1,defending,,1,higher_better,More blocks per 90 is better all else equal; volume also reads as role - high = throws the body in; often for a side under pressure
++defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks) * 90,sum(minutes_played),false,decimal_1,defending,,1,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press
++duels_won_per90,player,playerMetrics.duelsWonPer90.label,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(duels_won) * 90,sum(minutes_played),false,decimal_1,duels,,1,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency
++saves_per90,player,playerMetrics.savesPer90.label,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(saves) * 90,sum(minutes_played),false,decimal_1,goalkeeping,,1,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that
+ sot_difference,team,metrics.sot_difference.label,Average shots-on-target difference per match (on target for - against). The best non-outcome predictor of league position; the deserved process signal behind deserved-vs-actual. Null unless both own and opponent shots-on-target data cover every season game.,int_legs__team_match,sum(shots_on_goal - opponent_shots_on_goal),count(*),false,decimal_1,shooting,,,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input)
+ shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average shots on target conceded per match in the window. The defensive companion to sot_difference. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),true,decimal_1,shooting,,,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
+ deserved_rank,team,metrics.deserved_rank.label,Rank of the team within its league-season by sot_difference (descending; 1 = best on-target difference) - the process-deserved table position. Not aggregated from match legs; computed by ranking the sot_difference metric. Null when the league-season is not fully rankable (some team lacks full shots-on-target coverage or a league rank).,,,,true,integer,,,,lower_better,Deserved league position - 1 = best on-target difference; where the process says the team should sit
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 0d1ce0a..a50fbba 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -159,21 +159,26 @@ seeds:
+       - name: direction
+         description: >
+           Performance semantic (the richer successor to lower_is_better): higher_better,
+-          lower_better, or neutral (a descriptive/style metric with no inherent good-or-bad).
+-          Orients the competition benchmark and seeds website auto-interpretation. Populated for
+-          team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x).
+-          lower_is_better is retained until the full migration. Every team metric must carry BOTH
+-          direction and interpretation (enforced by assert_team_metric_meaning_complete; player rows
+-          exempt while v1.x).
++          lower_better, or neutral. Orients the competition benchmark and seeds website
++          auto-interpretation. Set by the all-else-equal judgement "is MORE of this better?" — NOT by
++          correlation with results or league rank, so a style/volume metric still carries a direction.
++          Populated on EVERY row (team and player). neutral is reserved for a metric with genuinely no
++          better/worse pole, and today applies to exactly two: sot_rank_gap (a narrative) and
++          contribution_share (a position-dependent share). lower_is_better is retained until the full
++          migration and still drives the live MVP export; where the two disagree, direction is the v2
++          authority. Every team metric must carry BOTH direction and interpretation (enforced by
++          assert_team_metric_meaning_complete); player rows sit outside that test only because their
++          interpretation sweep is still outstanding, not because they lack a direction.
+         tests:
+           - accepted_values:
+               values: ["higher_better", "lower_better", "neutral"]
+       - name: interpretation
+         description: >
+           Short plain-English meaning of the metric — what it captures and what a notably high
+-          value signals — the seed of website auto-narrative. Populated for team metrics; null for
+-          player metrics (v1.x). Required on every team metric (enforced by
+-          assert_team_metric_meaning_complete).
++          value signals — the seed of website auto-narrative. Required on every team metric
++          (enforced by assert_team_metric_meaning_complete). Populated on some player rows and still
++          blank on others: a catalogue-wide player interpretation sweep is outstanding, which is why
++          the completeness test stays team-scoped.
+ 
+   - name: wc_team_market_value_snapshot
+     description: >
+diff --git a/dbt_project/tests/assert_team_metric_meaning_complete.sql b/dbt_project/tests/assert_team_metric_meaning_complete.sql
+index fd5a94f..c6e9c2c 100644
+--- a/dbt_project/tests/assert_team_metric_meaning_complete.sql
++++ b/dbt_project/tests/assert_team_metric_meaning_complete.sql
+@@ -4,9 +4,13 @@
+   and an `interpretation` — the seed of the website's good/bad reading and auto-narrative. The
+   test FAILS (returns rows) for any team metric missing either.
+ 
+-  Scope = team only. PLAYER metrics are exempt: their direction/interpretation are deferred to
+-  v1.x (the player benchmark is not yet classified — see metric_catalogue schema.yml and
+-  feedback memory). A `team and player` row is checked as a team row. (CPO 2026-06-29.)
++  Scope = team only, DELIBERATELY. Player metrics now DO carry a `direction` — the catalogue-wide
++  direction sweep populated every row — so the old "player benchmark is not yet classified"
++  rationale is retired. The test stays team-scoped because the player `interpretation` sweep is
++  still outstanding: many player rows now have a direction but a blank interpretation, so
++  broadening this test today would fail on interpretation, not on direction. Broaden it once that
++  sweep lands. A `team and player` row is checked as a team row. (CPO 2026-06-29; scope
++  re-justified 2026-07-21.)
+ 
+   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
+ #}
