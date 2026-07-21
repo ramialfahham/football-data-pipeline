@@ -71,10 +71,12 @@ seeds:
       building-block leg; it is window-free — the consuming model applies the window and any
       coverage/null policy. The formula is the correctness contract every model that computes the
       metric must conform to. Window-agnostic: metric IDs carry no window suffix. Part of epic
-      #317; display columns added for #391 (GAP-09); formulas formalized for #530. Two singular
-      tests guard its integrity: assert_team_metric_meaning_complete (every team metric carries
-      direction + interpretation) and assert_metric_catalogue_expr_resolvable (every
-      numerator_expr/denominator_expr column resolves against its base_relation).
+      #317; display columns added for #391 (GAP-09); formulas formalized for #530. Three singular
+      tests guard its integrity: assert_metric_meaning_complete (EVERY metric, team and player,
+      carries direction + interpretation), assert_metric_direction_lower_is_better_agree (direction
+      and the legacy lower_is_better boolean never contradict each other) and
+      assert_metric_catalogue_expr_resolvable (every numerator_expr/denominator_expr column resolves
+      against its base_relation).
     config:
       +full_refresh: true
       column_types:
@@ -124,7 +126,12 @@ seeds:
           only — coverage/availability handling lives in the model, never here. Blank for raw count
           metrics and the blank-base_relation rows above.
       - name: lower_is_better
-        description: "True when a lower value indicates better performance."
+        description: >
+          True when a lower value indicates better performance. LEGACY: the boolean predecessor of
+          direction, retained only because the live MVP export
+          (scripts/export_metric_definitions_json.py) still reads it. direction is the authority;
+          set this to match it (true iff direction = lower_better), never the other way round.
+          assert_metric_direction_lower_is_better_agree fails the build if the two diverge.
         tests: [not_null]
       - name: format
         description: >
@@ -165,20 +172,20 @@ seeds:
           Populated on EVERY row (team and player). neutral is reserved for a metric with genuinely no
           better/worse pole, and today applies to exactly two: sot_rank_gap (a narrative) and
           contribution_share (a position-dependent share). lower_is_better is retained until the full
-          migration and still drives the live MVP export; where the two disagree, direction is the v2
-          authority. Every team metric must carry BOTH direction and interpretation (enforced by
-          assert_team_metric_meaning_complete); player rows sit outside that test only because their
-          interpretation sweep is still outstanding, not because they lack a direction.
+          migration and still drives the live MVP export; direction is the authority, and the two can
+          no longer diverge (enforced by assert_metric_direction_lower_is_better_agree). EVERY metric,
+          team and player alike, must carry BOTH direction and interpretation (enforced by
+          assert_metric_meaning_complete); there is no entity exemption.
         tests:
           - accepted_values:
               values: ["higher_better", "lower_better", "neutral"]
       - name: interpretation
         description: >
           Short plain-English meaning of the metric — what it captures and what a notably high
-          value signals — the seed of website auto-narrative. Required on every team metric
-          (enforced by assert_team_metric_meaning_complete). Populated on some player rows and still
-          blank on others: a catalogue-wide player interpretation sweep is outstanding, which is why
-          the completeness test stays team-scoped.
+          value signals — the seed of website auto-narrative. Required on EVERY metric, team and
+          player alike (enforced by assert_metric_meaning_complete); populated on every row as of
+          2026-07-21. House style: what it captures, then a plain definition, then what a notable
+          value signals, with any honest volume/style/role caveat last in parentheses.
 
   - name: wc_team_market_value_snapshot
     description: >

@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-07-21** — main GREEN at **5308b7a**. **TASK 0 is DONE but ships as TWO merges.** PART 1 = this branch/PR: the 28 `interpretation` values + the 4 `lower_is_better` corrections, VALUES ONLY. PART 2 = the two guards, held on the local branch `feat/metric-layer-tests`, pushed only AFTER part 1 merges and its main-push build reseeds prod. **Merge part 1, then tell me and I open part 2.** The split exists because CI's PR test step reads seed data from MAIN, so a new guard and the values it depends on cannot land in one PR (full explanation in the TASK 0 record below). The marts are complete too, so everything left is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: finish the player page DESIGN** (CPO, 2026-07-21: "We're not done with the player page yet") — two open questions, asked one at a time. Read the single ⭐ ACTIVE section below and start there._
+_Last updated: **2026-07-21** — main GREEN at **8f9c320**. **TASK 0 shipped as TWO merges. PART 1 IS MERGED (#681)** — the 28 `interpretation` values + the 4 `lower_is_better` corrections. **PART 2 = THIS branch `feat/metric-layer-guards`** — the two guards + the `seeds/schema.yml` prose. Verified before pushing: prod's catalogue now reads 0 blank meanings and 0 direction disagreements across all 78 rows, and both guards return zero rows against it, which is the exact relation the PR's CI reads. When part 2 merges the metric layer is finished and gated. The split exists because CI's PR test step reads seed data from MAIN, so a new guard and the values it depends on cannot land in one PR (full explanation in the TASK 0 record below). The marts are complete too, so everything left is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: finish the player page DESIGN** (CPO, 2026-07-21: "We're not done with the player page yet") — two open questions, asked one at a time. Read the single ⭐ ACTIVE section below and start there._
 
 ### ⭐ ACTIVE (2026-07-21) — the road to a live v2 website
 
@@ -19,7 +19,7 @@ _Last updated: **2026-07-21** — main GREEN at **5308b7a**. **TASK 0 is DONE bu
 | **v2 fed by real data** | NO. `site_v2/src/data/fixtures/` holds **one committed sample fixture**. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav, but the build does not consume a real export yet. |
 | **v2 deployed** | NOWHERE. The `/v2/` publish was deliberately deferred (it needs a PR against the protected Pages workflow). |
 | **Marts / export** | DONE. Every mart the frontend needs is built and wired, no orphans. |
-| **Metric layer** | **VALUES DONE (part 1, this PR); GUARDS PENDING (part 2, not yet pushed).** The catalogue owns three things per metric: formula ✓, `direction` ✓ (#677, every row), `interpretation` ✓ (the last 28 player rows filled here). The two guards that make the gaps un-reintroducible are written and reviewed but ship in part 2, after this merges. See the TASK 0 record below. |
+| **Metric layer** | **VALUES MERGED (#681); GUARDS ARE THIS PR.** The catalogue owns three things per metric: formula ✓, `direction` ✓ (#677, every row), `interpretation` ✓ (the last 28 player rows, #681). The two guards that make the gaps un-reintroducible are this branch. Once merged the layer is DONE and gated. See the TASK 0 record below. |
 
 #### Designed vs built
 
@@ -54,9 +54,9 @@ The mock (`6c21ef71`) already composes from the LOCKED screen specs: Performance
 - **Is a repo/doc cleanup session wanted at all?** Raised 2026-07-21 ("I'm not even sure if I need to do some cleanups, ensure consistency in the repo") and left undecided. Nothing is known-broken; it is hygiene, and it competes with shipping pages.
 - (none currently beyond the cleanup question above)
 
-#### TASK 0 — finish the metric layer: SPLIT INTO TWO MERGES. Part 1 is this branch.
+#### TASK 0 — finish the metric layer: TWO MERGES. Part 1 MERGED (#681); part 2 is this branch.
 
-**PART 1 (this branch/PR, off main @ 5308b7a) = seed VALUES ONLY. PART 2 (local branch `feat/metric-layer-tests`, NOT pushed) = the two guards + `seeds/schema.yml` prose.** ZERO numbers move and the live MVP is byte-unchanged in both.
+**PART 1 (#681, merged, main @ 8f9c320) = seed VALUES ONLY. PART 2 (THIS branch `feat/metric-layer-guards`, off main @ 8f9c320) = the two guards + `seeds/schema.yml` prose.** ZERO numbers move and the live MVP is byte-unchanged in both.
 
 ##### ⚠️ Why two merges, and the ORDER that matters
 
@@ -64,12 +64,12 @@ The first attempt shipped everything in one PR and **CI went red while every par
 
 **Measured, not inferred:** `ci_analytics.metric_catalogue` (this branch's seed) has **0** blank-meaning rows; `dbt_analytics.metric_catalogue` has **28** — exactly the CI failure count, and the lockstep guard's `FAIL 4` is exactly the 4 rows this branch corrects.
 
-**The order is load-bearing:**
-1. Merge PART 1 (values only). No test depends on data that is not yet on main, so it is green.
-2. Its main-push build runs `dbt seed --target prod`, making main's catalogue correct.
-3. **Only then** push PART 2. Its deferred reads now hit an already-correct main, so it is green too.
+**The order was load-bearing and was followed:**
+1. ✅ PART 1 merged (#681, values only). No test depended on data not yet on main, so it was green.
+2. ✅ Its main-push build ran `dbt seed --target prod`. **Verified directly, not assumed:** `dbt_analytics.metric_catalogue` now returns 0 blank-meaning rows and 0 direction disagreements across 78 rows.
+3. ✅ PART 2 pushed only after that. Both guards were run against `dbt_analytics.metric_catalogue` (the exact relation the deferred CI step reads) and both return **zero rows** before the PR was opened.
 
-Pushing part 2 early reproduces the identical red. **Do not.**
+Pushing part 2 early would have reproduced the identical red.
 
 **A CI-workflow fix was designed, adversarially reviewed and then ABANDONED.** It tagged seed-only tests and ran them in a new non-deferred step. It works, but it edits a PROTECTED workflow, adds a tagging convention whose omission fails silently-green, and then needs a lint script to police that convention — three new moving parts to avoid ordering two merges. CPO 2026-07-21: *"I have the feeling that you don't know what you're doing and start overcomplicating things again."* Correct. Do NOT resurrect it. [[feedback-no-hacky-solutions]]
 
