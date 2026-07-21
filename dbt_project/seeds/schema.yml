@@ -159,21 +159,26 @@ seeds:
       - name: direction
         description: >
           Performance semantic (the richer successor to lower_is_better): higher_better,
-          lower_better, or neutral (a descriptive/style metric with no inherent good-or-bad).
-          Orients the competition benchmark and seeds website auto-interpretation. Populated for
-          team metrics; null for the not-yet-classified player metrics (player benchmark, v1.x).
-          lower_is_better is retained until the full migration. Every team metric must carry BOTH
-          direction and interpretation (enforced by assert_team_metric_meaning_complete; player rows
-          exempt while v1.x).
+          lower_better, or neutral. Orients the competition benchmark and seeds website
+          auto-interpretation. Set by the all-else-equal judgement "is MORE of this better?" — NOT by
+          correlation with results or league rank, so a style/volume metric still carries a direction.
+          Populated on EVERY row (team and player). neutral is reserved for a metric with genuinely no
+          better/worse pole, and today applies to exactly two: sot_rank_gap (a narrative) and
+          contribution_share (a position-dependent share). lower_is_better is retained until the full
+          migration and still drives the live MVP export; where the two disagree, direction is the v2
+          authority. Every team metric must carry BOTH direction and interpretation (enforced by
+          assert_team_metric_meaning_complete); player rows sit outside that test only because their
+          interpretation sweep is still outstanding, not because they lack a direction.
         tests:
           - accepted_values:
               values: ["higher_better", "lower_better", "neutral"]
       - name: interpretation
         description: >
           Short plain-English meaning of the metric — what it captures and what a notably high
-          value signals — the seed of website auto-narrative. Populated for team metrics; null for
-          player metrics (v1.x). Required on every team metric (enforced by
-          assert_team_metric_meaning_complete).
+          value signals — the seed of website auto-narrative. Required on every team metric
+          (enforced by assert_team_metric_meaning_complete). Populated on some player rows and still
+          blank on others: a catalogue-wide player interpretation sweep is outstanding, which is why
+          the completeness test stays team-scoped.
 
   - name: wc_team_market_value_snapshot
     description: >
