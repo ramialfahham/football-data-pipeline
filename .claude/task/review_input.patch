@@ -1,421 +1,351 @@
 diff --git a/.claude/active_work.md b/.claude/active_work.md
-index eacd27c..168d322 100644
+index 168d322..d059367 100644
 --- a/.claude/active_work.md
 +++ b/.claude/active_work.md
-@@ -6,7 +6,23 @@
+@@ -4,9 +4,85 @@
+ > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
+ > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
  
- _Last updated: **2026-07-11** — **⭐ v2 FRONTEND (Phase E) IN PROGRESS. #672 (design system + fixture page) MERGED. #673 (team Overview) open but BEING REDESIGNED (CPO: cluttered + inconsistent → the team page becomes a TABBED entity page à la kicker; design pass pending). THIS branch = [PR #674](https://github.com/ramialfahham/football-data-pipeline/pull/674) — matchday-aligned team YoY for ALL metrics (the dbt DATA for the redesigned Stats tab), awaiting ci-data-build + CPO merge. See the ⭐ ACTIVE section below.** Prior refresh **2026-07-07** — main GREEN at **c1d9b2c**. **⭐ MILESTONE: the v2 data-foundation board now has NO orphans** — every built mart the frontend needs is wired. This session shipped the competition-header + team-benchmark arc: **#663** (competition-header registry identity — country/confederation/tier surfaced on the competition hub, GAP-01 pattern), **#664** (Team → Stats vs-league benchmark **wireframe spec**, screen 14 — rank-based "k of N" + vs-median + spread bar, no position dimension, field-bound to `mart_team_competition_benchmarks`, renders the LOCKED 16-row metrics_display set), **#665** (**GAP-23** — wired `mart_team_competition_benchmarks` into the team payload as a per-season flat `benchmarks[]`, the #627-for-teams analog; **this flipped the LAST orphan green** → content_architecture now "18 marts, no orphans"). Plus **#661** (handover + `metrics_context_model.md` §8 de-stale) + **#662** (content_architecture §3/§7 board reconcile to post-#648 reality). **The honest answer to "is the data foundation all green?" is now YES for everything that's a build** — the only non-green rows are the **two deliberate deferrals**: opponent/schedule-context (SHELVED 2026-07-03, no display home) + coach (un-ingested, a cost call) — both CPO policy decisions, not build gaps. So the **v2 FRONTEND (Phase E) is now the natural big frontier** — unblocked by the green export, but still **CPO-GATED** (the live MVP `site/` stays untouched until cutover #377; do NOT start the frontend without an explicit CPO go). **Review-process note (#664):** the team-stats spec took **4 bi-analyst rounds — all FOUR were REAL locked-contract catches** (rendered a display-excluded metric `shot_accuracy`; two unbound display fields `games`/clean_sheets-x-y; a shooting-funnel row-order violation; the Defending T·I·B "sub-display of row 10 only" rule), each fixed with judgment ([[feedback-decide-dont-escalate]]); the final spec maps 1:1 to the LOCKED 16-row team table. Team-benchmark carries all 20 mart rows; the FRONTEND renders 16 (drops shot_accuracy + T/I/B-as-separate). **NEXT = an OPEN CPO pick** (nothing locked/hot): (a) the **frontend, Phase E** — the big one, CPO-gated; (b) the **2 policy calls** — un-shelve opponent-context (needs a display spec) / approve a coach ingest (cost); (c) a tiny **matchday-schedule board note** (fixtures+`round_name` are already exported in the competition payload — a content_architecture §3 legend correction "~ → green", not a build); (d) the **`task_f876b853`** chip (2 stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + `schema.yml:159-167`); (e) the **programs** #545 coverage / #546 DQ / #547 cost; (f) **#530(c)** model-conformance test. Prior-arc detail is in RECENT PRs below. Superseded lead (still valid history): **Prior #651: player goals_penalty + goals_open_play catalogue completion (#530(b))** — filled the two deferred player metric_catalogue rows (base_relation=`int_legs__player_match`, `sum(goals_penalty)` / `sum(goals_total - goals_penalty)`, direction=higher_better inheriting the settled #600 team ruling) + synced the `schema.yml` deferred note. 3 reviewers PASS (scope-auditor r1 ESCALATE on the §10 `direction` field → RESOLVED not by asking the CPO but by logging the #600/#621 inheritance in `escalations.log`, the #636 pattern; a spawned follow-up chip **task_f876b853** covers 2 non-blocking stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + the `schema.yml:159-167` direction desc). **⭐ #510 (retire leftover team `dribbles_success_pct`) was found ALREADY DONE** — code-traced end-to-end (no team dribbles catalogue row; `int_team_momentum__metrics` + `mart_team_momentum` have 0 dribbles refs; no range test; export dribbles is the PLAYER leaderboard only). The 2026-06-11 drop got finished during a later momentum-model rename (`int_momentum__team`→`int_team_momentum__metrics`); issue CLOSED. **Do NOT re-attempt.** Prior: **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidate = **#484** (player NT/tournament context window) — the last open carryover (**#530(b) DONE #651**; **#510 found already-done** and CLOSED). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
+-_Last updated: **2026-07-11** — **⭐ v2 FRONTEND (Phase E) IN PROGRESS. #672 (design system + fixture page) MERGED. #673 (team Overview) open but BEING REDESIGNED (CPO: cluttered + inconsistent → the team page becomes a TABBED entity page à la kicker; design pass pending). THIS branch = [PR #674](https://github.com/ramialfahham/football-data-pipeline/pull/674) — matchday-aligned team YoY for ALL metrics (the dbt DATA for the redesigned Stats tab), awaiting ci-data-build + CPO merge. See the ⭐ ACTIVE section below.** Prior refresh **2026-07-07** — main GREEN at **c1d9b2c**. **⭐ MILESTONE: the v2 data-foundation board now has NO orphans** — every built mart the frontend needs is wired. This session shipped the competition-header + team-benchmark arc: **#663** (competition-header registry identity — country/confederation/tier surfaced on the competition hub, GAP-01 pattern), **#664** (Team → Stats vs-league benchmark **wireframe spec**, screen 14 — rank-based "k of N" + vs-median + spread bar, no position dimension, field-bound to `mart_team_competition_benchmarks`, renders the LOCKED 16-row metrics_display set), **#665** (**GAP-23** — wired `mart_team_competition_benchmarks` into the team payload as a per-season flat `benchmarks[]`, the #627-for-teams analog; **this flipped the LAST orphan green** → content_architecture now "18 marts, no orphans"). Plus **#661** (handover + `metrics_context_model.md` §8 de-stale) + **#662** (content_architecture §3/§7 board reconcile to post-#648 reality). **The honest answer to "is the data foundation all green?" is now YES for everything that's a build** — the only non-green rows are the **two deliberate deferrals**: opponent/schedule-context (SHELVED 2026-07-03, no display home) + coach (un-ingested, a cost call) — both CPO policy decisions, not build gaps. So the **v2 FRONTEND (Phase E) is now the natural big frontier** — unblocked by the green export, but still **CPO-GATED** (the live MVP `site/` stays untouched until cutover #377; do NOT start the frontend without an explicit CPO go). **Review-process note (#664):** the team-stats spec took **4 bi-analyst rounds — all FOUR were REAL locked-contract catches** (rendered a display-excluded metric `shot_accuracy`; two unbound display fields `games`/clean_sheets-x-y; a shooting-funnel row-order violation; the Defending T·I·B "sub-display of row 10 only" rule), each fixed with judgment ([[feedback-decide-dont-escalate]]); the final spec maps 1:1 to the LOCKED 16-row team table. Team-benchmark carries all 20 mart rows; the FRONTEND renders 16 (drops shot_accuracy + T/I/B-as-separate). **NEXT = an OPEN CPO pick** (nothing locked/hot): (a) the **frontend, Phase E** — the big one, CPO-gated; (b) the **2 policy calls** — un-shelve opponent-context (needs a display spec) / approve a coach ingest (cost); (c) a tiny **matchday-schedule board note** (fixtures+`round_name` are already exported in the competition payload — a content_architecture §3 legend correction "~ → green", not a build); (d) the **`task_f876b853`** chip (2 stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + `schema.yml:159-167`); (e) the **programs** #545 coverage / #546 DQ / #547 cost; (f) **#530(c)** model-conformance test. Prior-arc detail is in RECENT PRs below. Superseded lead (still valid history): **Prior #651: player goals_penalty + goals_open_play catalogue completion (#530(b))** — filled the two deferred player metric_catalogue rows (base_relation=`int_legs__player_match`, `sum(goals_penalty)` / `sum(goals_total - goals_penalty)`, direction=higher_better inheriting the settled #600 team ruling) + synced the `schema.yml` deferred note. 3 reviewers PASS (scope-auditor r1 ESCALATE on the §10 `direction` field → RESOLVED not by asking the CPO but by logging the #600/#621 inheritance in `escalations.log`, the #636 pattern; a spawned follow-up chip **task_f876b853** covers 2 non-blocking stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + the `schema.yml:159-167` direction desc). **⭐ #510 (retire leftover team `dribbles_success_pct`) was found ALREADY DONE** — code-traced end-to-end (no team dribbles catalogue row; `int_team_momentum__metrics` + `mart_team_momentum` have 0 dribbles refs; no range test; export dribbles is the PLAYER leaderboard only). The 2026-06-11 drop got finished during a later momentum-model rename (`int_momentum__team`→`int_team_momentum__metrics`); issue CLOSED. **Do NOT re-attempt.** Prior: **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidate = **#484** (player NT/tournament context window) — the last open carryover (**#530(b) DONE #651**; **#510 found already-done** and CLOSED). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
++_Last updated: **2026-07-21** — main GREEN at **1bc6087**, tree clean. **The metric layer is NOT finished** — 28 player metrics have an empty `interpretation`, i.e. no written meaning, and the catalogue is the source of truth for meaning. That gap closes first. Beyond it, the marts are complete and the remaining work is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: TASK 0 — write the 28 missing `interpretation` values.** Then step 1, the player page design (CPO, 2026-07-21: "We're not done with the player page yet"). Read the single ⭐ ACTIVE section below and start there._
  
--### ⭐ ACTIVE (2026-07-21) — metric-layer direction sweep [branch `feat/metric-direction-sweep`]
-+### ⭐ ACTIVE (2026-07-21) — de-stale the percentile-display rules [branch `fix/metrics-display-percentile-direction`]
+-### ⭐ ACTIVE (2026-07-21) — de-stale the percentile-display rules [branch `fix/metrics-display-percentile-direction`]
++### ⭐ ACTIVE (2026-07-21) — the road to a live v2 website
 +
-+**THIS branch = `fix/metrics-display-percentile-direction` off main @ 7419ce6. DOC PROSE ONLY — no seed, model, test, export or frontend change; zero numbers move.** Follow-up to #677 (merged), which the football-analytics reviewer flagged during that PR and which was deliberately kept out of it because these files route to a different reviewer.
++**Read this section first. Everything after it is history or reference.**
 +
-+**The problem:** #677 gave every metric a `direction`, which made two statements in the percentile-display rules false. Both `docs/wireframes/metrics_display.md` §"Percentile display" and the screen spec `docs/wireframes/12_player_stats.md` still said (a) the player benchmark set is "11 higher_better + 7 neutral" and that for the neutral ones "top" means *most*, not better, and (b) the bar carries **no colour at all**, justified by the risk of implying a verdict on those neutral metrics.
++#### Where we actually stand (verified 2026-07-21 against the repo, not recalled)
 +
-+**The fix, in all three files** (`metrics_display.md`, `12_player_stats.md`, `14_team_stats.md`)**:** (a) all 18 benchmark metrics are now `higher_better` (0 neutral, 0 lower_better), so "top" reads as quality on every row and the caveat is retired; (b) the bar is **direction-aware** — green when the metric beats the median in its better direction, plain ink otherwise — as ONE bar language across every vs-population screen, player and team alike (CPO 2026-07-21, v2 design review); all three docs now state the identical rule and cross-reference each other, so the parity is real rather than asserted. Both superseded rules are recorded WITH their old rationale and why it is void, rather than silently deleted. Also corrected the ASCII mock annotation on the Duels-won row (was labelled "neutral → a lot, not good").
++| | Status |
++|---|---|
++| **Live to users** | The OLD MVP at `site/` — 4 pages: home, fixture list, match preview, team season. Untouched until cutover (#377). |
++| **v2 built + merged** | The shared design system (`site_v2/src/styles/system.css` + components) and **ONE page type: the fixture page** (#672). |
++| **v2 fed by real data** | NO. `site_v2/src/data/fixtures/` holds **one committed sample fixture**. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav, but the build does not consume a real export yet. |
++| **v2 deployed** | NOWHERE. The `/v2/` publish was deliberately deferred (it needs a PR against the protected Pages workflow). |
++| **Marts / export** | DONE. Every mart the frontend needs is built and wired, no orphans. |
++| **Metric layer** | **NOT DONE.** The catalogue owns three things per metric: formula, `direction`, and `interpretation` (its plain-English meaning). Formula ✓. Direction ✓ (#677, every row). **Interpretation ✗ — 28 player metrics are empty.** Every team metric has one. See the task below. |
 +
-+**AMENDMENT r1:** the first draft reserved `12_player_stats.md` to a follow-up; checking it showed it repeats BOTH stale claims and it is the spec the screen is actually built from, so leaving it would be the very inconsistency being fixed (CPO: "Do I allow inconsistency?"). Pulled into scope.
++#### Designed vs built
 +
-+**AMENDMENT r2 — bi-analyst-reviewer FAIL, 4 findings, ALL upheld.** (1) **Fabricated precedent:** my r1 wording claimed the new colour rule "speaks the SAME language as the team Performance tab". No such spec exists — that name was coined for a MOCKUP in the v2 design conversation — and the only real team benchmark spec said the OPPOSITE. Citation removed; the parity is now MADE REAL by fixing the team screen in this PR rather than merely asserted. (2) **Missed staleness:** `14_team_stats.md` carried the identical defect ("10 higher_better + 5 neutral + 1 lower_better"; the true tally is **14 / 2 / 0**, and `corners_against_per_match` is now `lower_better` so it IS rank-mirrored). Pulled into scope and fixed, including its ASCII annotation and its "colour on the spread bar deferred to #366" open question, now CLOSED. (3) **Self-contradiction:** the still-live "distributional position, not a verdict" framing sat beside the new green-when-better rule; reconciled in all three files (bar LENGTH = position, bar COLOUR = whether that end is good). (4) **Missed spot:** `12_player_stats.md` §1 repeated the extinct "volume/style metric just reads as *a lot*" branch; fixed. All three files route to bi-analyst-reviewer, so the gate is unchanged.
++- **Fixture page** — designed AND built. It is the design canvas everything else composes from.
++- **Team page** — designed (3 tabs: Overview · Performance · Squad), CPO-approved as a mock. **Not built.** Mock artifact `f6348775`.
++- **Player page** — mocked (Overview · Performance · Career), **NOT approved**; open decisions below. Mock artifact `6c21ef71`.
++- **Competition page, landing page, leaderboards/standings, search** — not designed at all.
++- Locked design references: pattern sheet `be7bd6d3` · fixture page `d70aae67`. The pattern sheet is the block vocabulary — compose pages from it, never invent a per-page treatment ([[feedback-v2-design-schema-first]]).
 +
-+**Left alone (still accurate):** the plain-language ladder ("top X%" / "median" / "bottom X%", never "Nth percentile"), median-anchored framing, position-group peers, the 270-minute floor, the sample line, the ratio volume-triple rule, and the `lower_better` mirroring rule (still correct and still dormant at 0 such metrics).
++#### The road to a live site (proposed order — CPO confirms or reorders)
 +
-+**Do-NOT:** do not touch the seed, any model, or `site_v2` here. The 26 player rows with a blank `interpretation` remain a SEPARATE sweep.
++0. **Finish the metric layer** — write the missing `interpretation` for the 28 player metrics ← DO THIS FIRST
++1. **Finish the player page design**
++2. Build the remaining page templates in `site_v2/` (team, player, then competition + landing)
++3. Wire the real export into the build (replace the single sample file)
++4. Deploy the `/v2/` preview path (needs a PR against the protected `.github/workflows/pages-match-preview.yml`)
++5. Parity check against the MVP → CPO sign-off → cutover (#377) → retire `site/`
 +
-+### ⭐ ACTIVE (2026-07-21) — metric-layer direction sweep [branch `feat/metric-direction-sweep`] — MERGED as #677 (main @ 7419ce6)
++#### NEXT AFTER TASK 0 (step 1) — finish the player page design
++
++The mock (`6c21ef71`) already composes from the LOCKED screen specs: Performance = the percentile-vs-peers screen (`docs/wireframes/12_player_stats.md`), Career = `docs/wireframes/13_player_career.md`. **Do NOT redesign those two — they are specified; compose from them.**
++
++**Open decisions the CPO has not answered** (ask ONE at a time, in plain language, no jargon):
++- **Tab set.** The mock uses 3 tabs (Overview · Performance · Career), folding the match log into Overview to mirror the team page. `docs/content_architecture.md` §4 specifies 4 (it adds a Matches tab). Which?
++- **Contribution-share placement.** `contribution_share` ("involved in X% of the club's goals") is built and wired but appears on NO wireframe. The mock puts it on Overview as a one-line sentence. Keep it, move it, or drop it?
++- The same unresolved question exists for the TEAM page: content_architecture lists 5 tabs (adds Matches + History); we mocked 3.
++
++**Carried into the team-page build:** the deserved-vs-actual hero needs `sot_difference` renamed to `sot_difference_per_match` (per-match metrics must carry the suffix — CPO naming rule 2026-07-18). The rename ripples: catalogue id + label key + the mart column + `int_team_season__deserved_vs_actual` + i18n. Do it as part of the hero build, not before.
++
++#### Open CPO questions (raised, NOT decided)
++
++- **Is a repo/doc cleanup session wanted at all?** Raised 2026-07-21 ("I'm not even sure if I need to do some cleanups, ensure consistency in the repo") and left undecided. Nothing is known-broken; it is hygiene, and it competes with shipping pages.
++- (none currently beyond the cleanup question above)
++
++#### TASK 0 — finish the metric layer: 28 missing `interpretation` values
++
++**CPO ruling 2026-07-21:** *"The metric layer is not a nice to have. It is the foundation of the metrics and their meaning. So I can't imagine where we could allow empty fields like explanations or interpretations."* An earlier handover draft called this a non-blocker — that was wrong and is retracted.
++
++The catalogue is the SSoT for a metric's **meaning, interpretation and direction** ([[feedback-metric-direction-judgement]]). Direction is now complete on all 78 rows; interpretation is not. **28 player rows are empty** (all team rows are populated):
++
++`finishing_efficiency` · `duels_won_pct` · `goals` · `assists` · `scorer_points` · `penalty_won` · `shots_on_goal` · `shots_total` · `duels_won` · `duels_total` · `dribbles_success` · `dribbles_attempts` · `dribbles_past` · `tackles_total` · `tackles_interceptions` · `tackles_blocks` · `defensive_actions` · `passes_accurate` · `passes_total` · `passes_key` · `cards_yellow` · `cards_red` · `cards_total` · `offsides` · `penalty_committed` · `saves` · `shots_on_goal_against` · `goals_against`
++
++Note the first two already carry a `direction` but no interpretation — they are not part of the direction-sweep set and were missed by earlier counts.
++
++**How to write them** (match the existing team rows' style, e.g. *"Attacking output - goals scored per game; high = a potent attack"*): lead with what the metric captures, then what a notably high value signals, keeping any honest style/volume caveat second. Use ` - ` and `;` as separators, **never a comma inside an unquoted CSV cell**, and never an em dash.
++
++**Scope note:** seed VALUES only (the `interpretation` column). Routes to analytics-engineer-reviewer + football-analytics-expert-reviewer. Consider widening `assert_team_metric_meaning_complete` to players once they are populated — that test is currently team-scoped *only because* these rows were empty (see its docstring).
++
++#### DO NOT (standing)
++
++- Do NOT touch the live MVP `site/`. Cutover is #377.
++- Do NOT build a page whose design the CPO has not approved.
++- Do NOT re-run the data phase — it is finished. If a task looks like "improve a mart / add a metric", it is almost certainly a distraction from shipping the website unless a specified screen actually needs it.
++- PR **#673** (team profile Overview) is OPEN but SUPERSEDED — rejected as cluttered, and it predates the approved 3-tab design. Do not merge as-is; close or rewrite it when the team page is built.
++- Communication: plain language, one question at a time, no file paths or ticket numbers in chat unless asked ([[communication-brevity]] — the CPO escalated this on 2026-07-21).
++
++---
++
++> **Everything below this line is HISTORY / REFERENCE.** The superseded 2026-07-11 lead follows.
++
++_Superseded lead (2026-07-11): **⭐ v2 FRONTEND (Phase E) IN PROGRESS. #672 (design system + fixture page) MERGED. #673 (team Overview) open but BEING REDESIGNED (CPO: cluttered + inconsistent → the team page becomes a TABBED entity page à la kicker; design pass pending). THIS branch = [PR #674](https://github.com/ramialfahham/football-data-pipeline/pull/674) — matchday-aligned team YoY for ALL metrics (the dbt DATA for the redesigned Stats tab), awaiting ci-data-build + CPO merge. See the ⭐ ACTIVE section below.** Prior refresh **2026-07-07** — main GREEN at **c1d9b2c**. **⭐ MILESTONE: the v2 data-foundation board now has NO orphans** — every built mart the frontend needs is wired. This session shipped the competition-header + team-benchmark arc: **#663** (competition-header registry identity — country/confederation/tier surfaced on the competition hub, GAP-01 pattern), **#664** (Team → Stats vs-league benchmark **wireframe spec**, screen 14 — rank-based "k of N" + vs-median + spread bar, no position dimension, field-bound to `mart_team_competition_benchmarks`, renders the LOCKED 16-row metrics_display set), **#665** (**GAP-23** — wired `mart_team_competition_benchmarks` into the team payload as a per-season flat `benchmarks[]`, the #627-for-teams analog; **this flipped the LAST orphan green** → content_architecture now "18 marts, no orphans"). Plus **#661** (handover + `metrics_context_model.md` §8 de-stale) + **#662** (content_architecture §3/§7 board reconcile to post-#648 reality). **The honest answer to "is the data foundation all green?" is now YES for everything that's a build** — the only non-green rows are the **two deliberate deferrals**: opponent/schedule-context (SHELVED 2026-07-03, no display home) + coach (un-ingested, a cost call) — both CPO policy decisions, not build gaps. So the **v2 FRONTEND (Phase E) is now the natural big frontier** — unblocked by the green export, but still **CPO-GATED** (the live MVP `site/` stays untouched until cutover #377; do NOT start the frontend without an explicit CPO go). **Review-process note (#664):** the team-stats spec took **4 bi-analyst rounds — all FOUR were REAL locked-contract catches** (rendered a display-excluded metric `shot_accuracy`; two unbound display fields `games`/clean_sheets-x-y; a shooting-funnel row-order violation; the Defending T·I·B "sub-display of row 10 only" rule), each fixed with judgment ([[feedback-decide-dont-escalate]]); the final spec maps 1:1 to the LOCKED 16-row team table. Team-benchmark carries all 20 mart rows; the FRONTEND renders 16 (drops shot_accuracy + T/I/B-as-separate). **NEXT = an OPEN CPO pick** (nothing locked/hot): (a) the **frontend, Phase E** — the big one, CPO-gated; (b) the **2 policy calls** — un-shelve opponent-context (needs a display spec) / approve a coach ingest (cost); (c) a tiny **matchday-schedule board note** (fixtures+`round_name` are already exported in the competition payload — a content_architecture §3 legend correction "~ → green", not a build); (d) the **`task_f876b853`** chip (2 stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + `schema.yml:159-167`); (e) the **programs** #545 coverage / #546 DQ / #547 cost; (f) **#530(c)** model-conformance test. Prior-arc detail is in RECENT PRs below. Superseded lead (still valid history): **Prior #651: player goals_penalty + goals_open_play catalogue completion (#530(b))** — filled the two deferred player metric_catalogue rows (base_relation=`int_legs__player_match`, `sum(goals_penalty)` / `sum(goals_total - goals_penalty)`, direction=higher_better inheriting the settled #600 team ruling) + synced the `schema.yml` deferred note. 3 reviewers PASS (scope-auditor r1 ESCALATE on the §10 `direction` field → RESOLVED not by asking the CPO but by logging the #600/#621 inheritance in `escalations.log`, the #636 pattern; a spawned follow-up chip **task_f876b853** covers 2 non-blocking stale "deferred" doc comments in `assert_metric_catalogue_expr_resolvable.sql:7-8` + the `schema.yml:159-167` direction desc). **⭐ #510 (retire leftover team `dribbles_success_pct`) was found ALREADY DONE** — code-traced end-to-end (no team dribbles catalogue row; `int_team_momentum__metrics` + `mart_team_momentum` have 0 dribbles refs; no range test; export dribbles is the PLAYER leaderboard only). The 2026-06-11 drop got finished during a later momentum-model rename (`int_momentum__team`→`int_team_momentum__metrics`); issue CLOSED. **Do NOT re-attempt.** Prior: **#648 MERGED: player YoY full-season prior-year reference** — enriched the appearances-aligned player YoY (`int_player_profile__yoy`, #638) with the prior season's FULL-season totals as a context anchor: a `prev_full` CTE (prior season at the same club, max match_number, NO cutoff cap) + 6 nullable columns (`appearances_prev_full` + 5 `*_prev_season_full`), so the profile can anchor the pace-matched delta against how big last season actually was ("6 goals through 12 games; at this stage last year, 4; last season he finished with 15 in 34"). **Context only — NO delta-vs-full** (a part season vs a full season would mislead, the trap the model avoids); same #638 5-metric set; **zero new catalogue rows** (uncatalogued windowed variants like `*_prev_season`/`*_delta_yoy`; the drift guard doesn't cover this model). Surfaced in `mart_player_profile` → **auto-carries to the v2 player export** (`select *` + `_strip_identity`, no export edit). A `full >= pace-matched` invariant DQ test (`player_yoy_full_season_ref_ge_pace_matched`) — **passing in data-build = real-data proof** the columns populate non-vacuously wherever a prior season exists (a NULL full would fail the test). Reviews: scope-auditor + analytics-engineer PASS (2 rounds; round 2 after a proactive ST06 column reorder — simple cols before the calc deltas, matching sibling `int_team_profile__yoy`). **⚙️ Also this session: fixed a global commit-gate conflict** — the user-scoped `dbt-agent-kit` plugin's `commit_review_gate.py` double-fired with the repo's own `git_discipline.py` and blocked every code commit (it hashed the WHOLE staged diff incl. review.md). Patched the plugin gate to **stand down when the project ships `.claude/hooks/git_discipline.py`** (cache + marketplace copies); only the repo gate runs here now, plugin intact for standalone projects ([[project-guardrails-plugin]]). Prior: **#645 MERGED: Phase D bonus — player contribution-share** — NEW `int_player_profile__contribution` (4_intermediate/shared, table): a player's goal-involvement share of the club's WHOLE-SEASON goals ("involved in X% of the club's goals"). Composing intermediate over `int_legs__player_match` + `int_legs__team_match` (atoms not recomputed; mirrors `int_team_season__deserved_vs_actual`); grain (player_sk, team_sk, season_sk); NOT domestic-restricted; NULL where the club scored 0; invariant 0 ≤ share ≤ 1. Composed into `mart_player_profile` via the primary club; auto-carries `scorer_points` + `team_goals_season` + `contribution_share` to the v2 player export via `select *` (#606). Catalogued `contribution_share` (BLANK base_relation — the deserved_rank/sot_rank_gap pattern; entity=player, format=percent, **direction=NEUTRAL**, metric_group=goals). CPO definition (AskUserQuestion 2026-07-03, escalations.log): numerator = goal involvements (goals + assists = the existing `scorer_points`); denominator = the club's whole-season goals_for. Honest limit (CPO-accepted, prose only): the share understates where the player's per-match stats are missing. **Player streaks (Phase C brick 2) is SKIPPED (CPO, 2026-07-03).** Prior: **#638 MERGED: Phase C brick 1** — the player year-over-year model `int_player_profile__yoy` (the player mirror of the shipped team YoY `int_team_profile__yoy`) on `int_player_season_record` (per-club, appearance-aligned, domestic-leagues only) with this-season-vs-last deltas for goals/assists/shots_on_goal/key_passes/defensive_actions (CPO "broader per-position set"); composed into `mart_player_profile` via the primary club; auto-carries to the player export via `select *`. **PLUS the portfolio arc #640–#643 MERGED** (public repo = Rami's job-application portfolio, [[project-repo-portfolio]]): README funnel + badges + architecture diagram (#640), MVP screenshot (#641), Design-decisions section (#642), and a **public dbt docs lineage site at `/dbt-docs/`** folded into the existing Pages deploy (#643, best-effort continue-on-error `dbt docs generate --static` step). **⭐ KEY FINDING this session: the history backfill is effectively DONE** — RAW + `mart_player_career` are **5–10 seasons deep** across every domestic league (top-5 Euro at 10, smaller leagues at 5); the "thin-until-backfill" premise was **STALE**. Remaining gaps marginal (VL/CNL at 2, some tournaments at 1 edition, a few continental at 5–9) — low value, a §10 cost call only if wanted. Prior: #636 doc-sync reconciliation; Career chain WIRED end-to-end (#630/#632/#634). **#391 stays UN-PAUSED, NARROW + DATA-FIRST** (CPO). **NEXT = a CPO pick** (nothing locked): the **YoY-block enrichment realization is DONE (#648)**; remaining tracked candidate = **#484** (player NT/tournament context window) — the last open carryover (**#530(b) DONE #651**; **#510 found already-done** and CLOSED). (No new player-season surface is tracked; a brand-new one would need a display spec + CPO go first.) **⛔ Phase D flagship opponent/schedule context was EVALUATED then SHELVED 2026-07-03** — no display home (no wireframe/UI block consumes it), season-level strength-of-schedule is ~constant in a balanced double round-robin league (dead signal), and the real output is a one-line caption not worth a mart+index+metric; do NOT re-attempt without a **display spec FIRST** ([[feedback-display-first-flagship]]). Only ever-worthwhile forms: a tiny `opponent_tier` tag on the existing `mart_team_fixtures` (if a caption gets specced), or opponent-*adjusted* performance (a bigger, speculative build). **Player streaks (Phase C brick 2) is SKIPPED.** Portfolio remaining: the landscape social-preview image (manual CPO step). Two tiny doc follow-ups open (metrics_display.md:91 stale GAP-21 ref; GAP-20 "id+name only" note). The live MVP stays untouched until cutover (#377); do NOT start the frontend. (Post-#638 refresh #639 was superseded by #640–643 and CLOSED; this is its replacement.) Backlog + verified gap map below._
++
++### (history) 2026-07-21 — percentile-display de-stale — MERGED as #678
+ 
+ **THIS branch = `fix/metrics-display-percentile-direction` off main @ 7419ce6. DOC PROSE ONLY — no seed, model, test, export or frontend change; zero numbers move.** Follow-up to #677 (merged), which the football-analytics reviewer flagged during that PR and which was deliberately kept out of it because these files route to a different reviewer.
+ 
+@@ -20,9 +96,9 @@ _Last updated: **2026-07-11** — **⭐ v2 FRONTEND (Phase E) IN PROGRESS. #672
+ 
+ **Left alone (still accurate):** the plain-language ladder ("top X%" / "median" / "bottom X%", never "Nth percentile"), median-anchored framing, position-group peers, the 270-minute floor, the sample line, the ratio volume-triple rule, and the `lower_better` mirroring rule (still correct and still dormant at 0 such metrics).
+ 
+-**Do-NOT:** do not touch the seed, any model, or `site_v2` here. The 26 player rows with a blank `interpretation` remain a SEPARATE sweep.
++**Do-NOT:** do not touch the seed, any model, or `site_v2` here. The player rows with a blank `interpretation` remain a SEPARATE sweep — now **TASK 0** in the ACTIVE section, and the true count is **28**, not the 26 stated at the time (`finishing_efficiency` and `duels_won_pct` were missed).
+ 
+-### ⭐ ACTIVE (2026-07-21) — metric-layer direction sweep [branch `feat/metric-direction-sweep`] — MERGED as #677 (main @ 7419ce6)
++### (history) 2026-07-21 — metric-layer direction sweep — MERGED as #677
  
  **THIS branch = `feat/metric-direction-sweep` off main @ 9e7f8da — EVERY metric in `metric_catalogue.csv` now carries a `direction`.** CPO-directed 2026-07-21 ("apply this framing for every metric that has no direction yet" + "double check with the football analyst every metric"), governed by [[feedback-metric-direction-judgement]]: `direction` is an ALL-ELSE-EQUAL judgement ("is more of this better?"), NOT a rank/results correlation; a style/volume metric STILL gets a direction; `neutral` only for a genuinely no-pole metric. CPO also restated the governing principle: **"the metric layer defines what's in the mock not vice versa."**
  
+@@ -38,13 +114,13 @@ _Last updated: **2026-07-11** — **⭐ v2 FRONTEND (Phase E) IN PROGRESS. #672
+ 
+ **Waiting on this:** the v2 player Performance percentile bar (mock artifact `6c21ef71`) colours direction-aware green off these values and is deliberately NOT republished until this lands.
+ 
+-### ⭐ ACTIVE (2026-07-11) — team YoY ALL-metrics data [#674] · team-page REDESIGN pending
++### (history) 2026-07-11 — team YoY data [#674 MERGED] · the redesign that produced the approved 3-tab team mock
+ 
+ **THIS branch = [PR #674](https://github.com/ramialfahham/football-data-pipeline/pull/674): matchday-aligned team YoY for ALL season metrics (dbt) — awaiting ci-data-build + CPO merge (dbt CLI broken locally; CI is the gate).** Extends `int_team_profile__yoy` from 3 metrics (points/goals) to all 16 LOCKED display rate metrics, matchday-aligned (this season through N games vs last season through its first N). **Option A / COMPOSE (CPO-approved):** NEW `int_team_season__metrics_cumulative` (the rate formulas applied at every matchday) → `int_team_season__metrics` is its **BYTE-IDENTICAL final-row projection** (zero downstream number change — the live MVP `mart_team_season_insights` + all v2 team numbers are unmoved; proven by the DQ suite on all 6 consumers) → `int_team_profile__yoy` composes it at cutoff N → `mart_team_profile` passthrough → auto-carries to the v2 team export (`select *` + `_strip_identity`, no export edit). Coverage gates carry over (a rate is NULL on a side when that season's first N games aren't fully covered). NO catalogue rows (windowed YoY variants are drift-exempt). scope-auditor + analytics-engineer PASS (the AE verified byte-identity character-for-character + all 6 consumers select by name). **ci-data-build caught one over-strict DQ test** — my new cumulative ratio test copied the whole-season strict [0,1] bounds, but LIBER 2024 team 2546 match 1 has danger_zone_ratio 1.25 because the PROVIDER reports shots_inside_box 5 > shots_total 4 for fixture 1149592 (genuine data, diluted ≤1 by season end, so the whole-season test passes). **Fix = split the ratio DQ tests (both the cumulative model AND the composed YoY) by invariant family:** structurally-capped ratios (points_capture/clean_sheets/shot_share/save_ratio/finishing_efficiency) stay strict [0,1]; provider-subset ratios (shot_accuracy/danger_zone_ratio/pass_accuracy/duels_won_pct) are bounded ≥0 only (the data layer stays honest, never clamps). The AE reviewer FAILED round 3 for catching the same over-strict bound still in the YoY test one layer down; round 4 fixed it and both reviewers re-PASS (hash c0ad071f). **Whether the display should ever surface a >1 ratio mid-season is deferred to the Stats-tab build.** Then ci-data-build (round 4) failed to BUILD `int_team_season__metrics` — "team_sk is ambiguous": the projection's final SELECT joins `season_final sf` to a `matchdays md` CTE that also exposes team_sk, so the unqualified `team_sk` inside `generate_surrogate_key` was ambiguous. **This was MASKED in rounds 1-3** because the upstream cumulative-test failure SKIPPED building the whole downstream (projection + its direct consumer `mart_team_profile` never ran — so CI had never actually built them). **Round-5 fix = qualify the surrogate-key inputs `sf.team_sk`/`sf.season_sk`** (byte-identity preserved — same hash). Verified via `bq --dry_run`: the projection AND the new YoY both validate, and every mart `y.<col>` exists in the YoY output (hash b90f02d3, both reviewers PASS). **Lesson: a failing upstream test hides downstream BUILD errors in a slim CI run — dry-run the never-built downstream against BQ rather than discovering errors one CI round at a time.** This is the DATA behind the redesigned team Stats tab's per-metric vs-last-season column.
+ 
+ **⛔ Team-page REDESIGN is PENDING (CPO-directed this session).** #673's team Overview was REJECTED — cluttered + inconsistent with the fixture page. Root cause: designed on the fly ("system extensions" — reusing tokens ≠ a designed page), and deferring the deserved-vs-actual hook left a directionless stat-dump. **The team page becomes a TABBED entity page (kicker-style): Overview · Matches (upcoming + last-5) · Squad · Coach · Stats.** The **Stats** tab = all 16 metrics as bars-vs-league-average (`mart_team_competition_benchmarks` / wireframe 14) + a per-metric **"vs last season" column** (from #674). Coaches are NOT ingested (a data/cost call → placeholder tab). Fixture rows must show the **competition** (the current rows say only "Regular Season" — the team-fixtures data lacks per-row league; a gap). **NEXT: a DESIGN MOCKUP — an HTML artifact WITH Dark/Light + Desktop/Phone toggles, like the fixture mockup d70aae67 — for the CPO to lock screen-by-screen, THEN rebuild.** Do NOT merge #673 as-is; it will be superseded. [[feedback-display-first-flagship]] [[project-v2-frontend-design]]
+ 
+-### ⭐ ACTIVE (2026-07-11) — v2 FRONTEND Phase E · [#672] MERGED · [#673] team Overview (redesigning)
++### (history) 2026-07-11 — v2 frontend Phase E · #672 MERGED (design system + fixture page) · #673 superseded
+ The CPO gave the go to START the v2 frontend (Phase E). **Increment 1 is PR-d ([#672](https://github.com/ramialfahham/football-data-pipeline/pull/672)) — awaiting ci-site-v2 + CPO merge (CPO merges, never self-merge).** Ships in `site_v2/` (Astro 5, static, i18n de/en/fi): the **shared design system** — one GLOBAL `src/styles/system.css` (tokens + every component class, transcribed VERBATIM from the LOCKED reference mockup artifact `d70aae67`) imported by `src/layouts/Layout.astro` (dark-default `.fx` host) — plus `src/lib/{format,bars,href,metricRows,types}.ts` + `src/i18n/strings.ts` (DE/EN/FI chrome), and the **fixture page (screen 01)** `src/pages/[lang]/[competition]/matches/[fixture].astro` composing 13 components (Masthead · NarrativeSlot · FormSegment · MetricComparison/MetricRow · SplitSection · RecentMatch · PlayerRow · HeadToHead · LinksFooter · Crest · SectionHead · Breadcrumb), rendering ONE real exported fixture across de/en/fi. Build green (6 pages: the CI four `dist/index.html`+`dist/{de,en,fi}/index.html` + 3 fixture pages); serves HTTP 200 under `/v2/`.
+ 
+ **Decisions LOCKED this session (do NOT relitigate):**
+@@ -75,7 +151,15 @@ Team benchmark (`mart_team_competition_benchmarks`) = a separate **rank-based**
+ main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391 A1** (deserved-vs-actual on `mart_team_profile`, #606) + **GAP-15** (team fixtures → team payload, #607) + **GAP-14** (player `birth_date`, #609) + **GAP-16** (player team affiliation, #611) + **GAP-01** (team founded/venue, #613) + **#615** (content_architecture.md §3/§7 block↔mart reconciliation) + **#616** (handover refresh) + **#617** (#391 track A — Team → Squad wireframe spec + GAP-20) + **#618** (handover refresh) + **#619** (#391 GAP-20 — mart_roster wired to the team payload as squad[]) + **#620** (GAP-20 close-out doc-sync — roster ✓ in content_architecture §3/§7) + **#621** (#530(b) — player finishing_efficiency + duels_won_pct catalogue rows completed + goals_penalty atom on the player leg) + **#623** (handover refresh) + **#625** (#391 Stats-percentile wireframe 12 spec'd + GAP-21 registered) + **#626** (handover refresh) + **#627** (#391 GAP-21 — mart_player_competition_benchmarks wired into the player export; mart num/den columns + goals_penalty atom exposed) + **#630** (**#480 §8.3** — per-club player-season foundation `int_player_club_season__metrics` + rebuilt `mart_player_career` to per-club grain; `int_player_season__metrics` = a byte-identical composition; retired `int_player_career__metrics`) + **#631** (handover refresh) + **#632** (**#391** — Player Career wireframe 13 spec'd + GAP-22 registered) + **#633** (handover refresh) + **#634** (**#391 GAP-22** — mart_player_career wired into the v2 player export as career[] + national_appearances_total; a club_latest_kickoff_at ordering window column added to the mart) + **#636** (post-wiring doc-sync reconciliation — wireframes 11/12/13 + the gaps register + content_architecture flipped proposed/pending/orphan → wired/shipped for Squad #619 / Stats #627 / Career #634; 12/13 §5 JSON keys reconciled to the shipped export) + **#637** (handover refresh) + **#638** (**Phase C brick 1** — player YoY `int_player_profile__yoy` + `mart_player_profile` composition) + **#640–#643** (portfolio: README funnel/badges/architecture diagram, MVP screenshot, Design-decisions section, public dbt docs lineage site at `/dbt-docs/`) + **#645** (**Phase D bonus** — player contribution-share `int_player_profile__contribution` + `mart_player_profile` composition + catalogued `contribution_share`) + **#648** (player YoY full-season prior-year reference — `int_player_profile__yoy` `prev_full` CTE + 6 `*_prev_season_full` context columns → `mart_player_profile`; a `full >= pace-matched` invariant DQ test; auto-carries to the v2 player export) + **#649** (handover refresh) + **#650** (handover — drop untracked "further player-season models") + **#651** (**#530(b)** — player `goals_penalty` + `goals_open_play` catalogue rows completed: `int_legs__player_match` formulas + direction=higher_better + `schema.yml` deferred-note sync) + **#653** (**#484** — player momentum consumes the shared `int_team_momentum_window`; the top-players strip + team form share ONE window; tournament-cumulative on tournament fixtures; `assert_player_momentum_window_matches_team` parity test) + **#655** (season-record campaign=season stale-note cleanup) + **[concurrent session]** squad `/players` skip-if-cached (450c205) + exclude All-Star teams from the player affiliation mapping (81eb1ed) + **#661** (handover + metrics_context_model §8 de-stale) + **#662** (content_architecture board reconcile) + **#663** (competition-header registry identity → competition hub) + **#664** (#391 — Team → Stats vs-league benchmark wireframe spec, screen 14) + **#665** (**#391 GAP-23** — mart_team_competition_benchmarks wired into the team payload as `benchmarks[]`; **flips the last board orphan green**). **CPO merges, never self-merge — standing rule.** **#391 is UN-PAUSED but NARROW — only CPO-directed gap-backlog items; the live MVP must NOT break and there is NO frontend cutover yet — standing CPO rule.** **The 5-step protocol is LIVE:** Explore → Plan → **Confirm** (plan mode + ExitPlanMode) → Implement → Verify; for any code/model/metric task ENTER PLAN MODE and WAIT for the CPO's ExitPlanMode approval before editing. **EXCEPTION (CPO-set 2026-06-30): handover/bookkeeping refreshes SKIP plan mode** — show the diff inline, get a quick go, commit through the same contract+review+gate.
+ 
+ ### FIRST STEPS (cold chat — do in order)
+-1. `git checkout main && git pull`. **main GREEN at c1d9b2c** (or later if this refresh merged). Confirm tree clean.
++1. `git checkout main && git pull --ff-only` then `git status --porcelain` (expect empty). **main is GREEN at 1bc6087** or later. If the tree is dirty, STOP and ask the CPO before touching anything.
++2. Read **only the ⭐ ACTIVE section at the top of this file**. Do not read the history sections unless you need the backstory on a specific PR — they are long and several describe finished phases.
++3. **Start with TASK 0 in the ACTIVE section: finish the metric layer.** 28 player metrics have an empty `interpretation` — no written meaning. The catalogue is the source of truth for what a metric MEANS, so this is a foundation gap, not a nice-to-have (CPO ruling 2026-07-21). The **marts and the export ARE finished** — do not re-run that phase. Only after TASK 0 comes step 1, the **player page design** (see NEXT AFTER TASK 0), with its two open decisions to put to the CPO plainly, one at a time.
++4. Design work = Artifacts only, no repo code, publish the mock and get the CPO's verdict before building anything in `site_v2/`. Compose ONLY from the locked pattern sheet; never invent a per-page treatment.
++5. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file; use PLAN MODE for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline, get a quick go, same contract+review+gate).
++
++<details>
++<summary>Superseded FIRST STEPS (2026-07-11) — the old "pick a candidate" list, kept for reference</summary>
++
+ 2. Read this file top-to-bottom before touching anything (esp. the header lead — the ⭐ no-orphans MILESTONE; the ⭐ Stats-percentile callout below is now historical — that track closed at #627).
+ 3. **NEXT = a CPO pick — no locked task, nothing hot.** ⭐ **The v2 data foundation is now all-green for builds**
+    (no orphans left after #665 wired the team benchmark — the last one). The natural big frontier is the **v2
+@@ -97,9 +181,15 @@ main carries the full #500 metric layer + #596 + #598 + #600 + #530(a) + **#391
+    pick; ENTER PLAN MODE for any code/model/metric task.
+ 4. **Bash only; never PowerShell.** For any file-touching task: write `.claude/task/contract.md` on a CLEAN tree BEFORE touching any file (impact-map gate for `dbt_project/models/**` + `scripts/export_*.py` + `ingestion/**` + `site*/`); use **PLAN MODE** for the plan-back — EXCEPT handover/bookkeeping refreshes (skip plan mode; show the diff inline + get a quick go; same contract+review+gate).
+ 
++</details>
++
+ ---
+ 
+-### ⭐ #391 UN-PAUSED — data-first: complete v2 data+export, THEN the frontend
++### (history) #391 — the data-first phase, now COMPLETE
++> ⚠️ **This strategy is FINISHED. Do not re-run it.** Every v2 content block is built AND wired; there are
++> no orphan marts left. The remaining work is the FRONTEND (see the ⭐ ACTIVE section at the top). This
++> section is kept only as the record of how the data layer got finished.
++
+ The metric layer was rich but had no user-facing surface. The CPO un-paused #391 NARROWLY with a
+ **data-first strategy**: get every v2 content block to **built (mart exists) AND wired (the v2 export
+ carries it)** first, then build the frontend against a stable export. The live MVP (`site/`, fed by
+@@ -108,7 +198,8 @@ carries it)** first, then build the frontend against a stable export. The live M
+ **Verified gap map** (`docs/content_architecture.md` §3/§7 — reconciled to reality by #615, with a built-vs-wired legend). Current state:
+ - v2 = `scripts/export_site_data.py` (8 entity types) + `docs/wireframes/` (**4 screens spec'd**:
+   01 fixture, 02 team, 03 player, 11 Squad + the LOCKED metric contract; 04–10 pending). Data layer (~23 marts) ~mostly built.
+-- **Real gaps:** (1) the **frontend** — `site_v2/` is an empty Astro scaffold (2 stubs), the big lift;
++- **Real gaps** (as assessed then; item 1 has since moved — `site_v2/` now carries the design system + the
++  built fixture page, so it is no longer an empty scaffold): (1) the **frontend**, the big lift;
+   (2) **orphan marts** — benchmarks, career, player-season still EXIST but the v2 export does NOT carry them
+   (wiring needs a wireframe step FIRST). **roster DONE** (#617 spec + #619 wired). **benchmarks: CLOSED**
+   (#625 spec + #627 wire). **career: WIRED (#634, GAP-22)** — `mart_player_career` (built #630) carried by the
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a58b880..922670b 100644
+index 922670b..35b67ba 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,126 +1,107 @@
--# Task contract — assign `direction` to every metric in the metric layer (catalogue-wide sweep)
-+# Task contract — de-stale the percentile-display rules after the catalogue direction sweep
+@@ -1,107 +1,92 @@
+-# Task contract — de-stale the percentile-display rules after the catalogue direction sweep
++# Task contract — handover refresh: retire the stale strategy, state the road to a live v2 site
  
--> Written on a CLEAN tree (branch `feat/metric-direction-sweep` off main @ 9e7f8da).
--> CPO-directed this conversation 2026-07-21: "I gave you the framing for why we want direction for all
--> metrics. Apply this framing for every metric that has no direction yet" + "double check with the
--> football analyst every metric". The CPO also restated the governing principle: "the metric layer
--> defines what's in the mock not vice versa" — the catalogue is the SoT; the v2 mocks follow it.
--> See docs/working_agreement.md §1 (E→P→C→I→V), §2, §10, §11, Appendix A;
--> feedback: [[feedback-metric-direction-judgement]] [[feedback-metric-catalogue-governance]].
-+> Written on a CLEAN tree (branch `fix/metrics-display-percentile-direction` off main @ 7419ce6).
-+> CPO-directed 2026-07-21. After PR #677 merged (every metric now carries a `direction`), the locked
-+> percentile-display section of `docs/wireframes/metrics_display.md` asserts two things that are no
-+> longer true. CPO: "Do I allow inconsistency?" — no; fix it now rather than deferring.
-+> See docs/working_agreement.md §1, §2, §10; [[feedback-metric-direction-judgement]].
+-> Written on a CLEAN tree (branch `fix/metrics-display-percentile-direction` off main @ 7419ce6).
+-> CPO-directed 2026-07-21. After PR #677 merged (every metric now carries a `direction`), the locked
+-> percentile-display section of `docs/wireframes/metrics_display.md` asserts two things that are no
+-> longer true. CPO: "Do I allow inconsistency?" — no; fix it now rather than deferring.
+-> See docs/working_agreement.md §1, §2, §10; [[feedback-metric-direction-judgement]].
++> Written on a CLEAN tree (branch `docs/handover-refresh-v2-roadmap` off main @ 1bc6087).
++> CPO-directed 2026-07-21, verbatim: "I really would like to continue with the product because we are
++> still far away of having the new website live. And the reason is that we have distractions all the
++> time... I want you to give me clarity here. Prepare a proper handover so we can continue in a fresh new
++> chat. Double check that we can continue without friction."
++> Bookkeeping/handover refresh → plan mode is SKIPPED by standing CPO rule (2026-06-30), but the contract +
++> review + commit gate still apply. See [[feedback-handover-discipline]] [[feedback-plan-mode-scope]].
  
  objective: >
--  Make `direction` non-empty for EVERY row of metric_catalogue.csv, applying the CPO's all-else-equal
--  framing. 36 rows change: 26 rows whose `direction` cell was BLANK get a value (18 higher_better,
--  8 lower_better), and 10 rows currently mis-classified `neutral` become higher_better (the volume/style
--  metrics — 3 team T/I/B per-match atoms + the 7 player per-90 volume metrics). Exactly 2 rows keep
--  `neutral` because they genuinely have no better/worse pole: `sot_rank_gap` (a narrative) and
--  `contribution_share` (a position-dependent share). The 10 rows flipping off `neutral` also get their
--  `interpretation` rewritten to LEAD with the direction reading and keep the honest style/volume caveat
--  SECOND — the same treatment PR #676 applied to the 5 team style metrics.
-+  Correct the two now-false statements in `metrics_display.md` §"Percentile display (vs-peers)" so the
-+  doc matches the merged metric layer and the CPO's ruling on the bar treatment. (1) Rule 3 still splits
-+  the player benchmark set into "11 higher_better / 7 neutral" and tells the reader that for the neutral
-+  ones "top" means most, not better — after #677 there are ZERO neutral metrics in that set, so the split
-+  and the caveat are both wrong. (2) Rule 5 still says the bar carries NO colour, justified by the risk of
-+  implying a verdict on the neutral metrics — the CPO ruled (2026-07-21, v2 design review) that these bars are
-+  direction-aware (green when the metric beats the median in its better direction, plain ink otherwise), and
-+  the original justification is void now that no neutral metrics remain. ONE bar language applies across every
-+  vs-population screen, player and team alike, so all three affected documents state the identical rule and
-+  cross-reference each other. DOC PROSE ONLY. No seed, model, test or frontend change.
+-  Correct the two now-false statements in `metrics_display.md` §"Percentile display (vs-peers)" so the
+-  doc matches the merged metric layer and the CPO's ruling on the bar treatment. (1) Rule 3 still splits
+-  the player benchmark set into "11 higher_better / 7 neutral" and tells the reader that for the neutral
+-  ones "top" means most, not better — after #677 there are ZERO neutral metrics in that set, so the split
+-  and the caveat are both wrong. (2) Rule 5 still says the bar carries NO colour, justified by the risk of
+-  implying a verdict on the neutral metrics — the CPO ruled (2026-07-21, v2 design review) that these bars are
+-  direction-aware (green when the metric beats the median in its better direction, plain ink otherwise), and
+-  the original justification is void now that no neutral metrics remain. ONE bar language applies across every
+-  vs-population screen, player and team alike, so all three affected documents state the identical rule and
+-  cross-reference each other. DOC PROSE ONLY. No seed, model, test or frontend change.
++  Rewrite the TOP of `.claude/active_work.md` so a cold chat opens it and immediately knows (a) what is
++  actually live, (b) what is actually built, (c) the remaining road to a live v2 website, and (d) the one
++  next step — without having to reconstruct any of it. Three concrete defects are being fixed:
++  (1) FOUR competing "⭐ ACTIVE" sections sit at the top (two now merged, two stale from 2026-07-11), so a
++      cold chat cannot tell which is current.
++  (2) The strategy header "#391 UN-PAUSED — data-first: complete v2 data+export, THEN the frontend" and its
++      claim that "`site_v2/` is an empty Astro scaffold (2 stubs)" are BOTH stale. The data phase is
++      complete (no orphan marts) and the fixture page + design system are built and merged (#672). A cold
++      chat following that text would keep doing data work — the exact drift the CPO is objecting to.
++  (3) The `_Last updated_` lead is a single ~4,000-character paragraph from 2026-07-11 whose "NEXT" list no
++      longer matches reality.
++  The history below (RECENT PRs, standing rules, governance, key specs) is REFERENCE and is left intact.
  
  refs: >
--  [[feedback-metric-direction-judgement]] (the framing) · PR #676 contract (this task executes its
--  explicitly RESERVED player-per-90 decision) · the v2 player-page design conversation (2026-07-21).
--  Design/governance-driven; no issue number.
-+  PR #677 (catalogue-wide direction sweep, merged, main @ 7419ce6) · the v2 player-page design
-+  conversation 2026-07-21 (bar-language unification) · [[feedback-metric-direction-judgement]] ·
-+  [[feedback-v2-design-schema-first]]. Flagged by the football-analytics-expert-reviewer during #677 as a
-+  known follow-up, deliberately kept out of that PR because this file routes to a different reviewer.
+-  PR #677 (catalogue-wide direction sweep, merged, main @ 7419ce6) · the v2 player-page design
+-  conversation 2026-07-21 (bar-language unification) · [[feedback-metric-direction-judgement]] ·
+-  [[feedback-v2-design-schema-first]]. Flagged by the football-analytics-expert-reviewer during #677 as a
+-  known follow-up, deliberately kept out of that PR because this file routes to a different reviewer.
++  Verified live this session, not recalled: `gh pr list` (only #673 open) · `gh issue list` (the v2 epic
++  #361 and its children #366–#377 open) · `site_v2/src/pages/**` (exactly 3 route files: 2 index stubs +
++  the fixture route) · `site_v2/src/data/fixtures/` (exactly 1 committed sample fixture) · `site/` (the
++  live MVP's 4 pages) · `scripts/export_site_data.py` (entity types it can emit) ·
++  `docs/site_architecture.md` §5 templates→data contract and §7 deploy/cutover.
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv        # `direction` for 36 rows + `interpretation` for the 10 un-neutralled
--  - dbt_project/seeds/schema.yml                  # AMENDMENT r1 — de-stale the `direction`/`interpretation` column docs (prose only)
--  - dbt_project/tests/assert_team_metric_meaning_complete.sql   # AMENDMENT r1 — de-stale the docstring (prose only, NO logic change)
-+  - docs/wireframes/metrics_display.md
-+  - docs/wireframes/12_player_stats.md    # AMENDMENT r1 — carries the SAME two stale claims
-+  - docs/wireframes/14_team_stats.md      # AMENDMENT r2 — the TEAM benchmark screen carries the same defect
-   - .claude/task/**
+-  - docs/wireframes/metrics_display.md
+-  - docs/wireframes/12_player_stats.md    # AMENDMENT r1 — carries the SAME two stale claims
+-  - docs/wireframes/14_team_stats.md      # AMENDMENT r2 — the TEAM benchmark screen carries the same defect
+-  - .claude/task/**
    - .claude/active_work.md
++  - .claude/task/**
  
  impact_map: >
--  writers: none — a seed VALUE change only (the `direction` cell of 36 existing rows + the
--    `interpretation` cell of 10 of them). No new column, no row added or removed, no formula touched
--    (numerator_expr/denominator_expr/base_relation all unchanged). No model, raw table or ingestion code.
--  downstream (evidence: `grep -r direction` + `grep -r lower_is_better` over dbt_project + scripts +
--    site_v2, every hit read):
--      - mart_team_competition_benchmarks.sql + mart_player_competition_benchmarks.sql: DIRECTION-AGNOSTIC
--        by design (rank by metric_value; good/bad applied at DISPLAY). ZERO number change; benchmark DQ
--        tests unaffected.
--      - seeds/schema.yml: `direction` accepted_values [higher_better, lower_better, neutral] — every new
--        value is in-set. Still passes.
--      - tests/assert_team_metric_meaning_complete.sql: FAILs if a TEAM metric has NULL/empty direction OR
--        interpretation. The only team rows touched (tackles/interceptions/blocks_per_match) keep a
--        non-empty interpretation (rewritten, not cleared). Still passes.
--      - tests/assert_metric_catalogue_expr_resolvable.sql: reads the expression columns, which are
--        untouched. Unaffected.
--      - scripts/export_metric_definitions_json.py (LIVE MVP): reads `lower_is_better`, NOT `direction`.
--        `lower_is_better` is NOT touched here, so the live MVP good/bad reading is BYTE-IDENTICAL.
--      - scripts/export_site_data.py (v2): direction is applied at render; the marts carry no direction
--        column. No payload shape change.
--      - site_v2/src/lib/metricRows.ts: mirrors direction for the FIXTURE comparison's 16 TEAM display
--        rows only. None of the 36 rows changed here is one of those 16 (they are player metrics, player
--        per-90s, and the 3 team T/I/B atoms which render as a sub-breakdown "15 tkl · 8 int · 3 blk",
--        not as their own comparison bar). So metricRows.ts needs NO mirror edit and is out of scope.
--  layer_rules: seed value change; no dbt model layer touched (check_layer_contract N/A).
--  deploy_order: no prod number moves. Nothing changes on the 04:00 nightly. ci-data-build (shared prod
--    dataset, full DQ suite) is the byte-safety gate.
--  blast_radius: ZERO number change anywhere. 36 metrics gain a good/bad reading they did not have. The
--    only currently-rendered surface affected is the v2 player Performance percentile bar (not yet built),
--    which is precisely why the CPO asked for this now.
-+  writers: none. A wireframe/display-contract DOC change only — no seed, no dbt model, no test, no export,
-+  no site_v2 code. Zero rows and zero numbers move anywhere.
-+  downstream: the doc is the build reference for the Player Stats percentile screen (wireframe 12), which
-+    is NOT yet built in site_v2. Correcting it now means the screen gets built off accurate rules instead
-+    of a stale contract. `12_player_stats.md` quotes the same rules and is checked for consistency; if it
-+    also carries the stale claims that is reported, not silently edited (out of scope).
-+  layer_rules: documentation only; no layer touched.
-+  deploy_order: nothing to deploy. No CI data impact.
-+  blast_radius: zero runtime impact. The change is that a future build reads correct rules.
+-  writers: none. A wireframe/display-contract DOC change only — no seed, no dbt model, no test, no export,
+-  no site_v2 code. Zero rows and zero numbers move anywhere.
+-  downstream: the doc is the build reference for the Player Stats percentile screen (wireframe 12), which
+-    is NOT yet built in site_v2. Correcting it now means the screen gets built off accurate rules instead
+-    of a stale contract. `12_player_stats.md` quotes the same rules and is checked for consistency; if it
+-    also carries the stale claims that is reported, not silently edited (out of scope).
+-  layer_rules: documentation only; no layer touched.
+-  deploy_order: nothing to deploy. No CI data impact.
+-  blast_radius: zero runtime impact. The change is that a future build reads correct rules.
++  writers: none. A handover DOCUMENT change only. No seed, dbt model, test, export script, wireframe or
++    `site_v2` code is touched. Zero rows, zero numbers, zero runtime behaviour.
++  downstream: `.claude/active_work.md` is fed to every fresh chat by the `handover_in` SessionStart hook,
++    so this file IS the thing that determines whether the next session continues or drifts. That is the
++    entire point of the change.
++  layer_rules: documentation only.
++  deploy_order: nothing to deploy.
++  blast_radius: zero runtime impact.
  
  decisions_taken: >
--  1. THE FRAMING (CPO, restated 2026-07-21, already recorded in [[feedback-metric-direction-judgement]]):
--     `direction` is a JUDGEMENT — "all else equal, is MORE of this better?" — NOT a correlation with
--     results or final rank. A style/volume metric STILL gets a direction; it is not `neutral` merely
--     because it is also a style attribute or a weak predictor of rank. `neutral` is reserved for a
--     metric with genuinely NO better/worse pole.
--  2. VALIDATION: two INDEPENDENT derivations over all 78 rows (a general pass and the
--     football-analytics-expert-reviewer) agreed on the direction for EVERY row — no disagreement. The
--     football reviewer's contestable calls are documented in decisions_reserved, not re-litigated.
--  3. This executes the decision PR #676 explicitly RESERVED: "Player per-90 volume analogs
--     (passes_per90, tackles_per90, interceptions_per90, blocks_per90, defensive_actions_per90,
--     duels_won_per90, saves_per90) stay `neutral` — out of scope; a consistency call for when the player
--     page is designed." The player page is now designed, so the call is made: all 7 become higher_better.
--  4. CONSCIOUS REVERSAL of PR #676 decision 4 ("T/I/B atoms + sot_rank_gap stay `neutral` — not verdict
--     bars"). Under the framing, direction is a property of the METRIC, not of whether it is drawn as a
--     verdict bar, so tackles/interceptions/blocks_per_match become higher_better. `sot_rank_gap` still
--     stays `neutral`, on the framing's own no-pole test, not on the display argument.
--  5. `lower_is_better` is NOT touched. The LIVE MVP export reads it, so changing it would move live
--     behaviour; #676 set the same precedent. Four rows where the boolean now disagrees with the new
--     direction are logged in decisions_reserved.
-+  1. The "11 higher_better / 7 neutral" split is replaced with the post-#677 reality: all 18 benchmark
-+     metrics are `higher_better`; 0 neutral and 0 lower_better remain in that set. The "top means most,
-+     not better" caveat is REMOVED because it described the 7 neutral metrics that no longer exist here.
-+  2. "One bar, no traffic lights / no colour" is replaced by the CPO's ruling (2026-07-21, v2 design
-+     review): these bars are direction-aware — green when the metric beats the median in its better
-+     direction, plain ink otherwise — and the SAME rule holds on every vs-population screen, player and
-+     team alike. NOTE: this must be stated as the ruling itself, never as parity with some pre-existing
-+     screen; there is no prior team spec carrying this rule (see amendment r2, finding 1). The original
-+     rationale (colour would wrongly imply a verdict on the neutral metrics) is recorded as VOID, with the
-+     reason, so a future reader understands why the rule changed instead of thinking it was ignored.
-+  3. The `lower_better` mirroring rule (position = 1 − percentile) STAYS as written and stays dormant —
-+     it is still true that 0 of the benchmark metrics are lower_better, so the rule is correct and unused.
-+  4. Everything else in the section is left alone: the plain-language ladder ("top X%" / "median" /
-+     "bottom X%", never "Nth percentile"), the median-anchored framing, position-group peers, the sample
-+     line, and the ratio volume-triple rule are all still accurate and are NOT touched.
+-  1. The "11 higher_better / 7 neutral" split is replaced with the post-#677 reality: all 18 benchmark
+-     metrics are `higher_better`; 0 neutral and 0 lower_better remain in that set. The "top means most,
+-     not better" caveat is REMOVED because it described the 7 neutral metrics that no longer exist here.
+-  2. "One bar, no traffic lights / no colour" is replaced by the CPO's ruling (2026-07-21, v2 design
+-     review): these bars are direction-aware — green when the metric beats the median in its better
+-     direction, plain ink otherwise — and the SAME rule holds on every vs-population screen, player and
+-     team alike. NOTE: this must be stated as the ruling itself, never as parity with some pre-existing
+-     screen; there is no prior team spec carrying this rule (see amendment r2, finding 1). The original
+-     rationale (colour would wrongly imply a verdict on the neutral metrics) is recorded as VOID, with the
+-     reason, so a future reader understands why the rule changed instead of thinking it was ignored.
+-  3. The `lower_better` mirroring rule (position = 1 − percentile) STAYS as written and stays dormant —
+-     it is still true that 0 of the benchmark metrics are lower_better, so the rule is correct and unused.
+-  4. Everything else in the section is left alone: the plain-language ladder ("top X%" / "median" /
+-     "bottom X%", never "Nth percentile"), the median-anchored framing, position-group peers, the sample
+-     line, and the ratio volume-triple rule are all still accurate and are NOT touched.
++  1. The four "⭐ ACTIVE" blocks collapse into ONE current section. Merged work (#677, #678) is stated as
++     one line of outcome, not as an active task. The 2026-07-11 team-YoY and Phase-E blocks are folded into
++     the same section because their live content (the team-page redesign, #673's rejection) is still true
++     and must not be lost.
++  2. The "data-first, THEN the frontend" strategy is recorded as COMPLETE, not deleted — it was the right
++     call and it finished. The banner now says the frontend is the remaining work, so the next chat does
++     not re-run the data phase.
++  3. The handover states the road to a live site as an explicit ordered milestone list, because the CPO's
++     complaint is drift, and drift is what happens when only the next ticket is written down.
++  4. HONEST STATUS, no flattery: exactly ONE v2 page type is built (the fixture page), it renders from ONE
++     committed sample JSON rather than real data, and it is deployed NOWHERE. The old MVP is what is live.
++  5. The metric layer is recorded as **NOT finished**. The catalogue owns formula + `direction` +
++     `interpretation`; the first two are complete, the third is empty on 28 player rows. Per the CPO's
++     ruling this session that is a FOUNDATION gap, so it is written into the road as **TASK 0**, ahead of
++     the player page — not as a footnote. An earlier draft of this handover claimed the metric layer was
++     DONE and the gap was a non-blocker; both statements are corrected here.
++  6. The player page design is step 1, per the CPO this session ("We're not done with the player page
++     yet"), with its open decisions listed so a fresh chat does not re-derive them.
  
  decisions_reserved:
--  - "`lower_is_better` vs `direction` divergence on 4 player rows (cards_yellow, cards_red, cards_total,
--     shots_on_goal_against read lower_is_better=false while direction is now lower_better). Fixing the
--     boolean CHANGES THE LIVE MVP good/bad reading, so it is its own CPO decision + PR. Not touched here."
--  - "The 26 newly-directional player rows still have a BLANK `interpretation`. A catalogue-wide
--     interpretation sweep is a separate task; this PR only rewrites the 10 interpretations that would
--     otherwise contradict their own new direction (the un-neutralled ones)."
--  - "Football-reviewer contestable calls, CPO-accepted per the framing and NOT to be re-litigated:
--     `saves` + `saves_per90` = higher_better (a save is a good act, though volume also tracks shots
--     faced) and `shots_on_goal_against` = lower_better (fewer on-target shots faced is better, though
--     it is mostly the outfield defence's doing). The honest caveat belongs in `interpretation`."
--  - "Whether `contribution_share` ever gets a display home (it is built and wired but rendered on no
--     screen) — a v2 design decision, not this PR."
-+  - "The 26 player metric rows that still have a blank `interpretation` — a separate sweep, unrelated to
-+     this doc fix."
+-  - "The 26 player metric rows that still have a blank `interpretation` — a separate sweep, unrelated to
+-     this doc fix."
++  - "The milestone ORDER after the player page (build templates → wire real data → deploy preview →
++     parity/cutover) is written as the proposed path; the CPO confirms or reorders it. Not self-granted."
++  - "RETRACTED mid-task by CPO ruling (2026-07-21). An earlier draft of this contract recorded the blank
++     `interpretation` rows as 'a logged nice-to-have, explicitly marked NOT a blocker'. The CPO rejected
++     that framing: 'The metric layer is not a nice to have. It is the foundation of the metrics and their
++     meaning. So I can't imagine where we could allow empty fields like explanations or interpretations.'
++     The handover now records it as TASK 0, the next piece of work, ahead of the player page. The count was
++     also wrong — it is 28, not 26: `finishing_efficiency` and `duels_won_pct` (player) already carry a
++     direction but no interpretation, so they were missed by the direction-sweep-derived count. Verified by
++     reading the merged seed. Writing the 28 values is NOT in this contract's scope — this task only fixes
++     the handover; the sweep is its own PR."
++  - "Whether to spend a session on repo/doc cleanup at all — recorded as an open CPO question, since the
++     CPO raised it ('I'm not even sure if I need to do some cleanups') but did not decide it."
  
  done_when:
--  - metric_catalogue.csv: EVERY row has a non-empty `direction`; the only `neutral` values remaining are
--    `sot_rank_gap` and `contribution_share` (grep-verified, exactly 2).
--  - The 10 un-neutralled rows carry an `interpretation` that leads with the direction reading and keeps
--    the style/volume caveat second; no interpretation is cleared.
--  - No other column changed anywhere in the seed (diff-verified: only the `direction` and
--    `interpretation` cells move).
--  - ci-data-build GREEN (seed loads; accepted_values + assert_team_metric_meaning_complete + the full DQ
--    suite pass; no number drift — benchmarks are direction-agnostic).
--  - Required reviewers PASS: scope-auditor + analytics-engineer-reviewer + football-analytics-expert-
--    reviewer (metric_catalogue.csv), per review_routing.json. review.md diff_sha256 binds; CPO merges
--    (I never merge).
-+  - metrics_display.md §"Percentile display" contains no claim of neutral metrics in the benchmark set and
-+    no claim that the bar carries no colour.
-+  - All three documents state the IDENTICAL direction-aware bar-colour rule and cross-reference each other,
-+    with each superseded rationale recorded rather than deleted silently. No document claims parity with a
-+    screen or rule that does not exist.
-+  - No file outside scope_paths is touched; no seed/model/test/frontend change (diff-verified).
-+  - Required reviewers PASS: scope-auditor + bi-analyst-reviewer (docs/wireframes/**), per
-+    review_routing.json. review.md diff_sha256 binds; CPO merges (I never merge).
-   - Handover bullet added to .claude/active_work.md.
+-  - metrics_display.md §"Percentile display" contains no claim of neutral metrics in the benchmark set and
+-    no claim that the bar carries no colour.
+-  - All three documents state the IDENTICAL direction-aware bar-colour rule and cross-reference each other,
+-    with each superseded rationale recorded rather than deleted silently. No document claims parity with a
+-    screen or rule that does not exist.
+-  - No file outside scope_paths is touched; no seed/model/test/frontend change (diff-verified).
+-  - Required reviewers PASS: scope-auditor + bi-analyst-reviewer (docs/wireframes/**), per
+-    review_routing.json. review.md diff_sha256 binds; CPO merges (I never merge).
+-  - Handover bullet added to .claude/active_work.md.
++  - `.claude/active_work.md` has exactly ONE "⭐ ACTIVE" section at the top, describing the true current state.
++  - The stale "data-first / empty Astro scaffold" framing is corrected, not left to mislead the next chat.
++  - The road to a live v2 site is an explicit ordered list, with the immediate next step and its open
++    decisions written out.
++  - FIRST STEPS is executable literally by a cold chat (checkout, verify command, what to read, what to do).
++  - No file outside `scope_paths` is touched (diff-verified).
++  - Required reviewer PASSes: scope-auditor (the only routed reviewer — no code path is touched, and
++    `contract.md` is on `artifact_only_never`, so this commit is NOT review-exempt).
++  - CPO merges; I never merge.
  
- amendments:
-   - >
--    r1 (2026-07-21, REVIEWER-DRIVEN — analytics-engineer-reviewer FAIL, MEDIUM, config-as-code rule #5):
--    the seed's OWN governing docs assert an invariant this change falsifies. `dbt_project/seeds/schema.yml`
--    describes `direction` as "Populated for team metrics; null for the not-yet-classified player metrics
--    (player benchmark, v1.x) ... player rows exempt while v1.x", and the docstring of
--    `dbt_project/tests/assert_team_metric_meaning_complete.sql` repeats the same claim. Both become FALSE
--    once every player row carries a direction, and `dbt docs generate` would publish them as current truth.
--    Added both files to scope_paths to correct the PROSE ONLY. Explicitly NOT changed: the test's LOGIC and
--    its team-only enforcement scope, which is RETAINED DELIBERATELY and re-justified in the docstring — the
--    26 newly-directional player rows still carry a blank `interpretation` (a reserved follow-up sweep), so
--    broadening the test to players would fail on interpretation, not on direction. Both files route to
--    analytics-engineer-reviewer, already in the required reviewer set, so the review gate is UNCHANGED by
--    this amendment. scope-auditor had already PASSed the pre-amendment scope; it is re-run after this.
-+    r1 (2026-07-21, CPO-DIRECTED): the first draft reserved `docs/wireframes/12_player_stats.md` to a
-+    follow-up ("report, don't edit"). Checking it showed it repeats BOTH stale claims — the "11
-+    higher_better / 7 neutral" split (lines 119-121) and the "no colour / would wrongly imply a verdict on
-+    the neutral metrics" bar rule (line 123) — and it is the SCREEN SPEC the percentile page is actually
-+    built from, so it matters more than the display contract it quotes. The CPO's standing position
-+    ("Do I allow inconsistency?") makes deferring it wrong: fixing one doc and leaving its own screen spec
-+    contradicting it is the very inconsistency being corrected. Added to scope_paths. It sits in
-+    `docs/wireframes/**`, which routes to bi-analyst-reviewer, already the required reviewer for this task,
-+    so the review gate is UNCHANGED. Still DOC PROSE ONLY.
-+  - >
-+    r2 (2026-07-21, REVIEWER-DRIVEN — bi-analyst-reviewer FAIL, 4 findings, all upheld):
-+    (1) HIGH, FABRICATED PRECEDENT. My r1 wording claimed the new colour rule "speaks the SAME language as
-+    the team Performance tab". No such spec exists — "Performance tab" is a name coined in the v2 design
-+    conversation for a MOCKUP, and the real team benchmark spec `14_team_stats.md` says the OPPOSITE ("no
-+    traffic-light colours ... deferred to #366"). So the doc asserted parity with a rule that both does not
-+    exist under that name and contradicts the only real team spec. The citation is removed; the ruling is
-+    grounded in the CPO conversation itself, and the parity is MADE REAL by fixing the team screen in the
-+    same PR (the reviewer's own option (b)).
-+    (2) HIGH, MISSED STALENESS. `14_team_stats.md` carries the identical defect: it claims the 16 rendered
-+    team metrics are "10 higher_better + 5 neutral + 1 lower_better" and calls `corners_against_per_match`
-+    neutral. Verified against the merged seed the true tally is 14 higher_better / 2 lower_better / 0
-+    neutral, with `corners_against_per_match` now `lower_better` (so it IS rank-mirrored). Added to scope.
-+    (3) MEDIUM, SELF-CONTRADICTION. The still-live "Distributional position, not a verdict ... not good/bad"
-+    framing sits two lines above the new green-when-better rule. Reconciled in both files rather than left
-+    contradictory.
-+    (4) LOW-MEDIUM, MISSED SPOT. `12_player_stats.md` §1 Purpose repeats the extinct "for a volume/style
-+    metric it just reads as a lot" branch. Fixed.
-+    `14_team_stats.md` is in `docs/wireframes/**`, which routes to bi-analyst-reviewer, already the required
-+    reviewer, so the gate is UNCHANGED. Still DOC PROSE ONLY — no seed, model, test or frontend change.
-diff --git a/docs/wireframes/12_player_stats.md b/docs/wireframes/12_player_stats.md
-index d2b8182..6849ffa 100644
---- a/docs/wireframes/12_player_stats.md
-+++ b/docs/wireframes/12_player_stats.md
-@@ -12,9 +12,9 @@
- "Where does he sit — in context?" Each stat is placed against the player's **positional peers** in that
- competition-season and read in plain language: **"top 5%"**, **"median"**, **"bottom 18%"**. This is the
- fbref-grade context layer, worded for a fan rather than an analyst — the screen's **stop-scrolling moment**
--is the column of percentile bars. The bar states a **distributional position** (where the value sits among
--peers), not a verdict: for a quality metric a high position reads as good, for a volume/style metric it just
--reads as *a lot* (§5). **Honest limit:** a player needs enough minutes to be ranked (the mart's floor, §6);
-+is the column of percentile bars. The bar's LENGTH states a **distributional position** (where the value sits
-+among peers) and its COLOUR says whether that end is the good one (§5). Since the direction sweep every
-+benchmark metric carries a direction, so a high position reads as quality on every row. **Honest limit:** a player needs enough minutes to be ranked (the mart's floor, §6);
- below it there is no benchmark, and we say so rather than draw a bar.
- 
- ## 2. URL
-@@ -58,7 +58,7 @@ floor carries no block (§6).
- │  Finishing        18 of 74 · 24%  ▐████▌ median   │      ratio → volume triple in the value slot
- ├────────────────── fold (~700px) ──────────────────┤
- │  DUELS                                            │
--│  Duels won        3.1             ▐███▌ bottom 40%│      per-90, neutral → a lot, not good
-+│  Duels won        3.1             ▐███▌ bottom 40%│      per-90, higher_better → below the median peer
- │  Duels won %      96 of 178 · 54% ▐████▌ top 30%  │      ratio → volume triple
- │  …the rest of the position's eligible metrics…    │
- ├───────────────────────────────────────────────────┤
-@@ -115,13 +115,20 @@ Then, on a 0–100 scale: **above the median → "top X%"**, **below → "bottom
- (the dashed line). The strong extreme reads **"top 1%"**, never "top 0%" (the exact percentile→label rounding,
- and whether the extreme falls back to the `rank` "k of N" form, is a render detail confirmed at the wiring PR).
- 
--What "top" **means** depends on the metric and the screen does **not** editorialize it — of the 18 metrics
--**11 are `higher_better`** and **7 are `neutral`** (`saves_per90`, `passes_per90`, `duels_won_per90`,
--`defensive_actions_per90`, `tackles_per90`, `interceptions_per90`, `blocks_per90`). For a `higher_better`
--metric a high position reads as quality; for a `neutral` volume/style metric "top" just means *most* (a busy
--keeper, a high-volume passer) — not better. **No traffic-light colours** — they are redundant with the median
--line and would wrongly imply a good/bad verdict on the neutral metrics; the bar is one neutral **data token,
--colour deferred to the design pass (#366)**.
-+Since the catalogue-wide direction sweep (2026-07-21) **all 18 metrics are `higher_better`** — 0 neutral and
-+0 lower_better — so a high position reads as quality on every row. (Superseded: this used to read "11 are
-+`higher_better`, 7 are `neutral`" (`saves_per90`, `passes_per90`, `duels_won_per90`, `defensive_actions_per90`,
-+`tackles_per90`, `interceptions_per90`, `blocks_per90`) and warned that for those "top" just meant *most*, not
-+better. Those 7 now carry a direction, so the caveat no longer applies here.)
-+
-+**Bar colour: direction-aware** (CPO 2026-07-21, v2 design review). ONE bar language across every
-+vs-population screen, player and team alike — no bespoke percentile treatment; the team benchmark screen
-+([14](14_team_stats.md)) carries the identical rule. The fill goes **green when the metric beats the median
-+peer in its better direction** and stays **plain ink** otherwise. (Superseded: the rule used to be **no traffic-light colours**, on the
-+grounds that colour was redundant with the median line and would wrongly imply a good/bad verdict on the
-+neutral metrics. That rationale is void — no neutral metrics remain in this set, and dropping colour entirely
-+made the player screen inconsistent with the team screen for no remaining reason. Were a neutral metric ever
-+added back here it renders uncoloured, exactly as the team rule already prescribes.)
- 
- **Ratio metrics carry their volume (no naked %).** The five ratio metrics show the triple `{num} of {den} ·
- {pct}%`; their atoms exist in `int_player_season_position__metrics`, surface on the mart as
-diff --git a/docs/wireframes/14_team_stats.md b/docs/wireframes/14_team_stats.md
-index d643c82..039a6e8 100644
---- a/docs/wireframes/14_team_stats.md
-+++ b/docs/wireframes/14_team_stats.md
-@@ -17,8 +17,9 @@
- median"**. The screen's **stop-scrolling moment** is the column of rank + spread bars. **Rank, not
- percentile** — honest at league size N≈18 (a percentile would over-precision a ~18-team field; the mart
- chose rank deliberately). The bar states a **distributional position** (where the value sits in the
--league's p25–median–p75 spread), not a verdict: for a quality metric a strong rank reads as good, for a
--volume/style (neutral) metric it just reads as *a lot*. **Honest limit:** a team needs **≥ 3 games** to
-+league's p25–median–p75 spread) and its COLOUR says whether that end is the good one (§4). Since the
-+direction sweep every rendered metric carries a direction, so a strong rank reads as quality on every
-+row. **Honest limit:** a team needs **≥ 3 games** to
- be ranked (the mart's floor, §6); below it there is no benchmark and we say so.
- 
- ## 2. URL
-@@ -65,7 +66,7 @@ next to the %), both being separate metrics already in the set.
- │  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shot_accuracy mart-ranked but UNRENDERED — contract)
- ├────────────────── fold (~700px) ──────────────────┤
- │  DUELS                                            │
--│  Ø Duels          51    9th of 18   ±0    ▐███▌   │      neutral → "9th" = most, not best
-+│  Ø Duels          51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
- │  % Duels won      54%   3rd of 18   +4pp  ▐████▌  │
- │  …Defending → Passing → Set pieces → Goalkeeping…  │
- ├───────────────────────────────────────────────────┤
-@@ -108,18 +109,27 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
- **DESC** (rank 1 = the highest value), `team_count` = the ranked field size, and it is
- **direction-agnostic**. Display reads it against the catalogue `direction`:
- 
--- `higher_better` **or** `neutral` metric → show `rank` as-is ("3rd of 18" = the 3rd-highest value). For
--  a `higher_better` metric a strong rank reads as quality; for a `neutral` volume/style metric it just
--  means *most* (a high-volume passer, a busy defence) — **not better**.
-+- `higher_better` **or** `neutral` metric → show `rank` as-is ("3rd of 18" = the 3rd-highest value); a
-+  strong rank reads as quality. (The `neutral` branch is retained for correctness but is dormant — no
-+  rendered metric is `neutral` since the direction sweep. It used to carry the caveat that for a neutral
-+  volume/style metric a strong rank meant *most*, not better.)
- - `lower_better` metric → **mirror the rank**: `team_count + 1 − rank`, so "1st" marks the best (lowest-
--  value) end. A display-side step (the mart ranks DESC). **Today exactly one metric is `lower_better`:
--  `goals_against_per_match`** (fewest conceded = 1st). `corners_against_per_match` is **neutral** (not
--  mirrored); `clean_sheets` is `higher_better`.
--
--**No traffic-light colours** — redundant with the median line and would wrongly verdict the neutral
--metrics; the bar is one neutral data token, colour deferred to the design pass (#366). The screen does
--**not** editorialize "good/bad": of the **16 rendered** metrics **10 `higher_better` + 5 `neutral` + 1
--`lower_better`** (the 4 mart-ranked-but-unrendered metrics are listed below).
-+  value) end. A display-side step (the mart ranks DESC). Since the catalogue-wide direction sweep
-+  (2026-07-21) **two rendered metrics are `lower_better`: `goals_against_per_match` and
-+  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets` is
-+  `higher_better`. (Superseded: this used to say only `goals_against_per_match` was `lower_better` and that
-+  `corners_against_per_match` was `neutral` and therefore not mirrored.)
-+
-+**Direction-aware colour** (CPO 2026-07-21, v2 design review) — ONE bar language across every vs-population
-+screen, team and player alike; the player percentile screen ([12](12_player_stats.md)) carries the identical
-+rule. The bar fill goes **green when the metric beats the median in its better direction** and stays **plain
-+ink** otherwise. Every rendered metric now carries a direction: of the **16 rendered** metrics **14
-+`higher_better` + 2 `lower_better` + 0 `neutral`** (the 4 mart-ranked-but-unrendered metrics are listed
-+below). (Superseded: the rule was **no traffic-light colours**, justified as redundant with the median line
-+and as wrongly verdicting the neutral metrics, with colour deferred to the design pass (#366); and the tally
-+read "10 `higher_better` + 5 `neutral` + 1 `lower_better`". Both are void — no neutral metrics remain, and
-+leaving this screen uncoloured while the player screen is coloured would be an inconsistency with no
-+remaining justification.)
- 
- ### The benchmarked set — 20 ranked, 16 rendered (`int_team_competition_benchmark_metrics_long`)
- 
-@@ -137,7 +147,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
- | Duels | `duels_per_match` · `duels_won_pct` (%) |
- | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
- | Passing | `passes_per_match` · `pass_accuracy` (%) · `key_passes_per_match` |
--| Set pieces | `corner_kicks_per_match` · `corners_against_per_match` |
-+| Set pieces | `corner_kicks_per_match` · `corners_against_per_match` (lower_better) |
- | Goalkeeping | `save_ratio` (%) |
- 
- The six `percent` ratios sit next to their volume count in the same block (Ø Shots → % accuracy; Ø Duels
-@@ -195,4 +205,5 @@ has that this does not; the per-row "of N" carries the sample size instead.)
- - A **games-played sample caption** (the team's sample size, like 12's minutes/apps) would need a
-   `season_games_played` column on `mart_team_competition_benchmarks` — a small mart enhancement, not part
-   of the GAP-23 export wiring; deferred.
--- Colour on the spread bar — deferred to the design pass (#366).
-+- ~~Colour on the spread bar — deferred to the design pass (#366).~~ **DECIDED 2026-07-21** (see §4):
-+  direction-aware, green when the metric beats the median in its better direction, plain ink otherwise.
-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 9d6e831..90dec39 100644
---- a/docs/wireframes/metrics_display.md
-+++ b/docs/wireframes/metrics_display.md
-@@ -74,18 +74,28 @@ N" + vs-median, honest at N≈18) — never a percentile.
-    grok "top 5%"; "95th percentile" is analyst-speak. ("middle" / "more than X%" were rejected — CPO.)
- 2. **Median-anchored.** The reference is the **median** peer (the middle-ranked one), shown as a dashed line —
-    never called "average" ("average" = mean, a different statistic, reserved for the team bars-vs-average mode).
--3. **Distributional position, not a verdict.** The bar states WHERE the value sits among positional peers, not
--   good/bad. The mart `percentile` is direction-agnostic (by value ascending); read position = `percentile`
-+3. **Distributional position, read with direction.** The bar's LENGTH says WHERE the value sits among
-+   positional peers; its COLOUR (rule 5) says whether that end is the good one. The mart `percentile` is
-+   direction-agnostic (by value ascending); read position = `percentile`
-    for `higher_better`/`neutral`, `1 − percentile` for `lower_better` (which also mirrors the caption rank to
-    `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end —
-    dormant, 0 such metrics today); then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
--   "top 1%", never "top 0%"). For the **11 higher_better** metrics "top" reads as quality; for the **7 neutral**
--   volume/style metrics it reads as *most*, not better.
-+   "top 1%", never "top 0%"). Since the catalogue-wide direction sweep (2026-07-21) **all 18 benchmark metrics
-+   are `higher_better`** — 0 neutral and 0 lower_better remain in this set — so "top" reads as quality on every
-+   row. (Superseded: this rule used to split the set "11 higher_better / 7 neutral" and warn that for the
-+   neutral volume/style metrics "top" meant *most*, not better. Those 7 per-90 volume metrics now carry a
-+   direction, so the caveat no longer applies here.)
- 4. **Peers = position group** (GK / DEF / MID / ATT) — position-aware, set at the mart (CPO 2026-06-23).
--5. **One bar, no traffic lights.** A single-fill rank bar on a track + the dashed median line — colour is
--   redundant with the median line (and would wrongly imply a verdict on the neutral metrics), so there is
--   none; the fill is a neutral **data token deferred to the design pass (#366)**. Sample (`peer_count`,
--   `minutes`, `appearances`) is always shown.
-+5. **One bar, direction-aware colour** (CPO 2026-07-21, v2 design review). ONE bar language across every
-+   vs-population screen, player and team alike — no bespoke percentile treatment; the team benchmark screen
-+   ([14](14_team_stats.md)) carries the identical rule. A single-fill rank bar on a track + the median
-+   reference mark; the fill goes **green when the metric beats the median in its better direction**
-+   and stays **plain ink** otherwise. Sample (`peer_count`, `minutes`, `appearances`) is always shown.
-+   (Superseded: the rule used to be "no traffic lights, no colour at all", on the grounds that colour would
-+   wrongly imply a verdict on the neutral metrics. That rationale is VOID — after the direction sweep there
-+   are no neutral metrics in this set, and dropping colour entirely made the player screen inconsistent with
-+   the team one for no remaining reason. Were a neutral metric ever added back to this set, it renders
-+   uncoloured, exactly as the team rule already prescribes.)
- 6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `pass_accuracy_pct`,
-    `finishing_efficiency`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
-    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
+-amendments:
+-  - >
+-    r1 (2026-07-21, CPO-DIRECTED): the first draft reserved `docs/wireframes/12_player_stats.md` to a
+-    follow-up ("report, don't edit"). Checking it showed it repeats BOTH stale claims — the "11
+-    higher_better / 7 neutral" split (lines 119-121) and the "no colour / would wrongly imply a verdict on
+-    the neutral metrics" bar rule (line 123) — and it is the SCREEN SPEC the percentile page is actually
+-    built from, so it matters more than the display contract it quotes. The CPO's standing position
+-    ("Do I allow inconsistency?") makes deferring it wrong: fixing one doc and leaving its own screen spec
+-    contradicting it is the very inconsistency being corrected. Added to scope_paths. It sits in
+-    `docs/wireframes/**`, which routes to bi-analyst-reviewer, already the required reviewer for this task,
+-    so the review gate is UNCHANGED. Still DOC PROSE ONLY.
+-  - >
+-    r2 (2026-07-21, REVIEWER-DRIVEN — bi-analyst-reviewer FAIL, 4 findings, all upheld):
+-    (1) HIGH, FABRICATED PRECEDENT. My r1 wording claimed the new colour rule "speaks the SAME language as
+-    the team Performance tab". No such spec exists — "Performance tab" is a name coined in the v2 design
+-    conversation for a MOCKUP, and the real team benchmark spec `14_team_stats.md` says the OPPOSITE ("no
+-    traffic-light colours ... deferred to #366"). So the doc asserted parity with a rule that both does not
+-    exist under that name and contradicts the only real team spec. The citation is removed; the ruling is
+-    grounded in the CPO conversation itself, and the parity is MADE REAL by fixing the team screen in the
+-    same PR (the reviewer's own option (b)).
+-    (2) HIGH, MISSED STALENESS. `14_team_stats.md` carries the identical defect: it claims the 16 rendered
+-    team metrics are "10 higher_better + 5 neutral + 1 lower_better" and calls `corners_against_per_match`
+-    neutral. Verified against the merged seed the true tally is 14 higher_better / 2 lower_better / 0
+-    neutral, with `corners_against_per_match` now `lower_better` (so it IS rank-mirrored). Added to scope.
+-    (3) MEDIUM, SELF-CONTRADICTION. The still-live "Distributional position, not a verdict ... not good/bad"
+-    framing sits two lines above the new green-when-better rule. Reconciled in both files rather than left
+-    contradictory.
+-    (4) LOW-MEDIUM, MISSED SPOT. `12_player_stats.md` §1 Purpose repeats the extinct "for a volume/style
+-    metric it just reads as a lot" branch. Fixed.
+-    `14_team_stats.md` is in `docs/wireframes/**`, which routes to bi-analyst-reviewer, already the required
+-    reviewer, so the gate is UNCHANGED. Still DOC PROSE ONLY — no seed, model, test or frontend change.
++amendments: (none)

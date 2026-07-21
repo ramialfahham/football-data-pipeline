@@ -1,30 +1,19 @@
-# Review — fix/metrics-display-percentile-direction — 2026-07-21
+# Review — docs/handover-refresh-v2-roadmap — 2026-07-21
 
-> Blinded review cycle for the percentile-display de-stale following the merged direction sweep (#677).
-> Two required reviewers per `.claude/review_routing.json`: scope-auditor (always) + bi-analyst-reviewer
-> (routed by `docs/wireframes/**`). Both PASS after 3 and 4 rounds. Doc prose only; no seed, model, test,
-> export or `site_v2` change.
+> Blinded review of the handover refresh. One required reviewer per `.claude/review_routing.json`:
+> scope-auditor (always). No code path is touched, and `contract.md` sits on `artifact_only_never`,
+> so this commit is NOT review-exempt. PASS after 2 rounds.
 
-diff_sha256: 940396aa50f9252fba69e5c4e30b61ad2dc73c87e2d9422d375cbfcb791b7abd
+diff_sha256: dc95b67311387c14ebaeff90eb8c8f7ac7449a207a195fd3be46a7e61ea2549a
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope containment across two amendments — confirmed every changed file sits inside the amended `scope_paths` and that NO seed, dbt model, test, export script or `site_v2` file moved. Verified both expansions (r1 pulling in `12_player_stats.md`, r2 pulling in `14_team_stats.md`) are the same defect class rather than unrelated creep, and that each amendment is dated and attributed to the review finding that drove it instead of being a silent grab.
-- Superseded rules preserved, not deleted — checked all three wireframes and confirmed each retired rule is retained as an explicit "(Superseded: ...)" note carrying its original rationale and why it is void, so a future reader sees why the rule changed rather than assuming it was ignored.
-- Contract self-consistency after the fabricated-precedent fix — the retired "team Performance tab" phrase no longer appears in any live section (`objective`, `decisions_taken` #2, `done_when`); `decisions_taken` #2 now carries an explicit instruction never to express the rule as parity with a pre-existing screen, and `done_when` requires that no document claims parity with a screen or rule that does not exist. The only surviving occurrences are deliberate historical quotes inside the amendment records.
-- ASCII annotation factual consistency — the Duels row carries a `±0` delta, so the corrected annotation ("level with the median (±0) → plain ink") agrees with its own row data and correctly illustrates the colour rule, replacing an annotation that contradicted it.
-- Handover accuracy without verdict overstatement — `.claude/active_work.md` satisfies `done_when`, reflects the expanded scope and all six findings across the two review FAILs, and never claims a final bi-analyst verdict while that verdict was still open.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Direction tally verified row-by-row against the merged seed, not the contract's claim — for the player screen, all 18 keys of `player_benchmark_metrics()` carry `direction=higher_better` (0 neutral, 0 lower_better); for the team screen, the 16 rendered rows are 14 `higher_better` / 2 `lower_better` (`goals_against_per_match`, `corners_against_per_match`) / 0 `neutral`. Both docs match exactly.
-- Fabricated-precedent elimination — grepped the contract, the handover and all of `docs/wireframes/` for the retired screen name; the only hits are inside the amendment records quoting it as history. The three wireframes now cross-reference each other by number rather than by a phantom spec name, and the parity between the player and team screens is constructed in this PR rather than asserted.
-- Cross-document consistency on both the tally and the colour rule — all three files state the identical direction-aware rule (green when the metric beats the median in its better direction, plain ink otherwise) and the identical "bar LENGTH = distributional position, bar COLOUR = whether that end is good" framing, resolving the earlier contradiction with the still-live "not a verdict" wording the same way everywhere.
-- ASCII annotations agree with their own row data — the team Duels row (`±0` → level with the median → plain ink) and the player Duels-won row (`bottom 40%` → below the median peer) are each internally consistent with the new rules.
-- Nothing still-accurate was damaged — the plain-language ladder ("top X%" / "median" / "bottom X%", never "Nth percentile"), median-anchored framing, position-group peers, the eligibility floors, the sample line, the ratio volume-triple rule, and the `lower_better` mirroring rule all survive intact and are still correctly described as dormant or as N=2 where applicable.
-- Inline annotation consistency in the benchmarked-set table — the `(lower_better)` tag is now applied to `corners_against_per_match` as well as `goals_against_per_match`, matching the prose above it and the merged seed (confirmed in a final round).
+- Factual truthfulness of every state claim, verified against the repo rather than trusted — confirmed `site_v2/src/pages/` holds exactly 3 route files (2 index stubs + the fixture route), `site_v2/src/data/fixtures/` holds exactly 1 committed sample, the live MVP `site/` has 4 pages, PR #673 is open, and that exactly 28 rows of `metric_catalogue.csv` have an empty `interpretation` with all 28 being `entity=player` and every team row populated. Also confirmed `finishing_efficiency` and `duels_won_pct` carry a `direction` but no interpretation, which is why the earlier count of 26 was wrong.
+- Ordering consistency across the whole document — traced every ordering claim through the lead, the roadmap, FIRST STEPS and the section headings. All four now agree that TASK 0 (write the 28 interpretations) comes first and the player-page design is step 1, and the heading "NEXT AFTER TASK 0 (step 1)" prevents mis-prioritisation by someone skimming headings. Round 1 FAILED on exactly this: FIRST STEPS still asserted "the data layer and the metric layer are finished" three lines above the section stating the opposite, which would have sent a cold chat straight past TASK 0.
+- Absence of any surviving metric-layer completion claim — scanned the ACTIVE section and every demoted history section for a statement that the interpretation gap is finished or a non-blocker. None remain. All "finished" claims now refer explicitly to the marts and the export, which are genuinely complete, and are clearly distinguished from the interpretation gap.
+- Honest recording of the mid-task retraction — the contract previously logged the blank-interpretation rows as "a nice-to-have, explicitly marked NOT a blocker". The CPO rejected that framing during the task. Confirmed the retraction is recorded with the CPO's exact words in both the contract and the handover, that the corrected framing is applied consistently, and that the count correction from 26 to 28 is explained rather than silently swapped.
+- Scope containment and no destruction of reference material — only `.claude/active_work.md` and `.claude/task/**` changed; no seed, dbt model, test, export script, wireframe or `site_v2` file moved. Exactly one "⭐ ACTIVE" section remains; the four previous ones plus the stale "data-first / empty Astro scaffold" strategy are demoted to clearly-labelled history rather than deleted, and the standing rules, governance notes and key specs are all still present.
 
 ## escalations
 (none)

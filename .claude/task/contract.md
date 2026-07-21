@@ -1,107 +1,92 @@
-# Task contract — de-stale the percentile-display rules after the catalogue direction sweep
+# Task contract — handover refresh: retire the stale strategy, state the road to a live v2 site
 
-> Written on a CLEAN tree (branch `fix/metrics-display-percentile-direction` off main @ 7419ce6).
-> CPO-directed 2026-07-21. After PR #677 merged (every metric now carries a `direction`), the locked
-> percentile-display section of `docs/wireframes/metrics_display.md` asserts two things that are no
-> longer true. CPO: "Do I allow inconsistency?" — no; fix it now rather than deferring.
-> See docs/working_agreement.md §1, §2, §10; [[feedback-metric-direction-judgement]].
+> Written on a CLEAN tree (branch `docs/handover-refresh-v2-roadmap` off main @ 1bc6087).
+> CPO-directed 2026-07-21, verbatim: "I really would like to continue with the product because we are
+> still far away of having the new website live. And the reason is that we have distractions all the
+> time... I want you to give me clarity here. Prepare a proper handover so we can continue in a fresh new
+> chat. Double check that we can continue without friction."
+> Bookkeeping/handover refresh → plan mode is SKIPPED by standing CPO rule (2026-06-30), but the contract +
+> review + commit gate still apply. See [[feedback-handover-discipline]] [[feedback-plan-mode-scope]].
 
 objective: >
-  Correct the two now-false statements in `metrics_display.md` §"Percentile display (vs-peers)" so the
-  doc matches the merged metric layer and the CPO's ruling on the bar treatment. (1) Rule 3 still splits
-  the player benchmark set into "11 higher_better / 7 neutral" and tells the reader that for the neutral
-  ones "top" means most, not better — after #677 there are ZERO neutral metrics in that set, so the split
-  and the caveat are both wrong. (2) Rule 5 still says the bar carries NO colour, justified by the risk of
-  implying a verdict on the neutral metrics — the CPO ruled (2026-07-21, v2 design review) that these bars are
-  direction-aware (green when the metric beats the median in its better direction, plain ink otherwise), and
-  the original justification is void now that no neutral metrics remain. ONE bar language applies across every
-  vs-population screen, player and team alike, so all three affected documents state the identical rule and
-  cross-reference each other. DOC PROSE ONLY. No seed, model, test or frontend change.
+  Rewrite the TOP of `.claude/active_work.md` so a cold chat opens it and immediately knows (a) what is
+  actually live, (b) what is actually built, (c) the remaining road to a live v2 website, and (d) the one
+  next step — without having to reconstruct any of it. Three concrete defects are being fixed:
+  (1) FOUR competing "⭐ ACTIVE" sections sit at the top (two now merged, two stale from 2026-07-11), so a
+      cold chat cannot tell which is current.
+  (2) The strategy header "#391 UN-PAUSED — data-first: complete v2 data+export, THEN the frontend" and its
+      claim that "`site_v2/` is an empty Astro scaffold (2 stubs)" are BOTH stale. The data phase is
+      complete (no orphan marts) and the fixture page + design system are built and merged (#672). A cold
+      chat following that text would keep doing data work — the exact drift the CPO is objecting to.
+  (3) The `_Last updated_` lead is a single ~4,000-character paragraph from 2026-07-11 whose "NEXT" list no
+      longer matches reality.
+  The history below (RECENT PRs, standing rules, governance, key specs) is REFERENCE and is left intact.
 
 refs: >
-  PR #677 (catalogue-wide direction sweep, merged, main @ 7419ce6) · the v2 player-page design
-  conversation 2026-07-21 (bar-language unification) · [[feedback-metric-direction-judgement]] ·
-  [[feedback-v2-design-schema-first]]. Flagged by the football-analytics-expert-reviewer during #677 as a
-  known follow-up, deliberately kept out of that PR because this file routes to a different reviewer.
+  Verified live this session, not recalled: `gh pr list` (only #673 open) · `gh issue list` (the v2 epic
+  #361 and its children #366–#377 open) · `site_v2/src/pages/**` (exactly 3 route files: 2 index stubs +
+  the fixture route) · `site_v2/src/data/fixtures/` (exactly 1 committed sample fixture) · `site/` (the
+  live MVP's 4 pages) · `scripts/export_site_data.py` (entity types it can emit) ·
+  `docs/site_architecture.md` §5 templates→data contract and §7 deploy/cutover.
 
 scope_paths:
-  - docs/wireframes/metrics_display.md
-  - docs/wireframes/12_player_stats.md    # AMENDMENT r1 — carries the SAME two stale claims
-  - docs/wireframes/14_team_stats.md      # AMENDMENT r2 — the TEAM benchmark screen carries the same defect
-  - .claude/task/**
   - .claude/active_work.md
+  - .claude/task/**
 
 impact_map: >
-  writers: none. A wireframe/display-contract DOC change only — no seed, no dbt model, no test, no export,
-  no site_v2 code. Zero rows and zero numbers move anywhere.
-  downstream: the doc is the build reference for the Player Stats percentile screen (wireframe 12), which
-    is NOT yet built in site_v2. Correcting it now means the screen gets built off accurate rules instead
-    of a stale contract. `12_player_stats.md` quotes the same rules and is checked for consistency; if it
-    also carries the stale claims that is reported, not silently edited (out of scope).
-  layer_rules: documentation only; no layer touched.
-  deploy_order: nothing to deploy. No CI data impact.
-  blast_radius: zero runtime impact. The change is that a future build reads correct rules.
+  writers: none. A handover DOCUMENT change only. No seed, dbt model, test, export script, wireframe or
+    `site_v2` code is touched. Zero rows, zero numbers, zero runtime behaviour.
+  downstream: `.claude/active_work.md` is fed to every fresh chat by the `handover_in` SessionStart hook,
+    so this file IS the thing that determines whether the next session continues or drifts. That is the
+    entire point of the change.
+  layer_rules: documentation only.
+  deploy_order: nothing to deploy.
+  blast_radius: zero runtime impact.
 
 decisions_taken: >
-  1. The "11 higher_better / 7 neutral" split is replaced with the post-#677 reality: all 18 benchmark
-     metrics are `higher_better`; 0 neutral and 0 lower_better remain in that set. The "top means most,
-     not better" caveat is REMOVED because it described the 7 neutral metrics that no longer exist here.
-  2. "One bar, no traffic lights / no colour" is replaced by the CPO's ruling (2026-07-21, v2 design
-     review): these bars are direction-aware — green when the metric beats the median in its better
-     direction, plain ink otherwise — and the SAME rule holds on every vs-population screen, player and
-     team alike. NOTE: this must be stated as the ruling itself, never as parity with some pre-existing
-     screen; there is no prior team spec carrying this rule (see amendment r2, finding 1). The original
-     rationale (colour would wrongly imply a verdict on the neutral metrics) is recorded as VOID, with the
-     reason, so a future reader understands why the rule changed instead of thinking it was ignored.
-  3. The `lower_better` mirroring rule (position = 1 − percentile) STAYS as written and stays dormant —
-     it is still true that 0 of the benchmark metrics are lower_better, so the rule is correct and unused.
-  4. Everything else in the section is left alone: the plain-language ladder ("top X%" / "median" /
-     "bottom X%", never "Nth percentile"), the median-anchored framing, position-group peers, the sample
-     line, and the ratio volume-triple rule are all still accurate and are NOT touched.
+  1. The four "⭐ ACTIVE" blocks collapse into ONE current section. Merged work (#677, #678) is stated as
+     one line of outcome, not as an active task. The 2026-07-11 team-YoY and Phase-E blocks are folded into
+     the same section because their live content (the team-page redesign, #673's rejection) is still true
+     and must not be lost.
+  2. The "data-first, THEN the frontend" strategy is recorded as COMPLETE, not deleted — it was the right
+     call and it finished. The banner now says the frontend is the remaining work, so the next chat does
+     not re-run the data phase.
+  3. The handover states the road to a live site as an explicit ordered milestone list, because the CPO's
+     complaint is drift, and drift is what happens when only the next ticket is written down.
+  4. HONEST STATUS, no flattery: exactly ONE v2 page type is built (the fixture page), it renders from ONE
+     committed sample JSON rather than real data, and it is deployed NOWHERE. The old MVP is what is live.
+  5. The metric layer is recorded as **NOT finished**. The catalogue owns formula + `direction` +
+     `interpretation`; the first two are complete, the third is empty on 28 player rows. Per the CPO's
+     ruling this session that is a FOUNDATION gap, so it is written into the road as **TASK 0**, ahead of
+     the player page — not as a footnote. An earlier draft of this handover claimed the metric layer was
+     DONE and the gap was a non-blocker; both statements are corrected here.
+  6. The player page design is step 1, per the CPO this session ("We're not done with the player page
+     yet"), with its open decisions listed so a fresh chat does not re-derive them.
 
 decisions_reserved:
-  - "The 26 player metric rows that still have a blank `interpretation` — a separate sweep, unrelated to
-     this doc fix."
+  - "The milestone ORDER after the player page (build templates → wire real data → deploy preview →
+     parity/cutover) is written as the proposed path; the CPO confirms or reorders it. Not self-granted."
+  - "RETRACTED mid-task by CPO ruling (2026-07-21). An earlier draft of this contract recorded the blank
+     `interpretation` rows as 'a logged nice-to-have, explicitly marked NOT a blocker'. The CPO rejected
+     that framing: 'The metric layer is not a nice to have. It is the foundation of the metrics and their
+     meaning. So I can't imagine where we could allow empty fields like explanations or interpretations.'
+     The handover now records it as TASK 0, the next piece of work, ahead of the player page. The count was
+     also wrong — it is 28, not 26: `finishing_efficiency` and `duels_won_pct` (player) already carry a
+     direction but no interpretation, so they were missed by the direction-sweep-derived count. Verified by
+     reading the merged seed. Writing the 28 values is NOT in this contract's scope — this task only fixes
+     the handover; the sweep is its own PR."
+  - "Whether to spend a session on repo/doc cleanup at all — recorded as an open CPO question, since the
+     CPO raised it ('I'm not even sure if I need to do some cleanups') but did not decide it."
 
 done_when:
-  - metrics_display.md §"Percentile display" contains no claim of neutral metrics in the benchmark set and
-    no claim that the bar carries no colour.
-  - All three documents state the IDENTICAL direction-aware bar-colour rule and cross-reference each other,
-    with each superseded rationale recorded rather than deleted silently. No document claims parity with a
-    screen or rule that does not exist.
-  - No file outside scope_paths is touched; no seed/model/test/frontend change (diff-verified).
-  - Required reviewers PASS: scope-auditor + bi-analyst-reviewer (docs/wireframes/**), per
-    review_routing.json. review.md diff_sha256 binds; CPO merges (I never merge).
-  - Handover bullet added to .claude/active_work.md.
+  - `.claude/active_work.md` has exactly ONE "⭐ ACTIVE" section at the top, describing the true current state.
+  - The stale "data-first / empty Astro scaffold" framing is corrected, not left to mislead the next chat.
+  - The road to a live v2 site is an explicit ordered list, with the immediate next step and its open
+    decisions written out.
+  - FIRST STEPS is executable literally by a cold chat (checkout, verify command, what to read, what to do).
+  - No file outside `scope_paths` is touched (diff-verified).
+  - Required reviewer PASSes: scope-auditor (the only routed reviewer — no code path is touched, and
+    `contract.md` is on `artifact_only_never`, so this commit is NOT review-exempt).
+  - CPO merges; I never merge.
 
-amendments:
-  - >
-    r1 (2026-07-21, CPO-DIRECTED): the first draft reserved `docs/wireframes/12_player_stats.md` to a
-    follow-up ("report, don't edit"). Checking it showed it repeats BOTH stale claims — the "11
-    higher_better / 7 neutral" split (lines 119-121) and the "no colour / would wrongly imply a verdict on
-    the neutral metrics" bar rule (line 123) — and it is the SCREEN SPEC the percentile page is actually
-    built from, so it matters more than the display contract it quotes. The CPO's standing position
-    ("Do I allow inconsistency?") makes deferring it wrong: fixing one doc and leaving its own screen spec
-    contradicting it is the very inconsistency being corrected. Added to scope_paths. It sits in
-    `docs/wireframes/**`, which routes to bi-analyst-reviewer, already the required reviewer for this task,
-    so the review gate is UNCHANGED. Still DOC PROSE ONLY.
-  - >
-    r2 (2026-07-21, REVIEWER-DRIVEN — bi-analyst-reviewer FAIL, 4 findings, all upheld):
-    (1) HIGH, FABRICATED PRECEDENT. My r1 wording claimed the new colour rule "speaks the SAME language as
-    the team Performance tab". No such spec exists — "Performance tab" is a name coined in the v2 design
-    conversation for a MOCKUP, and the real team benchmark spec `14_team_stats.md` says the OPPOSITE ("no
-    traffic-light colours ... deferred to #366"). So the doc asserted parity with a rule that both does not
-    exist under that name and contradicts the only real team spec. The citation is removed; the ruling is
-    grounded in the CPO conversation itself, and the parity is MADE REAL by fixing the team screen in the
-    same PR (the reviewer's own option (b)).
-    (2) HIGH, MISSED STALENESS. `14_team_stats.md` carries the identical defect: it claims the 16 rendered
-    team metrics are "10 higher_better + 5 neutral + 1 lower_better" and calls `corners_against_per_match`
-    neutral. Verified against the merged seed the true tally is 14 higher_better / 2 lower_better / 0
-    neutral, with `corners_against_per_match` now `lower_better` (so it IS rank-mirrored). Added to scope.
-    (3) MEDIUM, SELF-CONTRADICTION. The still-live "Distributional position, not a verdict ... not good/bad"
-    framing sits two lines above the new green-when-better rule. Reconciled in both files rather than left
-    contradictory.
-    (4) LOW-MEDIUM, MISSED SPOT. `12_player_stats.md` §1 Purpose repeats the extinct "for a volume/style
-    metric it just reads as a lot" branch. Fixed.
-    `14_team_stats.md` is in `docs/wireframes/**`, which routes to bi-analyst-reviewer, already the required
-    reviewer, so the gate is UNCHANGED. Still DOC PROSE ONLY — no seed, model, test or frontend change.
+amendments: (none)
