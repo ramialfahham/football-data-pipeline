@@ -12,9 +12,9 @@
 "Where does he sit — in context?" Each stat is placed against the player's **positional peers** in that
 competition-season and read in plain language: **"top 5%"**, **"median"**, **"bottom 18%"**. This is the
 fbref-grade context layer, worded for a fan rather than an analyst — the screen's **stop-scrolling moment**
-is the column of percentile bars. The bar states a **distributional position** (where the value sits among
-peers), not a verdict: for a quality metric a high position reads as good, for a volume/style metric it just
-reads as *a lot* (§5). **Honest limit:** a player needs enough minutes to be ranked (the mart's floor, §6);
+is the column of percentile bars. The bar's LENGTH states a **distributional position** (where the value sits
+among peers) and its COLOUR says whether that end is the good one (§5). Since the direction sweep every
+benchmark metric carries a direction, so a high position reads as quality on every row. **Honest limit:** a player needs enough minutes to be ranked (the mart's floor, §6);
 below it there is no benchmark, and we say so rather than draw a bar.
 
 ## 2. URL
@@ -58,7 +58,7 @@ floor carries no block (§6).
 │  Finishing        18 of 74 · 24%  ▐████▌ median   │      ratio → volume triple in the value slot
 ├────────────────── fold (~700px) ──────────────────┤
 │  DUELS                                            │
-│  Duels won        3.1             ▐███▌ bottom 40%│      per-90, neutral → a lot, not good
+│  Duels won        3.1             ▐███▌ bottom 40%│      per-90, higher_better → below the median peer
 │  Duels won %      96 of 178 · 54% ▐████▌ top 30%  │      ratio → volume triple
 │  …the rest of the position's eligible metrics…    │
 ├───────────────────────────────────────────────────┤
@@ -115,13 +115,20 @@ Then, on a 0–100 scale: **above the median → "top X%"**, **below → "bottom
 (the dashed line). The strong extreme reads **"top 1%"**, never "top 0%" (the exact percentile→label rounding,
 and whether the extreme falls back to the `rank` "k of N" form, is a render detail confirmed at the wiring PR).
 
-What "top" **means** depends on the metric and the screen does **not** editorialize it — of the 18 metrics
-**11 are `higher_better`** and **7 are `neutral`** (`saves_per90`, `passes_per90`, `duels_won_per90`,
-`defensive_actions_per90`, `tackles_per90`, `interceptions_per90`, `blocks_per90`). For a `higher_better`
-metric a high position reads as quality; for a `neutral` volume/style metric "top" just means *most* (a busy
-keeper, a high-volume passer) — not better. **No traffic-light colours** — they are redundant with the median
-line and would wrongly imply a good/bad verdict on the neutral metrics; the bar is one neutral **data token,
-colour deferred to the design pass (#366)**.
+Since the catalogue-wide direction sweep (2026-07-21) **all 18 metrics are `higher_better`** — 0 neutral and
+0 lower_better — so a high position reads as quality on every row. (Superseded: this used to read "11 are
+`higher_better`, 7 are `neutral`" (`saves_per90`, `passes_per90`, `duels_won_per90`, `defensive_actions_per90`,
+`tackles_per90`, `interceptions_per90`, `blocks_per90`) and warned that for those "top" just meant *most*, not
+better. Those 7 now carry a direction, so the caveat no longer applies here.)
+
+**Bar colour: direction-aware** (CPO 2026-07-21, v2 design review). ONE bar language across every
+vs-population screen, player and team alike — no bespoke percentile treatment; the team benchmark screen
+([14](14_team_stats.md)) carries the identical rule. The fill goes **green when the metric beats the median
+peer in its better direction** and stays **plain ink** otherwise. (Superseded: the rule used to be **no traffic-light colours**, on the
+grounds that colour was redundant with the median line and would wrongly imply a good/bad verdict on the
+neutral metrics. That rationale is void — no neutral metrics remain in this set, and dropping colour entirely
+made the player screen inconsistent with the team screen for no remaining reason. Were a neutral metric ever
+added back here it renders uncoloured, exactly as the team rule already prescribes.)
 
 **Ratio metrics carry their volume (no naked %).** The five ratio metrics show the triple `{num} of {den} ·
 {pct}%`; their atoms exist in `int_player_season_position__metrics`, surface on the mart as
