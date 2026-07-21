@@ -4,7 +4,7 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-07-21** — main GREEN at **1bc6087**, tree clean. **The metric layer is NOT finished** — 28 player metrics have an empty `interpretation`, i.e. no written meaning, and the catalogue is the source of truth for meaning. That gap closes first. Beyond it, the marts are complete and the remaining work is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: TASK 0 — write the 28 missing `interpretation` values.** Then step 1, the player page design (CPO, 2026-07-21: "We're not done with the player page yet"). Read the single ⭐ ACTIVE section below and start there._
+_Last updated: **2026-07-21** — main GREEN at **5308b7a**. **TASK 0 is DONE but ships as TWO merges.** PART 1 = this branch/PR: the 28 `interpretation` values + the 4 `lower_is_better` corrections, VALUES ONLY. PART 2 = the two guards, held on the local branch `feat/metric-layer-tests`, pushed only AFTER part 1 merges and its main-push build reseeds prod. **Merge part 1, then tell me and I open part 2.** The split exists because CI's PR test step reads seed data from MAIN, so a new guard and the values it depends on cannot land in one PR (full explanation in the TASK 0 record below). The marts are complete too, so everything left is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: finish the player page DESIGN** (CPO, 2026-07-21: "We're not done with the player page yet") — two open questions, asked one at a time. Read the single ⭐ ACTIVE section below and start there._
 
 ### ⭐ ACTIVE (2026-07-21) — the road to a live v2 website
 
@@ -19,7 +19,7 @@ _Last updated: **2026-07-21** — main GREEN at **1bc6087**, tree clean. **The m
 | **v2 fed by real data** | NO. `site_v2/src/data/fixtures/` holds **one committed sample fixture**. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav, but the build does not consume a real export yet. |
 | **v2 deployed** | NOWHERE. The `/v2/` publish was deliberately deferred (it needs a PR against the protected Pages workflow). |
 | **Marts / export** | DONE. Every mart the frontend needs is built and wired, no orphans. |
-| **Metric layer** | **NOT DONE.** The catalogue owns three things per metric: formula, `direction`, and `interpretation` (its plain-English meaning). Formula ✓. Direction ✓ (#677, every row). **Interpretation ✗ — 28 player metrics are empty.** Every team metric has one. See the task below. |
+| **Metric layer** | **VALUES DONE (part 1, this PR); GUARDS PENDING (part 2, not yet pushed).** The catalogue owns three things per metric: formula ✓, `direction` ✓ (#677, every row), `interpretation` ✓ (the last 28 player rows filled here). The two guards that make the gaps un-reintroducible are written and reviewed but ship in part 2, after this merges. See the TASK 0 record below. |
 
 #### Designed vs built
 
@@ -31,14 +31,14 @@ _Last updated: **2026-07-21** — main GREEN at **1bc6087**, tree clean. **The m
 
 #### The road to a live site (proposed order — CPO confirms or reorders)
 
-0. **Finish the metric layer** — fill the 28 missing `interpretation` values **and install the tests that stop the gaps returning** (three steps, see TASK 0) ← DO THIS FIRST
-1. **Finish the player page design**
+0. ~~**Finish the metric layer**~~ — **DONE** on this branch (all three steps; see the TASK 0 record below). Awaiting ci-data-build + CPO merge.
+1. **Finish the player page design** ← DO THIS NEXT
 2. Build the remaining page templates in `site_v2/` (team, player, then competition + landing)
 3. Wire the real export into the build (replace the single sample file)
 4. Deploy the `/v2/` preview path (needs a PR against the protected `.github/workflows/pages-match-preview.yml`)
 5. Parity check against the MVP → CPO sign-off → cutover (#377) → retire `site/`
 
-#### NEXT AFTER TASK 0 (step 1) — finish the player page design
+#### ⭐ NEXT (step 1) — finish the player page design
 
 The mock (`6c21ef71`) already composes from the LOCKED screen specs: Performance = the percentile-vs-peers screen (`docs/wireframes/12_player_stats.md`), Career = `docs/wireframes/13_player_career.md`. **Do NOT redesign those two — they are specified; compose from them.**
 
@@ -54,37 +54,44 @@ The mock (`6c21ef71`) already composes from the LOCKED screen specs: Performance
 - **Is a repo/doc cleanup session wanted at all?** Raised 2026-07-21 ("I'm not even sure if I need to do some cleanups, ensure consistency in the repo") and left undecided. Nothing is known-broken; it is hygiene, and it competes with shipping pages.
 - (none currently beyond the cleanup question above)
 
-#### TASK 0 — finish the metric layer: 28 missing values + the tests that keep it closed
+#### TASK 0 — finish the metric layer: SPLIT INTO TWO MERGES. Part 1 is this branch.
 
-**CPO ruling 2026-07-21:** *"The metric layer is not a nice to have. It is the foundation of the metrics and their meaning. So I can't imagine where we could allow empty fields like explanations or interpretations."* An earlier handover draft called this a non-blocker — that was wrong and is retracted.
+**PART 1 (this branch/PR, off main @ 5308b7a) = seed VALUES ONLY. PART 2 (local branch `feat/metric-layer-tests`, NOT pushed) = the two guards + `seeds/schema.yml` prose.** ZERO numbers move and the live MVP is byte-unchanged in both.
 
-The catalogue is the SSoT for a metric's **meaning, interpretation and direction** ([[feedback-metric-direction-judgement]]). Direction is now complete on all 78 rows; interpretation is not. **28 player rows are empty** (all team rows are populated):
+##### ⚠️ Why two merges, and the ORDER that matters
 
-`finishing_efficiency` · `duels_won_pct` · `goals` · `assists` · `scorer_points` · `penalty_won` · `shots_on_goal` · `shots_total` · `duels_won` · `duels_total` · `dribbles_success` · `dribbles_attempts` · `dribbles_past` · `tackles_total` · `tackles_interceptions` · `tackles_blocks` · `defensive_actions` · `passes_accurate` · `passes_total` · `passes_key` · `cards_yellow` · `cards_red` · `cards_total` · `offsides` · `penalty_committed` · `saves` · `shots_on_goal_against` · `goals_against`
+The first attempt shipped everything in one PR and **CI went red while every part of it was correct**. The PR-only step `dbt test --select test_type:singular --defer --favor-state --state /tmp/main-state` defers every node NOT selected by that run, and `dbt test` can only ever select TEST nodes — so the `metric_catalogue` seed is never selected there and `ref('metric_catalogue')` resolves to the state relation: a manifest compiled from **MAIN** with `--target prod`, i.e. `dbt_analytics.metric_catalogue`, still holding the pre-PR values. The new guards were run against **main's** catalogue and correctly reported main's defects.
 
-Note the first two already carry a `direction` but no interpretation — they are not part of the direction-sweep set and were missed by earlier counts.
+**Measured, not inferred:** `ci_analytics.metric_catalogue` (this branch's seed) has **0** blank-meaning rows; `dbt_analytics.metric_catalogue` has **28** — exactly the CI failure count, and the lockstep guard's `FAIL 4` is exactly the 4 rows this branch corrects.
 
-**How to write them** (match the existing team rows' style, e.g. *"Attacking output - goals scored per game; high = a potent attack"*): lead with what the metric captures, then what a notably high value signals, keeping any honest style/volume caveat second. Use ` - ` and `;` as separators, **never a comma inside an unquoted CSV cell**, and never an em dash.
+**The order is load-bearing:**
+1. Merge PART 1 (values only). No test depends on data that is not yet on main, so it is green.
+2. Its main-push build runs `dbt seed --target prod`, making main's catalogue correct.
+3. **Only then** push PART 2. Its deferred reads now hit an already-correct main, so it is green too.
 
-**Scope note:** seed VALUES only for step (a). Routes to analytics-engineer-reviewer + football-analytics-expert-reviewer.
+Pushing part 2 early reproduces the identical red. **Do not.**
 
-##### TASK 0 is NOT done when the 28 cells are filled — it is done when the gaps CANNOT come back
+**A CI-workflow fix was designed, adversarially reviewed and then ABANDONED.** It tagged seed-only tests and ran them in a new non-deferred step. It works, but it edits a PROTECTED workflow, adds a tagging convention whose omission fails silently-green, and then needs a lint script to police that convention — three new moving parts to avoid ordering two merges. CPO 2026-07-21: *"I have the feeling that you don't know what you're doing and start overcomplicating things again."* Correct. Do NOT resurrect it. [[feedback-no-hacky-solutions]]
 
-**CPO ruling 2026-07-21:** *"We need proper tests for the metric layer as well so there are no sudden gaps or surprising ambiguities."* Said alongside a standing criticism that is the whole reason this is written as a gate and not a reminder: *"The problem is that it happens frequently and you're always saying something like 'writing it down' but it doesn't improve your behaviour. It will happen again and then you are writing down again to dead documents without impact."*
+**Why it was a gate, not a reminder — CPO 2026-07-21:** *"The metric layer is not a nice to have. It is the foundation of the metrics and their meaning."* and *"We need proper tests for the metric layer as well so there are no sudden gaps or surprising ambiguities"*, said alongside the standing criticism that is the whole reason the tests were part of the task: *"The problem is that it happens frequently and you're always saying something like 'writing it down' but it doesn't improve your behaviour. It will happen again and then you are writing down again to dead documents without impact."* A handover paragraph has no enforcement; a dbt test fails the build regardless of what anyone remembers.
 
-A handover paragraph has no enforcement. A dbt test fails the build regardless of what anyone remembers. **Do all three steps, in this order.**
+**(a) The 28 missing `interpretation` values are written.** All 78 catalogue rows now carry one (`finishing_efficiency`, `duels_won_pct`, `goals`, `assists`, `scorer_points`, `penalty_won`, `shots_on_goal`, `shots_total`, `duels_won`, `duels_total`, `dribbles_success`, `dribbles_attempts`, `dribbles_past`, `tackles_total`, `tackles_interceptions`, `tackles_blocks`, `defensive_actions`, `passes_accurate`, `passes_total`, `passes_key`, `cards_yellow`, `cards_red`, `cards_total`, `offsides`, `penalty_committed`, `saves`, `shots_on_goal_against`, `goals_against` — all `entity=player`). **IN PART 1.** House style, recorded in `seeds/schema.yml` in PART 2 so it survives this chat: what it captures, then a plain definition, then what a notable value signals, with any honest volume/style/role caveat LAST in parentheses. ` - ` and `;` as separators; no comma inside an unquoted CSV cell; no em dash; no trailing period.
 
-**(a) Fill the 28 `interpretation` values** (the list and house style above). Seed values only.
+**(b) The meaning-completeness guard now covers EVERY entity. IN PART 2.** `assert_team_metric_meaning_complete` → **`assert_metric_meaning_complete`**, entity predicate dropped. Renamed because the old name is what made a provisional scope look permanent — and that team-only scope is exactly why 28 player rows sat empty while nothing complained. The docstring states plainly that an entity exemption here is invisible by construction and must not be reintroduced.
 
-**(b) Widen the meaning-completeness test to EVERY metric.** `dbt_project/tests/assert_team_metric_meaning_complete.sql` currently only checks `entity in ('team','team and player')`. **That team-only scope is exactly why 28 player rows sat empty and nothing complained.** Drop the entity predicate so the test fails if ANY row has an empty `direction` or an empty `interpretation`, and rename it accordingly (it is no longer team-specific). Its docstring already says to broaden it once the player sweep lands. **This can only pass after (a)** — do not add it first and then weaken it to get green.
+**(c) `lower_is_better` corrected to follow `direction` (PART 1), and the two locked together by a new guard (PART 2).** The 4 contradicting rows (`cards_yellow`, `cards_red`, `cards_total`, `shots_on_goal_against` — each `lower_is_better=false` beside `direction=lower_better`) are set to `true`. **CPO-decided 2026-07-21: `direction` is authoritative, so the boolean was corrected to match** — consistent with what `seeds/schema.yml` already said. New guard **`assert_metric_direction_lower_is_better_agree`** fails on EITHER mismatch (a one-sided test would have passed on all 4 of the rows that were actually wrong) and on a NULL boolean (which would otherwise make both comparisons NULL and pass in silence).
 
-**(c) Resolve the `lower_is_better` vs `direction` contradiction, then lock the two together.** Nothing today checks that these two columns agree, and **they currently contradict each other on 4 rows**: `cards_yellow`, `cards_red`, `cards_total`, `shots_on_goal_against` — each reads `lower_is_better=false` while `direction=lower_better`. Two columns asserting different things about the same metric is precisely the "surprising ambiguity" to eliminate.
-- **This is a real CPO decision, not a mechanical fix.** `lower_is_better` is the column the **LIVE MVP** reads (`scripts/export_metric_definitions_json.py`); `direction` is what v2 reads. Changing the boolean MOVES LIVE BEHAVIOUR. Two options, neither pre-approved: flip the 4 booleans to `true` (correct, but changes the live MVP's good/bad reading) **or** revisit those 4 directions (they were reviewed and confirmed football-correct, so this is the weaker option).
-- After the data is consistent, add a test that FAILS whenever `lower_is_better=true` and `direction != 'lower_better'`, or `lower_is_better=false` and `direction = 'lower_better'`. **This test cannot pass before the 4 are resolved** — land the fix and the test together.
+**The live MVP did NOT move, and that was verified rather than argued.** `scripts/export_metric_definitions_json.py` reads `lower_is_better`, but only for the 13 ids in `site/match-preview/metric_bindings.csv` — all team metrics, none of them one of the 4 (which are all `entity=player`). Regenerating `metric_definitions.json` produced a byte-identical file (`git diff` empty) and `tests/test_metric_bindings.py` passes.
 
-**Not in TASK 0:** widening `assert_no_uncatalogued_season_metric` beyond the two season models it covers. That is issue **#530** and is deliberately left out to keep TASK 0 finishable in one sitting.
+**Non-vacuous proof both guards actually bite:** run against the pre-change seed table in BigQuery, the meaning guard returns **28** rows and the lockstep guard returns **exactly the 4** named rows; run against the post-change seed, both return zero. `dbt parse` and SQLFluff could not run (**both broken locally** — SQLFluff uses the dbt templater), so the test SQL was validated with `bq query --dry_run` instead; ci-data-build is the real gate.
 
-**The existing metric-layer tests** (know them before adding a sixth): `assert_metric_catalogue_expr_resolvable` (formulas resolve) · `assert_metric_catalogue_unique_by_entity` (no duplicate metric per entity) · `assert_no_uncatalogued_season_metric` (2 season models only) · `assert_team_metric_meaning_complete` (the one to widen in (b)) · `assert_mart_team_season_insights_metric_consistency`.
+**Deliberately NOT done here:** widening `assert_no_uncatalogued_season_metric` beyond its two season models (issue **#530**, kept out to keep TASK 0 finishable).
+
+**One latent fragility found while tracing and left alone (not a bug today):** `load_catalogue` in `scripts/export_metric_definitions_json.py` keys the catalogue by `metric_id` alone, but the catalogue grain is `(metric_id, entity)` — so a player row silently overwrites the team row of the same id. Four ids collide today. Two are BOUND in `site/match-preview/metric_bindings.csv` (`finishing_efficiency`, `duels_won_pct`) and their team and player rows agree on all three fields the export reads, so the collision is inert. The other two (`goals_penalty`, `goals_open_play`) carry DIFFERENT `label_i18n_key`s per entity, but neither is bound, so neither is ever looked up. Nothing is broken today; the mechanism is still wrong. *(The contract's out-of-scope note states this less precisely — it says all four agree on the three fields, which is true only of the two bound ones. Corrected here; the contract could not be amended because it is editable only on a clean tree.)* Fixing it would pull `scripts/export_*.py` into scope for a concern that is not the metric layer's meaning.
+
+**PART 2 is written, reviewed and waiting.** The two test files are held on the local branch `feat/metric-layer-tests`, together with the `seeds/schema.yml` prose that names them (all of that prose asserts things about the new tests, so it cannot ship in part 1 without being false). All three reviewers already PASSed the full content before the split; the seed half is byte-identical to what they saw.
+
+**The metric-layer tests after BOTH parts land (6):** `assert_metric_meaning_complete` (every entity carries direction + interpretation) · `assert_metric_direction_lower_is_better_agree` (the two columns never contradict) · `assert_metric_catalogue_expr_resolvable` (formulas resolve) · `assert_metric_catalogue_unique_by_entity` (no duplicate metric per entity) · `assert_no_uncatalogued_season_metric` (2 season models only) · `assert_mart_team_season_insights_metric_consistency`.
 
 #### DO NOT (standing)
 
@@ -528,7 +535,7 @@ Prior arc (2026-06-29):
 1. **#598 — TEAM deserved-vs-actual read (SoT rank-space gap), MERGED.** The flagship process read. 4 catalogue rows (`sot_difference`, `shots_on_goal_against_per_match` per-match over `int_legs__team_match`; `deserved_rank`, `sot_rank_gap` rank-derived/blank-expr). New model `int_team_season__deserved_vs_actual` (composes the gated `sot_difference` + standings rank; `deserved_rank` = rank by sot_difference within league-season; `sot_rank_gap = actual_rank − deserved_rank`, positive = under-performing) under a **full-table coverage gate**. Intermediate-only; method CPO-locked; TEAM only, no xG. See memory [[project-team-metric-rank-correlation-sweep]].
 2. **#599 — handover refresh, MERGED.**
 3. **#600 — metric_catalogue integrity guards, MERGED.** Two CI singular tests + filling the only 3 team meaning-gaps:
-   - **`assert_team_metric_meaning_complete`** — every TEAM metric must carry `direction` + `interpretation`; PLAYER rows **exempt** (v1.x). `team and player` counts as team.
+   - **`assert_team_metric_meaning_complete`** — every TEAM metric must carry `direction` + `interpretation`; PLAYER rows **exempt** (v1.x). `team and player` counts as team. *(Superseded 2026-07-21: renamed `assert_metric_meaning_complete` and widened to every entity — the player exemption is what let 28 rows sit empty. See the TASK 0 record in the ACTIVE section.)*
    - **`assert_metric_catalogue_expr_resolvable`** (#530 PR2) — every `numerator_expr`/`denominator_expr` column resolves against its `base_relation` (introspected via `adapter.get_columns_in_relation`); rank-derived (blank `base_relation`) rows skipped; SQL-token stoplist grounded in the actual expr vocabulary; a new formula function fails-forward.
    - **Filled the 3 team open-play atoms** (`goals_penalty`, `goals_own`, `goals_open_play`) = `direction=higher_better` (CPO: they are goals FOR the team — they help the result and often reflect pressure; `goals_own` is the for-version) + interpretation. `lower_is_better` unchanged; no `*_expr` change.
 
@@ -569,7 +576,7 @@ A metric's **formula is its fixed mathematical definition**. Data availability d
 - **Bash only** for all commands. **dbt CLI + SQLFluff broken locally** — rely on CI + the blinded reviewers.
 
 ### Key specs to read before building
-- `dbt_project/seeds/metric_catalogue.csv` (+ its `schema.yml` entry) — the metric SSoT (formalized formulas; now guarded by `assert_team_metric_meaning_complete` + `assert_metric_catalogue_expr_resolvable`).
+- `dbt_project/seeds/metric_catalogue.csv` (+ its `schema.yml` entry) — the metric SSoT (formalized formulas; guarded by `assert_metric_meaning_complete` + `assert_metric_direction_lower_is_better_agree` + `assert_metric_catalogue_expr_resolvable`).
 - `dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql` — the resolvability guard (the pattern for any future catalogue-integrity test; note the FROM-ful empty fallback).
 - `dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql` — the rank-space read.
 - `docs/metric_layer.md` · `docs/metrics_context_model.md` §8 · `dbt_project/docs/layering.md`.
