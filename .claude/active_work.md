@@ -6,15 +6,40 @@
 
 _Last updated: **2026-07-21** — main GREEN at **8f9c320**. **TASK 0 shipped as TWO merges. PART 1 IS MERGED (#681)** — the 28 `interpretation` values + the 4 `lower_is_better` corrections. **PART 2 = THIS branch `feat/metric-layer-guards`** — the two guards + the `seeds/schema.yml` prose. Verified before pushing: prod's catalogue now reads 0 blank meanings and 0 direction disagreements across all 78 rows, and both guards return zero rows against it, which is the exact relation the PR's CI reads. When part 2 merges the metric layer is finished and gated. The split exists because CI's PR test step reads seed data from MAIN, so a new guard and the values it depends on cannot land in one PR (full explanation in the TASK 0 record below). The marts are complete too, so everything left is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: finish the player page DESIGN** (CPO, 2026-07-21: "We're not done with the player page yet") — two open questions, asked one at a time. Read the single ⭐ ACTIVE section below and start there._
 
+### 🛑 THE MVP IS RETIRED (CPO, 2026-07-21). READ THIS BEFORE ANYTHING ELSE.
+
+**CPO, verbatim:** *"This is too much work for an MVP that is offline now. I suggest we don't bring it back. We move forward to bring the new website live with all the legal stuff that is required."*
+
+`site/` is **DEAD**. Not paused, not awaiting cutover. There is **no parity check, no cutover, no restore**. Anywhere below that says the MVP "stays live until cutover (#377)" or that the frontend must not break it is **HISTORY and now FALSE** — those lines are left in place as the record of what was true, not as instructions.
+
+**What was done, and verified rather than assumed:**
+- The site WAS genuinely public: `gh api repos/:owner/:repo/pages` returned `cname: matchdayiq.io`, `https_enforced: true`, certificate approved to 2026-10-17.
+- It is now OFF: the deploy workflow `pages-match-preview.yml` is `disabled_manually`, the Pages site was DELETED via the API, and `curl` returns **404** on both `https://matchdayiq.io/` and `/match-preview/`. **DNS was NOT touched**, so the domain still resolves and serves GitHub's 404.
+
+**Why it came down.** It was serving four German-language pages that each made third-party requests from the visitor's browser, with no imprint and no privacy policy: Google Fonts on all four pages (an IP transfer to Google on every view, the item with German case law behind it), 3 hotlinked competition logos from `media.api-sports.io`, and a feedback form posting free text to a Google Apps Script endpoint — **verified live**, because `gh secret list` shows `FEEDBACK_APPS_SCRIPT_URL` set 2026-04-25 and the deploy injects it.
+
+**`site/` is FROZEN as-is. Do NOT fix it.** A branch that removed the fonts and the hotlinked logos was written and then **deliberately discarded**: fixing a site that will never serve again is work that gets deleted. Its defects are documented here so nobody mistakes the state for an oversight.
+
+**Still open, and the CPO's to close, not mine:** the Apps Script endpoint and the `FEEDBACK_APPS_SCRIPT_URL` secret both still exist. Both are inert now that nothing points at them, but the endpoint and whatever feedback it already collected live in the CPO's own Google account and cannot be reached from here.
+
+**What this changes for v2:** the legal obligations stop being a retrofit and become **build requirements** — no page may request a third-party origin, and an imprint plus a privacy policy must exist before anything is published. Cheaper to do once, at the start. **Open and blocking publication:** who the site operator is and what address the imprint carries. The CPO does not want his own address published, and whether the imprint duty applies at all to a non-commercial portfolio site is a lawyer's question, not mine.
+
+**Also withdrawn (CPO, 2026-07-21):** the recommendation to stay on GitHub Pages through cutover. The CPO rejected it — *"I want it professional... I want a website that is prepared to scale"* — so accepting a page-count ceiling is off the table and hosting is an open question.
+
+---
+
 ### ⭐ ACTIVE (2026-07-21) — the road to a live v2 website
 
 **Read this section first. Everything after it is history or reference.**
+
+> ⚠️ Written before the MVP retirement above. Its step 5 ("parity check → cutover → retire `site/`") is
+> VOID: there is nothing to reach parity with and nothing to cut over from. Steps 1 to 4 stand.
 
 #### Where we actually stand (verified 2026-07-21 against the repo, not recalled)
 
 | | Status |
 |---|---|
-| **Live to users** | The OLD MVP at `site/` — 4 pages: home, fixture list, match preview, team season. Untouched until cutover (#377). |
+| **Live to users** | **NOTHING.** The old MVP at `site/` was taken offline and RETIRED on 2026-07-21 (see the section above). There is no public site at all until v2 ships. |
 | **v2 built + merged** | The shared design system (`site_v2/src/styles/system.css` + components) and **ONE page type: the fixture page** (#672). |
 | **v2 fed by real data** | NO. `site_v2/src/data/fixtures/` holds **one committed sample fixture**. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav, but the build does not consume a real export yet. |
 | **v2 deployed** | NOWHERE. The `/v2/` publish was deliberately deferred (it needs a PR against the protected Pages workflow). |
@@ -36,7 +61,7 @@ _Last updated: **2026-07-21** — main GREEN at **8f9c320**. **TASK 0 shipped as
 2. Build the remaining page templates in `site_v2/` (team, player, then competition + landing)
 3. Wire the real export into the build (replace the single sample file)
 4. Deploy the `/v2/` preview path (needs a PR against the protected `.github/workflows/pages-match-preview.yml`)
-5. Parity check against the MVP → CPO sign-off → cutover (#377) → retire `site/`
+5. ~~Parity check against the MVP → cutover (#377) → retire `site/`~~ **VOID.** The MVP is already retired and offline, so there is nothing to compare against and nothing to switch from. v2 publishes when it is ready and legally publishable, which now also requires an imprint, a privacy policy and zero third-party requests.
 
 #### ⭐ NEXT (step 1) — finish the player page design
 
@@ -95,7 +120,7 @@ Pushing part 2 early would have reproduced the identical red.
 
 #### DO NOT (standing)
 
-- Do NOT touch the live MVP `site/`. Cutover is #377.
+- Do NOT touch `site/` — but the reason CHANGED on 2026-07-21. It is no longer "because it is live". It is because it is RETIRED and frozen, so any edit to it is work that gets deleted. Cutover and #377 are void.
 - Do NOT build a page whose design the CPO has not approved.
 - Do NOT re-run the data phase — it is finished. If a task looks like "improve a mart / add a metric", it is almost certainly a distraction from shipping the website unless a specified screen actually needs it.
 - PR **#673** (team profile Overview) is OPEN but SUPERSEDED — rejected as cluttered, and it predates the approved 3-tab design. Do not merge as-is; close or rewrite it when the team page is built.
