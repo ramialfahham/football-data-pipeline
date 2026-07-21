@@ -17,8 +17,9 @@
 median"**. The screen's **stop-scrolling moment** is the column of rank + spread bars. **Rank, not
 percentile** — honest at league size N≈18 (a percentile would over-precision a ~18-team field; the mart
 chose rank deliberately). The bar states a **distributional position** (where the value sits in the
-league's p25–median–p75 spread), not a verdict: for a quality metric a strong rank reads as good, for a
-volume/style (neutral) metric it just reads as *a lot*. **Honest limit:** a team needs **≥ 3 games** to
+league's p25–median–p75 spread) and its COLOUR says whether that end is the good one (§4). Since the
+direction sweep every rendered metric carries a direction, so a strong rank reads as quality on every
+row. **Honest limit:** a team needs **≥ 3 games** to
 be ranked (the mart's floor, §6); below it there is no benchmark and we say so.
 
 ## 2. URL
@@ -65,7 +66,7 @@ next to the %), both being separate metrics already in the set.
 │  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shot_accuracy mart-ranked but UNRENDERED — contract)
 ├────────────────── fold (~700px) ──────────────────┤
 │  DUELS                                            │
-│  Ø Duels          51    9th of 18   ±0    ▐███▌   │      neutral → "9th" = most, not best
+│  Ø Duels          51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
 │  % Duels won      54%   3rd of 18   +4pp  ▐████▌  │
 │  …Defending → Passing → Set pieces → Goalkeeping…  │
 ├───────────────────────────────────────────────────┤
@@ -108,18 +109,27 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
 **DESC** (rank 1 = the highest value), `team_count` = the ranked field size, and it is
 **direction-agnostic**. Display reads it against the catalogue `direction`:
 
-- `higher_better` **or** `neutral` metric → show `rank` as-is ("3rd of 18" = the 3rd-highest value). For
-  a `higher_better` metric a strong rank reads as quality; for a `neutral` volume/style metric it just
-  means *most* (a high-volume passer, a busy defence) — **not better**.
+- `higher_better` **or** `neutral` metric → show `rank` as-is ("3rd of 18" = the 3rd-highest value); a
+  strong rank reads as quality. (The `neutral` branch is retained for correctness but is dormant — no
+  rendered metric is `neutral` since the direction sweep. It used to carry the caveat that for a neutral
+  volume/style metric a strong rank meant *most*, not better.)
 - `lower_better` metric → **mirror the rank**: `team_count + 1 − rank`, so "1st" marks the best (lowest-
-  value) end. A display-side step (the mart ranks DESC). **Today exactly one metric is `lower_better`:
-  `goals_against_per_match`** (fewest conceded = 1st). `corners_against_per_match` is **neutral** (not
-  mirrored); `clean_sheets` is `higher_better`.
+  value) end. A display-side step (the mart ranks DESC). Since the catalogue-wide direction sweep
+  (2026-07-21) **two rendered metrics are `lower_better`: `goals_against_per_match` and
+  `corners_against_per_match`** (fewest conceded = 1st) — **both** are mirrored. `clean_sheets` is
+  `higher_better`. (Superseded: this used to say only `goals_against_per_match` was `lower_better` and that
+  `corners_against_per_match` was `neutral` and therefore not mirrored.)
 
-**No traffic-light colours** — redundant with the median line and would wrongly verdict the neutral
-metrics; the bar is one neutral data token, colour deferred to the design pass (#366). The screen does
-**not** editorialize "good/bad": of the **16 rendered** metrics **10 `higher_better` + 5 `neutral` + 1
-`lower_better`** (the 4 mart-ranked-but-unrendered metrics are listed below).
+**Direction-aware colour** (CPO 2026-07-21, v2 design review) — ONE bar language across every vs-population
+screen, team and player alike; the player percentile screen ([12](12_player_stats.md)) carries the identical
+rule. The bar fill goes **green when the metric beats the median in its better direction** and stays **plain
+ink** otherwise. Every rendered metric now carries a direction: of the **16 rendered** metrics **14
+`higher_better` + 2 `lower_better` + 0 `neutral`** (the 4 mart-ranked-but-unrendered metrics are listed
+below). (Superseded: the rule was **no traffic-light colours**, justified as redundant with the median line
+and as wrongly verdicting the neutral metrics, with colour deferred to the design pass (#366); and the tally
+read "10 `higher_better` + 5 `neutral` + 1 `lower_better`". Both are void — no neutral metrics remain, and
+leaving this screen uncoloured while the player screen is coloured would be an inconsistency with no
+remaining justification.)
 
 ### The benchmarked set — 20 ranked, 16 rendered (`int_team_competition_benchmark_metrics_long`)
 
@@ -137,7 +147,7 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
 | Duels | `duels_per_match` · `duels_won_pct` (%) |
 | Defending | `defensive_actions_per_match` — **one ranked row**; its `T · I · B` breakdown (`tackles_per_match` / `interceptions_per_match` / `blocks_per_match`, each a mart metric_value) is a **sub-display of this row**, not separately ranked (LOCKED row 10) |
 | Passing | `passes_per_match` · `pass_accuracy` (%) · `key_passes_per_match` |
-| Set pieces | `corner_kicks_per_match` · `corners_against_per_match` |
+| Set pieces | `corner_kicks_per_match` · `corners_against_per_match` (lower_better) |
 | Goalkeeping | `save_ratio` (%) |
 
 The six `percent` ratios sit next to their volume count in the same block (Ø Shots → % accuracy; Ø Duels
@@ -195,4 +205,5 @@ has that this does not; the per-row "of N" carries the sample size instead.)
 - A **games-played sample caption** (the team's sample size, like 12's minutes/apps) would need a
   `season_games_played` column on `mart_team_competition_benchmarks` — a small mart enhancement, not part
   of the GAP-23 export wiring; deferred.
-- Colour on the spread bar — deferred to the design pass (#366).
+- ~~Colour on the spread bar — deferred to the design pass (#366).~~ **DECIDED 2026-07-21** (see §4):
+  direction-aware, green when the metric beats the median in its better direction, plain ink otherwise.

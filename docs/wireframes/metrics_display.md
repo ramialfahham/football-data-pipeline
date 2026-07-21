@@ -74,18 +74,28 @@ N" + vs-median, honest at N≈18) — never a percentile.
    grok "top 5%"; "95th percentile" is analyst-speak. ("middle" / "more than X%" were rejected — CPO.)
 2. **Median-anchored.** The reference is the **median** peer (the middle-ranked one), shown as a dashed line —
    never called "average" ("average" = mean, a different statistic, reserved for the team bars-vs-average mode).
-3. **Distributional position, not a verdict.** The bar states WHERE the value sits among positional peers, not
-   good/bad. The mart `percentile` is direction-agnostic (by value ascending); read position = `percentile`
+3. **Distributional position, read with direction.** The bar's LENGTH says WHERE the value sits among
+   positional peers; its COLOUR (rule 5) says whether that end is the good one. The mart `percentile` is
+   direction-agnostic (by value ascending); read position = `percentile`
    for `higher_better`/`neutral`, `1 − percentile` for `lower_better` (which also mirrors the caption rank to
    `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end —
    dormant, 0 such metrics today); then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
-   "top 1%", never "top 0%"). For the **11 higher_better** metrics "top" reads as quality; for the **7 neutral**
-   volume/style metrics it reads as *most*, not better.
+   "top 1%", never "top 0%"). Since the catalogue-wide direction sweep (2026-07-21) **all 18 benchmark metrics
+   are `higher_better`** — 0 neutral and 0 lower_better remain in this set — so "top" reads as quality on every
+   row. (Superseded: this rule used to split the set "11 higher_better / 7 neutral" and warn that for the
+   neutral volume/style metrics "top" meant *most*, not better. Those 7 per-90 volume metrics now carry a
+   direction, so the caveat no longer applies here.)
 4. **Peers = position group** (GK / DEF / MID / ATT) — position-aware, set at the mart (CPO 2026-06-23).
-5. **One bar, no traffic lights.** A single-fill rank bar on a track + the dashed median line — colour is
-   redundant with the median line (and would wrongly imply a verdict on the neutral metrics), so there is
-   none; the fill is a neutral **data token deferred to the design pass (#366)**. Sample (`peer_count`,
-   `minutes`, `appearances`) is always shown.
+5. **One bar, direction-aware colour** (CPO 2026-07-21, v2 design review). ONE bar language across every
+   vs-population screen, player and team alike — no bespoke percentile treatment; the team benchmark screen
+   ([14](14_team_stats.md)) carries the identical rule. A single-fill rank bar on a track + the median
+   reference mark; the fill goes **green when the metric beats the median in its better direction**
+   and stays **plain ink** otherwise. Sample (`peer_count`, `minutes`, `appearances`) is always shown.
+   (Superseded: the rule used to be "no traffic lights, no colour at all", on the grounds that colour would
+   wrongly imply a verdict on the neutral metrics. That rationale is VOID — after the direction sweep there
+   are no neutral metrics in this set, and dropping colour entirely made the player screen inconsistent with
+   the team one for no remaining reason. Were a neutral metric ever added back to this set, it renders
+   uncoloured, exactly as the team rule already prescribes.)
 6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`save_pct`, `pass_accuracy_pct`,
    `finishing_efficiency`, `dribbles_success_pct`, `duels_won_pct`) render the triple `{num} of {den} ·
    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
