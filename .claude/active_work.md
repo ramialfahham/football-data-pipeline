@@ -4,9 +4,57 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-07-21** — main GREEN at **8f9c320**. **TASK 0 shipped as TWO merges. PART 1 IS MERGED (#681)** — the 28 `interpretation` values + the 4 `lower_is_better` corrections. **PART 2 = THIS branch `feat/metric-layer-guards`** — the two guards + the `seeds/schema.yml` prose. Verified before pushing: prod's catalogue now reads 0 blank meanings and 0 direction disagreements across all 78 rows, and both guards return zero rows against it, which is the exact relation the PR's CI reads. When part 2 merges the metric layer is finished and gated. The split exists because CI's PR test step reads seed data from MAIN, so a new guard and the values it depends on cannot land in one PR (full explanation in the TASK 0 record below). The marts are complete too, so everything left is the WEBSITE. Exactly ONE v2 page type is built (the fixture page) and it renders from ONE committed sample file, deployed nowhere; the old MVP in `site/` is still what users see. **Next step: finish the player page DESIGN** (CPO, 2026-07-21: "We're not done with the player page yet") — two open questions, asked one at a time. Read the single ⭐ ACTIVE section below and start there._
+_Last updated: **2026-07-22** — main GREEN at **7440366**, tree clean. **THE GITHUB TRACKER IS NOW THE PLAN OF RECORD, NOT THIS FILE.** 7 milestones and 114 issues were created on 2026-07-21. This file is session state only: what is in flight right now and what must not be repeated. **Do not write another plan. Pick an issue.** Read the two sections below and then go to the milestones._
 
-### 🛑 THE MVP IS RETIRED (CPO, 2026-07-21). READ THIS BEFORE ANYTHING ELSE.
+---
+
+### ⭐ START HERE (2026-07-22) — the tracker, and what a whole day of drift taught us
+
+**The plan lives at https://github.com/ramialfahham/football-data-pipeline/milestones.** Seven phases, 114 issues, each labelled and milestoned.
+
+| Milestone | Open | What it is |
+|---|---|---|
+| **Phase 0: Triage** | 16 | Overdue ops, legal and cost work. **No dependencies. Start here.** |
+| Phase 1: Control | 18 | The design gate and guardrails |
+| Phase 2: Lock | 13 | Permanent decisions while they are still free (slugs, URLs, tab sets) |
+| Phase 3: Foundation | 20 | What every page inherits, built once |
+| Phase 4: Corpus | 18 | The page types |
+| Phase 5: Truth | 17 | Numbers and language defensible |
+| Phase 6: Launch | 12 | Becoming the public site |
+
+**The next question is never "what should we do". It is "which issue".** Phase 0 depends on nothing and none of it is blocked on a CPO decision.
+
+#### ⛔ What went wrong on 2026-07-21, so it is not repeated
+
+The day produced two real merges (the metric layer, #681 + #683) and found a live legal exposure. **Everything else was waste**, and the CPO's verdict was blunt: *"We are running in circles. Zero progress today while sitting here the whole day."* and *"you are not able to deliver high quality work without being micromanaged."*
+
+Three failure modes, all mine:
+
+1. **Designing off the cuff, repeatedly.** Three player-page mocks were produced and all three were rejected. The worst invented a fake hero panel ("Share of the attack") that drew one number as a rectangle and restated figures already on screen twice, plus an invented "3rd scorer" standing line that does not exist in the data. CPO: *"100% bullshit. We are showing one bar????"*
+2. **Producing documents instead of work.** A 48,000-character launch plan. CPO: *"So you want me to read a book named road_to_launch? Seriously?"* The fix was to put it in the tracker, which is now done. **Never write another one.**
+3. **Manufacturing process instead of using it.** A protected CI workflow was nearly edited, with a tagging convention and a lint script to police it, to avoid simply ordering two merges. A two-line handover note got a contract and an adversarial reviewer. CPO: *"What are you doing? Auditing the MVP retirement record? For what???"*
+
+**The rule that caused failure 1 was my own**, from the composition sheet: *"a page with no hero is not shippable."* A page with no genuine flagship then forces invention. **It is RETRACTED.** The team page earns its hero because we can ask whether its league position is deserved; there is no player equivalent without expected goals, which the pipeline does not have.
+
+#### 🔨 The standing recommendation: build, do not design
+
+Design is the demonstrated weak spot. **Two approved designs are sitting unbuilt** while the site has zero public presence. Building an approved design is bounded, testable and needs no taste. The CPO had not yet said go when the session ended.
+
+- **Team page** — mock `f6348775`, CPO-APPROVED, 3 tabs (Overview · Performance · Squad). **Not built.** This is the recommended next build.
+- **Fixture page** — built and merged (#672), renders from ONE committed sample JSON.
+- **Player page** — mock `6c21ef71`, rebuilt 2026-07-21 against the team page's actual CSS. **NOT approved.** Open and genuinely unresolved: *what belongs on a player Overview, given that positions differ* (a goalkeeper's headline cannot be goals and assists), and *whether player year-over-year survives at all* (CPO: *"For a player the 'vs last' year is questionable"* — he changes club, league, role and minutes, so the team's YoY logic does not transfer). **Do not answer these by instinct. Use the role briefs in `docs/roles/` (football_analytics_expert, bi_analyst, data_journalist, ui_expert), which have never once been used to DESIGN, only to review after the fact.**
+- **Composition sheet** — artifact `1dd1f0e6`, the slot order and units rules. Useful, but its no-hero rule is retracted and it covers ENTITY pages only. There is no doctrine at all for list and index pages (landing, competition hub, standings, leaderboards), which is roughly seven of the ten page types.
+
+#### Open, and the CPO's alone
+
+- **Who the site operator is and what address the Impressum carries.** He does not want his own address published, and whether the duty applies to a non-commercial portfolio site is a lawyer's question. **Blocks publication** (#799).
+- **The feedback Apps Script and the data it already collected**, both in his own Google account, unreachable from here (#687).
+- **Hosting.** The recommendation to stay on GitHub Pages is **WITHDRAWN**: CPO rejected accepting a page-count ceiling — *"I want it professional... I want a website that is prepared to scale."*
+- **Predictions are OUT of launch scope.** No target definition, no backtest harness, nothing. Post-launch.
+
+---
+
+### 🛑 THE MVP IS RETIRED (CPO, 2026-07-21).
 
 **CPO, verbatim:** *"This is too much work for an MVP that is offline now. I suggest we don't bring it back. We move forward to bring the new website live with all the legal stuff that is required."*
 
