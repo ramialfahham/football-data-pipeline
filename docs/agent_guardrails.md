@@ -51,8 +51,10 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
 | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
 | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
 | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`) when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. |
+| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
 | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+| `plain_language_gate.py` | Stop | Reads the turn's own final message from the session transcript and **blocks** on an em dash, a `§`, a repo file path in prose, or more than 2,500 characters of prose (code blocks, inline spans, link targets and URLs are stripped first, so quoting a path or pasting a sample is fine). Added 2026-07-22 because plain language had been a habit and habits here last about one session: the rule was broken throughout the retrospective that asked for it. **Three honest limits.** (1) Stop fires *after* the message is rendered, so this does not prevent a wall of text — it makes the CPO read the wall and then the rewrite. Kept provisionally on that basis (CPO, 2026-07-22): if it works it fires a few times and stops; if it is still firing regularly, remove it rather than tune it. (2) **A block here stands the contract-vs-tree stop gate down for the rest of the turn.** `stop_hook_active` is a property of the continuation, not of an individual hook, and both Stop hooks honour it, so once either blocks, neither runs again that turn. The block message therefore forbids touching any file while rewriting. (3) **A code fence bypasses every check**, not just the length one — stripping fences before checking is what stops a requested code sample being scored as prose, and the same strip means an em dash, a `§` or a path inside a fence is invisible to the gate. That is the accepted cost of not crying wolf on legitimate code; it is written down here so it is a known limit rather than a discovered one. |
+| `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
 | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, and every PASS names ≥2 checked risks. Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
 
 ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
@@ -93,15 +95,31 @@ Project-agnostic. Apply to **every** project on this machine. Canonical copies
 live in `docs/portable_guardrails/` so they can be version-controlled and copied
 elsewhere.
 
-| Hook | Event / trigger | Does |
+> ⚠️ **NONE OF THESE IS INSTALLED. Every row below runs nowhere** (verified 2026-07-22:
+> `~/.claude/settings.json` has no `hooks` key at all, and there is no other user-level settings
+> file). This table described intent and was read as fact for months — the same failure that let
+> `handover_in.py` be documented as "unavoidable" while nothing invoked it. The scripts are real
+> and live in `docs/portable_guardrails/`; installing them is a manual step nobody has taken.
+> **Treat this table as a shopping list, not an inventory.** If a behaviour here matters, move
+> the hook into `.claude/hooks/` and wire it in `.claude/settings.json`, where it is protected,
+> reviewed and committed — which is what was done for `handover_in.py`.
+
+| Hook | Event / trigger | Would do (NOT RUNNING) |
 |---|---|---|
 | `plan_implement_gate.py` | PostToolUse ExitPlanMode | Right after a plan is approved: re-read the standards governing the files about to change; name the layer/module each change belongs in; hold to scope; plan to validate before pushing. |
 | `pre_push_gate.py` | PreToolUse Bash | Before a real `git push`: run local validation first (avoid the CI round trip); confirm the push targets a feature branch, not main/master. |
-| `handover_in.py` | SessionStart | Injects the project's `.claude/active_work.md` into every new chat so a fresh agent continues from the exact documented state instead of re-deriving (or silently re-scoping) it. The hard read-in half of the enforced handover. |
+| ~~`handover_in.py`~~ | SessionStart | **Moved into the project set (2026-07-22) — see above.** It was listed here as a global hook and was running nowhere: the user-level settings carry no `hooks` key at all. The copy that runs here is `.claude/hooks/handover_in.py`, on a protected path. ⚠️ The copy still in `docs/portable_guardrails/hooks/` is the **PRE-fix** one: it carries the characters-versus-bytes truncation bug and has no truncation warning at all. Port the project copy before reusing it elsewhere. |
 | `handover_plan_gate.py` | PreToolUse Edit/Write/MultiEdit | On the first code edit of a session where a handover exists, requires restating the locked spec and getting user approval before writing code. Fires once per session; skips edits to the handover file. The safety net that puts the user back in the loop before divergence becomes work. |
 | `handover_out.py` | PreToolUse Bash | On a real `git push`, reminds to update `.claude/active_work.md` to reflect the new status. Keeps the handover current for the next session. (Reminder, not a hard block — a crying-wolf push block would get ignored.) |
 
-No overlap between global and project hooks → no double-firing.
+⚠️ **`handover_in.py` NOW OVERLAPS, and following the install procedure below would double-fire
+it.** `docs/portable_guardrails/settings.snippet.json` still registers `handover_in.py` under
+`SessionStart`, and the install steps below say to copy every portable hook into `~/.claude/hooks/`
+and merge that snippet. Do that on this machine and every session start injects the handover
+TWICE, roughly 26 KB, one copy being the pre-fix one with the character-versus-byte truncation bug.
+**When installing the portable set here, drop the `SessionStart` entry from the snippet.** The
+other four have no project twin and cannot collide. (The snippet is not edited here: it belongs to
+the portable archive, which this task deliberately leaves alone. Fixing it is a separate unit.)
 
 ### The enforced handover — `.claude/active_work.md`
 
@@ -111,10 +129,21 @@ locked spec (or link), status (done / in-progress / next concrete action), and a
 explicit **do-NOT** list. It is the *only* thing a fresh chat is guaranteed to read
 (injected by `handover_in.py`). The loop:
 
-- **Read-in (hard):** `handover_in.py` injects it at SessionStart — unavoidable.
-- **Plan-back (safety net):** `handover_plan_gate.py` forces restate-and-approve before
-  code, so a stale or misread handover is caught by the user before any work.
-- **Write-out (kept current):** `handover_out.py` reminds on push to update it.
+- **Read-in (hard):** `.claude/hooks/handover_in.py` injects it at SessionStart. *"Unavoidable"
+  was wrong for months*: nothing was wired to SessionStart anywhere, so the injection never
+  happened and this document said otherwise. Wired in the project settings on 2026-07-22.
+- **Size is a hard constraint, not a style note.** The injection is capped at 16,000 **characters**
+  (the unit matters: the hook once read characters and decided truncation from the file's size in
+  bytes, so a handover under one cap and over the other was injected whole and labelled cut). The
+  handover reached 112,233 and would have been delivered 14% deep and cut off in silence. It is
+  now under the cap, the hook announces truncation when it happens, and the file's own header
+  states the budget. Keep it current state only; history belongs in git.
+- ⚠️ **Plan-back and write-out DO NOT RUN.** `handover_plan_gate.py` (restate-and-approve before
+  the first code edit) and `handover_out.py` (a push reminder to update the handover) are both in
+  the not-installed global set above. So the loop has ONE enforced leg, the read-in, and two that
+  exist only as intentions. The plan-back's job is covered in practice by plan mode plus the
+  contract gate; the write-out's is not covered by anything, which is why the handover goes stale
+  unless someone remembers.
 
 This exists because a fresh chat once re-scoped a fully-specified task (it read the
 issue title + memory and built the wrong thing). Auto-loaded memory was not enough —
@@ -124,8 +153,10 @@ the handover must be a single focused file, pushed in, with the user as the gate
 
 ## Carrying the portable set to a new project
 
-The two **global** hooks are generic. To set them up on a machine / for a new
-project:
+The **portable** hooks are generic. There are five of them and, as of 2026-07-22, **none is
+installed on this machine** — see the warning on the global table above. To set them up on a
+machine or for a new project (dropping `SessionStart` from the snippet if the project already
+ships its own `handover_in.py`, as this one now does):
 
 1. Copy the hook scripts into your global hooks dir:
    ```bash
@@ -165,4 +196,6 @@ To give a **new project its own project-specific hooks**, copy the pattern in
   (`.claude/hooks/_command_utils.py` `simple_commands` + the per-hook regex), not
   in a fragile `if:` glob.
 - Keep `docs/portable_guardrails/hooks/*.py` in sync with `~/.claude/hooks/*.py`
-  (the repo copy is canonical).
+  (the repo copy is canonical) — **except `handover_in.py`, which is no longer portable.** It was
+  promoted into `.claude/hooks/` on 2026-07-22 and fixed there; the archive copy is deliberately
+  the older one and is NOT kept in sync. Port from the project copy, not the archive.
