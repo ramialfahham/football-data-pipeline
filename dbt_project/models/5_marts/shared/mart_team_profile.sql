@@ -101,6 +101,12 @@ select
     -- player-stat coverage gaps; caption from player_stat_coverage_season_games)
     m.player_stat_coverage_season_games,
     m.shots_on_goal_per_match,
+    -- the on-target pair behind deserved-vs-actual. Gated upstream in
+    -- int_team_season__metrics_cumulative and never re-gated here:
+    -- shots_on_goal_against_per_match is NULL unless OPPONENT shots-on-target data
+    -- covers every season game; sot_difference_per_match needs BOTH sides covered.
+    m.shots_on_goal_against_per_match,
+    m.sot_difference_per_match,
     m.key_passes_per_match,
     m.duels_per_match,
     m.duels_won_pct,

@@ -1,7 +1,7 @@
 {{ config(materialized='view') }}
 
 {#
-  The 20 team competition-benchmark metrics in LONG form, per team-season: one row per
+  The 22 team competition-benchmark metrics in LONG form, per team-season: one row per
   (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (season-to-date, teams with
   >= 3 finished games). This is the single source of the benchmark metric set — both
   int_team_competition_benchmarks (which aggregates it to the league distribution) and
@@ -36,6 +36,8 @@ unpivot (
         shot_accuracy,
         danger_zone_ratio,
         shots_on_goal_per_match,
+        shots_on_goal_against_per_match,
+        sot_difference_per_match,
         finishing_efficiency,
         duels_per_match,
         duels_won_pct,

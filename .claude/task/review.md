@@ -1,70 +1,96 @@
-# Review — chore/guardrails-cover-design-surface — 2026-07-22
+# Review — feat/sot-metrics-into-marts — 2026-07-22
 
-> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) + `cto-reviewer`
-> (`.claude/hooks/**`, `.claude/settings.json`, `tests/**`). The opus-on-guards rule applies, so
-> `cto-reviewer` ran at **opus** on every round. No other specialist routes here: no dbt model,
-> no seed, no ingestion path, no wireframe is touched.
+> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) +
+> `analytics-engineer-reviewer` (`dbt_project/**`) + `football-analytics-expert-reviewer`
+> (`dbt_project/seeds/metric_catalogue.csv`). No opus floor: no guard path is touched.
 >
-> **NINE rounds.** Both reviewers were re-run cold on every hash change, as the rule requires.
-> The cto-reviewer returned FAIL on rounds 1 through 6 and 8, finding **19 real defects**, several
-> of which would have shipped a guard that was broken or a document that lied about it. The
-> scope-auditor returned FAIL on rounds 2 and 5 through 7. Round-by-round detail below, because
-> the cost of this cycle is itself a live question for the CPO and the record should be honest
-> about what the money bought.
+> **WHY THIS TASK EXISTS.** The approved team-page mock shows two metrics that are computed in
+> the intermediate layer, catalogued, and never reach a mart. My first plan proposed hand-writing
+> them into a committed frontend sample so the page would look finished while the chain stayed
+> broken. The CPO caught it and named the binding rule in `docs/wireframes/00_overview.md`, titled
+> "the whole point": a block may reference only fields that exist in today's exported data, and
+> anything missing is NEVER SILENTLY DRAWN. This change is the correction — repair the chain, do
+> not route around it. No frontend file is touched.
 >
-> **What the reviews caught that would otherwise have shipped:**
-> - A GUARD HOLE OPENED BY A GUARD-HARDENING PR: `SessionStart` was first wired to a script under
->   `docs/portable_guardrails/`, which is neither a PROTECTED prefix nor routed for review. That
->   would have made a script that auto-executes at every session start editable in any ordinary
->   task — the exact class of the `.claude/commands/` and `.mcp.json` rulings.
-> - FOUR SUCCESSIVE BYPASSES OF THE SAME CLASS in the contract scanner: bare `>` and `|`, then a
->   missing case-fold on `none`/`n/a`/`TBD`, then the dash-list spelling, then the YAML chomping
->   suffix `>-` (which this repo's own workflows use). Each was patched as an instance until
->   round 7, when the class was closed with a pattern instead of a word list. **That churn is the
->   builder's fault, not the reviewer's, and it is the single biggest driver of this round count.**
-> - THREE FORGEABLE KEY ORDERINGS in the same scanner, each letting a contract manufacture the
->   `impact_map` this task makes load-bearing on every guard edit.
-> - A CHARACTERS-VERSUS-BYTES BUG in the SessionStart hook, invisible to an ASCII fixture.
-> - TWO UNAUTHORISED RULES smuggled into the working agreement beyond what the plan approved.
-> - The committed suite covering only the ALLOW direction of the protected-path change, three
->   times over, which is the exact trap this contract's own `done_when` names.
-> - `docs/agent_guardrails.md` presenting four never-installed hooks as working, and an install
->   procedure that would double-fire the handover injector.
-> - `CLAUDE.md` and `.claude/task/TEMPLATE.md` left contradicting the gates this PR ships —
->   the template would have denied PART 2 at its first publish.
+> **THE ROUNDS, and what they cost.** scope-auditor PASS twice (rounds 1 and 3).
+> analytics-engineer-reviewer PASS twice (rounds 1 and 2), raising one imprecision in round 1.
+> football-analytics-expert-reviewer FAIL, FAIL, FAIL, PASS (rounds 1-4). Its three failures were
+> all correct and are the substance of this review:
 >
-> **One governance disagreement, escalated and ruled.** The scope-auditor FAILed rounds 5-7
-> holding that the four new mechanisms had to be re-escalated before merge, because §11 requires
-> escalation BEFORE implementation and these were answered in conversation and recorded after.
-> Put to the CPO with the reviewer's position stated fairly and a recommendation to overrule.
-> **CPO: "do it."** Recorded verbatim in `escalations.log`, together with the two things the
-> reviewer was right about that are adopted regardless: escalations get written before the code
-> from here on, and the commit gate has no way to express an overruled FAIL — so the honest route
-> was to bring the reviewer the ruling and let it re-verdict, never to soften a recorded verdict.
+> 1. **The rename authority (rounds 1 and 2).** The contract claimed a "CPO naming rule
+>    2026-07-18". The reviewer searched the current handover, this log, the engineering standards
+>    and the memory files and found nothing, then refused my fallback argument that approval of a
+>    bundled twelve-file plan asserting the rule was the CPO's words on that point. Both refusals
+>    were right. §10 reserves metric ids and labels "regardless of how obvious the answer seems",
+>    and every comparable ruling in `escalations.log` is a discrete question with the CPO's own
+>    answer quoted. **The record DID exist** at `git show 0ff5037:.claude/active_work.md` line 172
+>    — and I DELETED it myself that morning when I compressed the handover into "current state
+>    only", which is why the reviewer could not find it. Resolved properly: the question was put
+>    discretely via AskUserQuestion, naming both identifiers, stating that only the id and label
+>    key change, and offering three paths. **CPO: "Yes, rename it now."** Recorded verbatim as the
+>    first entry in `escalations.log`. BANKED: a handover rewrite that drops "owed work" lines
+>    destroys the only live record of decisions not yet executed.
+> 2. **A false coverage claim (round 3).** I added the same coverage sentence in two new places,
+>    corrected one when the analytics-engineer flagged it, and left the other saying something
+>    false: `sot_difference_per_match` needs BOTH own and opponent shots-on-target coverage, not
+>    opponent alone. That is the matched-pair failure THIS TASK'S OWN CONTRACT names as recurring,
+>    written by me one amendment earlier. Fixed, then swept: six statements of that rule across
+>    the catalogue, the intermediate schema, the mart comment and the mart description now agree.
 >
-> **Deliberately NOT taken, recorded as follow-ups rather than another round:** two exotic YAML
-> indicator spellings that appear nowhere in this repo; an allow-fixture whose body line opens
-> with an indicator; pinning the three insurance flag-clears with tests for the reordering they
-> insure against; and the `isinstance` guard `stop_gate.py` did not get (spawned as its own task,
-> since that file is out of scope here and the gap cannot wedge anything today).
+> **THE PATTERN ACROSS TODAY, stated because it is the same one every time:** I fix the instance
+> in front of me instead of sweeping the class. Four successive bypasses of one word list in the
+> guardrails PR; a stale count in six files here; and now a coverage sentence in two places with
+> one corrected. The reviewers are not finding different defects, they are finding one defect in
+> new locations. That is the argument for the metric-change skill: its value is the enumeration of
+> every place a metric's name, meaning and coverage are written down.
+>
+> **NOTED, NOT FIXED, and the choice is deliberate.** The analytics-engineer's final pass found the
+> `impact_map`'s pasted lineage names SIX consumers of `int_team_season__metrics` where SEVEN
+> exist: `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` reads it too. My grep
+> searched `dbt_project/models/` and never looked in `dbt_project/tests/` — a method error, and
+> the more useful half of the finding. The reviewer classed it non-blocking because that test is
+> separately named in `done_when` and is a protective guard rather than a silent-drift consumer.
+> Correcting the map changes the hash and re-runs three reviewers for one list entry, so it is
+> recorded here instead. **The method fix, for every future impact_map: grep models AND tests.**
+> Also noted by the same reviewer and NOT introduced here: no test enforces that a non-null
+> `sot_difference_per_match` implies a non-null `shots_on_goal_against_per_match`. It holds by
+> adjacent construction and predates this branch.
+>
+> **WHAT IS NOT VERIFIED YET, stated plainly.** dbt and SQLFluff are broken locally and the dbt
+> MCP is not connected, so NOTHING was compiled or built. What ran: the layer contract, yaml parse
+> on all three touched schema files, and catalogue integrity (78 metrics, no duplicate
+> id-entity pair). Every data claim in `done_when` — the 22 metric keys, the coverage NULLs, and
+> above all the deserved-rank fingerprint — is CI-gated. The pre-change baseline is captured for
+> that comparison: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
+> `bc6d2587b6f2ad02469ded299fc025b7`. If that fingerprint moves after the build, the rename broke
+> the flagship read silently and the PR does not merge.
 
-diff_sha256: 9f6285af7f925433953cd38cc734cc55c36de662d9b0eab8e1246791bc257f68
+diff_sha256: b9cb343cdc7834266ece44e45e6c96a4c18b4fbccbc4c43b8e9a261aa1bb9a4a
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Control-flow enforcement of the dual gate on protected paths, on BOTH write paths. The original bug was that the protected branch returned early after checking `protected_override`, making the `impact_map` check below it unreachable — so adding protected paths to `_is_structural` alone would have changed nothing. Verified the check now sits INSIDE the protected branch before the allow (Edit path) and that `_is_structural` covers protected paths for the shell path, and that both directions are tested: override without a map is denied, override with a map is allowed.
-- Artifact-gate bypass resistance on reserved-content detection. Verified the `_NULLISH` set is now SHARED between `_impact_content` and `_reserved_content` so the two cannot diverge again, that `_BLOCK_HEADER_RE` closes the block-indicator class by pattern rather than enumeration, that `_has_real_reservation` removes placeholder spans before checking rather than latching a flag (which previously swallowed real entries after an unclosed bracket), and that both helpers strip a leading dash so the list spelling cannot slip through.
-- Also checked clean: no scope creep across the nine `scope_paths`; every §10 decision carries recorded authority in `escalations.log` including the CPO's ruling on the post-hoc deviation; the `impact_map`'s claims are evidenced rather than asserted, including the verified statement that `stop_gate.py` imports neither changed function; and every document this PR touches is synchronised with the code it describes.
+- Complete rename propagation across the deserved-vs-actual derivation chain. Verified all nine references to the old identifier are renamed through calculation, intermediate, ranking, schema and catalogue, so the flagship `deserved_rank` / `sot_rank_gap` cannot silently misrank. Confirmed `done_when` carries the team-level before-and-after comparison that would expose it.
+- Upstream coverage-gate preservation when moving gated metrics to a mart. Verified the NULL semantics stay gated upstream and are not re-applied or shifted in the mart, that the mart selects both columns as bare passthroughs, and that the divergence between the two gates is documented in both places it is described.
+- Also checked clean: every touched file is inside the declared scope, each of the three amendments is the same edit on a file I failed to list rather than smuggled work, the rename authority is now a quoted CPO answer, and the display decision and the i18n strings are correctly reserved rather than taken.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The one load-bearing flag-clear is pinned by a non-vacuous test. Verified line by line that removing `in_impact_block = False` from the `scope_paths:` branch lets a stray indented non-item line inside the scope list fall through to the impact-content check and forge the map, failing `test_scope_paths_closes_an_open_impact_block`; with the clear present, the edit is denied. Also enumerated every branch that `continue`s before the impact check and confirmed every column-0 key now closes an open block, so the forging class is closed rather than this instance.
-- The sibling Stop hook's import surface is untouched. `stop_gate.py` reads only `contract["scope"]` and `contract["protected_override"]`; the new `decisions_reserved_present` key is purely additive to `_read_contract`'s return, so the second Stop hook cannot break on it.
-- Fail-open and re-run safety in all three hooks. Each `main()` wraps event read, root resolution and dispatch in one `try/except` returning 0, all three are read-only against the repo (the only subprocess is `git status`), so a second run gives the same verdict and dying halfway leaves nothing to clean up. Verified the four documented claims about the untouched portable archive are each true at source.
-- Guard integrity and cost. Exactly the nine declared paths plus the two gate-exempt task artifacts are touched; no workflow, no `requirements*.txt`, no routing file, no permission widening, no credential-shaped string. The three recurring costs (the SessionStart injection at every start, resume and compact; one extra assistant turn per plain-language block; a bounded transcript tail read per turn) are all in the contract's `blast_radius` with a CPO-approved removal criterion.
+- Both rewritten coverage statements checked against the actual CASE gate: `shots_on_goal_against_per_match` gated on the opponent counter only, `sot_difference_per_match` on both counters. The split is now stated correctly in the mart comment and the mart description, and matches the intermediate schema at source. Sweep confirmed complete by repo-wide grep with no stray un-renamed identifier outside historical quotes.
+- No SQL logic moved. The CASE branches in `int_team_season__metrics_cumulative.sql` and the numerator, denominator, direction and `lower_is_better` fields of all four touched catalogue rows are byte-identical before and after; only identifiers and prose cross-references changed. The ranking CTE keeps the same partition, order direction and `rank()` function.
+- Consumption-layer compliance (Appendix A5): `_strip_identity` is a deny-list passthrough naming neither new column, and the benchmark shaping keys generically on `metric_key`, so both fields reach the export with zero Python change and no computation added at the boundary.
+- Catalogue-governance drift guard (A1): `assert_no_uncatalogued_season_metric` joins model columns to catalogue ids by exact match and still passes post-rename, because the column and the seed row moved together.
+- Impact-map accuracy (A6): independently re-derived all four `ref()` chains and matched the pasted map, except the omitted test consumer recorded above.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Coverage-gate factual accuracy, the exact defect it failed round 3 on. Read the real gate and confirmed the rewritten description states the asymmetric rule as two separate claims matching the SQL, no longer collapsing them into one false summary, and that no third contradicting version exists anywhere in the repo.
+- Cross-document consistency, the matched-pair class. Compared the rewrite against the two catalogue rows, the two intermediate column docs and the mart inline comment: all state the identical opponent-only versus both-sides rule.
+- Provider-quirk honesty behind "two counters that can diverge": verified the own and opponent coverage counters are separately computed over different source columns, so the asymmetry is a real risk honestly declared rather than glossed.
+- Rename authority: confirmed the escalation entry quotes the CPO's own words to a discrete, correctly scoped question naming both identifiers, which satisfies its absolute rule that a changed catalogue row carries quoted approval. Also verified the i18n debt claim is true and genuinely inert: neither the old nor the new label key appears in any i18n resource, and nothing renders either metric today.
 
 ## escalations
-- question: The four new mechanisms (protected-paths-as-structural, the artifact gate, the plain-language gate, the SessionStart wiring) are §10 "NEW mechanisms". The scope-auditor held across three rounds that §11 requires them to be escalated BEFORE implementation, that these were directed in conversation and recorded afterwards, and that a transparent post-hoc record plus an offer to re-escalate does not substitute for asking first. It asked for all four to be re-put to the CPO before merge. Two conflicting paths were put to the CPO: (a) overrule the reviewer, merge, and record the ruling; (b) re-escalate the four formally before merging. Recommended (a), on the grounds that the alternative is asking him four questions he had already answered the same day, which is the failure this session's retrospective identified.
-  CPO ANSWER: "do it" (conversation, 2026-07-22) — path (a). The deviation is accepted, the four mechanisms stand as recorded, no re-escalation. Full record in `.claude/task/escalations.log`, including the two practices adopted because the reviewer was right about them regardless of being overruled.
+- question: Rename the metric `sot_difference` to `sot_difference_per_match`? Identifier and label key only; formula, direction, coverage rule, interpretation and format unchanged. Three paths offered: rename now; leave it as `sot_difference` permanently; or ship the plumbing now and decide the name later. Recommended renaming now, because once a page reads the metric the rename touches the mart column, the export payload and the page together instead of just the pipeline.
+  CPO ANSWER: "Yes, rename it now" (AskUserQuestion, 2026-07-22). Full record, including the two refused justifications that preceded it, is the first entry in `.claude/task/escalations.log`.

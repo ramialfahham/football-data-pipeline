@@ -258,7 +258,16 @@ models:
       rank/form (composed from dim_team and mart_team_season) + full-season metric rates
       (int_team_season__metrics, incl. shot_share + points_capture) + a
       year-over-year differentiator, a streaks layer, and the deserved-vs-actual rank gap
-      (int_team_season__deserved_vs_actual; domestic leagues with a full table). Year-over-year columns
+      (int_team_season__deserved_vs_actual; domestic leagues with a full table).
+      Carries the on-target pair the deserved read is built from —
+      shots_on_goal_against_per_match and sot_difference_per_match — so a consumer can show the
+      inputs beside the verdict rather than only the rank. Coverage differs between the two, so
+      it is stated separately rather than summarised: shots_on_goal_against_per_match is NULL
+      unless OPPONENT shots-on-target data covers every season game, while
+      sot_difference_per_match needs BOTH the team's own and the opponent's coverage (two
+      independent counters that can diverge). Matches int_team_season.yml, which documents the
+      same columns at source. The gate and the non-negative / signed-value tests live upstream
+      there and are not duplicated here, since this mart selects them unchanged. Year-over-year columns
       (this season vs last, games-played-aligned) come from int_team_profile__yoy and are
       domestic-league only — NULL elsewhere and where the prior season is not ingested.
       Streaks come from int_team_profile__streaks. Grain: (team_sk, season_sk).
@@ -1070,7 +1079,7 @@ models:
   - name: mart_team_competition_benchmarks
     description: >
       Team competition benchmark (the vs-benchmark block; content_architecture §6). LONG — one row per
-      (team, season, metric_key) over the 20 team season metrics. Places each team against its league that
+      (team, season, metric_key) over the 22 team season metrics. Places each team against its league that
       season: value, league_median (+ mean), p25/p75 spread, rank (k of team_count), value - median.
       DIRECTION-AGNOSTIC (positional) — rank is by value desc within (league_code, season_api_year,
       metric_key); the good/bad reading is supplied at display from the catalogue's direction. Median-led,
@@ -1119,11 +1128,11 @@ models:
       - name: season_api_year
         tests: [not_null]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]
