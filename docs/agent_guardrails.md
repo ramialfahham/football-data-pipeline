@@ -69,8 +69,11 @@ CPO governance event). The agent definitions themselves are likewise PROTECTED
 its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small model) +
 `analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + the path-routed
 specialists `cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
-(ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframes/i18n/payload
-shapes), `football-analytics-expert-reviewer` (catalogue formula edits). Defined
+(ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframe specs, the
+whole built frontend `site_v2/src/**` — CPO ruling 2026-07-22, because the
+binding rule is written in the spec and broken on the page — and `site/i18n/`;
+it READS the export to verify bindings but does not review it),
+`football-analytics-expert-reviewer` (catalogue formula edits). Defined
 later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
 policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
 not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's

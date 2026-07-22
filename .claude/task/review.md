@@ -1,96 +1,93 @@
-# Review — feat/sot-metrics-into-marts — 2026-07-22
+# Review — chore/route-display-reviewer-to-built-pages — 2026-07-22
 
-> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) +
-> `analytics-engineer-reviewer` (`dbt_project/**`) + `football-analytics-expert-reviewer`
-> (`dbt_project/seeds/metric_catalogue.csv`). No opus floor: no guard path is touched.
+> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) + `cto-reviewer`
+> (`.claude/review_routing.json`, `.claude/agents/**`, `tests/**`). Opus floor APPLIES: the diff
+> touches guard paths, so every cto-reviewer round ran at opus.
 >
-> **WHY THIS TASK EXISTS.** The approved team-page mock shows two metrics that are computed in
-> the intermediate layer, catalogued, and never reach a mart. My first plan proposed hand-writing
-> them into a committed frontend sample so the page would look finished while the chain stayed
-> broken. The CPO caught it and named the binding rule in `docs/wireframes/00_overview.md`, titled
-> "the whole point": a block may reference only fields that exist in today's exported data, and
-> anything missing is NEVER SILENTLY DRAWN. This change is the correction — repair the chain, do
-> not route around it. No frontend file is touched.
+> **WHAT THIS CHANGES.** `bi-analyst-reviewer` enforces the binding rule in
+> `docs/wireframes/00_overview.md`, titled "the whole point": a block may reference only fields that
+> exist in today's exported data, and anything missing is NEVER SILENTLY DRAWN. It was routed to the
+> wireframe DOCUMENTS only. So the fake planned earlier on 2026-07-22 — two real metrics typed into a
+> committed sample so a page looked finished while the pipeline could not feed it — drew
+> `[cto-reviewer, scope-auditor]`, neither of which checks whether a displayed field exists. The rule
+> was enforced on the document describing a page and not on the page. This routes `site_v2/src/**` to
+> the display reviewer, widens that reviewer's brief to built pages, syncs the three other statements
+> of its territory, and adds tests that pin the whole routing table.
 >
-> **THE ROUNDS, and what they cost.** scope-auditor PASS twice (rounds 1 and 3).
-> analytics-engineer-reviewer PASS twice (rounds 1 and 2), raising one imprecision in round 1.
-> football-analytics-expert-reviewer FAIL, FAIL, FAIL, PASS (rounds 1-4). Its three failures were
-> all correct and are the substance of this review:
+> **FOUR ROUNDS, and what each cost.**
+> Round 1: both reviewers FAILED, and both were right. The scope-auditor refused my authority — I had
+> claimed it from the CPO's rhetorical question *"So you suggested something that is not needed?"*,
+> which is not a discrete answer, and routing a reviewer at a new path class is a §10 rule extension.
+> That is the SECOND time in one day on the identical mistake, three hours after the metric rename was
+> caught the same way, in a contract that quotes that very lesson back at itself. The cto-reviewer
+> found the route itself incomplete: I had listed pages, components, data and i18n and missed
+> `site_v2/src/lib/`, which holds `metricRows.ts`, the CPO-locked 16-row display contract. Fabricating
+> a metric takes a row in `metricRows.ts` AND a key in the sample, so I had routed the sample and not
+> the contract, catching half of a two-file fake. SEVEN tracked files were missed. Root cause: my
+> `refs` claimed verification against two paths that DO NOT EXIST — files I intended to create. I
+> verified against an imagined tree.
+> Round 2: scope-auditor PASS. cto-reviewer FAIL, six findings, all fixed.
+> Round 3: scope-auditor PASS. cto-reviewer FAIL, two findings, both accepted and both recorded below
+> because they are the same class as everything else today.
+> Round 4 (this hash): both PASS.
 >
-> 1. **The rename authority (rounds 1 and 2).** The contract claimed a "CPO naming rule
->    2026-07-18". The reviewer searched the current handover, this log, the engineering standards
->    and the memory files and found nothing, then refused my fallback argument that approval of a
->    bundled twelve-file plan asserting the rule was the CPO's words on that point. Both refusals
->    were right. §10 reserves metric ids and labels "regardless of how obvious the answer seems",
->    and every comparable ruling in `escalations.log` is a discrete question with the CPO's own
->    answer quoted. **The record DID exist** at `git show 0ff5037:.claude/active_work.md` line 172
->    — and I DELETED it myself that morning when I compressed the handover into "current state
->    only", which is why the reviewer could not find it. Resolved properly: the question was put
->    discretely via AskUserQuestion, naming both identifiers, stating that only the id and label
->    key change, and offering three paths. **CPO: "Yes, rename it now."** Recorded verbatim as the
->    first entry in `escalations.log`. BANKED: a handover rewrite that drops "owed work" lines
->    destroys the only live record of decisions not yet executed.
-> 2. **A false coverage claim (round 3).** I added the same coverage sentence in two new places,
->    corrected one when the analytics-engineer flagged it, and left the other saying something
->    false: `sot_difference_per_match` needs BOTH own and opponent shots-on-target coverage, not
->    opponent alone. That is the matched-pair failure THIS TASK'S OWN CONTRACT names as recurring,
->    written by me one amendment earlier. Fixed, then swept: six statements of that rule across
->    the catalogue, the intermediate schema, the mart comment and the mart description now agree.
+> **ROUND 3, and it is the recurring defect once more.** (F1) The test that claims to pin every
+> routing pattern compared the live table against a hand-typed set literal, not against the
+> parametrized cases it claimed to guard. Two patterns sat in that literal with no case pinning them:
+> `site_v2/**` and `dbt_project/seeds/competition_registry.csv`. Concretely — delete the
+> `site_v2/**` route today and the entire suite stayed green, while frontend build config silently
+> lost platform review. A docstring asserting it pinned EVERY pattern while pinning 20 of 22, in the
+> file whose whole thesis is "enumerate the real tree". (F2) The cry-wolf direction was still a
+> three-item hand list, which already missed `package-lock.json` and `.gitignore`. One direction
+> enumerated from `git ls-files` and the other from a literal is the same defect at half scale.
 >
-> **THE PATTERN ACROSS TODAY, stated because it is the same one every time:** I fix the instance
-> in front of me instead of sweeping the class. Four successive bypasses of one word list in the
-> guardrails PR; a stale count in six files here; and now a coverage sentence in two places with
-> one corrected. The reviewers are not finding different defects, they are finding one defect in
-> new locations. That is the argument for the metric-change skill: its value is the enumeration of
-> every place a metric's name, meaning and coverage are written down.
+> **THE FIX IS THE CLASS IN BOTH CASES.** The pin cases became a module constant and the coverage test
+> now DERIVES from it with the real `fnmatch`; the hand-typed literal is gone. I did not take the
+> reviewer's proposed predicate, which counts a pattern as covered on a path MATCH alone — that would
+> mark `site_v2/**` covered via `site_v2/src/lib/metricRows.ts`, whose only assertion is
+> `bi-analyst-reviewer` and which says nothing about the CTO route. The shipped predicate requires a
+> case that both matches the pattern AND asserts a reviewer that pattern actually confers. The
+> reviewer re-derived all 22 patterns against all 22 cases and confirmed it, including the four real
+> overlaps. The cry-wolf test now enumerates `git ls-files site_v2`, filters to non-`src/` files, and
+> guards against a vacuous pass.
 >
-> **NOTED, NOT FIXED, and the choice is deliberate.** The analytics-engineer's final pass found the
-> `impact_map`'s pasted lineage names SIX consumers of `int_team_season__metrics` where SEVEN
-> exist: `dbt_project/tests/assert_no_uncatalogued_season_metric.sql` reads it too. My grep
-> searched `dbt_project/models/` and never looked in `dbt_project/tests/` — a method error, and
-> the more useful half of the finding. The reviewer classed it non-blocking because that test is
-> separately named in `done_when` and is a protective guard rather than a silent-drift consumer.
-> Correcting the map changes the hash and re-runs three reviewers for one list entry, so it is
-> recorded here instead. **The method fix, for every future impact_map: grep models AND tests.**
-> Also noted by the same reviewer and NOT introduced here: no test enforces that a non-null
-> `sot_difference_per_match` implies a non-null `shots_on_goal_against_per_match`. It holds by
-> adjacent construction and predates this branch.
+> **VERIFIED BY EXECUTION, not by claim.** Full suite: 215 passed. The guards were then proved to
+> BITE, in-process against mutated copies of the real routing: deleting `site_v2/**` fails its pin
+> case; deleting the registry-seed route fails its pin case; adding an unpinned route fails the
+> coverage test; and narrowing `site_v2/src/**` back to a pages-and-data directory list leaves 21
+> tracked files escaping the display reviewer. Baseline clean on all four. The cto-reviewer confirmed
+> these outcomes follow from the code rather than from the run.
 >
-> **WHAT IS NOT VERIFIED YET, stated plainly.** dbt and SQLFluff are broken locally and the dbt
-> MCP is not connected, so NOTHING was compiled or built. What ran: the layer contract, yaml parse
-> on all three touched schema files, and catalogue integrity (78 metrics, no duplicate
-> id-entity pair). Every data claim in `done_when` — the 22 metric keys, the coverage NULLs, and
-> above all the deserved-rank fingerprint — is CI-gated. The pre-change baseline is captured for
-> that comparison: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
-> `bc6d2587b6f2ad02469ded299fc025b7`. If that fingerprint moves after the build, the rename broke
-> the flagship read silently and the PR does not merge.
+> **KNOWN LIMIT, accepted not fixed.** A NEW route that happens to be matched by an existing pin path
+> AND confers that pin's reviewer would be absorbed without failing the coverage test. Proving each
+> route individually necessary needs mutation testing, which is over-engineering for this surface.
+> Recorded because the docstring defines "pinned" exactly as the code implements it and does not
+> overclaim — which is the defect this very round was about.
+>
+> **NOT VERIFIED.** No dbt, no BigQuery, no warehouse object: this change touches none. The one thing
+> running locally that matters is `pytest tests/`, and `.github/workflows/python-ci.yml` runs it on
+> every pull request with no path filter, so CI re-runs the same gate closed.
 
-diff_sha256: b9cb343cdc7834266ece44e45e6c96a4c18b4fbccbc4c43b8e9a261aa1bb9a4a
+diff_sha256: be6165c4b491426681a6fbfc6340d3550e1e23b26487c6d748f238743cb33000
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Complete rename propagation across the deserved-vs-actual derivation chain. Verified all nine references to the old identifier are renamed through calculation, intermediate, ranking, schema and catalogue, so the flagship `deserved_rank` / `sot_rank_gap` cannot silently misrank. Confirmed `done_when` carries the team-level before-and-after comparison that would expose it.
-- Upstream coverage-gate preservation when moving gated metrics to a mart. Verified the NULL semantics stay gated upstream and are not re-applied or shifted in the mart, that the mart selects both columns as bare passthroughs, and that the divergence between the two gates is documented in both places it is described.
-- Also checked clean: every touched file is inside the declared scope, each of the three amendments is the same edit on a file I failed to list rather than smuggled work, the rename authority is now a quoted CPO answer, and the display decision and the i18n strings are correctly reserved rather than taken.
+- Scope and authority of the round-3 edit. Confirmed `tests/test_governance_hooks.py` is in `scope_paths` by a recorded amendment whose authority covers this edit, and that `.claude/review_routing.json` was NOT touched again in this round. Checked both ADDED pin cases against the live routing file to confirm they document routes that already exist rather than legislating new ones through a test, which would be a §10 decision taken silently. Judged the absence of a further contract amendment correct: no scope widened and no claim in the contract became false.
+- Pattern-matching overlap at the `site_v2/**` versus `site_v2/src/**` boundary, verified against the real `required_reviewers` hook rather than a mock. Both directions are enumerated from `git ls-files`, not hand-written lists, which eliminates the bug class that caused the round-1 miss.
+- Coverage enforcement over incomplete pattern enumeration. Verified the two-part gate — a case must both match a pattern and assert a reviewer that pattern confers — and that coverage derives from the real routing file rather than a second hand-written list, which is what had drifted.
 
-## analytics-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Both rewritten coverage statements checked against the actual CASE gate: `shots_on_goal_against_per_match` gated on the opponent counter only, `sot_difference_per_match` on both counters. The split is now stated correctly in the mart comment and the mart description, and matches the intermediate schema at source. Sweep confirmed complete by repo-wide grep with no stray un-renamed identifier outside historical quotes.
-- No SQL logic moved. The CASE branches in `int_team_season__metrics_cumulative.sql` and the numerator, denominator, direction and `lower_is_better` fields of all four touched catalogue rows are byte-identical before and after; only identifiers and prose cross-references changed. The ranking CTE keeps the same partition, order direction and `rank()` function.
-- Consumption-layer compliance (Appendix A5): `_strip_identity` is a deny-list passthrough naming neither new column, and the benchmark shaping keys generically on `metric_key`, so both fields reach the export with zero Python change and no computation added at the boundary.
-- Catalogue-governance drift guard (A1): `assert_no_uncatalogued_season_metric` joins model columns to catalogue ids by exact match and still passes post-rename, because the column and the seed row moved together.
-- Impact-map accuracy (A6): independently re-derived all four `ref()` chains and matched the pasted map, except the omitted test consumer recorded above.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- Coverage-gate factual accuracy, the exact defect it failed round 3 on. Read the real gate and confirmed the rewritten description states the asymmetric rule as two separate claims matching the SQL, no longer collapsing them into one false summary, and that no third contradicting version exists anywhere in the repo.
-- Cross-document consistency, the matched-pair class. Compared the rewrite against the two catalogue rows, the two intermediate column docs and the mart inline comment: all state the identical opponent-only versus both-sides rule.
-- Provider-quirk honesty behind "two counters that can diverge": verified the own and opponent coverage counters are separately computed over different source columns, so the asymmetry is a real risk honestly declared rather than glossed.
-- Rename authority: confirmed the escalation entry quotes the CPO's own words to a discrete, correctly scoped question naming both identifiers, which satisfies its absolute rule that a changed catalogue row carries quoted approval. Also verified the i18n debt claim is true and genuinely inert: neither the old nor the new label key appears in any i18n resource, and nothing renders either metric today.
+- F1 fix, and whether the shipped predicate can go green falsely. Accepted the builder's objection to my own proposed derivation as correct: a path MATCH alone certifies nothing about the reviewer. Enumerated all 22 routing patterns against all 22 `PINNED_CASES` entries and confirmed every pattern is pinned by a case whose assertion that pattern confers and no other matching pattern confers — checked the four real overlaps individually (`scripts/export_site_data.py`, `metric_catalogue.csv`, `competition_registry.csv`, and `site_v2/src/lib/metricRows.ts` against `site_v2/package.json`). Deleting any single route today fails a pin case; adding an unpinned route fails the coverage test. Both follow from the code, not from the run. Vacuity checked in both directions.
+- F2 fix. `git ls-files -z site_v2` filtered on the `site_v2/src/` prefix now puts `package-lock.json` and `.gitignore` — both missed by the old three-item literal — into the checked set, along with anything added outside `src` later; `assert outside` blocks a vacuous pass. Verified `git ls-files` emits forward slashes on Windows so the prefix filter cannot silently empty the set.
+- Model-versus-system risk, the root cause of the earlier rounds. `required_reviewers` calls the real `_required_reviewers` in `.claude/hooks/git_discipline.py`, not a reimplementation, and `scripts/check_task_artifacts.py` carries byte-identical matching logic, so hook, CI backstop and test cannot diverge. The hook import is side-effect free.
+- Dead import and docstring truthfulness. `import fnmatch` is now live at its sole use. The replacement docstrings no longer claim more than the code enforces, which was the substance of F1.
+- Fail-open versus fail-closed, unchanged and correct in both directions: the local hook fails open so a corrupt routing file cannot lock the workflow, while CI fails closed. The new parse test closes the gap that asymmetry left.
+- Cross-file consistency of the reviewer's territory, grepped repo-wide rather than taken from the contract's claim: routing, agent frontmatter, the territory line and `docs/agent_guardrails.md` all agree; `docs/metrics_context_model.md` and `.claude/agents/cto-reviewer.md` are about ownership and remain accurate untouched.
+- Scope, mechanism, cost and secrets: no new package, class, workflow step, dependency, credential or permission. Cost delta is one sonnet reviewer per future `site_v2/src/**` commit, inherent to the approved ruling.
 
 ## escalations
-- question: Rename the metric `sot_difference` to `sot_difference_per_match`? Identifier and label key only; formula, direction, coverage rule, interpretation and format unchanged. Three paths offered: rename now; leave it as `sot_difference` permanently; or ship the plumbing now and decide the name later. Recommended renaming now, because once a page reads the metric the rename touches the mart column, the export payload and the page together instead of just the pipeline.
-  CPO ANSWER: "Yes, rename it now" (AskUserQuestion, 2026-07-22). Full record, including the two refused justifications that preceded it, is the first entry in `.claude/task/escalations.log`.
+- question: Should the display reviewer review the BUILT frontend as well as the wireframe specs? Put discretely via AskUserQuestion with three paths: everything under `site_v2/src`; pages and data only; or no change. Recommended everything under `src`, because a directory list is precisely what had just been got wrong, and build config lives outside `src` so it stays excluded without needing an exception list.
+  CPO ANSWER: "Yes, everything under site_v2/src" (AskUserQuestion, 2026-07-22). Full record, including the rhetorical question I first wrongly claimed as authority, is the entry for this branch in `.claude/task/escalations.log`.
