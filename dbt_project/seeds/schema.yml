@@ -105,9 +105,13 @@ seeds:
       - name: base_relation
         description: >
           The int_legs__* per-(entity, fixture) building block the formula aggregates over
-          (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank for:
-          lookups not derived from legs (league_rank — sourced from fct_standings); and rank-derived reads
-          (deserved_rank, sot_rank_gap).
+          (int_legs__team_match / int_legs__team_from_players / int_legs__player_match). Blank
+          whenever the metric is NOT a single-leg aggregate, which is the rule rather than a list to
+          keep in sync: a lookup sourced elsewhere (league_rank, from fct_standings), a fitted or
+          rank-derived read (deserved_points, deserved_rank, sot_points_gap), or a cross-model
+          composition (contribution_share). A blank base_relation is what makes
+          assert_metric_catalogue_expr_resolvable skip the row, so the rule is enforced there, not
+          by this enumeration.
         tests:
           - accepted_values:
               values: ["int_legs__team_match", "int_legs__team_from_players", "int_legs__player_match"]
@@ -170,7 +174,7 @@ seeds:
           auto-interpretation. Set by the all-else-equal judgement "is MORE of this better?" — NOT by
           correlation with results or league rank, so a style/volume metric still carries a direction.
           Populated on EVERY row (team and player). neutral is reserved for a metric with genuinely no
-          better/worse pole, and today applies to exactly two: sot_rank_gap (a narrative) and
+          better/worse pole, and today applies to exactly two: sot_points_gap (a narrative) and
           contribution_share (a position-dependent share). lower_is_better is retained until the full
           migration and still drives the live MVP export; direction is the authority, and the two can
           no longer diverge (enforced by assert_metric_direction_lower_is_better_agree). EVERY metric,

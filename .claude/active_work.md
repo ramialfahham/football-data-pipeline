@@ -149,51 +149,39 @@ reviewers are peers rather than a CTO reading every diff.
 
 ---
 
-## IN FLIGHT — branch `chore/route-display-reviewer-to-built-pages`
+## IN FLIGHT — branch `feat/deserved-vs-actual-in-points`
 
-**Committed at `be6165c4`, PR open, awaiting the CPO's merge.** Routes `bi-analyst-reviewer` at
-`site_v2/src/**` so the binding rule is enforced on PAGES, not only the specs describing them. CPO
-ruling recorded (AskUserQuestion): *"Yes, everything under site_v2/src"*. Adds tests that load the
-REAL routing file, call the REAL matcher from `git_discipline.py`, and assert over `git ls-files -z`.
-Four rounds: both FAILED round 1 (routing missed 7 files; §10 authority missing); cto FAILED rounds
-2 and 3; both PASS at the committed hash. Round 3 found the pin-coverage test certifying a
-hand-typed literal that had already drifted — `site_v2/**` could have been deleted with the suite
-staying green — and the cry-wolf direction still checking a hand list. Both are now derived.
+**DESERVED-VS-ACTUAL MOVES TO POINTS, AND TO DOMESTIC LEAGUES ONLY.** Fixes both defects in one
+model, because they are the same block of SQL.
 
-## ⚠️ FINDING — deserved-vs-actual is BROKEN for tournaments (pre-existing, not yet fixed)
+The tournament defect: `deserved_rank` ranked all teams 1..N, but a group-stage tournament's
+standing is a position WITHIN a group. Mean absolute rank gap was 3.43 domestic against 8.29 to
+21.46 for the tournament types, over 224 rows. The registry join now restricts it.
 
-Found while verifying #804. `deserved_rank` ranks ALL teams in a competition 1..N, but `latest_rank`
-for a group-stage tournament is the position WITHIN a group (1..4). The two are not comparable, so
-every tournament team shows a huge false gap: AFCON 2025 sums to 299 deserved against 63 actual,
-about −10 per team, read as spectacular over-performance and meaning nothing. Domestic leagues are
-correct (Eredivisie: 171 against 171, gap 0).
+The move off rank: a fitted line in rank space can predict positions that do not exist, which is
+exactly why the approved mock's hero draws 0.4 and 21.3. Measured over 91 domestic league-seasons /
+1,790 team-seasons, SoT difference vs POINTS is Pearson **+0.84**, and the slope gives the first
+fan-readable magnitude this metric has had: one extra shot on target of difference per match is
+worth about **9.8 points over a 38-game season**.
 
-The gate assumed knockout competitions carry no standing; group-stage ones DO, just not comparable
-ones, so it checks a position EXISTS, not that it is the same KIND of number.
+Six CPO rulings, all logged in `escalations.log` before any code: deserved TOTAL points; keep
+`deserved_rank` but re-derive it from deserved points; gap signed actual minus deserved so NEGATIVE
+means under-performing; names `deserved_points` and `sot_points_gap`; `sot_rank_gap` DROPPED so two
+gaps cannot carry contradictory signs; format whole points.
 
-**CPO RULING 2026-07-22:** *"We keep it for ranking in domestic leagues. It should be possible to
-have deserved vs actual for tournaments as well but let's skip for now."* So: DOMESTIC-LEAGUE ONLY;
-a tournament version is wanted eventually and is NOT being designed now.
-**Still owed:** the mart still emits non-null values for tournaments. Nothing displays them yet, so
-it is contained. Until the model is restricted, **the hero must never render this block for a
-non-domestic competition.**
-
-## ✅ #804 VERIFIED CLEAN (the fingerprint check is done, do not repeat it)
-
-Recomputing the ranking from the renamed column gives 1,376 rows and ZERO mismatches, and
-`sum(deserved_rank)` is identical to the pre-change baseline. The rename did not move the flagship
-read. `sum(sot_rank_gap)` moved by 16 because `latest_rank` comes from standings, which the same
-build refreshed; #804 touched no file in the standings path.
+**Verified against the live warehouse, not asserted:** the real model SQL returns 1,152 domestic
+rows across 55 league-seasons, zero violations on all six data tests, zero non-domestic rows, and
+**zero rank drift against the 864 balanced rows live in the mart today** (the 141 mid-season changes
+are the intended correction, since the real table rewards games played and the old rank ignored
+them). The gap sums to exactly 0 across a balanced season and approximately 0 mid-season.
 
 ## NEXT
 
-1. **This change** — route the display reviewer at built pages (in flight).
-2. **The deserved-vs-actual block.** The approved mock's hero is BROKEN: it draws a fitted
-   regression line that nobody computes and that can predict league positions which do not exist
-   (0.4, 21.3). The metric was validated by RANK correlation (Spearman +0.695 over 149 league-seasons)
-   and `deserved_rank` is a RANK, never a fitted prediction. CPO requirement: *"The user needs to see
-   immediately the difference between the actual and the deserved."* Owed to him as a PICTURE to look
-   at, not prose — describing a design in words is banned.
+1. **This change** (in flight).
+2. **The hero block, as a PICTURE.** Now buildable on an honest footing: predicted POINTS is a real
+   continuous quantity, so a fitted line is legitimate where in rank space it was not. Owed to the
+   CPO as something to look at, never as prose. CPO requirement: *"The user needs to see immediately
+   the difference between the actual and the deserved."*
 3. **The team page**, all three tabs, mock `f6348775` with that block replaced. Everything else in
    that mock is sound and data-backed.
 
@@ -220,8 +208,10 @@ build refreshed; #804 touched no file in the standings path.
 - Do NOT re-run the data phase. Marts and the metric layer are finished and gated.
 - Do NOT derive facts in the export or the frontend — select, group and rename only.
 - **Never merge a PR. The CPO merges.** Branch from main; never commit to main.
-- PR **#673** (team profile Overview) is OPEN but SUPERSEDED — cluttered, predates the approved
-  3-tab design. Close or rewrite it when the team page is built.
+- PR **#673** was CLOSED 2026-07-22 as superseded (predated the approved 3-tab design; its committed
+  Arsenal sample was stale and it had never had a display review). Branch `feat/site-v2-team-profile`
+  is PRESERVED: ~600 lines of team components are raw material for the team page build. Do not
+  reopen it; harvest from the branch.
 - Communication: plain language, one question at a time, no file paths or ticket numbers in chat
   unless asked, no em dashes.
 

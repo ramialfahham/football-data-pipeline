@@ -182,10 +182,16 @@ select
     s.winless_run,
     s.clean_sheet_run,
     s.scoring_run,
-    -- deserved-vs-actual (rank-space; NULL when the league-season is not fully rankable).
-    -- The "actual" rank is latest_rank above (same source: standings_primary.standing_rank).
+    -- deserved-vs-actual (points-space; DOMESTIC LEAGUES only, so NULL for every tournament row --
+    -- a within-group standing is not a comparable league position). The "actual" points are
+    -- `points` above; the "actual" rank is latest_rank (same source: standings_primary).
+    -- sot_points_gap is NEGATIVE when under-performing, the inverse of the retired sot_rank_gap.
+    -- All three null together. They are withheld for any table that is not a single ladder (MLS
+    -- conferences, Apertura/Clausura), because there the actual rank is a within-section position
+    -- and, for the split formats, the season points total sums two separate tournaments.
+    d.deserved_points,
     d.deserved_rank,
-    d.sot_rank_gap
+    d.sot_points_gap
 from metrics as m
 left join team_season as ts
     on m.team_season_sk = ts.team_season_sk
