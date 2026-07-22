@@ -1,115 +1,83 @@
-# Task contract — TASK 0 part 2 of 2: the two guards that stop the meaning gaps coming back
+# Task contract — rewrite the handover as current state, not accumulated history
 
-> Written on a CLEAN tree (branch `feat/metric-layer-guards` off main @ 8f9c320, which is PART 1
-> merged). Part 1 landed the seed VALUES; this lands the machine gates that make the gaps
-> un-reintroducible. Together they complete the CPO's three-step TASK 0.
-> See [[feedback-metric-catalogue-governance]] [[feedback-agent-guardrails]].
+> Written on a CLEAN tree (branch `docs/handover-retrospective` off main @ 0ff5037).
+> CPO-directed 2026-07-22 in a retrospective session that produced six conclusions, a
+> licensing finding, and two product decisions. None of it exists anywhere outside that
+> chat. See [[feedback-handover-discipline]] [[feedback-doc-clutter-discipline]].
 
 objective: >
-  Install the two dbt guards TASK 0 requires, plus the `seeds/schema.yml` prose that describes them.
+  `.claude/active_work.md` is 112,233 characters. The SessionStart hook that is supposed to
+  deliver it caps its injection at 16,000 bytes, so even if it were wired (it is not — no
+  SessionStart hook exists in `.claude/settings.json`, `.claude/settings.local.json`, or the
+  user-level settings) it would deliver the first 14% and truncate silently. The Read tool
+  hits the same wall. The single most important document in the project cannot be read by
+  the mechanism meant to read it.
 
-  (b) Widen the meaning-completeness guard to EVERY metric.
-      `assert_team_metric_meaning_complete` -> `assert_metric_meaning_complete`, with the
-      `entity in ('team','team and player')` predicate DROPPED, so it fails if ANY row has an empty
-      `direction` or an empty `interpretation`. That team-only scope is precisely why 28 player rows
-      sat empty and nothing complained. Renamed because the old name is what made a provisional scope
-      look permanent.
+  Rewrite it as CURRENT STATE ONLY, under 16,000 characters, and record what this session
+  settled: the retrospective conclusions, the API-Football licensing findings, the two
+  product decisions (no player photographs; crests stay), the five launch groups that answer
+  "where do we stand", and the agreed sequence of work.
 
-  (c) Lock `direction` and `lower_is_better` together.
-      NEW `assert_metric_direction_lower_is_better_agree` fails on EITHER mismatch
-      (`lower_is_better=true` with a direction other than `lower_better`, and `lower_is_better=false`
-      with `direction='lower_better'`) and on a NULL boolean. Both sides are checked deliberately: a
-      one-sided guard would have passed on all 4 of the rows part 1 corrected.
-
-  WHY THIS IS A SECOND MERGE, and why it can only run NOW. The PR-only CI step
-  `dbt test --select test_type:singular --defer --favor-state --state /tmp/main-state` defers every
-  node it did not select, and `dbt test` can only ever select TEST nodes, so the `metric_catalogue`
-  seed is never selected there and `ref('metric_catalogue')` resolves to a manifest compiled from
-  MAIN at the prod target. These guards therefore read MAIN's catalogue, not the branch's. That is
-  fine now and only now: part 1 merged, its main-push build ran `dbt seed --target prod`, and prod's
-  catalogue is correct. Running this PR before that build finished would have reproduced the same red.
+  The ~85% that is explicitly labelled history is DELETED, not moved to an archive file.
+  Git preserves it. An archive nobody opens is the same tier-three problem the retrospective
+  identified, in a new file.
 
 refs: >
-  Verified this session, at source and against live BigQuery:
-  - Part 1 is merged: main @ 8f9c320 carries all 28 `interpretation` values and the 4
-    `lower_is_better` corrections. `dbt_analytics.metric_catalogue` must show 0 blank-meaning rows
-    and 0 direction disagreements before this PR is pushed — CHECK THIS, do not assume it.
-  - Both guards were validated against BigQuery with `bq query --dry_run` (they compile) and run
-    live: against the PRE-part-1 catalogue the meaning guard returned 28 rows and the lockstep guard
-    returned exactly the 4 named rows; against the corrected catalogue both return zero. Non-vacuous.
-  - `lower_is_better` loads from the seed as BOOLEAN (confirmed on the built table), so the lockstep
-    guard needs no cast.
-  - `dbt parse` and SQLFluff CANNOT run locally — both are broken (SQLFluff uses the dbt templater).
-    CI is the gate. [[reference-dbt-singular-test-from-clause]]
-  - The existing `{{ config(severity = 'error') }}` and `{{ config(tags=[...]) }}` usages in
-    `dbt_project/tests/` are the precedent for a config block in a singular test.
+  Verified this session at source, not recalled:
+  - `wc -c .claude/active_work.md` -> 112233. `handover_in.py` MAX_BYTES = 16000.
+  - No `SessionStart` key in either project settings file; the user-level
+    `~/.claude/settings.json` has no `hooks` key at all. The hook script exists and nothing
+    runs it. Empirically confirmed: this session did not receive the handover injection.
+  - API-Football terms (read in full, 2026-07-22, last updated 2025-05-21): websites are an
+    expected use ("create different projects such as applications, websites..."); the only
+    hard prohibition is RESELLING the data; they grant no publication licence and direct
+    users to the leagues/federations; logos and images are "solely for identification and
+    descriptive purposes", they claim no rights over them, and use may require club
+    authorisation; a rights-holder complaint lets them terminate API access immediately
+    without refund.
+  - `site_v2` DOES make third-party requests today: the committed sample data carries
+    `media.api-sports.io` URLs for team crests and player photos, and `Crest.astro` +
+    `PlayerRow.astro` render both as `<img src>`. An earlier claim in this session that it
+    made none was WRONG (it grepped code files, not data files) and is corrected here.
+  - Branch state: `docs/handover-reset` is merged (main @ 0ff5037); only PR #673 is open
+    and it is superseded.
 
 scope_paths:
-  - dbt_project/tests/**
-  - dbt_project/seeds/schema.yml
   - .claude/active_work.md
-  - .claude/task/**
-
-impact_map: >
-  writers: `dbt_project/tests/` — one test renamed and widened (its predicate loses the entity
-    filter), one test added. `dbt_project/seeds/schema.yml` — PROSE only, the descriptions that name
-    the old test or assert the retired team-only exemption. No seed VALUE, no dbt model, no export
-    script, no workflow, no `site/`, no `site_v2/`.
-  downstream — the warehouse: none. `dbt test` reads; it writes nothing. Zero rows move, zero numbers
-    move, and no table is built differently.
-  downstream — the live MVP: none. No seed value changes and no export runs.
-  downstream — CI: two additional invariants now fail the build when violated. Both pass against the
-    current catalogue, which is why they can land at all.
-  downstream — `dbt docs generate`: the schema.yml descriptions are published as truth, which is why
-    the prose ships WITH the tests rather than before or after them. Leaving prose that names a
-    deleted test, or that claims player rows are exempt, would publish a false statement.
-  layer_rules: tests and seed documentation. No layer boundary is touched.
-  deploy_order: nothing to deploy. PART 1 MUST ALREADY BE MERGED AND ITS MAIN-PUSH BUILD COMPLETE.
-  blast_radius: CI only.
 
 decisions_taken: >
-  1. The widened test is RENAMED rather than edited in place, because the name carried the false
-     implication that team-only was intentional and permanent.
-  2. The lockstep guard checks BOTH directions of the contradiction plus a NULL boolean. The NULL
-     branch looks redundant against the column's existing not_null test and is kept deliberately:
-     without it a NULL makes both comparisons NULL and the guard passes in silence on the very row it
-     exists to catch.
-  3. `seeds/schema.yml` prose ships in THIS PR, not part 1. Every line of it asserts something about
-     the renamed or the new test, so in part 1 it would have described tests that did not exist.
-  4. NO CI workflow change, and no `seed_only` tagging convention. That approach was designed,
-     adversarially reviewed and then ABANDONED as three new moving parts (a protected-file edit, a
-     convention whose omission fails silently-green, and a lint script to police it) to avoid simply
-     ordering two merges. CPO 2026-07-21: *"I have the feeling that you don't know what you're doing
-     and start overcomplicating things again."* Do not resurrect it. [[feedback-no-hacky-solutions]]
+  (1) NO PLAYER PHOTOGRAPHS; CRESTS STAY. CPO 2026-07-22, verbatim: "OK no photos", answering
+      the recommendation "ship without player photographs, keep crests". Rationale put to him
+      and accepted: photographs carry image rights over real people on top of photo copyright,
+      add the most legal exposure and the least information, and the player page is not
+      designed yet so deciding now costs nothing; crests are woven through 13+ marts and the
+      export, so removing them later is expensive, and the provider's own framing is
+      "identification and descriptive purposes".
+  (2) QUALITY OVER SPEED. CPO 2026-07-22: "I prioritize quality over speed. If me make it in
+      3 weeks it's ok as well. But 2 weeks remains our goal."
+  (3) THE WORK SEQUENCE, and it REORDERS the old plan. The superseded handover named "finish the
+      player page design" as step 1. The new order is: licensing check (DONE this session) -> one
+      governance task for the guards and agents -> build the TEAM page. The player page moves
+      behind both. Authority: the sequence was put to the CPO in full ("First, the licensing
+      check... Second, one governance task... Third, build the team page") and closed with "Give me
+      a go on the sequence and I will put the licensing check into plan mode." CPO 2026-07-22
+      answered: "go". The reorder follows from two things he settled the same day: build approved
+      designs rather than produce new ones (the team page is approved and unbuilt; the player page
+      mock is NOT approved), and the player page's open content questions are to be answered with
+      the consultant agents, which do not exist yet.
+  This task WRITES DOWN those decisions. It does not make any.
 
-out_of_scope: >
-  - Any seed VALUE. Part 1 landed those and this PR must not touch the CSV.
-  - Widening `assert_no_uncatalogued_season_metric` beyond its two season models (issue #530).
-  - Anything in `site/`, `site_v2/`, `.github/workflows/`, or any dbt model.
-  - Two pre-existing holes, LOGGED not fixed: (a) `assert_metric_catalogue_unique_by_entity` reads
-    main's seed in the deferred PR step, so a PR adding a duplicate metric row would pass it;
-    (b) `load_catalogue` in `export_metric_definitions_json.py` keys the catalogue by `metric_id`
-    alone while the grain is `(metric_id, entity)`. Neither is introduced here and neither is
-    load-bearing today.
-  - The player page design. That is the next task once this merges.
-
-decisions_reserved: >
-  (none)
+decisions_reserved:
+  - Who the site operator is and what address the imprint carries. Blocks publication.
+  - Hosting. GitHub Pages recommendation withdrawn; nothing chosen.
+  - Whether the leagues/federations question needs a real lawyer before publishing.
+  - The exact definition of "done" for each of the five launch groups.
 
 done_when:
-  - `assert_metric_meaning_complete` exists with NO entity predicate; `assert_team_metric_meaning_complete` is gone.
-  - `assert_metric_direction_lower_is_better_agree` exists and checks both sides plus NULL.
-  - `seeds/schema.yml` names neither the deleted test nor any entity exemption.
-  - The data-build job is GREEN, and its log shows both guards PASSING rather than skipped.
-  - scope-auditor + analytics-engineer PASS.
-  - CPO merges; I never merge.
-
-verification: >
-  - BEFORE PUSHING: query `dbt_analytics.metric_catalogue` and confirm 0 blank-meaning rows and 0
-    direction/`lower_is_better` disagreements. If prod is not yet reseeded, the PR will go red for
-    the same reason as before. This is the one check that must not be skipped.
-  - Re-derive both guards' predicates directly against the seed CSV: both return zero.
-  - `bq query --dry_run` on both compiled predicates (dbt parse and SQLFluff are broken locally).
-  - Read the actual CI run and confirm the two guards appear in the singular-test step and PASS.
+  - `.claude/active_work.md` is under 16,000 characters (`wc -c`).
+  - It carries: the goal, the five launch groups with status, the 2026-07-22 decisions,
+    the retrospective conclusions, the agreed sequence, and the standing do-nots.
+  - No section labelled history or superseded remains.
+  - Committed on `docs/handover-retrospective` and pushed with an explicit refspec; PR opened.
 
 amendments: (none)
