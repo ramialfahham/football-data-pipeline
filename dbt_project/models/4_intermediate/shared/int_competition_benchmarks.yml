@@ -4,9 +4,9 @@ models:
   - name: int_team_competition_benchmarks
     description: >
       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
-      distribution (median / mean / p25 / p75 / team_count) of the 20 team season metrics, over teams
+      distribution (median / mean / p25 / p75 / team_count) of the 22 team season metrics, over teams
       with >= 3 finished games. Median-led (robust to a dominant team). mart_team_competition_benchmarks
-      ranks each team against this. The 20-metric set comes from int_team_competition_benchmark_metrics_long.
+      ranks each team against this. The 22-metric set comes from int_team_competition_benchmark_metrics_long.
       Grain: (league_code, season_api_year, metric_key).
     config:
       tags: ["intermediate", "football", "benchmark"]
@@ -19,11 +19,11 @@ models:
       - name: season_api_year
         tests: [not_null]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
       - name: team_count
         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
         tests: [not_null]
@@ -38,7 +38,7 @@ models:
 
   - name: int_team_competition_benchmark_metrics_long
     description: >
-      The 20 team competition-benchmark metrics in long form, per team-season: one row per
+      The 22 team competition-benchmark metrics in long form, per team-season: one row per
       (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (teams with >= 3 finished
       games). The single source of the benchmark metric set — int_team_competition_benchmarks aggregates
       it to the league distribution and mart_team_competition_benchmarks ranks each team against it, so
@@ -56,11 +56,11 @@ models:
       - name: league_code
         tests: [not_null]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue team metric_id (the 20-metric set)."
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "shots_per_match", "shot_accuracy", "danger_zone_ratio", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "sot_difference_per_match", "finishing_efficiency", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "pass_accuracy", "key_passes_per_match", "corner_kicks_per_match", "corners_against_per_match", "save_ratio"]
       - name: metric_value
         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
         tests: [not_null]

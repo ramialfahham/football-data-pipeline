@@ -2,7 +2,7 @@
 
 {#
   Competition benchmark engine (team). Per (league_code, season_api_year, metric_key): the league
-  distribution of each of the 20 team season metrics, so a team's value can be read against its peers.
+  distribution of each of the 22 team season metrics, so a team's value can be read against its peers.
   Median-led (robust to a dominant team) with the p25/p75 spread; the mean is carried for the
   "vs league average" read but is skew-sensitive. team_count is N for the rank-of-N display.
 

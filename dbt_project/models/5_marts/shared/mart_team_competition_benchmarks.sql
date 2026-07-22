@@ -2,7 +2,7 @@
 
 {#
   Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
-  LONG: one row per (team, season, metric_key) over the 20 team season metrics. Each row places the team
+  LONG: one row per (team, season, metric_key) over the 22 team season metrics. Each row places the team
   against its league that season: the team's metric_value, the league median (+ mean) and p25/p75 spread,
   the team's rank (k of team_count), and metric_value - median.
 

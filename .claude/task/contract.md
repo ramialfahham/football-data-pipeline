@@ -1,220 +1,196 @@
-# Task contract — make the guardrails cover the surfaces that actually failed
+# Task contract — carry two shots-on-target metrics through to the marts
 
-> Written on a CLEAN tree (branch `chore/guardrails-cover-design-surface` off main @ 0cc2637).
-> Part 1 of 2. Part 2 is the agent set (a `ui-expert` doer, a `ui-expert-reviewer`, two
-> consultants, a fan probe) and it DEPENDS on this one: a doer that publishes mocks needs the
-> artifact gate to exist first. See [[feedback-agent-guardrails]] [[feedback-design-off-the-cuff]].
-
-protected_override: >
-  `.claude/hooks/**` and `.claude/settings.json` are PROTECTED paths. The CPO approved this
-  specific change via ExitPlanMode on 2026-07-22, against a plan naming every edit below. The
-  retrospective that produced it was CPO-directed: *"what can I do better to move forward faster
-  and how can we provide you with the prerequisites to work accurately and with high quality and
-  as autonomously as possible."* Routes to cto-reviewer; the opus-on-guards rule applies.
+> Written on a CLEAN tree (branch `feat/sot-metrics-into-marts` off main @ 341a29c).
+> CPO-approved via ExitPlanMode 2026-07-22 against a plan naming every file below.
+> See [[feedback-metric-catalogue-governance]] [[feedback-metric-calc-layer-placement]].
 
 objective: >
-  Four verified holes in the guardrails, all of which let the 2026-07-21 failures happen.
+  Two catalogued team metrics are computed in the intermediate layer and never reach a mart, so the
+  frontend cannot read them: `shots_on_goal_against_per_match` (shots on target conceded per match)
+  and `sot_difference` (the difference between a team's own and its opponent's, per match).
 
-  (1) PROTECTED PATHS DEMAND LESS EVIDENCE THAN A LEAF MART. `_is_structural` covers
-      `ingestion/`, `dbt_project/models/`, `site*/` and `scripts/export_*.py`; the protected
-      paths are a DISJOINT set. And the control flow is worse than the predicate: the protected
-      branch RETURNS EARLY once `protected_override` is present, so the `impact_map` check below
-      it is unreachable for those paths. Fix BOTH: add protected to `_is_structural`, and check
-      `impact_map_present` INSIDE the protected branch before allowing the edit.
+  WHY THIS TASK EXISTS AND WHY IT COMES FIRST. The approved team-page mock displays both. My
+  previous plan proposed hand-writing them into a committed sample file so the page would look
+  finished while the chain stayed broken. That violates the binding rule in
+  `docs/wireframes/00_overview.md`, titled "the whole point": a block may reference ONLY fields that
+  exist in today's exported data, and anything missing goes to the gaps register and is NEVER
+  SILENTLY DRAWN. The CPO caught it. The architecture is metric layer -> mart -> frontend, and the
+  fix is to repair the broken link, not to route around it.
 
-  (2) NO HOOK FIRES ON THE ARTIFACT TOOL. `PreToolUse` is wired to `Bash` and
-      `Edit|Write|MultiEdit|NotebookEdit` only. The three rejected player-page mocks were
-      artifacts, so no contract, no routing, no reviewer and no commit gate ever touched them.
-      The one surface with no machinery is the one that failed three times in a day. Gate it:
-      deny an `Artifact` call when no contract exists. Mocks are written to the scratchpad,
-      OUTSIDE the repo, and `_gate_file_edit` returns early for anything outside the repo — so
-      this needs its own branch, not a reuse of the path logic.
+  The work is small because nothing needs deriving. Both metrics already exist, correctly
+  coverage-gated. They stop at two hard-coded enumerations that were never extended.
 
-  (3) PLAIN LANGUAGE IS ENFORCED BY NOTHING. It failed inside the retrospective itself: file
-      paths, section numbers and invented vocabulary throughout, while explaining why written
-      rules do not change behaviour. New Stop hook, separate file, reads the turn's own final
-      message and blocks on em dashes, section symbols, repo paths in prose, and length.
-
-  (4) THE HANDOVER IS NOT DELIVERED. No `SessionStart` hook exists anywhere. The script exists
-      and nothing runs it, while the handover file claimed it did. Wire it.
-
-  Plus one prose correction: working agreement §11 bans a recommendation in escalations; the CPO
-  wants one and practice is split (9 entries withhold, 8 give). Correct the rule.
+  Also renames `sot_difference` -> `sot_difference_per_match`. CPO naming rule 2026-07-18: a
+  per-match metric carries the suffix. Doing it now, BEFORE the name reaches the export and the
+  frontend, is strictly cheaper than after.
 
 refs: >
-  Verified this session at source, not recalled:
-  - `.claude/hooks/task_contract_gate.py`: `_STRUCTURAL_PREFIXES` (line ~87) vs
-    `PROTECTED_PREFIXES` (line 66) are disjoint; `_gate_file_edit` returns at line 272 inside the
-    protected branch, before the `_is_structural` check at line 281; line 248 returns for any
-    path outside the repo.
-  - `.claude/settings.json`: `PreToolUse` matchers are `Bash` and
-    `Edit|Write|MultiEdit|NotebookEdit`. No `SessionStart` key. `.claude/settings.local.json` has
-    a `permissions` key only. The user-level `~/.claude/settings.json` has NO `hooks` key at all.
-  - `Artifact` is a valid `PreToolUse` matcher and such a hook can return a deny decision
-    (Claude Code hooks documentation, confirmed via claude-code-guide).
-  - The Stop payload carries `session_id`; the transcript is
-    `~/.claude/projects/<slug>/<session_id>.jsonl` with assistant text in `message.content[]`
-    blocks of `type: "text"`. CONFIRMED by reading this session's own transcript: 35 text blocks,
-    the last matching the last message sent. Whether `transcript_path` is also in the payload is
-    UNDOCUMENTED, so the hook uses it when offered and otherwise globs
-    `~/.claude/projects/*/<session_id>.jsonl`. There is deliberately NO newest-by-mtime fallback:
-    on a miss it would read a DIFFERENT session's transcript and block this turn over a message
-    the CPO never saw. On a miss the gate fails open.
-  - The `Artifact` tool name is CONFIRMED FROM REAL EVENTS, not from documentation: 71 `tool_use`
-    records named exactly `Artifact` across this project's transcripts, each carrying `file_path`
-    in its input. The cto-reviewer was right to refuse a third-party guide as evidence for a
-    guard's trigger.
-  - The 2,500-character cap is MEASURED, not guessed: across those 35 messages the median is 166,
-    the top 30% run 1,682 to 3,343, and 4 exceed 3,000. Those 4 are the walls the CPO objected to.
-  - `escalations.log`: 9 entries withhold a recommendation per §11, 8 give one.
+  Verified this session at source and against live BigQuery, not recalled:
+  - `int_team_season__metrics_cumulative.sql` computes `shots_on_goal_against_per_match` (line 116,
+    gated on `games_with_opp_sot_stats < games_played`) and `sot_difference` (line 121, gated on
+    BOTH the for and against coverage counters). `int_team_season__metrics.sql` is a final-row
+    projection of it (`sf.* except (match_number)`), so both already flow through untouched.
+  - Both are CATALOGUED: `metric_catalogue.csv` rows 75 and 76.
+  - The break is two enumerations. `int_team_competition_benchmark_metrics_long.sql` unpivots a
+    hard-coded list of exactly 20 metric names; neither is in it. `mart_team_profile.sql` selects
+    columns explicitly and takes `shots_on_goal_per_match` (line 103) but neither of these two.
+  - CONFIRMED IN BIGQUERY (dataset `marts`, NOT `dbt_analytics` — my first query looked in the
+    wrong dataset and wrongly concluded the data was missing entirely): `mart_team_profile` has
+    `shots_on_goal_per_match` and `sot_rank_gap` but no column for either metric; the benchmark
+    mart returns exactly 20 distinct `metric_key` values for PL 2025 and neither is among them.
+  - THE RENAME IS SAFE FROM THE INCREMENTAL TRAP: `int_team_season__metrics_cumulative` is
+    `materialized='table'`, not incremental, so this is NOT the case where renaming a column NULLs
+    history without `--full-refresh` ([[reference-incremental-rename-full-refresh]]).
+  - THE EXPORT NEEDS NO CHANGE: `shape_team_payload` passes profile rows through `_strip_identity`
+    and carries every remaining column; the benchmark mart is keyed by `metric_key` as ROWS, so new
+    metrics arrive as extra rows. Read from the code, and `done_when` proves it by running the
+    export rather than trusting the reading.
+  - A stale compiled artifact `target/.../team_profile_sot_difference_sane.sql` dated 24 June
+    suggests this column once was, or was once intended to be, on the profile mart. No such test
+    exists in any current `.yml`. Noted so a reviewer does not mistake the artifact for a live test.
 
 impact_map: >
-  writers: not a data change. Nothing writes a table. The artifacts changed are the hook scripts
-    themselves and the settings that wire them.
-  downstream: EVERY tool call in EVERY future session in this repo, for every agent (Claude Code
-    and Cursor both read `.claude/`). `task_contract_gate.py` is wired to `PreToolUse` on Bash and
-    the edit tools and to `PostToolUse` on Bash; `stop_gate.py` is wired to `Stop` and imports
-    `_dirty_outside_task_dir`, `_is_protected`, `_matches_scope`, `_read_contract`, `_repo_root`
-    from `task_contract_gate.py` — so a change to any of those five names breaks the stop gate
-    too. Checked: this task changes `_is_structural` and `_gate_file_edit`, neither of which
-    `stop_gate.py` imports, so the import surface is untouched.
-  layer_rules: none apply. No dbt model, no seed, no CI workflow, no SQL. `check_layer_contract.py`
-    is unaffected and still runs.
-  deploy_order: none. No warehouse object, no shared dataset, nothing sequenced around the 04:00
-    nightly. The change takes effect in the next session that loads `.claude/settings.json`.
-  blast_radius: HIGH but bounded, and larger than most dbt models — which is precisely the
-    argument for hole (1). A bug in a PreToolUse hook can deny every edit; a bug in a Stop hook can
-    wedge the end of every turn. Mitigations, both required in `done_when`: every hook FAILS OPEN
-    on any unexpected error (the existing house rule, stated in `_command_utils.py`), and each new
-    or changed path is tested in BOTH directions plus with malformed input. Zero user-visible
-    numbers change; no mart, no export, no page.
-    RUNNING COST, which is not zero and was missing here until the round-2 cto review: the
-    SessionStart injection adds roughly 13 KB of context to EVERY session start, including every
-    resume and every compact, not just the first. And every plain-language block costs one extra
-    assistant turn, on top of the message the CPO has already read — the gate cannot pre-empt a
-    message, only follow it. Both are CPO-approved and provisional with a stated removal
-    criterion (if the gate is still firing regularly after a handful of turns it is not working
-    and comes out), but they belong in the blast radius rather than in a footnote.
-    Also per turn: the plain-language gate reads up to 512 KB from the tail of the transcript and
-    JSON-parses it, on top of the existing stop gate's `git status`. Bounded by construction (the
-    tail is capped, so it does not grow with session length) but not free.
-    AND THE COUPLING THAT MATTERS, missed in the first version of this map, which analysed only
-    `stop_gate.py`'s IMPORT surface: the two Stop hooks share ONE `stop_hook_active` flag, because
-    it is a property of the continuation, not of a hook. So a plain-language block stands the
-    CONTRACT-VS-TREE check down for the remainder of that turn. Handled by forbidding file edits
-    in the rewrite (the block message says so) and by stating it in `docs/agent_guardrails.md`, so
-    it is a known limit rather than a discovered one.
+  writers: no raw writer, no ingestion. The only computed change is two columns added to an
+    existing SELECT and two names added to an existing UNPIVOT list, plus a rename of an existing
+    column that is already computed.
+  downstream: dbt CLI and SQLFluff are BROKEN LOCALLY (documented; confirmed again this session,
+    `dbt --version` tracebacks) and the dbt MCP lineage server is not connected, so `dbt ls` output
+    cannot be pasted. `target/manifest.json` is dated 2026-06-29 and does NOT contain
+    `int_team_season__metrics_cumulative` at all, so it is STALE and is not relied on. Lineage is
+    therefore traced from LIVE `ref()` grep, pasted here:
+      ref('int_team_season__metrics_cumulative') <- int_team_profile__yoy, int_team_season__metrics
+      ref('int_team_season__metrics')            <- int_team_competition_benchmark_metrics_long,
+                                                    int_team_season__deserved_vs_actual,
+                                                    mart_team_profile, mart_team_season,
+                                                    mart_team_season_insights, mart_team_season_record
+      ref('int_team_competition_benchmark_metrics_long') <- int_team_competition_benchmarks,
+                                                            mart_team_competition_benchmarks
+      ref('mart_team_profile')                   <- (nothing; it is a leaf)
+    The stale manifest agrees on the two lists it can speak to, and recorded 117 tests downstream
+    of `int_team_season__metrics`, which is the order of magnitude CI will re-run.
+  layer_rules: intermediate composes, marts consume; no staging or base touched. The catalogue is
+    the SSoT for metric identity, so the rename must move the seed row and the model column
+    TOGETHER or the drift guard `assert_no_uncatalogued_season_metric` fails — which is the guard
+    working, and `done_when` asserts it passes.
+  deploy_order: `dbt_analytics` and the CI dataset are target-blind and SHARED
+    ([[project-dbt-shared-ci-prod-datasets]]), so the PR's data build rewrites the same relations
+    prod reads. The rename means the OLD column disappears and the new one appears in the same
+    build; there is no window where a downstream model reads a name that does not exist, because
+    every consumer is renamed in the same commit. Nothing is sequenced around the 04:00 nightly.
+  blast_radius: THE FLAGSHIP READ IS THE RISK. `int_team_season__deserved_vs_actual` ranks teams by
+    exactly this column to produce `deserved_rank` and `sot_rank_gap`, which is the team page's
+    headline "have they earned it" answer. A botched rename would silently move that ranking rather
+    than error. `done_when` therefore compares `deserved_rank` and `sot_rank_gap` for every team in
+    a real league-season before and after. Two mart surfaces gain data: `mart_team_profile` gains
+    two columns, `mart_team_competition_benchmarks` goes from 20 metric keys to 22. No existing
+    number changes value. No frontend file, no page, no export code.
 
 scope_paths:
-  - .claude/hooks/task_contract_gate.py
-  - .claude/hooks/plain_language_gate.py
-  - .claude/hooks/handover_in.py
-  - .claude/settings.json
-  - docs/working_agreement.md
-  - docs/agent_guardrails.md
-  - tests/test_governance_hooks.py
-  - CLAUDE.md
-  - .claude/task/TEMPLATE.md
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/docs/layering.md
+  - dbt_project/seeds/metric_catalogue.csv
 
 decisions_taken: >
-  (1) The artifact gate BLOCKS rather than warns. CPO 2026-07-22, when told it costs design speed
-      in a two-week sprint: "I prioritize quality over speed. If me make it in 3 weeks it's ok as
-      well. But 2 weeks remains our goal."
-  (2) THE FOUR MECHANISMS THEMSELVES. `NEW mechanisms of any kind` is a §10 class, so the bare
-      claim "approved via ExitPlanMode" that stood here was not good enough — the round-5
-      scope-auditor applied this task's own §11 argument back to it, correctly. The authority is
-      NOT plan-mode approval on its own; it is the CPO directing this work in conversation across
-      the whole session and answering the specific questions each mechanism raised. Recorded
-      VERBATIM in `.claude/task/escalations.log` (entry 2026-07-22, "the four guardrail
-      mechanisms"), which is the durable record this rests on. NOT re-escalated, deliberately:
-      re-asking a CPO who has already directed, chosen and ruled on this work would be the exact
-      "bad question" failure the same session identified [[feedback-decide-dont-escalate]].
-  (3) The 2,500-character cap is an engineering default derived from measurement, stated in the
-      approved plan, and changeable by one constant. Not a §10 decision.
+  (1) The rename `sot_difference` -> `sot_difference_per_match`.
+      AUTHORITY: **ESCALATED AND ANSWERED.** CPO, AskUserQuestion 2026-07-22: **"Yes, rename it
+      now"**, to a discrete question naming the old and new identifier, stating that only the id
+      and label key change, and offering three paths (rename now / leave it permanently / ship the
+      plumbing and decide later). Recorded verbatim in `.claude/task/escalations.log`, which is the
+      durable authority this rests on. Everything below is the history of how a weaker claim was
+      refused, kept because the refusal was correct and the lesson is worth the lines.
+
+      THE CLAIM I FIRST MADE, and why BOTH reviewers were right to refuse it. It said "the CPO ruled on 2026-07-18 that per-match metrics carry the
+      suffix, and the handover records it as owed" — asserted, not quoted, and the reviewer
+      searched the current handover, `escalations.log`, the engineering standards and the memory
+      files and found nothing. It was right to refuse it.
+      I THEN ARGUED the plan approval was itself sufficient, since the plan named the rename. The
+      reviewer refused that too, and its reasoning is the part worth keeping: approving a bundled
+      twelve-file plan whose text ASSERTS a rule as settled is a quote of my sentence, not of the
+      CPO's. Every comparable naming ruling in `escalations.log` is a discrete question with his
+      own words on that specific point. §10 also removes the "it is obviously right" escape hatch
+      by saying naming is escalated "regardless of how obvious the answer seems" — and it IS
+      obviously right, which made getting the real answer cheap rather than optional.
+      THE CORROBORATING RECORD EXISTS BUT I DELETED IT. `git show 0ff5037:.claude/active_work.md`
+      line 172 reads: "the deserved-vs-actual hero needs `sot_difference` renamed to
+      `sot_difference_per_match` (per-match metrics must carry the suffix - CPO naming rule
+      2026-07-18). The rename ripples: catalogue id + label key + the mart column +
+      int_team_season__deserved_vs_actual + i18n." That line was in the handover on main until I
+      rewrote the file THIS MORNING and dropped it. So the reviewer could not find it because I
+      removed the only live copy — a real cost of that rewrite, recorded here rather than glossed.
+      HONEST LIMIT: even that line is my own prior note asserting a ruling, not the CPO's quoted
+      words — two self-authored assertions are one source counted twice. It corroborates nothing
+      on its own. The authority is the quoted answer at the top of this entry, and nothing else.
+      BANKED: a handover rewrite that drops "owed work" lines destroys the only live record of
+      decisions not yet executed. Anything carried as owed must survive the rewrite, or be moved
+      into `escalations.log` before the rewrite happens.
+  (2) The whole change, file by file, was approved via ExitPlanMode on 2026-07-22, against a plan
+      that stated the binding-rule violation it replaces and the order it restores.
+  (3) Both metrics keep their EXISTING coverage gates unchanged. The formula is fixed mathematics
+      and availability decides only whether a model can apply it
+      ([[feedback-metric-formula-vs-availability]]) — this task moves columns, it does not touch a
+      formula, a numerator, a denominator or a NULL rule.
 
 decisions_reserved:
-  - Whether the 2,500 cap is the right number in practice. It is a measured default, not a ruling;
-    if it blocks useful answers, the CPO decides the new number.
-  - Whether main-session hooks fire for tool calls made INSIDE a subagent. UNDOCUMENTED and
-    unresolved. It matters for PART 2, not for this task: if they do not fire, the `ui-expert`
-    doer needs its own PreToolUse hook declared in its agent frontmatter (a documented mechanism).
-    Do NOT guess in part 2 — test it.
+  - Adding these two metrics to the LOCKED display contract (`docs/wireframes/metrics_display.md`,
+    a 16-row team table that excludes both) is a §10 display decision and is deliberately NOT in
+    this task. It becomes legal only once the export carries them, which is what this change makes
+    true. The approved mock shows both, so the CPO has effectively signalled the answer, but the
+    locked doc is amended with the page work and with the display reviewer in the loop.
+  - The `label_i18n_key` for the renamed metric, now `metrics.sot_difference_per_match.label`.
+    Whether the German, English and Finnish label STRINGS change is a user-visible wording call
+    and is not taken here. No i18n file is in scope.
+    DEBT THIS TASK CREATES AND DEFERS, named by the football-analytics-expert reviewer: the NEW
+    key has no entry in any i18n resource file — and neither did the OLD one, so nothing regresses
+    and nothing renders this metric today. It is inert, but it is debt, and it must be resolved
+    before either metric is displayed. That resolution belongs with the display decision below.
 
 done_when:
-  - Protected hole tested BOTH ways: with `protected_override` and no `impact_map`, an edit to
-    `.claude/hooks/` is DENIED; with the map present, ALLOWED. A one-sided test would pass while
-    broken (the lesson from the lower_is_better guard).
-  - Artifact gate tested BOTH ways: denied with no contract, allowed with one.
-  - Plain-language gate tested non-vacuously: an em dash, a section symbol, a bare repo path and a
-    3,000-character message each BLOCK; a clean short message PASSES.
-  - Every touched hook fed malformed input and confirmed to exit 0 without blocking (fails open).
-  - `handover_in.py` run against a stub event emits the handover text.
+  - CI `ci-data-build` green: `dbt build` over the touched models and their downstream (the local
+    dbt and SQLFluff are broken, so CI is the gate).
+  - The benchmark mart returns 22 distinct `metric_key` values for a real league-season instead of
+    20, and BOTH new keys carry a rank and a median.
+  - `mart_team_profile` exposes both new columns, non-null for a fully-covered league-season and
+    NULL where opponent shots-on-target coverage is incomplete — proving the coverage gate survived
+    the move rather than being silently dropped.
+  - `deserved_rank` and `sot_rank_gap` are UNCHANGED for every team in a real league-season,
+    compared before and after. This is the blast-radius check, not a formality.
+  - `assert_no_uncatalogued_season_metric` passes, proving the renamed column and the renamed
+    catalogue row agree.
+  - `scripts/export_site_data.py` run for one team emits both fields with NO export code change.
   - `python scripts/check_layer_contract.py` passes.
   - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
 
 amendments:
-  # ORIGINAL scope, written on a clean tree BEFORE any implementation, four paths:
-  #   .claude/hooks/task_contract_gate.py · .claude/hooks/plain_language_gate.py
-  #   .claude/settings.json · docs/working_agreement.md
-  # Stated explicitly because `contract.md` on main belongs to the PREVIOUS task, so the whole
-  # file reads as new in the diff and a reviewer cannot otherwise tell original scope from
-  # amended scope. A round-2 scope-auditor FAIL rested on exactly that ambiguity (it read
-  # plain_language_gate.py as an undeclared extension; it was original). The arithmetic:
-  # 4 original + 5 amended (3 below, then CLAUDE.md, then TEMPLATE.md) = the 9 in scope_paths.
-  # This line said "4 + 3 = 7" for two rounds after the last two amendments were added beneath it,
-  # miscounting by two in the one artifact that authorises scope, inside the task whose subject is
-  # statements that stop being true (cto-reviewer, 2026-07-22). Update it with every amendment.
-  - 2026-07-22: + `.claude/hooks/handover_in.py`, + `docs/agent_guardrails.md`,
-    + `tests/test_governance_hooks.py`.
-    AUTHORITY: the cto-reviewer FAIL at opus (round 1), plus the CPO's "yes" to keeping all four
-    plain-language checks provisionally. Amendments are scope extensions forced by review
-    findings, not new work chosen by the builder.
-    CONTENT, and WHY each path is now needed:
-    (1) `.claude/hooks/handover_in.py` — THE SERIOUS ONE. The first attempt wired `SessionStart`
-        to `docs/portable_guardrails/hooks/handover_in.py`, which is NOT a PROTECTED prefix and
-        has NO entry in `review_routing.json`. That would have made a script that auto-executes
-        at every session start editable inside any ordinary task with no `protected_override`, no
-        cto review and no opus floor — the exact class the CPO ruled on twice (`.claude/commands/`
-        2026-06-14, `.mcp.json` 2026-06-18: "auto-launches a command every session ... an agent
-        can never self-grant"). A guard-hardening change must not open a guard hole.
-        `docs/agent_guardrails.md` already states the rule: project hooks live in
-        `.claude/hooks/` and `docs/portable_guardrails/hooks/` is the copy-out ARCHIVE. The live
-        copy moves to the protected directory and the setting points there.
-    (2) `docs/agent_guardrails.md` — CLAUDE.md names it authoritative for "what fires, why". It
-        does not describe the artifact gate, the plain-language gate or the SessionStart wiring.
-        Shipping three new hook behaviours while the doc of record says otherwise is the
-        stale-document failure this whole task exists to stop.
-    (3) `tests/test_governance_hooks.py` — the reviewer found the trap this contract's own
-        `done_when` names and then walked into: the committed suite covers only the ALLOW
-        direction of the protected-path change, because its fixture already carries an impact
-        block. Scratchpad verification proves it works today and stops nothing regressing
-        tomorrow. That is precisely the lesson from the metric guards, which is the reason this
-        session exists.
-    NOT amended in: `docs/portable_guardrails/**` stays untouched — the archive is left as-is,
-    and `docs/agent_guardrails.md` now says plainly that the archived copy is the PRE-fix one.
-  - 2026-07-22 (round 3): + `CLAUDE.md`.
-    AUTHORITY: the cto-reviewer FAIL at opus (round 3).
-    CONTENT: `CLAUDE.md` line 19 summarises §11 as "premise check, two conflicting paths, no
-    recommendation". This task reverses the no-recommendation half, so shipping without touching
-    `CLAUDE.md` would leave the FIRST file read every session contradicting the rule it points at.
-    That is the stale-document failure this task exists to stop, one file further upstream.
-    ON THE AUTHORITY FOR THE §11 CHANGE ITSELF: **ESCALATED AND ANSWERED.** Both reviewers
-    independently ruled that a rule extension is §10 and that "approved via ExitPlanMode" plus a
-    memory file plus one in-session example is too thin for it, and they were right on process
-    even though the answer was predictable. The question was put to the CPO in plain language with
-    two paths (answer it now and record it, or cut the rule change out of this PR entirely) and a
-    recommendation. **CPO ANSWER 2026-07-22: "go ahead as recommended"** — the escalation rule now
-    requires a recommendation with its reasoning. Recorded verbatim in
-    `.claude/task/escalations.log`, which is the durable authority this amendment rests on; the
-    9-to-8 split in that log is evidence the WRITTEN rule was stale, never the reason to change it.
-  - 2026-07-22 (round 4): + `.claude/task/TEMPLATE.md`.
-    AUTHORITY: the cto-reviewer FAIL at opus (round 4).
-    CONTENT: the template still tells authors the `impact_map` is required only on the raw /
-    model / consumption surface and to "omit this key entirely when no structural path is in
-    scope", and its `protected_override` comment says nothing about a map. This task makes a map
-    mandatory on every protected path, and `_deny_no_contract` points authors at that file BY
-    NAME. PART 2 (the `ui-expert` agent set) edits `.claude/agents/**`, so it would copy the
-    template, follow it, omit the map and be denied by the gate this task just shipped. The file
-    sits under `.claude/task/`, which the gate exempts unconditionally and which the routing
-    lists as artifact-only, so there was no gate friction to notice it — which is precisely why
-    it is declared here rather than edited quietly.
+  - 2026-07-22: + `dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql`.
+    AUTHORITY: none needed beyond the approved plan — this is the SAME edit the plan already
+    describes ("document the new mart columns"), on a file I failed to list. The contract gate
+    caught it, which is the gate working.
+    CONTENT: that mart's header comment says the benchmark set is "the 20 team season metrics".
+    Adding two metrics makes the sentence false. Its sibling
+    `int_team_competition_benchmark_metrics_long.sql` carried the identical stale count and is
+    already in scope. Leaving one of a matched pair stale is exactly the failure class the
+    cto-reviewer found three rounds running in the guardrails PR earlier today: a count in a
+    comment that stops being true the moment the list beneath it grows.
+  - 2026-07-22: + `int_competition_benchmarks.yml`, + `int_team_competition_benchmarks.sql`,
+    + `dbt_project/docs/layering.md`.
+    AUTHORITY: none needed beyond the approved plan — same edit, more files. Found by searching
+    for every place the metric set is pinned, after the gate caught the first miss.
+    CONTENT: the benchmark metric set is enumerated or counted in SIX places, and my scoping
+    found two of them. `int_competition_benchmarks.yml` carries TWO `accepted_values` tests
+    listing all 20 keys (for `int_team_competition_benchmarks` and the long form) plus four
+    "20-metric set" phrases; `int_team_competition_benchmarks.sql` and `layering.md` each carry
+    the count in prose. Adding two metrics without these WOULD HAVE FAILED CI on the
+    accepted_values tests — which is the guard working, and the reason to find them all before
+    pushing rather than after.
+    THE REAL LESSON, for the skill the CPO asked about: adding one team metric to the benchmark
+    set touches SIX files across models, schemas and docs, and nothing enumerates that list. The
+    skill's whole value is being that list.
