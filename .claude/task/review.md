@@ -1,93 +1,102 @@
-# Review — chore/route-display-reviewer-to-built-pages — 2026-07-22
+# Review — feat/deserved-vs-actual-in-points — 2026-07-22
 
-> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) + `cto-reviewer`
-> (`.claude/review_routing.json`, `.claude/agents/**`, `tests/**`). Opus floor APPLIES: the diff
-> touches guard paths, so every cto-reviewer round ran at opus.
+> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) +
+> `analytics-engineer-reviewer` (`dbt_project/**`) + `football-analytics-expert-reviewer`
+> (`dbt_project/seeds/metric_catalogue.csv`). No opus floor: no guard path is touched.
 >
-> **WHAT THIS CHANGES.** `bi-analyst-reviewer` enforces the binding rule in
-> `docs/wireframes/00_overview.md`, titled "the whole point": a block may reference only fields that
-> exist in today's exported data, and anything missing is NEVER SILENTLY DRAWN. It was routed to the
-> wireframe DOCUMENTS only. So the fake planned earlier on 2026-07-22 — two real metrics typed into a
-> committed sample so a page looked finished while the pipeline could not feed it — drew
-> `[cto-reviewer, scope-auditor]`, neither of which checks whether a displayed field exists. The rule
-> was enforced on the document describing a page and not on the page. This routes `site_v2/src/**` to
-> the display reviewer, widens that reviewer's brief to built pages, syncs the three other statements
-> of its territory, and adds tests that pin the whole routing table.
+> **WHAT THIS CHANGES.** Two defects in one model, fixed together because they are the same block of
+> SQL. (1) The read was WRONG for tournaments: `deserved_rank` ranked all teams 1..N while a
+> group-stage standing is a position within a group, so 224 non-domestic rows carried mean absolute
+> gaps of 8 to 21 places against 3.4 for real leagues. (2) Rank was the wrong space to communicate
+> in: a fitted line there can predict positions that do not exist, which is why the approved mock's
+> hero draws 0.4 and 21.3. Deserved-vs-actual now speaks in POINTS, and only where that sentence is
+> true.
 >
-> **FOUR ROUNDS, and what each cost.**
-> Round 1: both reviewers FAILED, and both were right. The scope-auditor refused my authority — I had
-> claimed it from the CPO's rhetorical question *"So you suggested something that is not needed?"*,
-> which is not a discrete answer, and routing a reviewer at a new path class is a §10 rule extension.
-> That is the SECOND time in one day on the identical mistake, three hours after the metric rename was
-> caught the same way, in a contract that quotes that very lesson back at itself. The cto-reviewer
-> found the route itself incomplete: I had listed pages, components, data and i18n and missed
-> `site_v2/src/lib/`, which holds `metricRows.ts`, the CPO-locked 16-row display contract. Fabricating
-> a metric takes a row in `metricRows.ts` AND a key in the sample, so I had routed the sample and not
-> the contract, catching half of a two-file fake. SEVEN tracked files were missed. Root cause: my
-> `refs` claimed verification against two paths that DO NOT EXIST — files I intended to create. I
-> verified against an imagined tree.
-> Round 2: scope-auditor PASS. cto-reviewer FAIL, six findings, all fixed.
-> Round 3: scope-auditor PASS. cto-reviewer FAIL, two findings, both accepted and both recorded below
-> because they are the same class as everything else today.
-> Round 4 (this hash): both PASS.
+> **THE EVIDENCE, measured over 91 domestic league-seasons and 1,790 team-seasons.** SoT difference
+> versus points is Pearson +0.84, stable across balanced (0.85) and unbalanced (0.83) seasons, and
+> the slope gives the first fan-readable magnitude this metric has ever had: one extra shot on target
+> of difference per match is worth about 9.8 points over a 38-game season. Stated up front because a
+> reviewer will ask: goal difference correlates +0.96, far higher, but points are computed from those
+> same goals, so it is near-tautological and cannot be a *deserved* signal.
 >
-> **ROUND 3, and it is the recurring defect once more.** (F1) The test that claims to pin every
-> routing pattern compared the live table against a hand-typed set literal, not against the
-> parametrized cases it claimed to guard. Two patterns sat in that literal with no case pinning them:
-> `site_v2/**` and `dbt_project/seeds/competition_registry.csv`. Concretely — delete the
-> `site_v2/**` route today and the entire suite stayed green, while frontend build config silently
-> lost platform review. A docstring asserting it pinned EVERY pattern while pinning 20 of 22, in the
-> file whose whole thesis is "enumerate the real tree". (F2) The cry-wolf direction was still a
-> three-item hand list, which already missed `package-lock.json` and `.gitignore`. One direction
-> enumerated from `git ls-files` and the other from a literal is the same defect at half scale.
+> **SIX CPO RULINGS, all logged BEFORE any code** (`escalations.log`): deserved TOTAL points; keep
+> `deserved_rank` but re-derive it from deserved points; gap signed actual minus deserved so NEGATIVE
+> means under-performing; the names `deserved_points` and `sot_points_gap`; `sot_rank_gap` dropped so
+> two gaps cannot carry contradictory signs; whole-points format.
 >
-> **THE FIX IS THE CLASS IN BOTH CASES.** The pin cases became a module constant and the coverage test
-> now DERIVES from it with the real `fnmatch`; the hand-typed literal is gone. I did not take the
-> reviewer's proposed predicate, which counts a pattern as covered on a path MATCH alone — that would
-> mark `site_v2/**` covered via `site_v2/src/lib/metricRows.ts`, whose only assertion is
-> `bi-analyst-reviewer` and which says nothing about the CTO route. The shipped predicate requires a
-> case that both matches the pattern AND asserts a reviewer that pattern actually confers. The
-> reviewer re-derived all 22 patterns against all 22 cases and confirmed it, including the four real
-> overlaps. The cry-wolf test now enumerates `git ls-files site_v2`, filters to non-`src/` files, and
-> guards against a vacuous pass.
+> **FOUR ROUNDS, and every FAIL was correct.** The rounds are the substance of this review:
 >
-> **VERIFIED BY EXECUTION, not by claim.** Full suite: 215 passed. The guards were then proved to
-> BITE, in-process against mutated copies of the real routing: deleting `site_v2/**` fails its pin
-> case; deleting the registry-seed route fails its pin case; adding an unpinned route fails the
-> coverage test; and narrowing `site_v2/src/**` back to a pages-and-data directory list leaves 21
-> tracked files escaping the display reviewer. Baseline clean on all four. The cto-reviewer confirmed
-> these outcomes follow from the code rather than from the run.
+> 1. **Round 1** — scope PASS, analytics PASS, football FAIL. Restricting to domestic leagues is not
+>    enough. MLS ranks within conferences and the Apertura/Clausura formats split a year, so
+>    `actual_rank` restarts at 1 per section: the SAME defect that excluded the tournaments, surviving
+>    inside the domestic set. I fixed the instance and missed the class, again. Its evidence was
+>    partly wrong (it argued from `group_description`, which holds qualification annotations and is
+>    multi-valued for the Premier League too); the conclusion was right, and I confirmed it by the
+>    decisive property instead: 9 of 55 fittable league-seasons, 232 of 1,152 rows.
+> 2. **Round 2** — analytics FAIL, and this one is mine twice over. My fix gated only the rank, which
+>    made an existing test false for those 232 rows. I DELETED the failing direction instead of
+>    narrowing it, leaving `deserved_rank` with no positive-existence guard at all: the column could
+>    have gone silently empty across every normal league with the whole suite still green. **A test
+>    may become NARROWER when a change makes it partly untrue. It must never become SHORTER.**
+> 3. **Round 3** — football FAIL, on the deeper version of round 1. My claim that "points stay
+>    comparable" is true for MLS and FALSE for Apertura/Clausura, where one season spans two separate
+>    tournaments whose points reset. I VERIFIED this against the warehouse rather than taking it on
+>    faith: Argentina 2025 carries 30 teams, a 15-position table, and 32 to 37 games per team. So the
+>    gate moved into `league_season_fittable` and now withholds ALL THREE outputs, and the
+>    biconditional test came back.
+> 4. **Round 4** — scope FAIL, and it caught the worst one. I had recorded the withholding as an
+>    application of the CPO's tournament reasoning. §10's meta-rule says that when a case does not
+>    clearly match a written rule, the CLASSIFICATION is the CPO's, and "it is analogous to X" is not
+>    a licence. **THIRD §10 misclassification of the identical shape in one day**, after the metric
+>    rename and the review routing. Put discretely; **CPO: "Withhold all three, from all four"**.
 >
-> **KNOWN LIMIT, accepted not fixed.** A NEW route that happens to be matched by an existing pin path
-> AND confers that pin's reviewer would be absorbed without failing the coverage test. Proving each
-> route individually necessary needs mutation testing, which is over-engineering for this surface.
-> Recorded because the docstring defines "pinned" exactly as the code implements it and does not
-> overclaim — which is the defect this very round was about.
+> **THE PATTERN, stated because it is one pattern and not four bugs.** Every failure above is me
+> treating a principle the CPO stated in one domain as permission to apply it in another, or trading
+> away a guard to make my own change pass. The reviewers were not finding different defects.
 >
-> **NOT VERIFIED.** No dbt, no BigQuery, no warehouse object: this change touches none. The one thing
-> running locally that matters is `pytest tests/`, and `.github/workflows/python-ci.yml` runs it on
-> every pull request with no path filter, so CI re-runs the same gate closed.
+> **WHAT THE DATA DOES, verified against the live warehouse and not asserted.** 920 rows over 46
+> league-seasons. Zero violations on every data test. Zero non-domestic rows. Zero rank drift against
+> the 864 balanced rows live in the mart today, so the flagship read did not move where it should not
+> have. The gap sums to exactly 0 across a balanced season and approximately 0 mid-season, because
+> each fitted rate is scaled by that team's own games played.
+>
+> **ACCEPTED COST, stated in the question the CPO answered:** MLS could probably support the points
+> read and loses it, because separating a conference split from a two-tournament split needs a signal
+> that does not exist. Recorded as owed; reversible.
+>
+> **NOT VERIFIED.** dbt and SQLFluff are broken locally and the dbt MCP is not connected, so nothing
+> was compiled and no dbt test was executed. What ran: the layer contract, YAML parse on all three
+> schema files, catalogue integrity, and the model's real SQL resolved against BigQuery with every
+> data test re-expressed as an assertion. The dbt tests themselves are CI-gated.
 
-diff_sha256: be6165c4b491426681a6fbfc6340d3550e1e23b26487c6d748f238743cb33000
+diff_sha256: cd32009bfae417dbd6d7bf4b7e9b850b3dbafe8eef2422a4e8a87bff9d5452a1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope and authority of the round-3 edit. Confirmed `tests/test_governance_hooks.py` is in `scope_paths` by a recorded amendment whose authority covers this edit, and that `.claude/review_routing.json` was NOT touched again in this round. Checked both ADDED pin cases against the live routing file to confirm they document routes that already exist rather than legislating new ones through a test, which would be a §10 decision taken silently. Judged the absence of a further contract amendment correct: no scope widened and no claim in the contract became false.
-- Pattern-matching overlap at the `site_v2/**` versus `site_v2/src/**` boundary, verified against the real `required_reviewers` hook rather than a mock. Both directions are enumerated from `git ls-files`, not hand-written lists, which eliminates the bug class that caused the round-1 miss.
-- Coverage enforcement over incomplete pattern enumeration. Verified the two-part gate — a case must both match a pattern and assert a reviewer that pattern confers — and that coverage derives from the real routing file rather than a second hand-written list, which is what had drifted.
+- The §10 authority for withholding the deserved read from four live competitions. Confirmed the `escalations.log` entry records a discrete, locatable CPO ruling covering exactly what the code does (all three outputs, all four leagues), that the contract amendment now cites that ruling rather than an analogy, and that its admission of the earlier weaker claim is explicit rather than a silent overwrite.
+- Sign-convention safety across the retired and replacement gap. Verified `sot_rank_gap` is deleted from the model, the mart, both schemas and the catalogue, and that the arithmetic contract test pins the inverted convention, so the two cannot coexist and contradict each other.
+- Gate decomposition and the boundary case. Verified all three outputs gate together on the single-ladder property rather than a league list, that the biconditional and single-ladder tests assert the condition held, and that the property form catches a future split-format league with no file edit, preserving the zero-file rule.
+- Scope and smuggling across four rounds: every touched file inside `scope_paths`, every amendment written on a clean tree, no path added.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- F1 fix, and whether the shipped predicate can go green falsely. Accepted the builder's objection to my own proposed derivation as correct: a path MATCH alone certifies nothing about the reviewer. Enumerated all 22 routing patterns against all 22 `PINNED_CASES` entries and confirmed every pattern is pinned by a case whose assertion that pattern confers and no other matching pattern confers — checked the four real overlaps individually (`scripts/export_site_data.py`, `metric_catalogue.csv`, `competition_registry.csv`, and `site_v2/src/lib/metricRows.ts` against `site_v2/package.json`). Deleting any single route today fails a pin case; adding an unpinned route fails the coverage test. Both follow from the code, not from the run. Vacuity checked in both directions.
-- F2 fix. `git ls-files -z site_v2` filtered on the `site_v2/src/` prefix now puts `package-lock.json` and `.gitignore` — both missed by the old three-item literal — into the checked set, along with anything added outside `src` later; `assert outside` blocks a vacuous pass. Verified `git ls-files` emits forward slashes on Windows so the prefix filter cannot silently empty the set.
-- Model-versus-system risk, the root cause of the earlier rounds. `required_reviewers` calls the real `_required_reviewers` in `.claude/hooks/git_discipline.py`, not a reimplementation, and `scripts/check_task_artifacts.py` carries byte-identical matching logic, so hook, CI backstop and test cannot diverge. The hook import is side-effect free.
-- Dead import and docstring truthfulness. `import fnmatch` is now live at its sole use. The replacement docstrings no longer claim more than the code enforces, which was the substance of F1.
-- Fail-open versus fail-closed, unchanged and correct in both directions: the local hook fails open so a corrupt routing file cannot lock the workflow, while CI fails closed. The new parse test closes the gap that asymmetry left.
-- Cross-file consistency of the reviewer's territory, grepped repo-wide rather than taken from the contract's claim: routing, agent frontmatter, the territory line and `docs/agent_guardrails.md` all agree; `docs/metrics_context_model.md` and `.claude/agents/cto-reviewer.md` are about ownership and remain accurate untouched.
-- Scope, mechanism, cost and secrets: no new package, class, workflow step, dependency, credential or permission. Cost delta is one sonnet reviewer per future `site_v2/src/**` commit, inherent to the approved ruling.
+- The positive-existence guard I had deleted. Confirmed `ranked` is back to a single condition and that `league_season_fittable` is group-constant, so `deserved_points` and `deserved_rank` cannot diverge on any code path: the defect is now closed structurally, not merely by a paired test.
+- Vacuity versus redundancy in the four tests. Traced which are provably implied by the gate and reported them as redundant-but-not-coverage-losing, noting the retained uniqueness test checks by an independent execution path over materialised output rather than re-reading the same in-CTE boolean. Confirmed no test that could previously catch a real defect was weakened.
+- The computational effect of folding a fourth condition into the gate. Verified `stats` and `fitted` compute window aggregates over the whole partition regardless of the flag, that no BigQuery aggregate throws on a degenerate window, and that the newly excluded groups flow through with clean NULLs.
+- Earlier rounds, still standing: the OLS identity is genuine and invariant to the sample-versus-population stddev choice because the divisor cancels; the only two divisions are `safe_divide`; the balanced-season rank invariance is structural rather than coincidental; and no dangling `sot_rank_gap` reference remains anywhere.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Whether any surviving published row still rests on a season that is not one continuous competition. Traced the mechanism through all four CTEs and confirmed all three outputs are structurally tied to one condition, then cross-checked the exclusion set against the competition registry, whose own note independently confirms Liga MX runs Apertura plus Clausura in one API season. The remaining leagues carry no documented split-table format.
+- Whether the descriptions still claim points survive in those leagues, which was the substance of its FAIL. Read all three catalogue rows, the model header and the CTE comments, and confirmed the false claim is gone from every file and replaced by an accurate statement of why the rows are null.
+- The MLS decision against football reality rather than internal logic: its points genuinely are cross-conference comparable, since the Supporters' Shield is awarded on combined points, so blanket withholding is stricter than the football fact requires. Judged acceptable because it is disclosed rather than hidden, the model comment says so outright, and the alternative is correctly deferred as a design decision.
+- The `safe_divide` no-spread null path it raised earlier: confirmed present verbatim in two catalogue rows and inherited without carve-out by the third, and stated twice in the model comment.
 
 ## escalations
-- question: Should the display reviewer review the BUILT frontend as well as the wireframe specs? Put discretely via AskUserQuestion with three paths: everything under `site_v2/src`; pages and data only; or no change. Recommended everything under `src`, because a directory list is precisely what had just been got wrong, and build config lives outside `src` so it stays excluded without needing an exception list.
-  CPO ANSWER: "Yes, everything under site_v2/src" (AskUserQuestion, 2026-07-22). Full record, including the rhetorical question I first wrongly claimed as authority, is the entry for this branch in `.claude/task/escalations.log`.
+- question: Deserved vs actual cannot be computed honestly for MLS, Liga MX, Argentina and J-League, because their tables are not a single 1..N ladder. What should happen to them? Three paths offered: withhold all three metrics from all four; withhold only where points genuinely reset, keeping the points read for MLS; or park the change until a continuity signal is designed. Recommended withholding from all four, because for Argentina and Liga MX even the points total sums two separate competitions, while separating the two cases needs a signal that does not exist and the alternative is a hardcoded league list that breaks the zero-file rule.
+  CPO ANSWER: "Withhold all three, from all four" (AskUserQuestion, 2026-07-22). Accepted cost, stated in the question: MLS loses a points read it could probably support. Full record is the last entry in `.claude/task/escalations.log`.
+- question: The six metric-definition decisions this change rests on (points as the unit, keeping a rank derived from it, the gap sign, the two names, dropping the rank gap, the display format).
+  CPO ANSWER: all six answered discretely via AskUserQuestion on 2026-07-22 and recorded in `.claude/task/escalations.log` before any model file was touched.

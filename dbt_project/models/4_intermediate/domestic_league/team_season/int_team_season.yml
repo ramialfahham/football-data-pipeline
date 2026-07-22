@@ -142,29 +142,73 @@ models:
 
   - name: int_team_season__deserved_vs_actual
     description: >
-      TEAM deserved-vs-actual read (rank-space), one row per (team_sk, season_sk): actual league
-      rank vs the rank deserved by sot_difference_per_match (SoT for - against per match). deserved_rank ranks
-      teams by sot_difference_per_match within their league-season (1 = best); sot_rank_gap = actual_rank -
-      deserved_rank (positive = under-performing, negative = over-performing). Computed only for
-      league-seasons where EVERY team has full SoT coverage AND a league rank (full-table gate);
+      TEAM deserved-vs-actual read (points-space), one row per (team_sk, season_sk): the points the
+      team's process deserved vs the points it actually has. Within each league-season, ordinary
+      least squares fits points-per-match on sot_difference_per_match (SoT for - against per match);
+      deserved_points = that fitted rate * the team's own games played; sot_points_gap =
+      points_won_sum_season - deserved_points (NEGATIVE = under-performing, POSITIVE = over-
+      performing); deserved_rank ranks teams by deserved_points within the league-season (1 = best),
+      so rank and points can never disagree. DOMESTIC LEAGUES ONLY — a group-stage tournament's
+      standing is a within-group position, not a comparable 1..N league rank. Computed only for
+      league-seasons where EVERY team has full SoT coverage, a league rank, and >= 3 finished games;
       NULL otherwise. Composes int_team_season__metrics + int_team_season__standings_primary.
-      TEAM only, no xG.
+      TEAM only, no xG. Because the fit is least squares within the league-season, the gap is a
+      redistribution: it sums to exactly 0 across a balanced season, and to approximately 0 mid-
+      season (each fitted rate is scaled by that team's own games played).
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
       - dbt_utils.expression_is_true:
           expression: "deserved_rank is null or deserved_rank >= 1"
           name: int_team_season_deserved_rank_positive
-      # gate invariant: a non-null deserved_rank means the league-season is fully rankable, so this
-      # row's own sot_difference_per_match and actual_rank must both be present.
+      # BICONDITIONAL, restored. rank is derived from deserved_points and the single-ladder
+      # condition now sits inside league_season_fittable, so the two null together again and this
+      # asserts BOTH directions. It briefly became one-directional, when the single-ladder split
+      # applied to the rank alone; deleting the direction rather than narrowing it left the column
+      # with no positive-existence guard at all, so it could have gone silently empty with every
+      # test still green (analytics-engineer-reviewer, 2026-07-22). A test may become NARROWER when
+      # a change makes it partly untrue. It must never become SHORTER.
       - dbt_utils.expression_is_true:
-          expression: "deserved_rank is null or (sot_difference_per_match is not null and actual_rank is not null)"
-          name: int_team_season_deserved_rank_requires_inputs
-      # sot_rank_gap null/arithmetic contract: null exactly when not rankable (deserved_rank null),
-      # else exactly actual_rank - deserved_rank. Guards the sign convention + null propagation.
+          expression: "(deserved_points is null and deserved_rank is null) or (deserved_points is not null and deserved_rank is not null)"
+          name: int_team_season_deserved_rank_tracks_points
+      # a published read requires a single-ladder table — the condition is inside the gate, and this
+      # asserts it held rather than trusting the gate to have applied it.
       - dbt_utils.expression_is_true:
-          expression: "(deserved_rank is null and sot_rank_gap is null) or (deserved_rank is not null and sot_rank_gap = actual_rank - deserved_rank)"
-          name: int_team_season_sot_rank_gap_contract
+          expression: "deserved_points is null or actual_table_is_single_ladder"
+          name: int_team_season_deserved_requires_single_ladder
+      # gate invariant: a non-null deserved_points means the league-season passed the full-table
+      # gate, so this row's own inputs must both be present.
+      - dbt_utils.expression_is_true:
+          expression: "deserved_points is null or (sot_difference_per_match is not null and actual_rank is not null)"
+          name: int_team_season_deserved_points_requires_inputs
+      # LEGAL-RANGE INVARIANT. A fitted value can leave the possible range when the fit is degenerate
+      # (a tiny league, a signal with no spread, too few games). Asserting the invariant catches every
+      # such cause at once, rather than guarding the one threshold that happened to be the trigger:
+      # before the >= 3 games gate, two Liga MX rows one game into the season fell outside it.
+      - dbt_utils.expression_is_true:
+          expression: "deserved_points is null or (deserved_points >= 0 and deserved_points <= 3 * season_games_played)"
+          name: int_team_season_deserved_points_in_legal_range
+      # sot_points_gap null/arithmetic contract: null exactly when not fittable, else exactly
+      # points_won_sum_season - deserved_points. Pins the SIGN CONVENTION, which is inverted relative
+      # to the sot_rank_gap this replaced (there, positive meant under-performing).
+      - dbt_utils.expression_is_true:
+          expression: "(deserved_points is null and sot_points_gap is null) or (deserved_points is not null and sot_points_gap = points_won_sum_season - deserved_points)"
+          name: int_team_season_sot_points_gap_contract
+      # SINGLE-LADDER GUARD. Wherever a deserved_rank is published, the actual ranks in that
+      # league-season must be a 1..N permutation — otherwise a competition-wide deserved position is
+      # being compared against a within-conference actual one. Asserted as uniqueness over the real
+      # data rather than by excluding a list of league codes, so an onboarded conference league is
+      # caught with no file edit (found by the football reviewer, 2026-07-22; 232 rows across MLS,
+      # LMX, APD and J1 would have shipped a non-comparable rank).
+      - dbt_utils.unique_combination_of_columns:
+          name: int_team_season_deserved_rank_only_on_single_ladder_tables
+          combination_of_columns:
+            - league_code
+            - season_sk
+            - actual_rank
+          # inline `where`, matching the working precedent at core.yml:694 rather than the
+          # `config:`-nested form, which has no precedent in this project and cannot be run locally.
+          where: "deserved_rank is not null"
     columns:
       - name: team_season_sk
         tests:
@@ -178,12 +222,28 @@ models:
               field: team_sk
       - name: season_sk
         tests: [not_null]
+      - name: league_code
+        description: "Competition the row belongs to. Every value must be a DOMESTIC LEAGUE in the registry — asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
+        tests:
+          - dbt_utils.relationships_where:
+              name: int_team_season_deserved_domestic_leagues_only
+              to: ref('competition_registry')
+              field: league_code
+              to_condition: "competition_type = 'domestic_league'"
       - name: actual_rank
         description: "League table rank (standing_rank from int_team_season__standings_primary) — the actual position."
+      - name: points_won_sum_season
+        description: "Actual points won across the season — the ACTUAL side of the comparison, carried here so the gap contract test can assert against it."
+      - name: season_games_played
+        description: "Finished games in the season; scales the fitted rate into a points total and bounds the legal-range test."
+      - name: deserved_points
+        description: "Points deserved by the on-target process: the league-season least-squares fit of points-per-match on sot_difference_per_match, times this team's games played. NULL when the league-season is not fittable, or when the signal has no spread across it (the slope is then undefined, not flat)."
+      - name: actual_table_is_single_ladder
+        description: "TRUE when the league-season's actual ranks form a 1..N permutation, i.e. one table rather than conferences (MLS) or a split year of two tournaments (Apertura/Clausura). Part of the fittability gate, and emitted so a consumer can say WHY a league-season carries no deserved read at all."
       - name: deserved_rank
-        description: "Rank by sot_difference_per_match within the league-season (1 = best); NULL when the league-season is not fully rankable."
-      - name: sot_rank_gap
-        description: "actual_rank - deserved_rank; positive = under-performing, negative = over-performing; NULL when not rankable."
+        description: "Rank by deserved_points within the league-season (1 = best) — the process-deserved table position. Derived from deserved_points, so it cannot disagree with it, and it appears and disappears exactly with it. NULL whenever the league-season is not fittable, which now includes any table that is not a single ladder."
+      - name: sot_points_gap
+        description: "points_won_sum_season - deserved_points. NEGATIVE = under-performing (fewer points than deserved), POSITIVE = over-performing. NOTE the sign is inverted relative to the retired sot_rank_gap. NULL when not fittable."
 
   - name: int_player_season__metrics
     description: >
