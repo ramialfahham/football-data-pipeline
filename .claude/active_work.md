@@ -44,27 +44,18 @@ through 13+ marts and the export, so removing them later is expensive, and the p
 framing for them is "identification and descriptive purposes". **The player page must be designed
 without a portrait.**
 
-**The sequence** (CPO: *"go"*): licensing check → one governance task for the guards and agents →
-build the team page.
+**Sequence** (CPO: *"go"*): licensing ✅ → guards ✅ → team page.
 
 ---
 
-## API-Football licensing — terms read in full, 2026-07-22
+## API-Football licensing — settled 2026-07-22, NOT a blocker
 
-Read directly from `api-football.com/terms` (last updated 2025-05-21). **Not a blocker.**
-
-- **Websites are an expected use.** *"We provide data for you to create different projects such as
-  applications, websites, fantasy soccer games etc."*
-- **The one hard prohibition is reselling.** *"you cannot directly sell the data we provide."*
-- **They grant no publication licence.** *"Any license or permission to publish the data must be
-  requested by the user from the competent authorities."* That is them disclaiming, not forbidding;
-  the question sits with the leagues and federations.
-- **Logos and images:** *"solely for identification and descriptive purposes"*; they own none of it
-  and claim no rights over it; use *"may require additional authorization or licensing from the
-  respective rights holders"*.
-- **THE REAL RISK, operational not legal:** on a formal complaint from a league, federation or event
-  organiser they *"reserve the right to immediately suspend or terminate the client's access to the
-  API, without refund"*. That is the whole pipeline stopping.
+Terms read in full at `api-football.com/terms` (updated 2025-05-21). Websites are an expected use.
+The one hard prohibition is reselling the data. They grant no publication licence and disclaim the
+question ("must be requested from the competent authorities"), so it sits with the leagues, not with
+them. Logos are "for identification and descriptive purposes"; they claim no rights over them and say
+use may need the rights holders' permission. **THE REAL RISK is operational, not legal:** on a formal
+complaint they may suspend API access immediately and without refund, which stops the whole pipeline.
 
 Open, and NOT for an agent to answer: whether the rights-holder question needs a real lawyer before
 publishing. **An agent must never produce a legal conclusion.**
@@ -73,85 +64,138 @@ publishing. **An agent must never produce a legal conclusion.**
 
 ## ⚠️ v2 makes third-party requests TODAY
 
-An earlier claim that `site_v2` made none was **WRONG** — it grepped code files and missed the data
-files. The committed sample data carries `media.api-sports.io` URLs, and
-`site_v2/src/components/ui/Crest.astro` and `.../fixture/PlayerRow.astro` render them as `<img src>`.
-**The exact defect that took the MVP offline is already present in v2.**
-
-Fix: mirror crests onto our own origin instead of hotlinking. Honestly: that fixes the **privacy**
-problem (visitors stop talking to a third party) and does **not** improve the rights position —
-arguably it worsens it, since we would host copies. The two pull in opposite directions.
+The committed sample data carries `media.api-sports.io` URLs, and `Crest.astro` and `PlayerRow.astro`
+render them as `<img src>`. **The exact defect that took the MVP offline is already present in v2.**
+(An earlier all-clear was wrong: it grepped code and missed the data files.) Fix: mirror crests onto
+our own origin. That fixes the **privacy** half only, and arguably worsens the rights position since
+we would host copies. The two pull in opposite directions.
 
 ---
 
-## The retrospective — six conclusions (2026-07-22)
+## The retrospective (2026-07-22) — what still needs remembering
 
-1. **The pattern behind the failures.** Nothing checks whether the thing being made is worth making.
-   Every hook gates paths, scope, evidence and commits; every agent judges conformance. So the
-   default is to make whatever can be finished alone. The drift always runs the same way: build a
-   page → design a page → write doctrine about pages → write process for writing doctrine. Each step
-   up feels like diligence and never fails loudly.
-2. **The guard system is blind to design.** Every gate keys on file paths. The three rejected mocks
-   were artifacts, so no contract, no routing, no reviewer and no commit gate ever touched them. The
-   one surface with no machinery is the one that failed three times in a day.
-3. **Agents can help reasoning, and it is proven** — `escalations.log` records the football reviewer
-   producing genuinely new information that changed an outcome. Every entry is a metric, scope or
-   naming decision. **No design decision has ever been logged there.** Agents break single-sampling;
-   they do not create taste. For taste the CPO and a user probe remain the check.
-4. **Two enforcement holes, verified in code.** The protected paths (`.claude/hooks/`,
-   `.claude/agents/`, `.claude/commands/`, `.github/workflows/`) are NOT in the structural surface,
-   so editing a hook needs CPO authority but no blast-radius trace while a leaf dbt model needs one.
-   And no hook fires on the Artifact tool at all.
-5. **Bad questions.** Working agreement §11 bans recommendations, but the CPO wants one, and practice
-   is split down the middle: `escalations.log` has 9 entries that explicitly withhold a
-   recommendation per §11 and 8 that give one. So the rule is both stale and inconsistently
-   followed. The test before asking: state what I will do if never answered, and what undo costs.
-   No default nameable → not ready to ask. Cheap undo → just do it. **Never ask about something
-   visual in words; build it and show it.**
-6. **What actually gets read.** CLAUDE.md (9k) and the memory index. That is the whole list. `docs/`
-   is 50 files and 443,000 characters. Three tiers: code that runs, briefs that load, reference prose
-   only read when hunted for. The failures were rules written in tier three that needed tier one.
+Holes 1-4 are now CLOSED by #803, so only the behavioural findings survive here.
 
-**Plain language is enforced by nothing** and failed inside the retrospective itself: file paths,
-section numbers and invented vocabulary throughout.
+- **The recurring defect is fixing the INSTANCE instead of the CLASS.** Every failure today was
+  this: one word list holed four rounds running, a stale count in six files, a coverage sentence
+  written in two places and corrected in one. Reviewers were not finding different bugs, they were
+  finding one bug in new places. **When a reviewer finds the same class twice, stop patching and
+  sweep it.**
+- **Inference is not permission, and I made this mistake TWICE in one day** — the metric rename and
+  the review routing, both §10, both "obviously right", both with no quoted answer. §10 says
+  escalate "regardless of how obvious", precisely because obviousness is not the test.
+- **Verify against the real tree, never a hand-picked list**, and least of all a list of files that
+  do not exist yet. `git ls-files` takes one command.
+- **The test before asking:** state what I will do if never answered, and what undo costs. No
+  default nameable → not ready to ask. Cheap undo → do it and say so. **Never ask about something
+  visual in words; build it and show it.**
+- **What actually gets read:** CLAUDE.md and the memory index. That is the whole list. Rules that
+  must hold belong in a hook or a test, not in prose.
 
 ---
 
-## NEXT — the governance task (specified, ready to pick up cold)
+## DONE 2026-07-22 — #802 handover rewrite · #803 guardrails · #804 metrics into marts
 
-One task, protected paths, needs `protected_override`, routes to `cto-reviewer` at **opus**.
+Detail is in the commits. Three things from them that are still LIVE:
 
-**(a) Close the two enforcement holes.** Add the protected paths to `_is_structural` in
-`.claude/hooks/task_contract_gate.py`. Add an `Artifact` matcher to `PreToolUse` in
-`.claude/settings.json` so publishing a mock requires a contract and forces the design question into
-`decisions_reserved`. **CPO ruled it BLOCKS, not warns** (quality over speed).
+⚠️ **#804 is UNVERIFIED until the fingerprint is checked.** The rename touched the column
+`deserved_rank` is computed on, so a silent break is possible. After the main-push data build,
+confirm unchanged: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
+`bc6d2587b6f2ad02469ded299fc025b7`. If it moved, the flagship read broke.
 
-**(b) Plain-language enforcement.** The Stop hook already blocks a turn; extend it to read the turn's
-own output and block on file paths, section numbers, em dashes, or excess length.
+⚠️ **#802's rewrite DELETED an "owed work" line** (a metric rename), which then cost two review
+rounds to reconstruct from git. **Anything carried as owed must survive a rewrite, or move to
+`escalations.log` before the rewrite happens.** That is why the OWED section below exists.
 
-**(c) The agent set.** Five definitions:
-- `ui-expert` **doer** — writes `site_v2/` and the wireframes. A draft is stashed (`git stash list`,
-  "ui-expert agent, unreviewed, parked"); good raw material, it names every 2026-07-21 design failure
-  as a prohibition. **Move its redundancy and slot-order rules to the reviewer** — a doer cannot
-  police itself.
-- `ui-expert-reviewer` — **the hole**: `site_v2/**` routes only to `cto-reviewer` (build config), so
-  nothing reviews built pages for design or display honesty. Add it in `.claude/review_routing.json`.
-- `football-analytics-expert` and `data-journalist` as **consultants** — consulted BEFORE design,
-  never owning a file surface (a surface invites them to write specs, and specs are documents).
-- A **fan probe** — given a task, not an opinion prompt, and it must see the RENDERED page.
-  **Unverified prerequisite:** whether a subagent can hold the browser tools. Check first.
+**#803 shipped four gates:** protected paths need a blast-radius trace as well as authority; the
+`Artifact` tool is gated on a contract with a real `decisions_reserved`; a Stop hook blocks em
+dashes, section symbols, repo paths in prose and over 2,500 characters of prose; SessionStart is
+wired (it had run nowhere).
 
-**(d) `legal-counsel`** — consultant first, producing a risk register from the terms above; doer
-later, writing the imprint and privacy pages once the operator question is answered.
+---
 
-**(e) Correct §11** of `docs/working_agreement.md` to require a recommendation.
+## OWED — deferred deliberately, recorded so it is not lost
 
-**(f) Wire the SessionStart hook** (`docs/portable_guardrails/hooks/handover_in.py`) or delete the
-claim that it exists. Verified: no `SessionStart` key in `.claude/settings.json`,
-`.claude/settings.local.json`, or the user-level `~/.claude/settings.json`. The script exists and
-nothing runs it.
+Each of these was proposed, judged worth doing, and NOT done. None is forgotten; none is decided
+away. Written here because holding them in a chat is how they disappear.
 
-**Then build the team page.** Design approved, unbuilt, no design invention needed.
+**The agent set.** A `ui-expert` DOER (a draft is stashed on `feat/expert-agents-that-build`; good
+raw material, it names every 2026-07-21 design failure as a prohibition — but move its redundancy and
+slot-order rules to a reviewer, since a doer cannot police itself). A design reviewer for built
+pages. `football-analytics-expert` and `data-journalist` as CONSULTANTS, consulted before design and
+never owning a file surface. A fan probe, given a task rather than an opinion prompt, which must see
+the RENDERED page. **Unverified prerequisite: whether a subagent's tool calls fire the main session's
+hooks at all — if not, the artifact gate does not cover a doer. TEST IT, do not assume.**
+
+**The metric-change skill.** Adding one team metric touched SIX files across models, schemas and
+docs, and nothing enumerates that list. The skill's value IS the enumeration. Write it from what
+#804 actually required, not from imagination.
+
+**Mirror the crests.** `site_v2` renders team crests and player photos straight from
+`media.api-sports.io`, so every visitor's browser talks to a third party — the exact defect that took
+the MVP offline. Copying them to our own origin fixes the privacy half and does NOT improve the
+rights position.
+
+**Amend the locked display contract** (`docs/wireframes/metrics_display.md`, a 16-row team table) to
+carry the two metrics #804 surfaced. A §10 display decision; the approved mock shows both.
+
+**`legal-counsel` as a consultant** — a risk register from the API-Football terms. Doer later, for
+the imprint and privacy pages, once the operator question is answered.
+
+**The guardrail economics**, raised by the CPO after #803 cost nine rounds: cap the review rounds,
+scale the re-review to what actually changed (a one-word comment fix re-ran everything at full
+depth), put the reviewer model in the routing file instead of my head, and recast the roles so
+reviewers are peers rather than a CTO reading every diff.
+
+---
+
+## IN FLIGHT — branch `chore/route-display-reviewer-to-built-pages`
+
+**Committed at `be6165c4`, PR open, awaiting the CPO's merge.** Routes `bi-analyst-reviewer` at
+`site_v2/src/**` so the binding rule is enforced on PAGES, not only the specs describing them. CPO
+ruling recorded (AskUserQuestion): *"Yes, everything under site_v2/src"*. Adds tests that load the
+REAL routing file, call the REAL matcher from `git_discipline.py`, and assert over `git ls-files -z`.
+Four rounds: both FAILED round 1 (routing missed 7 files; §10 authority missing); cto FAILED rounds
+2 and 3; both PASS at the committed hash. Round 3 found the pin-coverage test certifying a
+hand-typed literal that had already drifted — `site_v2/**` could have been deleted with the suite
+staying green — and the cry-wolf direction still checking a hand list. Both are now derived.
+
+## ⚠️ FINDING — deserved-vs-actual is BROKEN for tournaments (pre-existing, not yet fixed)
+
+Found while verifying #804. `deserved_rank` ranks ALL teams in a competition 1..N, but `latest_rank`
+for a group-stage tournament is the position WITHIN a group (1..4). The two are not comparable, so
+every tournament team shows a huge false gap: AFCON 2025 sums to 299 deserved against 63 actual,
+about −10 per team, read as spectacular over-performance and meaning nothing. Domestic leagues are
+correct (Eredivisie: 171 against 171, gap 0).
+
+The gate assumed knockout competitions carry no standing; group-stage ones DO, just not comparable
+ones, so it checks a position EXISTS, not that it is the same KIND of number.
+
+**CPO RULING 2026-07-22:** *"We keep it for ranking in domestic leagues. It should be possible to
+have deserved vs actual for tournaments as well but let's skip for now."* So: DOMESTIC-LEAGUE ONLY;
+a tournament version is wanted eventually and is NOT being designed now.
+**Still owed:** the mart still emits non-null values for tournaments. Nothing displays them yet, so
+it is contained. Until the model is restricted, **the hero must never render this block for a
+non-domestic competition.**
+
+## ✅ #804 VERIFIED CLEAN (the fingerprint check is done, do not repeat it)
+
+Recomputing the ranking from the renamed column gives 1,376 rows and ZERO mismatches, and
+`sum(deserved_rank)` is identical to the pre-change baseline. The rename did not move the flagship
+read. `sum(sot_rank_gap)` moved by 16 because `latest_rank` comes from standings, which the same
+build refreshed; #804 touched no file in the standings path.
+
+## NEXT
+
+1. **This change** — route the display reviewer at built pages (in flight).
+2. **The deserved-vs-actual block.** The approved mock's hero is BROKEN: it draws a fitted
+   regression line that nobody computes and that can predict league positions which do not exist
+   (0.4, 21.3). The metric was validated by RANK correlation (Spearman +0.695 over 149 league-seasons)
+   and `deserved_rank` is a RANK, never a fitted prediction. CPO requirement: *"The user needs to see
+   immediately the difference between the actual and the deserved."* Owed to him as a PICTURE to look
+   at, not prose — describing a design in words is banned.
+3. **The team page**, all three tabs, mock `f6348775` with that block replaced. Everything else in
+   that mock is sound and data-backed.
 
 ---
 

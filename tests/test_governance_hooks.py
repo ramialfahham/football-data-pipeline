@@ -6,6 +6,7 @@ No BigQuery, no network.
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import subprocess
@@ -379,6 +380,167 @@ def test_commit_message_mentioning_flags_not_denied(repo):
 def test_normal_commit_not_denied(repo):
     out, _ = run_hook("git_discipline.py", bash_event('git commit -m "feat: x"'), repo)
     assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# The REAL routing file. Everything below this block uses a synthetic fixture,
+# which is correct for testing the gate's mechanics — but it meant nothing ever
+# tested the routing DATA. On 2026-07-22 a routing change shipped that missed six
+# tracked files, including `site_v2/src/lib/metricRows.ts` (the CPO-locked 16-row
+# display contract), because it was "verified" by a one-off manual evaluation
+# against two paths that did not exist. These tests load the real file and
+# enumerate the real tree, so that class of miss fails the build instead.
+# --------------------------------------------------------------------------- #
+REAL_ROUTING_PATH = os.path.join(
+    os.path.dirname(__file__), "..", ".claude", "review_routing.json")
+
+
+def real_routing() -> dict:
+    with open(REAL_ROUTING_PATH, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def required_reviewers(routing: dict, path: str) -> set:
+    """Calls the REAL matcher, imported from the hook. Not a reimplementation.
+
+    An earlier version mirrored it by hand and added `pat.endswith("/**") and
+    path.startswith(...)`, a clause the hook and the CI backstop do not have —
+    so the test was strictly MORE PERMISSIVE than the two things it certifies,
+    and would go green on a route the gate does not enforce. They agree today
+    only because no `/**` pattern has an fnmatch metacharacter in its prefix,
+    and this tree's own directories are `[lang]`, `[competition]`, `[fixture]`,
+    so that is luck rather than design. Testing a model of the system instead of
+    the system is the exact root cause this whole change exists to fix
+    (cto-reviewer, 2026-07-22)."""
+    return _gd()._required_reviewers([path], routing)
+
+
+def _gd():
+    """The hook module. Its `main()` is `__main__`-guarded, so importing is
+    side-effect free."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks"))
+    import git_discipline
+    return git_discipline
+
+
+def tracked(prefix: str) -> list[str]:
+    """NUL-separated, like `git_discipline.py` and `check_task_artifacts.py`.
+
+    Without `-z`, a tracked path containing a space splits into fragments and a
+    non-ASCII one comes back quote-escaped (`"site_v2/src/caf\\303\\251.astro"`),
+    so it fails the prefix filter and silently leaves the coverage set — the
+    under-enumeration bug this repo already fixed twice in the hooks themselves.
+    A test whose one promise is "every tracked file is covered" must not
+    under-enumerate (cto-reviewer, 2026-07-22)."""
+    r = subprocess.run(["git", "ls-files", "-z", prefix], capture_output=True, text=True,
+                       cwd=os.path.join(os.path.dirname(__file__), ".."))
+    assert r.returncode == 0, f"git ls-files failed: {r.stderr}"
+    return [p for p in r.stdout.split("\0") if p]
+
+
+def test_real_routing_parses_and_has_the_required_keys():
+    r = real_routing()
+    for key in ("always", "paths", "artifact_only", "artifact_only_never",
+                "hash_exclude_paths"):
+        assert key in r, f"review_routing.json lost its `{key}` key"
+    assert "scope-auditor" in r["always"]
+
+
+def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
+    """The binding rule (00_overview.md, "the whole point") says a block may
+    reference only fields that exist in the export. bi-analyst-reviewer enforces
+    it. If ANY file that can render a field escapes that reviewer, a fabricated
+    metric ships unseen — which is exactly what was planned on 2026-07-22.
+
+    Enumerated from `git ls-files`, not from a hand-written list, because the
+    hand-written list is what was wrong."""
+    r = real_routing()
+    files = [f for f in tracked("site_v2") if f.startswith("site_v2/src/")]
+    assert files, "no tracked files under site_v2/src — has the tree moved?"
+    missing = [f for f in files
+               if "bi-analyst-reviewer" not in required_reviewers(r, f)]
+    assert not missing, f"frontend source escaping the display reviewer: {missing}"
+
+
+def test_frontend_build_config_does_not_get_the_display_reviewer():
+    """The other direction. A guard that cries wolf gets ignored, so a dependency
+    bump or a build-config edit must NOT demand a display review.
+
+    Enumerated from `git ls-files`, like the direction above. This was a
+    three-item hand list — `astro.config.mjs`, `package.json`, `tsconfig.json` —
+    which already missed the two other tracked non-source files
+    (`package-lock.json`, `.gitignore`) and would miss whatever lands outside
+    `src` next. Writing one direction from the real tree and the other from a
+    literal is the same defect at half scale, in the file whose whole thesis is
+    "enumerate the real tree" (cto-reviewer, 2026-07-22)."""
+    r = real_routing()
+    outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
+    assert outside, "no tracked files outside site_v2/src — has the tree moved?"
+    stray = [f for f in outside
+             if "bi-analyst-reviewer" in required_reviewers(r, f)]
+    assert not stray, f"non-source file demanding a display review: {stray}"
+
+
+# One representative path per routing pattern, each asserting the reviewer THAT
+# pattern is responsible for. A module constant rather than an inline literal
+# because the coverage test below derives from it — see its docstring.
+PINNED_CASES = [
+    ("dbt_project/models/5_marts/shared/mart_team_profile.sql", "analytics-engineer-reviewer"),
+    ("dbt_project/seeds/metric_catalogue.csv", "football-analytics-expert-reviewer"),
+    ("ingestion/api_football/main.py", "data-engineer-reviewer"),
+    ("docs/competition_registry.yml", "data-engineer-reviewer"),
+    ("docs/data_contract.md", "data-engineer-reviewer"),
+    ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
+    ("scripts/sync_dbt_vars.py", "cto-reviewer"),
+    ("tests/test_governance_hooks.py", "cto-reviewer"),
+    ("requirements.txt", "cto-reviewer"),
+    (".claude/hooks/task_contract_gate.py", "cto-reviewer"),
+    (".claude/agents/bi-analyst-reviewer.md", "cto-reviewer"),
+    (".claude/commands/anything.md", "cto-reviewer"),
+    (".claude/settings.json", "cto-reviewer"),
+    (".claude/review_routing.json", "cto-reviewer"),
+    (".mcp.json", "cto-reviewer"),
+    (".cursor/mcp.json", "cto-reviewer"),
+    (".github/workflows/ci-data-build.yml", "cto-reviewer"),
+    ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
+    ("site/i18n/de.json", "bi-analyst-reviewer"),
+    ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
+    ("site_v2/package.json", "cto-reviewer"),
+    ("dbt_project/seeds/competition_registry.csv", "data-engineer-reviewer"),
+]
+
+
+@pytest.mark.parametrize("path,expected", PINNED_CASES)
+def test_real_routing_still_covers_every_pre_existing_surface(path, expected):
+    """A routing edit must be additive: widening one route cannot silently
+    narrow another. Every pattern in the table is pinned — enforced, not
+    claimed, by the test below."""
+    assert expected in required_reviewers(real_routing(), path)
+
+
+def test_every_routing_pattern_is_pinned_by_the_test_above():
+    """Guards the guard: if a new route is added and nobody pins it, fail here
+    rather than let the pin test quietly cover a shrinking share of the table.
+
+    DERIVED from `PINNED_CASES`, never a second hand-written list. It was such a
+    list, and it had already drifted: `site_v2/**` and
+    `dbt_project/seeds/competition_registry.csv` sat in it with no case pinning
+    them, so deleting either route left the whole suite green — frontend build
+    config would have lost platform review silently. A hand-typed copy of a list
+    is a list that desynchronises (cto-reviewer, 2026-07-22).
+
+    A pattern counts as pinned only when some case both MATCHES it and asserts a
+    reviewer that pattern actually confers. Matching alone is not enough:
+    `site_v2/src/lib/metricRows.ts` matches `site_v2/**` too, but it asserts
+    `bi-analyst-reviewer`, which says nothing about whether `site_v2/**` still
+    routes to the CTO."""
+    routing = real_routing()
+    unpinned = [
+        pattern for pattern, reviewers in routing["paths"].items()
+        if not any(fnmatch.fnmatch(path, pattern) and expected in reviewers
+                   for path, expected in PINNED_CASES)
+    ]
+    assert not unpinned, f"unpinned routing patterns: {sorted(unpinned)}"
 
 
 # --------------------------------------------------------------------------- #
