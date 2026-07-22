@@ -4,13 +4,62 @@
 > SessionStart hook). Continue from here; do not re-scope or infer from issue titles or
 > memory. Keep it current (status + next action + do-NOTs). Update it before you finish.
 
-_Last updated: **2026-07-22** — main GREEN at **7440366**, tree clean. **THE GITHUB TRACKER IS NOW THE PLAN OF RECORD, NOT THIS FILE.** 7 milestones and 114 issues were created on 2026-07-21. This file is session state only: what is in flight right now and what must not be repeated. **Do not write another plan. Pick an issue.** Read the two sections below and then go to the milestones._
+_Last updated: **2026-07-22** — main GREEN at **2a43a23**, tree clean. **THIS SESSION IS A RESET, NOT A CONTINUATION.** The CPO has lost confidence in the plan and in the way we have been working, and has set a hard goal: **the new website live in two weeks.** Before building anything, the new session runs a retrospective and fixes how we work. The agenda is below and it comes from the CPO, not from me. **Do not start building. Do not write another plan document.**_
 
 ---
 
-### ⭐ START HERE (2026-07-22) — the tracker, and what a whole day of drift taught us
+### 🔴 START HERE (2026-07-22) — the reset
 
-**The plan lives at https://github.com/ramialfahham/football-data-pipeline/milestones.** Seven phases, 114 issues, each labelled and milestoned.
+#### The goal, and the only one
+
+**The new website live, within two weeks.** One hundred percent focus. The CPO's words: *"We must have 100% focus on bringing the new website live. I want to have it live within 2 weeks. That does not allow too many drift situations anymore."*
+
+Everything below serves that. Anything that does not is out.
+
+#### Before any building: the retrospective the CPO asked for
+
+He does not want work started. He wants us to work out why the collaboration keeps failing and to fix the conditions. His words: *"Sometimes our collaboration is fantastic, sometimes it's really horrible. The question is, what can I do better to move forward faster and how can we provide you with the prerequisites to work accurately and with high quality and as autonomously as possible."*
+
+Six things to work through, in his own framing:
+
+1. **What went wrong.** A full day produced two real merges and otherwise ran in circles. The failures are catalogued further down; do not make the next session rediscover them.
+2. **Expert agents that DO work.** *"We need an expert for every task... they are just dead documents. We can't just use the roles for review purposes. In other projects, I've seen that bespoke agents handle the tasks and, where necessary, monitor each other."* Eleven role briefs exist in `docs/roles/`; six have agents; **all six are read-only reviewers**. No expert in this project can produce anything.
+3. **Agents that help with REASONING**, not just doing. *"You just follow some instincts."* An open question, not yet designed.
+4. **Plain language, enforced.** *"not childish but easy to understand and technically correct."* Currently a habit, therefore unreliable.
+5. **Stop the bad questions.** Two distinct problems: trivial questions that should be decided with judgement, and questions the CPO **does not have the context to answer**. Both cost him time and both are mine to prevent.
+6. **Prerequisites for autonomy.** What has to be true, and written down where I actually read it, for me to work accurately without supervision.
+
+#### ⚠️ The plan is NOT trusted. Treat it as raw material.
+
+**CPO: *"whatever you have planned (roadmap, milestones etc.) from now on or what is in the road_to document. I don't trust it anymore."***
+
+7 milestones and 114 issues exist at https://github.com/ramialfahham/football-data-pipeline/milestones. **Do not treat them as agreed work.** They were derived in one pass, some are already stale, and the CPO has withdrawn his confidence in them. They are useful as a *checklist of things somebody noticed*, nothing more. Re-validate anything before acting on it. In particular the Phase ordering assumed a two-week deadline did not exist.
+
+The `road_to_launch` artifact is superseded. Do not cite it.
+
+#### The two enforcement holes, found by exploring the hooks (this is real and actionable)
+
+The five-step protocol is **Explore → Plan → Confirm → Implement → Verify** (`docs/working_agreement.md` §1). It is fully intact. I stopped following it. Reading the hooks showed why that was possible:
+
+- **Confirm is enforced by nothing.** Plan mode is voluntary; no hook can read whether the CPO said go. §1 admits this.
+- **Explore is only half enforced.** The `impact_map`, the evidence that exploration happened, is demanded on exactly five path patterns: `ingestion/`, `dbt_project/models/`, `site/`, `site_v2/`, `scripts/export_*.py`. **The protected paths are not among them**, so hooks, agent definitions and CI workflows, the files that govern everything else, demand *less* evidence than a dbt model.
+
+`docs/working_agreement.md` §1 already records a reserved remedy: *"A self-attested `cpo_go` contract token enforced by the impact-map gate was considered and held in reserve — adopt it only if plan mode proves insufficient."* **Plan mode has now proved insufficient.** Taking that off the shelf, and widening the exploration requirement to the protected paths, is a concrete two-part fix that was explored but never planned or approved.
+
+#### What the CPO could do differently (he asked; answer honestly)
+
+- **One unit of work at a time, finished before the next.** Yesterday had roughly eight redirections. Every one discarded work in progress.
+- **When something is wrong, one line of "wrong because X" beats a rewrite.** The three most useful corrections all took him one sentence.
+- **Answer the blocking decisions once.** The Impressum operator question blocks publication entirely and has been open since it was found.
+- **State deadlines up front.** The two-week goal changes prioritisation completely and arrived at the end of a day spent on things that do not serve it.
+
+#### PARKED, not abandoned
+
+A `ui-expert` **doer** agent (`.claude/agents/ui-expert.md`, write-capable, unlike the six reviewers) was written and is **stashed on `feat/expert-agents-that-build`** (`git stash list`). It was built without exploring or planning, which is exactly the failure under discussion, so it is unreviewed and unmerged. **It may still be the right answer, but it has to earn it through the protocol.** Its content is good raw material: it encodes every 2026-07-21 design failure as a named prohibition.
+
+---
+
+### Reference: the plan as it stands (NOT trusted, see above)
 
 | Milestone | Open | What it is |
 |---|---|---|
