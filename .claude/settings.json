@@ -39,6 +39,17 @@
         ]
       },
       {
+        "matcher": "Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
+            "statusMessage": "Checking task contract (artifact)..."
+          }
+        ]
+      },
+      {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
@@ -83,6 +94,24 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py\"",
             "statusMessage": "Stop gate: contract check..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/plain_language_gate.py\"",
+            "statusMessage": "Stop gate: plain language..."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/handover_in.py\"",
+            "statusMessage": "Loading the active-work handover..."
           }
         ]
       }

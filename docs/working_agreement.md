@@ -48,7 +48,8 @@ committed with the branch so it is PR-visible:
 - **decisions_reserved** — known CPO-class questions (§10); each is escalated
   blinded (§11), never decided
 - **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
-  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`): the
+  (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, **and
+  every protected path** — see below; added 2026-07-22): the
   end-to-end blast-radius map produced BEFORE the first structural edit — every
   writer of the table/model, the downstream lineage to marts/consumption (from
   `dbt ls --select <model>+` or the dbt MCP, **pasted as evidence, not asserted
@@ -69,13 +70,29 @@ committed with the branch so it is PR-visible:
 Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
 - No contract → repo edits denied. Out-of-scope path → denied.
 - **Structural surface** (`ingestion/**`, `dbt_project/models/**`,
-  `scripts/export_*.py`, `site*/`) → the first Edit/Write is denied until the
-  contract carries a non-placeholder `impact_map` (§2 above / Appendix A6).
+  `scripts/export_*.py`, `site*/`, **and every protected path below**) → the
+  first Edit/Write is denied until the contract carries a non-placeholder
+  `impact_map` (§2 above / Appendix A6). Enforced on the shell write path too,
+  not only on Edit/Write.
+- **An `Artifact` publish is denied without a contract carrying a real
+  `decisions_reserved`** (2026-07-22). Design was the only surface with no gate
+  at all: three player-page mocks were produced and rejected in a single day
+  without a contract, a routed reviewer or a commit gate ever seeing them.
+  "What does this page show" is a §10 decision, reserved and escalated, never
+  answered by drawing it. **Honest limit:** this is keyed on the `Artifact` tool
+  name, not on the act of designing. Writing an HTML mock to a scratchpad with
+  `Write` still touches nothing, because every path-keyed check returns early
+  outside the repo. Publishing is gated; drafting is not.
 - **Protected paths** (`.claude/hooks/`, `.claude/agents/`,
   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
   `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) are never editable
   except in a dedicated CPO-approved governance task whose contract carries
-  `protected_override`. The reviewer definitions and routing are protected so
+  `protected_override` **and a non-placeholder `impact_map`** — both, since
+  2026-07-22. They are two different questions: the override answers "may you",
+  the map answers "do you know what breaks". Until that date only the override
+  was required, so editing a guard demanded *less* evidence than a cosmetic
+  label change on a leaf mart, while a guard's blast radius is every future task
+  in the repo. The reviewer definitions and routing are protected so
   the builder can never weaken its own adversary inside an ordinary task (CPO
   ruling, G3 escalation 2026-06-12); `.claude/commands/` is protected because
   custom slash commands can embed shell, so a command file is the same
@@ -258,7 +275,9 @@ The agent never decides the following. Each is a CPO decision, escalated per §1
 
 Before escalating, the agent runs a mandatory `<premise_check>` in its thinking: list the assumptions underlying the escalation, validate each against the written rules, and drop invalid premises — the CPO never sees an escalation built on a false premise.
 
-The escalation itself presents **at least two distinct, conflicting paths, without anchoring**: no preferred option, no recommendation, no reading of what the CPO wants to hear. For each path state what it implies, what it costs, and what becomes hard later. The CPO judges; the agent informs.
+The escalation itself presents **at least two distinct, conflicting paths**. For each path state what it implies, what it costs, and what becomes hard later, honestly enough that the CPO could pick the one the agent did not recommend.
+
+**End with a recommendation, and say why.** (Corrected 2026-07-22. This section used to ban one — "no preferred option, no recommendation" — and that rule was both stale and inconsistently followed: `escalations.log` holds 9 escalations that withheld a recommendation and 8 that gave one. The CPO wants the recommendation: leading with a bolded call and its reasoning is faster to judge than a neutral menu, and a menu with no view is often an undigested choice handed over rather than a decision genuinely reserved.) Anchoring is still forbidden in one specific sense: never shade the alternatives to make the recommendation look inevitable, and never guess what the CPO wants to hear. The recommendation is the agent's reasoning made visible so it can be attacked, not a nudge.
 
 Every escalation is appended to `.claude/task/escalations.log` (committed with the branch) once the task-contract machinery exists.
 

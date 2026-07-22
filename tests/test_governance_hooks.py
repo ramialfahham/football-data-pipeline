@@ -53,6 +53,19 @@ CONTRACT_OVERRIDE = CONTRACT.replace(
     "scope_paths:\n", "scope_paths:\n  - .claude/hooks/some_hook.py\n"
 )
 
+# An override WITHOUT an impact_map. This fixture did not exist until 2026-07-22,
+# and its absence is why the suite covered only the ALLOW direction of the
+# protected-path gate: CONTRACT_OVERRIDE derives from CONTRACT, which already
+# carries _IMPACT_BLOCK, so `test_protected_path_allowed_with_override` would
+# have passed identically whether or not the map was ever checked. A one-sided
+# test passes while broken (cto-reviewer, 2026-07-22).
+CONTRACT_OVERRIDE_NO_IMPACT = CONTRACT_NO_IMPACT.replace(
+    "decisions_taken:",
+    'protected_override: >\n  CPO approval test\ndecisions_taken:',
+).replace(
+    "scope_paths:\n", "scope_paths:\n  - .claude/hooks/some_hook.py\n"
+)
+
 
 def run_hook(script: str, event: dict, repo: str) -> tuple[str, str]:
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
@@ -187,6 +200,69 @@ def test_ingestion_edit_denied_without_impact_map(repo):
         "  - docs/allowed_dir/\n", "  - docs/allowed_dir/\n  - ingestion/\n"))
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "ingestion/loader.py", "Write"), repo)
     assert denied(out) and "impact_map" in out
+
+
+@pytest.mark.parametrize("spelling", [
+    "impact_map: {v}\n",              # inline
+    "impact_map: >\n  {v}\n",         # block scalar
+    "impact_map:\n  - {v}\n",         # dash list — the spelling the first fix missed,
+])                                    # and the one every other key in the real contract uses
+@pytest.mark.parametrize("value", [
+    "none", "None", "N/A", "n/a", "TBD", "todo", "(none)",
+])
+def test_nullish_impact_map_does_not_satisfy(repo, value, spelling):
+    """`impact_map: none` used to satisfy the requirement. The nullish set
+    rejected `(none)` but not `none`, `n/a` or `TBD`, and did not case-fold — the
+    same hole class fixed in the sibling helper a round earlier, left standing in
+    the function this task makes load-bearing on every guard edit in the repo
+    (cto-reviewer, 2026-07-22)."""
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "decisions_taken:", spelling.format(v=value) + "decisions_taken:"))
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+@pytest.mark.parametrize("header", [">-", "|-", ">+", "|+", "|2", "|2-"])
+def test_block_scalar_header_impact_map_does_not_satisfy(repo, header):
+    """A YAML chomping or indentation suffix used to walk straight through the
+    nullish word list, which had `>` and `|` but not `>-`. Not contrived: this
+    repo's own workflow files write `>-`. Matched by pattern now, because
+    enumerating literals loses by one variant every round (cto-reviewer)."""
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "decisions_taken:", f"impact_map: {header}\n  none\ndecisions_taken:"))
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+@pytest.mark.parametrize("header", [">-", "|-", ">+", "|2"])
+def test_block_scalar_header_decisions_reserved_does_not_satisfy(repo, header):
+    """The same bypass on the artifact gate's half."""
+    write_contract(repo, CONTRACT.replace(
+        "decisions_reserved:\n  - none",
+        f"decisions_reserved: {header}\n  none",
+    ))
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert denied(out) and "decisions_reserved" in out
+
+
+@pytest.mark.parametrize("spelling", [
+    "impact_map: writers: loader_x; blast_radius: none (leaf)\n",   # inline
+    "impact_map: >\n  writers: loader_x; blast_radius: none (leaf)\n",   # block
+    "impact_map: >-\n  writers: loader_x; blast_radius: none (leaf)\n",  # chomped block
+    "impact_map:\n  - writers: loader_x; blast_radius: none (leaf)\n",   # dash list
+])
+def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
+    """The ALLOW half. The nullish tests covered three spellings of DENY while
+    the only ALLOW fixture was the plain block scalar, so a fix that rejected too
+    much would have passed — the one-sided coverage this contract's own done_when
+    names, found for the third time (cto-reviewer, 2026-07-22)."""
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "decisions_taken:", spelling + "decisions_taken:"))
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert not denied(out)
 
 
 def test_placeholder_impact_map_does_not_satisfy(repo):
@@ -806,3 +882,388 @@ def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
     subprocess.run(["git", "commit", "-qm", "code+artifacts"], cwd=ci_repo, check=True)
     code, out = run_ci_check(ci_repo)
     assert code == 1 and "escalations" in out
+
+
+# --------------------------------------------------------------------------- #
+# Protected paths are STRUCTURAL — authority and understanding are two gates
+# (2026-07-22). Every one of these runs both directions on purpose.
+# --------------------------------------------------------------------------- #
+
+def test_protected_path_denied_with_override_but_no_impact_map(repo):
+    """THE missing direction. `protected_override` answers "may you"; the
+    impact_map answers "do you know what breaks". A guard's blast radius is
+    every future task in the repo, wider than most models."""
+    write_contract(repo, CONTRACT_OVERRIDE_NO_IMPACT)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, ".claude/hooks/some_hook.py"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_protected_path_allowed_with_override_and_impact_map(repo):
+    """The paired ALLOW, stated explicitly rather than inherited from a fixture
+    that happened to carry a map."""
+    write_contract(repo, CONTRACT_OVERRIDE)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, ".claude/hooks/some_hook.py"), repo)
+    assert not denied(out)
+
+
+@pytest.mark.parametrize("rel", [
+    # PROTECTED_PREFIXES …
+    ".claude/hooks/h.py", ".claude/agents/a.md",
+    ".claude/commands/c.md", ".github/workflows/w.yml",
+    # … and PROTECTED_FILES, which the first version of this test omitted while
+    # calling itself exhaustive. The change went into `_is_protected`, which
+    # covers both tuples, and `.claude/settings.json` is edited by this very
+    # diff (cto-reviewer, 2026-07-22).
+    ".claude/settings.json", ".claude/review_routing.json",
+    ".mcp.json", ".cursor/mcp.json",
+])
+def test_every_protected_path_needs_an_impact_map(repo, rel):
+    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
+        "  - .claude/hooks/some_hook.py\n", f"  - {rel}\n")
+    write_contract(repo, scoped)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_shell_redirect_to_protected_path_needs_an_impact_map(repo):
+    """The gate was enforced on the Edit path only, so a redirect reached a
+    protected file with no trace, and neither the post-command check nor the
+    stop gate flags a protected+override file afterwards."""
+    write_contract(repo, CONTRACT_OVERRIDE_NO_IMPACT)
+    out, _ = run_hook("task_contract_gate.py",
+                      bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_shell_redirect_to_protected_path_allowed_with_impact_map(repo):
+    write_contract(repo, CONTRACT_OVERRIDE)
+    out, _ = run_hook("task_contract_gate.py",
+                      bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
+    assert not denied(out)
+
+
+def test_ordinary_doc_still_needs_no_impact_map(repo):
+    """The widened surface must not swallow ordinary files."""
+    scoped = CONTRACT_NO_IMPACT.replace(
+        "scope_paths:\n", "scope_paths:\n  - docs/plain.md\n")
+    write_contract(repo, scoped)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "docs/plain.md"), repo)
+    assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# The Artifact gate — design was the only surface with no gate at all, which is
+# why three mocks were produced and rejected in one day (2026-07-22).
+# --------------------------------------------------------------------------- #
+
+def artifact_event(path="/tmp/mock.html", hook_event="PreToolUse") -> dict:
+    return {"hook_event_name": hook_event, "tool_name": "Artifact",
+            "tool_input": {"file_path": path}}
+
+
+# A contract whose decisions_reserved is a real reservation, not the template's
+# bare `- none`. The gate requires this: a contract exists in nearly every
+# session, so contract-existence alone would make the gate fire almost never.
+CONTRACT_RESERVED = CONTRACT.replace(
+    "decisions_reserved:\n  - none",
+    "decisions_reserved:\n  - what the Overview shows for a goalkeeper",
+)
+
+
+def test_artifact_denied_without_contract(repo):
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert denied(out) and "needs a task contract" in out
+
+
+def test_artifact_denied_when_nothing_is_reserved(repo):
+    """The default contract's `- none` is the template speaking, not an author."""
+    write_contract(repo)
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert denied(out) and "decisions_reserved" in out
+
+
+def test_artifact_allowed_with_a_real_reservation(repo):
+    write_contract(repo, CONTRACT_RESERVED)
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert not denied(out)
+
+
+def test_artifact_allowed_when_nothing_open_is_stated_as_a_sentence(repo):
+    """"Nothing is open" stays legitimate — it just has to be checkable."""
+    write_contract(repo, CONTRACT.replace(
+        "decisions_reserved:\n  - none",
+        "decisions_reserved:\n  - none: the design is CPO-approved as mock "
+        "f6348775 and this publishes it unchanged",
+    ))
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert not denied(out)
+
+
+@pytest.mark.parametrize("reserved", [
+    # The YAML block indicators. `decisions_reserved: >` used to satisfy the gate
+    # ON THE KEY LINE, so the body was never read. Five of seven keys in this
+    # repo's own contract are written `key: >`.
+    "decisions_reserved: >\n  none",
+    "decisions_reserved: |\n  none",
+    # The TEMPLATE's own two-line placeholder. It ends in `;`, not `>`, so the
+    # anchored `^<.*>$` placeholder pattern missed it entirely: a contract copied
+    # from the template and never filled in satisfied the gate.
+    "decisions_reserved:\n  - <every known ambiguity / CPO-class question (§10)"
+    " that may surface;\n     escalate each blinded (§11) — never decide>",
+    "decisions_reserved:\n  - (none)",
+    "decisions_reserved:\n  - TBD",
+])
+def test_artifact_denied_on_every_empty_spelling(repo, reserved):
+    write_contract(repo, CONTRACT.replace("decisions_reserved:\n  - none", reserved))
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert denied(out) and "decisions_reserved" in out
+
+
+def test_unclosed_bracket_does_not_swallow_a_later_real_reservation(repo):
+    """An entry legitimately opening with `<` used to latch an "inside a
+    placeholder" flag that nothing cleared, hiding every real reservation after
+    it and then reporting the block as still holding the template's bare
+    `- none`, which was neither true nor actionable (cto-reviewer, 2026-07-22)."""
+    write_contract(repo, CONTRACT.replace(
+        "decisions_reserved:\n  - none",
+        "decisions_reserved:\n  - <2s page load is a product call\n"
+        "  - what the Overview shows for a goalkeeper",
+    ))
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert not denied(out)
+
+
+def test_artifact_allowed_when_a_block_scalar_carries_real_content(repo):
+    """The `key: >` form must still WORK when it has a body — the fix rejects the
+    bare indicator, not the spelling."""
+    write_contract(repo, CONTRACT.replace(
+        "decisions_reserved:\n  - none",
+        "decisions_reserved: >\n  what the Overview shows for a goalkeeper",
+    ))
+    out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
+    assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# Key ordering. `decisions_reserved:` must CLOSE the preceding block like every
+# other top-level key. Every pre-existing fixture happens to carry
+# `decisions_taken:` in between, which is exactly why nothing caught this.
+# --------------------------------------------------------------------------- #
+
+def test_reserved_block_cannot_forge_an_impact_map(repo):
+    """`impact_map: <placeholder>` immediately followed by `decisions_reserved:`
+    left the impact block open, so the first reservation was scored as impact-map
+    content and satisfied the requirement that is this task's headline change."""
+    contract = CONTRACT_NO_IMPACT.replace(
+        "decisions_taken: >\n  test\n",
+        "impact_map: <fill me in>\ndecisions_reserved:\n  - a real open question\n"
+        "decisions_taken: >\n  test\n",
+    ).replace("decisions_reserved:\n  - none\n", "")
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_scope_paths_closes_an_open_impact_block(repo):
+    """The third forgeable key ordering. `scope_paths:` did not close an impact
+    block opened above it, so any indented non-item line inside the scope list
+    was scored as impact-map content and forged the map — the requirement this
+    whole task makes load-bearing (cto-reviewer, 2026-07-22, round 7)."""
+    contract = (
+        "# Task contract — test\n"
+        "objective: >\n  test\n"
+        "impact_map: <fill me in>\n"
+        "scope_paths:\n"
+        "  - dbt_project/models/allowed.sql\n"
+        "  a stray indented line that is not a list item\n"
+        "decisions_taken: >\n  test\n"
+        "decisions_reserved:\n  - none\n"
+        "done_when:\n  - test\n"
+        "amendments: (none)\n"
+    )
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "impact_map" in out
+
+
+def test_reserved_block_cannot_append_to_scope_paths(repo):
+    """`scope_paths:` immediately followed by `decisions_reserved:` left the scope
+    block open, so reservations matched the list-item pattern and were appended to
+    the allowlist."""
+    contract = CONTRACT.replace(
+        "decisions_taken: >\n  test\n", ""
+    ).replace(
+        "  - docs/allowed_dir/\n",
+        "  - docs/allowed_dir/\ndecisions_reserved:\n  - dbt_project/models/other.sql\n",
+    )
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/other.sql", "Write"), repo)
+    assert denied(out) and "OUTSIDE the contract" in out
+
+
+def test_artifact_gate_does_not_apply_scope_to_the_artifact_path(repo):
+    """Non-vacuous version: an IN-REPO path that is OUTSIDE scope_paths. An
+    implementation that reused `_gate_file_edit` would deny this. The earlier
+    version used an out-of-repo path, which `_rel_in_repo` returns None for, so
+    it passed under either implementation (cto-reviewer, 2026-07-22)."""
+    write_contract(repo, CONTRACT_RESERVED)
+    out, _ = run_hook("task_contract_gate.py",
+                      artifact_event(str(repo / "dbt_project" / "models" / "other.sql")), repo)
+    assert not denied(out)
+
+
+def test_artifact_post_tool_use_does_not_emit_a_pretooluse_deny(repo):
+    out, _ = run_hook("task_contract_gate.py",
+                      artifact_event(hook_event="PostToolUse"), repo)
+    assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# plain_language_gate — enforced, because as a habit it failed inside the very
+# retrospective that asked for it (2026-07-22).
+# --------------------------------------------------------------------------- #
+
+def stop_event(repo, text: str) -> dict:
+    tp = repo / "transcript.jsonl"
+    tp.write_text(json.dumps({
+        "type": "assistant",
+        "message": {"content": [{"type": "text", "text": text}]},
+    }) + "\n", encoding="utf-8")
+    return {"hook_event_name": "Stop", "transcript_path": str(tp), "cwd": str(repo)}
+
+
+def blocked(out: str) -> bool:
+    return '"decision": "block"' in out
+
+
+@pytest.mark.parametrize("text,marker", [
+    ("A sentence — with an em dash.", "EM DASH"),
+    ("See §10 for the rule.", "SECTION"),
+    ("Look at dbt_project/models/x.sql for this.", "FILE PATH"),
+    ("word " * 700, "TOO LONG"),
+])
+def test_plain_language_blocks(repo, text, marker):
+    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
+    assert blocked(out) and marker in out
+
+
+@pytest.mark.parametrize("text", [
+    "The team page is approved and unbuilt. I will build it next.",
+    "Look at `dbt_project/models/x.sql` for this.",              # inline code
+    "Here:\n```\ndbt_project/models/x.sql\n```\ndone.",          # fenced
+    "See [the model](dbt_project/models/x.sql) here.",           # link target
+    "The terms are at api-sports.io/docs/v3.json and allow it.",  # a URL, not a path
+    "We shipped v2 and 3 of 5 pages are done.",                  # no false positive
+])
+def test_plain_language_allows(repo, text):
+    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
+    assert not blocked(out)
+
+
+def test_length_counts_prose_not_code(repo):
+    """A code block the CPO asked for is scannable, not a wall of text."""
+    text = "Short answer.\n\n```\n" + ("x" * 4000) + "\n```\n"
+    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
+    assert not blocked(out)
+
+
+def test_plain_language_never_loops(repo):
+    ev = stop_event(repo, "A sentence — with an em dash.")
+    ev["stop_hook_active"] = True
+    out, _ = run_hook("plain_language_gate.py", ev, repo)
+    assert not blocked(out)
+
+
+def test_plain_language_fails_open_without_a_transcript(repo):
+    out, _ = run_hook("plain_language_gate.py",
+                      {"hook_event_name": "Stop", "cwd": str(repo)}, repo)
+    assert not blocked(out)
+
+
+# --------------------------------------------------------------------------- #
+# Fail-open: a hook bug must never wedge a session.
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize("script", [
+    "task_contract_gate.py", "plain_language_gate.py", "handover_in.py",
+])
+@pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}'])
+def test_hooks_fail_open_on_malformed_input(repo, script, junk):
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, script)],
+        input=junk, capture_output=True, text=True, env=env, cwd=str(repo), timeout=60,
+    )
+    assert r.returncode == 0
+    assert not denied(r.stdout) and not blocked(r.stdout)
+
+
+# --------------------------------------------------------------------------- #
+# handover_in — the delivery half. It was never wired at all until 2026-07-22,
+# while the handover file claimed it was.
+# --------------------------------------------------------------------------- #
+
+def test_handover_injected(repo):
+    (repo / ".claude" / "active_work.md").write_text(
+        "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
+    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    assert "THE GOAL: ship the site." in ctx and "BEGIN HANDOVER" in ctx
+
+
+def test_handover_found_from_a_subdirectory(repo):
+    """The discriminating case for the root-resolution change. The hook used
+    `cwd` alone, so a session started below the repo root reported the handover
+    missing and invited writing a second one in the wrong place. Every other
+    branch of the test harness sets cwd, CLAUDE_PROJECT_DIR and the event's cwd
+    to the same directory, so all four existing handover tests passed identically
+    against the old code (cto-reviewer, 2026-07-22)."""
+    (repo / ".claude" / "active_work.md").write_text(
+        "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
+    sub = repo / "dbt_project" / "models"
+    r = subprocess.run(
+        [sys.executable, os.path.join(HOOKS, "handover_in.py")],
+        input=json.dumps({}),                       # no cwd key at all
+        capture_output=True, text=True, cwd=str(sub),
+        env=dict(os.environ, CLAUDE_PROJECT_DIR=str(repo)), timeout=60,
+    )
+    ctx = json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "THE GOAL: ship the site." in ctx
+
+
+def test_handover_says_so_when_missing(repo):
+    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    assert "No .claude/active_work.md found" in ctx
+
+
+def test_handover_announces_truncation(repo):
+    """Silent truncation is how a handover looks complete while its tail is
+    missing — the failure that hid 86% of the file before it was cut down."""
+    (repo / ".claude" / "active_work.md").write_text("y" * 20000, encoding="utf-8")
+    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    assert "TRUNCATED" in ctx
+
+
+def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
+    """The cap is CHARACTERS. Reading characters while deciding truncation from
+    the file's SIZE IN BYTES meant any handover under the character cap but over
+    the byte cap was injected whole AND labelled truncated. A pure-ASCII fixture
+    cannot catch that, because there the two units coincide — which is why the
+    first version of the truncation test passed against the bug.
+
+    '⭐' is 3 bytes and 1 character: 15,900 of them is comfortably under the
+    16,000-character cap and comfortably over 16,000 bytes."""
+    text = "⭐" * 15900
+    (repo / ".claude" / "active_work.md").write_text(text, encoding="utf-8")
+    assert len(text) < 16000 < len(text.encode("utf-8"))      # the fixture is the point
+    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    assert "TRUNCATED" not in ctx
+    assert text in ctx                                        # and nothing was dropped
