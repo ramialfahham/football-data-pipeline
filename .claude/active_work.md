@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-23**. main GREEN at **30c6a16** (#810 merged), tree clean._
+_Last updated **2026-07-23**. main GREEN at **085b27c** (#810 + #811 merged), tree clean._
 
 ---
 
@@ -25,7 +25,7 @@ verified against the repo on 2026-07-22.
 
 | # | Group | Status | What is left |
 |---|-------|--------|--------------|
-| 1 | **Pages** | 2 of 5 | Fixture (#672) + team page Overview tab (#810) built and merged. Team **Performance tab** in review (this branch); **Squad** deferred to #480. Player, competition, landing pages not designed. |
+| 1 | **Pages** | 2 of 5 | Fixture (#672) + team page **Overview (#810) + Performance (#811)** merged. **Squad tab PLANNED** (full-mock with stats, 2 PRs — see IN FLIGHT). Player, competition, landing pages not designed. |
 | 2 | **Real data** | not started | The build renders from ONE committed sample fixture. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav; nothing consumes a real export yet. |
 | 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
@@ -150,49 +150,49 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — branch `feat/team-page-performance` (BUILT, in review → PR)
+## IN FLIGHT — nothing building. Team page Overview (#810) + Performance (#811) MERGED. Tree clean.
 
-**Team page Performance tab, from mock `f6348775` (its second tab). FRONTEND ONLY** — the benchmark +
-year-over-year data already ship in the committed sample, so no export/dbt/test change. Contract at
-`.claude/task/contract.md`; plan at `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. (Overview
-tab merged in #810.)
+**Squad tab is PLANNED and CPO-approved — START HERE. Read the plan first:**
+`C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. CPO decision (2026-07-23, AskUserQuestion): build
+the **FULL mock** Squad — per-player **appearances · mins/app · goals · assists**, grouped by position,
+monogram avatars (no photos). NOT the identity-only version the older `11_team_squad.md` describes
+(that spec is superseded by the approved mock `f6348775`; reconcile it as a doc follow-up, same
+mock-over-wireframe precedent the bi-analyst applied to Performance).
 
-What it builds:
-- Two panels behind the JS-free `.seg-in` segment: **vs the league** (the locked 16 metrics as
-  direction-aware rank bars + median + rank) and **vs last season** (the same 16 with signed YoY
-  deltas). Driven by the LOCKED `METRIC_ROWS` (reused, not re-authored).
-- `components/team/`: `TeamPerformance` + `MetricLeagueRow` + `MetricSeasonRow`; `.vs-*` / `.ss-*` +
-  the `#pf-*` segment rules appended to `system.css`; helpers in `lib/bars.ts`
-  (`displayRank`/`rankFill`/`beatsMedian`) + `lib/format.ts` (`ordinal`/`signedDelta`); `Benchmark`
-  type in `lib/types.ts`; i18n; the page swaps ONE coming-state div.
+Delivered as **TWO sequenced PRs** — because the per-player stats already live in `mart_player_career`
+EXCEPT `minutes`; adding it is a warehouse change, dbt only runs in CI, and the committed sample must
+be the export's real output, so the mart column must DEPLOY before the sample is regenerated:
+- **PR1 (warehouse, FIRST):** add `minutes` + `minutes_per_appearance` (`safe_divide`) to
+  `mart_player_career` (carry `minutes` up from its base `int_player_club_season__metrics`) + schema/DQ
+  tests. Reviewers: analytics-engineer + scope-auditor. Merge → `ci-data-build` deploys to BigQuery.
+- **PR2 (after PR1 deploys):** export attaches the squad stats (fetch `mart_player_career` scoped to
+  the team, join to the squad by `player_sk`); frontend `TeamSquad.astro` (position groups, ordered by
+  apps desc, two-line `.pstat` scoped so the fixture PlayerRow is untouched); re-export `33.json`;
+  i18n + types. Reviewers: scope + analytics (export) + bi-analyst + cto.
 
-Crux (verified): the mart `rank` is RAW value-descending, NOT direction-aware — the frontend converts
-per `METRIC_ROWS.direction` (metrics_display.md §Percentile). Built-HTML checks: goals against
-(lower_better) raw 14/20 → "7th", 70%, green; save % (sparse) 13/16 → 25%, not green; clean sheets
-served as a rate → "21%"; null YoY (save %) → en-dash.
-
-Decisions taken:
-- Dropped the mock's interpretive per-panel lede this increment (a §10 narrative call; kept the factual
-  caption). Approved with the plan.
-- JS-free segment (reuse `.seg-in`), consistent with the Overview tabs.
-
-Verified: `astro build` clean (3 locales) · layer/registry/task-artifact gates green · export tests 36
-green (unaffected) · live: the segment toggles JS-free and both panels render (16+16 rows, 12 green
-fills). Screenshots blocked (headless pane); verified via built HTML + live DOM. NEXT: reviewers
-(scope + bi-analyst + cto; no analytics-eng — no export/dbt) → commit → push → PR. The CPO merges.
+Reviewer probes to settle at build: show ≥1-appearance members with an "N of M shown" caption (the
+mock's "17 of 26"); and whether `minutes_per_appearance` is a mart display-support column or a
+catalogue metric (analytics reviewer adjudicates).
 
 ## NEXT
 
-1. **Squad tab** — the third tab of `f6348775`, once #480 (per-player apps/minutes/goals/assists)
-   ships; identity-only roster data exists today but the mock's rows need the stats.
-2. **The player, competition, and landing pages** — designed later; do not build undesigned pages.
+1. **Execute the Squad plan** — PR1 (warehouse) then PR2 (build). Plan file above. Finishes the team page.
+2. **Real data (launch group 2)** — wire the export into the build so real teams/fixtures render, not
+   one committed sample. Biggest gap to "live"; not blocked on any CPO decision. See hosting note below.
+3. **Player, competition, landing pages** — designed later; do not build undesigned pages.
 
 ---
 
 ## OPEN — the CPO's alone
 
-- **Who the site operator is and what address the imprint carries.** Blocks publication (#799).
-- **Hosting.** Nothing chosen; GitHub Pages withdrawn.
+- **Imprint operator + address.** Blocks publication (#799). CPO 2026-07-23 won't publish his home
+  address. Substitutes exist (service/business address) but whether the site needs an Impressum and
+  whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
+  only; does NOT block building.
+- **Hosting.** Settled 2026-07-23: static build, rebuilt daily after the 04:00 pipeline, CDN-served,
+  no backend. Vendor open — GitHub Pages (1 GB) and IONOS Deploy Now Starter (50 MB) are both too small
+  for the full catalog. Lean Firebase Hosting / Cloud Storage+CDN (GCP-native), or Cloudflare Pages if
+  free bandwidth wins and we render the long tail on demand. Domain at IONOS (portable). Doesn't block building.
 - **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
   from here (#687).
 
