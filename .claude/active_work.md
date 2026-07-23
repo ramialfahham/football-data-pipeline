@@ -142,47 +142,45 @@ carry the two metrics #804 surfaced. A §10 display decision; the approved mock 
 **`legal-counsel` as a consultant** — a risk register from the API-Football terms. Doer later, for
 the imprint and privacy pages, once the operator question is answered.
 
-**The guardrail economics** (raised by the CPO after #803 cost nine rounds). PARTLY DONE by
-`chore/review-economics` (in flight): delta re-review, a round cap of 3, and a `consulted:` field so
-domain findings surface before the build. STILL OWED, and deliberately deferred: put the reviewer
-model in the routing file instead of my head, and recast the roles so reviewers are peers rather
-than one reviewer reading every diff. The CPO chose the smaller option over that recast.
+**The guardrail economics** (raised by the CPO after #803 cost nine rounds). Delta re-review and a
+round cap of 3 shipped in #807. A staff-level AI-engineering review then judged the machinery core
+strong (the hash-bound blinded review, the self-gating hooks) but three parts over-scoped; the trim
+(in flight) cuts them. STILL OWED, deliberately deferred: reviewer model in the routing file, and
+reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — branch `chore/review-economics`
+## IN FLIGHT — branch `chore/trim-guardrails`
 
-**CUT THE REVIEW FRICTION.** Directed by the CPO after #806: the process "has to be more economic.
-otherwise we will not build the website in time." Shape chosen discretely: delta re-review, a round
-cap, consult first (over mechanical-only, a full recast, and nothing). Three mechanical changes,
-enforced rather than left to judgement:
+**TRIM THE MACHINERY TO WHAT EARNS ITS PLACE.** CPO (AskUserQuestion) after the staff review:
+"Trim the weak parts, then reframe." Four cuts, all reductive:
 
-- **Delta re-review.** After round 1, a reviewer that already passed sees only what changed since its
-  pass, judges that plus its own prior findings, and refuses (FAILs) when the delta is too large for
-  its earlier pass to stand. In all six briefs, byte-identical, test-enforced.
-- **Round cap of 3.** `review.md` must carry `rounds: N`; the commit gate and the CI backstop deny
-  past 3 unless `rounds_cap_override: <CPO reason>` is present. Past the cap the builder STOPS and
-  brings findings to the CPO instead of looping.
-- **`consulted:` field.** Required on the same structural surface as `impact_map` (reuses
-  `_is_structural`), so domain findings surface before the build, not in review round three. "nobody,
-  because ..." is legitimate; a bare placeholder is denied.
+- **Deleted `plain_language_gate.py`** and its Stop wiring. The 232-line hook that blocked the
+  agent's own chat message on an em dash; its author flagged it disposable. The no-em-dash PREFERENCE
+  survives as a norm (DO NOT section below); only the machine gate is gone.
+- **Demoted `consulted:`** (shipped in #807, one day old). Removed its enforcement from the contract
+  gate and the CI backstop; kept as a NORM in `working_agreement.md` and `TEMPLATE.md`. A considered
+  partial reversal of #807 on the review's recommendation, logged in `escalations.log`.
+- **Compressed the "forgery archaeology"** comments in `task_contract_gate.py`; kept the pattern.
+- **Sped the test suite** from ~11 min to ~4: the `repo` fixture builds a git repo once and copies it
+  per test instead of six subprocesses each.
 
-Both hooks, the CI backstop, six briefs, both templates, and the two docs agree (swept by grep, not
-memory). Full governance suite 235 passing, up from 215. STILL OWED and not done: reviewer model in
-the routing file; reviewers as peers. **TO FINISH: run the review cycle on the staged hash, write
-`review.md` (with its own `rounds:` line), commit, PR.**
+KEPT: the hash-bound review, the contract/scope gate, the impact_map gate, the layer gate, the round
+cap, the blinded reviewer cast, fail-open. Suite 215 passing. **TO FINISH: review cycle on the staged
+hash, `review.md`, commit, PR.**
 
 ## NEXT
 
 1. **This change** (in flight).
-2. **The hero block, as a PICTURE.** Buildable on an honest footing now that deserved-vs-actual is in
-   POINTS (#806 merged): predicted points is a real continuous quantity, so a fitted line is
-   legitimate where in rank space it was not. Owed to the CPO as something to look at, never as
-   prose. CPO requirement: *"The user needs to see immediately the difference between the actual and
-   the deserved."* The hero must never render for a non-domestic or non-single-ladder competition.
-3. **The team page**, all three tabs, mock `f6348775` with that block replaced. Everything else in
-   that mock is sound and data-backed. This is the change the review-economics work was done to make
-   cheaper.
+2. **The repo polish PR** (`chore/repo-polish`, contract saved to scratchpad). Kill the dead Pages
+   links (Pages is 404), rewrite the description and headline to be honest about state, replace the
+   retired-MVP screenshot with the architecture diagram, and REFRAME the `.claude/` machinery as the
+   portfolio artifact per the staff review. Product copy needs CPO sign-off before writing.
+3. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
+   fitted line is legitimate in points space. Owed to the CPO as something to look at, never prose.
+   Must never render for a non-domestic or non-single-ladder competition.
+4. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
+   economics + trim work was done to make cheaper.
 
 ---
 

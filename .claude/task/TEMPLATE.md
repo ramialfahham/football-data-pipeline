@@ -47,17 +47,10 @@ scope_paths:
 #     deployed model until merge? how is it sequenced around the 04:00 nightly?>
 #   blast_radius: <which marts/numbers change, or "none" + the RAW count / leaf evidence>
 
-# REQUIRED alongside impact_map, on the SAME structural surface: who you consulted
-# BEFORE building. The impact_map answers "do you know what breaks"; this answers
-# "did you gather the domain knowledge before writing code, or discover it in
-# review". Name a reviewer role, a doc, or a data check — or say plainly "nobody,
-# because <reason>". A bare "none"/"tbd"/placeholder is denied. Exists because
-# half of one session's review rounds were domain facts a reviewer knew before a
-# line was written. Omit entirely when no structural path is in scope.
-# consulted: >
-#   <e.g. "football-analytics-expert on the metric's edge cases before building";
-#    or "nobody: platform-only change, its reviewer is the same cto-reviewer that
-#    reviews the build">
+# NORM, not a gated field: on a structural change, gather the domain knowledge
+# BEFORE building (a reviewer role, a doc, a data check) rather than discovering it
+# in review. Note it in objective/refs if it shaped the work. (This was a machine-
+# gated `consulted:` field for a few days and was demoted to a habit.)
 
 decisions_taken: >
   <what this contract pre-approves, quoting the CPO ruling it rests on>

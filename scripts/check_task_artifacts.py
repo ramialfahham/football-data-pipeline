@@ -39,33 +39,19 @@ CONTRACT = ".claude/task/contract.md"
 REVIEW = ".claude/task/review.md"
 
 # The CI backstop and the local hooks MUST agree, so CI IMPORTS the hooks' own
-# logic rather than re-implementing it. Three hand-copied constant sets diverged
-# once already (the round-cap placeholder set, the `(none)` nullish spelling, and
-# the export regex) — the exact "the twin didn't get the fix" class this repo has
-# been bitten by. Now there is one source: `git_discipline._rounds_gate` decides
-# the round cap, and `task_contract_gate._read_contract` / `_is_structural` decide
-# the consulted requirement. `test_governance_hooks` asserts CI reuses these.
+# logic rather than re-implementing it. The round-cap placeholder set, the
+# `(none)` nullish spelling and the export regex diverged once when hand-copied —
+# the exact "the twin didn't get the fix" class this repo has been bitten by. Now
+# there is one source: `git_discipline._rounds_gate` decides the round cap.
+# `test_governance_hooks` asserts CI reuses it.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks"))
 import git_discipline as _gd            # noqa: E402
-import task_contract_gate as _tcg       # noqa: E402
 
 
 def _rounds_error(text: str) -> str | None:
     """Round-cap rule — the SAME decision as the local commit gate, because it is
     literally that function. Non-None means deny."""
     return _gd._rounds_gate(text)
-
-
-def _structural(paths: list[str]) -> bool:
-    """True when any changed path is on the structural surface, by the edit gate's
-    own `_is_structural` (which also covers protected paths)."""
-    return any(_tcg._is_structural(p) for p in paths)
-
-
-def _consulted_present(root: str) -> bool:
-    """Whether contract.md carries a real `consulted:`, by the edit gate's parser."""
-    c = _tcg._read_contract(root)
-    return bool(c and c.get("consulted_present"))
 
 
 def changed_paths(base: str) -> list[str]:
@@ -151,15 +137,6 @@ def main() -> int:
     rounds_err = _rounds_error(text)
     if rounds_err:
         errors.append(rounds_err)
-    # consulted: required when the PR touches the structural surface — the same
-    # surface (and the same parser) the edit gate demands it on. impact_map stays
-    # an edit-gate concern; consulted is backstopped here because a domain finding
-    # surfacing in review instead of before the build is the cost this rule cuts.
-    if _structural(paths) and not _consulted_present("."):
-        errors.append(
-            "PR touches the structural surface but contract.md has no "
-            "non-placeholder `consulted:` (who was consulted before building, "
-            "or 'nobody, because ...')")
     if "VERDICT: FAIL" in text:
         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the

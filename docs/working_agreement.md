@@ -60,13 +60,12 @@ committed with the branch so it is PR-visible:
   short-form is a FAIL (Appendix A6). This makes the trace-first habit a
   precondition, not guidance. Trivial/leaf/cosmetic changes use a one-line
   evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
-- **consulted** — REQUIRED alongside `impact_map`, on the SAME structural surface:
-  who you consulted BEFORE building (a reviewer role, a doc, a data check), or an
-  explicit "nobody, because <reason>". The `impact_map` answers "do you know what
-  breaks"; `consulted` answers "did you gather the domain knowledge before writing
-  code, or discover it in review". Added 2026-07-22 (review-economics) because half
-  of one session's review rounds were domain facts a reviewer knew before a line
-  was written. A bare "none"/"tbd"/placeholder is denied, like the impact_map.
+- **Consult before building (a NORM, not a gate).** On a structural change, gather
+  the domain knowledge first — a reviewer role, a doc, a data check — rather than
+  discovering it in review round three. This was briefly a machine-gated `consulted:`
+  field (review-economics, 2026-07-22) and was demoted to a habit the same week: a
+  one-day-old field hardened into two enforcement paths did not earn its cost (a
+  staff-level review of the guardrails). The intent stands; the gate is gone.
 - **done_when** — mechanical verification steps
 - **amendments** — scope extensions, written on a CLEAN tree, each recording the
   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
