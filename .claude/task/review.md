@@ -1,80 +1,69 @@
-# Review — feat/team-page-overview — 2026-07-23
+# Review — feat/team-page-performance — 2026-07-23
 
-> Team page Overview tab (export foundation + built frontend), from CPO-approved mock
-> f6348775. One PR. Blinded review over three rounds; round 1 surfaced real findings
-> (consumption-layer verdict threshold, mid-season trend-line assumption, a contrived
-> featured-season rule, a JS tab-toggle, a hardcoded aria-label, a tautological test,
-> a triple-rendered points value), all fixed with judgment. All four required reviewers
-> PASS at the final hash.
+> Team page Performance tab (frontend only; no export/dbt/test change), from CPO-approved mock
+> f6348775, reusing the locked `METRIC_ROWS`. Three rounds. Round 1 caught the header/rank display
+> (locked spec `14_team_stats.md` §5 forbids a single peer-count header, §4 requires per-row
+> "{rank} of {team_count}") and the per-panel caption; round 2 caught the missing "below the games
+> floor" absent state (§6). All fixed. All three required reviewers PASS at the final hash.
 
-diff_sha256: 5bdaf0a0e143abc81651c66ad9cc015980ce8d7c6545e6bc86386bfdc7ab98b4
+diff_sha256: f5e943aee347462742dd71bc07c0ed75bd9635b10dbf52873945a80ae810a3f9
 
 rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is within scope_paths; the `amendments:` entry is a faithful glob-safe
-  correction (bracketed Astro path read as fnmatch char classes → directory-prefix form), not a
-  scope expansion.
-- The four round-1 mechanisms resolved without unauthorized §10 decisions: featured-season rule
-  reverted to the codebase's most-recent-domestic convention; verdict keyed off the catalogue's
-  documented gap sign (no invented tier); tabs use the existing JS-free radio pattern; the season
-  label + verdict block are in the approved mock. The two CSS additions (`.sc .gap`, `.coming`)
-  stay within the token contract.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Export purity: `deserved_scatter_index` / `shape_team_payload` are selection/grouping/equality-flag
-  only — no arithmetic, no re-fit; `deserved` passes through the mart's `deserved_points` verbatim;
-  the three metrics are pre-existing catalogue rows (no A1).
-- Verdict classification keys off the served `sot_points_gap` SIGN only (matches metric_catalogue.csv
-  negative=under / positive=over) — the round-1 rounding-threshold "Inline" tier is gone.
-- The trend line's colinearity precondition (deserved = fitted-rate × games ⇒ colinear only when games
-  are equal) verified against int_team_season__deserved_vs_actual.sql:190-199 and numerically against
-  the committed sample (slope ≈11.745 across dots); the 2-point segment is exact for this games-aligned
-  sample, and the mid-season case is registered as an explicit export follow-up, not silently shipped.
-- The new `test_deserved_scatter_preserves_the_fitted_line` builds independent colinear data and asserts
-  exact pass-through (non-tautological; satisfies the contract's done_when).
+- Every changed path is within scope_paths (10 site_v2 files + the two task/handover artifacts); no
+  export/dbt/test/guard/workflow path touched — consistent with the "frontend only" impact_map.
+- No new §10 decision: the direction-aware rank conversion, the per-row "of {team_count}", the
+  per-panel captions, and the §6 absent-state guard all IMPLEMENT the locked display spec
+  (metrics_display.md + 14_team_stats.md) and match two existing sibling components — no new metric,
+  naming, threshold, or mechanism. The dropped interpretive lede was approved with the plan.
+- decisions_reserved intact: Squad deferred (#480), lede templating deferred, per-locale metric
+  labels (#370) unchanged.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Binding rule: every field the Overview components render traces to a `select * from mart_team_profile`
-  row via `shape_team_payload`; the committed sample is internally self-consistent (scatter `deserved`
-  colinear in sotd; self dot's deserved = the season's `deserved_points`) — real export output, not typed-in.
-- Absent states honest: null `deserved_points` → no scatter (hero absent state); absent next_fixture →
-  no card; non-domestic seasons carry no scatter — never a fabricated zero.
-- No number rendered twice: the actual points total now appears only in the record strip and the YoY row
-  (the mock-faithful value+delta pair); the hero verdict no longer restates it in any locale.
-- Token discipline + i18n: colour = meaning (direction-aware green on YoY deltas), all new strings present
-  in de/en/fi, verdict is a templated factual sentence (not fabricated prose), aria-labels translated.
+- Binding rule: all 16 rows in both panels trace to the committed sample (`benchmarks[]` +
+  `{field}_delta_yoy`), which come from the mart via the export, not hand-typed; absent states honest
+  (null save_ratio YoY → en-dash; below-floor season → the "not enough games" message; metric-absent →
+  row omitted, never a zero bar).
+- Direction-aware rank/fill/green verified against real data: goals against (lower_better) raw 14/20 →
+  "7th of 20", 70%, green; corners against raw 13/20 → "8th"; save % (sparse) 13/16 → "13th of 16",
+  25%, not green; 12 green fills total on the featured season. Green = beats median in the better
+  direction only; red stays reserved for Loss.
+- Per-row honest sample size (§5): no single peer-count header remains; each row carries its own
+  "of {team_count}", so the save % row shows its true 16, not the 20 the other rows carry.
+- The below-the-games-floor guard (§6) matches the sibling DeservedHero/YearOverYear pattern and fires
+  for the sample's real `benchmarks: []` cup seasons; no naked % beyond the documented save_ratio
+  exception; i18n complete de/en/fi with localized ordinals.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Tabs are JS-free (radios + `:checked ~` CSS, mirroring the fixture `.seg-in` control): default Overview
-  shown, focus-visible outline live (`.fx` on <body>), no orphaned selectors, works without JavaScript;
-  the appended CSS is a pure append with no shared-block regression.
-- `astro build` stays green across all three locales; TS sound (no orphaned `{points}` placeholder or
-  unused param after the verdict trim).
-- The screenshot done_when is environmentally blocked (headless pane cannot composite); substituted with
-  live-DOM/computed-style checks (de/en/fi) + a reproducible geometry assertion on the built HTML (56
-  coords, 0 out-of-bounds, 20 dots, trend+gap lines, verdict no longer restates the points value) —
-  accepted as adequate for the code-quality check; a human eyeball on the live dev server before merge is
-  advised (non-blocking).
-- Doc/code/data three-way consistency for the featured-season note (active_work.md ↔ page selection ↔
-  committed sample) restored.
+- The JS-free segment survives the absent-state fragment restructuring: built-HTML child sequence is
+  input#pf-league, input#pf-season, div.seg, div.win.pf-league, div.win.pf-season — all direct
+  siblings (the `<>` fragment emits no node), so `#pf-*:checked ~ .pf-*` resolves; no collision with
+  the outer `#tab-*` tab namespace or the fixture `#seg-w1/2`.
+- `astro build` green across all three locales; empirical dist grep finds no `{team}`/`{n}`/`{rank}`/
+  `undefined`/`NaN`/`[object` leaks; DE/FI strings render.
+- TS sound: `benchByKey.size`, the `hasYoY` `.some`, the `leagueGroups`/`seasonGroups` split, the new
+  `teamName` prop + call site, the `{field}_delta_yoy` Record cast (read only via `asNumber`); no
+  leftover `groups`/`teamCount`/`rankedWithin` references; helpers null-safe (no divide-by-zero,
+  degrade to en-dash).
+- No CSS double-define: every `.vs-*`/`.ss-*`/`#pf-*` selector defined once; the grid-column widen +
+  `.vs-rank` nowrap were in-place edits, not appends; shared blocks (`.seg-in`/`.win`/`.pagecap`/
+  `.coming`) reused, not redefined.
 
 ## escalations
 (none)
 
-<!-- Deferred follow-ups (notes, not blockers — no CPO answer required to ship this PR):
-  1. Mid-season trend line: when live/mid-season data (unequal games played) is wired, the export must
-     serve the fitted line itself (slope + per-match intercept) so the deserved line stays true; today's
-     committed sample is games-aligned (38 each), where the 2-point segment is exact.
-  2. Featured-season default is now the current season (2025/26, gap -4). The season selector (#362) will
-     let a reader reach the dramatic 2024/25 underperformance (gap -16) later.
-  3. A visual eyeball on the live dev server before merge is worth two minutes (screenshots are
-     environmentally blocked here). -->
+<!-- Non-blocking follow-up (raised by bi-analyst, not a defect — both fields are real and bound):
+  The vs-league row follows the APPROVED MOCK f6348775 — the league MEDIAN VALUE column + a rank-based
+  fill bar. The older wireframe `14_team_stats.md` §4/§5 (and 00_overview.md) instead describe a
+  vs-median DELTA column + a p25–median–p75 spread bar. `league_p25`/`league_p75` are exported and
+  typed but currently unread; `vs_median_delta` drives only the green colour. The mock is the CPO-
+  approved design and §1's own "rank over percentile, honest at N≈18" rationale favours what was built,
+  so this shipped as-is — but the wireframe doc should be reconciled to the approved mock. A doc task,
+  not a code change. -->

@@ -74,6 +74,45 @@ export function formatValue(
   }
 }
 
+// Ordinal rank label for the vs-league panel ("4th" in EN; "4." in DE/FI). Display only.
+export function ordinal(n: number | null | undefined, lang: Lang): string {
+  if (!isNum(n)) return DASH;
+  if (lang === "en") {
+    const r100 = n % 100;
+    const r10 = n % 10;
+    const suffix =
+      r100 >= 11 && r100 <= 13 ? "th" : r10 === 1 ? "st" : r10 === 2 ? "nd" : r10 === 3 ? "rd" : "th";
+    return `${n}${suffix}`;
+  }
+  return `${nf(lang, 0, 0).format(n)}.`; // DE + FI use "4."
+}
+
+// Signed year-over-year change for the vs-last-season panel. `percent` rows read as
+// percentage points (delta×100, with a "pp" unit the component styles separately);
+// other rows read as a signed value in their own precision. Returns text + optional
+// unit so the component can render `.ss-chg .u`. Display formatting only.
+export function signedDelta(
+  delta: number | null | undefined,
+  format: SingleFormat,
+  lang: Lang,
+): { value: string; unit: string | null } {
+  if (!isNum(delta)) return { value: DASH, unit: null };
+  if (format === "percent") {
+    const pp = new Intl.NumberFormat(LOCALE[lang], {
+      signDisplay: "exceptZero",
+      maximumFractionDigits: 0,
+    }).format(delta * 100);
+    return { value: pp, unit: "pp" };
+  }
+  const digits = format === "decimal_1" ? 1 : 0;
+  const value = new Intl.NumberFormat(LOCALE[lang], {
+    signDisplay: "exceptZero",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(delta);
+  return { value, unit: null };
+}
+
 // ---- dates ---- kickoff is served as a UTC ISO string ("2026-07-26 22:30:00+00:00").
 // Rendered in UTC so the static build is deterministic across machines and matches the
 // stored kickoff; local-timezone display is a later enhancement (01_fixture_page.md §5.2).

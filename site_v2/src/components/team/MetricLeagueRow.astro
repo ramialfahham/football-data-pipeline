@@ -1,0 +1,46 @@
+---
+// One "vs the league" row (mock f6348775 .vs-row): metric name (+ optional sublabel) ·
+// a rank bar with the median notch · the value + direction-aware rank · the league median.
+// All served: value/median/rank/vs_median_delta come from the benchmark; the rank is made
+// DIRECTION-AWARE for display (the mart's is raw value-descending) and the fill/green are
+// presentation mappings (lib/bars.ts) — no fact is derived. clean_sheets is served as a rate,
+// so the contract's count_fraction renders as a percent here (matches the served unit + mock).
+import { formatValue, ordinal } from "../../lib/format";
+import type { Lang, SingleFormat } from "../../lib/format";
+import { displayRank, rankFill, beatsMedian } from "../../lib/bars";
+import { t } from "../../i18n/strings";
+import type { MetricRowDef } from "../../lib/metricRows";
+import type { Benchmark } from "../../lib/types";
+
+interface Props {
+  row: MetricRowDef;
+  bench?: Benchmark;
+  sub?: string | null;
+  lang: Lang;
+}
+const { row, bench, sub, lang } = Astro.props;
+
+const fmt: SingleFormat = row.format === "count_fraction" ? "percent" : row.format;
+const dr = displayRank(bench?.rank, bench?.team_count, row.direction);
+const fill = rankFill(dr, bench?.team_count);
+const green = beatsMedian(bench?.vs_median_delta, row.direction);
+// "{rank} of {team_count}" — the honest per-row sample size (14_team_stats.md §5; team_count
+// varies per metric, so it lives here, never in a single header count).
+const rankLabel =
+  dr != null && bench?.team_count != null
+    ? t(lang, "rankOfCount", { rank: ordinal(dr, lang), n: bench.team_count })
+    : ordinal(dr, lang);
+---
+
+<div class="vs-row">
+  <span class="vs-name">{row.label}{sub && <span class="sub">{sub}</span>}</span>
+  <div class="vs-bar">
+    {dr != null && <div class:list={["vs-fill", { up: green }]} style={`width:${fill}%`}></div>}
+    <div class="vs-notch"></div>
+  </div>
+  <span class="vs-vr">
+    <span class="vs-val num">{formatValue(bench?.metric_value, fmt, lang)}</span>
+    <span class="vs-rank">{rankLabel}</span>
+  </span>
+  <span class="vs-medv num">{formatValue(bench?.league_median, fmt, lang)}</span>
+</div>

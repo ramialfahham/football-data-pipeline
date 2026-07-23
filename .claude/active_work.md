@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-22**. main GREEN at **0ff5037**, tree clean._
+_Last updated **2026-07-23**. main GREEN at **30c6a16** (#810 merged), tree clean._
 
 ---
 
@@ -25,7 +25,7 @@ verified against the repo on 2026-07-22.
 
 | # | Group | Status | What is left |
 |---|-------|--------|--------------|
-| 1 | **Pages** | 1 of 5 | Fixture page built and merged (#672). Team page designed and CPO-approved (mock `f6348775`), **not built**. Player, competition and landing pages not designed. |
+| 1 | **Pages** | 2 of 5 | Fixture (#672) + team page Overview tab (#810) built and merged. Team **Performance tab** in review (this branch); **Squad** deferred to #480. Player, competition, landing pages not designed. |
 | 2 | **Real data** | not started | The build renders from ONE committed sample fixture. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav; nothing consumes a real export yet. |
 | 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
@@ -150,44 +150,41 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — branch `feat/team-page-overview` (BUILT, in review → PR)
+## IN FLIGHT — branch `feat/team-page-performance` (BUILT, in review → PR)
 
-**Team page Overview tab, from mock `f6348775`, BUILT and verified.** ONE reviewable PR (export
-foundation + frontend together). Contract at `.claude/task/contract.md`; plan at
-`C:\Users\Rami\.claude\plans\shiny-riding-conway.md`.
+**Team page Performance tab, from mock `f6348775` (its second tab). FRONTEND ONLY** — the benchmark +
+year-over-year data already ship in the committed sample, so no export/dbt/test change. Contract at
+`.claude/task/contract.md`; plan at `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. (Overview
+tab merged in #810.)
 
-On the branch (uncommitted until the review cycle closes):
-- **Export foundation** (done earlier this session): `deserved_scatter_index()` + a per-season
-  `deserved_scatter` field in `scripts/export_site_data.py`; tests green; verified vs BigQuery.
-- **Committed sample** `site_v2/src/data/teams/33.json` — Man Utd, the export output verbatim (binding
-  rule holds). 24 seasons / ~600 KB; kept whole (the page selects one season).
-- **Frontend**: team CSS appended to `system.css` (transcribed from the mock; shared blocks reused,
-  `.stand` scoped, two additions `.sc .gap` + `.coming`); `components/team/*` (TeamHeader, Tabs,
-  RecordStrip, DeservedHero, YearOverYear, TeamFixtures/Row); page `[lang]/teams/[team].astro`; team
-  types in `lib/types.ts`; team strings in `i18n/strings.ts`; PL added to `competitions.json`.
-- **Hero = POINTS scatter** (not rank): 20 dots (sotd × points), trend = a polyline through the served
-  `deserved` values (no re-fit), self dot + a `.gap` connector to the line (= sot_points_gap). Renders
-  its absent state when `deserved_points` is null.
+What it builds:
+- Two panels behind the JS-free `.seg-in` segment: **vs the league** (the locked 16 metrics as
+  direction-aware rank bars + median + rank) and **vs last season** (the same 16 with signed YoY
+  deltas). Driven by the LOCKED `METRIC_ROWS` (reused, not re-authored).
+- `components/team/`: `TeamPerformance` + `MetricLeagueRow` + `MetricSeasonRow`; `.vs-*` / `.ss-*` +
+  the `#pf-*` segment rules appended to `system.css`; helpers in `lib/bars.ts`
+  (`displayRank`/`rankFill`/`beatsMedian`) + `lib/format.ts` (`ordinal`/`signedDelta`); `Benchmark`
+  type in `lib/types.ts`; i18n; the page swaps ONE coming-state div.
+
+Crux (verified): the mart `rank` is RAW value-descending, NOT direction-aware — the frontend converts
+per `METRIC_ROWS.direction` (metrics_display.md §Percentile). Built-HTML checks: goals against
+(lower_better) raw 14/20 → "7th", 70%, green; save % (sparse) 13/16 → 25%, not green; clean sheets
+served as a rate → "21%"; null YoY (save %) → en-dash.
 
 Decisions taken:
-- **Featured season = the most-recent domestic-league season** (the codebase's own default-season
-  convention; mirrors `_latest_season_row` / the preserved `pickDefaultSeason`). For the sample this
-  renders United's current 2025/26 (3rd, 71 pts, gap −4) — populated YoY, current standing, matching
-  how the mock frames a team page. The season selector (#362) reaches earlier seasons later. (An
-  earlier "most-negative-gap" pick was reverted after review — it mined a stale season.)
-- **Contract glob-safe amendment**: the gate's `fnmatch` read the bracketed Astro path as char classes,
-  so the in-scope page never matched; scope entry changed to the dir form (recorded in `amendments:`).
-  No scope expansion.
+- Dropped the mock's interpretive per-panel lede this increment (a §10 narrative call; kept the factual
+  caption). Approved with the plan.
+- JS-free segment (reuse `.seg-in`), consistent with the Overview tabs.
 
-Verified: pytest 444 green · layer/registry/seed/i18n gates green · `astro build` clean (3 locales) ·
-live-checked de/en/fi (hero, record, absent YoY, 5 recent, coming-states, tab switching). Screenshots
-blocked (the Browser pane cannot composite headless); verified via the rendered DOM instead. dbt N/A
-(no models). NEXT: reviewers → commit → push → PR. The CPO merges.
+Verified: `astro build` clean (3 locales) · layer/registry/task-artifact gates green · export tests 36
+green (unaffected) · live: the segment toggles JS-free and both panels render (16+16 rows, 12 green
+fills). Screenshots blocked (headless pane); verified via built HTML + live DOM. NEXT: reviewers
+(scope + bi-analyst + cto; no analytics-eng — no export/dbt) → commit → push → PR. The CPO merges.
 
 ## NEXT
 
-1. **Performance + Squad tabs** — the other two tabs of `f6348775`, once their data binding
-   (benchmarks GAP-23, roster GAP-20) and the `metricRows.ts` 16-row contract are wired.
+1. **Squad tab** — the third tab of `f6348775`, once #480 (per-player apps/minutes/goals/assists)
+   ships; identity-only roster data exists today but the mock's rows need the stats.
 2. **The player, competition, and landing pages** — designed later; do not build undesigned pages.
 
 ---
