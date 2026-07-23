@@ -24,7 +24,9 @@
 
   A player absent from some of the window legs contributes stats only for the matches they appeared
   in — honest absence, not zero. games_in_window is the player's appearance count within the side's
-  window (1..5 for last_5, uncapped for tournament windows), not the team window size.
+  window (0..5 for last_5, uncapped for tournament windows), not the team window size. It counts legs
+  the player actually PLAYED (minutes > 0), so 0 is legitimate: named in the matchday squad for the
+  window's legs but never brought on.
 
   passes_accurate is derived per fixture as ROUND(passes_total * passes_accuracy_percent / 100)
   then summed; inherits small rounding error.
@@ -53,7 +55,10 @@ player_agg as (
         wl.season_api_year,
         wl.entity_type,
         wl.window_type,
-        count(*) as games_in_window,
+        -- pitch time required, same rule as the season models (CPO 2026-07-23): the provider lists
+        -- whole matchday squads, so count(*) counted unused substitutes as appearances. 0 is now a
+        -- legitimate value (named in the squad for window legs but never brought on).
+        countif(coalesce(p.minutes_played, 0) > 0) as games_in_window,
         any_value(p.position_code) as position_code,
         sum(p.goals_total) as goals_total,
         sum(p.goals_against) as goals_against,

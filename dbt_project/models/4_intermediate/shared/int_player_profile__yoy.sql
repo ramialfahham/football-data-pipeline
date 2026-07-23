@@ -11,7 +11,8 @@
   season is running (a part-season vs a full season would mislead).
 
   Alignment is by APPEARANCES (match_number from int_player_season_record — the running
-  count of the player's finished appearances-with-stats), the player analog of the team
+  count of the matches the player actually PLAYED; before 2026-07-23 it counted every
+  player-stat row, so unused substitutes inflated it), the player analog of the team
   builder's games played. Not by date, not by round number.
 
   Metric set (CPO 2026-07-03, the broader per-position set): goals, assists, shots on

@@ -44,5 +44,5 @@ models:
         description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor)."
         tests: [not_null]
       - name: appearances
-        description: "Finished player-stat rows IN this position this competition-season."
+        description: "Finished matches the player actually PLAYED (minutes > 0) IN this position this competition-season. Before 2026-07-23 this counted every player-stat row, so unused substitutes inflated it."
         tests: [not_null]

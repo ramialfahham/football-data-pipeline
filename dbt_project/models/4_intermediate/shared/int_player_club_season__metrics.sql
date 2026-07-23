@@ -100,9 +100,19 @@ aggregated as (
         season_api_year,
         -- the club's latest kickoff this competition-season — lets the rollup pick the last club.
         max(kickoff_datetime) as last_kickoff_at,
-        count(*) as appearances,
+        -- An appearance requires PITCH TIME (CPO 2026-07-23: "Then it is wrong"). The provider's
+        -- /fixtures/players payload lists the whole matchday squad, so an unused substitute arrives as
+        -- a stat row with null minutes; counting those made `appearances` a SELECTION count. Measured
+        -- before the fix: 382,942 of 1,677,854 stat rows were 0-minute bench selections, inflating
+        -- 51.4% of career club-seasons. Squad members who never played are KEPT (they simply score 0
+        -- here) — the row is not filtered out, only counted honestly.
+        countif(coalesce(minutes_played, 0) > 0) as appearances,
+        -- `starts` already required pitch time: is_starter = minutes > 0 and not is_substitute.
         countif(is_starter) as starts,
-        countif(coalesce(is_substitute, false)) as substitute_appearances,
+        -- ...so the substitute side needs the same minutes condition to match it. Together they now
+        -- partition `appearances` exactly (guarded by a DQ test on this model).
+        countif(coalesce(is_substitute, false) and coalesce(minutes_played, 0) > 0)
+            as substitute_appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
         sum(coalesce(goals_total, 0)) as goals,
         sum(goals_penalty) as goals_penalty,
