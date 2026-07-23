@@ -7,8 +7,11 @@
 
   Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
 
-  A player-match leg exists only where the API provides player stats, so every row is a
-  covered appearance and games_played counts appearances-with-stats. Player ratios
+  A player-match leg exists wherever the API provides player stats, and the provider lists the whole
+  matchday squad — so an UNUSED SUBSTITUTE arrives as a 0-minute leg. Those are filtered out below,
+  because this model's row IS an appearance ("one row per match the player appeared in") and
+  match_number/games_played must count matches actually played, not matchday selections. Before
+  2026-07-23 they did not (CPO: "Then it is wrong"). Player ratios
   (save_pct, pass_accuracy_pct, duels_won_pct, dribbles_success_pct) are stat-over-stat
   from the same rows, so no coverage-restriction is needed (unlike the team builder's
   scoreline-vs-stat mix). Raw sums only — ratios live in the mart.
@@ -22,6 +25,9 @@
 
 with player_legs as (
     select * from {{ ref('int_legs__player_match') }}
+    -- pitch time required: an unused substitute is a matchday selection, not an appearance, and this
+    -- model's grain is one row per APPEARANCE (see header). Same rule as the season/career models.
+    where coalesce(minutes_played, 0) > 0
 )
 
 select

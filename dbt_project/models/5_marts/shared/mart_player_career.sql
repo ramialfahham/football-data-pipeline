@@ -14,10 +14,14 @@
   the consumption layer).
 
   Grain: (player_sk, team_sk, season_sk). Composes int_player_club_season__metrics (the single per-club
-  atoms base) — no re-aggregation here, just identity + typing joins. APPEARANCE-GATED (rows come from
-  finished-match stats via the base), distinct from dim_player_team_season_mapping which records ROSTER
-  membership incl. never-played squad members. Per-club / per-competition / national subtotals are
-  derivable from this grain (display-side), so they are not precomputed.
+  atoms base) — no re-aggregation here, just identity + typing joins. Rows come from finished-match
+  player-stat rows via the base, so a row means "this player was in this club's matchday squad at
+  least once that competition-season". `appearances` counts only the legs he actually PLAYED
+  (minutes > 0), so it can legitimately be 0: a squad member who never got on the pitch keeps his row
+  (CPO 2026-07-23 — "Players are part of the squad even with zero appearances") and simply scores 0.
+  Until 2026-07-23 `appearances` counted every matchday selection, which inflated 51.4% of rows.
+  Per-club / per-competition / national subtotals are derivable from this grain (display-side), so
+  they are not precomputed.
 #}
 
 with club_season as (
@@ -65,6 +69,7 @@ typed as (
         cs.season_sk,
         cs.season_api_year,
         cs.appearances,
+        cs.minutes,
         cs.goals,
         cs.assists,
         cs.last_kickoff_at,
@@ -84,6 +89,7 @@ with_caps as (
         typed.season_api_year,
         typed.entity_type,
         typed.appearances,
+        typed.minutes,
         typed.goals,
         typed.assists,
         typed.last_kickoff_at,
@@ -117,6 +123,12 @@ select
     tm.team_country,
     wc.entity_type,
     wc.appearances,
+    -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics,
+    -- same class as appearances/goals/assists — a playing-time dimension, not a catalogue metric).
+    -- A minutes_per_appearance ratio is deliberately NOT computed here: it is a catalogue-governed
+    -- rate (analytics-engineer ruling 2026-07-23), so it lands with its metric_catalogue row in the
+    -- PR that consumes it, now that `appearances` is a real appearance count to divide by.
+    wc.minutes,
     wc.goals,
     wc.assists,
     wc.national_appearances_total,

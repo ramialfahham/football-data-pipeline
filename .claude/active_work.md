@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-23**. main GREEN at **085b27c** (#810 + #811 merged), tree clean._
+_Last updated **2026-07-23**. main at **ffece82**; `feat/player-career-minutes` (PR #813) rebased on it._
 
 ---
 
@@ -150,33 +150,35 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — nothing building. Team page Overview (#810) + Performance (#811) MERGED. Tree clean.
+## IN FLIGHT — branch `feat/player-career-minutes` (PR #813). WAREHOUSE, no frontend.
 
-**Squad tab is PLANNED and CPO-approved — START HERE. Read the plan first:**
-`C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. CPO decision (2026-07-23, AskUserQuestion): build
-the **FULL mock** Squad — per-player **appearances · mins/app · goals · assists**, grouped by position,
-monogram avatars (no photos). NOT the identity-only version the older `11_team_squad.md` describes
-(that spec is superseded by the approved mock `f6348775`; reconcile it as a doc follow-up, same
-mock-over-wireframe precedent the bi-analyst applied to Performance).
+**Fixes a verified defect: `appearances` counted matchday SELECTIONS, not pitch time** — the provider
+lists the whole squad, so unused substitutes arrived as 0-minute stat rows and were counted. It
+inflated **51.4% of career club-seasons**, and 26,530 recorded a player who never took the pitch.
 
-Delivered as **TWO sequenced PRs** — because the per-player stats already live in `mart_player_career`
-EXCEPT `minutes`; adding it is a warehouse change, dbt only runs in CI, and the committed sample must
-be the export's real output, so the mart column must DEPLOY before the sample is regenerated:
-- **PR1 (warehouse, FIRST):** add `minutes` + `minutes_per_appearance` (`safe_divide`) to
-  `mart_player_career` (carry `minutes` up from its base `int_player_club_season__metrics`) + schema/DQ
-  tests. Reviewers: analytics-engineer + scope-auditor. Merge → `ci-data-build` deploys to BigQuery.
-- **PR2 (after PR1 deploys):** export attaches the squad stats (fetch `mart_player_career` scoped to
-  the team, join to the squad by `player_sk`); frontend `TeamSquad.astro` (position groups, ordered by
-  apps desc, two-line `.pstat` scoped so the fixture PlayerRow is untouched); re-export `33.json`;
-  i18n + types. Reviewers: scope + analytics (export) + bi-analyst + cto.
+CPO 2026-07-23: *"Then it is wrong"* and *"Players are part of the squad even with zero appearances"*
+— never-played rows are KEPT and read 0; nothing is deleted.
 
-Reviewer probes to settle at build: show ≥1-appearance members with an "N of M shown" caption (the
-mock's "17 of 26"); and whether `minutes_per_appearance` is a mart display-support column or a
-catalogue metric (analytics reviewer adjudicates).
+Fixed in FOUR writers (one class): `int_player_club_season__metrics` (appearances +
+substitute_appearances), `int_player_season_position__metrics`, `int_player_momentum__metrics`,
+`int_player_season_record`. `starts` needed none (`is_starter` already required minutes > 0). Adds
+`minutes` to `mart_player_career` + a DQ test `starts + substitute_appearances = appearances`
+(production: 0 violations / 170,533 rows). The `appearances >= 1` gate became `>= 0`.
+
+⚠️ **Numbers CHANGE on rebuild by design.** Benchmarks/leaderboards are insulated (they gate on
+`minutes >= 270`). Nothing is live.
+
+**Squad tab is PLANNED and CPO-approved — full detail in the plan:**
+`C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. CPO 2026-07-23: the **FULL mock** `f6348775`
+Squad — per-player **appearances · mins/app · goals · assists**, grouped by position, monogram avatars
+(no photos), NOT the identity-only `11_team_squad.md` (reconcile that spec as a doc follow-up). Two
+sequenced PRs: PR1 = #813 above (warehouse; it grew from just `minutes` into the appearances fix); PR2
+(after #813 deploys) = export join + `TeamSquad.astro` + re-export `33.json` + i18n/types + the
+`minutes_per_appearance` catalogue row (`direction: neutral` proposed, football-expert not yet asked).
 
 ## NEXT
 
-1. **Execute the Squad plan** — PR1 (warehouse) then PR2 (build). Plan file above. Finishes the team page.
+1. **Squad PR2** once #813 merges and `ci-data-build` deploys — see the plan file. Finishes the team page.
 2. **Real data (launch group 2)** — wire the export into the build so real teams/fixtures render, not
    one committed sample. Biggest gap to "live"; not blocked on any CPO decision. See hosting note below.
 3. **Player, competition, landing pages** — designed later; do not build undesigned pages.

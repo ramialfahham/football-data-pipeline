@@ -92,7 +92,7 @@ models:
           - accepted_values:
               values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
-        description: "The player's appearance count within the side's window (1..5 for last_5, uncapped for tournament windows)."
+        description: "The player's appearance count within the side's window (0..5 for last_5, uncapped for tournament windows). Counts legs the player actually PLAYED (minutes > 0); 0 means named in the matchday squad but never brought on. Before 2026-07-23 this counted squad selections, so unused substitutes inflated it."
         tests: [not_null]
       - name: position_code
         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."

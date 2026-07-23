@@ -56,9 +56,11 @@ models:
   - name: int_player_season_record
     description: >
       W2 season-record builder — player. Cumulative running totals over int_legs__player_match
-      within one competition+season, one row per player-match. Complement to
-      int_player_momentum__metrics. A leg exists only where player stats are present, so games_played
-      counts appearances-with-stats and player ratios are same-window by construction.
+      within one competition+season, one row per player-match ACTUALLY PLAYED. Complement to
+      int_player_momentum__metrics. A leg exists wherever player stats are present, which includes
+      0-minute unused substitutes, so legs are filtered to minutes > 0: games_played counts matches
+      played (not matchday selections, which it did before 2026-07-23) and player ratios are
+      same-window by construction.
       Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
@@ -80,7 +82,7 @@ models:
           - accepted_values:
               values: ["season_to_date"]
       - name: games_played
-        description: "Cumulative count of the player's appearances-with-stats through this match."
+        description: "Cumulative count of the matches the player actually PLAYED (minutes > 0) through this match. Before 2026-07-23 this counted matchday selections, so unused substitutes inflated it."
         tests: [not_null]
       - name: position_code
         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."

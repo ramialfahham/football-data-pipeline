@@ -92,7 +92,9 @@ aggregated as (
         league_code,
         season_api_year,
         position_group,
-        count(*) as appearances,
+        -- pitch time required, same rule as int_player_club_season__metrics (CPO 2026-07-23): the
+        -- provider lists whole matchday squads, so count(*) counted unused substitutes as appearances.
+        countif(coalesce(minutes_played, 0) > 0) as appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
         sum(coalesce(goals_total, 0)) as goals,
         sum(goals_penalty) as goals_penalty,

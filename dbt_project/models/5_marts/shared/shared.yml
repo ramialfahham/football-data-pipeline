@@ -1292,21 +1292,30 @@ models:
       transfer shows as two rows (two clubs, one season); club and national rows are handled uniformly.
       National-entity rows are the player's NATIONAL APPEARANCES IN COVERED COMPETITIONS — honestly NOT true
       career caps (we ingest only a subset of national competitions). national_appearances_total denormalises
-      the per-player national-appearance sum (a fact computed in dbt, not the export). Appearance-gated —
-      built from finished-match stats, distinct from dim_player_team_season_mapping (roster membership incl.
-      never-played members). Composes int_player_club_season__metrics. Grain: (player_sk, team_sk, season_sk).
+      the per-player national-appearance sum (a fact computed in dbt, not the export). Built from
+      finished-match player-stat rows, so a row means the player was in that club's matchday squad at least
+      once that competition-season; `appearances` counts only the legs he actually PLAYED (minutes > 0) and
+      may legitimately be 0 for a squad member who never got on the pitch, whose row is KEPT (CPO
+      2026-07-23). Until 2026-07-23 appearances counted every matchday selection, inflating 51.4% of rows.
+      Composes int_player_club_season__metrics. Grain: (player_sk, team_sk, season_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
             - player_sk
             - team_sk
             - season_sk
-      # semantic guard: every career-log row is appearance-gated (>= 1 finished-match stat row) — asserts
-      # this mart is built from APPEARANCES, not roster membership (dim_player_team_season_mapping, which
-      # includes never-played squad members). A regression that admitted roster rows would trip this.
+      # Appearances can no longer be negative but CAN be 0: since 2026-07-23 an appearance requires pitch
+      # time, and a squad member who was never brought on keeps his row scoring 0 (CPO ruling). The old
+      # expression here was `appearances >= 1`, which asserted this mart excluded never-played members —
+      # the exact premise the CPO overturned, and which the data never satisfied anyway (26,530 rows).
+      # So this is narrowed to what still holds, not loosened to make a change pass.
       - dbt_utils.expression_is_true:
-          expression: "appearances >= 1"
-          name: player_career_row_is_appearance_gated
+          expression: "appearances >= 0"
+          name: player_career_appearances_non_negative
+      # minutes never negative (sum of coalesce(minutes_played, 0) in the atoms base).
+      - dbt_utils.expression_is_true:
+          expression: "minutes >= 0"
+          name: player_career_minutes_non_negative
     columns:
       - name: player_career_sk
         description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
@@ -1337,8 +1346,10 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: appearances
-        description: "Appearances at this club that competition-season (finished-match player-stat rows)."
+        description: "Finished matches the player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member never brought on keeps his row. Before 2026-07-23 this counted matchday selections including unused substitutes."
         tests: [not_null]
+      - name: minutes
+        description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
       - name: national_appearances_total
         description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
         tests: [not_null]

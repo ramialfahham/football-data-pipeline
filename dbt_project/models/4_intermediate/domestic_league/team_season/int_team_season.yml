@@ -254,8 +254,9 @@ models:
       competition-season with ratios / per-90 re-derived from the re-summed atoms; output unchanged.
       Atoms follow the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
-      nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
-      denominator is zero. team_sk = the player's last known club that competition-season.
+      nulls to 0; appearances = finished matches actually PLAYED, minutes > 0 (honest absence; before
+      2026-07-23 it counted every player-stat row, so unused substitutes inflated it); rates null when
+      the denominator is zero. team_sk = the player's last known club that competition-season.
       Grain: (player_sk, season_sk).
     config:
       tags: ["intermediate", "football", "team_season", "player"]
