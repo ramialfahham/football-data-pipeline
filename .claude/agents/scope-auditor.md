@@ -84,3 +84,25 @@ or
 VERDICT: ESCALATE
 questions:
 - <the CPO question, with the two conflicting paths stated neutrally>
+
+## Delta re-review
+
+A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
+already returned PASS on an earlier hash of this SAME branch; a first review is
+never a delta review. It names what changed since your pass.
+
+Then judge that delta and your own prior findings, and nothing else. Do not
+re-audit what you already passed and do not re-derive conclusions you already
+reached — say so and move on. Your verdict still covers the whole branch at the
+stated hash: it rests on your earlier PASS plus this delta.
+
+**Refuse when the delta is too large for that to hold.** If what changed
+undermines the basis of your earlier pass — the logic you traced was rewritten,
+the surface widened, the thing you verified no longer exists — return
+VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
+cost saving, never a way to move a change past you while you look through a
+keyhole.
+
+Why this exists: every round used to re-run every reviewer over the entire diff
+even when one file had changed, which is what made a nine-round PR cost what it
+did (CPO 2026-07-22: the process "has to be more economic").

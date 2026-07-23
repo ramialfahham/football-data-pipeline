@@ -178,6 +178,65 @@ def _review_sections(text: str) -> dict[str, str]:
     return sections
 
 
+ROUND_CAP = 3
+
+
+def _rounds_gate(text: str) -> str | None:
+    """Reason to deny on the review-round count, or None.
+
+    Every review round used to re-run every reviewer over the whole diff with no
+    bound on the loop; a nine-round PR was the result (CPO 2026-07-22: the process
+    "has to be more economic"). `review.md` must declare `rounds: N`, and past the
+    cap the builder STOPS and brings the open findings to the CPO instead of
+    grinding a round 4, 5, 6. To proceed past the cap anyway (the CPO said keep
+    going) the review must carry a `rounds_cap_override:` line with that reason —
+    a real sentence, not a bare marker.
+    """
+    # `[^\S\n]*` = horizontal whitespace only, so a keyless `rounds:` cannot swallow
+    # the NEXT line as its value (an empty `rounds_cap_override:` used to capture the
+    # following `## header` and read as a real reason — cto-reviewer, 2026-07-22).
+    m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(.+)$", text, flags=re.MULTILINE)
+    if not m:
+        return (
+            "REVIEW GATE: review.md has no `rounds:` line. Record how many review "
+            "rounds this branch has taken (rounds: 1 on the first), so the loop is "
+            "bounded. See .claude/task/REVIEW_TEMPLATE.md."
+        )
+    raw = m.group(1).strip()
+    if not raw.isdigit() or int(raw) < 1:
+        return (
+            f"REVIEW GATE: `rounds: {raw}` is not a positive integer. It counts the "
+            "review rounds this branch has taken (1 on the first)."
+        )
+    if int(raw) > ROUND_CAP:
+        ov = re.search(r"^[^\S\n]*rounds_cap_override:[^\S\n]*(.+)$", text,
+                       flags=re.MULTILINE)
+        reason = ov.group(1).strip() if ov else ""
+        if not reason or _is_placeholder(reason):
+            return (
+                f"REVIEW GATE: {raw} review rounds exceeds the cap of {ROUND_CAP}. "
+                "STOP and bring the open findings to the CPO rather than looping. "
+                "If the CPO says continue, record it as `rounds_cap_override: "
+                "<their reason>` in review.md, then commit."
+            )
+    return None
+
+
+# Kept EQUAL to task_contract_gate._NULLISH so the round-cap override and the
+# contract fields reject the same nullish words — `(none)` was missing here and
+# present there, the exact one-copy-got-the-fix drift the cto flagged. A parity
+# test (test_governance_hooks) asserts the two sets are identical, so a future
+# edit to one fails until the other matches.
+_NULLISH_WORDS = frozenset(
+    {"none", "(none)", "n/a", "na", "tbd", "-", "todo", "?"})
+
+
+def _is_placeholder(s: str) -> bool:
+    s = s.strip().lower()
+    return (not s) or s in _NULLISH_WORDS or (
+        s.startswith("<") and s.endswith(">"))
+
+
 def _commit_gate(root: str) -> str | None:
     """Reason to deny the commit, or None when the gate passes (governance G3)."""
     import hashlib
@@ -205,6 +264,9 @@ def _commit_gate(root: str) -> str | None:
             "(hash mismatch). Re-run the reviewers against the current staged "
             f"diff and update review.md (live hash: {live})."
         )
+    rounds_msg = _rounds_gate(text)
+    if rounds_msg:
+        return rounds_msg
     if "VERDICT: FAIL" in text:
         return "REVIEW GATE: a reviewer verdict is FAIL. Fix the findings and re-run the cycle."
     if text.count("VERDICT: ESCALATE") > text.count("CPO ANSWER:"):

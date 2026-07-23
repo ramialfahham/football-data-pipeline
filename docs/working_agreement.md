@@ -60,6 +60,13 @@ committed with the branch so it is PR-visible:
   short-form is a FAIL (Appendix A6). This makes the trace-first habit a
   precondition, not guidance. Trivial/leaf/cosmetic changes use a one-line
   evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
+- **consulted** — REQUIRED alongside `impact_map`, on the SAME structural surface:
+  who you consulted BEFORE building (a reviewer role, a doc, a data check), or an
+  explicit "nobody, because <reason>". The `impact_map` answers "do you know what
+  breaks"; `consulted` answers "did you gather the domain knowledge before writing
+  code, or discover it in review". Added 2026-07-22 (review-economics) because half
+  of one session's review rounds were domain facts a reviewer knew before a line
+  was written. A bare "none"/"tbd"/placeholder is denied, like the impact_map.
 - **done_when** — mechanical verification steps
 - **amendments** — scope extensions, written on a CLEAN tree, each recording the
   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
@@ -131,20 +138,29 @@ serialized four steps; the commit gate enforces them mechanically:
 3. **Cross-Examination** — adversarial verdicts under the no-free-pass rule: a
    PASS must name at least two real risks checked; a reviewer that cannot find
    two must FAIL/ESCALATE; praise is banned; §10 decisions are never approved
-   by a reviewer.
+   by a reviewer. **A re-review after the first round is a DELTA review** — the
+   reviewer is told only what changed since its own last PASS and judges that
+   plus its prior findings, not the whole diff again, and refuses (FAILs) when
+   the delta is large enough that its earlier pass no longer stands. Re-running
+   every reviewer at full depth every round is what made a nine-round PR cost
+   what it did (CPO 2026-07-22, review-economics).
 4. **Lock** — verdicts + the SHA-256 of the staged diff
-   (`python .claude/hooks/git_discipline.py --staged-hash`) written to
-   `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`). The hash
-   covers the substantive diff — code **and** `contract.md` — EXCLUDING the
-   bookkeeping artifacts (`hash_exclude_paths` in review_routing.json), so CI can
-   recompute it from `git diff base...HEAD` and bind the review to the PR's actual
-   code (F11/#409). `contract.md` is never artifact-exempt, so a contract change
-   always goes through review (F10/#409).
+   (`python .claude/hooks/git_discipline.py --staged-hash`) + a `rounds:` count
+   written to `.claude/task/review.md` (format: `.claude/task/REVIEW_TEMPLATE.md`).
+   The hash covers the substantive diff — code **and** `contract.md` — EXCLUDING
+   the bookkeeping artifacts (`hash_exclude_paths` in review_routing.json), so CI
+   can recompute it from `git diff base...HEAD` and bind the review to the PR's
+   actual code (F11/#409). `contract.md` is never artifact-exempt, so a contract
+   change always goes through review (F10/#409). The loop is bounded: **the round
+   count is capped at 3**, and past the cap the builder STOPS and brings the open
+   findings to the CPO rather than grinding another round — to continue anyway on
+   the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
 
 `git commit` is DENIED when: review.md is missing, its hash does not match the
 live staged diff (code + contract, bookkeeping excluded), any verdict is FAIL, an ESCALATE lacks a recorded
-`CPO ANSWER:` in its own section, a required reviewer has no verdict, or a
-PASS lacks its two risks. **Only `git add` + plain `git commit` is allowed** —
+`CPO ANSWER:` in its own section, a required reviewer has no verdict, a
+PASS lacks its two risks, the `rounds:` line is missing or not a positive
+integer, or `rounds:` exceeds the cap of 3 without a `rounds_cap_override:`. **Only `git add` + plain `git commit` is allowed** —
 commit flags are allowlisted (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`,
 `-S`/`--gpg-sign`, `-s`/`--signoff`); every other flag and any positional
 pathspec is denied, because the self-staging forms (`-a`/`--all`/`-am`,

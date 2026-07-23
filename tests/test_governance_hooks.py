@@ -44,7 +44,18 @@ _IMPACT_BLOCK = (
     "  deploy_order: rebuilds on next CI; no shared-warehouse break.\n"
     "  blast_radius: none (leaf mart).\n\n"
 )
+# consulted is now required on the SAME structural surface as impact_map
+# (2026-07-22, review-economics). The default all-present CONTRACT carries both;
+# the deny direction of each is exercised by a fixture that drops exactly one.
+_CONSULTED_BLOCK = (
+    "consulted: >\n"
+    "  football-analytics-expert on the metric edge cases before building.\n\n"
+)
 CONTRACT = CONTRACT_NO_IMPACT.replace(
+    "decisions_taken:", _IMPACT_BLOCK + _CONSULTED_BLOCK + "decisions_taken:")
+
+# impact_map present, consulted ABSENT — for the consulted-deny direction.
+CONTRACT_NO_CONSULTED = CONTRACT_NO_IMPACT.replace(
     "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
 
 CONTRACT_OVERRIDE = CONTRACT.replace(
@@ -259,8 +270,10 @@ def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
     the only ALLOW fixture was the plain block scalar, so a fix that rejected too
     much would have passed — the one-sided coverage this contract's own done_when
     names, found for the third time (cto-reviewer, 2026-07-22)."""
+    # consulted is also required on the structural surface, so include it — this
+    # test isolates the impact_map spelling, not the consulted rule.
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
-        "decisions_taken:", spelling + "decisions_taken:"))
+        "decisions_taken:", spelling + _CONSULTED_BLOCK + "decisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
                       edit_event(repo, "dbt_project/models/allowed.sql"), repo)
     assert not denied(out)
@@ -438,6 +451,102 @@ def tracked(prefix: str) -> list[str]:
     return [p for p in r.stdout.split("\0") if p]
 
 
+def test_every_reviewer_brief_carries_the_identical_delta_section():
+    """The delta-re-review rule must read the same in all six briefs; a reviewer
+    that received a drifted copy would apply a different rule. Enumerated from the
+    real agents directory, not a hand list (review-economics, 2026-07-22)."""
+    import glob
+    agents_dir = os.path.join(os.path.dirname(__file__), "..", ".claude", "agents")
+    briefs = sorted(glob.glob(os.path.join(agents_dir, "*.md")))
+    reviewers = [b for b in briefs if os.path.basename(b) != "README.md"]
+    assert len(reviewers) >= 6, f"expected >=6 reviewer briefs, found {len(reviewers)}"
+    sections = {}
+    for b in reviewers:
+        text = open(b, encoding="utf-8").read()
+        assert "## Delta re-review" in text, f"{os.path.basename(b)} lost its delta section"
+        sections[b] = text.split("## Delta re-review", 1)[1]
+    uniq = set(sections.values())
+    assert len(uniq) == 1, (
+        "delta sections have drifted across briefs: "
+        + ", ".join(os.path.basename(b) for b in sections))
+
+
+def test_ci_backstop_requires_rounds(ci_repo):
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+    real_hash = branch_hash(ci_repo)
+    # a complete review EXCEPT the rounds line
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "rounds:" in out
+
+
+def test_ci_backstop_reuses_the_canonical_hook_logic():
+    """The CI backstop must not re-implement the round cap or the nullish/
+    structural logic — it diverged once (the override placeholder set, the
+    `(none)` spelling, the export regex) and nothing caught it. Assert CI calls
+    the hooks' own functions, and that the two nullish sets are identical, so a
+    future hand-copy is impossible to land green (cto-reviewer, 2026-07-22)."""
+    import importlib
+    gd = _gd()                                  # inserts .claude/hooks on the path
+    sys.path.insert(0, SCRIPTS)
+    ci = importlib.import_module("check_task_artifacts")
+    tcg = importlib.import_module("task_contract_gate")
+    # CI's round check IS the hook's, not a copy
+    assert ci._rounds_error.__doc__ is not None
+    assert ci._rounds_error("rounds: 1\n") is None
+    assert ci._rounds_error("rounds: 4\nrounds_cap_override: tbd\n") is not None
+    assert ci._rounds_error("rounds: 4\nrounds_cap_override: real reason\n") is None
+    # the two nullish sets agree, exactly
+    assert set(gd._NULLISH_WORDS) == set(tcg._NULLISH), (
+        "git_discipline._NULLISH_WORDS has drifted from task_contract_gate._NULLISH")
+    # CI structural test IS the edit gate's
+    assert ci._structural(["dbt_project/models/x.sql"]) is True
+    assert ci._structural([".claude/hooks/h.py"]) is True   # protected is structural
+    assert ci._structural(["docs/x.md"]) is False
+
+
+def test_empty_cap_override_does_not_absorb_the_next_line(repo):
+    """`rounds_cap_override:` with no inline value must NOT capture the following
+    `## header` as its reason (cto-reviewer, 2026-07-22)."""
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY,
+                 rounds="rounds: 4\nrounds_cap_override:\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "cap" in out
+
+
+@pytest.mark.parametrize("word", ["tbd", "none", "(none)", "n/a", "todo", "-"])
+def test_word_placeholder_cap_override_rejected(repo, word):
+    """The word-placeholders, not just `<...>`, must be rejected — the CI copy
+    used to accept them (cto-reviewer, 2026-07-22)."""
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY,
+                 rounds=f"rounds: 4\nrounds_cap_override: {word}\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "cap" in out
+
+
+def test_ci_backstop_requires_consulted_on_structural_pr(ci_repo):
+    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    # contract WITHOUT consulted, structural PR
+    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT_NO_CONSULTED)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+    real_hash = branch_hash(ci_repo)
+    (ci_repo / ".claude" / "task" / "review.md").write_text(
+        "# Review\ndiff_sha256: " + real_hash + "\nrounds: 1\n\n" + GOOD_BODY)
+    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
+    code, out = run_ci_check(ci_repo)
+    assert code == 1 and "consulted" in out
+
+
 def test_real_routing_parses_and_has_the_required_keys():
     r = real_routing()
     for key in ("always", "paths", "artifact_only", "artifact_only_never",
@@ -581,9 +690,9 @@ def staged_hash(repo) -> str:
     return r.stdout.strip()
 
 
-def write_review(repo, hash_hex, body):
+def write_review(repo, hash_hex, body, rounds="rounds: 1\n"):
     (repo / ".claude" / "task" / "review.md").write_text(
-        f"# Review\ndiff_sha256: {hash_hex}\n\n{body}\n"
+        f"# Review\ndiff_sha256: {hash_hex}\n{rounds}\n{body}\n"
     )
 
 
@@ -674,6 +783,117 @@ def test_artifact_only_commit_exempt_from_review(repo):
     (repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
     subprocess.run(["git", "add", ".claude/task/notes.md"], cwd=repo, check=True)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# Round cap (review-economics, 2026-07-22) — the commit gate bounds the loop.
+# --------------------------------------------------------------------------- #
+def test_commit_denied_without_a_rounds_line(repo):
+    setup_review_repo(repo)
+    # write_review injects rounds by default; pass an empty string to omit it
+    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "rounds:" in out
+
+
+def test_commit_allowed_at_the_cap(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="rounds: 3\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+def test_commit_denied_over_the_cap_without_override(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY, rounds="rounds: 4\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "cap" in out
+
+
+def test_commit_allowed_over_the_cap_with_a_real_override(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY,
+                 rounds="rounds: 5\nrounds_cap_override: CPO said keep going, 2026-07-22\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+@pytest.mark.parametrize("bad", ["rounds: 0\n", "rounds: many\n", "rounds: -1\n"])
+def test_commit_denied_on_a_non_positive_rounds(repo, bad):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY, rounds=bad)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out)
+
+
+def test_placeholder_cap_override_does_not_satisfy(repo):
+    setup_review_repo(repo)
+    write_review(repo, staged_hash(repo), GOOD_BODY,
+                 rounds="rounds: 4\nrounds_cap_override: <reason>\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "cap" in out
+
+
+# --------------------------------------------------------------------------- #
+# consulted: (review-economics, 2026-07-22) — the contract gate requires it on
+# the SAME structural surface as impact_map: gather domain knowledge before the
+# build, not in review round three.
+# --------------------------------------------------------------------------- #
+def test_structural_edit_denied_without_consulted(repo):
+    write_contract(repo, CONTRACT_NO_CONSULTED)  # impact present, consulted absent
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "consulted" in out
+
+
+def test_structural_edit_allowed_with_impact_and_consulted(repo):
+    write_contract(repo)  # default CONTRACT now carries both
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert not denied(out)
+
+
+def test_nonstructural_edit_not_asked_for_consulted(repo):
+    # docs/allowed_dir/ is in scope but not structural — no consulted demanded
+    write_contract(repo, CONTRACT_NO_CONSULTED)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "docs/allowed_dir/x.md"), repo)
+    assert not denied(out)
+
+
+def test_protected_edit_denied_without_consulted(repo):
+    # override + impact present, consulted absent: the protected branch must also
+    # demand consulted, not only impact_map
+    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
+        "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
+    write_contract(repo, scoped)
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, ".claude/hooks/some_hook.py"), repo)
+    assert denied(out) and "consulted" in out
+
+
+@pytest.mark.parametrize("spelling", [
+    "consulted: none\n", "consulted: tbd\n", "consulted: <who>\n",
+    "consulted: >\n  <who and why>\n",
+])
+def test_nullish_consulted_does_not_satisfy(repo, spelling):
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "decisions_taken:", _IMPACT_BLOCK + spelling + "decisions_taken:"))
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "consulted" in out
+
+
+def test_nobody_because_consulted_satisfies(repo):
+    """'nobody, because <reason>' is a legitimate answer — a platform-only change
+    whose reviewer is the same one that reviews the build."""
+    write_contract(repo, CONTRACT_NO_IMPACT.replace(
+        "decisions_taken:",
+        _IMPACT_BLOCK + "consulted: >\n  nobody, because platform-only.\n"
+        + "decisions_taken:"))
+    out, _ = run_hook("task_contract_gate.py",
+                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
     assert not denied(out)
 
 
@@ -932,7 +1152,7 @@ def test_ci_check_passes_with_complete_artifacts(ci_repo):
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
     real_hash = branch_hash(ci_repo)
     (ci_repo / ".claude" / "task" / "review.md").write_text(
-        "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY
+        "# Review\ndiff_sha256: " + real_hash + "\nrounds: 1\n\n" + GOOD_BODY
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
@@ -1104,6 +1324,17 @@ def test_shell_redirect_to_protected_path_allowed_with_impact_map(repo):
     out, _ = run_hook("task_contract_gate.py",
                       bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
     assert not denied(out)
+
+
+def test_shell_redirect_to_structural_path_needs_consulted(repo):
+    """The shell path must demand `consulted:` too, not only impact_map — else a
+    redirect skips locally what the Edit path enforces (cto-reviewer, 2026-07-22)."""
+    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
+        "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")  # impact yes, consulted no
+    write_contract(repo, scoped)
+    out, _ = run_hook("task_contract_gate.py",
+                      bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
+    assert denied(out) and "consulted" in out
 
 
 def test_ordinary_doc_still_needs_no_impact_map(repo):
