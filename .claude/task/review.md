@@ -1,69 +1,57 @@
-# Review — feat/team-page-performance — 2026-07-23
+# Review — feat/player-career-minutes — 2026-07-23
 
-> Team page Performance tab (frontend only; no export/dbt/test change), from CPO-approved mock
-> f6348775, reusing the locked `METRIC_ROWS`. Three rounds. Round 1 caught the header/rank display
-> (locked spec `14_team_stats.md` §5 forbids a single peer-count header, §4 requires per-row
-> "{rank} of {team_count}") and the per-panel caption; round 2 caught the missing "below the games
-> floor" absent state (§6). All fixed. All three required reviewers PASS at the final hash.
-
-diff_sha256: f5e943aee347462742dd71bc07c0ed75bd9635b10dbf52873945a80ae810a3f9
+diff_sha256: 1a3712586afddd48573f65fe869b730a2d92342003f4d6fe108abd2711df9596
 
 rounds: 3
+
+> Round count note (honest, for the audit trail): this branch ran three earlier rounds against TWO
+> now-superseded scopes — first adding a `minutes_per_appearance` ratio (analytics-engineer FAIL: an
+> uncatalogued rate), then adding a `metric_catalogue` row (football-analytics-expert FAIL: the
+> denominator counts matchday selections). The CPO re-scoped the task after that second FAIL was
+> verified against production, and the contract was rewritten. The count above is for the CURRENT
+> scope (the appearance-definition fix): round 1 full review, round 2 delta, round 3 confirmation.
+> `football-analytics-expert-reviewer` is NOT in the required set for this diff — its trigger path
+> `dbt_project/seeds/metric_catalogue.csv` was reverted and is absent — but its FAIL is what found the
+> defect this PR now fixes, and the metric it objected to is deferred to the PR that consumes it.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is within scope_paths (10 site_v2 files + the two task/handover artifacts); no
-  export/dbt/test/guard/workflow path touched — consistent with the "frontend only" impact_map.
-- No new §10 decision: the direction-aware rank conversion, the per-row "of {team_count}", the
-  per-panel captions, and the §6 absent-state guard all IMPLEMENT the locked display spec
-  (metrics_display.md + 14_team_stats.md) and match two existing sibling components — no new metric,
-  naming, threshold, or mechanism. The dropped interpretive lede was approved with the plan.
-- decisions_reserved intact: Squad deferred (#480), lede templating deferred, per-locale metric
-  labels (#370) unchanged.
+- Serial amendment vs uncontrolled drift: five amendments are recorded, each naming its authority
+  (CPO "Then it is wrong" / "Players are part of the squad even with zero appearances" / the two
+  reversals). Verified the diff stays inside the amended `scope_paths` with no undeclared file, and
+  that the additions are one defect class rather than an open-ended refactor.
+- Contract honesty about its own false claim: the impact_map previously asserted "Neither is read by
+  scripts/export_site_data.py (checked)". Verified the contract now states plainly that this was FALSE
+  and not independently verified, and records the true code path — it does not launder the error.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Binding rule: all 16 rows in both panels trace to the committed sample (`benchmarks[]` +
-  `{field}_delta_yoy`), which come from the mart via the export, not hand-typed; absent states honest
-  (null save_ratio YoY → en-dash; below-floor season → the "not enough games" message; metric-absent →
-  row omitted, never a zero bar).
-- Direction-aware rank/fill/green verified against real data: goals against (lower_better) raw 14/20 →
-  "7th of 20", 70%, green; corners against raw 13/20 → "8th"; save % (sparse) 13/16 → "13th of 16",
-  25%, not green; 12 green fills total on the featured season. Green = beats median in the better
-  direction only; red stays reserved for Loss.
-- Per-row honest sample size (§5): no single peer-count header remains; each row carries its own
-  "of {team_count}", so the save % row shows its true 16, not the 20 the other rows carry.
-- The below-the-games-floor guard (§6) matches the sibling DeservedHero/YearOverYear pattern and fires
-  for the sample's real `benchmarks: []` cup seasons; no naked % beyond the documented save_ratio
-  exception; i18n complete de/en/fi with localized ordinals.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- The JS-free segment survives the absent-state fragment restructuring: built-HTML child sequence is
-  input#pf-league, input#pf-season, div.seg, div.win.pf-league, div.win.pf-season — all direct
-  siblings (the `<>` fragment emits no node), so `#pf-*:checked ~ .pf-*` resolves; no collision with
-  the outer `#tab-*` tab namespace or the fixture `#seg-w1/2`.
-- `astro build` green across all three locales; empirical dist grep finds no `{team}`/`{n}`/`{rank}`/
-  `undefined`/`NaN`/`[object` leaks; DE/FI strings render.
-- TS sound: `benchByKey.size`, the `hasYoY` `.some`, the `leagueGroups`/`seasonGroups` split, the new
-  `teamName` prop + call site, the `{field}_delta_yoy` Record cast (read only via `asNumber`); no
-  leftover `groups`/`teamCount`/`rankedWithin` references; helpers null-safe (no divide-by-zero,
-  degrade to en-dash).
-- No CSS double-define: every `.vs-*`/`.ss-*`/`#pf-*` selector defined once; the grid-column widen +
-  `.vs-rank` nowrap were in-place edits, not appends; shared blocks (`.seg-in`/`.win`/`.pagecap`/
-  `.coming`) reused, not redefined.
+- The three round-2 findings are genuinely fixed: `int_player_season_position.yml` and
+  `int_player_profile__yoy.sql` no longer carry the pre-fix "appearances-with-stats" phrasing, and the
+  contract's export claim is corrected. The export path was re-verified independently
+  (`export_site_data.py:688` selects `mart_player_profile`; `_strip_identity` drops only bio fields;
+  the yoy appearance fields do reach `players/{id}.json`).
+- No new SQL defect crept in: each of the four fixed writers shows a single coherent hunk implementing
+  `countif(coalesce(minutes_played, 0) > 0)` or the `where coalesce(minutes_played, 0) > 0` leg filter,
+  with no extraneous or conflicting edits.
+- (Earlier rounds, carried) `starts` correctly needed no change — `is_starter` is stored as
+  `coalesce(minutes_played,0) > 0 and not coalesce(is_substitute,false)`, so the new
+  `starts + substitute_appearances = appearances` test holds by construction. Confirmed empirically on
+  production: 0 violations across 170,533 club-seasons.
+- (Earlier rounds, carried) The `appearances >= 1` -> `>= 0` change is a legitimate narrowing, not a
+  loosened guard: the old expression asserted the premise the CPO overturned, and 26,530 production
+  rows never satisfied it.
 
 ## escalations
-(none)
-
-<!-- Non-blocking follow-up (raised by bi-analyst, not a defect — both fields are real and bound):
-  The vs-league row follows the APPROVED MOCK f6348775 — the league MEDIAN VALUE column + a rank-based
-  fill bar. The older wireframe `14_team_stats.md` §4/§5 (and 00_overview.md) instead describe a
-  vs-median DELTA column + a p25–median–p75 spread bar. `league_p25`/`league_p75` are exported and
-  typed but currently unread; `vs_median_delta` drives only the green colour. The mock is the CPO-
-  approved design and §1's own "rank over percentile, honest at N≈18" rationale favours what was built,
-  so this shipped as-is — but the wireframe doc should be reconciled to the approved mock. A doc task,
-  not a code change. -->
+- question: `minutes_per_appearance` — a display-support mart column, or a catalogue-governed metric?
+  CPO ANSWER: catalogue it (AskUserQuestion 2026-07-23, "Catalogue it now"). Subsequently DEFERRED out
+  of this PR by the answer below, to land with the Squad tab on the corrected denominator.
+- question: the ratio's denominator counts matchday selections, not appearances (verified on
+  production). Ship the ratio anyway, drop it, or fix the count?
+  CPO ANSWER: "Ship minutes only, fix apps next" (AskUserQuestion 2026-07-23), then, on being shown
+  that appearances counts squad selections: "Then it is wrong" — fix the definition.
+- question: should never-played squad members be dropped from the career log or kept?
+  CPO ANSWER: "Players are part of the squad even with zero appearances" (2026-07-23) — kept, counted
+  as 0. Nothing is deleted.
