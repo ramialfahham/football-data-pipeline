@@ -1,64 +1,50 @@
-# Review — chore/trim-guardrails — 2026-07-22
+# Review — chore/repo-polish — 2026-07-22
 
-> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) + `cto-reviewer`
-> (`.claude/hooks/**`, `.claude/settings.json`, `tests/**`, `scripts/**`). Opus floor APPLIES: guard
-> paths are touched.
+> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) only. The diff
+> touches README.md and docs assets — no dbt, ingestion, script, site or guard path — so no
+> specialist reviewer is routed and no opus floor applies.
 >
-> **WHAT THIS CHANGES.** A staff-level AI-engineering review of the `.claude/` machinery found its
-> core strong (the hash-bound blinded review, the self-gating hooks) but three parts over-scoped,
-> "the machinery defending itself against itself". The CPO ruled (AskUserQuestion): "Trim the weak
-> parts, then reframe." This is the trim, four reductive cuts:
-> 1. DELETE `plain_language_gate.py` and its Stop wiring. A 232-line hook that blocked the agent's
->    own chat message on an em dash; its author had already flagged it disposable. The CPO's
->    no-em-dash PREFERENCE survives as a norm in the handover and `working_agreement.md`; only the
->    machine gate goes.
-> 2. DEMOTE the `consulted:` field shipped one day ago in #807. Remove its enforcement from the
->    contract gate (parse + three deny sites) and the CI backstop; keep the intent as a norm. A
->    considered PARTIAL REVERSAL of #807, on the review's recommendation, logged in `escalations.log`.
-> 3. COMPRESS the multi-round "forgery archaeology" comments in `task_contract_gate.py`; keep the
->    `_BLOCK_HEADER_RE` pattern that closed the class.
-> 4. SPEED the test suite from ~11 min to ~4: the `repo` fixture builds a git repo once and copies it
->    per test instead of six subprocesses each.
+> **WHAT THIS CHANGES.** Presentation only, no code. It makes the public repo honest in its current
+> state, for an experienced engineer assessing it as the owner's flagship.
+> 1. **Dead links killed.** GitHub Pages returns 404 (verified via `gh api .../pages`), so the README
+>    demo link, the dbt-docs link, and the repo homepage URL all pointed at nothing. All removed; the
+>    repo description no longer advertises a "live web app".
+> 2. **Honest state.** The web app is described as a prototype, currently offline. The retired-MVP
+>    screenshot (which showed competition branding, the class of content the app was taken down over)
+>    is deleted, and the Mermaid architecture diagram is the lead visual — a stronger image for a
+>    data pipeline and rights-clean.
+> 3. **The machinery framed.** A new "Development guardrails (AI-assisted)" section presents the
+>    contract gate, blinded adversarial review, the hash-bound review artifact, and the
+>    fail-open/fail-closed split as a deliberate artifact rather than unexplained over-engineering.
+>    This follows the guardrail TRIM (#808), so what it describes now passes its own proportionality
+>    test.
 >
-> KEPT, and this is the point of the trim rather than a teardown: the hash-bound review, the
-> contract/scope gate, the impact_map gate, the layer gate, the round cap, the blinded reviewer cast,
-> and the fail-open discipline.
+> **AUTHORITY.** The exact copy and framing are §10 product decisions, so they were put to the CPO
+> before writing: two AskUserQuestion rulings chose a dedicated guardrails section (not a whole-repo
+> reframe) and a neutral app-status note (no legal reason aired publicly). The shipped copy matches
+> both. The repo description and homepage were updated via `gh` with the CPO-approved text, outside
+> the diff.
 >
-> **HONESTY ABOUT #807.** Demoting `consulted:` undoes part of a change I built and the CPO approved
-> earlier the same day. That is recorded plainly in the contract's `decisions_taken (3)` and in
-> `escalations.log` as a considered reversal on the expert review's recommendation, not thrash. The
-> banked lesson: a guard that cannot pass its own proportionality test should not ship, even one I
-> built hours ago.
+> **HONESTY BAR.** Per the presentation principles: no self-praise, no "hire me" framing, honest
+> about state, non-brittle numbers. The guardrails section describes what the system DOES in precise
+> terms rather than adjectives, and names the one transferable idea (binding a review to its exact
+> diff by hash). The reviewer independently checked its three load-bearing claims against
+> `working_agreement.md` and confirmed each is accurate, not overstated.
 >
-> **VERIFIED BY EXECUTION.** Full suite 215 passing (244 minus exactly the 29 removed cases: 11
-> consulted, 13 plain-language, 5 fail-open params that named the deleted hook), in ~4 minutes down
-> from ~11. Layer contract passes; `settings.json` is valid JSON; the CI backstop imports and runs.
-> The removal was swept repo-wide: zero executable or config references to `plain_language` or a
-> `consulted:` machine-field remain, only the intended prose norms.
->
-> **NOT VERIFIED.** No dbt, no warehouse. `pytest tests/` runs in `python-ci.yml` on every PR, so CI
-> re-runs the same suite closed.
+> **NOT VERIFIED.** No code, no tests, no warehouse. The skill's link/render checks ran: every
+> relative link resolves, the Mermaid block is well-formed and fenced, no github.io link remains.
 
-diff_sha256: 37583d5be059b6301362b84a6747e8b78eaf83acd14cf9062ca7363b2c0a843d
+diff_sha256: f22f5edf277100aa5dd1604997247be1ddd15d8a2e3e7031cd46e44a356f4dc0
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Authority and §10 honesty. Confirmed the `escalations.log` entry records a discrete CPO AskUserQuestion ruling "Trim the weak parts, then reframe" covering all four cuts, that `protected_override` quotes it, that the no-em-dash preference is explicitly retained as a norm rather than silently dropped, and that the partial reversal of #807 is recorded honestly in both the contract and the log rather than slipped in.
-- Only-authorized-cuts. Verified nothing beyond the four named items was removed: the impact_map gate and every Edit/shell check remain, the round-cap parity test is retained, and the test-count drop is fully explained by the removed consulted and plain-language tests rather than by dropping coverage of a kept gate.
-- Scope: every touched file inside `scope_paths`, no new path, and the contract itself carries a real `consulted:` norm-note rather than the deleted field.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- The half-removed-gate failure mode, swept repo-wide: `consulted|plain_language` returns zero matches across every `.py`/`.yml`/`.json`, and the machine identifiers appear only in the patch and the contract's own description. The parser-removed-but-deny-sites-left brick state does not exist; parser and all three deny sites are gone together.
-- The impact_map gate intact on both write paths: still parsed, still denied-on-absence on the Edit protected branch, the Edit structural branch and the shell path, with the allow-context message corrected to "impact_map present"; traced the parser against the real contract's leftover consulted norm-block and confirmed impact_map_present still computes True.
-- `stop_gate.py` still fires and is independent: it imports only surviving helpers from `task_contract_gate`, has no reference to the deleted hook, and its Stop wiring is preserved as valid JSON with no trailing comma.
-- CI/local parity: the now-unused `import task_contract_gate` and the `_structural`/`_consulted_present` helpers are removed cleanly, the round cap still delegates to `git_discipline._rounds_gate`, and the parity test dropped exactly the assertions that would now crash while keeping the rest.
-- Fixture isolation: `_repo_template` is only ever the copytree source, every test mutates its own copy's `.git`, author identity is set before the copy, and the copied `.git` is relocatable; test-count arithmetic (244 − 29 = 215) checks out.
-- Fail-direction, cost and secrets: hooks still fail open, CI fails closed, the change is cost-reducing, no dependency or permission change, `shutil` is stdlib.
+- Authority for the product copy: confirmed the two CPO AskUserQuestion rulings (dedicated guardrails section, neutral app-status note) and that the shipped README matches both — a standalone section rather than a whole-repo reframe, and an "offline" status with no legal reason given. No positioning was written that the CPO did not approve.
+- Honesty and dead-link completeness: verified all three dead github.io links are gone with none reintroduced, the surviving badge and internal doc links resolve, the copy claims nothing live that is not, and the guardrails section neither overclaims nor reads as a recruiter pitch.
+- Guardrails-section accuracy: checked its three core claims ("spawned cold with no builder context", "defaulting to reject", "an approval cannot drift from the code it approved") against `working_agreement.md` §2-3 and confirmed each is factually correct.
+- Scope: every touched file inside `scope_paths`; the two deletions are justified (the screenshot is the retired app; its directory README documented only that screenshot).
 
 ## escalations
-- question: How far to trim the guardrail machinery before reframing the README around it? Three paths offered: trim the weak parts then reframe; cut only the plain-language gate and speed the suite; or reframe only. Recommended trimming the weak parts, because the review's strongest framing depends on the machinery being defensible.
-  CPO ANSWER: "Trim the weak parts, then reframe" (AskUserQuestion, 2026-07-22), the option whose text named all four cuts. Full record, including the staff review that motivated it, is the entry for this branch in `.claude/task/escalations.log`.
+- question: How prominent should the AI-guardrails framing be, and how much to say about why the web app is offline? Put as two AskUserQuestion prompts with three and two options respectively.
+  CPO ANSWER: "A dedicated section, after Design decisions" and "Neutral: prototype, currently offline" (AskUserQuestion, 2026-07-22). The exact README copy was shown before writing and the framing approved.

@@ -150,37 +150,34 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — branch `chore/trim-guardrails`
+## IN FLIGHT — branch `chore/repo-polish`
 
-**TRIM THE MACHINERY TO WHAT EARNS ITS PLACE.** CPO (AskUserQuestion) after the staff review:
-"Trim the weak parts, then reframe." Four cuts, all reductive:
+**HONEST SHOPFRONT + FRAME THE GUARDRAILS.** CPO-directed after an honest state assessment and a
+staff-level review: "do it" / "Do as recommended so I'm making the best impressions in the current
+state." Presentation only, no code.
 
-- **Deleted `plain_language_gate.py`** and its Stop wiring. The 232-line hook that blocked the
-  agent's own chat message on an em dash; its author flagged it disposable. The no-em-dash PREFERENCE
-  survives as a norm (DO NOT section below); only the machine gate is gone.
-- **Demoted `consulted:`** (shipped in #807, one day old). Removed its enforcement from the contract
-  gate and the CI backstop; kept as a NORM in `working_agreement.md` and `TEMPLATE.md`. A considered
-  partial reversal of #807 on the review's recommendation, logged in `escalations.log`.
-- **Compressed the "forgery archaeology"** comments in `task_contract_gate.py`; kept the pattern.
-- **Sped the test suite** from ~11 min to ~4: the `repo` fixture builds a git repo once and copies it
-  per test instead of six subprocesses each.
+- **Killed every dead link.** GitHub Pages is 404 (verified via `gh api`), so the README demo link,
+  the dbt-docs link, and the repo homepage URL all pointed at nothing. Removed; the repo description
+  no longer says "live web app".
+- **Honest state.** The web app is described as a prototype, currently offline; the retired-MVP
+  screenshot (which showed competition branding) is removed and the Mermaid architecture diagram is
+  the lead visual.
+- **Framed the machinery.** A new README section, "Development guardrails (AI-assisted)", presents
+  the contract gate, blinded review, the hash-bound review artifact and the fail-open/CI split, as a
+  deliberate artifact rather than unexplained over-engineering. CPO chose a dedicated section (not a
+  reframe of the whole repo) and a neutral app-status note (no legal reason given).
 
-KEPT: the hash-bound review, the contract/scope gate, the impact_map gate, the layer gate, the round
-cap, the blinded reviewer cast, fail-open. Suite 215 passing. **TO FINISH: review cycle on the staged
-hash, `review.md`, commit, PR.**
+**TO FINISH: review cycle (scope-auditor only; presentation paths draw no other reviewer), `review.md`
+with `rounds:`, commit, PR.** Repo description + homepage already updated via `gh` (approved).
 
 ## NEXT
 
 1. **This change** (in flight).
-2. **The repo polish PR** (`chore/repo-polish`, contract saved to scratchpad). Kill the dead Pages
-   links (Pages is 404), rewrite the description and headline to be honest about state, replace the
-   retired-MVP screenshot with the architecture diagram, and REFRAME the `.claude/` machinery as the
-   portfolio artifact per the staff review. Product copy needs CPO sign-off before writing.
-3. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
+2. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
    fitted line is legitimate in points space. Owed to the CPO as something to look at, never prose.
    Must never render for a non-domestic or non-single-ladder competition.
-4. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
-   economics + trim work was done to make cheaper.
+3. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
+   economics, trim, and polish work was done to make cheaper and cleaner.
 
 ---
 
