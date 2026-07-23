@@ -1,6 +1,6 @@
 # Football Data Platform
 
-An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), and served to a web app. Multi-competition and multilingual.
+An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), then exported as JSON for a fan-facing web app. Multi-competition and multilingual.
 
 [![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
 [![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
@@ -9,13 +9,7 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-### Live preview — [Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)
-
-A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
-
-**[Explore the data model →](https://ramialfahham.github.io/football-data-pipeline/dbt-docs/)** — dbt lineage graph, model and column docs, generated from the project.
-
-![Matchday IQ — MVP preview](docs/assets/screenshot.png)
+**Status.** The pipeline runs daily behind automated data-quality and CI checks. The fan-facing web app (Matchday IQ) is a prototype, currently offline; a v2 with a new information architecture is in development.
 
 ## Architecture
 
@@ -24,7 +18,7 @@ flowchart LR
     A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
     B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
     E --> F[intermediate<br/>metrics + form] --> G[marts]
-    G -->|JSON export| H[GitHub Pages<br/>Matchday IQ]
+    G -->|JSON export| H[web app<br/>prototype]
 ```
 
 ## Highlights
@@ -33,7 +27,7 @@ flowchart LR
 - **Automated data-quality tests** gate every build.
 - **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
 - **Multilingual** (DE / EN / FI), multi-competition by design.
-- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and scheduled deployment.
+- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and a scheduled daily run.
 - **v2 web app** with new information architecture and richer insights in active development.
 
 ## Design decisions
@@ -49,6 +43,17 @@ This is a personal project, and its central constraint is scaling across many co
 - **Metrics are defined once.** Every metric lives in a machine-readable catalogue and is consumed from there, never re-derived inside a mart — so the same metric stays consistent everywhere, and the definitions stay tool-readable (a foundation for a future semantic layer).
 
 - **Identity is modelled separately from affiliation.** Players and teams change clubs and seasons, so the stable entity is kept distinct from its affiliations over time, and facts reference the entity. It costs a join and buys correct answers to historical questions.
+
+## Development guardrails (AI-assisted)
+
+This project is built largely with an AI coding agent, under a guardrail system that treats agent changes like an untrusted contributor rather than trusting them by default.
+
+- **Contract-gated edits.** Before touching models, ingestion, or the guards themselves, the agent writes a task contract declaring its scope and an end-to-end blast-radius map. A pre-commit hook denies any edit outside that declared scope.
+- **Blinded adversarial review.** Each change is judged by role-specific reviewer agents — scope, analytics engineering, platform, football domain — spawned cold with no builder context and defaulting to reject.
+- **A review bound to its diff.** The commit is refused unless a review file carries the SHA-256 of the exact staged diff, and CI recomputes the same hash from the branch, so an approval cannot drift from the code it approved.
+- **Fail-open hooks, fail-closed CI.** A hook bug can never wedge the workflow, while a CI backstop enforces the same rules at the pull-request boundary.
+
+The design, and its honest trade-offs, are in [docs/agent_guardrails.md](docs/agent_guardrails.md) and [docs/working_agreement.md](docs/working_agreement.md).
 
 ## BigQuery layout (datasets)
 

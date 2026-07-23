@@ -1,118 +1,71 @@
-# Task contract — trim the guardrail machinery to what earns its place
+# Task contract — repo polish: honest shopfront, kill dead links, frame the guardrails
 
-> Written on a CLEAN tree (branch `chore/trim-guardrails` off main @ e7e516f).
-
-protected_override: >
-  `.claude/hooks/**`, `.claude/settings.json` and `.claude/task/TEMPLATE.md` are PROTECTED: removing
-  a hook, unwiring it, and dropping a machine-gated contract field are governance events. CPO-
-  directed 2026-07-22 after a staff-level AI-engineering review of the `.claude/` machinery, chosen
-  discretely (AskUserQuestion): **"Trim the weak parts, then reframe"**, whose option text named
-  exactly what to cut. Routes to cto-reviewer; the opus-on-guards rule applies.
+> Written on a CLEAN tree (branch `chore/repo-polish` off main @ 07a224c, after the guardrail trim
+> #808 merged). Presentation/docs only.
+> No structural surface, so no impact_map and no consulted field are required.
 
 objective: >
-  A staff-level AI-tooling review found the core of the guardrails genuinely strong (the hash-bound
-  blinded review and the self-gating hooks) but three mechanisms over-scoped: "the machinery
-  defending itself against itself." This removes exactly those, so the system passes its own
-  proportionality test before the README reframes it as the portfolio artifact. Four cuts:
-
-  (1) DELETE `plain_language_gate.py` and its wiring. A 232-line Stop hook that blocks the agent's
-  final chat message on an em dash, a section sign, a repo path in prose, or 2,500 characters. Its
-  own docstring calls it provisional and admits it fires after the message renders, so it does not
-  even prevent a wall of text. It governs chat-prose preference, not code or data integrity, and it
-  is the single mechanism most likely to read as over-engineered. The CPO's no-em-dash preference
-  SURVIVES as a stated norm in the handover; only the machine enforcement goes.
-
-  (2) DEMOTE the `consulted:` field (shipped one day ago in #807). Remove its machine enforcement
-  from the contract gate (Edit and shell paths) and the CI backstop; keep the intent as a reviewer
-  norm and a template comment. It was hardened into two enforcement paths before it earned it. This
-  PARTIALLY REVERSES #807, knowingly and on the review's recommendation, not as thrash.
-
-  (3) COMPRESS the multi-round "forgery archaeology" comments in `task_contract_gate.py` (the
-  `_NULLISH`/block-scalar/placeholder essays that narrate four rounds of the same finding). Keep the
-  `_BLOCK_HEADER_RE` pattern and a one-line why; the incident history belongs in git, not the body.
-
-  (4) SPEED the test suite. The `repo` fixture is function-scoped and rebuilds a git repo via six
-  subprocesses per test, which is why the suite takes ~11 minutes. Build the template once and copy
-  it per test, cutting it toward ~2 minutes so it can run in the loop, which is the point of a gate.
+  Make the public repo make the right first impression IN ITS CURRENT STATE, for an experienced
+  data / analytics / web / AI engineer assessing it as the owner's flagship. Three problems, all
+  verified this session:
+  (1) GitHub Pages is 404 (confirmed via `gh api .../pages`). Every outward link is dead — the
+  README live-demo link, the dbt-docs link, and the repo's own homepage URL — and the repo
+  DESCRIPTION advertises a "live web app". The MVP was taken offline deliberately over possible
+  rights issues with provider content, so the demo stays dead; the links and the description must
+  stop pointing at it.
+  (2) The README hero image `docs/assets/screenshot.png` is that retired app, showing competition
+  branding — the same class of content the app was pulled for. It is removed, and the architecture
+  diagram becomes the lead visual (a strict upgrade for a data-pipeline repo, and rights-clean).
+  (3) The `.claude/` AI-assisted-development guardrails are ~3,300 lines plus 244 tests, committed
+  and unframed, so a reviewer reads them as over-engineering. CPO direction: SHOWCASE them, do not
+  hide them. A README section frames them as deliberate, sized to what a staff-level review judges
+  worth keeping (that review is running; its verdict shapes the section and may spawn a separate
+  trim task — trimming is NOT in this PR).
 
 refs: >
   Verified this session, not recalled:
-  - `plain_language_gate` is wired ONLY at `.claude/settings.json:101` (Stop hook, second of two;
-    `stop_gate.py` at :95 stays) and referenced in `docs/agent_guardrails.md` and the tests.
-  - `consulted` enforcement lives in `task_contract_gate.py` (parse + Edit path + shell path),
-    `scripts/check_task_artifacts.py` (import-delegated), `TEMPLATE.md`, `working_agreement.md`,
-    `agent_guardrails.md`, and the tests. `.venv/**` and `dbt_packages/**` matches are unrelated.
-  - The `repo` fixture is `tests/test_governance_hooks.py:106-116`: git init + 2 configs + mkdirs +
-    add + commit, per test.
+  - `gh api repos/.../pages` -> 404: Pages is genuinely gone, so all three github.io links are dead.
+  - `gh repo view`: description = "...live web app. ...built to scale"; homepageUrl = the dead
+    match-preview link; 14 topics already set (good, untouched); MIT license (good).
+  - README badges (CI, Data Build, License, dbt, BigQuery, Python) resolve and are kept.
+  - `docs/assets/screenshot.png` read directly: the retired Matchday IQ landing page with league
+    crests/branding.
+  - The presentation principles are `C:\Users\Rami\.claude\skills\polish-repo\repo-presentation.md`
+    (understated, honest about state, non-brittle numbers, owner owns product framing).
 
 scope_paths:
-  - .claude/hooks/plain_language_gate.py
-  - .claude/hooks/task_contract_gate.py
-  - .claude/settings.json
-  - scripts/check_task_artifacts.py
-  - .claude/task/TEMPLATE.md
-  - docs/agent_guardrails.md
-  - docs/working_agreement.md
-  - tests/test_governance_hooks.py
+  - README.md
+  - docs/assets/screenshot.png
+  - docs/assets/README.md
   - .claude/active_work.md
-  - .claude/task/escalations.log
-
-consulted: >
-  The staff-level AI-tooling review (a general-purpose agent briefed as a 12-year engineer half in
-  LLM-agent systems), run BEFORE this build. Its verdict IS the spec: keep the hash-bound review and
-  self-gating hooks, cut the plain-language gate, demote the day-old consulted field, compress the
-  archaeology, and fix the fixture. Nothing here is my own taste; it is that review carried out.
-
-impact_map: >
-  writers: none. No data, no model, no table, no warehouse object.
-  downstream: the blast radius is EVERY FUTURE TASK, which is why a protected path demands this
-    trace. Enumerated by grep, not memory:
-      `.claude/hooks/plain_language_gate.py` deleted -> the Stop event runs only `stop_gate.py`
-        afterwards; verified `stop_gate.py` does not import or depend on it.
-      `.claude/settings.json` loses one Stop-hook entry; the SessionStart and PreToolUse blocks are
-        untouched.
-      `.claude/hooks/task_contract_gate.py` loses the `consulted_present` parse and the two deny
-        sites; a future structural contract is NO LONGER denied for a missing `consulted:`. The
-        `impact_map` gate and every other check are untouched.
-      `scripts/check_task_artifacts.py` loses its `consulted` branch; it still imports the hooks for
-        the round-cap and structural checks, so the CI/local parity that #807 established holds.
-      `tests/test_governance_hooks.py` loses the plain-language and consulted tests and gains a
-        faster fixture; the count drops but coverage of the KEPT mechanisms is unchanged.
-  layer_rules: none apply. No dbt model, no SQL, no seed.
-  deploy_order: none. Takes effect on the next session (settings) and the next commit (gates).
-  blast_radius: bounded and REDUCTIVE. This removes enforcement rather than adding it, so the risk is
-    the opposite of the usual one: not that it breaks a build, but that a norm now rests on judgement
-    instead of a gate. Accepted deliberately for the plain-language preference (a chat-prose taste,
-    not integrity) and the consulted habit (one day old, unproven). The hash-bound review, the
-    contract/scope gate, the impact_map gate, the layer gate, the round cap and the blinded reviewer
-    cast are ALL kept. The suite still runs on every PR via `python-ci.yml`, faster.
 
 decisions_taken: >
-  (1) TRIM, then reframe. CPO 2026-07-22 (AskUserQuestion) after the staff review: "Trim the weak
-      parts, then reframe", the option whose text named cutting the plain-language gate, demoting the
-      consulted field, deleting the archaeology comments, and fixing the fixture.
-  (2) The no-em-dash / plain-language PREFERENCE is retained as a norm in the handover; only its
-      machine enforcement is removed. It is not being decided away.
-  (3) Demoting `consulted` partially reverses #807. This is a considered reversal on the review's
-      recommendation, recorded in `escalations.log`, not a flip-flop.
+  (1) DO THE POLISH NOW, before the team page, so a reviewer meets a clean repo. CPO 2026-07-22,
+      after an honest state assessment: "do it" / "Do as recommended so I'm making the best
+      impressions in the current state."
+  (2) The retired demo stays dead (CPO: "We removed the mvp because of possible legal issues").
+      Remove the dead links and the screenshot; make the description and headline honest about
+      state (pipeline solid, web app a prototype not currently public).
+  (3) SHOWCASE the guardrails rather than hide them (CPO: "Don't hide ... quite the opposite. It
+      should show that I'm capable of doing it").
 
 decisions_reserved:
-  - The README reframe and dead-link/screenshot polish is the SEPARATE next PR (`chore/repo-polish`,
-    contract saved), out of scope here.
-  - Whether to trim anything FURTHER in the machinery is not decided; this does exactly the four cuts
-    the review named and the CPO approved, no more.
+  - The exact README prose (headline, live-status line, the guardrails section) and the new repo
+    DESCRIPTION text are product framing — proposed to the CPO for sign-off before any file is
+    written, never set unilaterally.
+  - Whether to TRIM the guardrail machinery, and by how much, depends on the staff-level review and
+    is a SEPARATE decision and task, explicitly out of this PR (which only frames what exists).
+  - Whether to revive a dbt-docs site later: deferred. This pass keeps everything static and off
+    Pages, per the legal caution.
 
 done_when:
-  - `plain_language_gate.py` is deleted, its `settings.json` Stop entry removed, and its tests and
-    doc references gone; `stop_gate.py` still fires on Stop and still passes its tests.
-  - A structural-path edit whose contract has no `consulted:` is NO LONGER denied (the demotion),
-    verified by a test; the `impact_map` gate still denies as before.
-  - `check_task_artifacts.py` no longer references `consulted`; CI/local round-cap parity still holds
-    (its parity test still passes).
-  - The `repo` fixture builds the template once and copies per test; the full suite passes and runs
-    materially faster (target: well under half the prior wall-clock).
-  - `working_agreement.md`, `agent_guardrails.md` and `TEMPLATE.md` no longer describe the removed
-    enforcement; no doc describes a gate that no longer exists.
+  - No dead github.io link remains in README.md, and the repo description/homepage no longer point
+    at the retired app. Verified by re-checking each link resolves (or is removed).
+  - `docs/assets/screenshot.png` is removed and no longer referenced; the README lead visual is the
+    Mermaid diagram, which renders (valid syntax).
+  - The README states repo state honestly: pipeline live/gated, web app a prototype not public.
+  - A README section frames the `.claude/` guardrails as deliberate AI-collaboration engineering.
+  - CPO signed off on the README prose and the description BEFORE it was written.
   - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
 
 amendments: (none)

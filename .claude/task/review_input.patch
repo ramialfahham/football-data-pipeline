@@ -1,1154 +1,329 @@
 diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 8c44a71..6096abe 100644
+index 6096abe..6625808 100644
 --- a/.claude/active_work.md
 +++ b/.claude/active_work.md
-@@ -142,47 +142,45 @@ carry the two metrics #804 surfaced. A §10 display decision; the approved mock
- **`legal-counsel` as a consultant** — a risk register from the API-Football terms. Doer later, for
- the imprint and privacy pages, once the operator question is answered.
- 
--**The guardrail economics** (raised by the CPO after #803 cost nine rounds). PARTLY DONE by
--`chore/review-economics` (in flight): delta re-review, a round cap of 3, and a `consulted:` field so
--domain findings surface before the build. STILL OWED, and deliberately deferred: put the reviewer
--model in the routing file instead of my head, and recast the roles so reviewers are peers rather
--than one reviewer reading every diff. The CPO chose the smaller option over that recast.
-+**The guardrail economics** (raised by the CPO after #803 cost nine rounds). Delta re-review and a
-+round cap of 3 shipped in #807. A staff-level AI-engineering review then judged the machinery core
-+strong (the hash-bound blinded review, the self-gating hooks) but three parts over-scoped; the trim
-+(in flight) cuts them. STILL OWED, deliberately deferred: reviewer model in the routing file, and
-+reviewers as peers rather than one reviewer reading every diff.
+@@ -150,37 +150,34 @@ reviewers as peers rather than one reviewer reading every diff.
  
  ---
  
--## IN FLIGHT — branch `chore/review-economics`
-+## IN FLIGHT — branch `chore/trim-guardrails`
- 
--**CUT THE REVIEW FRICTION.** Directed by the CPO after #806: the process "has to be more economic.
--otherwise we will not build the website in time." Shape chosen discretely: delta re-review, a round
--cap, consult first (over mechanical-only, a full recast, and nothing). Three mechanical changes,
--enforced rather than left to judgement:
-+**TRIM THE MACHINERY TO WHAT EARNS ITS PLACE.** CPO (AskUserQuestion) after the staff review:
-+"Trim the weak parts, then reframe." Four cuts, all reductive:
- 
--- **Delta re-review.** After round 1, a reviewer that already passed sees only what changed since its
--  pass, judges that plus its own prior findings, and refuses (FAILs) when the delta is too large for
--  its earlier pass to stand. In all six briefs, byte-identical, test-enforced.
--- **Round cap of 3.** `review.md` must carry `rounds: N`; the commit gate and the CI backstop deny
--  past 3 unless `rounds_cap_override: <CPO reason>` is present. Past the cap the builder STOPS and
--  brings findings to the CPO instead of looping.
--- **`consulted:` field.** Required on the same structural surface as `impact_map` (reuses
--  `_is_structural`), so domain findings surface before the build, not in review round three. "nobody,
--  because ..." is legitimate; a bare placeholder is denied.
-+- **Deleted `plain_language_gate.py`** and its Stop wiring. The 232-line hook that blocked the
-+  agent's own chat message on an em dash; its author flagged it disposable. The no-em-dash PREFERENCE
-+  survives as a norm (DO NOT section below); only the machine gate is gone.
-+- **Demoted `consulted:`** (shipped in #807, one day old). Removed its enforcement from the contract
-+  gate and the CI backstop; kept as a NORM in `working_agreement.md` and `TEMPLATE.md`. A considered
-+  partial reversal of #807 on the review's recommendation, logged in `escalations.log`.
-+- **Compressed the "forgery archaeology"** comments in `task_contract_gate.py`; kept the pattern.
-+- **Sped the test suite** from ~11 min to ~4: the `repo` fixture builds a git repo once and copies it
-+  per test instead of six subprocesses each.
- 
--Both hooks, the CI backstop, six briefs, both templates, and the two docs agree (swept by grep, not
--memory). Full governance suite 235 passing, up from 215. STILL OWED and not done: reviewer model in
--the routing file; reviewers as peers. **TO FINISH: run the review cycle on the staged hash, write
--`review.md` (with its own `rounds:` line), commit, PR.**
-+KEPT: the hash-bound review, the contract/scope gate, the impact_map gate, the layer gate, the round
-+cap, the blinded reviewer cast, fail-open. Suite 215 passing. **TO FINISH: review cycle on the staged
-+hash, `review.md`, commit, PR.**
+-## IN FLIGHT — branch `chore/trim-guardrails`
+-
+-**TRIM THE MACHINERY TO WHAT EARNS ITS PLACE.** CPO (AskUserQuestion) after the staff review:
+-"Trim the weak parts, then reframe." Four cuts, all reductive:
+-
+-- **Deleted `plain_language_gate.py`** and its Stop wiring. The 232-line hook that blocked the
+-  agent's own chat message on an em dash; its author flagged it disposable. The no-em-dash PREFERENCE
+-  survives as a norm (DO NOT section below); only the machine gate is gone.
+-- **Demoted `consulted:`** (shipped in #807, one day old). Removed its enforcement from the contract
+-  gate and the CI backstop; kept as a NORM in `working_agreement.md` and `TEMPLATE.md`. A considered
+-  partial reversal of #807 on the review's recommendation, logged in `escalations.log`.
+-- **Compressed the "forgery archaeology"** comments in `task_contract_gate.py`; kept the pattern.
+-- **Sped the test suite** from ~11 min to ~4: the `repo` fixture builds a git repo once and copies it
+-  per test instead of six subprocesses each.
+-
+-KEPT: the hash-bound review, the contract/scope gate, the impact_map gate, the layer gate, the round
+-cap, the blinded reviewer cast, fail-open. Suite 215 passing. **TO FINISH: review cycle on the staged
+-hash, `review.md`, commit, PR.**
++## IN FLIGHT — branch `chore/repo-polish`
++
++**HONEST SHOPFRONT + FRAME THE GUARDRAILS.** CPO-directed after an honest state assessment and a
++staff-level review: "do it" / "Do as recommended so I'm making the best impressions in the current
++state." Presentation only, no code.
++
++- **Killed every dead link.** GitHub Pages is 404 (verified via `gh api`), so the README demo link,
++  the dbt-docs link, and the repo homepage URL all pointed at nothing. Removed; the repo description
++  no longer says "live web app".
++- **Honest state.** The web app is described as a prototype, currently offline; the retired-MVP
++  screenshot (which showed competition branding) is removed and the Mermaid architecture diagram is
++  the lead visual.
++- **Framed the machinery.** A new README section, "Development guardrails (AI-assisted)", presents
++  the contract gate, blinded review, the hash-bound review artifact and the fail-open/CI split, as a
++  deliberate artifact rather than unexplained over-engineering. CPO chose a dedicated section (not a
++  reframe of the whole repo) and a neutral app-status note (no legal reason given).
++
++**TO FINISH: review cycle (scope-auditor only; presentation paths draw no other reviewer), `review.md`
++with `rounds:`, commit, PR.** Repo description + homepage already updated via `gh` (approved).
  
  ## NEXT
  
  1. **This change** (in flight).
--2. **The hero block, as a PICTURE.** Buildable on an honest footing now that deserved-vs-actual is in
--   POINTS (#806 merged): predicted points is a real continuous quantity, so a fitted line is
--   legitimate where in rank space it was not. Owed to the CPO as something to look at, never as
--   prose. CPO requirement: *"The user needs to see immediately the difference between the actual and
--   the deserved."* The hero must never render for a non-domestic or non-single-ladder competition.
--3. **The team page**, all three tabs, mock `f6348775` with that block replaced. Everything else in
--   that mock is sound and data-backed. This is the change the review-economics work was done to make
--   cheaper.
-+2. **The repo polish PR** (`chore/repo-polish`, contract saved to scratchpad). Kill the dead Pages
-+   links (Pages is 404), rewrite the description and headline to be honest about state, replace the
-+   retired-MVP screenshot with the architecture diagram, and REFRAME the `.claude/` machinery as the
-+   portfolio artifact per the staff review. Product copy needs CPO sign-off before writing.
-+3. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
-+   fitted line is legitimate in points space. Owed to the CPO as something to look at, never prose.
-+   Must never render for a non-domestic or non-single-ladder competition.
-+4. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
-+   economics + trim work was done to make cheaper.
+-2. **The repo polish PR** (`chore/repo-polish`, contract saved to scratchpad). Kill the dead Pages
+-   links (Pages is 404), rewrite the description and headline to be honest about state, replace the
+-   retired-MVP screenshot with the architecture diagram, and REFRAME the `.claude/` machinery as the
+-   portfolio artifact per the staff review. Product copy needs CPO sign-off before writing.
+-3. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
++2. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
+    fitted line is legitimate in points space. Owed to the CPO as something to look at, never prose.
+    Must never render for a non-domestic or non-single-ladder competition.
+-4. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
+-   economics + trim work was done to make cheaper.
++3. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
++   economics, trim, and polish work was done to make cheaper and cleaner.
  
  ---
  
-diff --git a/.claude/hooks/plain_language_gate.py b/.claude/hooks/plain_language_gate.py
-deleted file mode 100644
-index 87a8518..0000000
---- a/.claude/hooks/plain_language_gate.py
-+++ /dev/null
-@@ -1,232 +0,0 @@
--#!/usr/bin/env python
--"""Stop gate — plain language, enforced.
--
--The CPO has asked for plain language repeatedly. It stayed a habit, and habits
--here have a shelf life of about one session: the 2026-07-22 retrospective broke
--the rule *while explaining why written rules do not change behaviour* — file
--paths, section numbers and invented vocabulary throughout. A rule nothing checks
--is a wish.
--
--WHAT THIS CAN AND CANNOT DO (be honest about it). Stop fires AFTER the message
--is committed and rendered, which is exactly why the hook has to go to the
--transcript to find it. So it does NOT prevent a wall of text: the CPO reads the
--wall, then reads the rewrite. On the check most likely to fire it doubles the
--messages in that turn rather than halving them.
--
--It was kept anyway, deliberately and provisionally (CPO, 2026-07-22, asked
--directly and answering "yes" to keeping all four checks). The argument is that
--the cost is front-loaded: a gate that works fires a few times and then stops,
--because the behaviour changes. If it is still firing regularly after a handful
--of turns it is NOT working, and the answer is to remove it, not to tune it
--forever. That is a testable claim, which the alternatives were not.
--
--Four checks, each one traceable to something he actually said:
--
--  - em dashes            -> "Never use em dashes." Stated as an absolute.
--  - section symbols (§)  -> jargon; he does not read the working agreement.
--  - repo file paths      -> "no file paths or ticket numbers in chat unless
--                            asked" (escalated 2026-07-21).
--  - length               -> "Short answers. No walls of text, no books."
--
--The 2,500-character cap is MEASURED, not guessed. Across the 35 messages of the
--session that produced this hook the median was 166 characters, but the top 30%
--ran 1,682 to 3,343 and four exceeded 3,000. Those four are the walls he objected
--to. Change the constant if it proves wrong; do not delete the check.
--
--Code fences and inline backticks are stripped before the path and symbol checks
--run, so quoting a path as code is fine. Prose is what is policed.
--
--Fails OPEN on any error (house rule, `_command_utils.py`): a hook bug must never
--wedge the end of a turn.
--"""
--
--from __future__ import annotations
--
--import glob
--import json
--import os
--import re
--import sys
--
--sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
--from _command_utils import read_event  # noqa: E402
--
--MAX_CHARS = 2500
--# Enough tail to hold the last few records of any turn without parsing a whole
--# session. A single record is rarely over ~100 KB.
--TAIL_BYTES = 512 * 1024
--
--# Fenced blocks first, then inline spans, then markdown link targets — none of
--# these are prose and none of them are what the CPO objected to.
--_FENCE = re.compile(r"```.*?```", re.DOTALL)
--_INLINE_CODE = re.compile(r"`[^`\n]*`")
--_LINK_TARGET = re.compile(r"\]\([^)]*\)")
--
--_EM_DASH = "—"
--_SECTION = "§"
--
--# A repo-relative path in prose: at least one directory segment, then a file
--# extension we actually use. Deliberately narrow — "3 of 5" and "v2" must not
--# trip it, and a false positive that blocks a good answer trains the agent to
--# resent the guard (the cry-wolf failure named in `_command_utils.py`).
--# The negative lookbehind keeps URLs out: citing api-sports.io/docs/v3.json is a
--# source, not a repo path, and blocking a turn over it is the cry-wolf failure.
--_REPO_PATH = re.compile(
--    r"(?<!//)(?<![\w.:-])[\w.-]+(?:/[\w.-]+)+\.(?:py|sql|ya?ml|md|json|csv|astro|ts|js|css|toml|cfg)\b"
--)
--_URL = re.compile(r"\bhttps?://\S+|\b[\w-]+\.(?:com|org|net|io|dev|ai|co\.uk)/\S*")
--
--
--def _transcript_path(event: dict) -> str | None:
--    """The transcript for this session, found by session id rather than guessed.
--
--    `transcript_path` is in the documented common payload, but its presence on
--    Stop specifically is NOT documented, so it is used when offered and located
--    otherwise.
--
--    Locating it means finding `<session_id>.jsonl` under `~/.claude/projects/`.
--    An earlier version derived the containing folder from `cwd` by replacing
--    path separators with dashes; that was wrong twice over, because a `+`
--    quantifier collapsed `D:\\` into one dash instead of two, and because the
--    same code cannot handle a POSIX-style path from a bash shell. Globbing on
--    the session id needs no slug scheme at all.
--
--    There is deliberately NO newest-file fallback: reading some other session's
--    transcript would block this turn over a message the CPO never saw. When the
--    file cannot be found, the gate fails open, like every hook here.
--    """
--    direct = event.get("transcript_path")
--    if direct and os.path.isfile(direct):
--        return direct
--    session = event.get("session_id")
--    if not session:
--        return None
--    base = os.path.join(os.path.expanduser("~"), ".claude", "projects")
--    matches = glob.glob(os.path.join(base, "*", f"{session}.jsonl"))
--    return matches[0] if matches else None
--
--
--def final_assistant_text(path: str) -> str:
--    """The text blocks of the last assistant message that had any.
--
--    A turn's last record is often a tool call, so this walks backwards to the
--    most recent record carrying prose. Sidechain records (subagent output) are
--    skipped — a subagent's report is not what the CPO reads.
--    """
--    # Read the TAIL only. This runs at the end of every turn, alongside the stop
--    # gate's `git status`, and a transcript grows all session — parsing the whole
--    # file would make every turn end slower than the last.
--    with open(path, "rb") as fh:
--        fh.seek(0, os.SEEK_END)
--        size = fh.tell()
--        fh.seek(max(0, size - TAIL_BYTES))
--        chunk = fh.read()
--    if size > TAIL_BYTES:
--        chunk = chunk.split(b"\n", 1)[-1]     # drop the partial first line
--    rows = []
--    for line in chunk.decode("utf-8", errors="replace").splitlines():
--        line = line.strip()
--        if not line:
--            continue
--        try:
--            rows.append(json.loads(line))
--        except Exception:
--            continue
--    for row in reversed(rows):
--        if row.get("type") != "assistant" or row.get("isSidechain"):
--            continue
--        blocks = (row.get("message") or {}).get("content") or []
--        text = "\n".join(
--            b.get("text", "")
--            for b in blocks
--            if isinstance(b, dict) and b.get("type") == "text"
--        ).strip()
--        if text:
--            return text
--    return ""
--
--
--def _prose(text: str) -> str:
--    """The message with code, link targets and URLs removed.
--
--    Order matters: fences first (they can contain backticks), then inline spans,
--    then link targets, then bare URLs. An odd number of fence markers leaves the
--    block unstripped, which is deliberate — under-stripping risks a false block,
--    but over-stripping would let a wall of text through by opening a fence.
--    """
--    text = _FENCE.sub(" ", text)
--    text = _INLINE_CODE.sub(" ", text)
--    text = _LINK_TARGET.sub(" ", text)
--    return _URL.sub(" ", text)
--
--
--def violations(text: str) -> list[str]:
--    found = []
--    prose = _prose(text)
--    if _EM_DASH in prose:
--        found.append(
--            "EM DASH. The CPO asked for none, as an absolute. Use a comma, a full "
--            "stop, or restructure the sentence."
--        )
--    if _SECTION in prose:
--        found.append(
--            "SECTION SYMBOL. Say what the rule IS, in words. He does not read the "
--            "working agreement and a number is not an argument."
--        )
--    paths = sorted(set(_REPO_PATH.findall(prose)))
--    if paths:
--        found.append(
--            "FILE PATH IN PROSE: " + ", ".join(paths[:5]) + ". Describe the thing, "
--            "not its location. Paths belong in chat only when he asks for them."
--        )
--    # Measured on PROSE, not the raw message. The objection is walls of text, and
--    # a code block or a table the CPO asked for is scannable, not a wall. Counting
--    # the raw text would block a requested sample under advice about cutting
--    # options he never asked for (cto-reviewer, 2026-07-22).
--    if len(prose) > MAX_CHARS:
--        found.append(
--            f"TOO LONG: {len(prose)} characters of prose against a {MAX_CHARS} "
--            "limit (code blocks are not counted). Lead with the decision, cut the "
--            "survey of options he did not ask for, and delete every sentence that "
--            "restates the previous one."
--        )
--    return found
--
--
--def main() -> int:
--    try:
--        event = read_event()
--        if not isinstance(event, dict):      # `null` / `[]`: valid JSON, not an event
--            return 0
--        if event.get("stop_hook_active"):    # already blocked once; no loops
--            return 0
--        path = _transcript_path(event)
--        if not path:
--            return 0                         # fail open
--        text = final_assistant_text(path)
--        if not text:
--            return 0
--        found = violations(text)
--        if found:
--            print(json.dumps({
--                "decision": "block",
--                "reason": (
--                    "PLAIN LANGUAGE GATE: rewrite this message before it is sent.\n\n"
--                    + "\n".join(f"- {v}" for v in found)
--                    + "\n\nRewrite it and end the turn again. Do not explain the "
--                    "rewrite to the CPO and do not apologise for it, just send the "
--                    "better message.\n\n"
--                    "TEXT ONLY: do not edit, write or move a file while rewriting. "
--                    "`stop_hook_active` belongs to the continuation, not to one "
--                    "hook, so this block stands the contract-vs-tree stop gate down "
--                    "for the rest of this turn. Anything changed while rewording "
--                    "would go unchecked at turn end."
--                ),
--            }))
--    except Exception:
--        return 0                             # fail open (house rule)
--    return 0
--
--
--if __name__ == "__main__":
--    raise SystemExit(main())
-diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
-index a83435a..3718631 100644
---- a/.claude/hooks/task_contract_gate.py
-+++ b/.claude/hooks/task_contract_gate.py
-@@ -226,43 +226,19 @@ def _read_contract(root: str) -> dict | None:
-         return None
-     scope, in_scope_block, override = [], False, False
-     in_impact_block, impact_present = False, False
--    in_consult_block, consult_present = False, False
-     in_reserved_block, reserved_lines = False, []
-     try:
-         for raw in open(path, encoding="utf-8", errors="replace"):
-             line = raw.rstrip("\n")
--            # EVERY top-level key here closes whatever block was open before it
--            # opens its own. Two keys used not to, and each was forgeable in its
--            # own way. They were hidden by DIFFERENT accidents of the fixtures,
--            # which is worth stating precisely, because a wrong reason invites a
--            # wrong hardening:
--            #   - `decisions_reserved:` returned early and closed nothing, so
--            #     `impact_map: <placeholder>` directly above it left the impact
--            #     block open and the first reservation was scored as impact-map
--            #     content, FORGING the requirement this task adds. Mirror bug on
--            #     the other side: reservations under an open `scope_paths:` block
--            #     matched the list-item pattern and joined the allowlist. HIDDEN
--            #     BY: every fixture carried `decisions_taken:` between the blocks.
--            #   - `scope_paths:` did the same to an impact block opened above it,
--            #     so any indented non-item line inside the scope list forged the
--            #     map. HIDDEN BY something else entirely: no fixture ever put
--            #     `impact_map:` ABOVE `scope_paths:` (the suite builds it by
--            #     inserting before `decisions_taken:`, i.e. below the scope list),
--            #     and no scope list contained a non-item line. Dropping
--            #     `decisions_taken:` from between the blocks would NOT have
--            #     exercised it.
--            # Of the four clears below, only `in_impact_block = False` on
--            # `scope_paths:` changes behaviour today; the other three are already
--            # covered by the generic column-0 terminators and are kept as
--            # insurance against a future reordering.
--            # Two earlier versions of THIS COMMENT each carried a false claim,
--            # in the task whose subject is statements that stop being true
--            # (cto-reviewer, 2026-07-22, rounds 3, 7 and 8).
-+            # Every top-level key closes whatever block was open before opening its
-+            # own. Only `in_impact_block = False` on `scope_paths:` changes behaviour
-+            # today; the other clears guard against a future reordering that sets one
-+            # self-closing block directly above another, where a reservation or a
-+            # scope item would otherwise be scored as impact-map content.
-             mr = re.match(r"^decisions_reserved\s*:(.*)$", line)
-             if mr:
-                 in_scope_block = False
-                 in_impact_block = False
--                in_consult_block = False
-                 in_reserved_block = True
-                 reserved_lines.append(mr.group(1))
-                 continue
-@@ -274,7 +250,6 @@ def _read_contract(root: str) -> dict | None:
-                     continue
-             if re.match(r"^scope_paths\s*:", line):
-                 in_impact_block = False      # close, like every other top-level key
--                in_consult_block = False
-                 in_reserved_block = False
-                 in_scope_block = True
-                 continue
-@@ -288,8 +263,6 @@ def _read_contract(root: str) -> dict | None:
-             mi = re.match(r"^impact_map\s*:(.*)$", line)
-             if mi:
-                 in_impact_block = True
--                in_consult_block = False
--                in_scope_block = False
-                 if _impact_content(mi.group(1)):
-                     impact_present = True
-                 continue
-@@ -298,32 +271,12 @@ def _read_contract(root: str) -> dict | None:
-                     in_impact_block = False      # next top-level key ends the block
-                 elif _impact_content(line):
-                     impact_present = True
--            # `consulted:` mirrors `impact_map:` exactly — same self-closing block,
--            # same `_impact_content` test (a bare `none`/`tbd`/placeholder does not
--            # satisfy it; a real sentence, including "nobody, because ...", does).
--            mc = re.match(r"^consulted\s*:(.*)$", line)
--            if mc:
--                in_consult_block = True
--                in_impact_block = False
--                in_scope_block = False
--                if _impact_content(mc.group(1)):
--                    consult_present = True
--                continue
--            if in_consult_block:
--                if line.strip() and not line.startswith((" ", "\t")):
--                    in_consult_block = False     # next top-level key ends the block
--                elif _impact_content(line):
--                    consult_present = True
-             if re.match(r"^protected_override\s*:", line):
--                in_impact_block = False
--                in_consult_block = False
--                in_scope_block = False
-                 override = True
-     except Exception:
-         return None
-     return {"scope": scope, "protected_override": override,
-             "impact_map_present": impact_present,
--            "consulted_present": consult_present,
-             "decisions_reserved_present": _has_real_reservation(reserved_lines)}
- 
- 
-@@ -418,24 +371,6 @@ def _deny_missing_impact_map(rel: str) -> None:
-     )
- 
- 
--def _deny_missing_consulted(rel: str) -> None:
--    # Same structural surface as the impact_map, and the same "before the build"
--    # timing. The impact_map answers "do you know what breaks"; `consulted:`
--    # answers "did you gather the domain knowledge before writing code, or find
--    # out in review". Half of one session's review rounds were domain facts a
--    # reviewer knew before a line was written (CPO 2026-07-22: the process "has
--    # to be more economic"). "Nobody, because <reason>" is a legitimate answer;
--    # a bare `none`/`tbd`/placeholder is not.
--    emit_deny(
--        f"CONTRACT GATE: `{rel}` is on the STRUCTURAL SURFACE, so the contract "
--        "must carry a non-placeholder `consulted:` section BEFORE this edit — who "
--        "you consulted before building (a reviewer role, a doc, a data check), or "
--        "an explicit 'nobody, because ...'. This exists so domain findings surface "
--        "before the build, not in review round three. Add it on a CLEAN tree, then "
--        "proceed. See docs/working_agreement.md §2."
--    )
--
--
- def _gate_file_edit(event: dict, root: str) -> None:
-     path = (event.get("tool_input") or {}).get("file_path") or ""
-     if not path:
-@@ -467,15 +402,11 @@ def _gate_file_edit(event: dict, root: str) -> None:
-             if not contract.get("impact_map_present"):
-                 _deny_missing_impact_map(rel)
-                 return
--            if not contract.get("consulted_present"):
--                _deny_missing_consulted(rel)
--                return
-             emit_context(
-                 "PreToolUse",
-                 f"CONTRACT GATE: protected path `{rel}` allowed via the contract's "
-                 "protected_override (CPO-approved governance task) with an "
--                "impact_map and a consulted record present. This edit is part of "
--                "the PR's audit trail.",
-+                "impact_map present. This edit is part of the PR's audit trail.",
-             )
-             return
-         _deny_protected(rel)
-@@ -489,9 +420,6 @@ def _gate_file_edit(event: dict, root: str) -> None:
-     if _is_structural(rel) and not contract.get("impact_map_present"):
-         _deny_missing_impact_map(rel)
-         return
--    if _is_structural(rel) and not contract.get("consulted_present"):
--        _deny_missing_consulted(rel)
--        return
- 
- 
- def _gate_artifact(root: str) -> None:
-@@ -601,13 +529,6 @@ def _gate_bash_pre(event: dict, root: str) -> None:
-         if _is_structural(rel) and not contract.get("impact_map_present"):
-             _deny_missing_impact_map(rel)
-             return
--        # consulted is the impact_map's twin on the structural surface — enforced
--        # on the shell path too, so a redirect cannot skip locally what the Edit
--        # path demands (the asymmetry a one-path gate always grows; cto-reviewer,
--        # 2026-07-22).
--        if _is_structural(rel) and not contract.get("consulted_present"):
--            _deny_missing_consulted(rel)
--            return
- 
- 
- def _gate_bash_post(event: dict, root: str) -> None:
-diff --git a/.claude/settings.json b/.claude/settings.json
-index 1351493..55ac678 100644
---- a/.claude/settings.json
-+++ b/.claude/settings.json
-@@ -94,12 +94,6 @@
-             "shell": "bash",
-             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py\"",
-             "statusMessage": "Stop gate: contract check..."
--          },
--          {
--            "type": "command",
--            "shell": "bash",
--            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/plain_language_gate.py\"",
--            "statusMessage": "Stop gate: plain language..."
-           }
-         ]
-       }
-diff --git a/.claude/task/TEMPLATE.md b/.claude/task/TEMPLATE.md
-index 6aad371..2898dbd 100644
---- a/.claude/task/TEMPLATE.md
-+++ b/.claude/task/TEMPLATE.md
-@@ -47,17 +47,10 @@ scope_paths:
- #     deployed model until merge? how is it sequenced around the 04:00 nightly?>
- #   blast_radius: <which marts/numbers change, or "none" + the RAW count / leaf evidence>
- 
--# REQUIRED alongside impact_map, on the SAME structural surface: who you consulted
--# BEFORE building. The impact_map answers "do you know what breaks"; this answers
--# "did you gather the domain knowledge before writing code, or discover it in
--# review". Name a reviewer role, a doc, or a data check — or say plainly "nobody,
--# because <reason>". A bare "none"/"tbd"/placeholder is denied. Exists because
--# half of one session's review rounds were domain facts a reviewer knew before a
--# line was written. Omit entirely when no structural path is in scope.
--# consulted: >
--#   <e.g. "football-analytics-expert on the metric's edge cases before building";
--#    or "nobody: platform-only change, its reviewer is the same cto-reviewer that
--#    reviews the build">
-+# NORM, not a gated field: on a structural change, gather the domain knowledge
-+# BEFORE building (a reviewer role, a doc, a data check) rather than discovering it
-+# in review. Note it in objective/refs if it shaped the work. (This was a machine-
-+# gated `consulted:` field for a few days and was demoted to a habit.)
- 
- decisions_taken: >
-   <what this contract pre-approves, quoting the CPO ruling it rests on>
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 82b77fc..5a1776b 100644
+index 5a1776b..2b72707 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,137 +1,118 @@
--# Task contract — cut the review friction: delta re-review, a round cap, consult before building
-+# Task contract — trim the guardrail machinery to what earns its place
+@@ -1,118 +1,71 @@
+-# Task contract — trim the guardrail machinery to what earns its place
++# Task contract — repo polish: honest shopfront, kill dead links, frame the guardrails
  
--> Written on a CLEAN tree (branch `chore/review-economics` off main @ ddbb911).
-+> Written on a CLEAN tree (branch `chore/trim-guardrails` off main @ e7e516f).
- 
- protected_override: >
--  `.claude/hooks/**` and `.claude/agents/**` are PROTECTED: changing the commit gate or what a
--  reviewer is told to do is a governance event. CPO-directed 2026-07-22 after #806 merged, in his
--  words: *"the process has a lot of friction now. it has to be more economic. otherwise we will not
--  build the website in time."* The shape was then chosen discretely (AskUserQuestion): **"Delta
--  re-review, round cap, consult first"**, over a mechanical-only option, a full recast, and doing
--  nothing. Routes to cto-reviewer; the opus-on-guards rule applies.
-+  `.claude/hooks/**`, `.claude/settings.json` and `.claude/task/TEMPLATE.md` are PROTECTED: removing
-+  a hook, unwiring it, and dropping a machine-gated contract field are governance events. CPO-
-+  directed 2026-07-22 after a staff-level AI-engineering review of the `.claude/` machinery, chosen
-+  discretely (AskUserQuestion): **"Trim the weak parts, then reframe"**, whose option text named
-+  exactly what to cut. Routes to cto-reviewer; the opus-on-guards rule applies.
+-> Written on a CLEAN tree (branch `chore/trim-guardrails` off main @ e7e516f).
+-
+-protected_override: >
+-  `.claude/hooks/**`, `.claude/settings.json` and `.claude/task/TEMPLATE.md` are PROTECTED: removing
+-  a hook, unwiring it, and dropping a machine-gated contract field are governance events. CPO-
+-  directed 2026-07-22 after a staff-level AI-engineering review of the `.claude/` machinery, chosen
+-  discretely (AskUserQuestion): **"Trim the weak parts, then reframe"**, whose option text named
+-  exactly what to cut. Routes to cto-reviewer; the opus-on-guards rule applies.
++> Written on a CLEAN tree (branch `chore/repo-polish` off main @ 07a224c, after the guardrail trim
++> #808 merged). Presentation/docs only.
++> No structural surface, so no impact_map and no consulted field are required.
  
  objective: >
--  THE COST, measured on this session rather than asserted. #805 took 4 review rounds, #806 took 4,
--  and the guardrails PR before them took 9. Of the 8 rounds across the two PRs today: 3 were purely
--  "the CPO never approved this", 2 were football facts a domain reviewer knew before a line was
--  written, 2 were the builder weakening a test so his own change would pass, 1 was a partial sweep.
-+  A staff-level AI-tooling review found the core of the guardrails genuinely strong (the hash-bound
-+  blinded review and the self-gating hooks) but three mechanisms over-scoped: "the machinery
-+  defending itself against itself." This removes exactly those, so the system passes its own
-+  proportionality test before the README reframes it as the portfolio artifact. Four cuts:
- 
--  That is two separate problems and this change attacks both.
-+  (1) DELETE `plain_language_gate.py` and its wiring. A 232-line Stop hook that blocks the agent's
-+  final chat message on an em dash, a section sign, a repo path in prose, or 2,500 characters. Its
-+  own docstring calls it provisional and admits it fires after the message renders, so it does not
-+  even prevent a wall of text. It governs chat-prose preference, not code or data integrity, and it
-+  is the single mechanism most likely to read as over-engineered. The CPO's no-em-dash preference
-+  SURVIVES as a stated norm in the handover; only the machine enforcement goes.
- 
--  (1) ROUND COST. Every round re-ran every required reviewer over the ENTIRE branch diff, even when
--  one file had changed. Late in #806 the reviewers were scoped by hand to just the delta; they came
--  back far faster and still caught a real defect. That was the builder improvising, not the system.
--  Fix: a DELTA RE-REVIEW brief is a first-class thing every reviewer understands, legitimate only
--  after that same reviewer has already passed an earlier hash of the same branch, with an explicit
--  escape hatch when the delta is too large for the earlier pass to still stand.
-+  (2) DEMOTE the `consulted:` field (shipped one day ago in #807). Remove its machine enforcement
-+  from the contract gate (Edit and shell paths) and the CI backstop; keep the intent as a reviewer
-+  norm and a template comment. It was hardened into two enforcement paths before it earned it. This
-+  PARTIALLY REVERSES #807, knowingly and on the review's recommendation, not as thrash.
- 
--  (2) ROUND COUNT. Nothing bounded the loop, and nothing made the builder gather knowledge before
--  writing code. Fix: `review.md` declares its round count and the commit gate caps it at 3, after
--  which the open findings go to the CPO instead of round 4; and a contract on the structural surface
--  must record who was consulted BEFORE the build, or state plainly that nobody was and why.
-+  (3) COMPRESS the multi-round "forgery archaeology" comments in `task_contract_gate.py` (the
-+  `_NULLISH`/block-scalar/placeholder essays that narrate four rounds of the same finding). Keep the
-+  `_BLOCK_HEADER_RE` pattern and a one-line why; the incident history belongs in git, not the body.
-+
-+  (4) SPEED the test suite. The `repo` fixture is function-scoped and rebuilds a git repo via six
-+  subprocesses per test, which is why the suite takes ~11 minutes. Build the template once and copy
-+  it per test, cutting it toward ~2 minutes so it can run in the loop, which is the point of a gate.
+-  A staff-level AI-tooling review found the core of the guardrails genuinely strong (the hash-bound
+-  blinded review and the self-gating hooks) but three mechanisms over-scoped: "the machinery
+-  defending itself against itself." This removes exactly those, so the system passes its own
+-  proportionality test before the README reframes it as the portfolio artifact. Four cuts:
+-
+-  (1) DELETE `plain_language_gate.py` and its wiring. A 232-line Stop hook that blocks the agent's
+-  final chat message on an em dash, a section sign, a repo path in prose, or 2,500 characters. Its
+-  own docstring calls it provisional and admits it fires after the message renders, so it does not
+-  even prevent a wall of text. It governs chat-prose preference, not code or data integrity, and it
+-  is the single mechanism most likely to read as over-engineered. The CPO's no-em-dash preference
+-  SURVIVES as a stated norm in the handover; only the machine enforcement goes.
+-
+-  (2) DEMOTE the `consulted:` field (shipped one day ago in #807). Remove its machine enforcement
+-  from the contract gate (Edit and shell paths) and the CI backstop; keep the intent as a reviewer
+-  norm and a template comment. It was hardened into two enforcement paths before it earned it. This
+-  PARTIALLY REVERSES #807, knowingly and on the review's recommendation, not as thrash.
+-
+-  (3) COMPRESS the multi-round "forgery archaeology" comments in `task_contract_gate.py` (the
+-  `_NULLISH`/block-scalar/placeholder essays that narrate four rounds of the same finding). Keep the
+-  `_BLOCK_HEADER_RE` pattern and a one-line why; the incident history belongs in git, not the body.
+-
+-  (4) SPEED the test suite. The `repo` fixture is function-scoped and rebuilds a git repo via six
+-  subprocesses per test, which is why the suite takes ~11 minutes. Build the template once and copy
+-  it per test, cutting it toward ~2 minutes so it can run in the loop, which is the point of a gate.
++  Make the public repo make the right first impression IN ITS CURRENT STATE, for an experienced
++  data / analytics / web / AI engineer assessing it as the owner's flagship. Three problems, all
++  verified this session:
++  (1) GitHub Pages is 404 (confirmed via `gh api .../pages`). Every outward link is dead — the
++  README live-demo link, the dbt-docs link, and the repo's own homepage URL — and the repo
++  DESCRIPTION advertises a "live web app". The MVP was taken offline deliberately over possible
++  rights issues with provider content, so the demo stays dead; the links and the description must
++  stop pointing at it.
++  (2) The README hero image `docs/assets/screenshot.png` is that retired app, showing competition
++  branding — the same class of content the app was pulled for. It is removed, and the architecture
++  diagram becomes the lead visual (a strict upgrade for a data-pipeline repo, and rights-clean).
++  (3) The `.claude/` AI-assisted-development guardrails are ~3,300 lines plus 244 tests, committed
++  and unframed, so a reviewer reads them as over-engineering. CPO direction: SHOWCASE them, do not
++  hide them. A README section frames them as deliberate, sized to what a staff-level review judges
++  worth keeping (that review is running; its verdict shapes the section and may spawn a separate
++  trim task — trimming is NOT in this PR).
  
  refs: >
    Verified this session, not recalled:
--  - The commit gate already parses `review.md` for `diff_sha256`, FAIL, ESCALATE/CPO ANSWER pairing
--    and the two-risk quota (`.claude/hooks/git_discipline.py:199-244`), so the round check is one
--    more read of the same file, not a new mechanism.
--  - The contract gate already computes `_is_structural(rel)` and demands `impact_map` on exactly
--    that surface (`.claude/hooks/task_contract_gate.py:188-196, 363-389, 442-443`). `consulted:`
--    reuses that same trigger, so no new surface definition is invented.
--  - The review artifact's required fields are described in 14 files. The LIVE ones, enumerated by
--    grep rather than memory: `REVIEW_TEMPLATE.md`, `git_discipline.py`, `check_task_artifacts.py`,
--    `docs/agent_guardrails.md`, `review_routing.json`'s `_doc`, `tests/test_governance_hooks.py`,
--    and the six agent briefs. `docs/audits/2026-06_alignment_audit.md` is a historical record and is
--    deliberately NOT edited.
-+  - `plain_language_gate` is wired ONLY at `.claude/settings.json:101` (Stop hook, second of two;
-+    `stop_gate.py` at :95 stays) and referenced in `docs/agent_guardrails.md` and the tests.
-+  - `consulted` enforcement lives in `task_contract_gate.py` (parse + Edit path + shell path),
-+    `scripts/check_task_artifacts.py` (import-delegated), `TEMPLATE.md`, `working_agreement.md`,
-+    `agent_guardrails.md`, and the tests. `.venv/**` and `dbt_packages/**` matches are unrelated.
-+  - The `repo` fixture is `tests/test_governance_hooks.py:106-116`: git init + 2 configs + mkdirs +
-+    add + commit, per test.
+-  - `plain_language_gate` is wired ONLY at `.claude/settings.json:101` (Stop hook, second of two;
+-    `stop_gate.py` at :95 stays) and referenced in `docs/agent_guardrails.md` and the tests.
+-  - `consulted` enforcement lives in `task_contract_gate.py` (parse + Edit path + shell path),
+-    `scripts/check_task_artifacts.py` (import-delegated), `TEMPLATE.md`, `working_agreement.md`,
+-    `agent_guardrails.md`, and the tests. `.venv/**` and `dbt_packages/**` matches are unrelated.
+-  - The `repo` fixture is `tests/test_governance_hooks.py:106-116`: git init + 2 configs + mkdirs +
+-    add + commit, per test.
++  - `gh api repos/.../pages` -> 404: Pages is genuinely gone, so all three github.io links are dead.
++  - `gh repo view`: description = "...live web app. ...built to scale"; homepageUrl = the dead
++    match-preview link; 14 topics already set (good, untouched); MIT license (good).
++  - README badges (CI, Data Build, License, dbt, BigQuery, Python) resolve and are kept.
++  - `docs/assets/screenshot.png` read directly: the retired Matchday IQ landing page with league
++    crests/branding.
++  - The presentation principles are `C:\Users\Rami\.claude\skills\polish-repo\repo-presentation.md`
++    (understated, honest about state, non-brittle numbers, owner owns product framing).
  
  scope_paths:
--  - .claude/hooks/git_discipline.py
-+  - .claude/hooks/plain_language_gate.py
-   - .claude/hooks/task_contract_gate.py
--  - .claude/agents/scope-auditor.md
--  - .claude/agents/cto-reviewer.md
--  - .claude/agents/analytics-engineer-reviewer.md
--  - .claude/agents/bi-analyst-reviewer.md
--  - .claude/agents/data-engineer-reviewer.md
--  - .claude/agents/football-analytics-expert-reviewer.md
--  - .claude/task/REVIEW_TEMPLATE.md
+-  - .claude/hooks/plain_language_gate.py
+-  - .claude/hooks/task_contract_gate.py
+-  - .claude/settings.json
+-  - scripts/check_task_artifacts.py
 -  - .claude/task/TEMPLATE.md
-+  - .claude/settings.json
-   - scripts/check_task_artifacts.py
+-  - docs/agent_guardrails.md
 -  - docs/working_agreement.md
-+  - .claude/task/TEMPLATE.md
-   - docs/agent_guardrails.md
-+  - docs/working_agreement.md
-   - tests/test_governance_hooks.py
+-  - tests/test_governance_hooks.py
++  - README.md
++  - docs/assets/screenshot.png
++  - docs/assets/README.md
    - .claude/active_work.md
-   - .claude/task/escalations.log
- 
- consulted: >
--  NOBODY, and that is the right answer here rather than an omission. The expertise this change needs
--  is platform and governance, which is the cto-reviewer's own territory, so consulting it before the
--  build and then having it review the build is the same agent twice. There is no football, display
--  or ingestion surface in scope. Stated explicitly because from this commit on, a structural
--  contract that leaves this blank is denied.
-+  The staff-level AI-tooling review (a general-purpose agent briefed as a 12-year engineer half in
-+  LLM-agent systems), run BEFORE this build. Its verdict IS the spec: keep the hash-bound review and
-+  self-gating hooks, cut the plain-language gate, demote the day-old consulted field, compress the
-+  archaeology, and fix the fixture. Nothing here is my own taste; it is that review carried out.
- 
- impact_map: >
-   writers: none. No data, no model, no table, no warehouse object.
--  downstream: dbt lineage is not applicable — nothing dbt touches is in scope. The real blast radius
--    is EVERY FUTURE TASK, which is why a protected path demands this trace. Enumerated by grep over
--    the repo, models AND tests AND scripts:
--      `.claude/hooks/git_discipline.py` is the PreToolUse commit gate. Adding a `rounds:` requirement
--        means EVERY future substantive commit is denied until `review.md` carries that line. That is
--        the point, and it lands on the very next task.
--      `.claude/hooks/task_contract_gate.py` gates the first edit to a structural path. Adding
--        `consulted:` means every future structural contract is denied until it carries that field.
--      `scripts/check_task_artifacts.py` is the CI backstop applying the same rules; it must learn
--        both fields or CI and the local gate disagree, which is the failure mode where a commit
--        passes locally and bounces in CI.
--      The six agent briefs are read by the reviewers themselves; the delta rule has no other home.
--      `tests/test_governance_hooks.py` is the only thing that proves any of it works, since these
--        hooks cannot be exercised by dbt or by the site build.
-+  downstream: the blast radius is EVERY FUTURE TASK, which is why a protected path demands this
-+    trace. Enumerated by grep, not memory:
-+      `.claude/hooks/plain_language_gate.py` deleted -> the Stop event runs only `stop_gate.py`
-+        afterwards; verified `stop_gate.py` does not import or depend on it.
-+      `.claude/settings.json` loses one Stop-hook entry; the SessionStart and PreToolUse blocks are
-+        untouched.
-+      `.claude/hooks/task_contract_gate.py` loses the `consulted_present` parse and the two deny
-+        sites; a future structural contract is NO LONGER denied for a missing `consulted:`. The
-+        `impact_map` gate and every other check are untouched.
-+      `scripts/check_task_artifacts.py` loses its `consulted` branch; it still imports the hooks for
-+        the round-cap and structural checks, so the CI/local parity that #807 established holds.
-+      `tests/test_governance_hooks.py` loses the plain-language and consulted tests and gains a
-+        faster fixture; the count drops but coverage of the KEPT mechanisms is unchanged.
-   layer_rules: none apply. No dbt model, no SQL, no seed.
--  deploy_order: none. No warehouse object. Takes effect on the next commit after merge.
--  blast_radius: bounded and deliberate, in BOTH directions. The intended effect is fewer and cheaper
--    review rounds. The risk in the other direction is that a new required field is one more thing to
--    fill in on every task, which is friction added by a change whose purpose is removing it —
--    mitigated by scoping `consulted:` to the structural surface only (reusing `_is_structural`, so
--    a docs-only or bookkeeping task never sees it) and by allowing an explicit "nobody, because ..."
--    as this very contract does. The `rounds:` field is one line. Second risk: a DELTA RE-REVIEW
--    brief could become a way to smuggle a change past a reviewer that already passed. Mitigated in
--    the brief itself — a delta review is legitimate only after that reviewer's own PASS on an
--    earlier hash of the SAME branch, and every brief instructs the reviewer to refuse and demand a
--    full review when the delta is large enough that its earlier pass no longer stands.
-+  deploy_order: none. Takes effect on the next session (settings) and the next commit (gates).
-+  blast_radius: bounded and REDUCTIVE. This removes enforcement rather than adding it, so the risk is
-+    the opposite of the usual one: not that it breaks a build, but that a norm now rests on judgement
-+    instead of a gate. Accepted deliberately for the plain-language preference (a chat-prose taste,
-+    not integrity) and the consulted habit (one day old, unproven). The hash-bound review, the
-+    contract/scope gate, the impact_map gate, the layer gate, the round cap and the blinded reviewer
-+    cast are ALL kept. The suite still runs on every PR via `python-ci.yml`, faster.
+-  - .claude/task/escalations.log
+-
+-consulted: >
+-  The staff-level AI-tooling review (a general-purpose agent briefed as a 12-year engineer half in
+-  LLM-agent systems), run BEFORE this build. Its verdict IS the spec: keep the hash-bound review and
+-  self-gating hooks, cut the plain-language gate, demote the day-old consulted field, compress the
+-  archaeology, and fix the fixture. Nothing here is my own taste; it is that review carried out.
+-
+-impact_map: >
+-  writers: none. No data, no model, no table, no warehouse object.
+-  downstream: the blast radius is EVERY FUTURE TASK, which is why a protected path demands this
+-    trace. Enumerated by grep, not memory:
+-      `.claude/hooks/plain_language_gate.py` deleted -> the Stop event runs only `stop_gate.py`
+-        afterwards; verified `stop_gate.py` does not import or depend on it.
+-      `.claude/settings.json` loses one Stop-hook entry; the SessionStart and PreToolUse blocks are
+-        untouched.
+-      `.claude/hooks/task_contract_gate.py` loses the `consulted_present` parse and the two deny
+-        sites; a future structural contract is NO LONGER denied for a missing `consulted:`. The
+-        `impact_map` gate and every other check are untouched.
+-      `scripts/check_task_artifacts.py` loses its `consulted` branch; it still imports the hooks for
+-        the round-cap and structural checks, so the CI/local parity that #807 established holds.
+-      `tests/test_governance_hooks.py` loses the plain-language and consulted tests and gains a
+-        faster fixture; the count drops but coverage of the KEPT mechanisms is unchanged.
+-  layer_rules: none apply. No dbt model, no SQL, no seed.
+-  deploy_order: none. Takes effect on the next session (settings) and the next commit (gates).
+-  blast_radius: bounded and REDUCTIVE. This removes enforcement rather than adding it, so the risk is
+-    the opposite of the usual one: not that it breaks a build, but that a norm now rests on judgement
+-    instead of a gate. Accepted deliberately for the plain-language preference (a chat-prose taste,
+-    not integrity) and the consulted habit (one day old, unproven). The hash-bound review, the
+-    contract/scope gate, the impact_map gate, the layer gate, the round cap and the blinded reviewer
+-    cast are ALL kept. The suite still runs on every PR via `python-ci.yml`, faster.
  
  decisions_taken: >
--  (1) DO THIS BEFORE THE TEAM PAGE. CPO 2026-07-22: the process "has to be more economic. otherwise
--      we will not build the website in time." The team page is three tabs with a display reviewer
--      newly routed at it, so it is the change most likely to loop; fixing the loop first is cheaper
--      than paying it there.
--  (2) THE SHAPE. CPO (AskUserQuestion, 2026-07-22): "Delta re-review, round cap, consult first",
--      chosen over mechanical-only, a full recast of the roles, and doing nothing.
--  (3) The round cap is THREE, taken from the option text the CPO approved ("Rounds are capped at
--      three, after which I stop and bring you the open findings instead of looping").
--  (4) Engineering calls, not §10: `consulted:` reuses `_is_structural` rather than defining a new
--      surface; the cap denies at the gate rather than warning, because a warning is what the current
--      unbounded loop already effectively is.
-+  (1) TRIM, then reframe. CPO 2026-07-22 (AskUserQuestion) after the staff review: "Trim the weak
-+      parts, then reframe", the option whose text named cutting the plain-language gate, demoting the
-+      consulted field, deleting the archaeology comments, and fixing the fixture.
-+  (2) The no-em-dash / plain-language PREFERENCE is retained as a norm in the handover; only its
-+      machine enforcement is removed. It is not being decided away.
-+  (3) Demoting `consulted` partially reverses #807. This is a considered reversal on the review's
-+      recommendation, recorded in `escalations.log`, not a flip-flop.
+-  (1) TRIM, then reframe. CPO 2026-07-22 (AskUserQuestion) after the staff review: "Trim the weak
+-      parts, then reframe", the option whose text named cutting the plain-language gate, demoting the
+-      consulted field, deleting the archaeology comments, and fixing the fixture.
+-  (2) The no-em-dash / plain-language PREFERENCE is retained as a norm in the handover; only its
+-      machine enforcement is removed. It is not being decided away.
+-  (3) Demoting `consulted` partially reverses #807. This is a considered reversal on the review's
+-      recommendation, recorded in `escalations.log`, not a flip-flop.
++  (1) DO THE POLISH NOW, before the team page, so a reviewer meets a clean repo. CPO 2026-07-22,
++      after an honest state assessment: "do it" / "Do as recommended so I'm making the best
++      impressions in the current state."
++  (2) The retired demo stays dead (CPO: "We removed the mvp because of possible legal issues").
++      Remove the dead links and the screenshot; make the description and headline honest about
++      state (pipeline solid, web app a prototype not currently public).
++  (3) SHOWCASE the guardrails rather than hide them (CPO: "Don't hide ... quite the opposite. It
++      should show that I'm capable of doing it").
  
  decisions_reserved:
--  - The rest of the owed guardrail-economics item is NOT done here and is not decided away: putting
--    the reviewer model in the routing file instead of the builder's head, and recasting the roles so
--    reviewers are peers rather than one reviewer reading every diff. The CPO chose the smaller
--    option over that recast; it stays owed.
--  - Whether consultants (`football-analytics-expert`, `data-journalist`, a fan probe) become real
--    pre-build agents. This change only records THAT a consult happened; it does not create the
--    consultant roster, which is part of the deferred agent set.
-+  - The README reframe and dead-link/screenshot polish is the SEPARATE next PR (`chore/repo-polish`,
-+    contract saved), out of scope here.
-+  - Whether to trim anything FURTHER in the machinery is not decided; this does exactly the four cuts
-+    the review named and the CPO approved, no more.
+-  - The README reframe and dead-link/screenshot polish is the SEPARATE next PR (`chore/repo-polish`,
+-    contract saved), out of scope here.
+-  - Whether to trim anything FURTHER in the machinery is not decided; this does exactly the four cuts
+-    the review named and the CPO approved, no more.
++  - The exact README prose (headline, live-status line, the guardrails section) and the new repo
++    DESCRIPTION text are product framing — proposed to the CPO for sign-off before any file is
++    written, never set unilaterally.
++  - Whether to TRIM the guardrail machinery, and by how much, depends on the staff-level review and
++    is a SEPARATE decision and task, explicitly out of this PR (which only frames what exists).
++  - Whether to revive a dbt-docs site later: deferred. This pass keeps everything static and off
++    Pages, per the legal caution.
  
  done_when:
--  - `review.md` without a `rounds:` line is denied by the commit gate, and `rounds: 4` or higher is
--    denied unless a CPO answer is recorded. Both proved by tests that drive the real hook.
--  - A structural-path edit whose contract has no `consulted:` is denied by the contract gate, and a
--    placeholder does not satisfy it. Proved by tests that drive the real hook.
--  - A non-structural edit is NOT asked for `consulted:` — the cry-wolf direction, also tested.
--  - `scripts/check_task_artifacts.py` enforces the same two rules, so CI and the local gate cannot
--    disagree.
--  - All six agent briefs carry the same delta-re-review section, including the refusal clause.
--  - Every live description of the review artifact's required fields agrees, swept from the grep
--    enumeration in `refs` rather than from memory.
--  - The full governance suite passes.
-+  - `plain_language_gate.py` is deleted, its `settings.json` Stop entry removed, and its tests and
-+    doc references gone; `stop_gate.py` still fires on Stop and still passes its tests.
-+  - A structural-path edit whose contract has no `consulted:` is NO LONGER denied (the demotion),
-+    verified by a test; the `impact_map` gate still denies as before.
-+  - `check_task_artifacts.py` no longer references `consulted`; CI/local round-cap parity still holds
-+    (its parity test still passes).
-+  - The `repo` fixture builds the template once and copies per test; the full suite passes and runs
-+    materially faster (target: well under half the prior wall-clock).
-+  - `working_agreement.md`, `agent_guardrails.md` and `TEMPLATE.md` no longer describe the removed
-+    enforcement; no doc describes a gate that no longer exists.
+-  - `plain_language_gate.py` is deleted, its `settings.json` Stop entry removed, and its tests and
+-    doc references gone; `stop_gate.py` still fires on Stop and still passes its tests.
+-  - A structural-path edit whose contract has no `consulted:` is NO LONGER denied (the demotion),
+-    verified by a test; the `impact_map` gate still denies as before.
+-  - `check_task_artifacts.py` no longer references `consulted`; CI/local round-cap parity still holds
+-    (its parity test still passes).
+-  - The `repo` fixture builds the template once and copies per test; the full suite passes and runs
+-    materially faster (target: well under half the prior wall-clock).
+-  - `working_agreement.md`, `agent_guardrails.md` and `TEMPLATE.md` no longer describe the removed
+-    enforcement; no doc describes a gate that no longer exists.
++  - No dead github.io link remains in README.md, and the repo description/homepage no longer point
++    at the retired app. Verified by re-checking each link resolves (or is removed).
++  - `docs/assets/screenshot.png` is removed and no longer referenced; the README lead visual is the
++    Mermaid diagram, which renders (valid syntax).
++  - The README states repo state honestly: pipeline live/gated, web app a prototype not public.
++  - A README section frames the `.claude/` guardrails as deliberate AI-collaboration engineering.
++  - CPO signed off on the README prose and the description BEFORE it was written.
    - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
  
  amendments: (none)
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 5c734f7..8ad6326 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -285,3 +285,12 @@ This entry is the durable record of the metric-definition authority the contract
-       CPO ANSWER (AskUserQuestion, 2026-07-22): **"Delta re-review, round cap, consult first"** — written into the agent and routing files so they are enforced rather than left to my judgement; rounds capped at three, after which I stop and bring him the open findings instead of looping; the domain expert consulted before I build, not only after. This entry is the durable authority the contract's protected_override and decisions_taken rest on.
-   - (what is explicitly NOT authorised by this) The rest of the owed item: putting the reviewer model in the routing file instead of my head, and recasting the roles so reviewers are peers rather than one reviewer reading every diff. He chose the smaller option over that recast, so it stays OWED rather than done or dropped.
-   - (banked, and it is the reason this task exists) The friction was not one bad process. It was me: three §10 misclassifications in one day, two guards weakened to make my own change pass, and every re-review run at full depth over the whole diff because scoping it to the delta was never a written rule. A process cannot be blamed for rounds that a builder's own shortcuts caused — but it CAN be shaped so those shortcuts are harder and each round is cheaper, which is what this change does.
+diff --git a/README.md b/README.md
+index 4b1281a..b2af681 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # Football Data Platform
+ 
+-An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), and served to a web app. Multi-competition and multilingual.
++An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), then exported as JSON for a fan-facing web app. Multi-competition and multilingual.
+ 
+ [![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
+ [![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
+@@ -9,13 +9,7 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
+ [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
+ [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+ 
+-### Live preview — [Matchday IQ](https://ramialfahham.github.io/football-data-pipeline/match-preview/)
+-
+-A first cut of the fan-facing app. The full v2 web app — new information architecture, richer player and match insights — is in active development.
+-
+-**[Explore the data model →](https://ramialfahham.github.io/football-data-pipeline/dbt-docs/)** — dbt lineage graph, model and column docs, generated from the project.
+-
+-![Matchday IQ — MVP preview](docs/assets/screenshot.png)
++**Status.** The pipeline runs daily behind automated data-quality and CI checks. The fan-facing web app (Matchday IQ) is a prototype, currently offline; a v2 with a new information architecture is in development.
+ 
+ ## Architecture
+ 
+@@ -24,7 +18,7 @@ flowchart LR
+     A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
+     B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
+     E --> F[intermediate<br/>metrics + form] --> G[marts]
+-    G -->|JSON export| H[GitHub Pages<br/>Matchday IQ]
++    G -->|JSON export| H[web app<br/>prototype]
+ ```
+ 
+ ## Highlights
+@@ -33,7 +27,7 @@ flowchart LR
+ - **Automated data-quality tests** gate every build.
+ - **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
+ - **Multilingual** (DE / EN / FI), multi-competition by design.
+-- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and scheduled deployment.
++- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and a scheduled daily run.
+ - **v2 web app** with new information architecture and richer insights in active development.
+ 
+ ## Design decisions
+@@ -50,6 +44,17 @@ This is a personal project, and its central constraint is scaling across many co
+ 
+ - **Identity is modelled separately from affiliation.** Players and teams change clubs and seasons, so the stable entity is kept distinct from its affiliations over time, and facts reference the entity. It costs a join and buys correct answers to historical questions.
+ 
++## Development guardrails (AI-assisted)
 +
-+2026-07-22 chore/trim-guardrails — TRIM THE GUARDRAIL MACHINERY TO WHAT EARNS ITS PLACE. A §10 change to the guard system (protected paths), directed by the CPO after an expert review, and PARTIALLY REVERSING #807 shipped hours earlier.
-+  - (what prompted it) The CPO asked, of the whole project as his portfolio flagship, whether there is too much machinery and whether an experienced AI engineer would say "wow" or "over-engineered". Rather than answer from my own taste, I commissioned a staff-level review of the `.claude/` machinery (a general-purpose agent briefed as a 12-year engineer, half in LLM-agent systems), told to be genuinely critical and to read the real files.
-+  - (the review's verdict, quoted in essence) The CORE is portfolio-grade and a strong AI-tooling reviewer would respect it: the hash-bound blinded review (a commit refused unless review.md's diff_sha256 equals the live staged diff, with CI recomputing the same hash byte-for-byte via `--no-renames --no-abbrev`) is "the crown jewel" and "the most transferable idea in the repo"; the self-gating hooks and fail-open discipline are "disciplined threat-modeling". But three mechanisms are "the machinery defending itself against itself", where impressive tips into over-engineered: the `plain_language_gate` (232 lines, blocks the agent's own chat message on an em dash; its author already flagged it disposable; "the single mechanism most likely to make an experienced reviewer say over-engineered"); the `consulted:` field (one day old, hardened into two enforcement paths before it earned it); and the multi-round "forgery archaeology" comments. Plus the 11-minute suite, whose function-scoped `repo` fixture rebuilds a git repo per test.
-+  - (the question, put discretely via AskUserQuestion) How far to trim before reframing the README around the machinery? Three paths: trim the weak parts then reframe; cut only the plain-language gate and speed the suite; or reframe only and cut nothing. Recommended the first, because the review's strongest framing depends on the machinery being defensible, and leaving the plain-language gate and the brand-new consulted field undercuts it.
-+      CPO ANSWER (AskUserQuestion, 2026-07-22): **"Trim the weak parts, then reframe"** — the option whose text named cutting the plain-language gate, demoting the day-old consulted field to a reviewer habit, deleting the multi-round archaeology comments, and fixing the test fixture so the suite runs in about two minutes. This entry is the durable authority the contract's decisions_taken rest on.
-+  - (the honest reversal) Demoting `consulted:` undoes part of #807, which I built and the CPO approved earlier the SAME day. It is not thrash: #807 was the right direction (surface domain findings before the build) but over-hardened, and the expert review plus the CPO's decision is to keep the intent as a reviewer norm rather than a machine gate. Recorded so a cold reader sees a considered reversal, not a flip-flop.
-+  - (what is NOT cut) The hash-bound review, the contract/scope gate, the impact_map gate, the layer gate, the round cap, the blinded reviewer cast, and the fail-open discipline all stay. The trim is reductive and bounded to the four named items.
-+  - (banked) When the CPO asks "is this too much / would an expert be impressed", the right move is to COMMISSION the expert view rather than answer from my own taste, then act on it. And: a guard that cannot pass its own proportionality test should not ship, even one I built.
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 6661a21..8d32119 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -51,9 +51,8 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `git_discipline.py` | PreToolUse Bash | **Blocks** a real `gh pr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
- | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open PR; not done until the PR URL exists. |
- | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
--| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` OR no non-placeholder `consulted:` record (§2 / Appendix A6 — trace before code, and consult before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
-+| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
- | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
--| `plain_language_gate.py` | Stop | Reads the turn's own final message from the session transcript and **blocks** on an em dash, a `§`, a repo file path in prose, or more than 2,500 characters of prose (code blocks, inline spans, link targets and URLs are stripped first, so quoting a path or pasting a sample is fine). Added 2026-07-22 because plain language had been a habit and habits here last about one session: the rule was broken throughout the retrospective that asked for it. **Three honest limits.** (1) Stop fires *after* the message is rendered, so this does not prevent a wall of text — it makes the CPO read the wall and then the rewrite. Kept provisionally on that basis (CPO, 2026-07-22): if it works it fires a few times and stops; if it is still firing regularly, remove it rather than tune it. (2) **A block here stands the contract-vs-tree stop gate down for the rest of the turn.** `stop_hook_active` is a property of the continuation, not of an individual hook, and both Stop hooks honour it, so once either blocks, neither runs again that turn. The block message therefore forbids touching any file while rewriting. (3) **A code fence bypasses every check**, not just the length one — stripping fences before checking is what stops a requested code sample being scored as prose, and the same strip means an em dash, a `§` or a path inside a fence is invisible to the gate. That is the accepted cost of not crying wolf on legitimate code; it is written down here so it is a known limit rather than a discovered one. |
- | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
- 
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index 1a99bf1..a52933d 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -60,13 +60,12 @@ committed with the branch so it is PR-visible:
-   short-form is a FAIL (Appendix A6). This makes the trace-first habit a
-   precondition, not guidance. Trivial/leaf/cosmetic changes use a one-line
-   evidenced short-form. The gate checks PRESENCE; correctness is the reviewer's.
--- **consulted** — REQUIRED alongside `impact_map`, on the SAME structural surface:
--  who you consulted BEFORE building (a reviewer role, a doc, a data check), or an
--  explicit "nobody, because <reason>". The `impact_map` answers "do you know what
--  breaks"; `consulted` answers "did you gather the domain knowledge before writing
--  code, or discover it in review". Added 2026-07-22 (review-economics) because half
--  of one session's review rounds were domain facts a reviewer knew before a line
--  was written. A bare "none"/"tbd"/placeholder is denied, like the impact_map.
-+- **Consult before building (a NORM, not a gate).** On a structural change, gather
-+  the domain knowledge first — a reviewer role, a doc, a data check — rather than
-+  discovering it in review round three. This was briefly a machine-gated `consulted:`
-+  field (review-economics, 2026-07-22) and was demoted to a habit the same week: a
-+  one-day-old field hardened into two enforcement paths did not earn its cost (a
-+  staff-level review of the guardrails). The intent stands; the gate is gone.
- - **done_when** — mechanical verification steps
- - **amendments** — scope extensions, written on a CLEAN tree, each recording the
-   CPO authority. A contract change is reviewed and hash-bound (F10/F11, #409): it
-diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
-index 498da6f..0b91eb7 100644
---- a/scripts/check_task_artifacts.py
-+++ b/scripts/check_task_artifacts.py
-@@ -39,15 +39,13 @@ CONTRACT = ".claude/task/contract.md"
- REVIEW = ".claude/task/review.md"
- 
- # The CI backstop and the local hooks MUST agree, so CI IMPORTS the hooks' own
--# logic rather than re-implementing it. Three hand-copied constant sets diverged
--# once already (the round-cap placeholder set, the `(none)` nullish spelling, and
--# the export regex) — the exact "the twin didn't get the fix" class this repo has
--# been bitten by. Now there is one source: `git_discipline._rounds_gate` decides
--# the round cap, and `task_contract_gate._read_contract` / `_is_structural` decide
--# the consulted requirement. `test_governance_hooks` asserts CI reuses these.
-+# logic rather than re-implementing it. The round-cap placeholder set, the
-+# `(none)` nullish spelling and the export regex diverged once when hand-copied —
-+# the exact "the twin didn't get the fix" class this repo has been bitten by. Now
-+# there is one source: `git_discipline._rounds_gate` decides the round cap.
-+# `test_governance_hooks` asserts CI reuses it.
- sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks"))
- import git_discipline as _gd            # noqa: E402
--import task_contract_gate as _tcg       # noqa: E402
- 
- 
- def _rounds_error(text: str) -> str | None:
-@@ -56,18 +54,6 @@ def _rounds_error(text: str) -> str | None:
-     return _gd._rounds_gate(text)
- 
- 
--def _structural(paths: list[str]) -> bool:
--    """True when any changed path is on the structural surface, by the edit gate's
--    own `_is_structural` (which also covers protected paths)."""
--    return any(_tcg._is_structural(p) for p in paths)
--
--
--def _consulted_present(root: str) -> bool:
--    """Whether contract.md carries a real `consulted:`, by the edit gate's parser."""
--    c = _tcg._read_contract(root)
--    return bool(c and c.get("consulted_present"))
--
--
- def changed_paths(base: str) -> list[str]:
-     # -z (NUL-split) mirrors the local gate: quotePath-escaped non-ASCII
-     # paths would match no routing pattern and drop a required reviewer
-@@ -151,15 +137,6 @@ def main() -> int:
-     rounds_err = _rounds_error(text)
-     if rounds_err:
-         errors.append(rounds_err)
--    # consulted: required when the PR touches the structural surface — the same
--    # surface (and the same parser) the edit gate demands it on. impact_map stays
--    # an edit-gate concern; consulted is backstopped here because a domain finding
--    # surfacing in review instead of before the build is the cost this rule cuts.
--    if _structural(paths) and not _consulted_present("."):
--        errors.append(
--            "PR touches the structural surface but contract.md has no "
--            "non-placeholder `consulted:` (who was consulted before building, "
--            "or 'nobody, because ...')")
-     if "VERDICT: FAIL" in text:
-         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
-     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 7c6716c..4952c09 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -9,6 +9,7 @@ from __future__ import annotations
- import fnmatch
- import json
- import os
-+import shutil
- import subprocess
- import sys
- 
-@@ -44,18 +45,7 @@ _IMPACT_BLOCK = (
-     "  deploy_order: rebuilds on next CI; no shared-warehouse break.\n"
-     "  blast_radius: none (leaf mart).\n\n"
- )
--# consulted is now required on the SAME structural surface as impact_map
--# (2026-07-22, review-economics). The default all-present CONTRACT carries both;
--# the deny direction of each is exercised by a fixture that drops exactly one.
--_CONSULTED_BLOCK = (
--    "consulted: >\n"
--    "  football-analytics-expert on the metric edge cases before building.\n\n"
--)
- CONTRACT = CONTRACT_NO_IMPACT.replace(
--    "decisions_taken:", _IMPACT_BLOCK + _CONSULTED_BLOCK + "decisions_taken:")
--
--# impact_map present, consulted ABSENT — for the consulted-deny direction.
--CONTRACT_NO_CONSULTED = CONTRACT_NO_IMPACT.replace(
-     "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
- 
- CONTRACT_OVERRIDE = CONTRACT.replace(
-@@ -103,17 +93,31 @@ def denied(out: str) -> bool:
-     return '"permissionDecision": "deny"' in out
- 
- 
-+@pytest.fixture(scope="session")
-+def _repo_template(tmp_path_factory):
-+    """The throwaway repo, built ONCE per session. Every `repo` below copies this
-+    instead of running `git init` + 2 configs + add + commit per test — six
-+    subprocess spawns each, over ~200 tests, which is what made the suite take
-+    ~11 minutes. A git repo is path-independent, so a copied `.git` keeps the
-+    initial commit and each copy mutates in isolation (review-economics trim,
-+    2026-07-22)."""
-+    base = tmp_path_factory.mktemp("repo_template")
-+    subprocess.run(["git", "init", "-q"], cwd=base, check=True)
-+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=base, check=True)
-+    subprocess.run(["git", "config", "user.name", "t"], cwd=base, check=True)
-+    (base / ".claude" / "task").mkdir(parents=True)
-+    (base / "dbt_project" / "models").mkdir(parents=True)
-+    (base / "dbt_project" / "models" / "allowed.sql").write_text("select 1")
-+    subprocess.run(["git", "add", "-A"], cwd=base, check=True)
-+    subprocess.run(["git", "commit", "-qm", "init"], cwd=base, check=True)
-+    return base
++This project is built largely with an AI coding agent, under a guardrail system that treats agent changes like an untrusted contributor rather than trusting them by default.
 +
++- **Contract-gated edits.** Before touching models, ingestion, or the guards themselves, the agent writes a task contract declaring its scope and an end-to-end blast-radius map. A pre-commit hook denies any edit outside that declared scope.
++- **Blinded adversarial review.** Each change is judged by role-specific reviewer agents — scope, analytics engineering, platform, football domain — spawned cold with no builder context and defaulting to reject.
++- **A review bound to its diff.** The commit is refused unless a review file carries the SHA-256 of the exact staged diff, and CI recomputes the same hash from the branch, so an approval cannot drift from the code it approved.
++- **Fail-open hooks, fail-closed CI.** A hook bug can never wedge the workflow, while a CI backstop enforces the same rules at the pull-request boundary.
 +
- @pytest.fixture()
--def repo(tmp_path):
--    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
--    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
--    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
--    (tmp_path / ".claude" / "task").mkdir(parents=True)
--    (tmp_path / "dbt_project" / "models").mkdir(parents=True)
--    (tmp_path / "dbt_project" / "models" / "allowed.sql").write_text("select 1")
--    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
--    subprocess.run(["git", "commit", "-qm", "init"], cwd=tmp_path, check=True)
--    return tmp_path
-+def repo(_repo_template, tmp_path):
-+    dst = tmp_path / "repo"
-+    shutil.copytree(_repo_template, dst)
-+    return dst
++The design, and its honest trade-offs, are in [docs/agent_guardrails.md](docs/agent_guardrails.md) and [docs/working_agreement.md](docs/working_agreement.md).
++
+ ## BigQuery layout (datasets)
  
- 
- def write_contract(repo, text: str = CONTRACT) -> None:
-@@ -270,10 +274,8 @@ def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
-     the only ALLOW fixture was the plain block scalar, so a fix that rejected too
-     much would have passed — the one-sided coverage this contract's own done_when
-     names, found for the third time (cto-reviewer, 2026-07-22)."""
--    # consulted is also required on the structural surface, so include it — this
--    # test isolates the impact_map spelling, not the consulted rule.
-     write_contract(repo, CONTRACT_NO_IMPACT.replace(
--        "decisions_taken:", spelling + _CONSULTED_BLOCK + "decisions_taken:"))
-+        "decisions_taken:", spelling + "decisions_taken:"))
-     out, _ = run_hook("task_contract_gate.py",
-                       edit_event(repo, "dbt_project/models/allowed.sql"), repo)
-     assert not denied(out)
-@@ -505,10 +507,6 @@ def test_ci_backstop_reuses_the_canonical_hook_logic():
-     # the two nullish sets agree, exactly
-     assert set(gd._NULLISH_WORDS) == set(tcg._NULLISH), (
-         "git_discipline._NULLISH_WORDS has drifted from task_contract_gate._NULLISH")
--    # CI structural test IS the edit gate's
--    assert ci._structural(["dbt_project/models/x.sql"]) is True
--    assert ci._structural([".claude/hooks/h.py"]) is True   # protected is structural
--    assert ci._structural(["docs/x.md"]) is False
- 
- 
- def test_empty_cap_override_does_not_absorb_the_next_line(repo):
-@@ -532,21 +530,6 @@ def test_word_placeholder_cap_override_rejected(repo, word):
-     assert denied(out) and "cap" in out
- 
- 
--def test_ci_backstop_requires_consulted_on_structural_pr(ci_repo):
--    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
--    # contract WITHOUT consulted, structural PR
--    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT_NO_CONSULTED)
--    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
--    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
--    real_hash = branch_hash(ci_repo)
--    (ci_repo / ".claude" / "task" / "review.md").write_text(
--        "# Review\ndiff_sha256: " + real_hash + "\nrounds: 1\n\n" + GOOD_BODY)
--    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
--    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
--    code, out = run_ci_check(ci_repo)
--    assert code == 1 and "consulted" in out
+ BigQuery uses **datasets** as the unit that other databases often call **schemas**. This repo uses **one dataset per medallion layer** in the same GCP project:
+diff --git a/docs/assets/README.md b/docs/assets/README.md
+deleted file mode 100644
+index 9e6a5f5..0000000
+--- a/docs/assets/README.md
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Assets
 -
+-Static images referenced by the repository README.
 -
- def test_real_routing_parses_and_has_the_required_keys():
-     r = real_routing()
-     for key in ("always", "paths", "artifact_only", "artifact_only_never",
-@@ -835,68 +818,6 @@ def test_placeholder_cap_override_does_not_satisfy(repo):
-     assert denied(out) and "cap" in out
- 
- 
--# --------------------------------------------------------------------------- #
--# consulted: (review-economics, 2026-07-22) — the contract gate requires it on
--# the SAME structural surface as impact_map: gather domain knowledge before the
--# build, not in review round three.
--# --------------------------------------------------------------------------- #
--def test_structural_edit_denied_without_consulted(repo):
--    write_contract(repo, CONTRACT_NO_CONSULTED)  # impact present, consulted absent
--    out, _ = run_hook("task_contract_gate.py",
--                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
--    assert denied(out) and "consulted" in out
+-## `screenshot.png` (referenced by the top-level README)
 -
+-A screenshot of the live **Matchday IQ** MVP preview.
 -
--def test_structural_edit_allowed_with_impact_and_consulted(repo):
--    write_contract(repo)  # default CONTRACT now carries both
--    out, _ = run_hook("task_contract_gate.py",
--                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
--    assert not denied(out)
+-- **Format:** PNG
+-- **Recommended width:** ~1200 px (retina-friendly; scales down cleanly in the README)
+-- **Content:** a representative view of the app — ideally a fixture with its insights visible
+-- **Keep it current:** replace this when the v2 web app ships so the README never shows a stale UI
 -
--
--def test_nonstructural_edit_not_asked_for_consulted(repo):
--    # docs/allowed_dir/ is in scope but not structural — no consulted demanded
--    write_contract(repo, CONTRACT_NO_CONSULTED)
--    out, _ = run_hook("task_contract_gate.py",
--                      edit_event(repo, "docs/allowed_dir/x.md"), repo)
--    assert not denied(out)
--
--
--def test_protected_edit_denied_without_consulted(repo):
--    # override + impact present, consulted absent: the protected branch must also
--    # demand consulted, not only impact_map
--    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
--        "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
--    write_contract(repo, scoped)
--    out, _ = run_hook("task_contract_gate.py",
--                      edit_event(repo, ".claude/hooks/some_hook.py"), repo)
--    assert denied(out) and "consulted" in out
--
--
--@pytest.mark.parametrize("spelling", [
--    "consulted: none\n", "consulted: tbd\n", "consulted: <who>\n",
--    "consulted: >\n  <who and why>\n",
--])
--def test_nullish_consulted_does_not_satisfy(repo, spelling):
--    write_contract(repo, CONTRACT_NO_IMPACT.replace(
--        "decisions_taken:", _IMPACT_BLOCK + spelling + "decisions_taken:"))
--    out, _ = run_hook("task_contract_gate.py",
--                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
--    assert denied(out) and "consulted" in out
--
--
--def test_nobody_because_consulted_satisfies(repo):
--    """'nobody, because <reason>' is a legitimate answer — a platform-only change
--    whose reviewer is the same one that reviews the build."""
--    write_contract(repo, CONTRACT_NO_IMPACT.replace(
--        "decisions_taken:",
--        _IMPACT_BLOCK + "consulted: >\n  nobody, because platform-only.\n"
--        + "decisions_taken:"))
--    out, _ = run_hook("task_contract_gate.py",
--                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
--    assert not denied(out)
--
--
- def test_contract_commit_not_artifact_exempt(repo):
-     """F10/#409: a commit touching contract.md is NEVER artifact-exempt — it
-     authorizes scope, so it must go through review (here: denied for lack of one)."""
-@@ -1326,17 +1247,6 @@ def test_shell_redirect_to_protected_path_allowed_with_impact_map(repo):
-     assert not denied(out)
- 
- 
--def test_shell_redirect_to_structural_path_needs_consulted(repo):
--    """The shell path must demand `consulted:` too, not only impact_map — else a
--    redirect skips locally what the Edit path enforces (cto-reviewer, 2026-07-22)."""
--    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
--        "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")  # impact yes, consulted no
--    write_contract(repo, scoped)
--    out, _ = run_hook("task_contract_gate.py",
--                      bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
--    assert denied(out) and "consulted" in out
--
--
- def test_ordinary_doc_still_needs_no_impact_map(repo):
-     """The widened surface must not swallow ordinary files."""
-     scoped = CONTRACT_NO_IMPACT.replace(
-@@ -1516,74 +1426,16 @@ def test_artifact_post_tool_use_does_not_emit_a_pretooluse_deny(repo):
-     assert not denied(out)
- 
- 
--# --------------------------------------------------------------------------- #
--# plain_language_gate — enforced, because as a habit it failed inside the very
--# retrospective that asked for it (2026-07-22).
--# --------------------------------------------------------------------------- #
--
--def stop_event(repo, text: str) -> dict:
--    tp = repo / "transcript.jsonl"
--    tp.write_text(json.dumps({
--        "type": "assistant",
--        "message": {"content": [{"type": "text", "text": text}]},
--    }) + "\n", encoding="utf-8")
--    return {"hook_event_name": "Stop", "transcript_path": str(tp), "cwd": str(repo)}
--
--
- def blocked(out: str) -> bool:
-     return '"decision": "block"' in out
- 
- 
--@pytest.mark.parametrize("text,marker", [
--    ("A sentence — with an em dash.", "EM DASH"),
--    ("See §10 for the rule.", "SECTION"),
--    ("Look at dbt_project/models/x.sql for this.", "FILE PATH"),
--    ("word " * 700, "TOO LONG"),
--])
--def test_plain_language_blocks(repo, text, marker):
--    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
--    assert blocked(out) and marker in out
--
--
--@pytest.mark.parametrize("text", [
--    "The team page is approved and unbuilt. I will build it next.",
--    "Look at `dbt_project/models/x.sql` for this.",              # inline code
--    "Here:\n```\ndbt_project/models/x.sql\n```\ndone.",          # fenced
--    "See [the model](dbt_project/models/x.sql) here.",           # link target
--    "The terms are at api-sports.io/docs/v3.json and allow it.",  # a URL, not a path
--    "We shipped v2 and 3 of 5 pages are done.",                  # no false positive
--])
--def test_plain_language_allows(repo, text):
--    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
--    assert not blocked(out)
--
--
--def test_length_counts_prose_not_code(repo):
--    """A code block the CPO asked for is scannable, not a wall of text."""
--    text = "Short answer.\n\n```\n" + ("x" * 4000) + "\n```\n"
--    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
--    assert not blocked(out)
--
--
--def test_plain_language_never_loops(repo):
--    ev = stop_event(repo, "A sentence — with an em dash.")
--    ev["stop_hook_active"] = True
--    out, _ = run_hook("plain_language_gate.py", ev, repo)
--    assert not blocked(out)
--
--
--def test_plain_language_fails_open_without_a_transcript(repo):
--    out, _ = run_hook("plain_language_gate.py",
--                      {"hook_event_name": "Stop", "cwd": str(repo)}, repo)
--    assert not blocked(out)
--
--
- # --------------------------------------------------------------------------- #
- # Fail-open: a hook bug must never wedge a session.
- # --------------------------------------------------------------------------- #
- 
- @pytest.mark.parametrize("script", [
--    "task_contract_gate.py", "plain_language_gate.py", "handover_in.py",
-+    "task_contract_gate.py", "handover_in.py",
- ])
- @pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}'])
- def test_hooks_fail_open_on_malformed_input(repo, script, junk):
+-The same image (or a 1280×640 crop) can be reused for the GitHub **social preview**
+-(Settings → General → Social preview), which controls the card shown when the repo
+-is shared or surfaced in search.
+diff --git a/docs/assets/screenshot.png b/docs/assets/screenshot.png
+deleted file mode 100644
+index 047b3c1..0000000
+Binary files a/docs/assets/screenshot.png and /dev/null differ
