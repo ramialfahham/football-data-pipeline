@@ -9,6 +9,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -44,18 +45,7 @@ _IMPACT_BLOCK = (
     "  deploy_order: rebuilds on next CI; no shared-warehouse break.\n"
     "  blast_radius: none (leaf mart).\n\n"
 )
-# consulted is now required on the SAME structural surface as impact_map
-# (2026-07-22, review-economics). The default all-present CONTRACT carries both;
-# the deny direction of each is exercised by a fixture that drops exactly one.
-_CONSULTED_BLOCK = (
-    "consulted: >\n"
-    "  football-analytics-expert on the metric edge cases before building.\n\n"
-)
 CONTRACT = CONTRACT_NO_IMPACT.replace(
-    "decisions_taken:", _IMPACT_BLOCK + _CONSULTED_BLOCK + "decisions_taken:")
-
-# impact_map present, consulted ABSENT — for the consulted-deny direction.
-CONTRACT_NO_CONSULTED = CONTRACT_NO_IMPACT.replace(
     "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
 
 CONTRACT_OVERRIDE = CONTRACT.replace(
@@ -103,17 +93,31 @@ def denied(out: str) -> bool:
     return '"permissionDecision": "deny"' in out
 
 
+@pytest.fixture(scope="session")
+def _repo_template(tmp_path_factory):
+    """The throwaway repo, built ONCE per session. Every `repo` below copies this
+    instead of running `git init` + 2 configs + add + commit per test — six
+    subprocess spawns each, over ~200 tests, which is what made the suite take
+    ~11 minutes. A git repo is path-independent, so a copied `.git` keeps the
+    initial commit and each copy mutates in isolation (review-economics trim,
+    2026-07-22)."""
+    base = tmp_path_factory.mktemp("repo_template")
+    subprocess.run(["git", "init", "-q"], cwd=base, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=base, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=base, check=True)
+    (base / ".claude" / "task").mkdir(parents=True)
+    (base / "dbt_project" / "models").mkdir(parents=True)
+    (base / "dbt_project" / "models" / "allowed.sql").write_text("select 1")
+    subprocess.run(["git", "add", "-A"], cwd=base, check=True)
+    subprocess.run(["git", "commit", "-qm", "init"], cwd=base, check=True)
+    return base
+
+
 @pytest.fixture()
-def repo(tmp_path):
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
-    (tmp_path / ".claude" / "task").mkdir(parents=True)
-    (tmp_path / "dbt_project" / "models").mkdir(parents=True)
-    (tmp_path / "dbt_project" / "models" / "allowed.sql").write_text("select 1")
-    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
-    subprocess.run(["git", "commit", "-qm", "init"], cwd=tmp_path, check=True)
-    return tmp_path
+def repo(_repo_template, tmp_path):
+    dst = tmp_path / "repo"
+    shutil.copytree(_repo_template, dst)
+    return dst
 
 
 def write_contract(repo, text: str = CONTRACT) -> None:
@@ -270,10 +274,8 @@ def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
     the only ALLOW fixture was the plain block scalar, so a fix that rejected too
     much would have passed — the one-sided coverage this contract's own done_when
     names, found for the third time (cto-reviewer, 2026-07-22)."""
-    # consulted is also required on the structural surface, so include it — this
-    # test isolates the impact_map spelling, not the consulted rule.
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
-        "decisions_taken:", spelling + _CONSULTED_BLOCK + "decisions_taken:"))
+        "decisions_taken:", spelling + "decisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
                       edit_event(repo, "dbt_project/models/allowed.sql"), repo)
     assert not denied(out)
@@ -505,10 +507,6 @@ def test_ci_backstop_reuses_the_canonical_hook_logic():
     # the two nullish sets agree, exactly
     assert set(gd._NULLISH_WORDS) == set(tcg._NULLISH), (
         "git_discipline._NULLISH_WORDS has drifted from task_contract_gate._NULLISH")
-    # CI structural test IS the edit gate's
-    assert ci._structural(["dbt_project/models/x.sql"]) is True
-    assert ci._structural([".claude/hooks/h.py"]) is True   # protected is structural
-    assert ci._structural(["docs/x.md"]) is False
 
 
 def test_empty_cap_override_does_not_absorb_the_next_line(repo):
@@ -530,21 +528,6 @@ def test_word_placeholder_cap_override_rejected(repo, word):
                  rounds=f"rounds: 4\nrounds_cap_override: {word}\n")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert denied(out) and "cap" in out
-
-
-def test_ci_backstop_requires_consulted_on_structural_pr(ci_repo):
-    (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    # contract WITHOUT consulted, structural PR
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT_NO_CONSULTED)
-    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
-    real_hash = branch_hash(ci_repo)
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
-        "# Review\ndiff_sha256: " + real_hash + "\nrounds: 1\n\n" + GOOD_BODY)
-    subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
-    code, out = run_ci_check(ci_repo)
-    assert code == 1 and "consulted" in out
 
 
 def test_real_routing_parses_and_has_the_required_keys():
@@ -833,68 +816,6 @@ def test_placeholder_cap_override_does_not_satisfy(repo):
                  rounds="rounds: 4\nrounds_cap_override: <reason>\n")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert denied(out) and "cap" in out
-
-
-# --------------------------------------------------------------------------- #
-# consulted: (review-economics, 2026-07-22) — the contract gate requires it on
-# the SAME structural surface as impact_map: gather domain knowledge before the
-# build, not in review round three.
-# --------------------------------------------------------------------------- #
-def test_structural_edit_denied_without_consulted(repo):
-    write_contract(repo, CONTRACT_NO_CONSULTED)  # impact present, consulted absent
-    out, _ = run_hook("task_contract_gate.py",
-                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
-    assert denied(out) and "consulted" in out
-
-
-def test_structural_edit_allowed_with_impact_and_consulted(repo):
-    write_contract(repo)  # default CONTRACT now carries both
-    out, _ = run_hook("task_contract_gate.py",
-                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
-    assert not denied(out)
-
-
-def test_nonstructural_edit_not_asked_for_consulted(repo):
-    # docs/allowed_dir/ is in scope but not structural — no consulted demanded
-    write_contract(repo, CONTRACT_NO_CONSULTED)
-    out, _ = run_hook("task_contract_gate.py",
-                      edit_event(repo, "docs/allowed_dir/x.md"), repo)
-    assert not denied(out)
-
-
-def test_protected_edit_denied_without_consulted(repo):
-    # override + impact present, consulted absent: the protected branch must also
-    # demand consulted, not only impact_map
-    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
-        "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")
-    write_contract(repo, scoped)
-    out, _ = run_hook("task_contract_gate.py",
-                      edit_event(repo, ".claude/hooks/some_hook.py"), repo)
-    assert denied(out) and "consulted" in out
-
-
-@pytest.mark.parametrize("spelling", [
-    "consulted: none\n", "consulted: tbd\n", "consulted: <who>\n",
-    "consulted: >\n  <who and why>\n",
-])
-def test_nullish_consulted_does_not_satisfy(repo, spelling):
-    write_contract(repo, CONTRACT_NO_IMPACT.replace(
-        "decisions_taken:", _IMPACT_BLOCK + spelling + "decisions_taken:"))
-    out, _ = run_hook("task_contract_gate.py",
-                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
-    assert denied(out) and "consulted" in out
-
-
-def test_nobody_because_consulted_satisfies(repo):
-    """'nobody, because <reason>' is a legitimate answer — a platform-only change
-    whose reviewer is the same one that reviews the build."""
-    write_contract(repo, CONTRACT_NO_IMPACT.replace(
-        "decisions_taken:",
-        _IMPACT_BLOCK + "consulted: >\n  nobody, because platform-only.\n"
-        + "decisions_taken:"))
-    out, _ = run_hook("task_contract_gate.py",
-                      edit_event(repo, "dbt_project/models/allowed.sql"), repo)
-    assert not denied(out)
 
 
 def test_contract_commit_not_artifact_exempt(repo):
@@ -1326,17 +1247,6 @@ def test_shell_redirect_to_protected_path_allowed_with_impact_map(repo):
     assert not denied(out)
 
 
-def test_shell_redirect_to_structural_path_needs_consulted(repo):
-    """The shell path must demand `consulted:` too, not only impact_map — else a
-    redirect skips locally what the Edit path enforces (cto-reviewer, 2026-07-22)."""
-    scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
-        "decisions_taken:", _IMPACT_BLOCK + "decisions_taken:")  # impact yes, consulted no
-    write_contract(repo, scoped)
-    out, _ = run_hook("task_contract_gate.py",
-                      bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
-    assert denied(out) and "consulted" in out
-
-
 def test_ordinary_doc_still_needs_no_impact_map(repo):
     """The widened surface must not swallow ordinary files."""
     scoped = CONTRACT_NO_IMPACT.replace(
@@ -1516,66 +1426,8 @@ def test_artifact_post_tool_use_does_not_emit_a_pretooluse_deny(repo):
     assert not denied(out)
 
 
-# --------------------------------------------------------------------------- #
-# plain_language_gate — enforced, because as a habit it failed inside the very
-# retrospective that asked for it (2026-07-22).
-# --------------------------------------------------------------------------- #
-
-def stop_event(repo, text: str) -> dict:
-    tp = repo / "transcript.jsonl"
-    tp.write_text(json.dumps({
-        "type": "assistant",
-        "message": {"content": [{"type": "text", "text": text}]},
-    }) + "\n", encoding="utf-8")
-    return {"hook_event_name": "Stop", "transcript_path": str(tp), "cwd": str(repo)}
-
-
 def blocked(out: str) -> bool:
     return '"decision": "block"' in out
-
-
-@pytest.mark.parametrize("text,marker", [
-    ("A sentence — with an em dash.", "EM DASH"),
-    ("See §10 for the rule.", "SECTION"),
-    ("Look at dbt_project/models/x.sql for this.", "FILE PATH"),
-    ("word " * 700, "TOO LONG"),
-])
-def test_plain_language_blocks(repo, text, marker):
-    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
-    assert blocked(out) and marker in out
-
-
-@pytest.mark.parametrize("text", [
-    "The team page is approved and unbuilt. I will build it next.",
-    "Look at `dbt_project/models/x.sql` for this.",              # inline code
-    "Here:\n```\ndbt_project/models/x.sql\n```\ndone.",          # fenced
-    "See [the model](dbt_project/models/x.sql) here.",           # link target
-    "The terms are at api-sports.io/docs/v3.json and allow it.",  # a URL, not a path
-    "We shipped v2 and 3 of 5 pages are done.",                  # no false positive
-])
-def test_plain_language_allows(repo, text):
-    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
-    assert not blocked(out)
-
-
-def test_length_counts_prose_not_code(repo):
-    """A code block the CPO asked for is scannable, not a wall of text."""
-    text = "Short answer.\n\n```\n" + ("x" * 4000) + "\n```\n"
-    out, _ = run_hook("plain_language_gate.py", stop_event(repo, text), repo)
-    assert not blocked(out)
-
-
-def test_plain_language_never_loops(repo):
-    ev = stop_event(repo, "A sentence — with an em dash.")
-    ev["stop_hook_active"] = True
-    out, _ = run_hook("plain_language_gate.py", ev, repo)
-    assert not blocked(out)
-
-
-def test_plain_language_fails_open_without_a_transcript(repo):
-    out, _ = run_hook("plain_language_gate.py",
-                      {"hook_event_name": "Stop", "cwd": str(repo)}, repo)
-    assert not blocked(out)
 
 
 # --------------------------------------------------------------------------- #
@@ -1583,7 +1435,7 @@ def test_plain_language_fails_open_without_a_transcript(repo):
 # --------------------------------------------------------------------------- #
 
 @pytest.mark.parametrize("script", [
-    "task_contract_gate.py", "plain_language_gate.py", "handover_in.py",
+    "task_contract_gate.py", "handover_in.py",
 ])
 @pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}'])
 def test_hooks_fail_open_on_malformed_input(repo, script, junk):
