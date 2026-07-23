@@ -1,0 +1,27 @@
+---
+// The three team-page tabs (mock f6348775 .tabs): Overview active; Performance and
+// Squad are chrome this increment — their panels show the honest coming-state (their
+// data export is pending), not a dead tab. Switching is JS-free: each tab is a
+// `<label>` bound (via `for`) to a hidden `#tab-*` radio the page renders, and the
+// checked radio drives the active label + its `.page` panel in CSS (same pattern as
+// the fixture `.seg-in` control). No client script → works without JavaScript.
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+
+const tabs = [
+  { go: "overview", label: t(lang, "tabOverview") },
+  { go: "performance", label: t(lang, "tabPerformance") },
+  { go: "squad", label: t(lang, "tabSquad") },
+];
+---
+
+<nav class="tabs" aria-label={t(lang, "tabsAria")}>
+  {tabs.map((tb) => (
+    <label class="tab" for={`tab-${tb.go}`}>{tb.label}</label>
+  ))}
+</nav>

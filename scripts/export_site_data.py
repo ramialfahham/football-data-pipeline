@@ -160,11 +160,41 @@ def _venue_block(row: dict) -> dict | None:
     return {"name": name, "city": city, "capacity": capacity}
 
 
+def deserved_scatter_index(all_profile_rows: list[dict]) -> dict:
+    """Index the deserved-vs-actual scatter by (league_code, season_api_year).
+
+    The team page's hero plots every team in the league-season: shots-on-target
+    difference per match (x) against points won (y), with the model's
+    `deserved_points` as the trend line. That is a LEAGUE-SEASON property, not a
+    team one, so it is built once from the whole `mart_team_profile` and attached
+    to each team's matching season. Selection only — every value is a column the
+    model already computed (`deserved_points` is its least-squares fit); nothing
+    is derived or re-fitted here (consumption-layer contract).
+
+    Only rows with a non-null `deserved_points` are included, so non-domestic /
+    non-single-ladder league-seasons yield no entry and the hero renders its
+    absent state rather than a broken scatter.
+    """
+    idx: dict = {}
+    for r in all_profile_rows:
+        if r.get("deserved_points") is None:
+            continue
+        key = (r.get("league_code"), r.get("season_api_year"))
+        idx.setdefault(key, []).append({
+            "team_sk": int(r["team_sk"]),
+            "sotd": r.get("sot_difference_per_match"),
+            "points": r.get("points"),
+            "deserved": r.get("deserved_points"),
+        })
+    return idx
+
+
 def shape_team_payload(
     profile_rows: list[dict],
     fixture_rows: list[dict] | None = None,
     roster_rows: list[dict] | None = None,
     benchmark_rows: list[dict] | None = None,
+    scatter_index: dict | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
@@ -222,6 +252,16 @@ def shape_team_payload(
         s["benchmarks"] = _shape_team_benchmarks(
             benchmark_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
         )
+        # Deserved-vs-actual hero scatter: every team in this league-season (sotd, points, deserved),
+        # with the self team flagged. Present only for fittable (domestic single-ladder) seasons; its
+        # absence is what makes the hero render its absent state (§ deserved-vs-actual, points).
+        entries = (scatter_index or {}).get((s.get("league_code"), s.get("season_api_year")))
+        if entries:
+            s["deserved_scatter"] = [
+                {"sotd": e["sotd"], "points": e["points"], "deserved": e["deserved"],
+                 "is_self": e["team_sk"] == team_id}
+                for e in entries
+            ]
         seasons_out.append(s)
 
     return {
@@ -601,6 +641,9 @@ def _group_by(rows: list[dict], key: str) -> dict:
 def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     rows = _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_profile`")
     grouped = _group_by(rows, "team_sk")
+    # Hero scatter index — built from the WHOLE table (a league-season property), then attached to
+    # each team's matching season. Built before sampling so a sampled team still gets its full league.
+    scatter_idx = deserved_scatter_index(rows)
     team_ids = list(grouped.keys())[:sample] if sample else list(grouped.keys())
     # GAP-15: next fixture + last-5 results, already rank-tagged in mart_team_fixtures. Filter on
     # the precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
@@ -634,7 +677,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     return [
         shape_team_payload(
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
-            bench_by_team.get(t, []),
+            bench_by_team.get(t, []), scatter_idx,
         )
         for t in team_ids
     ]

@@ -1,0 +1,26 @@
+---
+// One recent-result row (reuses the shared .rmatch grid): result chip + score (this
+// team's perspective) + opponent + H/A + competition-round · date. Deep-links to the
+// per-match page are inert this increment (GAP-19). All served facts; round_name is
+// shown as served (no prettifying — that would be a derivation).
+import { formatShortDate, integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import type { TeamFixture } from "../../lib/types";
+
+interface Props {
+  fx: TeamFixture;
+  lang: Lang;
+}
+const { fx, lang } = Astro.props;
+
+const played = fx.result != null;
+const ha = fx.is_home === true ? "H" : fx.is_home === false ? "A" : "";
+const meta = [fx.round_name, formatShortDate(fx.kickoff_datetime, lang)].filter(Boolean).join(" · ");
+---
+
+<div class="rmatch">
+  {played ? <span class:list={["res", fx.result]}>{fx.result}</span> : <span class="res">–</span>}
+  <span class="rscore">{played ? `${integer(fx.goals_for, lang)}–${integer(fx.goals_against, lang)}` : ""}</span>
+  <span class="ropp">{fx.opponent_name}{ha && <span class="ha">{ha}</span>}</span>
+  <span class="rmeta">{meta}</span>
+</div>

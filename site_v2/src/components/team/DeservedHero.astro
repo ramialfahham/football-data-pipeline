@@ -1,0 +1,147 @@
+---
+// The hero: deserved-vs-actual, in POINTS (mock f6348775 .hero, corrected from the
+// mock's broken rank-space scatter — CPO-approved as a rendered picture 2026-07-22).
+//
+// Every league team is a dot at (shots-on-target difference per match, points won).
+// The dashed line is the model's deserved_points — its least-squares fit, which is
+// linear in sotd, so every team's served `deserved` value already lies on it. This
+// component ONLY maps served numbers to SVG coordinates (consumption contract): the
+// trend line is a polyline THROUGH the served `deserved` values (no re-fitting, no
+// slope math), and the self dot's vertical distance to that line is the served
+// `sot_points_gap`. When there is no scatter (non-domestic / non-single-ladder
+// season, deserved_points null) it renders the honest absent state — never a broken
+// scatter.
+import { decimal1, integer, DASH } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  teamName: string;
+  compName: string;
+  lang: Lang;
+}
+const { season: s, teamName, compName, lang } = Astro.props;
+
+// signed one-decimal (e.g. "+0.6" / "−3.8"): the difference box + verdict need a sign.
+// decimal1 already renders the locale minus for negatives; we only add the "+".
+const signedDec1 = (v: number | null | undefined): string =>
+  v == null || !Number.isFinite(v) ? DASH : (v > 0 ? "+" : "") + decimal1(v, lang);
+
+const dots = (s.deserved_scatter ?? []).filter(
+  (d) => d.sotd != null && d.points != null && d.deserved != null,
+);
+const self = dots.find((d) => d.is_self);
+const canPlot = dots.length >= 2 && self != null && s.deserved_points != null;
+
+// three shots-on-target boxes (served rates)
+const nums = [
+  { label: t(lang, "heroSotFor"), value: decimal1(s.shots_on_goal_per_match, lang) },
+  { label: t(lang, "heroSotAgainst"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
+  { label: t(lang, "heroSotDiff"), value: signedDec1(s.sot_difference_per_match) },
+];
+
+// verdict: which template (over / under / in line) is the display encoding of the
+// served gap's sign; the numbers are served (points, deserved, |gap|, sotd).
+let verdict = "";
+let caption = "";
+let svg: {
+  ax: { x: number; yTop: number; yBot: number; xRight: number };
+  labels: { yTitle: string; xTitle: string; trend: string };
+  trend: { x1: number; y1: number; x2: number; y2: number };
+  trendMid: { x: number; y: number };
+  dots: { x: number; y: number }[];
+  self: { x: number; y: number; dy: number; anchor: "start" | "end" | "middle"; ty: number };
+} | null = null;
+
+if (canPlot && self) {
+  // The verdict keys off the SIGN of the served sot_points_gap only — the catalogue's
+  // own documented semantics (negative = under-performed, positive = over-performed).
+  // No rounding threshold / "in line" tier is invented here: classifying the gap would
+  // be a result/perspective computation the consumption layer must not make.
+  const gap = s.sot_points_gap ?? 0;
+  const dir = gap < 0 ? "Under" : "Over";
+  // The record strip already shows the actual points; the verdict speaks only to the
+  // deserved value and the gap so the same number is not restated a second time.
+  verdict = t(lang, `heroVerdict${dir}`, {
+    team: teamName,
+    sotd: signedDec1(s.sot_difference_per_match),
+    deserved: integer(s.deserved_points, lang),
+    gap: integer(Math.abs(gap), lang),
+  });
+  caption = t(lang, "heroCaption", { competition: compName });
+
+  // plot geometry (viewBox 0 0 340 210)
+  const L = 46, R = 328, T = 16, B = 168;
+  const xs = dots.map((d) => d.sotd as number);
+  const ys = dots.map((d) => d.points as number);
+  const ds = dots.map((d) => d.deserved as number);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const xPad = (xMax - xMin) * 0.08 || 1;
+  const xLo = xMin - xPad, xHi = xMax + xPad;
+  const yLo = 0, yHi = Math.max(...ys, ...ds) * 1.08 || 1;
+  const sx = (v: number) => L + ((v - xLo) / (xHi - xLo)) * (R - L);
+  const sy = (v: number) => B - ((v - yLo) / (yHi - yLo)) * (B - T);
+
+  // Trend = the model's deserved line, drawn as a STRAIGHT segment between the two
+  // extreme-sotd dots' served `deserved` values. deserved_points is (fitted per-match
+  // rate) x games, so per-team deserved TOTALS are colinear in sotd only when every team
+  // has played the same number of games — true for a completed / matchday-aligned season
+  // (this committed sample: 38 games each), where the segment is the exact model line. A
+  // two-point segment (never an N-point polyline) also stays a clean straight line if the
+  // data is ever not perfectly colinear. FOLLOW-UP: when live mid-season data (unequal
+  // games) is wired, the export must serve the fitted line itself (slope + per-match
+  // intercept) so the line stays true regardless of game counts — pure coordinate mapping,
+  // no re-fitting here.
+  const ordered = [...dots].sort((a, b) => (a.sotd as number) - (b.sotd as number));
+  const lo = ordered[0], hi = ordered[ordered.length - 1];
+  const trend = {
+    x1: sx(lo.sotd as number), y1: sy(lo.deserved as number),
+    x2: sx(hi.sotd as number), y2: sy(hi.deserved as number),
+  };
+  const trendMid = { x: (trend.x1 + trend.x2) / 2, y: (trend.y1 + trend.y2) / 2 };
+
+  const selfX = sx(self.sotd as number);
+  const selfY = sy(self.points as number);
+  const anchor: "start" | "end" | "middle" = selfX > (L + R) * 0.62 ? "end" : selfX < (L + R) * 0.38 ? "start" : "middle";
+  const ty = selfY < T + 20 ? selfY + 16 : selfY - 10;   // label below when the dot is near the top
+
+  svg = {
+    ax: { x: L, yTop: T, yBot: B, xRight: R },
+    labels: { yTitle: t(lang, "axPoints"), xTitle: t(lang, "axPlay"), trend: t(lang, "trendLabel") },
+    trend,
+    trendMid,
+    dots: dots.filter((d) => !d.is_self).map((d) => ({ x: sx(d.sotd as number), y: sy(d.points as number) })),
+    self: { x: selfX, y: selfY, dy: sy(self.deserved as number), anchor, ty },
+  };
+}
+---
+
+<div class="hero">
+  {svg ? (
+    <>
+      <p class="verdict">{verdict}</p>
+      <div class="heronums">
+        {nums.map((n) => (
+          <div class="hn"><span class="hl">{n.label}</span><span class="hv num">{n.value}</span></div>
+        ))}
+      </div>
+      <svg class="sc" viewBox="0 0 340 210" role="img" aria-label={caption}>
+        <line class="ax" x1={svg.ax.x} y1={svg.ax.yTop} x2={svg.ax.x} y2={svg.ax.yBot} />
+        <line class="ax" x1={svg.ax.x} y1={svg.ax.yBot} x2={svg.ax.xRight} y2={svg.ax.yBot} />
+        <text class="axtxt" x={14} y={(svg.ax.yTop + svg.ax.yBot) / 2} transform={`rotate(-90 14 ${(svg.ax.yTop + svg.ax.yBot) / 2})`} text-anchor="middle">{svg.labels.yTitle}</text>
+        <text class="axtxt" x={(svg.ax.x + svg.ax.xRight) / 2} y={202} text-anchor="middle">{svg.labels.xTitle}</text>
+        <line class="trend" x1={svg.trend.x1.toFixed(1)} y1={svg.trend.y1.toFixed(1)} x2={svg.trend.x2.toFixed(1)} y2={svg.trend.y2.toFixed(1)} />
+        <text class="expl" x={svg.trendMid.x} y={svg.trendMid.y - 6} text-anchor="middle">{svg.labels.trend}</text>
+        {svg.dots.map((d) => <circle class="dot" cx={d.x.toFixed(1)} cy={d.y.toFixed(1)} r="3.4" />)}
+        <line class="gap" x1={svg.self.x.toFixed(1)} y1={svg.self.y.toFixed(1)} x2={svg.self.x.toFixed(1)} y2={svg.self.dy.toFixed(1)} />
+        <circle class="team" cx={svg.self.x.toFixed(1)} cy={svg.self.y.toFixed(1)} r="5.5" />
+        <text class="teamtxt" x={svg.self.x.toFixed(1)} y={svg.self.ty.toFixed(1)} text-anchor={svg.self.anchor}>{teamName}</text>
+      </svg>
+      <p class="cap2">{caption}</p>
+    </>
+  ) : (
+    <p class="verdict">{t(lang, "heroNoData")}</p>
+  )}
+</div>

@@ -1,0 +1,44 @@
+---
+// Fixtures block (mock f6348775 .nextfx + .recent): the next fixture as a highlighted
+// card (when present) + the last-5 results list (GAP-15). Each is an honest absent
+// state — the card is omitted when there is no upcoming fixture, the list when there
+// are no recent results, the whole section when neither. All served facts.
+import SectionHead from "../ui/SectionHead.astro";
+import TeamFixtureRow from "./TeamFixtureRow.astro";
+import { formatShortDate, formatTime } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const nxt = s.next_fixture ?? null;
+const recent = s.recent_results ?? [];
+const hasAny = Boolean(nxt) || recent.length > 0;
+const nextHa = nxt?.is_home === true ? t(lang, "fxHome") : nxt?.is_home === false ? t(lang, "fxAway") : "";
+---
+
+{hasAny && (
+  <section aria-label={t(lang, "secFixtures")}>
+    <SectionHead label={t(lang, "secFixtures")} />
+    {nxt && (
+      <div class="nextfx">
+        <span class="tag">{nxt.round_name ?? t(lang, "fxNext")}</span>
+        <div class="opp">
+          <div class="nm">{nxt.opponent_name}</div>
+          {nextHa && <div class="sub">{nextHa}</div>}
+        </div>
+        <div class="when"><b>{formatTime(nxt.kickoff_datetime, lang)}</b>{formatShortDate(nxt.kickoff_datetime, lang)}</div>
+      </div>
+    )}
+    {recent.length > 0 && (
+      <div class="recent">
+        {recent.map((fx) => <TeamFixtureRow fx={fx} lang={lang} />)}
+      </div>
+    )}
+  </section>
+)}

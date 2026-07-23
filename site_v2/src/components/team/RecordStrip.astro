@@ -1,0 +1,40 @@
+---
+// Record strip (mock f6348775 .record): standing line (rank · points · GD · played)
+// + count-chips (W/D/L totals) + form pills (the standings-derived form string, this
+// competition). Single team → no comparison green; the W/D/L pills + chips carry the
+// reserved status colour. All served facts; rank omitted when null (knockout / no
+// single table). Reuses the shared .cchip / .pill blocks.
+import { integer, signedInteger } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const form = (s.latest_form ?? "").split("").filter((c) => "WDL".includes(c));
+const counts = [
+  { k: "W", n: s.wins },
+  { k: "D", n: s.draws },
+  { k: "L", n: s.losses },
+];
+---
+
+<div class="record">
+  <div class="stand num">
+    {s.latest_rank != null && <>#<b>{integer(s.latest_rank, lang)}</b> · </>}<b>{integer(s.points, lang)}</b> {t(lang, "pts")} · GD <b>{signedInteger(s.goal_diff, lang)}</b> · <b>{integer(s.played, lang)}</b> {t(lang, "teamPlayed")}
+  </div>
+  <div class="recrow">
+    <div class="cchips">
+      {counts.map((c) => (
+        <span class:list={["cchip", c.k]}>{integer(c.n, lang)} <small>{c.k}</small></span>
+      ))}
+    </div>
+    {form.length > 0 && (
+      <div class="pills">{form.map((r) => <span class:list={["pill", r]}>{r}</span>)}</div>
+    )}
+  </div>
+</div>

@@ -111,3 +111,86 @@ export interface Fixture {
 export function asNumber(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
+
+// ---------------------------------------------------------------------------
+// Team payload (scripts/export_site_data.py :: shape_team_payload, over
+// mart_team_profile + mart_team_fixtures). Mirrors the served shape; the frontend
+// reads these and never reshapes facts.
+// ---------------------------------------------------------------------------
+
+export interface Venue {
+  name?: string | null;
+  city?: string | null;
+  capacity?: number | null;
+}
+
+export interface TeamFixture {
+  opponent_name?: string | null;
+  opponent_logo_url?: string | null;
+  is_home?: boolean | null;
+  kickoff_datetime?: string | null;
+  round_name?: string | null;
+  goals_for?: number | null;
+  goals_against?: number | null;
+  result?: string | null;      // "W" | "D" | "L" | null (upcoming)
+  status_short?: string | null;
+}
+
+/** One team in the league-season deserved-vs-actual scatter (the hero). Every value is
+ *  a served column the model already computed; `deserved` is its least-squares fit. */
+export interface ScatterDot {
+  sotd: number | null;          // shots-on-target difference per match (x)
+  points: number | null;        // points won (y)
+  deserved: number | null;      // the model's deserved_points at this team (on the trend line)
+  is_self: boolean;
+}
+
+/** One `seasons[]` row: a mart_team_profile row (identity stripped) + fixtures + scatter. */
+export interface TeamSeason {
+  league_code: string;
+  season_api_year: number;
+  competition_type?: string | null;
+  // record / rank / form
+  latest_rank?: number | null;
+  points?: number | null;
+  played?: number | null;
+  wins?: number | null;
+  draws?: number | null;
+  losses?: number | null;
+  goals_for?: number | null;
+  goals_against?: number | null;
+  goal_diff?: number | null;
+  clean_sheets?: number | null;
+  latest_form?: string | null;
+  season_games_played?: number | null;
+  // deserved-vs-actual (domestic single-ladder only; null otherwise)
+  deserved_points?: number | null;
+  sot_points_gap?: number | null;
+  sot_difference_per_match?: number | null;
+  shots_on_goal_per_match?: number | null;
+  shots_on_goal_against_per_match?: number | null;
+  deserved_scatter?: ScatterDot[];
+  // year-over-year (games-aligned; domestic only, null otherwise)
+  yoy_games_played_cutoff?: number | null;
+  points_this_season?: number | null;
+  points_delta_yoy?: number | null;
+  goals_for_this_season?: number | null;
+  goals_for_delta_yoy?: number | null;
+  goals_against_this_season?: number | null;
+  goals_against_delta_yoy?: number | null;
+  // fixtures (GAP-15): next fixture + last-5 results
+  next_fixture?: TeamFixture | null;
+  recent_results?: TeamFixture[];
+}
+
+export interface Team {
+  type: string;
+  team_id: number;
+  slug: string;
+  name?: string | null;
+  country?: string | null;
+  crest?: string | null;
+  founded_year?: number | null;
+  venue?: Venue | null;
+  seasons: TeamSeason[];
+}

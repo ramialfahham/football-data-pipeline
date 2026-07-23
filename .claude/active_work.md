@@ -150,34 +150,45 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — branch `chore/repo-polish`
+## IN FLIGHT — branch `feat/team-page-overview` (BUILT, in review → PR)
 
-**HONEST SHOPFRONT + FRAME THE GUARDRAILS.** CPO-directed after an honest state assessment and a
-staff-level review: "do it" / "Do as recommended so I'm making the best impressions in the current
-state." Presentation only, no code.
+**Team page Overview tab, from mock `f6348775`, BUILT and verified.** ONE reviewable PR (export
+foundation + frontend together). Contract at `.claude/task/contract.md`; plan at
+`C:\Users\Rami\.claude\plans\shiny-riding-conway.md`.
 
-- **Killed every dead link.** GitHub Pages is 404 (verified via `gh api`), so the README demo link,
-  the dbt-docs link, and the repo homepage URL all pointed at nothing. Removed; the repo description
-  no longer says "live web app".
-- **Honest state.** The web app is described as a prototype, currently offline; the retired-MVP
-  screenshot (which showed competition branding) is removed and the Mermaid architecture diagram is
-  the lead visual.
-- **Framed the machinery.** A new README section, "Development guardrails (AI-assisted)", presents
-  the contract gate, blinded review, the hash-bound review artifact and the fail-open/CI split, as a
-  deliberate artifact rather than unexplained over-engineering. CPO chose a dedicated section (not a
-  reframe of the whole repo) and a neutral app-status note (no legal reason given).
+On the branch (uncommitted until the review cycle closes):
+- **Export foundation** (done earlier this session): `deserved_scatter_index()` + a per-season
+  `deserved_scatter` field in `scripts/export_site_data.py`; tests green; verified vs BigQuery.
+- **Committed sample** `site_v2/src/data/teams/33.json` — Man Utd, the export output verbatim (binding
+  rule holds). 24 seasons / ~600 KB; kept whole (the page selects one season).
+- **Frontend**: team CSS appended to `system.css` (transcribed from the mock; shared blocks reused,
+  `.stand` scoped, two additions `.sc .gap` + `.coming`); `components/team/*` (TeamHeader, Tabs,
+  RecordStrip, DeservedHero, YearOverYear, TeamFixtures/Row); page `[lang]/teams/[team].astro`; team
+  types in `lib/types.ts`; team strings in `i18n/strings.ts`; PL added to `competitions.json`.
+- **Hero = POINTS scatter** (not rank): 20 dots (sotd × points), trend = a polyline through the served
+  `deserved` values (no re-fit), self dot + a `.gap` connector to the line (= sot_points_gap). Renders
+  its absent state when `deserved_points` is null.
 
-**TO FINISH: review cycle (scope-auditor only; presentation paths draw no other reviewer), `review.md`
-with `rounds:`, commit, PR.** Repo description + homepage already updated via `gh` (approved).
+Decisions taken:
+- **Featured season = the most-recent domestic-league season** (the codebase's own default-season
+  convention; mirrors `_latest_season_row` / the preserved `pickDefaultSeason`). For the sample this
+  renders United's current 2025/26 (3rd, 71 pts, gap −4) — populated YoY, current standing, matching
+  how the mock frames a team page. The season selector (#362) reaches earlier seasons later. (An
+  earlier "most-negative-gap" pick was reverted after review — it mined a stale season.)
+- **Contract glob-safe amendment**: the gate's `fnmatch` read the bracketed Astro path as char classes,
+  so the in-scope page never matched; scope entry changed to the dir form (recorded in `amendments:`).
+  No scope expansion.
+
+Verified: pytest 444 green · layer/registry/seed/i18n gates green · `astro build` clean (3 locales) ·
+live-checked de/en/fi (hero, record, absent YoY, 5 recent, coming-states, tab switching). Screenshots
+blocked (the Browser pane cannot composite headless); verified via the rendered DOM instead. dbt N/A
+(no models). NEXT: reviewers → commit → push → PR. The CPO merges.
 
 ## NEXT
 
-1. **This change** (in flight).
-2. **The hero block, as a PICTURE.** Buildable now that deserved-vs-actual is in POINTS (#806): a
-   fitted line is legitimate in points space. Owed to the CPO as something to look at, never prose.
-   Must never render for a non-domestic or non-single-ladder competition.
-3. **The team page**, all three tabs, mock `f6348775` with that block replaced. The centerpiece the
-   economics, trim, and polish work was done to make cheaper and cleaner.
+1. **Performance + Squad tabs** — the other two tabs of `f6348775`, once their data binding
+   (benchmarks GAP-23, roster GAP-20) and the `metricRows.ts` 16-row contract are wired.
+2. **The player, competition, and landing pages** — designed later; do not build undesigned pages.
 
 ---
 
