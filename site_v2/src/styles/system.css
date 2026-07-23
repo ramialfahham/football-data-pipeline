@@ -290,4 +290,42 @@ section { margin-top: 36px; }
 .nextfx .when b { display: block; color: var(--ink); font-weight: 700; font-size: 14px; }
 .recent { margin-top: 12px; }
 
+/* ---- Performance tab: two panels behind the JS-free segment ---- */
+/* The segment reuses the shared `.seg-in`/`.seg`/`.seg-btn`/`.win` blocks; these two id
+   rules bind the Performance radios to their panels + active label (same shape as the
+   fixture `#seg-w1`/`#seg-w2` pair). */
+#pf-league:checked ~ .pf-league,
+#pf-season:checked ~ .pf-season { display: block; }
+#pf-league:checked ~ .seg .seg-btn[for="pf-league"],
+#pf-season:checked ~ .seg .seg-btn[for="pf-season"] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+
+/* one shared grid: name | bar | value+rank | median (the group head carries the Median label) */
+.vs-group { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 22px 0 6px; }
+/* name | bar | value+rank | median. The value/rank column is wider than the mock's (3.4rem)
+   to fit the spec-required "{rank} of {team_count}" (e.g. "13th of 16"). */
+.vs-grouphead,
+.vs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(84px, 1.5fr) 4.7rem 3.2rem; align-items: center; column-gap: clamp(8px, 2.2cqw, 14px); }
+.vs-grouphead { align-items: start; }
+.vs-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.vs-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.vs-row:last-child { border-bottom: 0; }
+.vs-name { font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; }
+.vs-name .sub { display: block; font-size: 11px; color: var(--muted); }
+.vs-bar { position: relative; height: 6px; background: var(--track); border-radius: 3px; }
+.vs-fill { position: absolute; left: 0; top: 0; bottom: 0; min-width: 3px; background: var(--ink); border-radius: 3px; }
+/* every metric is directional: green when it beats the league median in its better direction, plain ink otherwise (red stays reserved for a Loss) */
+.vs-fill.up { background: var(--accent); }
+.vs-notch { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--page); transform: translateX(-50%); }
+.vs-vr { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.vs-val { font-size: 16px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.vs-rank { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; }
+.vs-medv { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+/* vs last season: current value + signed change; green only when the change is in the better direction */
+.ss-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.ss-row:last-child { border-bottom: 0; }
+.ss-rt { display: flex; align-items: baseline; gap: 18px; }
+.ss-chg { min-width: 64px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
+.ss-chg.up { color: var(--accent); }
+.ss-chg .u { font-size: 11px; font-weight: 600; opacity: .8; margin-left: 2px; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

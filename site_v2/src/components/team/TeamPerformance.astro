@@ -1,0 +1,127 @@
+---
+// Performance tab (mock f6348775 stats tab): a per-panel caption + a JS-free segment
+// (the shared `.seg-in` radio pattern) with two panels — "vs the league" (the locked 16
+// metrics as direction-aware rank bars) and "vs last season" (the same 16 with signed
+// year-over-year change). Both driven by the LOCKED `METRIC_ROWS` contract; this component
+// selects, groups and maps to display — it derives no fact. The interpretive per-panel lede
+// the mock draws is deliberately omitted this increment (a §10 narrative call; deferred).
+//
+// Honest absent states (14_team_stats.md §6, matching the sibling DeservedHero/YearOverYear
+// guards): a season below the games floor has no `benchmarks` → the whole tab shows the
+// "not enough games to rank" message, never fabricated bars; an individual metric missing
+// from `benchmarks` is OMITTED from the league panel (never a zero bar); a season with no
+// year-over-year comparison shows the vs-last-season absent note.
+import MetricLeagueRow from "./MetricLeagueRow.astro";
+import MetricSeasonRow from "./MetricSeasonRow.astro";
+import { decimal0 } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { asNumber } from "../../lib/types";
+import type { TeamSeason, Benchmark } from "../../lib/types";
+import { METRIC_ROWS, GROUP_ORDER } from "../../lib/metricRows";
+
+interface Props {
+  season: TeamSeason;
+  teamName: string;
+  compName: string;
+  lang: Lang;
+}
+const { season, teamName, compName, lang } = Astro.props;
+
+const benchByKey = new Map<string, Benchmark>();
+for (const b of season.benchmarks ?? []) benchByKey.set(b.metric_key, b);
+const sRec = season as unknown as Record<string, unknown>;
+
+const hasBench = benchByKey.size > 0;
+const hasYoY = METRIC_ROWS.some((r) => asNumber(sRec[`${r.field}_delta_yoy`]) != null);
+
+// Per-panel captions (14_team_stats.md §5: NO single peer-count header — coverage varies
+// per metric, so the honest N lives on each row's "of {team_count}", never in the caption).
+// The vs-last-season panel is matchday-aligned (§Window rule 2 framing).
+const y = season.season_api_year;
+const seasonLabel = `${y}/${String((y + 1) % 100).padStart(2, "0")}`;
+const cutoff = season.yoy_games_played_cutoff;
+const scope = `${compName} ${seasonLabel}`;
+const leagueCaption = `${scope} · ${t(lang, "rankedInLeague")}`;
+const seasonCaption =
+  cutoff != null ? `${scope} · ${t(lang, "vsPriorSeasonGames", { n: cutoff })}` : scope;
+
+// Defensive-actions T · I · B sublabel from the served atoms (contract row 10).
+const atoms = ["tackles_per_match", "interceptions_per_match", "blocks_per_match"].map(
+  (k) => benchByKey.get(k)?.metric_value,
+);
+const dsub = atoms.some((v) => v != null)
+  ? `${decimal0(atoms[0], lang)} T · ${decimal0(atoms[1], lang)} I · ${decimal0(atoms[2], lang)} B`
+  : null;
+const subFor = (field: string): string | null =>
+  field === "defensive_actions_per_match" ? dsub : null;
+
+// League panel: locked block order, only metrics that HAVE a benchmark (§6 metric-absent =
+// omitted, never a zero bar). Season panel: all 16 (a null delta dashes out honestly).
+const leagueGroups = GROUP_ORDER.map((group) => ({
+  group,
+  rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(r.field)),
+})).filter((g) => g.rows.length > 0);
+const seasonGroups = GROUP_ORDER.map((group) => ({
+  group,
+  rows: METRIC_ROWS.filter((r) => r.group === group),
+})).filter((g) => g.rows.length > 0);
+---
+
+{hasBench ? (
+  <>
+    <input type="radio" name="pf-seg" id="pf-league" class="seg-in" checked />
+    <input type="radio" name="pf-seg" id="pf-season" class="seg-in" />
+    <div class="seg">
+      <label class="seg-btn" for="pf-league">{t(lang, "vsLeague")}</label>
+      <label class="seg-btn" for="pf-season">{t(lang, "vsLastSeason")}</label>
+    </div>
+
+    <div class="win pf-league">
+      <p class="pagecap">{leagueCaption}</p>
+      {leagueGroups.map((grp, gi) => (
+        <>
+          <div class:list={["vs-group", { "vs-grouphead": gi === 0 }]}>
+            <span>{grp.group}</span>
+            {gi === 0 && (
+              <>
+                <span></span>
+                <span></span>
+                <span class="vs-h">{t(lang, "median")}</span>
+              </>
+            )}
+          </div>
+          {grp.rows.map((r) => (
+            <MetricLeagueRow row={r} bench={benchByKey.get(r.field)} sub={subFor(r.field)} lang={lang} />
+          ))}
+        </>
+      ))}
+    </div>
+
+    <div class="win pf-season">
+      <p class="pagecap">{seasonCaption}</p>
+      {hasYoY ? (
+        seasonGroups.map((grp) => (
+          <>
+            <div class="vs-group">{grp.group}</div>
+            {grp.rows.map((r) => (
+              <MetricSeasonRow
+                row={r}
+                bench={benchByKey.get(r.field)}
+                delta={asNumber(sRec[`${r.field}_delta_yoy`])}
+                lang={lang}
+              />
+            ))}
+          </>
+        ))
+      ) : (
+        <p class="pagecap">{t(lang, "noYoY")}</p>
+      )}
+    </div>
+  </>
+) : (
+  <>
+    <p class="pagecap">{scope}</p>
+    <div class="coming"><div class="cb">{t(lang, "notRankable", { team: teamName })}</div></div>
+  </>
+)}

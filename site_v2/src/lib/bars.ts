@@ -47,3 +47,38 @@ export function stackShares(
   if (total <= 0) return { w: 0, d: 0, l: 0 };
   return { w: (w / total) * 100, d: (d / total) * 100, l: (l / total) * 100 };
 }
+
+// ---- team vs-league benchmark (Performance tab) ----
+// The mart's `rank` is RAW, value-descending (rank 1 = highest value). The fan reads a
+// DIRECTION-AWARE rank (1 = best in the metric's better direction), so for a lower_better
+// metric we mirror it — the same rule metrics_display.md §Percentile prescribes. Selection
+// of the reading position, not a fact.
+export function displayRank(
+  rawRank: number | null | undefined,
+  count: number | null | undefined,
+  direction: Direction,
+): number | null {
+  if (!isNum(rawRank) || !isNum(count) || count <= 0) return null;
+  return direction === "lower_better" ? count - rawRank + 1 : rawRank;
+}
+
+// Bar fill %: best rank = full, the median team ≈ 50% (where the notch sits). Presentation
+// width (how long to draw the bar), never a probability.
+export function rankFill(
+  displayRankValue: number | null | undefined,
+  count: number | null | undefined,
+): number {
+  if (!isNum(displayRankValue) || !isNum(count) || count <= 0) return 0;
+  return Math.round(((count - displayRankValue + 1) / count) * 100);
+}
+
+// Does the value beat the league median in the metric's BETTER direction? Drives the green
+// highlight (the locked direction-aware colour rule). `delta` is `vs_median_delta` for the
+// vs-league bar, or the signed year-over-year delta for the vs-last-season change.
+export function beatsMedian(
+  delta: number | null | undefined,
+  direction: Direction,
+): boolean {
+  if (!isNum(delta) || direction === "neutral" || delta === 0) return false;
+  return direction === "higher_better" ? delta > 0 : delta < 0;
+}

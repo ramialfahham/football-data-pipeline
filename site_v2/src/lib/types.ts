@@ -145,6 +145,21 @@ export interface ScatterDot {
   is_self: boolean;
 }
 
+/** One rank-vs-league benchmark row (mart_team_competition_benchmarks) — the Performance
+ *  tab's "vs the league" panel. `rank` is RAW value-descending (the frontend makes it
+ *  direction-aware for display); `metric_value`/`league_median` are the served units
+ *  (ratios 0..1 for percent metrics; clean_sheets is served as a rate, not a count). */
+export interface Benchmark {
+  metric_key: string;
+  metric_value?: number | null;
+  rank?: number | null;
+  team_count?: number | null;
+  league_median?: number | null;
+  league_p25?: number | null;
+  league_p75?: number | null;
+  vs_median_delta?: number | null;
+}
+
 /** One `seasons[]` row: a mart_team_profile row (identity stripped) + fixtures + scatter. */
 export interface TeamSeason {
   league_code: string;
@@ -181,6 +196,10 @@ export interface TeamSeason {
   // fixtures (GAP-15): next fixture + last-5 results
   next_fixture?: TeamFixture | null;
   recent_results?: TeamFixture[];
+  // rank-vs-league benchmarks (GAP-23) — the Performance tab's "vs the league" panel.
+  benchmarks?: Benchmark[];
+  // the 16 metric values + their `{field}_delta_yoy` also live on this row and are read
+  // positionally via a Record cast (same pattern as the fixture WindowStats).
 }
 
 export interface Team {

@@ -1,4 +1,5 @@
-// The LOCKED 16-row team comparison contract for the fixture page.
+// The LOCKED 16-row team metric contract. Shared by the fixture comparison (home vs away,
+// per window) and the team page Performance tab (vs the league / vs last season).
 //
 // This is DISPLAY CONFIG, not computation: order + groups + tiers come from
 // docs/wireframes/metrics_display.md (CPO-locked 2026-06-11); `format` + `direction`
