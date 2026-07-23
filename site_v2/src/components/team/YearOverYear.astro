@@ -1,0 +1,52 @@
+---
+// "Vs last season" (mock f6348775 .yoygrid): the games-aligned year-over-year set
+// for points / goals / goals against — current value + signed delta. The delta's
+// green (.up) is the locked design's direction-aware encoding of "better" (see
+// lib/bars.ts rationale: presentation, not a fact) — up for more points/goals, up
+// for FEWER goals against. Domestic-only and games-aligned in the mart; when the
+// mart served no comparison (no prior season at this cutoff) it renders the honest
+// absent state. Rank has no served YoY delta, so it is not shown here (the record
+// strip carries the current rank).
+import SectionHead from "../ui/SectionHead.astro";
+import { integer, signedInteger } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { asNumber } from "../../lib/types";
+import type { TeamSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const rows = [
+  { label: t(lang, "yoyPoints"), value: s.points_this_season, delta: s.points_delta_yoy, betterUp: true },
+  { label: t(lang, "yoyGoalsFor"), value: s.goals_for_this_season, delta: s.goals_for_delta_yoy, betterUp: true },
+  { label: t(lang, "yoyGoalsAgainst"), value: s.goals_against_this_season, delta: s.goals_against_delta_yoy, betterUp: false },
+];
+const hasYoY = rows.some((r) => asNumber(r.value) !== null || asNumber(r.delta) !== null);
+const cutoff = s.yoy_games_played_cutoff;
+const note = hasYoY && cutoff != null ? t(lang, "yoyThroughGames", { n: cutoff }) : null;
+---
+
+<section aria-label={t(lang, "secYoY")}>
+  <SectionHead label={t(lang, "secYoY")} note={note} />
+  {hasYoY ? (
+    <div class="yoygrid">
+      {rows.map((r) => {
+        const d = asNumber(r.delta);
+        const better = d !== null && d !== 0 && (r.betterUp ? d > 0 : d < 0);
+        return (
+          <div class="yrow">
+            <span class="yl">{r.label}</span>
+            <span class="yn num">{integer(r.value, lang)}</span>
+            <span class:list={["yd", "num", { up: better }]}>{signedInteger(r.delta, lang)}</span>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <p class="pagecap">{t(lang, "noYoY")}</p>
+  )}
+</section>

@@ -1,50 +1,80 @@
-# Review — chore/repo-polish — 2026-07-22
+# Review — feat/team-page-overview — 2026-07-23
 
-> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) only. The diff
-> touches README.md and docs assets — no dbt, ingestion, script, site or guard path — so no
-> specialist reviewer is routed and no opus floor applies.
->
-> **WHAT THIS CHANGES.** Presentation only, no code. It makes the public repo honest in its current
-> state, for an experienced engineer assessing it as the owner's flagship.
-> 1. **Dead links killed.** GitHub Pages returns 404 (verified via `gh api .../pages`), so the README
->    demo link, the dbt-docs link, and the repo homepage URL all pointed at nothing. All removed; the
->    repo description no longer advertises a "live web app".
-> 2. **Honest state.** The web app is described as a prototype, currently offline. The retired-MVP
->    screenshot (which showed competition branding, the class of content the app was taken down over)
->    is deleted, and the Mermaid architecture diagram is the lead visual — a stronger image for a
->    data pipeline and rights-clean.
-> 3. **The machinery framed.** A new "Development guardrails (AI-assisted)" section presents the
->    contract gate, blinded adversarial review, the hash-bound review artifact, and the
->    fail-open/fail-closed split as a deliberate artifact rather than unexplained over-engineering.
->    This follows the guardrail TRIM (#808), so what it describes now passes its own proportionality
->    test.
->
-> **AUTHORITY.** The exact copy and framing are §10 product decisions, so they were put to the CPO
-> before writing: two AskUserQuestion rulings chose a dedicated guardrails section (not a whole-repo
-> reframe) and a neutral app-status note (no legal reason aired publicly). The shipped copy matches
-> both. The repo description and homepage were updated via `gh` with the CPO-approved text, outside
-> the diff.
->
-> **HONESTY BAR.** Per the presentation principles: no self-praise, no "hire me" framing, honest
-> about state, non-brittle numbers. The guardrails section describes what the system DOES in precise
-> terms rather than adjectives, and names the one transferable idea (binding a review to its exact
-> diff by hash). The reviewer independently checked its three load-bearing claims against
-> `working_agreement.md` and confirmed each is accurate, not overstated.
->
-> **NOT VERIFIED.** No code, no tests, no warehouse. The skill's link/render checks ran: every
-> relative link resolves, the Mermaid block is well-formed and fenced, no github.io link remains.
+> Team page Overview tab (export foundation + built frontend), from CPO-approved mock
+> f6348775. One PR. Blinded review over three rounds; round 1 surfaced real findings
+> (consumption-layer verdict threshold, mid-season trend-line assumption, a contrived
+> featured-season rule, a JS tab-toggle, a hardcoded aria-label, a tautological test,
+> a triple-rendered points value), all fixed with judgment. All four required reviewers
+> PASS at the final hash.
 
-diff_sha256: f22f5edf277100aa5dd1604997247be1ddd15d8a2e3e7031cd46e44a356f4dc0
-rounds: 1
+diff_sha256: 5bdaf0a0e143abc81651c66ad9cc015980ce8d7c6545e6bc86386bfdc7ab98b4
+
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Authority for the product copy: confirmed the two CPO AskUserQuestion rulings (dedicated guardrails section, neutral app-status note) and that the shipped README matches both — a standalone section rather than a whole-repo reframe, and an "offline" status with no legal reason given. No positioning was written that the CPO did not approve.
-- Honesty and dead-link completeness: verified all three dead github.io links are gone with none reintroduced, the surviving badge and internal doc links resolve, the copy claims nothing live that is not, and the guardrails section neither overclaims nor reads as a recruiter pitch.
-- Guardrails-section accuracy: checked its three core claims ("spawned cold with no builder context", "defaulting to reject", "an approval cannot drift from the code it approved") against `working_agreement.md` §2-3 and confirmed each is factually correct.
-- Scope: every touched file inside `scope_paths`; the two deletions are justified (the screenshot is the retired app; its directory README documented only that screenshot).
+- Every changed path is within scope_paths; the `amendments:` entry is a faithful glob-safe
+  correction (bracketed Astro path read as fnmatch char classes → directory-prefix form), not a
+  scope expansion.
+- The four round-1 mechanisms resolved without unauthorized §10 decisions: featured-season rule
+  reverted to the codebase's most-recent-domestic convention; verdict keyed off the catalogue's
+  documented gap sign (no invented tier); tabs use the existing JS-free radio pattern; the season
+  label + verdict block are in the approved mock. The two CSS additions (`.sc .gap`, `.coming`)
+  stay within the token contract.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Export purity: `deserved_scatter_index` / `shape_team_payload` are selection/grouping/equality-flag
+  only — no arithmetic, no re-fit; `deserved` passes through the mart's `deserved_points` verbatim;
+  the three metrics are pre-existing catalogue rows (no A1).
+- Verdict classification keys off the served `sot_points_gap` SIGN only (matches metric_catalogue.csv
+  negative=under / positive=over) — the round-1 rounding-threshold "Inline" tier is gone.
+- The trend line's colinearity precondition (deserved = fitted-rate × games ⇒ colinear only when games
+  are equal) verified against int_team_season__deserved_vs_actual.sql:190-199 and numerically against
+  the committed sample (slope ≈11.745 across dots); the 2-point segment is exact for this games-aligned
+  sample, and the mid-season case is registered as an explicit export follow-up, not silently shipped.
+- The new `test_deserved_scatter_preserves_the_fitted_line` builds independent colinear data and asserts
+  exact pass-through (non-tautological; satisfies the contract's done_when).
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Binding rule: every field the Overview components render traces to a `select * from mart_team_profile`
+  row via `shape_team_payload`; the committed sample is internally self-consistent (scatter `deserved`
+  colinear in sotd; self dot's deserved = the season's `deserved_points`) — real export output, not typed-in.
+- Absent states honest: null `deserved_points` → no scatter (hero absent state); absent next_fixture →
+  no card; non-domestic seasons carry no scatter — never a fabricated zero.
+- No number rendered twice: the actual points total now appears only in the record strip and the YoY row
+  (the mock-faithful value+delta pair); the hero verdict no longer restates it in any locale.
+- Token discipline + i18n: colour = meaning (direction-aware green on YoY deltas), all new strings present
+  in de/en/fi, verdict is a templated factual sentence (not fabricated prose), aria-labels translated.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Tabs are JS-free (radios + `:checked ~` CSS, mirroring the fixture `.seg-in` control): default Overview
+  shown, focus-visible outline live (`.fx` on <body>), no orphaned selectors, works without JavaScript;
+  the appended CSS is a pure append with no shared-block regression.
+- `astro build` stays green across all three locales; TS sound (no orphaned `{points}` placeholder or
+  unused param after the verdict trim).
+- The screenshot done_when is environmentally blocked (headless pane cannot composite); substituted with
+  live-DOM/computed-style checks (de/en/fi) + a reproducible geometry assertion on the built HTML (56
+  coords, 0 out-of-bounds, 20 dots, trend+gap lines, verdict no longer restates the points value) —
+  accepted as adequate for the code-quality check; a human eyeball on the live dev server before merge is
+  advised (non-blocking).
+- Doc/code/data three-way consistency for the featured-season note (active_work.md ↔ page selection ↔
+  committed sample) restored.
 
 ## escalations
-- question: How prominent should the AI-guardrails framing be, and how much to say about why the web app is offline? Put as two AskUserQuestion prompts with three and two options respectively.
-  CPO ANSWER: "A dedicated section, after Design decisions" and "Neutral: prototype, currently offline" (AskUserQuestion, 2026-07-22). The exact README copy was shown before writing and the framing approved.
+(none)
+
+<!-- Deferred follow-ups (notes, not blockers — no CPO answer required to ship this PR):
+  1. Mid-season trend line: when live/mid-season data (unequal games played) is wired, the export must
+     serve the fitted line itself (slope + per-match intercept) so the deserved line stays true; today's
+     committed sample is games-aligned (38 each), where the 2-point segment is exact.
+  2. Featured-season default is now the current season (2025/26, gap -4). The season selector (#362) will
+     let a reader reach the dramatic 2024/25 underperformance (gap -16) later.
+  3. A visual eyeball on the live dev server before merge is worth two minutes (screenshots are
+     environmentally blocked here). -->

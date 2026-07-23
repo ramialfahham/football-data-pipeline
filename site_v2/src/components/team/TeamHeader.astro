@@ -1,0 +1,45 @@
+---
+// Team identity header (mock f6348775 .thead): crest + name + meta (country ·
+// venue, city · founded) + a static competition-season selector. The selector is
+// chrome this increment — the interactive multi-season swap is deferred (#362).
+// Competition display name comes from the registry-derived competitions map (the
+// frontend never generates a slug/name). Facts are all served; no derivation.
+import Crest from "../ui/Crest.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { Team, TeamSeason } from "../../lib/types";
+import competitions from "../../data/competitions.json";
+
+interface Props {
+  team: Team;
+  season: TeamSeason;
+  lang: Lang;
+}
+const { team, season, lang } = Astro.props;
+
+const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
+const compName = comp?.name ?? season.league_code;
+// Season-span label (2024 -> "2024/25"): a display format of the season year, like a
+// date format — not an identifier the frontend derives.
+const y = season.season_api_year;
+const seasonLabel = `${y}/${String((y + 1) % 100).padStart(2, "0")}`;
+const hasVenue = Boolean(team.venue?.name);
+const hasFounded = team.founded_year != null;
+---
+
+<header class="thead">
+  <Crest name={team.name} crest={team.crest} />
+  <div class="tid">
+    <h1>{team.name}</h1>
+    <div class="meta">
+      {team.country}
+      {hasVenue && (
+        <>{team.country && " · "}<b>{team.venue?.name}</b>{team.venue?.city ? `, ${team.venue.city}` : ""}</>
+      )}
+      {hasFounded && (
+        <>{(team.country || hasVenue) && " · "}{`${t(lang, "founded")} ${team.founded_year}`}</>
+      )}
+    </div>
+    <div class="selector">{compName} <span class="yr">{seasonLabel}</span> <span class="chev">▼</span></div>
+  </div>
+</header>

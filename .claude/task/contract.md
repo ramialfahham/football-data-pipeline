@@ -1,71 +1,96 @@
-# Task contract — repo polish: honest shopfront, kill dead links, frame the guardrails
+# Task contract — team page, Overview tab, from the approved mock
 
-> Written on a CLEAN tree (branch `chore/repo-polish` off main @ 07a224c, after the guardrail trim
-> #808 merged). Presentation/docs only.
-> No structural surface, so no impact_map and no consulted field are required.
+> Written on a CLEAN tree (branch `feat/team-page-overview` off main @ 3d6a31a).
 
 objective: >
-  Make the public repo make the right first impression IN ITS CURRENT STATE, for an experienced
-  data / analytics / web / AI engineer assessing it as the owner's flagship. Three problems, all
-  verified this session:
-  (1) GitHub Pages is 404 (confirmed via `gh api .../pages`). Every outward link is dead — the
-  README live-demo link, the dbt-docs link, and the repo's own homepage URL — and the repo
-  DESCRIPTION advertises a "live web app". The MVP was taken offline deliberately over possible
-  rights issues with provider content, so the demo stays dead; the links and the description must
-  stop pointing at it.
-  (2) The README hero image `docs/assets/screenshot.png` is that retired app, showing competition
-  branding — the same class of content the app was pulled for. It is removed, and the architecture
-  diagram becomes the lead visual (a strict upgrade for a data-pipeline repo, and rights-clean).
-  (3) The `.claude/` AI-assisted-development guardrails are ~3,300 lines plus 244 tests, committed
-  and unframed, so a reviewer reads them as over-engineering. CPO direction: SHOWCASE them, do not
-  hide them. A README section frames them as deliberate, sized to what a staff-level review judges
-  worth keeping (that review is running; its verdict shapes the section and may spawn a separate
-  trim task — trimming is NOT in this PR).
+  Build the team page Overview tab (the next launch item, Pages group), from CPO-approved mock
+  `f6348775`, as one data-backed increment like the fixture page (#672). Its signature block,
+  deserved-vs-actual, is the corrected POINTS scatter: points won regressed on shots-on-target
+  difference per match, the trend line is the model's `deserved_points`, a team's height off the line
+  is `sot_points_gap`. The CPO approved this corrected hero as a rendered picture this session. The
+  broken rank-space version (which the mock still drew) is replaced. Performance and Squad tabs are
+  chrome + honest coming-state; their data binding is a follow-up.
 
 refs: >
-  Verified this session, not recalled:
-  - `gh api repos/.../pages` -> 404: Pages is genuinely gone, so all three github.io links are dead.
-  - `gh repo view`: description = "...live web app. ...built to scale"; homepageUrl = the dead
-    match-preview link; 14 topics already set (good, untouched); MIT license (good).
-  - README badges (CI, Data Build, License, dbt, BigQuery, Python) resolve and are kept.
-  - `docs/assets/screenshot.png` read directly: the retired Matchday IQ landing page with league
-    crests/branding.
-  - The presentation principles are `C:\Users\Rami\.claude\skills\polish-repo\repo-presentation.md`
-    (understated, honest about state, non-brittle numbers, owner owns product framing).
+  Verified this session:
+  - Fixture-page pattern: `site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro` composes
+    shared components, imports a committed sample JSON, holds no styling, derives no facts.
+  - `scripts/export_site_data.py` `shape_team_payload` (line 163) already emits each season's
+    `deserved_points`, `sot_points_gap`, `sot_difference_per_match`, `points`, `latest_rank`. It does
+    NOT emit the league-level scatter context the hero needs.
+  - `mart_team_profile` carries `deserved_points` (the fit) for every team in a domestic single-ladder
+    league-season; the export only SELECTs and groups it (no derivation).
+  - Preserved components on `origin/feat/site-v2-team-profile` (TeamHeader, RecordBlock, YearOverYear,
+    TeamFixtures) — harvest material, reconciled to the mock.
+  - The mock `f6348775` full HTML/CSS was fetched this session (tool-results dir) — the design source.
 
 scope_paths:
-  - README.md
-  - docs/assets/screenshot.png
-  - docs/assets/README.md
+  - scripts/export_site_data.py
+  - site_v2/src/pages/[lang]/teams/
+  - site_v2/src/components/team/
+  - site_v2/src/styles/system.css
+  - site_v2/src/lib/types.ts
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/data/teams/
+  - site_v2/src/data/competitions.json
+  - tests/test_export_site_data.py
   - .claude/active_work.md
 
+impact_map: >
+  writers: none in the warehouse. The export READS `mart_team_profile` (+ mart_team_fixtures for the
+    fixtures block) and writes JSON; no dbt model, no table, no mart changes. The dbt layer is
+    untouched.
+  downstream: consumption + frontend only. `shape_team_payload` gains a `deserved_scatter` field per
+    season; the committed sample and the built page consume it. No other export consumer reads teams
+    yet (grep: only the team page). The site build is static (Astro getStaticPaths); nothing is
+    deployed (no hosting chosen), so there is no runtime blast radius.
+  layer_rules: the consumption-layer contract (Appendix A5) — the export may select/group/rename but
+    NEVER derive a fact. `deserved_scatter` is a pure projection of mart rows the model already
+    computed; the fitted line params come from the mart's own `deserved_points`, not re-fitted here.
+    The frontend derives no facts (maps numbers to SVG coordinates only). `check_layer_contract.py`
+    does not gate the export or site, but the reviewers do.
+  deploy_order: none. No warehouse object; static site. Takes effect only when the page is built.
+  blast_radius: bounded. The export change adds a field (additive, no existing consumer breaks). The
+    site adds one new page + team components + team CSS blocks; the fixture page and shared system are
+    untouched except APPENDING team blocks to system.css. The committed sample is one team, produced
+    by the updated export, so the #805 binding rule (every rendered field exists in the export) is
+    satisfied by construction — this page is that rule's first real test.
+
 decisions_taken: >
-  (1) DO THE POLISH NOW, before the team page, so a reviewer meets a clean repo. CPO 2026-07-22,
-      after an honest state assessment: "do it" / "Do as recommended so I'm making the best
-      impressions in the current state."
-  (2) The retired demo stays dead (CPO: "We removed the mvp because of possible legal issues").
-      Remove the dead links and the screenshot; make the description and headline honest about
-      state (pipeline solid, web app a prototype not currently public).
-  (3) SHOWCASE the guardrails rather than hide them (CPO: "Don't hide ... quite the opposite. It
-      should show that I'm capable of doing it").
+  (1) BUILD THE APPROVED MOCK, Overview tab, points-scatter hero. CPO approved the plan
+      (ExitPlanMode, 2026-07-22) and the corrected hero as a rendered picture the same session.
+  (2) Overview tab only; Performance + Squad are honest coming-state, their data binding deferred.
+      An increment sized like the fixture page, stated in the approved plan.
+  (3) Add `deserved_scatter` to the team payload rather than a separate league file — the page is
+      per-team and it keeps one import. Engineering call, not §10.
 
 decisions_reserved:
-  - The exact README prose (headline, live-status line, the guardrails section) and the new repo
-    DESCRIPTION text are product framing — proposed to the CPO for sign-off before any file is
-    written, never set unilaterally.
-  - Whether to TRIM the guardrail machinery, and by how much, depends on the staff-level review and
-    is a SEPARATE decision and task, explicitly out of this PR (which only frames what exists).
-  - Whether to revive a dbt-docs site later: deferred. This pass keeps everything static and off
-    Pages, per the legal caution.
+  - The exact sample team is an implementation pick (a Premier League team with a visible gap so the
+    hero demonstrates the block); not a product decision.
+  - Whether to amend the wireframe spec `02_team_profile.md` (which still describes the OLD
+    shot_share/points_capture hero) is a separate doc task, NOT in this scope. Noted so a reviewer
+    does not read the stale spec as the contract.
+  - The `metricRows.ts` 16-row Performance binding and the Squad roster binding are the next PRs.
 
 done_when:
-  - No dead github.io link remains in README.md, and the repo description/homepage no longer point
-    at the retired app. Verified by re-checking each link resolves (or is removed).
-  - `docs/assets/screenshot.png` is removed and no longer referenced; the README lead visual is the
-    Mermaid diagram, which renders (valid syntax).
-  - The README states repo state honestly: pipeline live/gated, web app a prototype not public.
-  - A README section frames the `.claude/` guardrails as deliberate AI-collaboration engineering.
-  - CPO signed off on the README prose and the description BEFORE it was written.
+  - The export emits `deserved_scatter` per domestic single-ladder season; a test asserts its shape
+    and that the self dot's `deserved_points` equals `intercept + slope*sotd`.
+  - The committed sample `data/teams/{id}.json` is exactly what the updated export produces for that
+    team (binding rule).
+  - The team page renders in de/en/fi: identity + record + the points-scatter hero (trend line + self
+    dot + gap) + vs-last-season + fixtures, with Performance/Squad as coming-state. Verified in the
+    dev server with a screenshot.
+  - The hero renders its absent state (never a broken scatter) when `deserved_points` is null.
+  - `validate-local` passes (astro check + lint); `pytest tests/test_export_site_data.py` passes.
   - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
 
-amendments: (none)
+amendments:
+  - 2026-07-23 (glob-safe scope correction, no scope expansion): the contract gate
+    matches scope_paths with `fnmatch`, which reads the bracketed Astro route
+    `site_v2/src/pages/[lang]/teams/[team].astro` as glob character classes ([lang] =
+    one of l/a/n/g), so the already-in-scope file never matched literally and its own
+    page could not be written. Replaced that one file entry with the directory-prefix
+    form `site_v2/src/pages/[lang]/teams/` (matched by literal `startswith`), which
+    covers the same single route file and nothing more. The page was CPO-approved in
+    the plan (ExitPlanMode 2026-07-22) and already listed in the original scope_paths;
+    this only fixes how the matcher reads it.

@@ -194,4 +194,100 @@ section { margin-top: 36px; }
 .footnote { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; opacity: .8; }
 .err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
 
+/* ================================================================ *
+ *  TEAM PAGE — blocks transcribed from the CPO-approved mock         *
+ *  (artifact f6348775). Same token contract as above: colour =      *
+ *  meaning (green reserved for "better value"), hierarchy by         *
+ *  tone/weight/size. Shared blocks are REUSED from the system above  *
+ *  and not redefined here: .pills/.pill · .cchips/.cchip ·           *
+ *  .rmatch/.res/.rscore/.ropp/.rmeta · .linkrow/.linkchip ·          *
+ *  .sechead/.eyebrow/.win-note · .crest · .footnote. Two classes are *
+ *  additions, not in the mock, each carrying meaning the mock's      *
+ *  example did not need: `.sc .gap` draws the self dot's distance to  *
+ *  the trend line (= sot_points_gap, ~0 in the mock's example), and   *
+ *  `.coming` is the honest coming-state for the not-yet-built         *
+ *  Performance/Squad tabs.                                            *
+ * ================================================================ */
+
+/* breadcrumb current page */
+.crumb .here { color: var(--ink-2); }
+
+/* team masthead */
+.thead { display: flex; align-items: center; gap: 16px; padding: 16px 0 18px; }
+.thead .crest { flex: none; }
+.tid { min-width: 0; flex: 1; }
+.tid h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; text-wrap: balance; }
+.tid .meta { font-size: 13px; color: var(--muted); margin-top: 5px; }
+.tid .meta b { color: var(--ink-2); font-weight: 600; }
+.selector { display: inline-flex; align-items: center; gap: 9px; margin-top: 13px; font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.selector .yr { color: var(--muted); }
+.selector .chev { color: var(--muted); font-size: 11px; }
+
+/* tabs — JS-free radio toggle (same pattern as the fixture `.seg-in` control): the
+   checked `#tab-*` radio drives both the active label and which `.page` panel shows.
+   No client script → works with JavaScript disabled, keyboard-reachable via the radio
+   group. */
+.tab-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tab { font-size: 14px; font-weight: 600; color: var(--muted); padding: 13px 16px 12px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; }
+.tab:hover { color: var(--ink-2); }
+#tab-overview:checked ~ .tabs .tab[for="tab-overview"],
+#tab-performance:checked ~ .tabs .tab[for="tab-performance"],
+#tab-squad:checked ~ .tabs .tab[for="tab-squad"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+.fx .tab-in:focus-visible ~ .tabs { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.page { display: none; }
+#tab-overview:checked ~ .page[data-page="overview"],
+#tab-performance:checked ~ .page[data-page="performance"],
+#tab-squad:checked ~ .page[data-page="squad"] { display: block; }
+.pagecap { font-size: 12.5px; color: var(--muted); margin: 18px 0 0; }
+
+/* coming-state (Performance / Squad panels — their data export is pending) */
+.coming { margin: 44px 0; text-align: center; }
+.coming .ct { font-size: 15px; font-weight: 700; color: var(--ink-2); }
+.coming .cb { font-size: 13px; color: var(--muted); margin: 8px auto 0; max-width: 42ch; line-height: 1.6; }
+
+/* record strip: standing + status (count-chips + form pills) */
+.record { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
+.record .stand { font-size: 15px; color: var(--muted); }
+.record .stand b { color: var(--ink); font-weight: 700; }
+.recrow { display: flex; align-items: center; justify-content: space-between; gap: 14px 18px; flex-wrap: wrap; }
+
+/* HERO: deserved vs actual scatter */
+.hero { background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.hero .verdict { font-size: 16px; line-height: 1.6; color: var(--ink-2); margin: 0 0 16px; }
+.hero .verdict b { color: var(--ink); font-weight: 700; }
+.hero .heronums { display: flex; gap: 8px; margin: 0 0 18px; }
+.hero .hn { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; display: flex; flex-direction: column; }
+.hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.hero .hn .hv { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 8px; }
+.hero .cap2 { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 14px 0 0; }
+.sc { width: 100%; height: auto; display: block; overflow: visible; }
+.sc .ax { stroke: var(--div); stroke-width: 1; }
+.sc .axtxt { fill: var(--muted); font: 600 9px system-ui, sans-serif; }
+.sc .trend { stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 4 3; opacity: .7; }
+.sc .gap { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; opacity: .6; }
+.sc .dot { fill: var(--muted); opacity: .5; }
+.sc .team { fill: var(--ink); }
+.sc .teamtxt { fill: var(--ink); font: 800 10px system-ui, sans-serif; }
+.sc .expl { fill: var(--muted); font: 600 8.5px system-ui, sans-serif; }
+
+/* vs last season (overview headline set) */
+.yoygrid { display: grid; grid-template-columns: 1fr; gap: 2px; }
+@container (min-width: 520px) { .yoygrid { grid-template-columns: 1fr 1fr; gap: 2px 26px; } }
+.yrow { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.yrow .yl { font-size: 13px; color: var(--muted); }
+.yrow .yn { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.yrow .yd { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; min-width: 96px; color: var(--muted); }
+.yrow .yd.up { color: var(--accent); }
+
+/* fixtures: next-fixture card + recent list (rows reuse the shared .rmatch grid) */
+.nextfx { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; padding: 14px; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; }
+.nextfx .tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--div); border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
+.nextfx .opp { min-width: 0; }
+.nextfx .opp .nm { font-size: 15px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nextfx .opp .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.nextfx .when { text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nextfx .when b { display: block; color: var(--ink); font-weight: 700; font-size: 14px; }
+.recent { margin-top: 12px; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

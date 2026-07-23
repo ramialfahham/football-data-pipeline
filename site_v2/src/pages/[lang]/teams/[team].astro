@@ -1,0 +1,109 @@
+---
+// Team page (screen 02) — the v2 design system's second real screen, from the
+// CPO-approved mock f6348775. URL: /{lang}/teams/{team-slug}/ (site_architecture.md).
+// This increment builds the OVERVIEW tab from ONE committed real team across the three
+// locales; Performance and Squad are chrome + the honest coming-state (their data
+// binding — benchmarks GAP-23, roster GAP-20 + the metricRows.ts 16-row contract — is
+// the next PR). The page only COMPOSES the shared components in mock order; it holds no
+// styling and derives no facts.
+import Layout from "../../../layouts/Layout.astro";
+import TeamHeader from "../../../components/team/TeamHeader.astro";
+import Tabs from "../../../components/team/Tabs.astro";
+import RecordStrip from "../../../components/team/RecordStrip.astro";
+import DeservedHero from "../../../components/team/DeservedHero.astro";
+import YearOverYear from "../../../components/team/YearOverYear.astro";
+import TeamFixtures from "../../../components/team/TeamFixtures.astro";
+import SectionHead from "../../../components/ui/SectionHead.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref } from "../../../lib/href";
+import type { Lang } from "../../../lib/format";
+import type { Team, TeamSeason } from "../../../lib/types";
+import teamData from "../../../data/teams/33.json";
+import competitions from "../../../data/competitions.json";
+
+export function getStaticPaths() {
+  const locales: Lang[] = ["de", "en", "fi"];
+  const team = teamData as unknown as Team;
+  return locales.map((lang) => ({
+    params: { lang, team: team.slug },
+    props: { team, lang },
+  }));
+}
+
+interface Props {
+  team: Team;
+  lang: Lang;
+}
+const { team, lang } = Astro.props;
+
+// Featured season = the team's most-recent domestic-league season (seasons[] is served
+// sorted year-desc), else the most-recent season. This is the codebase's own default-
+// season convention (mirrors `_latest_season_row` in the export and `pickDefaultSeason`
+// on the preserved branch) and matches how the mock frames a team page — its current
+// standing. Pure SELECTION of a served row — no derivation. At scale the season selector
+// (#362) lets a reader reach earlier seasons.
+const season: TeamSeason =
+  team.seasons.find((s) => s.competition_type === "domestic_league") ?? team.seasons[0];
+
+const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
+const compName = comp?.name ?? season.league_code;
+
+const title = `${team.name} — ${compName}`;
+const description = `${team.name} · ${compName}`;
+
+// Explore chips (SEO/navigation) — inert this increment; the league table and
+// top-scorers pages are not built yet.
+const linkChips = [t(lang, "table"), t(lang, "topScorers")];
+---
+
+<Layout lang={lang} title={title} description={description}>
+  <div class="inner">
+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+      <span class="sep">›</span>
+      <span>{t(lang, "crumbTeams")}</span>
+      <span class="sep">›</span>
+      <span class="here">{team.name}</span>
+    </nav>
+
+    <TeamHeader team={team} season={season} lang={lang} />
+
+    {/* Hidden radios drive the JS-free tab toggle; the checked one shows its .page (CSS). */}
+    <input type="radio" name="team-tab" id="tab-overview" class="tab-in" checked />
+    <input type="radio" name="team-tab" id="tab-performance" class="tab-in" />
+    <input type="radio" name="team-tab" id="tab-squad" class="tab-in" />
+    <Tabs lang={lang} />
+
+    <div class="page" data-page="overview">
+      <RecordStrip season={season} lang={lang} />
+
+      <section aria-label={t(lang, "secDeserved")}>
+        <SectionHead label={t(lang, "secDeserved")} />
+        <DeservedHero season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
+      </section>
+
+      <YearOverYear season={season} lang={lang} />
+      <TeamFixtures season={season} lang={lang} />
+
+      <div class="linkrow">
+        {linkChips.map((c) => <span class="linkchip">{c}</span>)}
+      </div>
+    </div>
+
+    <div class="page" data-page="performance">
+      <div class="coming">
+        <div class="ct">{t(lang, "comingTitle")}</div>
+        <div class="cb">{t(lang, "comingPerformance")}</div>
+      </div>
+    </div>
+
+    <div class="page" data-page="squad">
+      <div class="coming">
+        <div class="ct">{t(lang, "comingTitle")}</div>
+        <div class="cb">{t(lang, "comingSquad")}</div>
+      </div>
+    </div>
+
+    <div class="footnote">{t(lang, "teamFootnote")}</div>
+  </div>
+</Layout>
