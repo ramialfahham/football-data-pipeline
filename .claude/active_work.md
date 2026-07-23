@@ -142,48 +142,47 @@ carry the two metrics #804 surfaced. A §10 display decision; the approved mock 
 **`legal-counsel` as a consultant** — a risk register from the API-Football terms. Doer later, for
 the imprint and privacy pages, once the operator question is answered.
 
-**The guardrail economics**, raised by the CPO after #803 cost nine rounds: cap the review rounds,
-scale the re-review to what actually changed (a one-word comment fix re-ran everything at full
-depth), put the reviewer model in the routing file instead of my head, and recast the roles so
-reviewers are peers rather than a CTO reading every diff.
+**The guardrail economics** (raised by the CPO after #803 cost nine rounds). PARTLY DONE by
+`chore/review-economics` (in flight): delta re-review, a round cap of 3, and a `consulted:` field so
+domain findings surface before the build. STILL OWED, and deliberately deferred: put the reviewer
+model in the routing file instead of my head, and recast the roles so reviewers are peers rather
+than one reviewer reading every diff. The CPO chose the smaller option over that recast.
 
 ---
 
-## IN FLIGHT — branch `feat/deserved-vs-actual-in-points`
+## IN FLIGHT — branch `chore/review-economics`
 
-**DESERVED-VS-ACTUAL MOVES TO POINTS, AND TO DOMESTIC LEAGUES ONLY.** Fixes both defects in one
-model, because they are the same block of SQL.
+**CUT THE REVIEW FRICTION.** Directed by the CPO after #806: the process "has to be more economic.
+otherwise we will not build the website in time." Shape chosen discretely: delta re-review, a round
+cap, consult first (over mechanical-only, a full recast, and nothing). Three mechanical changes,
+enforced rather than left to judgement:
 
-The tournament defect: `deserved_rank` ranked all teams 1..N, but a group-stage tournament's
-standing is a position WITHIN a group. Mean absolute rank gap was 3.43 domestic against 8.29 to
-21.46 for the tournament types, over 224 rows. The registry join now restricts it.
+- **Delta re-review.** After round 1, a reviewer that already passed sees only what changed since its
+  pass, judges that plus its own prior findings, and refuses (FAILs) when the delta is too large for
+  its earlier pass to stand. In all six briefs, byte-identical, test-enforced.
+- **Round cap of 3.** `review.md` must carry `rounds: N`; the commit gate and the CI backstop deny
+  past 3 unless `rounds_cap_override: <CPO reason>` is present. Past the cap the builder STOPS and
+  brings findings to the CPO instead of looping.
+- **`consulted:` field.** Required on the same structural surface as `impact_map` (reuses
+  `_is_structural`), so domain findings surface before the build, not in review round three. "nobody,
+  because ..." is legitimate; a bare placeholder is denied.
 
-The move off rank: a fitted line in rank space can predict positions that do not exist, which is
-exactly why the approved mock's hero draws 0.4 and 21.3. Measured over 91 domestic league-seasons /
-1,790 team-seasons, SoT difference vs POINTS is Pearson **+0.84**, and the slope gives the first
-fan-readable magnitude this metric has had: one extra shot on target of difference per match is
-worth about **9.8 points over a 38-game season**.
-
-Six CPO rulings, all logged in `escalations.log` before any code: deserved TOTAL points; keep
-`deserved_rank` but re-derive it from deserved points; gap signed actual minus deserved so NEGATIVE
-means under-performing; names `deserved_points` and `sot_points_gap`; `sot_rank_gap` DROPPED so two
-gaps cannot carry contradictory signs; format whole points.
-
-**Verified against the live warehouse, not asserted:** the real model SQL returns 1,152 domestic
-rows across 55 league-seasons, zero violations on all six data tests, zero non-domestic rows, and
-**zero rank drift against the 864 balanced rows live in the mart today** (the 141 mid-season changes
-are the intended correction, since the real table rewards games played and the old rank ignored
-them). The gap sums to exactly 0 across a balanced season and approximately 0 mid-season.
+Both hooks, the CI backstop, six briefs, both templates, and the two docs agree (swept by grep, not
+memory). Full governance suite 235 passing, up from 215. STILL OWED and not done: reviewer model in
+the routing file; reviewers as peers. **TO FINISH: run the review cycle on the staged hash, write
+`review.md` (with its own `rounds:` line), commit, PR.**
 
 ## NEXT
 
 1. **This change** (in flight).
-2. **The hero block, as a PICTURE.** Now buildable on an honest footing: predicted POINTS is a real
-   continuous quantity, so a fitted line is legitimate where in rank space it was not. Owed to the
-   CPO as something to look at, never as prose. CPO requirement: *"The user needs to see immediately
-   the difference between the actual and the deserved."*
+2. **The hero block, as a PICTURE.** Buildable on an honest footing now that deserved-vs-actual is in
+   POINTS (#806 merged): predicted points is a real continuous quantity, so a fitted line is
+   legitimate where in rank space it was not. Owed to the CPO as something to look at, never as
+   prose. CPO requirement: *"The user needs to see immediately the difference between the actual and
+   the deserved."* The hero must never render for a non-domestic or non-single-ladder competition.
 3. **The team page**, all three tabs, mock `f6348775` with that block replaced. Everything else in
-   that mock is sound and data-backed.
+   that mock is sound and data-backed. This is the change the review-economics work was done to make
+   cheaper.
 
 ---
 

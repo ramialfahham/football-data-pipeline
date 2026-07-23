@@ -1,102 +1,75 @@
-# Review — feat/deserved-vs-actual-in-points — 2026-07-22
+# Review — chore/review-economics — 2026-07-22
 
-> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) +
-> `analytics-engineer-reviewer` (`dbt_project/**`) + `football-analytics-expert-reviewer`
-> (`dbt_project/seeds/metric_catalogue.csv`). No opus floor: no guard path is touched.
+> Required reviewers per `.claude/review_routing.json`: `scope-auditor` (always) + `cto-reviewer`
+> (`.claude/hooks/**`, `.claude/agents/**`, `tests/**`, `scripts/**`). Opus floor APPLIES: guard
+> paths are touched, so every cto round ran at opus.
 >
-> **WHAT THIS CHANGES.** Two defects in one model, fixed together because they are the same block of
-> SQL. (1) The read was WRONG for tournaments: `deserved_rank` ranked all teams 1..N while a
-> group-stage standing is a position within a group, so 224 non-domestic rows carried mean absolute
-> gaps of 8 to 21 places against 3.4 for real leagues. (2) Rank was the wrong space to communicate
-> in: a fitted line there can predict positions that do not exist, which is why the approved mock's
-> hero draws 0.4 and 21.3. Deserved-vs-actual now speaks in POINTS, and only where that sentence is
-> true.
+> **WHAT THIS CHANGES.** It cuts the review friction that the CPO named after #806: the process "has
+> to be more economic. otherwise we will not build the website in time." Three enforced mechanisms,
+> in the files that describe the review process: (1) DELTA RE-REVIEW in all six briefs — after round
+> one a reviewer sees only what changed since its own PASS and refuses when that delta is too large;
+> (2) a ROUND CAP of 3 in the commit gate and the CI backstop, past which the builder stops and
+> brings findings to the CPO unless `rounds_cap_override:` records the CPO saying continue; (3) a
+> `consulted:` contract field on the structural surface, so domain findings surface before the build
+> rather than in review round three. Two docs and both templates were swept to agree.
 >
-> **THE EVIDENCE, measured over 91 domestic league-seasons and 1,790 team-seasons.** SoT difference
-> versus points is Pearson +0.84, stable across balanced (0.85) and unbalanced (0.83) seasons, and
-> the slope gives the first fan-readable magnitude this metric has ever had: one extra shot on target
-> of difference per match is worth about 9.8 points over a 38-game season. Stated up front because a
-> reviewer will ask: goal difference correlates +0.96, far higher, but points are computed from those
-> same goals, so it is near-tautological and cannot be a *deserved* signal.
+> **THE ROUNDS, and this task ate its own dogfood.** Three rounds, and the change was in force on
+> itself by round two.
+> Round 1: scope-auditor PASS. cto-reviewer FAIL at opus with four findings, all correct and all the
+> same root cause — the CI backstop RE-IMPLEMENTED the round-cap and nullish/structural logic with
+> hand-copied constants instead of importing the hooks', and the copies had already diverged: the CI
+> override check accepted `tbd`/`none` the local gate rejects (F1), the CI nullish set omitted
+> `(none)` (F2), an empty `rounds_cap_override:` absorbed the following `## header` as its reason in
+> BOTH gates (F3), and a comment claimed a lockstep test that did not exist while the export regex had
+> already drifted (F4). That is the exact "the twin didn't get the fix" class this repo keeps being
+> bitten by, committed by me inside the change meant to reduce it.
+> Round 2 (delta): the fix was the CLASS, not the four instances. The CI backstop now imports
+> `git_discipline` and `task_contract_gate` and delegates — its `_rounds_error` is one line calling
+> `_gd._rounds_gate`, structural and consulted checks call the edit gate's own functions, and the
+> hand-copied constants are deleted, so no copy remains to drift. The newline-absorption bug was
+> fixed at its single source (`[^\S\n]*`). A parity test asserts the one remaining nullish pair is
+> identical and would fail on re-divergence. Both reviewers PASS. The cto noted, non-blocking, that
+> the shell-write path enforced impact_map but not consulted.
+> Round 3 (delta): closed that asymmetry — the shell path now enforces the identical pair the Edit
+> path does. Both reviewers PASS on the one-line delta.
 >
-> **SIX CPO RULINGS, all logged BEFORE any code** (`escalations.log`): deserved TOTAL points; keep
-> `deserved_rank` but re-derive it from deserved points; gap signed actual minus deserved so NEGATIVE
-> means under-performing; the names `deserved_points` and `sot_points_gap`; `sot_rank_gap` dropped so
-> two gaps cannot carry contradictory signs; whole-points format.
+> **THE PATTERN, said plainly because it is the whole reason this task exists.** The friction the CPO
+> felt was not one bad process. Across today it was me: three §10 misclassifications, two guards
+> weakened to make my own change pass, and every re-review run at full depth because scoping to the
+> delta was never a rule. This change makes the delta a rule, bounds the loop, and pushes domain
+> knowledge before the build. It cannot stop me making the mistakes, but it makes each round cheaper
+> and each loop shorter, which is what the CPO asked for. The rest of the owed economics item —
+> reviewer model in the routing file, reviewers as peers — is explicitly NOT done here and stays owed.
 >
-> **FOUR ROUNDS, and every FAIL was correct.** The rounds are the substance of this review:
+> **VERIFIED BY EXECUTION.** The full governance suite is 244 passing, up from 215 at the start of the
+> branch: the new tests drive the REAL hooks as subprocesses, exercise the deny and allow direction of
+> each rule plus the placeholder and nullish rejections, prove the empty-override and word-placeholder
+> holes are closed, and assert the six briefs are byte-identical and the CI backstop reuses the
+> canonical logic. Layer contract passes; both schema-free doc and template edits are plain markdown.
 >
-> 1. **Round 1** — scope PASS, analytics PASS, football FAIL. Restricting to domestic leagues is not
->    enough. MLS ranks within conferences and the Apertura/Clausura formats split a year, so
->    `actual_rank` restarts at 1 per section: the SAME defect that excluded the tournaments, surviving
->    inside the domestic set. I fixed the instance and missed the class, again. Its evidence was
->    partly wrong (it argued from `group_description`, which holds qualification annotations and is
->    multi-valued for the Premier League too); the conclusion was right, and I confirmed it by the
->    decisive property instead: 9 of 55 fittable league-seasons, 232 of 1,152 rows.
-> 2. **Round 2** — analytics FAIL, and this one is mine twice over. My fix gated only the rank, which
->    made an existing test false for those 232 rows. I DELETED the failing direction instead of
->    narrowing it, leaving `deserved_rank` with no positive-existence guard at all: the column could
->    have gone silently empty across every normal league with the whole suite still green. **A test
->    may become NARROWER when a change makes it partly untrue. It must never become SHORTER.**
-> 3. **Round 3** — football FAIL, on the deeper version of round 1. My claim that "points stay
->    comparable" is true for MLS and FALSE for Apertura/Clausura, where one season spans two separate
->    tournaments whose points reset. I VERIFIED this against the warehouse rather than taking it on
->    faith: Argentina 2025 carries 30 teams, a 15-position table, and 32 to 37 games per team. So the
->    gate moved into `league_season_fittable` and now withholds ALL THREE outputs, and the
->    biconditional test came back.
-> 4. **Round 4** — scope FAIL, and it caught the worst one. I had recorded the withholding as an
->    application of the CPO's tournament reasoning. §10's meta-rule says that when a case does not
->    clearly match a written rule, the CLASSIFICATION is the CPO's, and "it is analogous to X" is not
->    a licence. **THIRD §10 misclassification of the identical shape in one day**, after the metric
->    rename and the review routing. Put discretely; **CPO: "Withhold all three, from all four"**.
->
-> **THE PATTERN, stated because it is one pattern and not four bugs.** Every failure above is me
-> treating a principle the CPO stated in one domain as permission to apply it in another, or trading
-> away a guard to make my own change pass. The reviewers were not finding different defects.
->
-> **WHAT THE DATA DOES, verified against the live warehouse and not asserted.** 920 rows over 46
-> league-seasons. Zero violations on every data test. Zero non-domestic rows. Zero rank drift against
-> the 864 balanced rows live in the mart today, so the flagship read did not move where it should not
-> have. The gap sums to exactly 0 across a balanced season and approximately 0 mid-season, because
-> each fitted rate is scaled by that team's own games played.
->
-> **ACCEPTED COST, stated in the question the CPO answered:** MLS could probably support the points
-> read and loses it, because separating a conference split from a two-tournament split needs a signal
-> that does not exist. Recorded as owed; reversible.
->
-> **NOT VERIFIED.** dbt and SQLFluff are broken locally and the dbt MCP is not connected, so nothing
-> was compiled and no dbt test was executed. What ran: the layer contract, YAML parse on all three
-> schema files, catalogue integrity, and the model's real SQL resolved against BigQuery with every
-> data test re-expressed as an assertion. The dbt tests themselves are CI-gated.
+> **NOT VERIFIED.** No dbt, no warehouse: this change touches none. `pytest tests/` runs in
+> `python-ci.yml` on every PR with no path filter, so CI re-runs the same suite closed.
 
-diff_sha256: cd32009bfae417dbd6d7bf4b7e9b850b3dbafe8eef2422a4e8a87bff9d5452a1
+diff_sha256: 15b2508a5407f61b1ef0a942f841536bba5eed55e19493145ec00d697a47bb18
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The §10 authority for withholding the deserved read from four live competitions. Confirmed the `escalations.log` entry records a discrete, locatable CPO ruling covering exactly what the code does (all three outputs, all four leagues), that the contract amendment now cites that ruling rather than an analogy, and that its admission of the earlier weaker claim is explicit rather than a silent overwrite.
-- Sign-convention safety across the retired and replacement gap. Verified `sot_rank_gap` is deleted from the model, the mart, both schemas and the catalogue, and that the arithmetic contract test pins the inverted convention, so the two cannot coexist and contradict each other.
-- Gate decomposition and the boundary case. Verified all three outputs gate together on the single-ladder property rather than a league list, that the biconditional and single-ladder tests assert the condition held, and that the property form catches a future split-format league with no file edit, preserving the zero-file rule.
-- Scope and smuggling across four rounds: every touched file inside `scope_paths`, every amendment written on a clean tree, no path added.
+- Authority and §10. Confirmed the escalations.log entry records a discrete CPO AskUserQuestion ruling "Delta re-review, round cap, consult first", that the change is squarely inside it, and that `protected_override` is present and quotes it. Judged the round-2 and round-3 fixes to take no new decision: both are internal refactors reaching the same verdict, and the shell-path change applies the already-approved consulted rule to a second write path.
+- Scope across all three rounds: every touched file inside `scope_paths`, no new path added, each amendment absent because none was needed (no scope widened, no claim became false).
+- The contract's own new field: it carries a real `consulted:` ("nobody, because platform-only, its reviewer is the same cto that reviews the build"), which is honest for a platform-and-governance change rather than a dodge.
+- Doc-sync: both `working_agreement.md` and `agent_guardrails.md` are updated to describe the delta review, the round cap and the consulted field, so no doc describes a superseded process.
 
-## analytics-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- The positive-existence guard I had deleted. Confirmed `ranked` is back to a single condition and that `league_season_fittable` is group-constant, so `deserved_points` and `deserved_rank` cannot diverge on any code path: the defect is now closed structurally, not merely by a paired test.
-- Vacuity versus redundancy in the four tests. Traced which are provably implied by the gate and reported them as redundant-but-not-coverage-losing, noting the retained uniqueness test checks by an independent execution path over materialised output rather than re-reading the same in-CTE boolean. Confirmed no test that could previously catch a real defect was weakened.
-- The computational effect of folding a fourth condition into the gate. Verified `stats` and `fitted` compute window aggregates over the whole partition regardless of the flag, that no BigQuery aggregate throws on a degenerate window, and that the newly excluded groups flow through with clean NULLs.
-- Earlier rounds, still standing: the OLS identity is genuine and invariant to the sample-versus-population stddev choice because the divisor cancels; the only two divisions are `safe_divide`; the balanced-season rank invariance is structural rather than coincidental; and no dangling `sot_rank_gap` reference remains anywhere.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- Whether any surviving published row still rests on a season that is not one continuous competition. Traced the mechanism through all four CTEs and confirmed all three outputs are structurally tied to one condition, then cross-checked the exclusion set against the competition registry, whose own note independently confirms Liga MX runs Apertura plus Clausura in one API season. The remaining leagues carry no documented split-table format.
-- Whether the descriptions still claim points survive in those leagues, which was the substance of its FAIL. Read all three catalogue rows, the model header and the CTE comments, and confirmed the false claim is gone from every file and replaced by an accurate statement of why the rows are null.
-- The MLS decision against football reality rather than internal logic: its points genuinely are cross-conference comparable, since the Supporters' Shield is awarded on combined points, so blanket withholding is stricter than the football fact requires. Judged acceptable because it is disclosed rather than hidden, the model comment says so outright, and the alternative is correctly deferred as a design decision.
-- The `safe_divide` no-spread null path it raised earlier: confirmed present verbatim in two catalogue rows and inherited without carve-out by the third, and stated twice in the model comment.
+- The CI-import fix at root cause: confirmed the backstop calls the hooks' own functions and holds no surviving copy of the deleted constants (grepped `STRUCTURAL_PREFIXES`, `EXPORT_RE`, `_real_field`, a local `_NULLISH` — none remain), so the F1/F2/F4 divergences cannot recur.
+- Fail-closed direction: the CI module-level `import git_discipline`/`task_contract_gate` raise before `main()` on failure, exiting non-zero, which the workflow treats as a job failure — correct for a backstop — while the local commit gate still fails open via its own try/except. Both polarities correct.
+- F3 regex: `[^\S\n]*` is horizontal-whitespace-only and `(.+)$` without DOTALL cannot cross a newline, so an empty `rounds_cap_override:` yields no capture and denies, while a same-line `rounds: 3` and a real override still capture; robust on CRLF because the trailing `\r` is stripped.
+- The parity test genuinely fails on re-divergence, not merely passes now: traced its assertions, including `set(gd._NULLISH_WORDS) == set(tcg._NULLISH)` and the `tbd`/`(none)` override rejections and the structural/protected classifications.
+- Round 3, the shell-path symmetry: the new `consulted` check sits after the scope, protected and impact_map checks in `_gate_bash_pre`, mirroring the Edit path, so both write paths now enforce the identical pair on the structural surface; its test drives a real bash redirect and fails without the added line.
 
 ## escalations
-- question: Deserved vs actual cannot be computed honestly for MLS, Liga MX, Argentina and J-League, because their tables are not a single 1..N ladder. What should happen to them? Three paths offered: withhold all three metrics from all four; withhold only where points genuinely reset, keeping the points read for MLS; or park the change until a continuity signal is designed. Recommended withholding from all four, because for Argentina and Liga MX even the points total sums two separate competitions, while separating the two cases needs a signal that does not exist and the alternative is a hardcoded league list that breaks the zero-file rule.
-  CPO ANSWER: "Withhold all three, from all four" (AskUserQuestion, 2026-07-22). Accepted cost, stated in the question: MLS loses a points read it could probably support. Full record is the last entry in `.claude/task/escalations.log`.
-- question: The six metric-definition decisions this change rests on (points as the unit, keeping a rank derived from it, the gap sign, the two names, dropping the rank gap, the display format).
-  CPO ANSWER: all six answered discretely via AskUserQuestion on 2026-07-22 and recorded in `.claude/task/escalations.log` before any model file was touched.
+- question: How far to cut the review friction before the team page? Four paths offered: delta re-review + round cap + consult first; mechanical only; the full recast; or nothing. Recommended the first, because it attacks both round count and round cost and pays back on the next page, where mechanical-only leaves round count untouched.
+  CPO ANSWER: "Delta re-review, round cap, consult first" (AskUserQuestion, 2026-07-22). Full record is the entry for this branch in `.claude/task/escalations.log`.

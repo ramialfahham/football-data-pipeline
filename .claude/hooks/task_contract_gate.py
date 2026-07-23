@@ -226,6 +226,7 @@ def _read_contract(root: str) -> dict | None:
         return None
     scope, in_scope_block, override = [], False, False
     in_impact_block, impact_present = False, False
+    in_consult_block, consult_present = False, False
     in_reserved_block, reserved_lines = False, []
     try:
         for raw in open(path, encoding="utf-8", errors="replace"):
@@ -261,6 +262,7 @@ def _read_contract(root: str) -> dict | None:
             if mr:
                 in_scope_block = False
                 in_impact_block = False
+                in_consult_block = False
                 in_reserved_block = True
                 reserved_lines.append(mr.group(1))
                 continue
@@ -272,6 +274,7 @@ def _read_contract(root: str) -> dict | None:
                     continue
             if re.match(r"^scope_paths\s*:", line):
                 in_impact_block = False      # close, like every other top-level key
+                in_consult_block = False
                 in_reserved_block = False
                 in_scope_block = True
                 continue
@@ -285,6 +288,8 @@ def _read_contract(root: str) -> dict | None:
             mi = re.match(r"^impact_map\s*:(.*)$", line)
             if mi:
                 in_impact_block = True
+                in_consult_block = False
+                in_scope_block = False
                 if _impact_content(mi.group(1)):
                     impact_present = True
                 continue
@@ -293,12 +298,32 @@ def _read_contract(root: str) -> dict | None:
                     in_impact_block = False      # next top-level key ends the block
                 elif _impact_content(line):
                     impact_present = True
+            # `consulted:` mirrors `impact_map:` exactly — same self-closing block,
+            # same `_impact_content` test (a bare `none`/`tbd`/placeholder does not
+            # satisfy it; a real sentence, including "nobody, because ...", does).
+            mc = re.match(r"^consulted\s*:(.*)$", line)
+            if mc:
+                in_consult_block = True
+                in_impact_block = False
+                in_scope_block = False
+                if _impact_content(mc.group(1)):
+                    consult_present = True
+                continue
+            if in_consult_block:
+                if line.strip() and not line.startswith((" ", "\t")):
+                    in_consult_block = False     # next top-level key ends the block
+                elif _impact_content(line):
+                    consult_present = True
             if re.match(r"^protected_override\s*:", line):
+                in_impact_block = False
+                in_consult_block = False
+                in_scope_block = False
                 override = True
     except Exception:
         return None
     return {"scope": scope, "protected_override": override,
             "impact_map_present": impact_present,
+            "consulted_present": consult_present,
             "decisions_reserved_present": _has_real_reservation(reserved_lines)}
 
 
@@ -393,6 +418,24 @@ def _deny_missing_impact_map(rel: str) -> None:
     )
 
 
+def _deny_missing_consulted(rel: str) -> None:
+    # Same structural surface as the impact_map, and the same "before the build"
+    # timing. The impact_map answers "do you know what breaks"; `consulted:`
+    # answers "did you gather the domain knowledge before writing code, or find
+    # out in review". Half of one session's review rounds were domain facts a
+    # reviewer knew before a line was written (CPO 2026-07-22: the process "has
+    # to be more economic"). "Nobody, because <reason>" is a legitimate answer;
+    # a bare `none`/`tbd`/placeholder is not.
+    emit_deny(
+        f"CONTRACT GATE: `{rel}` is on the STRUCTURAL SURFACE, so the contract "
+        "must carry a non-placeholder `consulted:` section BEFORE this edit — who "
+        "you consulted before building (a reviewer role, a doc, a data check), or "
+        "an explicit 'nobody, because ...'. This exists so domain findings surface "
+        "before the build, not in review round three. Add it on a CLEAN tree, then "
+        "proceed. See docs/working_agreement.md §2."
+    )
+
+
 def _gate_file_edit(event: dict, root: str) -> None:
     path = (event.get("tool_input") or {}).get("file_path") or ""
     if not path:
@@ -424,11 +467,15 @@ def _gate_file_edit(event: dict, root: str) -> None:
             if not contract.get("impact_map_present"):
                 _deny_missing_impact_map(rel)
                 return
+            if not contract.get("consulted_present"):
+                _deny_missing_consulted(rel)
+                return
             emit_context(
                 "PreToolUse",
                 f"CONTRACT GATE: protected path `{rel}` allowed via the contract's "
                 "protected_override (CPO-approved governance task) with an "
-                "impact_map present. This edit is part of the PR's audit trail.",
+                "impact_map and a consulted record present. This edit is part of "
+                "the PR's audit trail.",
             )
             return
         _deny_protected(rel)
@@ -441,6 +488,9 @@ def _gate_file_edit(event: dict, root: str) -> None:
         return
     if _is_structural(rel) and not contract.get("impact_map_present"):
         _deny_missing_impact_map(rel)
+        return
+    if _is_structural(rel) and not contract.get("consulted_present"):
+        _deny_missing_consulted(rel)
         return
 
 
@@ -550,6 +600,13 @@ def _gate_bash_pre(event: dict, root: str) -> None:
         # gate (cto-reviewer, 2026-07-22).
         if _is_structural(rel) and not contract.get("impact_map_present"):
             _deny_missing_impact_map(rel)
+            return
+        # consulted is the impact_map's twin on the structural surface — enforced
+        # on the shell path too, so a redirect cannot skip locally what the Edit
+        # path demands (the asymmetry a one-path gate always grows; cto-reviewer,
+        # 2026-07-22).
+        if _is_structural(rel) and not contract.get("consulted_present"):
+            _deny_missing_consulted(rel)
             return
 
 
