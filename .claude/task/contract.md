@@ -1,87 +1,123 @@
-# Task contract — PR-A: minutes_per_appearance on the career mart (Squad tab warehouse prep)
+# Task contract — PR-B: team page Squad tab (export + frontend + sample)
 
-> Written on a CLEAN tree (branch `feat/player-mins-per-appearance` off main at 60900f7, after #813
-> merged and deployed). This is the warehouse half of the Squad-tab build; the build PR (PR-B: export
-> + frontend + sample) follows once this deploys through ci-data-build.
+> Written on a CLEAN tree (branch `feat/team-squad-tab` off main after #813 + #814 merged and
+> DEPLOYED). The warehouse halves are done: `appearances` is corrected (#813) and
+> `minutes_per_appearance` is live in `mart_player_career` (#814, verified in prod: 144,306 played rows
+> carry a value, 26,657 never-played rows are null). This is the consumption + build half.
 
 objective: >
-  Add `minutes_per_appearance` = `safe_divide(minutes, appearances)` to `mart_player_career`, and
-  register it in `metric_catalogue.csv`. This was deferred out of #813 because its denominator
-  (`appearances`) was counting matchday selections; #813 fixed and deployed that, so the ratio can now
-  be computed on a correct denominator (matches actually PLAYED). The Squad tab renders "mins/app" from
-  this column with zero derivation in the export or the frontend (a ratio is a fact — the consumption
-  layer may not compute it).
+  Build the team page Squad tab from the CPO-approved mock `f6348775`: per-player appearances,
+  mins/app, goals, assists, grouped by position (GK -> DEF -> MID -> FWD -> Other), rows ordered by
+  appearances desc, monogram avatars (no photos). The export joins the deployed `mart_player_career`
+  stats onto each squad member; the frontend renders them; the committed sample `33.json` is
+  re-exported so it is real output (binding rule). No warehouse change.
 
 refs: >
-  Plan `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. #813 (merged) fixed `appearances` to
-  `countif(minutes_played > 0)` warehouse-wide and shipped `minutes`. Verified in prod after that
-  deploy: 26,657 zero-appearance rows now exist, so this ratio is null for them (safe_divide by 0) —
-  which makes the null-safe DQ test below non-vacuous, unlike when the mart was appearance-gated.
-  `minutes_played` is a real column of `int_legs__player_match` (the catalogue base_relation).
-  CPO authority for the catalogue row: AskUserQuestion 2026-07-23 — "Catalogue it now" + "Ship minutes
-  only, fix apps next" (see decisions_taken (1)).
+  Plan `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md` (PR2 section). `mart_player_career` (live)
+  has per (player, club, competition-season): appearances (corrected, played-legs), minutes,
+  minutes_per_appearance, goals, assists, plus join keys player_sk / team_sk / league_code /
+  season_api_year. `mart_roster` supplies the full squad (identity, incl. never-played members). The
+  export already fetches roster per team (fetch_team_payloads ~660) and shapes it in shape_team_payload
+  (~244) via `_shape_squad_member` (135). Overview (#810) + Performance (#811) tabs are built; Squad is
+  a coming-state today.
 
 scope_paths:
-  - dbt_project/models/5_marts/shared/mart_player_career.sql
+  - scripts/export_site_data.py
+  - tests/test_export_site_data.py
+  - site_v2/src/components/team/
+  - site_v2/src/pages/
+  - site_v2/src/styles/system.css
+  - site_v2/src/lib/types.ts
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/data/teams/33.json
+  - docs/wireframes/11_team_squad.md
+  - docs/wireframes/99_gaps_register.md
+  - docs/wireframes/00_overview.md
+  - docs/ui_design_brief.md
+  - docs/content_architecture.md
+  - dbt_project/docs/layering.md
+  - dbt_project/models/5_marts/shared/mart_roster.sql
   - dbt_project/models/5_marts/shared/shared.yml
-  - dbt_project/seeds/metric_catalogue.csv
   - .claude/active_work.md
 
 impact_map: >
-  writers: `mart_player_career.sql` is the only writer; it computes the ratio inline via safe_divide
-    from its own `minutes` and `appearances` (both already present). No upstream model changes.
-  downstream: `mart_player_career` is a LEAF mart (grep: zero `ref('mart_player_career')` in models).
-    The only consumer is `scripts/export_site_data.py` via `select *` + `_shape_career_row`, which picks
-    columns by name — the new column is ignored until PR-B wires it. No consumer breaks on merge.
-  metric_catalogue_seed: one added row (`minutes_per_appearance`, player) — governance registration,
-    NOT a code path (the season-metric engine reads the catalogue as documentation, verified in #813).
-    base_relation `int_legs__player_match`, numerator `sum(minutes_played)`, denominator
-    `countif(minutes_played > 0)` — the same played-legs definition as the corrected `appearances`, so
-    the catalogue formula and the mart column agree. Denominator uses `countif(minutes_played > 0)` not
-    `count(*)` (bench legs excluded) and NO coalesce (null > 0 is already not-counted), keeping the
-    *_expr free of null-gates per the standing rule. Satisfies all five catalogue guards (resolvable:
-    both tokens resolve; unique (metric_id, entity); direction + interpretation present; direction
-    `neutral` agrees with lower_is_better false). DEFERRAL NOTE: on a PR the catalogue singular guards
-    run against MAIN's seed via --favor-state, so this row is validated on main's next build
-    post-merge — the normal flow for a catalogue value change; all five checked by hand.
-  layer_rules: marts + a catalogue seed row. `check_layer_contract.py` passes. `minutes_per_appearance`
-    is a derived RATE, so it is catalogue-governed (analytics-engineer ruling on #813); `minutes` and
-    `appearances` remain uncatalogued dimensions.
-  deploy_order: additive `table` rebuild. On merge, ci-data-build recomputes the column; PR-B waits on
-    this deploy before re-exporting the committed sample.
-  blast_radius: bounded / additive. One new column on a leaf mart + one catalogue row. No existing
-    number moves; nothing renamed or dropped. The 26,657 never-played rows carry a null ratio (correct
-    — no mins/app without an appearance).
+  writers: NONE. No warehouse object, no dbt model, no seed. This PR only CONSUMES the already-deployed
+    `mart_player_career` (from #813/#814). The mart is a leaf; this adds a second reader (the team run)
+    beside the existing player run.
+  downstream: consumption only. The export gains a scoped fetch of `mart_player_career` by team_sk
+    (mirroring the existing roster/benchmark fetches) and a SELECT+JOIN in shape_team_payload: each
+    roster member is matched to its career row by (league_code, season_api_year, player_sk) and the four
+    stats attached. No derivation — mins/app is read from the mart column, never divided here
+    (consumption-layer contract). The frontend adds `TeamSquad.astro`, appends squad CSS to system.css,
+    extends the squad-member type, adds i18n, and swaps ONE coming-state div on the teams page.
+  layer_rules: consumption-layer contract (Appendix A5) — select / group / rename / map-to-display only;
+    no fact derived. Position -> group is display mapping (raw `position` carried by the export, grouped
+    in the frontend). `check_layer_contract` does not gate the site; the reviewers enforce it.
+  deploy_order: none for the warehouse (already deployed). The sample `33.json` MUST be regenerated by
+    running the real export against the deployed mart AFTER the code is written, so the committed sample
+    is genuine output (#805 binding rule) — not hand-edited.
+  blast_radius: bounded. Export: additive fetch + additive fields on squad members (a member with no
+    career row -> stats null; the frontend shows only >= 1 appearance). Existing team payload fields,
+    the player run, and other marts are untouched. Frontend: a new component + appended CSS (the
+    two-line `.pstat` variant SCOPED to the squad so the fixture PlayerRow is unaffected) + one swapped
+    div. Static Astro build; nothing deployed (no hosting), so no runtime blast radius.
 
 decisions_taken: >
-  (1) CATALOGUE `minutes_per_appearance` — CPO authority (both AskUserQuestion, 2026-07-23):
-      "Catalogue it now" (the metric IS catalogue-governed, after the analytics-engineer ruled the same
-      on #813), then "Ship minutes only, fix apps next" (defer it until the appearances denominator is
-      fixed). #813 fixed and deployed that denominator, so this PR now executes exactly that authorised
-      sequence: catalogue the ratio, on the corrected appearances. Not a new decision — the recorded
-      one, carried out.
-  (2) Catalogue attributes: entity=player, base_relation=int_legs__player_match,
-      numerator=sum(minutes_played), denominator=countif(minutes_played > 0), format=decimal_0 (a
-      divided value like every other ratio row — `integer` is only for undivided sums, and safe_divide
-      returns FLOAT64; renders identically to integer per site_v2 format.ts), direction=neutral,
-      lower_is_better=false. `neutral` because mins/app is a role/playing-time read with no better/worse
-      pole (a full-90 regular is not "better" than an impact sub) — same call as contribution_share.
-      The direction is the one domain judgement; PROPOSED for the football-analytics-expert to ratify
-      (RATIFIED in review: they confirmed neutral).
+  (1) BUILD the full approved mock's Squad tab — CPO decision 2026-07-23 (AskUserQuestion), settled in
+      the plan. Per-player apps / mins-per-app / goals / assists, position-grouped, monogram avatars.
+  (2) Show squad members with >= 1 appearance, ordered by appearances desc, under an "{n} of {m} shown"
+      caption (m = full roster length) — the mock's "17 of 26" rule. Never-played / no-career-row
+      members are counted in {m}, not listed. Follows the approved mock.
+  (3) Position -> group mapping GK/DEF/MID/FWD from the raw `position` (Goalkeeper/Defender/
+      Midfielder/Attacker), null/other -> "Other"; group order GK -> DEF -> MID -> FWD -> Other. A
+      display mapping, not an export fact.
+  (4) mins/app is read from the mart's `minutes_per_appearance` column; the export and frontend never
+      divide (the reason #814 added the column).
 
 decisions_reserved:
-  - The `direction` of minutes_per_appearance (proposed neutral): a football-domain judgement the
-    football-analytics-expert reviewer ratifies. If they rule higher_better, that is a one-value change.
-  - PR-B (export + frontend + sample re-export + i18n/types/tests) waits on this deploying.
+  - Absent states (11_team_squad.md §6): a season with no roster -> the designed absent state; an
+    unresolved player (null identity) -> omitted (DQ-guarded upstream); a null birth_date -> omit age,
+    keep the rest. Implemented per the mock; flag at review if any needs a CPO call.
+  - The player, competition, and landing pages remain undesigned — not touched here.
 
 done_when:
-  - `mart_player_career.sql` selects `safe_divide(minutes, appearances) as minutes_per_appearance`.
-  - `shared.yml` documents the column + a null-safe DQ test (null iff appearances = 0, non-negative
-    otherwise).
-  - `metric_catalogue.csv` carries the row with the attributes in decisions_taken (2).
-  - `python scripts/check_layer_contract.py` passes; YAML parses.
-  - `ci-data-build` GREEN: dbt build + DQ pass (dbt + SQLFluff do not run locally — CI is the gate;
-    catalogue guards validate post-merge).
+  - Export: `fetch_team_payloads` fetches `mart_player_career` scoped by team_sk; `shape_team_payload`
+    joins career stats onto squad members by (league_code, season_api_year, player_sk);
+    `_shape_squad_member` carries appearances / minutes_per_appearance / goals / assists. A
+    `tests/test_export_site_data.py` case asserts the join keys by player_sk and carries the stats.
+  - Frontend: `TeamSquad.astro` renders position groups (GK->DEF->MID->FWD->Other), rows by apps desc,
+    monogram initials, two-line stat (l1 "{apps} apps · {mins/app} mins/app", l2 "{goals} goals ·
+    {assists} assists", singular/plural), and the "{n} of {m} shown" caption; the teams page renders it
+    in place of the Squad coming-state; the two-line `.pstat` is scoped to the squad; types + i18n
+    (de/en/fi) added.
+  - `data/teams/33.json` re-exported from the deployed mart (real output; the committed sample carries
+    the stats).
+  - `pytest tests/test_export_site_data.py` green; `astro build` clean (3 locales); dev-server render of
+    the Squad tab verified in the browser (groups, ordering, stats, monograms, plural/singular);
+    `validate-local` Tier 1.
   - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
 
-amendments: (none)
+amendments:
+  - 2026-07-24: + docs/wireframes/11_team_squad.md, docs/wireframes/99_gaps_register.md,
+    docs/ui_design_brief.md — authority: bi-analyst + cto review findings (round 1), upheld over the
+    plan's "reconcile as a doc follow-up" deferral because the project convention (14_team_stats.md) is
+    IN-PLACE reconciliation and shipping code that contradicts the locked "identity-only" spec is a live
+    defect. Content: reconcile the three locked docs to the now-statted Squad tab (dated superseded
+    annotations), so no doc contradicts the shipped design. Amended on a clean tree (PR-B changes
+    stashed for the edit).
+  - 2026-07-24: + docs/wireframes/00_overview.md, docs/content_architecture.md — authority: same
+    reviewer findings (bi-analyst + cto, round 2) — the round-1 doc reconciliation fixed the three
+    named docs but did NOT sweep the "identity-only squad" claim across the tree; two more instances
+    survived (the wireframe status index 00_overview.md:68 and content_architecture.md:83). Fix the
+    CLASS: swept all docs (grep) and code comments (export) for the identity-only-squad claim and
+    reconciled every instance. Amended on a clean tree.
+  - 2026-07-24: + dbt_project/docs/layering.md, dbt_project/models/5_marts/shared/mart_roster.sql,
+    dbt_project/models/5_marts/shared/shared.yml — authority: bi-analyst round-3 finding + CPO
+    (AskUserQuestion 2026-07-24, "Fix the 3 lines, then ship", which also authorises a round-cap
+    override). A definitive tree-wide grep (all of docs/ + dbt_project/ + scripts + site_v2) found the
+    stale "no per-club stats (deferred #480)" clause survived in these three dbt mart docs. Fix keeps
+    the ACCURATE "mart_roster carries no stat columns" but removes the stale deferral (the stats ship
+    in mart_player_career, joined at consumption for the Squad tab). Amended on a clean tree.
+  - 2026-07-24: absent-state split — TeamSquad now distinguishes a no-roster season
+    (`squadUnavailable`) from a roster-with-nobody-played season (`squadEmpty`), per
+    11_team_squad.md §6 (bi-analyst finding). In scope already; noted here for the trail.

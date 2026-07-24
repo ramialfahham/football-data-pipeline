@@ -118,6 +118,11 @@ Per season (selector):
   where last season isn't ingested — design the absent state.
 - **Streaks**: current unbeaten / win / winless / clean-sheet / scoring runs.
 - Fixtures: next + recent matches list.
+- **Squad** (added 2026-07-24, built per approved mock f6348775): per player, for the
+  competition-season — appearances (matches played), minutes per appearance, goals, assists —
+  grouped by position (GK/DEF/MID/FWD), monogram avatars (no photos, standing CPO decision).
+  From `mart_player_career` joined onto the roster; members with >= 1 appearance listed, "N of M
+  shown" caption. (mins/app is a catalogue metric; appearances/goals/assists are dimensions.)
 - Signature-moment candidates: deserved-vs-actual visual; YoY trend comparison.
 
 ### 6.3 Landing (home)

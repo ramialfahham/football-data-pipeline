@@ -14,6 +14,7 @@ import DeservedHero from "../../../components/team/DeservedHero.astro";
 import YearOverYear from "../../../components/team/YearOverYear.astro";
 import TeamFixtures from "../../../components/team/TeamFixtures.astro";
 import TeamPerformance from "../../../components/team/TeamPerformance.astro";
+import TeamSquad from "../../../components/team/TeamSquad.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
 import { t } from "../../../i18n/strings";
 import { localeHref } from "../../../lib/href";
@@ -96,10 +97,7 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
     </div>
 
     <div class="page" data-page="squad">
-      <div class="coming">
-        <div class="ct">{t(lang, "comingTitle")}</div>
-        <div class="cb">{t(lang, "comingSquad")}</div>
-      </div>
+      <TeamSquad season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
     </div>
 
     <div class="footnote">{t(lang, "teamFootnote")}</div>

@@ -1,20 +1,29 @@
 # 11 — Team → Squad
 
-> A sub-screen of the team page (02). Field-bound against `mart_roster`
-> (identity-only squad list, #503). The squad payload is **wired** — every key in §5
-> is carried by the team export ([GAP-20](99_gaps_register.md), shipped #619); this
-> spec preceded the wiring PR, the same way 02's fixtures block preceded its data PR
-> (GAP-15 → #607).
+> **SUPERSEDED IN PART, 2026-07-24 (Squad tab built):** this spec was written identity-only.
+> The CPO approved the FULL squad mock `f6348775` (AskUserQuestion 2026-07-23), so the built Squad
+> tab now shows **per-player appearances · mins/app · goals · assists**, grouped by position, on top
+> of the identity fields. The per-club season stats come from `mart_player_career` (appearances +
+> goals + assists shipped #480; `minutes_per_appearance` added later), joined onto each roster member
+> in the export. The "identity only" language below (§1, §5, §10) is HISTORY; the statted design is
+> live. Sections updated in place with dated notes.
+>
+> A sub-screen of the team page (02). Field-bound against `mart_roster` (the roster identity) plus
+> `mart_player_career` (the per-player season stats). The squad payload is **wired** — every key in §5
+> is carried by the team export ([GAP-20](99_gaps_register.md), shipped #619; stats join GAP-22).
 
 ## 1. Purpose
 
 Who plays for this club — the full squad, grouped by position, each player a
 gateway to their profile. This is the **team → player navigation bridge** and a
 programmatic-SEO surface (one indexable roster per team-season), not a
-stop-scrolling "wow" screen. **Honest limit:** identity only today (name,
-position, nationality, age, photo) — appearances and per-club stats are not shown
-because `mart_roster` carries none; they arrive with the per-club player-season
-model (#480, Phase C).
+stop-scrolling "wow" screen. **UPDATED 2026-07-24:** the tab now shows, per player,
+appearances / mins-per-appearance / goals / assists for the competition-season (joined from
+`mart_player_career`), grouped by position, alongside the identity fields (name, position,
+nationality, age, monogram avatar — no photo, standing CPO decision). Members with `>= 1`
+appearance are listed, ordered by appearances desc, under an "N of M shown" caption; never-played
+squad members are counted in M but not listed. (Was: "identity only today ... per-club stats are
+not shown because mart_roster carries none" — that limit no longer holds.)
 
 ## 2. URL
 
@@ -67,11 +76,16 @@ absent state; a team with no roster at all is not generated (see §6).
 └────────────────────────────────────────────┘
 ```
 
+> NOTE (2026-07-24): the ASCII above is an illustrative sketch drawn for the identity-only draft
+> (hence "[photo]" and no stats). The BUILT tab uses monogram avatars (no photos) and each row also
+> carries the season stats per §5 — apps · mins/app · goals · assists on a second line.
+
 **Above the fold**: identity + selector + the first position group(s). Groups
 render in football order (Goalkeepers → Defenders → Midfielders → Forwards).
 
 **Desktop (≥ ~900px)**: position groups as a multi-column grid (group headers span
-the row); each player is a compact card (photo, name, nationality, age).
+the row); each player is a row (monogram, name, nationality, age, and the season stats:
+appearances, mins per appearance, goals, assists).
 
 ## 5. Module bindings
 
@@ -96,8 +110,19 @@ Squad members come from the selected season's `squad[]`. All keys **wired** (GAP
 | Photo | `squad[].photo` | `player_photo_url` | avatar; null → monogram |
 | Link / slug | `squad[].player_id` (+ name) | `player_sk` | player-profile URL (slug rule = player page 03) |
 
-No metric rows — `mart_roster` is identity-only. Position-group header labels are
-**new i18n keys** (copy work, not metric labels; catalogue untouched).
+**UPDATED 2026-07-24 — per-player season stats now bound** (joined from `mart_player_career` by
+`player_sk` within (league_code, season) in the export):
+
+| Field | Payload key | Source column | Notes |
+|-------|-------------|---------------|-------|
+| Appearances | `squad[].appearances` | `mart_player_career.appearances` | matches actually played (minutes > 0) |
+| Mins per appearance | `squad[].minutes_per_appearance` | `mart_player_career.minutes_per_appearance` | catalogue metric (neutral); read, never divided in the frontend |
+| Goals | `squad[].goals` | `mart_player_career.goals` | competition-season |
+| Assists | `squad[].assists` | `mart_player_career.assists` | competition-season |
+
+Position-group header labels are **new i18n keys** (copy work, not metric labels). Only
+`minutes_per_appearance` is a catalogue metric; appearances / goals / assists are dimensions.
+(Was: "No metric rows — mart_roster is identity-only.")
 
 ### (5) Internal links
 
@@ -137,13 +162,15 @@ player row → the player profile (03).
 ## 9. Component census
 
 Breadcrumb · profile header (team) · competition-/season selector · **position-group
-header ➕** · **squad player row ➕** (photo · name · nationality · age, links to
-profile) · empty/absent state · internal-links footer.
+header ➕** · **squad player row ➕** (monogram · name · nationality · age · apps · mins/app ·
+goals · assists, links to profile) · empty/absent state · internal-links footer.
 
 ## 10. Gaps
 
 - [GAP-20](99_gaps_register.md) — **shipped #619**: `mart_roster` (built #503) is now
   carried by the team export as a per-season `squad[]` block (selects/reshapes only,
   byte-stable player_sk order, null-identity members omitted).
-- Stats/appearances on the squad are deferred to #480 (per-club player-season model,
-  Phase C) — out of scope for this identity-only screen.
+- ~~Stats/appearances on the squad are deferred to #480 ... out of scope for this identity-only
+  screen.~~ **DONE 2026-07-24:** #480 shipped appearances/goals/assists and a later PR added
+  `minutes_per_appearance`; the export now joins `mart_player_career` onto each squad member and the
+  built Squad tab shows apps / mins-per-app / goals / assists (GAP-22). No longer deferred.

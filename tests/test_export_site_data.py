@@ -372,9 +372,15 @@ def test_shape_team_payload_attaches_squad_per_season_omits_null_name():
     # sorted by player_sk (byte-stable), the null-name member omitted
     assert [m["player_id"] for m in s2025["squad"]] == [1, 9, 30]
     assert [m["name"] for m in s2025["squad"]] == ["Neuer", "Kane", "Kimmich"]
-    # each member carries only the six identity-only display keys
+    # each member carries the identity keys + the four per-season stat keys (null here: no career rows)
     assert set(s2025["squad"][0]) == {
-        "player_id", "name", "position", "nationality", "birth_date", "photo"}
+        "player_id", "name", "position", "nationality", "birth_date", "photo",
+        "appearances", "minutes_per_appearance", "goals", "assists"}
+    assert all(
+        m["appearances"] is None and m["minutes_per_appearance"] is None
+        and m["goals"] is None and m["assists"] is None
+        for m in s2025["squad"]
+    )
     for internal in ("team_sk", "league_code", "season_api_year", "player_team_season_sk",
                      "season_sk", "competition_type", "entity_type", "player_sk"):
         assert all(internal not in m for m in s2025["squad"])
@@ -387,6 +393,37 @@ def test_shape_team_payload_squad_defaults_empty_without_roster():
              "team_name": "Arsenal", "team_country": "England", "team_logo_url": "u"}]
     p = shape_team_payload(rows)
     assert p["seasons"][0]["squad"] == []
+
+
+def test_shape_team_payload_joins_career_stats_to_squad_by_player_sk():
+    rows = [{"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
+             "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u"}]
+    roster = [
+        {"team_sk": 157, "player_sk": 9, "league_code": "BL1", "season_api_year": 2025,
+         "player_name": "Kane", "player_position": "Attacker", "player_nationality": "England",
+         "player_birth_date": "1993-07-28", "player_photo_url": "p"},
+        {"team_sk": 157, "player_sk": 1, "league_code": "BL1", "season_api_year": 2025,
+         "player_name": "Neuer", "player_position": "Goalkeeper", "player_nationality": "Germany",
+         "player_birth_date": "1986-03-27", "player_photo_url": "p"},
+    ]
+    career = [
+        # Kane: a career row for THIS season -> stats join; his 2024 row must NOT match 2025
+        {"team_sk": 157, "player_sk": 9, "league_code": "BL1", "season_api_year": 2025,
+         "appearances": 30, "minutes_per_appearance": 88.0, "goals": 26, "assists": 8},
+        {"team_sk": 157, "player_sk": 9, "league_code": "BL1", "season_api_year": 2024,
+         "appearances": 32, "minutes_per_appearance": 90.0, "goals": 36, "assists": 8},
+        # Neuer: no career row -> stats null (never appeared in a finished-match squad)
+    ]
+    p = shape_team_payload(rows, None, roster, None, None, career)
+    squad = {m["player_id"]: m for m in p["seasons"][0]["squad"]}
+    # joined by (league_code, season, player_sk); the 2024 row did not leak into 2025
+    assert squad[9]["appearances"] == 30
+    assert squad[9]["minutes_per_appearance"] == 88.0
+    assert squad[9]["goals"] == 26 and squad[9]["assists"] == 8
+    # no career row -> nulls (the frontend shows only members with >= 1 appearance)
+    assert squad[1]["appearances"] is None
+    assert squad[1]["minutes_per_appearance"] is None
+    assert squad[1]["goals"] is None and squad[1]["assists"] is None
 
 
 def test_shape_team_benchmark_member_carries_mart_columns():

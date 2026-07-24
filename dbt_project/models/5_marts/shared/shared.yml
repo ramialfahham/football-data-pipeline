@@ -1019,12 +1019,12 @@ models:
 
   - name: mart_roster
     description: >
-      Identity-only club squad list (the Squad block; content_architecture §3). One row per
+      Club roster identity list — feeds the Squad tab alongside mart_player_career (content_architecture §3). One row per
       rostered player per (club team, competition-season), from dim_player_team_season_mapping
       joined to dim_player. Scoped to club competitions (entity_type = 'club', via
       competition_registry + competition_types — never a dim_team flag). Identity only: name,
-      listed position, nationality, birth_date, photo; NO per-club season stats (the deferred
-      per-club grain, #480 §8.3). Age is derived at render from player_birth_date (a stored age
+      listed position, nationality, birth_date, photo; NO per-club stat columns of its own — the
+      Squad tab's per-player stats come from mart_player_career (#480), joined at the export. Age is derived at render from player_birth_date (a stored age
       would be non-deterministic). dim_player is LEFT-joined so a membership with no player
       entity surfaces via the relationships test, not a silent drop. View. league_code is the
       partition key; season_sk is nullable (roster season with no competition-season row).

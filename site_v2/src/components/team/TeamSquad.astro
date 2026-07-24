@@ -1,0 +1,116 @@
+---
+// Team page Squad tab (mock f6348775): the squad for this competition-season, grouped by
+// position (GK -> DEF -> MID -> FWD -> Other), each player with appearances · mins/app and
+// goals · assists. The stats are JOINED in the export from mart_player_career; this component
+// only groups, orders and formats — it derives no fact (mins/app is the mart's column). Only
+// members with >= 1 appearance are listed; the caption shows "{shown} of {rostered}". Monogram
+// avatars, no photos (standing CPO decision 2026-07-22).
+import { decimal0 } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { TeamSeason, SquadMember } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  teamName: string;
+  compName: string;
+  lang: Lang;
+}
+const { season, compName, lang } = Astro.props;
+
+// raw provider position word -> display group + its plural header key. The provider uses
+// "Attacker" or "Forward" for the front line; both map to forwards. Anything else -> Other.
+const GROUPS = [
+  { key: "gk", label: "squadGk", match: ["goalkeeper"] },
+  { key: "def", label: "squadDef", match: ["defender"] },
+  { key: "mid", label: "squadMid", match: ["midfielder"] },
+  { key: "fwd", label: "squadFwd", match: ["attacker", "forward"] },
+  { key: "other", label: "squadOther", match: [] as string[] },
+];
+function groupOf(position: string | null | undefined): string {
+  const p = (position ?? "").trim().toLowerCase();
+  for (const g of GROUPS) if (g.match.includes(p)) return g.key;
+  return "other";
+}
+
+// build-time age from birth_date (display only, like a formatted date — not a stored fact);
+// omitted when birth_date is absent or unparseable.
+const NOW = new Date();
+function age(birth: string | null | undefined): number | null {
+  if (!birth) return null;
+  const d = new Date(birth);
+  if (Number.isNaN(d.getTime())) return null;
+  let a = NOW.getFullYear() - d.getFullYear();
+  const md = NOW.getMonth() - d.getMonth();
+  if (md < 0 || (md === 0 && NOW.getDate() < d.getDate())) a -= 1;
+  return a;
+}
+function initials(name: string | null | undefined): string {
+  return (name ?? "")
+    .split(/\s+/)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+const roster: SquadMember[] = season.squad ?? [];
+const played = roster.filter((m) => (m.appearances ?? 0) >= 1);
+const shown = played.length;
+const rostered = roster.length;
+
+// group -> members ordered by appearances desc (name breaks ties for a stable render)
+const groups = GROUPS.map((g) => ({
+  label: g.label,
+  members: played
+    .filter((m) => groupOf(m.position) === g.key)
+    .sort(
+      (a, b) =>
+        (b.appearances ?? 0) - (a.appearances ?? 0) ||
+        (a.name ?? "").localeCompare(b.name ?? ""),
+    )
+    .map((m) => {
+      const a = age(m.birth_date);
+      return {
+        id: m.player_id,
+        name: m.name,
+        initials: initials(m.name),
+        sub: a !== null ? `${m.nationality ?? ""} · ${a}` : (m.nationality ?? ""),
+        apps: m.appearances ?? 0,
+        mpa: m.minutes_per_appearance,
+        goals: m.goals ?? 0,
+        assists: m.assists ?? 0,
+      };
+    }),
+})).filter((g) => g.members.length > 0);
+---
+
+{rostered === 0 ? (
+  <div class="coming"><div class="cb">{t(lang, "squadUnavailable")}</div></div>
+) : shown === 0 ? (
+  <div class="coming"><div class="cb">{t(lang, "squadEmpty")}</div></div>
+) : (
+  <div class="squad">
+    <p class="pagecap">
+      {compName} · {t(lang, "seasonToDate")} · {t(lang, "squadShown", { shown, rostered })}
+    </p>
+    {groups.map((g) => (
+      <>
+        <div class="vs-group">{t(lang, g.label)}</div>
+        {g.members.map((m) => (
+          <div class="prow">
+            <span class="pphoto">{m.initials}</span>
+            <span class="pname">
+              <div class="nm">{m.name}</div>
+              <div class="ps">{m.sub}</div>
+            </span>
+            <span class="pstat">
+              <span class="l1"><b>{m.apps}</b>{" "}{t(lang, m.apps === 1 ? "appOne" : "appMany")}{" · "}<b>{decimal0(m.mpa, lang)}</b>{" "}{t(lang, "minsPerApp")}</span>
+              <span class="l2"><b>{m.goals}</b>{" "}{t(lang, m.goals === 1 ? "goalOne" : "goals")}{" · "}<b>{m.assists}</b>{" "}{t(lang, m.assists === 1 ? "assistOne" : "assists")}</span>
+            </span>
+          </div>
+        ))}
+      </>
+    ))}
+  </div>
+)}

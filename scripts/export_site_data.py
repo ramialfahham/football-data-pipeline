@@ -132,13 +132,15 @@ def _shape_team_fixture(row: dict) -> dict:
     return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
 
 
-def _shape_squad_member(row: dict) -> dict:
-    """One mart_roster row -> an identity-only squad member (GAP-20). Internal keys
-    (team_sk, league_code, season_api_year, player_team_season_sk, season_sk,
-    competition_type, entity_type) are dropped. player_position is carried RAW — the
-    GK/DEF/MID/ATT grouping is frontend display, not an export derivation. No slug
-    (the frontend slugifies from player_id + name; slug migration is GAP-19). No
-    per-club stats — that is #480 / Phase C."""
+def _shape_squad_member(row: dict, career: dict | None = None) -> dict:
+    """One mart_roster row -> a squad member. Identity from the roster row; the per-club
+    season stats (appearances / mins-per-app / goals / assists) are JOINED from that
+    player's mart_player_career row for the same (league_code, season) — selection, not
+    derivation: minutes_per_appearance is the mart's precomputed column, never divided
+    here. A member with no career row never appeared in a finished-match squad -> stats
+    null (the Squad tab shows only members with >= 1 appearance). player_position is
+    carried RAW — the GK/DEF/MID/ATT grouping is frontend display. Internal keys
+    (team_sk, season_sk, ...) are dropped; no slug (the frontend slugifies)."""
     return {
         "player_id": int(row["player_sk"]),
         "name": row.get("player_name"),
@@ -146,6 +148,10 @@ def _shape_squad_member(row: dict) -> dict:
         "nationality": row.get("player_nationality"),
         "birth_date": row.get("player_birth_date"),
         "photo": row.get("player_photo_url"),
+        "appearances": career.get("appearances") if career else None,
+        "minutes_per_appearance": career.get("minutes_per_appearance") if career else None,
+        "goals": career.get("goals") if career else None,
+        "assists": career.get("assists") if career else None,
     }
 
 
@@ -195,13 +201,16 @@ def shape_team_payload(
     roster_rows: list[dict] | None = None,
     benchmark_rows: list[dict] | None = None,
     scatter_index: dict | None = None,
+    career_rows: list[dict] | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
 
     profile_rows: every (team, competition-season) profile row for a single team_sk.
     fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
-    roster_rows: that team's mart_roster rows (identity-only squad, per season; GAP-20).
+    roster_rows: that team's mart_roster rows (the roster identity, per season; GAP-20).
+    career_rows: that team's mart_player_career rows — per-player season stats joined onto the
+        roster below (GAP-22).
     benchmark_rows: that team's mart_team_competition_benchmarks rows (rank-vs-league per season; GAP-23).
     """
     latest = _latest_season_row(profile_rows)
@@ -226,6 +235,13 @@ def shape_team_payload(
         benchmark_by_season.setdefault(
             (br.get("league_code"), br.get("season_api_year")), []
         ).append(br)
+    # Squad tab: per-player season stats keyed by (league_code, season, player_sk), joined onto each
+    # squad member below. mart_player_career is per-club, so this key uniquely picks the member's row.
+    career_by_key: dict = {}
+    for cr in career_rows or []:
+        career_by_key[
+            (cr.get("league_code"), cr.get("season_api_year"), cr.get("player_sk"))
+        ] = cr
 
     seasons_out = []
     for r in seasons:
@@ -238,12 +254,18 @@ def shape_team_payload(
         )
         s["next_fixture"] = _shape_team_fixture(nxt) if nxt else None
         s["recent_results"] = [_shape_team_fixture(fr) for fr in recent]
-        # GAP-20: identity-only squad for this (competition, season). Omit unresolved-player
+        # GAP-20 + Squad tab: the roster for this (competition, season), each member joined to its
+        # per-player career stats (career_by_key) below. Omit unresolved-player
         # rows (null player_name — guarded upstream by the player_sk->dim_player relationships
         # DQ test); byte-stable order by player_sk (the frontend groups by position + sorts).
         squad_rows = roster_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
         s["squad"] = [
-            _shape_squad_member(rr)
+            _shape_squad_member(
+                rr,
+                career_by_key.get(
+                    (rr.get("league_code"), rr.get("season_api_year"), rr.get("player_sk"))
+                ),
+            )
             for rr in sorted(squad_rows, key=lambda rr: rr["player_sk"])
             if rr.get("player_name") is not None
         ]
@@ -655,7 +677,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     else:
         fx_sql = f"select * from {fx_table} where {fx_where}"
     fixtures_by_team = _group_by(_query(client, fx_sql), "team_sk")
-    # GAP-20: identity-only squad per (team, competition-season) from mart_roster. Scope to the
+    # GAP-20: the roster (identity) per (team, competition-season) from mart_roster. Scope to the
     # sampled teams on a sample run; whole-table otherwise (selection, not derivation).
     roster_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_roster`"
     if sample:
@@ -674,10 +696,19 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     else:
         bench_sql = f"select * from {bench_table}"
     bench_by_team = _group_by(_query(client, bench_sql), "team_sk")
+    # Squad tab: per-player season stats from mart_player_career, scoped by team_sk on a sample run
+    # (like the roster/benchmark blocks); shape_team_payload joins them onto squad members. Selection.
+    career_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_career`"
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        career_sql = f"select * from {career_table} where team_sk in ({id_list})"
+    else:
+        career_sql = f"select * from {career_table}"
+    career_by_team = _group_by(_query(client, career_sql), "team_sk")
     return [
         shape_team_payload(
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
-            bench_by_team.get(t, []), scatter_idx,
+            bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []),
         )
         for t in team_ids
     ]
