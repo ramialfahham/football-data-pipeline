@@ -125,10 +125,12 @@ select
     wc.appearances,
     -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics,
     -- same class as appearances/goals/assists — a playing-time dimension, not a catalogue metric).
-    -- A minutes_per_appearance ratio is deliberately NOT computed here: it is a catalogue-governed
-    -- rate (analytics-engineer ruling 2026-07-23), so it lands with its metric_catalogue row in the
-    -- PR that consumes it, now that `appearances` is a real appearance count to divide by.
     wc.minutes,
+    -- mins/app for the Squad tab, computed here so the consumption layer never divides. A
+    -- catalogue-governed rate (metric_catalogue: minutes_per_appearance). safe_divide -> null when
+    -- appearances = 0 (a squad member who never played), which is honest: no mins/app without an
+    -- appearance. `appearances` here is the corrected played-legs count (#813).
+    safe_divide(wc.minutes, wc.appearances) as minutes_per_appearance,
     wc.goals,
     wc.assists,
     wc.national_appearances_total,
