@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-24**. Team page COMPLETE (all 3 tabs merged). `feat/site-v2-real-data` (real-data wiring) reviewed and up._
+_Last updated **2026-07-24**. main GREEN at **8d89792**, tree clean. Team page + real-data wiring both MERGED. NOTHING in flight — the next chat picks from NEXT below._
 
 ---
 
@@ -26,7 +26,7 @@ verified against the repo on 2026-07-22.
 | # | Group | Status | What is left |
 |---|-------|--------|--------------|
 | 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
-| 2 | **Real data** | reviewed → PR | The build now CONSUMES the real export (team + fixture pages enumerate via `import.meta.glob`; full competitions map); `feat/site-v2-real-data`. See IN FLIGHT. Deploy automation is group 3. |
+| 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
 | 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
 | 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
@@ -150,30 +150,25 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## DONE 2026-07-24 — the whole TEAM PAGE (Overview #810 + Performance #811 + Squad PR-B, all merged)
+## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (#810 #811 #813 #814 PR-B, merged)
 
-Squad-tab warehouse: **#813** fixed `appearances` warehouse-wide to `countif(minutes_played > 0)`
-(played legs, not squad selections) + added `minutes`; **#814** added `minutes_per_appearance`
-(catalogue metric, `neutral`). Both deployed. Squad tab frontend (PR-B, merged): position-grouped
-per-player apps/mins-per-app/goals/assists, monogram avatars. Team page (all 3 tabs) is COMPLETE.
+⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed
+warehouse-wide in #813 (it was counting matchday selections incl. unused subs). `mart_player_career`
+gained `minutes` + `minutes_per_appearance` (catalogue metric, `neutral`). Team page: all 3 tabs live.
 
-## IN FLIGHT — branch `feat/site-v2-real-data` (reviewed → PR). REAL DATA (launch group 2).
+## DONE 2026-07-24 — REAL DATA wiring (#818 MERGED, launch group 2)
 
-The build now consumes the REAL export instead of one committed sample. Team + fixture
-`getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json` via `import.meta.glob` (one page per
-file); the export emits a full registry-derived `competitions.json` (45 leagues, committed);
-`.gitignore` keeps the two samples and ignores the bulk (populated at build time, never committed).
-All four reviewers PASS. Verified: dev/PR build = 9 pages (samples only, unchanged); a raised-heap
-full build = **14,874 pages across 26 leagues**; all 4498 fixtures resolve their competition slug.
+The build CONSUMES the real export: team + fixture `getStaticPaths` enumerate
+`src/data/{teams,fixtures}/*.json` via `import.meta.glob`; the export emits the full 45-league registry
+`competitions.json`; `.gitignore` keeps the 2 samples, ignores the bulk (built at build time, never
+committed). Proven: raised-heap build = 14,874 pages / 26 leagues; dev build (samples) unchanged.
 
 ⚠️ **Default-heap `astro build` OOMs on the full set** — a deploy-time ceiling, NOT a wiring bug
-(succeeds at `NODE_OPTIONS=--max-old-space-size=8192`). Mitigation (raise the heap, or long-tail
-on-demand) belongs to the deploy/hosting phase (group 3). Player + competition pages stay OUT
-(undesigned, group 1).
+(builds at `NODE_OPTIONS=--max-old-space-size=8192`); the heap setting / long-tail on-demand belongs to
+the deploy job (group 3).
 
-Local note: the scale-verify left ~5000 gitignored bulk files in `site_v2/src/data/{teams,fixtures}/`
-(sandbox blocked their deletion). They are gitignored (not committed); `git clean -fX site_v2/src/data`
-clears them so a local dev build doesn't OOM.
+⚠️ **Local cruft:** the scale-verify left ~5000 gitignored bulk files in `site_v2/src/data/` (sandbox
+blocked deletion; NOT committed). Run `git clean -fX site_v2/src/data` before a local dev build, else OOM.
 
 ## NEXT
 
@@ -181,10 +176,13 @@ clears them so a local dev build doesn't OOM.
    (daily rebuild after the 04:00 pipeline); this is where the raised-heap build setting lands. CPO
    decision (vendor) open.
 2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
-3. **Whole-site em-dash / AI-tell sweep** — CPO must (2026-07-24), lower priority: replace em/en dashes
-   in the display strings (mainly `i18n/strings.ts`) + add a guard. Spawned as a task. Plus two chipped
-   doc fast-follows (site_v2 data/README, GAP-22→GAP-20 cross-ref).
-3. **Player, competition, landing pages** — designed later; do not build undesigned pages.
+3. **Small follow-ups** (here in case the task chips don't survive a restart):
+   - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
+     display strings (`site_v2/src/i18n/strings.ts`: `aboutWithH2h`, deserved-hero verdicts,
+     coming-states) with natural punctuation + a guard. Transparent AI text must not LOOK AI-generated.
+   - **site_v2/src/data/README.md** stale (says one sample) → update to the real-data setup.
+   - **content_architecture.md** cites "GAP-22" for squad stats; it's GAP-20.
+   - **fixture PlayerRow** renders "1 assists"/"1 goals" → use the Squad tab's singular i18n pattern.
 
 ---
 
