@@ -1,15 +1,16 @@
 {{ config(materialized='view') }}
 
 {#
-  mart_roster — identity-only club squad list (the Squad block; content_architecture §3).
+  mart_roster — the club roster identity for the Squad tab (feeds it alongside mart_player_career; content_architecture §3).
   One row per rostered player per (club team, competition-season), from
   dim_player_team_season_mapping joined to dim_player for identity. Scoped to CLUB
   competitions (entity_type = 'club', resolved league_code -> competition_registry ->
   competition_types — mirrors mart_standings; never a dim_team flag, per the
   dim_team-is-a-pure-entity ruling).
 
-  Identity only: name, listed position, nationality, birth_date, photo. NO per-club season
-  stats / appearances — that is the deferred per-club grain (#480 §8.3). Age is a render-time
+  Identity only: name, listed position, nationality, birth_date, photo. This mart carries NO
+  per-club stat columns of its own; the Squad tab's per-player stats (appearances / mins-per-app /
+  goals / assists) come from mart_player_career (#480), joined onto the roster at the export. Age is a render-time
   derivation, so the mart carries player_birth_date, not a (non-deterministic) stored age.
 
   dim_player is LEFT-joined so a membership with no resolvable player entity is NOT silently

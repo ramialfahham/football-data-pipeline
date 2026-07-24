@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-23**. main at **ffece82**; `feat/player-career-minutes` (PR #813) rebased on it._
+_Last updated **2026-07-24**. main has #813 + #814 (Squad warehouse, deployed); `feat/team-squad-tab` (PR-B, Squad tab) reviewed and up._
 
 ---
 
@@ -25,7 +25,7 @@ verified against the repo on 2026-07-22.
 
 | # | Group | Status | What is left |
 |---|-------|--------|--------------|
-| 1 | **Pages** | 2 of 5 | Fixture (#672) + team page **Overview (#810) + Performance (#811)** merged. **Squad tab PLANNED** (full-mock with stats, 2 PRs — see IN FLIGHT). Player, competition, landing pages not designed. |
+| 1 | **Pages** | 2 of 5 | Fixture (#672) + team page **complete** once PR-B merges (Overview #810 + Performance #811 merged; **Squad tab** reviewed → PR-B). Player, competition, landing pages not designed. |
 | 2 | **Real data** | not started | The build renders from ONE committed sample fixture. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav; nothing consumes a real export yet. |
 | 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
@@ -150,32 +150,33 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## DONE — `appearances` fix + `minutes` (#813, MERGED + DEPLOYED 2026-07-24)
+## DONE — Squad-tab warehouse (#813 + #814, MERGED + DEPLOYED 2026-07-24)
 
-#813 fixed `appearances` warehouse-wide to `countif(minutes_played > 0)` (played legs, not squad
-selections) and added `minutes` to `mart_player_career`. Deployed via ci-data-build; verified in prod:
-26,657 zero-appearance rows now exist (never-played members kept, reading 0), `minutes` populated.
+- **#813**: fixed `appearances` warehouse-wide to `countif(minutes_played > 0)` (played legs, not squad
+  selections); added `minutes` to `mart_player_career`. Verified in prod: 26,657 zero-appearance rows
+  (never-played members kept at 0).
+- **#814**: added `minutes_per_appearance` (`safe_divide`, catalogue metric, direction `neutral`) to
+  `mart_player_career`. Deployed; 144,306 played rows carry a value, avg 60.5.
 
-## IN FLIGHT — branch `feat/player-mins-per-appearance` (PR-A, reviewed → PR). WAREHOUSE.
+## IN FLIGHT — branch `feat/team-squad-tab` (PR-B, reviewed → PR). EXPORT + FRONTEND.
 
-The Squad tab's `minutes_per_appearance`, deferred out of #813 until its denominator was correct. Adds
-`safe_divide(minutes, appearances) as minutes_per_appearance` to `mart_player_career` + its
-`metric_catalogue` row (direction `neutral`, ratified by the football reviewer) + a null-safe DQ test.
-All three reviewers PASS. Merge → ci-data-build deploys → then PR-B (the build).
-
-**Squad tab is PLANNED and CPO-approved — full detail in the plan:**
-`C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. CPO 2026-07-23: the **FULL mock** `f6348775`
-Squad — per-player **appearances · mins/app · goals · assists**, grouped by position, monogram avatars
-(no photos), NOT the identity-only `11_team_squad.md` (reconcile that spec as a doc follow-up). Two
-sequenced PRs: PR1 = #813 above (warehouse; it grew from just `minutes` into the appearances fix); PR2
-(after #813 deploys) = export join + `TeamSquad.astro` + re-export `33.json` + i18n/types + the
-`minutes_per_appearance` catalogue row (`direction: neutral` proposed, football-expert not yet asked).
+The team page **Squad tab** built from the CPO-approved mock `f6348775` (the last of its three tabs).
+Export joins `mart_player_career` onto each roster member by `player_sk` (selection only);
+`TeamSquad.astro` renders position groups (GK→DEF→MID→FWD→Other), rows by appearances desc, monogram
+avatars, a two-line stat readout (apps · mins/app / goals · assists); `33.json` re-exported (real
+output); types + i18n (de/en/fi); absent-state split (no-roster vs nobody-played). Also reconciled the
+now-superseded "identity-only squad" framing across all docs + dbt mart comments (a 5-round bi-analyst
+sweep; CPO authorised the round-cap override to finish it). All four reviewers PASS. Verified: astro
+build clean (3 locales), 27 rows render for Man Utd, fixture PlayerRow unaffected. This is the LAST
+team-page tab — team page complete once this merges.
 
 ## NEXT
 
-1. **Squad PR2** once #813 merges and `ci-data-build` deploys — see the plan file. Finishes the team page.
-2. **Real data (launch group 2)** — wire the export into the build so real teams/fixtures render, not
+1. **Real data (launch group 2)** — wire the export into the build so real teams/fixtures render, not
    one committed sample. Biggest gap to "live"; not blocked on any CPO decision. See hosting note below.
+2. **Whole-site em-dash / AI-tell sweep** — CPO must (2026-07-24), lower priority than the pages:
+   replace em dashes + en-dash records in the display strings (mainly `i18n/strings.ts`) with natural
+   punctuation + add a guard. Spawned as a task. (Also a minor GAP-22→GAP-20 doc cross-ref to fix.)
 3. **Player, competition, landing pages** — designed later; do not build undesigned pages.
 
 ---

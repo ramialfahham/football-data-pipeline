@@ -65,7 +65,7 @@ Every screen file follows this structure:
 | 08 | 08_browse.md | Competitions index + country hubs | pending | 4 |
 | 09 | 09_chrome.md | Nav/header/footer/search/locale/404 | pending | 4 |
 | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
-| 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster list, identity-only) | **spec'd** | #391 ⁑ |
+| 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
 | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
 | 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats (rank vs league) | **spec'd** | #391 ⁑ |
@@ -119,7 +119,7 @@ inventory, flagged as new for the design system (#366).
 | Bundled stat row (player contract) | 03 | player row ✓ |
 | Match-log row | 03 | ➕ |
 | Position-group header | 11 | ➕ |
-| Squad player row (photo · name · nationality · age) | 11 | player row ✓ |
+| Squad player row (monogram · name · nationality · age · apps · mins/app · goals · assists) | 11 | player row ✓ |
 | Club group header (crest + name) | 13 | ➕ |
 | Career-log row (season · comp · apps · goals · assists) | 13 | player row ✓ |
 | Subtotal / career-total line | 13 | ➕ |

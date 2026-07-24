@@ -160,6 +160,24 @@ export interface Benchmark {
   vs_median_delta?: number | null;
 }
 
+/** One squad member (mart_roster identity + the per-club season stats joined from
+ * mart_player_career by player_sk). Stats are null when the player has no career row
+ * (never appeared in a finished-match squad); the Squad tab lists only >= 1 appearance.
+ * `position` is the raw provider word (Goalkeeper/Defender/Midfielder/Attacker); the
+ * GK/DEF/MID/FWD grouping is frontend display. */
+export interface SquadMember {
+  player_id: number;
+  name?: string | null;
+  position?: string | null;
+  nationality?: string | null;
+  birth_date?: string | null;
+  photo?: string | null;
+  appearances?: number | null;
+  minutes_per_appearance?: number | null;
+  goals?: number | null;
+  assists?: number | null;
+}
+
 /** One `seasons[]` row: a mart_team_profile row (identity stripped) + fixtures + scatter. */
 export interface TeamSeason {
   league_code: string;
@@ -198,6 +216,8 @@ export interface TeamSeason {
   recent_results?: TeamFixture[];
   // rank-vs-league benchmarks (GAP-23) — the Performance tab's "vs the league" panel.
   benchmarks?: Benchmark[];
+  // squad (identity + per-club season stats) — the Squad tab.
+  squad?: SquadMember[];
   // the 16 metric values + their `{field}_delta_yoy` also live on this row and are read
   // positionally via a Record cast (same pattern as the fixture WindowStats).
 }

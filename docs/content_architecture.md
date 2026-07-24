@@ -80,7 +80,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
 | **Schedule** | Upcoming / Results | team, player | `mart_team_fixtures` (filter) | ✓ (team fixtures #607) |
 | | Matchday schedule | comp | fixtures by round (derive) | ~ |
-| **Listings** | Squad / roster | team→players | `mart_roster` (from the team↔player mapping) | ✓ (identity-only squad wired to the team payload, #619; screen 11 spec'd #617) |
+| **Listings** | Squad / roster | team→players | `mart_roster` + `mart_player_career` (per-player season stats) | ✓ (Squad tab BUILT 2026-07-24: roster identity + per-player apps/mins-per-app/goals/assists joined from `mart_player_career`; #619 wired the roster, GAP-22 the stats) |
 | | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
 | | Player career (clubs + per-comp totals) | player | `mart_player_career` | ✓ wired (#634; screen 13 spec'd #632) — backfill effectively done (5–10 seasons deep) |
 | **Matchup** | Match preview (two sides) | fixture | composed (W1 `mart_team_momentum` + W2 `mart_team_season_record` + standing + h2h) | ✓ (v2; `mart_matchday_insights` = the separate live-MVP feed) |
@@ -105,7 +105,7 @@ A block works for any competition and either subject because it's just a mart sl
 
 | Entity | Tabs → blocks |
 |---|---|
-| **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster) · **History** (past-season records, all-time, coach) |
+| **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster + per-player apps/mins-per-app/goals/assists) · **History** (past-season records, all-time, coach) |
 | **Player** | **Overview** (header + form + season highlights + position + next) · **Matches** (log → fixture) · **Stats** (season per-game + percentile-vs-peers + season-over-season) · **Career** (clubs + per-competition totals + caps) |
 | **Competition** | **Table** · **Fixtures** (by matchday) · **Scorers** (leaderboards) · **Teams** (directory) · **Seasons** (archive) · **Stats** (league-wide → benchmark) |
 | **Coach** | **Overview** (current club + clubs managed) |
