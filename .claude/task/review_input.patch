@@ -1,569 +1,304 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0387f56..ec84a33 100644
+index ec84a33..a0f4af1 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,83 +1,177 @@
--# Task contract — team page, Performance tab, from the approved mock
-+# Task contract — fix the appearance definition, and add minutes to the career mart
+@@ -1,177 +1,87 @@
+-# Task contract — fix the appearance definition, and add minutes to the career mart
++# Task contract — PR-A: minutes_per_appearance on the career mart (Squad tab warehouse prep)
  
--> Written on a CLEAN tree (branch `feat/team-page-performance` off main after #810 merged).
-+> Written on a CLEAN tree (branch `feat/player-career-minutes` off main after #810 merged).
-+> Amended three times, each on a clean tree, each with the CPO authority recorded — see `amendments:`.
+-> Written on a CLEAN tree (branch `feat/player-career-minutes` off main after #810 merged).
+-> Amended three times, each on a clean tree, each with the CPO authority recorded — see `amendments:`.
++> Written on a CLEAN tree (branch `feat/player-mins-per-appearance` off main at 60900f7, after #813
++> merged and deployed). This is the warehouse half of the Squad-tab build; the build PR (PR-B: export
++> + frontend + sample) follows once this deploys through ci-data-build.
  
  objective: >
--  Build the team page Performance tab (mock `f6348775`, the second of its three tabs; Overview
--  shipped in #810). Two panels behind a JS-free segment control: "vs the league" (the locked 16
--  metrics, each with a direction-aware rank bar + median + rank label) and "vs last season" (the
--  same 16 with signed year-over-year deltas). The CPO approved the plan (ExitPlanMode 2026-07-23).
--  Frontend only — the benchmark and YoY data already ship in the committed sample; no export, dbt,
--  or test change. Squad (the third tab) stays a coming-state (its per-player stats are #480).
-+  Fix a VERIFIED data defect: `appearances` counts matchday SELECTIONS, not time on the pitch, because
-+  the finished-match player-stat rows it counts include unused substitutes. An appearance now requires
-+  the player to have taken the pitch (`minutes_played > 0`). CPO ruling 2026-07-23, verbatim:
-+  "Then it is wrong". Zero-minute squad members are KEPT as rows with `appearances = 0` — CPO: "Players
-+  are part of the squad even with zero appearances" — so no row is deleted; only the count is corrected.
-+  Also carries `minutes` up into `mart_player_career` (the original PR1 scope), since both are
-+  prerequisites for the team page Squad tab and touch the same models.
+-  Fix a VERIFIED data defect: `appearances` counts matchday SELECTIONS, not time on the pitch, because
+-  the finished-match player-stat rows it counts include unused substitutes. An appearance now requires
+-  the player to have taken the pitch (`minutes_played > 0`). CPO ruling 2026-07-23, verbatim:
+-  "Then it is wrong". Zero-minute squad members are KEPT as rows with `appearances = 0` — CPO: "Players
+-  are part of the squad even with zero appearances" — so no row is deleted; only the count is corrected.
+-  Also carries `minutes` up into `mart_player_career` (the original PR1 scope), since both are
+-  prerequisites for the team page Squad tab and touch the same models.
++  Add `minutes_per_appearance` = `safe_divide(minutes, appearances)` to `mart_player_career`, and
++  register it in `metric_catalogue.csv`. This was deferred out of #813 because its denominator
++  (`appearances`) was counting matchday selections; #813 fixed and deployed that, so the ratio can now
++  be computed on a correct denominator (matches actually PLAYED). The Squad tab renders "mins/app" from
++  this column with zero derivation in the export or the frontend (a ratio is a fact — the consumption
++  layer may not compute it).
  
  refs: >
--  Verified this session:
--  - The locked 16-row contract already exists as `METRIC_ROWS` in `site_v2/src/lib/metricRows.ts`
--    (field/group/tier/format/direction, from `docs/wireframes/metrics_display.md`) — reused verbatim.
--  - The committed sample `site_v2/src/data/teams/33.json` already carries, per season, a `benchmarks`
--    array (metric_key, metric_value, rank, team_count, league_median, p25/p75, vs_median_delta) and a
--    `{field}_delta_yoy` for every one of the 16 rows. Only `save_ratio`'s YoY is null (en-dash).
--  - The mart `rank` is RAW value-descending, NOT direction-aware (verified: goals-against value below
--    median → raw rank 14/20). The frontend converts per `METRIC_ROWS.direction`, per metrics_display.md
--    §Percentile. Presentation only.
--  - The mock `f6348775` HTML/CSS (tool-results dir) is the design source; the Overview build (#810)
--    established the pattern (transcribe CSS to system.css, reuse the JS-free `.seg-in` segment).
-+  Measured against production BigQuery 2026-07-23 (evidence, not inference):
-+  - 383,416 of 1,677,854 `fct_fixture_player_stats` rows have null minutes; 382,942 of those are
-+    0-minute unused substitutes.
-+  - 87,739 of 170,533 career club-seasons (51.4%) carry an inflated appearance count; 26,530 record a
-+    player who never took the pitch; mean mins/app 44.9 as-built vs 60.5 corrected.
-+  - `mart_player_career`'s own docstring claimed it was "distinct from dim_player_team_season_mapping
-+    (roster membership incl. never-played members)" — the data disproves it, so this is a bug against
-+    stated intent, not a deliberate definition.
-+  Verified this session, and it bounds the blast radius:
-+  - Every qualification floor downstream (benchmarks, leaderboards) keys on `minutes >= 270`, NOT on
-+    appearances — so those surfaces are insulated from this change.
-+  - `starts` is ALREADY correct: `is_starter` is derived as `coalesce(minutes_played,0) > 0 and not
-+    is_substitute`, so it already requires pitch time. Only `appearances` and `substitute_appearances`
-+    are wrong.
-+  - `int_player_season__metrics` re-aggregates by SUMMING the club-season base, so fixing the base
-+    fixes it with no edit there.
-+  - Team-side `games_in_window` (`int_team_momentum__metrics`) is a count of TEAM legs and is NOT
-+    affected — a team always plays its own match.
+-  Measured against production BigQuery 2026-07-23 (evidence, not inference):
+-  - 383,416 of 1,677,854 `fct_fixture_player_stats` rows have null minutes; 382,942 of those are
+-    0-minute unused substitutes.
+-  - 87,739 of 170,533 career club-seasons (51.4%) carry an inflated appearance count; 26,530 record a
+-    player who never took the pitch; mean mins/app 44.9 as-built vs 60.5 corrected.
+-  - `mart_player_career`'s own docstring claimed it was "distinct from dim_player_team_season_mapping
+-    (roster membership incl. never-played members)" — the data disproves it, so this is a bug against
+-    stated intent, not a deliberate definition.
+-  Verified this session, and it bounds the blast radius:
+-  - Every qualification floor downstream (benchmarks, leaderboards) keys on `minutes >= 270`, NOT on
+-    appearances — so those surfaces are insulated from this change.
+-  - `starts` is ALREADY correct: `is_starter` is derived as `coalesce(minutes_played,0) > 0 and not
+-    is_substitute`, so it already requires pitch time. Only `appearances` and `substitute_appearances`
+-    are wrong.
+-  - `int_player_season__metrics` re-aggregates by SUMMING the club-season base, so fixing the base
+-    fixes it with no edit there.
+-  - Team-side `games_in_window` (`int_team_momentum__metrics`) is a count of TEAM legs and is NOT
+-    affected — a team always plays its own match.
++  Plan `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. #813 (merged) fixed `appearances` to
++  `countif(minutes_played > 0)` warehouse-wide and shipped `minutes`. Verified in prod after that
++  deploy: 26,657 zero-appearance rows now exist, so this ratio is null for them (safe_divide by 0) —
++  which makes the null-safe DQ test below non-vacuous, unlike when the mart was appearance-gated.
++  `minutes_played` is a real column of `int_legs__player_match` (the catalogue base_relation).
++  CPO authority for the catalogue row: AskUserQuestion 2026-07-23 — "Catalogue it now" + "Ship minutes
++  only, fix apps next" (see decisions_taken (1)).
  
  scope_paths:
--  - site_v2/src/pages/[lang]/teams/
--  - site_v2/src/components/team/
--  - site_v2/src/styles/system.css
--  - site_v2/src/lib/types.ts
--  - site_v2/src/lib/bars.ts
--  - site_v2/src/lib/format.ts
--  - site_v2/src/lib/metricRows.ts
--  - site_v2/src/i18n/strings.ts
-+  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-+  - dbt_project/models/5_marts/shared/mart_player_career.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+   - dbt_project/models/5_marts/shared/mart_player_career.sql
+   - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/seeds/metric_catalogue.csv
    - .claude/active_work.md
  
  impact_map: >
--  writers: none. No warehouse object, no dbt model, no export change. The benchmark rows
--    (`mart_team_competition_benchmarks`) and the YoY `*_delta_yoy` / metric fields are ALREADY
--    emitted by `shape_team_payload` and already present in the committed sample — this task only
--    consumes them. `grep` confirms the team page is the only consumer.
--  downstream: frontend only. New team components + appended team-Performance CSS blocks + small
--    display helpers in `lib/bars.ts` / `lib/format.ts` (rank→position→width, ordinal, signed-delta
--    formatting). The page swaps ONE coming-state div (Performance) for the built tab; Overview and
--    Squad are untouched. Static Astro build; nothing deployed (no hosting), so no runtime blast radius.
--  layer_rules: consumption-layer contract (Appendix A5) — the frontend selects, formats and maps to
--    display (rank→bar width, direction→green) but derives no fact. The direction-aware rank conversion
--    is the locked metrics_display.md §Percentile rule, not a new computation. No `check_layer_contract`
--    gate on the site; the reviewers enforce it.
--  deploy_order: none. Takes effect only when the page is built.
--  blast_radius: bounded. Additive: new components, appended CSS (no shared block redefined —
--    Performance blocks are new; the segment reuses the existing `.seg-in`), new lib helpers (additive
--    exports), one swapped div. The fixture page and the Overview tab are unaffected. No data or
--    warehouse change, so #805 binding is satisfied by construction (every rendered field already ships).
-+  writers: FOUR intermediate models each compute a player participation count from raw legs, and all
-+    four carry the same defect (fix the CLASS, not one instance). The fourth,
-+    `int_player_season_record` (`row_number()` over unfiltered legs as `match_number`/`games_played`),
-+    was MISSED by my first grep sweep and caught by the analytics-engineer reviewer — recorded here
-+    because the sweep claim in an earlier revision of this contract was false as written. Its
-+    consumers `mart_player_season_record.games_played` and `int_player_profile__yoy`
-+    (`appearances_cutoff`/`appearances_prev`/`appearances_prev_full` -> `mart_player_profile`) would
-+    otherwise have carried a selection-based "appearances" beside the corrected one in the same row.
-+    CORRECTION (2026-07-23, second analytics-engineer FAIL): an earlier revision of this contract said
-+    "Neither is read by scripts/export_site_data.py (checked)". That was FALSE and the "(checked)" was
-+    not mine to claim — I restated a reviewer's aside as my own verification. Verified now, by reading
-+    the code: `export_site_data.py:688` does `select * from mart_player_profile`, and `_strip_identity`
-+    (`:588-597`) drops only team/player bio fields, so the yoy appearance fields DO flow into
-+    `seasons_out` (`:417-424`) and into `players/{id}.json`. `mart_player_season_record.games_played`
-+    genuinely is unread. No player JSON is committed yet, so nothing wrong has shipped — but the export
-+    would have emitted an inconsistent "appearances" pair on its next run. The
-+    four:
-+    `int_player_club_season__metrics` (`count(*) as appearances` + `countif(is_substitute) as
-+    substitute_appearances`), `int_player_season_position__metrics` (`count(*) as appearances`), and
-+    `int_player_momentum__metrics` (`count(*) as games_in_window`, documented as "the player's
-+    appearance count within the side's window"). `minutes` additionally flows up into
-+    `mart_player_career`.
-+  examined_and_EXCLUDED (the sweep is only honest if the misses are named): every model reading
-+    `int_legs__player_match` / `fct_fixture_player_stats` was enumerated and each counting or
-+    sequencing construct in it judged. Four deliberately NOT changed, because none is an appearance
-+    count: `int_legs__team_from_players.players_with_stats` (a stat-COVERAGE count — we genuinely do
-+    hold stat rows for benched players, and their zeros sum harmlessly); `int_player_season__team`
-+    (picks a club by MOST RECENT leg — for "which club is he at", squad membership is the right
-+    signal, not pitch time); `mart_player_profile`'s modal-position pick (`order by count(*) desc`
-+    over position_code — a listed attribute, not a participation count); and the `row_number()` dedups
-+    in `base_apif__fixture_players` / `dim_player_team_season_mapping`. Team-side
-+    `int_team_momentum__metrics.games_in_window` counts TEAM legs and cannot carry this defect.
-+    `int_player_profile__contribution` was checked and NOT changed: it only SUMS goals/assists over
-+    legs (no participation count — verified, no count/row_number construct in it), so bench rows
-+    contribute 0 and its value is unaffected; it still reads unfiltered legs, so its
-+    "appearances-with-stats" wording remains accurate for what it actually does.
-+  documentation_sweep: the prose was swept with grep across the whole dbt project for every stale
-+    appearance phrasing, not spot-fixed at the sites the reviewer named — because two consecutive
-+    reviews failed on exactly that. Corrected: `mart_player_career` (SQL header + shared.yml model,
-+    appearances and minutes descriptions + the gate-test comment), `int_player_club_season.yml`
-+    (model + appearances), `int_season_record.yml` (model + games_played), `int_momentum.yml`
-+    (games_in_window), `int_player_season_position.yml` (appearances),
-+    `int_player_profile__yoy.sql` (its match_number description) and
-+    `int_team_season.yml` (int_player_season__metrics' "appearances = finished player-stat rows").
-+  downstream: dbt CLI is broken locally (documented in active_work.md), so lineage is traced by grep,
-+    the standing fallback. `int_player_club_season__metrics` -> `int_player_season__metrics` (sums it,
-+    so it inherits the fix) and -> `mart_player_career` (a LEAF mart: zero
-+    `ref('mart_player_career')` hits in models). `int_player_season_position__metrics` ->
-+    `int_player_competition_benchmarks` / `mart_player_competition_benchmarks` / `mart_leaderboards`,
-+    all of which gate on `minutes >= 270` and so do not change their qualifying population.
-+    `int_player_momentum__metrics` -> `mart_player_momentum` (carries `games_in_window` as a displayed
-+    count; it is NOT a rate denominator there — the ratios divide by their own atoms, verified).
-+    Consumption: `scripts/export_site_data.py` reads these marts by explicit column name and is NOT
-+    edited here.
-+  layer_rules: intermediate + marts. `check_layer_contract.py` passes (staging genericity untouched).
-+    No `league_code` hardcoding; the fix is competition-agnostic. Appearance counting is a playing-time
-+    DIMENSION (exempt in `assert_no_uncatalogued_season_metric`), so no metric_catalogue row is
-+    involved and no metric-governance question arises.
-+  deploy_order: all affected models are full rebuilds (`table`), so `ci-data-build` recomputes them on
-+    merge with no incremental-rename trap and no NULLed history. Numbers CHANGE on rebuild by design.
-+  blast_radius: REAL and intended — this corrects wrong numbers. `appearances` falls wherever bench
-+    selections were counted (51.4% of career club-seasons); 26,530 career rows go to `appearances = 0`
-+    but are RETAINED per the CPO. `substitute_appearances` falls to genuine sub appearances.
-+    `games_in_window` falls to games actually played. Benchmarks/leaderboards keep their populations
-+    (minutes-gated). Nothing is renamed or dropped. Nothing is live to users (the MVP is retired), so
-+    there is no user-facing regression risk.
+-  writers: FOUR intermediate models each compute a player participation count from raw legs, and all
+-    four carry the same defect (fix the CLASS, not one instance). The fourth,
+-    `int_player_season_record` (`row_number()` over unfiltered legs as `match_number`/`games_played`),
+-    was MISSED by my first grep sweep and caught by the analytics-engineer reviewer — recorded here
+-    because the sweep claim in an earlier revision of this contract was false as written. Its
+-    consumers `mart_player_season_record.games_played` and `int_player_profile__yoy`
+-    (`appearances_cutoff`/`appearances_prev`/`appearances_prev_full` -> `mart_player_profile`) would
+-    otherwise have carried a selection-based "appearances" beside the corrected one in the same row.
+-    CORRECTION (2026-07-23, second analytics-engineer FAIL): an earlier revision of this contract said
+-    "Neither is read by scripts/export_site_data.py (checked)". That was FALSE and the "(checked)" was
+-    not mine to claim — I restated a reviewer's aside as my own verification. Verified now, by reading
+-    the code: `export_site_data.py:688` does `select * from mart_player_profile`, and `_strip_identity`
+-    (`:588-597`) drops only team/player bio fields, so the yoy appearance fields DO flow into
+-    `seasons_out` (`:417-424`) and into `players/{id}.json`. `mart_player_season_record.games_played`
+-    genuinely is unread. No player JSON is committed yet, so nothing wrong has shipped — but the export
+-    would have emitted an inconsistent "appearances" pair on its next run. The
+-    four:
+-    `int_player_club_season__metrics` (`count(*) as appearances` + `countif(is_substitute) as
+-    substitute_appearances`), `int_player_season_position__metrics` (`count(*) as appearances`), and
+-    `int_player_momentum__metrics` (`count(*) as games_in_window`, documented as "the player's
+-    appearance count within the side's window"). `minutes` additionally flows up into
+-    `mart_player_career`.
+-  examined_and_EXCLUDED (the sweep is only honest if the misses are named): every model reading
+-    `int_legs__player_match` / `fct_fixture_player_stats` was enumerated and each counting or
+-    sequencing construct in it judged. Four deliberately NOT changed, because none is an appearance
+-    count: `int_legs__team_from_players.players_with_stats` (a stat-COVERAGE count — we genuinely do
+-    hold stat rows for benched players, and their zeros sum harmlessly); `int_player_season__team`
+-    (picks a club by MOST RECENT leg — for "which club is he at", squad membership is the right
+-    signal, not pitch time); `mart_player_profile`'s modal-position pick (`order by count(*) desc`
+-    over position_code — a listed attribute, not a participation count); and the `row_number()` dedups
+-    in `base_apif__fixture_players` / `dim_player_team_season_mapping`. Team-side
+-    `int_team_momentum__metrics.games_in_window` counts TEAM legs and cannot carry this defect.
+-    `int_player_profile__contribution` was checked and NOT changed: it only SUMS goals/assists over
+-    legs (no participation count — verified, no count/row_number construct in it), so bench rows
+-    contribute 0 and its value is unaffected; it still reads unfiltered legs, so its
+-    "appearances-with-stats" wording remains accurate for what it actually does.
+-  documentation_sweep: the prose was swept with grep across the whole dbt project for every stale
+-    appearance phrasing, not spot-fixed at the sites the reviewer named — because two consecutive
+-    reviews failed on exactly that. Corrected: `mart_player_career` (SQL header + shared.yml model,
+-    appearances and minutes descriptions + the gate-test comment), `int_player_club_season.yml`
+-    (model + appearances), `int_season_record.yml` (model + games_played), `int_momentum.yml`
+-    (games_in_window), `int_player_season_position.yml` (appearances),
+-    `int_player_profile__yoy.sql` (its match_number description) and
+-    `int_team_season.yml` (int_player_season__metrics' "appearances = finished player-stat rows").
+-  downstream: dbt CLI is broken locally (documented in active_work.md), so lineage is traced by grep,
+-    the standing fallback. `int_player_club_season__metrics` -> `int_player_season__metrics` (sums it,
+-    so it inherits the fix) and -> `mart_player_career` (a LEAF mart: zero
+-    `ref('mart_player_career')` hits in models). `int_player_season_position__metrics` ->
+-    `int_player_competition_benchmarks` / `mart_player_competition_benchmarks` / `mart_leaderboards`,
+-    all of which gate on `minutes >= 270` and so do not change their qualifying population.
+-    `int_player_momentum__metrics` -> `mart_player_momentum` (carries `games_in_window` as a displayed
+-    count; it is NOT a rate denominator there — the ratios divide by their own atoms, verified).
+-    Consumption: `scripts/export_site_data.py` reads these marts by explicit column name and is NOT
+-    edited here.
+-  layer_rules: intermediate + marts. `check_layer_contract.py` passes (staging genericity untouched).
+-    No `league_code` hardcoding; the fix is competition-agnostic. Appearance counting is a playing-time
+-    DIMENSION (exempt in `assert_no_uncatalogued_season_metric`), so no metric_catalogue row is
+-    involved and no metric-governance question arises.
+-  deploy_order: all affected models are full rebuilds (`table`), so `ci-data-build` recomputes them on
+-    merge with no incremental-rename trap and no NULLed history. Numbers CHANGE on rebuild by design.
+-  blast_radius: REAL and intended — this corrects wrong numbers. `appearances` falls wherever bench
+-    selections were counted (51.4% of career club-seasons); 26,530 career rows go to `appearances = 0`
+-    but are RETAINED per the CPO. `substitute_appearances` falls to genuine sub appearances.
+-    `games_in_window` falls to games actually played. Benchmarks/leaderboards keep their populations
+-    (minutes-gated). Nothing is renamed or dropped. Nothing is live to users (the MVP is retired), so
+-    there is no user-facing regression risk.
++  writers: `mart_player_career.sql` is the only writer; it computes the ratio inline via safe_divide
++    from its own `minutes` and `appearances` (both already present). No upstream model changes.
++  downstream: `mart_player_career` is a LEAF mart (grep: zero `ref('mart_player_career')` in models).
++    The only consumer is `scripts/export_site_data.py` via `select *` + `_shape_career_row`, which picks
++    columns by name — the new column is ignored until PR-B wires it. No consumer breaks on merge.
++  metric_catalogue_seed: one added row (`minutes_per_appearance`, player) — governance registration,
++    NOT a code path (the season-metric engine reads the catalogue as documentation, verified in #813).
++    base_relation `int_legs__player_match`, numerator `sum(minutes_played)`, denominator
++    `countif(minutes_played > 0)` — the same played-legs definition as the corrected `appearances`, so
++    the catalogue formula and the mart column agree. Denominator uses `countif(minutes_played > 0)` not
++    `count(*)` (bench legs excluded) and NO coalesce (null > 0 is already not-counted), keeping the
++    *_expr free of null-gates per the standing rule. Satisfies all five catalogue guards (resolvable:
++    both tokens resolve; unique (metric_id, entity); direction + interpretation present; direction
++    `neutral` agrees with lower_is_better false). DEFERRAL NOTE: on a PR the catalogue singular guards
++    run against MAIN's seed via --favor-state, so this row is validated on main's next build
++    post-merge — the normal flow for a catalogue value change; all five checked by hand.
++  layer_rules: marts + a catalogue seed row. `check_layer_contract.py` passes. `minutes_per_appearance`
++    is a derived RATE, so it is catalogue-governed (analytics-engineer ruling on #813); `minutes` and
++    `appearances` remain uncatalogued dimensions.
++  deploy_order: additive `table` rebuild. On merge, ci-data-build recomputes the column; PR-B waits on
++    this deploy before re-exporting the committed sample.
++  blast_radius: bounded / additive. One new column on a leaf mart + one catalogue row. No existing
++    number moves; nothing renamed or dropped. The 26,657 never-played rows carry a null ratio (correct
++    — no mins/app without an appearance).
  
  decisions_taken: >
--  (1) BUILD the approved mock's Performance tab, reusing the locked `METRIC_ROWS` verbatim (do not
--      re-author the contract). CPO approved the plan (ExitPlanMode, 2026-07-23).
--  (2) Direction-aware rank/fill/green from the mart's raw value-descending `rank` + each row's
--      `direction` (metrics_display.md §Percentile) — a display mapping, not a fact.
--  (3) Drop the mock's interpretive per-panel lede this increment; keep only the factual caption.
--      Recommended in the plan and approved with it; templating the lede is deferred.
--  (4) JS-free segment control (reuse the existing `.seg-in` radio pattern), consistent with the
--      Overview tabs — no client script.
-+  (1) An appearance REQUIRES pitch time (`minutes_played > 0`) — CPO 2026-07-23 ("Then it is wrong").
-+  (2) Zero-minute squad members are KEPT as rows with `appearances = 0`, never deleted — CPO 2026-07-23
-+      ("Players are part of the squad even with zero appearances").
-+  (3) Consequently the `player_career_row_is_appearance_gated` test changes from `appearances >= 1` to
-+      `appearances >= 0`. This is NOT loosening a guard to make a change pass: the old expression
-+      encoded the very premise the CPO just overturned (that the mart excludes never-played members).
-+      It is narrowed to what still holds and its comment records why.
-+  (4) `substitute_appearances` gets the same fix (`is_substitute AND minutes > 0`); `starts` needs none
-+      (`is_starter` already requires minutes > 0). The invariant `starts + substitute_appearances =
-+      appearances` then holds and is added as a DQ test.
-+  (5) Fixing all three counts in one PR rather than one, because they are one defect class and leaving
-+      a known instance is the repeat failure mode this repo has been bitten by.
-+  (6) `minutes` is carried into `mart_player_career` (original PR1 scope): a playing-time dimension,
-+      not a catalogue metric, and unaffected by the defect (a 0-minute row adds 0 to the sum).
+-  (1) An appearance REQUIRES pitch time (`minutes_played > 0`) — CPO 2026-07-23 ("Then it is wrong").
+-  (2) Zero-minute squad members are KEPT as rows with `appearances = 0`, never deleted — CPO 2026-07-23
+-      ("Players are part of the squad even with zero appearances").
+-  (3) Consequently the `player_career_row_is_appearance_gated` test changes from `appearances >= 1` to
+-      `appearances >= 0`. This is NOT loosening a guard to make a change pass: the old expression
+-      encoded the very premise the CPO just overturned (that the mart excludes never-played members).
+-      It is narrowed to what still holds and its comment records why.
+-  (4) `substitute_appearances` gets the same fix (`is_substitute AND minutes > 0`); `starts` needs none
+-      (`is_starter` already requires minutes > 0). The invariant `starts + substitute_appearances =
+-      appearances` then holds and is added as a DQ test.
+-  (5) Fixing all three counts in one PR rather than one, because they are one defect class and leaving
+-      a known instance is the repeat failure mode this repo has been bitten by.
+-  (6) `minutes` is carried into `mart_player_career` (original PR1 scope): a playing-time dimension,
+-      not a catalogue metric, and unaffected by the defect (a 0-minute row adds 0 to the sum).
++  (1) CATALOGUE `minutes_per_appearance` — CPO authority (both AskUserQuestion, 2026-07-23):
++      "Catalogue it now" (the metric IS catalogue-governed, after the analytics-engineer ruled the same
++      on #813), then "Ship minutes only, fix apps next" (defer it until the appearances denominator is
++      fixed). #813 fixed and deployed that denominator, so this PR now executes exactly that authorised
++      sequence: catalogue the ratio, on the corrected appearances. Not a new decision — the recorded
++      one, carried out.
++  (2) Catalogue attributes: entity=player, base_relation=int_legs__player_match,
++      numerator=sum(minutes_played), denominator=countif(minutes_played > 0), format=decimal_0 (a
++      divided value like every other ratio row — `integer` is only for undivided sums, and safe_divide
++      returns FLOAT64; renders identically to integer per site_v2 format.ts), direction=neutral,
++      lower_is_better=false. `neutral` because mins/app is a role/playing-time read with no better/worse
++      pole (a full-90 regular is not "better" than an impact sub) — same call as contribution_share.
++      The direction is the one domain judgement; PROPOSED for the football-analytics-expert to ratify
++      (RATIFIED in review: they confirmed neutral).
  
  decisions_reserved:
--  - Whether to template the interpretive lede later is a display/narrative call — deferred, not
--    decided away.
--  - The Squad tab's data binding (#480 per-player stats) and its build are the next increment.
--  - Per-locale metric ROW labels from the catalogue (#370): the rows use the locked EN labels for now,
--    exactly as the fixture comparison does — not reopened here.
-+  - `minutes_per_appearance` and its `metric_catalogue` row stay DEFERRED. The analytics-engineer
-+    reviewer ruled it catalogue-governed; the football-analytics-expert's proposed `neutral` direction
-+    is still open. It belongs in the PR that consumes it (the Squad tab), on the corrected denominator.
-+  - Whether the Squad tab lists zero-appearance squad members or only those with an appearance is a
-+    DISPLAY decision for the Squad-tab PR, not settled here. The warehouse now supports either.
-+  - PR2 (export + frontend + sample re-export) is a later increment and waits on this deploying.
+-  - `minutes_per_appearance` and its `metric_catalogue` row stay DEFERRED. The analytics-engineer
+-    reviewer ruled it catalogue-governed; the football-analytics-expert's proposed `neutral` direction
+-    is still open. It belongs in the PR that consumes it (the Squad tab), on the corrected denominator.
+-  - Whether the Squad tab lists zero-appearance squad members or only those with an appearance is a
+-    DISPLAY decision for the Squad-tab PR, not settled here. The warehouse now supports either.
+-  - PR2 (export + frontend + sample re-export) is a later increment and waits on this deploying.
++  - The `direction` of minutes_per_appearance (proposed neutral): a football-domain judgement the
++    football-analytics-expert reviewer ratifies. If they rule higher_better, that is a one-value change.
++  - PR-B (export + frontend + sample re-export + i18n/types/tests) waits on this deploying.
  
  done_when:
--  - The Performance tab renders in de/en/fi: the JS-free segment + both panels, all 16 rows grouped in
--    the locked block order, the vs-league rank/fill/median direction-aware, the vs-last-season signed
--    deltas (with `save_ratio` YoY as the en-dash), the defensive-actions `T · I · B` sublabel from the
--    benchmark atoms.
--  - The direction-aware rank/fill/green is correct on the lower-is-better and sparse rows (goals
--    against, save %) — verified on the built HTML, not asserted.
--  - `astro build` clean; `validate-local` Tier 1 green (pytest unaffected — no export change).
-+  - `appearances` = `countif(coalesce(minutes_played, 0) > 0)` and `substitute_appearances` =
-+    `countif(is_substitute and coalesce(minutes_played, 0) > 0)` in the club-season base;
-+    `appearances` likewise in the position model; `games_in_window` likewise in player momentum.
-+  - `mart_player_career` selects `minutes`; the appearance-gate test reads `>= 0` with its comment
-+    updated; every stale "distinct from roster membership" claim is gone from BOTH the SQL docstring
-+    and the schema YAML (swept with grep, not spot-fixed).
-+  - New DQ test: `starts + substitute_appearances = appearances` on the club-season base.
-+  - `python scripts/check_layer_contract.py` passes; YAML parses.
-+  - `ci-data-build` GREEN: dbt build succeeds and all DQ tests pass (dbt + SQLFluff do not run locally
-+    — CI is the gate).
+-  - `appearances` = `countif(coalesce(minutes_played, 0) > 0)` and `substitute_appearances` =
+-    `countif(is_substitute and coalesce(minutes_played, 0) > 0)` in the club-season base;
+-    `appearances` likewise in the position model; `games_in_window` likewise in player momentum.
+-  - `mart_player_career` selects `minutes`; the appearance-gate test reads `>= 0` with its comment
+-    updated; every stale "distinct from roster membership" claim is gone from BOTH the SQL docstring
+-    and the schema YAML (swept with grep, not spot-fixed).
+-  - New DQ test: `starts + substitute_appearances = appearances` on the club-season base.
++  - `mart_player_career.sql` selects `safe_divide(minutes, appearances) as minutes_per_appearance`.
++  - `shared.yml` documents the column + a null-safe DQ test (null iff appearances = 0, non-negative
++    otherwise).
++  - `metric_catalogue.csv` carries the row with the attributes in decisions_taken (2).
+   - `python scripts/check_layer_contract.py` passes; YAML parses.
+-  - `ci-data-build` GREEN: dbt build succeeds and all DQ tests pass (dbt + SQLFluff do not run locally
+-    — CI is the gate).
++  - `ci-data-build` GREEN: dbt build + DQ pass (dbt + SQLFluff do not run locally — CI is the gate;
++    catalogue guards validate post-merge).
    - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
  
--amendments: (none)
-+amendments:
-+  - 2026-07-23: + dbt_project/seeds/metric_catalogue.csv — authority: CPO Path A (AskUserQuestion)
-+    after the analytics-engineer FAILED round 1 ruling minutes_per_appearance catalogue-governed.
-+    SUPERSEDED below.
-+  - 2026-07-23: - dbt_project/seeds/metric_catalogue.csv (reverted) and - minutes_per_appearance —
-+    authority: CPO (AskUserQuestion, "Ship minutes only, fix apps next") after the
-+    football-analytics-expert FAILED round 2 finding the denominator counts matchday selections,
-+    verified against production BigQuery before acting.
-+  - 2026-07-23: + the three intermediate models and their YAMLs — authority: CPO ruling "Then it is
-+    wrong" (appearances) and "Players are part of the squad even with zero appearances" (keep the
-+    rows), plus "whatever is reasonable" on branch choice; content: fix the appearance definition
-+    across all three counts and keep the `minutes` column in the same PR. Amended on a clean tree.
-+  - 2026-07-23: + int_player_profile__yoy.sql — authority: the same CPO ruling ("Then it is wrong"),
-+    documentation only; content: its docstring described match_number as "the running count of the
-+    player's finished appearances-with-stats", the pre-fix definition. Found by the second
-+    analytics-engineer FAIL, together with a stale `appearances` description in
-+    int_player_season_position.yml (already in scope) and the false export claim corrected in the
-+    impact_map above. Amended on a clean tree.
-+  - 2026-07-23: + int_player_season_record.sql + int_season_record.yml — authority: the same CPO
-+    ruling ("Then it is wrong"), applied to a FOURTH instance of the identical defect that the
-+    analytics-engineer reviewer found after my sweep missed it; content: filter the builder's legs to
-+    played legs so `match_number`/`games_played` count matches actually played, matching the model's
-+    own documented intent ("one row per match the player appeared in"). Amended on a clean tree.
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index a3450ed..22d3b59 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -254,8 +254,9 @@ models:
-       competition-season with ratios / per-90 re-derived from the re-summed atoms; output unchanged.
-       Atoms follow the metric_catalogue.csv seed: passes_accurate = per-fixture ROUND(passes_total *
-       passes_accuracy_percent / 100) then summed (the weighted-ratio numerator); counts coalesce
--      nulls to 0; appearances = finished player-stat rows (honest absence); rates null when the
--      denominator is zero. team_sk = the player's last known club that competition-season.
-+      nulls to 0; appearances = finished matches actually PLAYED, minutes > 0 (honest absence; before
-+      2026-07-23 it counted every player-stat row, so unused substitutes inflated it); rates null when
-+      the denominator is zero. team_sk = the player's last known club that competition-season.
-       Grain: (player_sk, season_sk).
-     config:
-       tags: ["intermediate", "football", "team_season", "player"]
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index 882f769..4ba8228 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -92,7 +92,7 @@ models:
-           - accepted_values:
-               values: ["last_5", "tournament_to_date", "qualifiers"]
-       - name: games_in_window
--        description: "The player's appearance count within the side's window (1..5 for last_5, uncapped for tournament windows)."
-+        description: "The player's appearance count within the side's window (0..5 for last_5, uncapped for tournament windows). Counts legs the player actually PLAYED (minutes > 0); 0 means named in the matchday squad but never brought on. Before 2026-07-23 this counted squad selections, so unused substitutes inflated it."
-         tests: [not_null]
-       - name: position_code
-         description: "Player position from fct_fixture_player_stats. Used to scope save_pct to GK."
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-index 2302ea4..641706b 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
-@@ -8,8 +8,9 @@ models:
-       transfer yields one row per club (no last-club collapse). The single atoms source that
-       int_player_season__metrics (re-aggregated to the competition-season) and mart_player_career (the
-       per-club career log) both COMPOSE. Atoms follow metric_catalogue.csv exactly (per-fixture
--      ROUND-weighted passes_accurate; counts coalesce nulls to 0; appearances = finished player-stat rows).
--      Ratios / per-90 are derived where consumed, not here. Grain: (player_sk, team_sk, season_sk).
-+      ROUND-weighted passes_accurate; counts coalesce nulls to 0; appearances = finished-match legs the
-+      player actually PLAYED). Ratios / per-90 are derived where consumed, not here.
-+      Grain: (player_sk, team_sk, season_sk).
-     config:
-       tags: ["intermediate", "football", "player"]
-     tests:
-@@ -18,6 +19,13 @@ models:
-             - player_sk
-             - team_sk
-             - season_sk
-+      # An appearance requires pitch time, so starts and substitute appearances PARTITION appearances
-+      # exactly: is_starter = (minutes > 0 and not sub), substitute_appearances = (minutes > 0 and sub).
-+      # This is the guard that would have caught the 2026-07-23 defect, where appearances counted every
-+      # matchday selection (incl. unused substitutes) while starts already required minutes > 0.
-+      - dbt_utils.expression_is_true:
-+          expression: "starts + substitute_appearances = appearances"
-+          name: player_club_season_starts_plus_subs_equals_appearances
-     columns:
-       - name: player_club_season_sk
-         description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
-@@ -53,5 +61,5 @@ models:
-         description: "Provider season year."
-         tests: [not_null]
-       - name: appearances
--        description: "Finished-match player-stat rows for this player-club-season (honest absence where stats are off)."
-+        description: "Finished-match legs this player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member named on the bench all season but never brought on. Before 2026-07-23 this was count(*) of player-stat rows, which counted unused substitutes as appearances (honest absence where stats are off still applies)."
-         tests: [not_null]
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-index 17ac3a5..0cec776 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-@@ -100,9 +100,19 @@ aggregated as (
-         season_api_year,
-         -- the club's latest kickoff this competition-season — lets the rollup pick the last club.
-         max(kickoff_datetime) as last_kickoff_at,
--        count(*) as appearances,
-+        -- An appearance requires PITCH TIME (CPO 2026-07-23: "Then it is wrong"). The provider's
-+        -- /fixtures/players payload lists the whole matchday squad, so an unused substitute arrives as
-+        -- a stat row with null minutes; counting those made `appearances` a SELECTION count. Measured
-+        -- before the fix: 382,942 of 1,677,854 stat rows were 0-minute bench selections, inflating
-+        -- 51.4% of career club-seasons. Squad members who never played are KEPT (they simply score 0
-+        -- here) — the row is not filtered out, only counted honestly.
-+        countif(coalesce(minutes_played, 0) > 0) as appearances,
-+        -- `starts` already required pitch time: is_starter = minutes > 0 and not is_substitute.
-         countif(is_starter) as starts,
--        countif(coalesce(is_substitute, false)) as substitute_appearances,
-+        -- ...so the substitute side needs the same minutes condition to match it. Together they now
-+        -- partition `appearances` exactly (guarded by a DQ test on this model).
-+        countif(coalesce(is_substitute, false) and coalesce(minutes_played, 0) > 0)
-+            as substitute_appearances,
-         sum(coalesce(minutes_played, 0)) as minutes,
-         sum(coalesce(goals_total, 0)) as goals,
-         sum(goals_penalty) as goals_penalty,
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
-index 343af91..6ecb947 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
-@@ -24,7 +24,9 @@
- 
-   A player absent from some of the window legs contributes stats only for the matches they appeared
-   in — honest absence, not zero. games_in_window is the player's appearance count within the side's
--  window (1..5 for last_5, uncapped for tournament windows), not the team window size.
-+  window (0..5 for last_5, uncapped for tournament windows), not the team window size. It counts legs
-+  the player actually PLAYED (minutes > 0), so 0 is legitimate: named in the matchday squad for the
-+  window's legs but never brought on.
- 
-   passes_accurate is derived per fixture as ROUND(passes_total * passes_accuracy_percent / 100)
-   then summed; inherits small rounding error.
-@@ -53,7 +55,10 @@ player_agg as (
-         wl.season_api_year,
-         wl.entity_type,
-         wl.window_type,
--        count(*) as games_in_window,
-+        -- pitch time required, same rule as the season models (CPO 2026-07-23): the provider lists
-+        -- whole matchday squads, so count(*) counted unused substitutes as appearances. 0 is now a
-+        -- legitimate value (named in the squad for window legs but never brought on).
-+        countif(coalesce(p.minutes_played, 0) > 0) as games_in_window,
-         any_value(p.position_code) as position_code,
-         sum(p.goals_total) as goals_total,
-         sum(p.goals_against) as goals_against,
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
-index f2f9842..c1fc9a7 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
-@@ -11,7 +11,8 @@
-   season is running (a part-season vs a full season would mislead).
- 
-   Alignment is by APPEARANCES (match_number from int_player_season_record — the running
--  count of the player's finished appearances-with-stats), the player analog of the team
-+  count of the matches the player actually PLAYED; before 2026-07-23 it counted every
-+  player-stat row, so unused substitutes inflated it), the player analog of the team
-   builder's games played. Not by date, not by round number.
- 
-   Metric set (CPO 2026-07-03, the broader per-position set): goals, assists, shots on
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-index 25eae9f..f5c8fbf 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-@@ -44,5 +44,5 @@ models:
-         description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor)."
-         tests: [not_null]
-       - name: appearances
--        description: "Finished player-stat rows IN this position this competition-season."
-+        description: "Finished matches the player actually PLAYED (minutes > 0) IN this position this competition-season. Before 2026-07-23 this counted every player-stat row, so unused substitutes inflated it."
-         tests: [not_null]
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-index a9c41a5..ab70b0e 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-@@ -92,7 +92,9 @@ aggregated as (
-         league_code,
-         season_api_year,
-         position_group,
--        count(*) as appearances,
-+        -- pitch time required, same rule as int_player_club_season__metrics (CPO 2026-07-23): the
-+        -- provider lists whole matchday squads, so count(*) counted unused substitutes as appearances.
-+        countif(coalesce(minutes_played, 0) > 0) as appearances,
-         sum(coalesce(minutes_played, 0)) as minutes,
-         sum(coalesce(goals_total, 0)) as goals,
-         sum(goals_penalty) as goals_penalty,
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-index 26780f8..e1c84d1 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-@@ -7,8 +7,11 @@
- 
-   Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
- 
--  A player-match leg exists only where the API provides player stats, so every row is a
--  covered appearance and games_played counts appearances-with-stats. Player ratios
-+  A player-match leg exists wherever the API provides player stats, and the provider lists the whole
-+  matchday squad — so an UNUSED SUBSTITUTE arrives as a 0-minute leg. Those are filtered out below,
-+  because this model's row IS an appearance ("one row per match the player appeared in") and
-+  match_number/games_played must count matches actually played, not matchday selections. Before
-+  2026-07-23 they did not (CPO: "Then it is wrong"). Player ratios
-   (save_pct, pass_accuracy_pct, duels_won_pct, dribbles_success_pct) are stat-over-stat
-   from the same rows, so no coverage-restriction is needed (unlike the team builder's
-   scoreline-vs-stat mix). Raw sums only — ratios live in the mart.
-@@ -22,6 +25,9 @@
- 
- with player_legs as (
-     select * from {{ ref('int_legs__player_match') }}
-+    -- pitch time required: an unused substitute is a matchday selection, not an appearance, and this
-+    -- model's grain is one row per APPEARANCE (see header). Same rule as the season/career models.
-+    where coalesce(minutes_played, 0) > 0
- )
- 
- select
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index d7afc83..06d49c2 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -56,9 +56,11 @@ models:
-   - name: int_player_season_record
-     description: >
-       W2 season-record builder — player. Cumulative running totals over int_legs__player_match
--      within one competition+season, one row per player-match. Complement to
--      int_player_momentum__metrics. A leg exists only where player stats are present, so games_played
--      counts appearances-with-stats and player ratios are same-window by construction.
-+      within one competition+season, one row per player-match ACTUALLY PLAYED. Complement to
-+      int_player_momentum__metrics. A leg exists wherever player stats are present, which includes
-+      0-minute unused substitutes, so legs are filtered to minutes > 0: games_played counts matches
-+      played (not matchday selections, which it did before 2026-07-23) and player ratios are
-+      same-window by construction.
-       Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
-     tests:
-       - dbt_utils.unique_combination_of_columns:
-@@ -80,7 +82,7 @@ models:
-           - accepted_values:
-               values: ["season_to_date"]
-       - name: games_played
--        description: "Cumulative count of the player's appearances-with-stats through this match."
-+        description: "Cumulative count of the matches the player actually PLAYED (minutes > 0) through this match. Before 2026-07-23 this counted matchday selections, so unused substitutes inflated it."
-         tests: [not_null]
-       - name: position_code
-         description: "Player position (any_value over the window). Used to scope save_pct to goalkeepers."
+-amendments:
+-  - 2026-07-23: + dbt_project/seeds/metric_catalogue.csv — authority: CPO Path A (AskUserQuestion)
+-    after the analytics-engineer FAILED round 1 ruling minutes_per_appearance catalogue-governed.
+-    SUPERSEDED below.
+-  - 2026-07-23: - dbt_project/seeds/metric_catalogue.csv (reverted) and - minutes_per_appearance —
+-    authority: CPO (AskUserQuestion, "Ship minutes only, fix apps next") after the
+-    football-analytics-expert FAILED round 2 finding the denominator counts matchday selections,
+-    verified against production BigQuery before acting.
+-  - 2026-07-23: + the three intermediate models and their YAMLs — authority: CPO ruling "Then it is
+-    wrong" (appearances) and "Players are part of the squad even with zero appearances" (keep the
+-    rows), plus "whatever is reasonable" on branch choice; content: fix the appearance definition
+-    across all three counts and keep the `minutes` column in the same PR. Amended on a clean tree.
+-  - 2026-07-23: + int_player_profile__yoy.sql — authority: the same CPO ruling ("Then it is wrong"),
+-    documentation only; content: its docstring described match_number as "the running count of the
+-    player's finished appearances-with-stats", the pre-fix definition. Found by the second
+-    analytics-engineer FAIL, together with a stale `appearances` description in
+-    int_player_season_position.yml (already in scope) and the false export claim corrected in the
+-    impact_map above. Amended on a clean tree.
+-  - 2026-07-23: + int_player_season_record.sql + int_season_record.yml — authority: the same CPO
+-    ruling ("Then it is wrong"), applied to a FOURTH instance of the identical defect that the
+-    analytics-engineer reviewer found after my sweep missed it; content: filter the builder's legs to
+-    played legs so `match_number`/`games_played` count matches actually played, matching the model's
+-    own documented intent ("one row per match the player appeared in"). Amended on a clean tree.
++amendments: (none)
 diff --git a/dbt_project/models/5_marts/shared/mart_player_career.sql b/dbt_project/models/5_marts/shared/mart_player_career.sql
-index 9ad7fde..38bd671 100644
+index 38bd671..b361b8a 100644
 --- a/dbt_project/models/5_marts/shared/mart_player_career.sql
 +++ b/dbt_project/models/5_marts/shared/mart_player_career.sql
-@@ -14,10 +14,14 @@
-   the consumption layer).
- 
-   Grain: (player_sk, team_sk, season_sk). Composes int_player_club_season__metrics (the single per-club
--  atoms base) — no re-aggregation here, just identity + typing joins. APPEARANCE-GATED (rows come from
--  finished-match stats via the base), distinct from dim_player_team_season_mapping which records ROSTER
--  membership incl. never-played squad members. Per-club / per-competition / national subtotals are
--  derivable from this grain (display-side), so they are not precomputed.
-+  atoms base) — no re-aggregation here, just identity + typing joins. Rows come from finished-match
-+  player-stat rows via the base, so a row means "this player was in this club's matchday squad at
-+  least once that competition-season". `appearances` counts only the legs he actually PLAYED
-+  (minutes > 0), so it can legitimately be 0: a squad member who never got on the pitch keeps his row
-+  (CPO 2026-07-23 — "Players are part of the squad even with zero appearances") and simply scores 0.
-+  Until 2026-07-23 `appearances` counted every matchday selection, which inflated 51.4% of rows.
-+  Per-club / per-competition / national subtotals are derivable from this grain (display-side), so
-+  they are not precomputed.
- #}
- 
- with club_season as (
-@@ -65,6 +69,7 @@ typed as (
-         cs.season_sk,
-         cs.season_api_year,
-         cs.appearances,
-+        cs.minutes,
-         cs.goals,
-         cs.assists,
-         cs.last_kickoff_at,
-@@ -84,6 +89,7 @@ with_caps as (
-         typed.season_api_year,
-         typed.entity_type,
-         typed.appearances,
-+        typed.minutes,
-         typed.goals,
-         typed.assists,
-         typed.last_kickoff_at,
-@@ -117,6 +123,12 @@ select
-     tm.team_country,
-     wc.entity_type,
+@@ -125,10 +125,12 @@ select
      wc.appearances,
-+    -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics,
-+    -- same class as appearances/goals/assists — a playing-time dimension, not a catalogue metric).
-+    -- A minutes_per_appearance ratio is deliberately NOT computed here: it is a catalogue-governed
-+    -- rate (analytics-engineer ruling 2026-07-23), so it lands with its metric_catalogue row in the
-+    -- PR that consumes it, now that `appearances` is a real appearance count to divide by.
-+    wc.minutes,
+     -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics,
+     -- same class as appearances/goals/assists — a playing-time dimension, not a catalogue metric).
+-    -- A minutes_per_appearance ratio is deliberately NOT computed here: it is a catalogue-governed
+-    -- rate (analytics-engineer ruling 2026-07-23), so it lands with its metric_catalogue row in the
+-    -- PR that consumes it, now that `appearances` is a real appearance count to divide by.
+     wc.minutes,
++    -- mins/app for the Squad tab, computed here so the consumption layer never divides. A
++    -- catalogue-governed rate (metric_catalogue: minutes_per_appearance). safe_divide -> null when
++    -- appearances = 0 (a squad member who never played), which is honest: no mins/app without an
++    -- appearance. `appearances` here is the corrected played-legs count (#813).
++    safe_divide(wc.minutes, wc.appearances) as minutes_per_appearance,
      wc.goals,
      wc.assists,
      wc.national_appearances_total,
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index fe6d9d3..fbabfb1 100644
+index fbabfb1..ca7e2c0 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1292,21 +1292,30 @@ models:
-       transfer shows as two rows (two clubs, one season); club and national rows are handled uniformly.
-       National-entity rows are the player's NATIONAL APPEARANCES IN COVERED COMPETITIONS — honestly NOT true
-       career caps (we ingest only a subset of national competitions). national_appearances_total denormalises
--      the per-player national-appearance sum (a fact computed in dbt, not the export). Appearance-gated —
--      built from finished-match stats, distinct from dim_player_team_season_mapping (roster membership incl.
--      never-played members). Composes int_player_club_season__metrics. Grain: (player_sk, team_sk, season_sk).
-+      the per-player national-appearance sum (a fact computed in dbt, not the export). Built from
-+      finished-match player-stat rows, so a row means the player was in that club's matchday squad at least
-+      once that competition-season; `appearances` counts only the legs he actually PLAYED (minutes > 0) and
-+      may legitimately be 0 for a squad member who never got on the pitch, whose row is KEPT (CPO
-+      2026-07-23). Until 2026-07-23 appearances counted every matchday selection, inflating 51.4% of rows.
-+      Composes int_player_club_season__metrics. Grain: (player_sk, team_sk, season_sk).
-     tests:
-       - dbt_utils.unique_combination_of_columns:
-           combination_of_columns:
-             - player_sk
-             - team_sk
-             - season_sk
--      # semantic guard: every career-log row is appearance-gated (>= 1 finished-match stat row) — asserts
--      # this mart is built from APPEARANCES, not roster membership (dim_player_team_season_mapping, which
--      # includes never-played squad members). A regression that admitted roster rows would trip this.
-+      # Appearances can no longer be negative but CAN be 0: since 2026-07-23 an appearance requires pitch
-+      # time, and a squad member who was never brought on keeps his row scoring 0 (CPO ruling). The old
-+      # expression here was `appearances >= 1`, which asserted this mart excluded never-played members —
-+      # the exact premise the CPO overturned, and which the data never satisfied anyway (26,530 rows).
-+      # So this is narrowed to what still holds, not loosened to make a change pass.
+@@ -1316,6 +1316,13 @@ models:
        - dbt_utils.expression_is_true:
--          expression: "appearances >= 1"
--          name: player_career_row_is_appearance_gated
-+          expression: "appearances >= 0"
-+          name: player_career_appearances_non_negative
-+      # minutes never negative (sum of coalesce(minutes_played, 0) in the atoms base).
+           expression: "minutes >= 0"
+           name: player_career_minutes_non_negative
++      # minutes_per_appearance = safe_divide(minutes, appearances): null exactly when appearances = 0
++      # (a squad member who never played — 26,657 such rows since #813), non-negative otherwise. Both
++      # branches fire on real rows, so this is not vacuous: it catches a raw divide (would error on the
++      # 0-appearance rows), a negative minutes, or a stray value on a never-played row.
 +      - dbt_utils.expression_is_true:
-+          expression: "minutes >= 0"
-+          name: player_career_minutes_non_negative
++          expression: "(appearances = 0 and minutes_per_appearance is null) or (appearances > 0 and minutes_per_appearance >= 0)"
++          name: player_career_minutes_per_appearance_null_safe
      columns:
        - name: player_career_sk
          description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
-@@ -1337,8 +1346,10 @@ models:
-           - accepted_values:
-               values: ["club", "national"]
-       - name: appearances
--        description: "Appearances at this club that competition-season (finished-match player-stat rows)."
-+        description: "Finished matches the player actually PLAYED for this club that competition-season (minutes > 0). 0 is legitimate: a squad member never brought on keeps his row. Before 2026-07-23 this counted matchday selections including unused substitutes."
+@@ -1350,6 +1357,8 @@ models:
          tests: [not_null]
-+      - name: minutes
-+        description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
+       - name: minutes
+         description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
++      - name: minutes_per_appearance
++        description: "Average minutes per appearance: safe_divide(minutes, appearances), computed here so the consumption layer never divides. Null when appearances = 0 (a squad member who never played); non-negative otherwise. A catalogue-governed rate (metric_catalogue: minutes_per_appearance, direction neutral, a role read); powers the Squad tab's mins/app."
        - name: national_appearances_total
          description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
          tests: [not_null]
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index 90284a2..926374e 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -78,3 +78,4 @@ deserved_rank,team,metrics.deserved_rank.label,"Rank of the team within its leag
+ deserved_points,team,metrics.deserved_points.label,"Points the on-target process deserved across the season. Within each league-season, ordinary least squares fits points-per-match on sot_difference_per_match; this is that fitted rate multiplied by the team's own games played. Fitted, not an aggregate of match legs, so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a within-group position, not a comparable league table. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,false,integer,,,,higher_better,"Deserved points - what the season's on-target dominance was worth; compare it against the real points total"
+ sot_points_gap,team,metrics.sot_points_gap.label,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,false,integer,,,,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad"
+ contribution_share,player,playerMetrics.contributionShare.label,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing (whole-season denominator vs covered-appearance numerator, CPO-accepted). Null when the club scored 0 that competition-season.",,,,false,percent,goals,,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
++minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,"Average minutes played per appearance (minutes / appearances, where an appearance is a match the player actually played). A squad-list playing-time read describing role - a regular starter versus a rotation or impact-sub player - not quality. The mart computes the value inline via safe_divide; this row registers its meaning.",int_legs__player_match,sum(minutes_played),countif(minutes_played > 0),false,decimal_0,,,,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad."

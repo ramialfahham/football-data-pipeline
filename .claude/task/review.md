@@ -1,57 +1,60 @@
-# Review — feat/player-career-minutes — 2026-07-23
+# Review — feat/player-mins-per-appearance — 2026-07-24
 
-diff_sha256: 1a3712586afddd48573f65fe869b730a2d92342003f4d6fe108abd2711df9596
+diff_sha256: d416908623cd5c1982e2f16d5c2750781d887668cd4b23a02f64126032ee8496
 
-rounds: 3
+rounds: 2
 
-> Round count note (honest, for the audit trail): this branch ran three earlier rounds against TWO
-> now-superseded scopes — first adding a `minutes_per_appearance` ratio (analytics-engineer FAIL: an
-> uncatalogued rate), then adding a `metric_catalogue` row (football-analytics-expert FAIL: the
-> denominator counts matchday selections). The CPO re-scoped the task after that second FAIL was
-> verified against production, and the contract was rewritten. The count above is for the CURRENT
-> scope (the appearance-definition fix): round 1 full review, round 2 delta, round 3 confirmation.
-> `football-analytics-expert-reviewer` is NOT in the required set for this diff — its trigger path
-> `dbt_project/seeds/metric_catalogue.csv` was reverted and is absent — but its FAIL is what found the
-> defect this PR now fixes, and the metric it objected to is deferred to the PR that consumes it.
+> PR-A: adds `minutes_per_appearance` = safe_divide(minutes, appearances) to mart_player_career + a
+> metric_catalogue row + a null-safe DQ test, on the appearances denominator corrected in #813. Round 1
+> full: analytics-engineer PASS, football-analytics-expert FAIL (format=integer should be decimal_0;
+> CPO authority not cited), scope-auditor FAIL (same authority gap). Round 2 delta: both fixes made
+> (format -> decimal_0; contract now cites the AskUserQuestion authority), football + scope re-confirmed
+> PASS. analytics-engineer's PASS carries — the only changes since its review are the format field and
+> the contract's authority text, both outside its risk set (mechanics, formula equivalence, the four
+> resolvability/uniqueness/meaning/direction guards, blast radius); format is not validated by any guard.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Serial amendment vs uncontrolled drift: five amendments are recorded, each naming its authority
-  (CPO "Then it is wrong" / "Players are part of the squad even with zero appearances" / the two
-  reversals). Verified the diff stays inside the amended `scope_paths` with no undeclared file, and
-  that the additions are one defect class rather than an open-ended refactor.
-- Contract honesty about its own false claim: the impact_map previously asserted "Neither is read by
-  scripts/export_site_data.py (checked)". Verified the contract now states plainly that this was FALSE
-  and not independently verified, and records the true code path — it does not launder the error.
+- §10 metric-catalogue authority: the contract now cites the CPO authority (AskUserQuestion 2026-07-23,
+  "Catalogue it now" + "Ship minutes only, fix apps next") in refs and decisions_taken (1), dated and
+  quoted, cross-referable to the escalations log — this executes a recorded, deferred decision now that
+  #813 met its precondition, not a new or reversed one.
+- Scope bounded: the diff touches only the four scope_paths (mart_player_career.sql, shared.yml,
+  metric_catalogue.csv, active_work.md); no export/frontend/build leakage (that is PR-B);
+  `amendments: (none)` is correct for a fresh contract on a fresh branch.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The three round-2 findings are genuinely fixed: `int_player_season_position.yml` and
-  `int_player_profile__yoy.sql` no longer carry the pre-fix "appearances-with-stats" phrasing, and the
-  contract's export claim is corrected. The export path was re-verified independently
-  (`export_site_data.py:688` selects `mart_player_profile`; `_strip_identity` drops only bio fields;
-  the yoy appearance fields do reach `players/{id}.json`).
-- No new SQL defect crept in: each of the four fixed writers shows a single coherent hunk implementing
-  `countif(coalesce(minutes_played, 0) > 0)` or the `where coalesce(minutes_played, 0) > 0` leg filter,
-  with no extraneous or conflicting edits.
-- (Earlier rounds, carried) `starts` correctly needed no change — `is_starter` is stored as
-  `coalesce(minutes_played,0) > 0 and not coalesce(is_substitute,false)`, so the new
-  `starts + substitute_appearances = appearances` test holds by construction. Confirmed empirically on
-  production: 0 violations across 170,533 club-seasons.
-- (Earlier rounds, carried) The `appearances >= 1` -> `>= 0` change is a legitimate narrowing, not a
-  loosened guard: the old expression asserted the premise the CPO overturned, and 26,530 production
-  rows never satisfied it.
+- Corrected-denominator + formula equivalence: `appearances`/`minutes` in int_player_club_season__metrics
+  are the #813-corrected atoms; proved `countif(minutes_played > 0)` (catalogue) is identical to the
+  mart's `countif(coalesce(minutes_played,0) > 0)` under BigQuery null-comparison semantics, so the
+  catalogue formula and the mart column agree; the bare countif (no coalesce) honors the no-null-gate
+  rule, matching the clean_sheets precedent.
+- Catalogue guards hand-traced against the real row and int_legs__player_match columns: resolvable
+  (sum/countif allow-listed, minutes_played real), unique (metric_id, entity), meaning-complete, and
+  direction/lower_is_better agree (neutral + false). Same-window (numerator/denominator share one
+  per_fixture CTE). Leaf mart (zero ref() hits); export _shape_career_row does not surface the column,
+  so nothing breaks on merge. Table materialization, no incremental-rename trap. No hardcoded league_code.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- direction=neutral RATIFIED: mins/app normalises minutes by appearance count (no output in the
+  numerator), so it is a squad-role descriptor with no better/worse pole — a valued super-sub on short
+  cameos is not "worse" than a starter — matching the existing neutral rows (contribution_share,
+  sot_points_gap); lower_is_better=false agrees.
+- format corrected to decimal_0: a divided value like every other ratio row (safe_divide returns
+  FLOAT64), renders identically to integer per site_v2 format.ts; the rest of the row is unregressed
+  (numerator sum(minutes_played), denominator countif(minutes_played > 0), interpretation unchanged).
 
 ## escalations
-- question: `minutes_per_appearance` — a display-support mart column, or a catalogue-governed metric?
-  CPO ANSWER: catalogue it (AskUserQuestion 2026-07-23, "Catalogue it now"). Subsequently DEFERRED out
-  of this PR by the answer below, to land with the Squad tab on the corrected denominator.
-- question: the ratio's denominator counts matchday selections, not appearances (verified on
-  production). Ship the ratio anyway, drop it, or fix the count?
-  CPO ANSWER: "Ship minutes only, fix apps next" (AskUserQuestion 2026-07-23), then, on being shown
-  that appearances counts squad selections: "Then it is wrong" — fix the definition.
-- question: should never-played squad members be dropped from the career log or kept?
-  CPO ANSWER: "Players are part of the squad even with zero appearances" (2026-07-23) — kept, counted
-  as 0. Nothing is deleted.
+- question: is minutes_per_appearance a display-support column or a catalogue-governed metric?
+  CPO ANSWER: catalogue it — "Catalogue it now" (AskUserQuestion 2026-07-23).
+- question: ship the ratio now, or fix the appearances denominator first?
+  CPO ANSWER: "Ship minutes only, fix apps next" (AskUserQuestion 2026-07-23). #813 did the fix; this
+  PR ships the ratio on the corrected denominator.
+- question: direction of minutes_per_appearance — neutral or higher_better?
+  Ratified neutral by the football-analytics-expert reviewer (a reviewer-adjudicated domain call, not a
+  §10 CPO decision).
