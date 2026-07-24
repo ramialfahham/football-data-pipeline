@@ -20,16 +20,24 @@ import { t } from "../../../i18n/strings";
 import { localeHref } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
 import type { Team, TeamSeason } from "../../../lib/types";
-import teamData from "../../../data/teams/33.json";
 import competitions from "../../../data/competitions.json";
 
 export function getStaticPaths() {
   const locales: Lang[] = ["de", "en", "fi"];
-  const team = teamData as unknown as Team;
-  return locales.map((lang) => ({
-    params: { lang, team: team.slug },
-    props: { team, lang },
-  }));
+  // Every team the export wrote to src/data/teams/*.json becomes a page. Dev/PR: the committed
+  // sample(s); production: the full export populated into the dir at build time (the bulk is
+  // gitignored, never committed). One page per team x 3 locales. The glob is called inside
+  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope).
+  const teams = import.meta.glob<Team>("/src/data/teams/*.json", {
+    eager: true,
+    import: "default",
+  });
+  return Object.values(teams).flatMap((team) =>
+    locales.map((lang) => ({
+      params: { lang, team: team.slug },
+      props: { team, lang },
+    })),
+  );
 }
 
 interface Props {

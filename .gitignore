@@ -232,3 +232,11 @@ artifacts/*.js
 
 # site_v2 per-entity export build artifact (#365)
 artifacts/site_data/
+
+# site_v2 real-data build: the site build enumerates src/data/{teams,fixtures}/*.json. Only the
+# committed samples are tracked; a full export populates these dirs at build time (100s MB to >1 GB)
+# and must never be committed. Keep the samples, ignore the bulk.
+site_v2/src/data/teams/*.json
+!site_v2/src/data/teams/33.json
+site_v2/src/data/fixtures/*.json
+!site_v2/src/data/fixtures/1492306.json

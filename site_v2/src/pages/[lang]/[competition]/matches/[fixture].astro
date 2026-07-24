@@ -18,22 +18,31 @@ import { t } from "../../../../i18n/strings";
 import { localeHref } from "../../../../lib/href";
 import type { Lang } from "../../../../lib/format";
 import type { Fixture } from "../../../../lib/types";
-import fixtureData from "../../../../data/fixtures/1492306.json";
 import competitions from "../../../../data/competitions.json";
 
 export function getStaticPaths() {
   const locales: Lang[] = ["de", "en", "fi"];
-  const fixture = fixtureData as unknown as Fixture;
-  const comp = (competitions as Record<string, { slug: string }>)[fixture.league_code];
-  if (!comp) {
-    throw new Error(
-      `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
-    );
-  }
-  return locales.map((lang) => ({
-    params: { lang, competition: comp.slug, fixture: fixture.slug },
-    props: { fixture, lang },
-  }));
+  const comps = competitions as Record<string, { slug: string }>;
+  // Every fixture the export wrote to src/data/fixtures/*.json becomes a page. Dev/PR: the committed
+  // sample(s); production: the full export at build time (the bulk is gitignored). One page per
+  // fixture x 3 locales; the competition URL segment is each fixture's league slug from the full map.
+  // The glob is called inside getStaticPaths (Astro extracts this fn in isolation).
+  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", {
+    eager: true,
+    import: "default",
+  });
+  return Object.values(fixtures).flatMap((fixture) => {
+    const comp = comps[fixture.league_code];
+    if (!comp) {
+      throw new Error(
+        `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
+      );
+    }
+    return locales.map((lang) => ({
+      params: { lang, competition: comp.slug, fixture: fixture.slug },
+      props: { fixture, lang },
+    }));
+  });
 }
 
 interface Props {

@@ -5,6 +5,7 @@ fabricated rows so python-ci validates the logic offline.
 """
 
 from scripts.export_site_data import (
+    _competitions_index,
     _display_group_of_type,
     _fixture_side,
     _shape_benchmark_member,
@@ -676,3 +677,18 @@ def test_build_manifest_counts_by_type():
     assert m["counts"] == {"team": 2, "player": 1}
     assert len(m["entries"]) == 3
     assert "generated_at" in m
+
+
+def test_competitions_index_covers_registry_leagues_with_slug_and_name():
+    # league_code -> {name, slug} for every active league, registry-derived (no BigQuery).
+    # This is what site_v2/src/data/competitions.json carries; the fixture page resolves its URL
+    # competition segment from it, so every entry must have a slug.
+    idx = _competitions_index()
+    assert idx, "registry produced no competitions"
+    for lc, meta in idx.items():
+        assert isinstance(lc, str) and lc
+        assert meta.get("slug"), f"{lc} has no slug"
+        assert "name" in meta
+    # known active leagues resolve (registry-backed)
+    assert idx["PL"]["slug"] == "premier-league"
+    assert idx["BL1"]["slug"]
