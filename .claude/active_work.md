@@ -150,23 +150,18 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## IN FLIGHT — branch `feat/player-career-minutes` (PR #813). WAREHOUSE, no frontend.
+## DONE — `appearances` fix + `minutes` (#813, MERGED + DEPLOYED 2026-07-24)
 
-**Fixes a verified defect: `appearances` counted matchday SELECTIONS, not pitch time** — the provider
-lists the whole squad, so unused substitutes arrived as 0-minute stat rows and were counted. It
-inflated **51.4% of career club-seasons**, and 26,530 recorded a player who never took the pitch.
+#813 fixed `appearances` warehouse-wide to `countif(minutes_played > 0)` (played legs, not squad
+selections) and added `minutes` to `mart_player_career`. Deployed via ci-data-build; verified in prod:
+26,657 zero-appearance rows now exist (never-played members kept, reading 0), `minutes` populated.
 
-CPO 2026-07-23: *"Then it is wrong"* and *"Players are part of the squad even with zero appearances"*
-— never-played rows are KEPT and read 0; nothing is deleted.
+## IN FLIGHT — branch `feat/player-mins-per-appearance` (PR-A, reviewed → PR). WAREHOUSE.
 
-Fixed in FOUR writers (one class): `int_player_club_season__metrics` (appearances +
-substitute_appearances), `int_player_season_position__metrics`, `int_player_momentum__metrics`,
-`int_player_season_record`. `starts` needed none (`is_starter` already required minutes > 0). Adds
-`minutes` to `mart_player_career` + a DQ test `starts + substitute_appearances = appearances`
-(production: 0 violations / 170,533 rows). The `appearances >= 1` gate became `>= 0`.
-
-⚠️ **Numbers CHANGE on rebuild by design.** Benchmarks/leaderboards are insulated (they gate on
-`minutes >= 270`). Nothing is live.
+The Squad tab's `minutes_per_appearance`, deferred out of #813 until its denominator was correct. Adds
+`safe_divide(minutes, appearances) as minutes_per_appearance` to `mart_player_career` + its
+`metric_catalogue` row (direction `neutral`, ratified by the football reviewer) + a null-safe DQ test.
+All three reviewers PASS. Merge → ci-data-build deploys → then PR-B (the build).
 
 **Squad tab is PLANNED and CPO-approved — full detail in the plan:**
 `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md`. CPO 2026-07-23: the **FULL mock** `f6348775`

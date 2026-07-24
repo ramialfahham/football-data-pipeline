@@ -1316,6 +1316,13 @@ models:
       - dbt_utils.expression_is_true:
           expression: "minutes >= 0"
           name: player_career_minutes_non_negative
+      # minutes_per_appearance = safe_divide(minutes, appearances): null exactly when appearances = 0
+      # (a squad member who never played — 26,657 such rows since #813), non-negative otherwise. Both
+      # branches fire on real rows, so this is not vacuous: it catches a raw divide (would error on the
+      # 0-appearance rows), a negative minutes, or a stray value on a never-played row.
+      - dbt_utils.expression_is_true:
+          expression: "(appearances = 0 and minutes_per_appearance is null) or (appearances > 0 and minutes_per_appearance >= 0)"
+          name: player_career_minutes_per_appearance_null_safe
     columns:
       - name: player_career_sk
         description: "Surrogate key — generate_surrogate_key(player_sk, team_sk, season_sk)."
@@ -1350,6 +1357,8 @@ models:
         tests: [not_null]
       - name: minutes
         description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
+      - name: minutes_per_appearance
+        description: "Average minutes per appearance: safe_divide(minutes, appearances), computed here so the consumption layer never divides. Null when appearances = 0 (a squad member who never played); non-negative otherwise. A catalogue-governed rate (metric_catalogue: minutes_per_appearance, direction neutral, a role read); powers the Squad tab's mins/app."
       - name: national_appearances_total
         description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
         tests: [not_null]
