@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-24**. main GREEN at **8d89792**, tree clean. Team page + real-data wiring both MERGED. NOTHING in flight — the next chat picks from NEXT below._
+_Last updated **2026-07-24**. main GREEN at **33662ae**. IN FLIGHT: hosting deploy job (`feat/deploy-site-v2-firebase`, PR) — manual only, not public; awaits CPO merge + 2 GCP prereqs (see OPEN)._
 
 ---
 
@@ -27,7 +27,7 @@ verified against the repo on 2026-07-22.
 |---|-------|--------|--------------|
 | 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
 | 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
-| 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
+| 3 | **Hosting** | vendor chosen; job built (PR) | **Firebase** chosen. Deploy job built (export -> raised-heap build -> `firebase deploy`), **manual only**, `.web.app`, no custom domain. Recurring run + go-public still gated (see OPEN). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
 | 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
 
@@ -150,31 +150,27 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (#810 #811 #813 #814 PR-B, merged)
+## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (merged)
 
-⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed
-warehouse-wide in #813 (it was counting matchday selections incl. unused subs). `mart_player_career`
-gained `minutes` + `minutes_per_appearance` (catalogue metric, `neutral`). Team page: all 3 tabs live.
+⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed warehouse-wide
+(#813; was counting selections incl. unused subs). `mart_player_career` gained `minutes` +
+`minutes_per_appearance`. Team page: all 3 tabs live.
 
 ## DONE 2026-07-24 — REAL DATA wiring (#818 MERGED, launch group 2)
 
-The build CONSUMES the real export: team + fixture `getStaticPaths` enumerate
-`src/data/{teams,fixtures}/*.json` via `import.meta.glob`; the export emits the full 45-league registry
-`competitions.json`; `.gitignore` keeps the 2 samples, ignores the bulk (built at build time, never
-committed). Proven: raised-heap build = 14,874 pages / 26 leagues; dev build (samples) unchanged.
+Build CONSUMES the real export: team + fixture `getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`
+via `import.meta.glob`; export emits the full 45-league `competitions.json`; `.gitignore` keeps the 2
+samples, ignores the bulk (built at build time). Proven: raised-heap build = 14,874 pages / 26 leagues.
 
-⚠️ **Default-heap `astro build` OOMs on the full set** — a deploy-time ceiling, NOT a wiring bug
-(builds at `NODE_OPTIONS=--max-old-space-size=8192`); the heap setting / long-tail on-demand belongs to
-the deploy job (group 3).
-
-⚠️ **Local cruft:** the scale-verify left ~5000 gitignored bulk files in `site_v2/src/data/` (sandbox
-blocked deletion; NOT committed). Run `git clean -fX site_v2/src/data` before a local dev build, else OOM.
+⚠️ Default-heap `astro build` OOMs at full scale — handled by the deploy job's `--max-old-space-size=8192`.
+A full local export leaves gitignored bulk in `site_v2/src/data/`; run `git clean -fX site_v2/src/data`
+before a local dev build, else OOM.
 
 ## NEXT
 
-1. **Deploy + hosting (group 3)** — pick the vendor, then build the export->build->deploy job
-   (daily rebuild after the 04:00 pipeline); this is where the raised-heap build setting lands. CPO
-   decision (vendor) open.
+1. **Deploy + hosting (group 3)** — vendor chosen (Firebase), deploy job BUILT (PR open, manual only).
+   Remaining: CPO merges; CPO does the two GCP prerequisites; then dispatch once to verify the real
+   deploy; then (after cost+schedule confirmation) add the recurring trigger. See OPEN > Hosting.
 2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
 3. **Small follow-ups** (here in case the task chips don't survive a restart):
    - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
@@ -192,10 +188,13 @@ blocked deletion; NOT committed). Run `git clean -fX site_v2/src/data` before a 
   address. Substitutes exist (service/business address) but whether the site needs an Impressum and
   whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
   only; does NOT block building.
-- **Hosting.** Settled 2026-07-23: static build, rebuilt daily after the 04:00 pipeline, CDN-served,
-  no backend. Vendor open — GitHub Pages (1 GB) and IONOS Deploy Now Starter (50 MB) are both too small
-  for the full catalog. Lean Firebase Hosting / Cloud Storage+CDN (GCP-native), or Cloudflare Pages if
-  free bandwidth wins and we render the long tail on demand. Domain at IONOS (portable). Doesn't block building.
+- **Hosting.** Vendor DECIDED 2026-07-24: **Firebase Hosting** (GCP-native, reuses WIF auth, atomic
+  deploys, no fixed floor). Cloud Storage+CDN = later migration path; Cloudflare ruled out (20k-file
+  cap forces a backend). Deploy job built (PR). **Open, both the CPO's:** (1) **Recurring run** — job is
+  manual only; before the auto trigger (`workflow_run` on dbt-scheduled, or a cron) confirm cost+schedule
+  (a free `bq --dry_run` gives exact bytes; the marts scan is ~pennies/month). (2) **Two GCP prereqs**
+  (console, an agent cannot): enable Firebase + create a Hosting site; grant `roles/firebasehosting.admin`
+  to the deploy SA — until then the deploy step fails, build steps pass. Go-public stays imprint-blocked.
 - **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
   from here (#687).
 

@@ -1,541 +1,445 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 87184da..0a3fa35 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -5,7 +5,7 @@
+ > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
+ > injection budget of the SessionStart hook meant to deliver it.
+ 
+-_Last updated **2026-07-24**. main GREEN at **8d89792**, tree clean. Team page + real-data wiring both MERGED. NOTHING in flight — the next chat picks from NEXT below._
++_Last updated **2026-07-24**. main GREEN at **33662ae**. IN FLIGHT: hosting deploy job (`feat/deploy-site-v2-firebase`, PR) — manual only, not public; awaits CPO merge + 2 GCP prereqs (see OPEN)._
+ 
+ ---
+ 
+@@ -27,7 +27,7 @@ verified against the repo on 2026-07-22.
+ |---|-------|--------|--------------|
+ | 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
+ | 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
+-| 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
++| 3 | **Hosting** | vendor chosen; job built (PR) | **Firebase** chosen. Deploy job built (export -> raised-heap build -> `firebase deploy`), **manual only**, `.web.app`, no custom domain. Recurring run + go-public still gated (see OPEN). |
+ | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
+ | 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
+ 
+@@ -150,31 +150,27 @@ reviewers as peers rather than one reviewer reading every diff.
+ 
+ ---
+ 
+-## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (#810 #811 #813 #814 PR-B, merged)
++## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (merged)
+ 
+-⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed
+-warehouse-wide in #813 (it was counting matchday selections incl. unused subs). `mart_player_career`
+-gained `minutes` + `minutes_per_appearance` (catalogue metric, `neutral`). Team page: all 3 tabs live.
++⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed warehouse-wide
++(#813; was counting selections incl. unused subs). `mart_player_career` gained `minutes` +
++`minutes_per_appearance`. Team page: all 3 tabs live.
+ 
+ ## DONE 2026-07-24 — REAL DATA wiring (#818 MERGED, launch group 2)
+ 
+-The build CONSUMES the real export: team + fixture `getStaticPaths` enumerate
+-`src/data/{teams,fixtures}/*.json` via `import.meta.glob`; the export emits the full 45-league registry
+-`competitions.json`; `.gitignore` keeps the 2 samples, ignores the bulk (built at build time, never
+-committed). Proven: raised-heap build = 14,874 pages / 26 leagues; dev build (samples) unchanged.
++Build CONSUMES the real export: team + fixture `getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`
++via `import.meta.glob`; export emits the full 45-league `competitions.json`; `.gitignore` keeps the 2
++samples, ignores the bulk (built at build time). Proven: raised-heap build = 14,874 pages / 26 leagues.
+ 
+-⚠️ **Default-heap `astro build` OOMs on the full set** — a deploy-time ceiling, NOT a wiring bug
+-(builds at `NODE_OPTIONS=--max-old-space-size=8192`); the heap setting / long-tail on-demand belongs to
+-the deploy job (group 3).
+-
+-⚠️ **Local cruft:** the scale-verify left ~5000 gitignored bulk files in `site_v2/src/data/` (sandbox
+-blocked deletion; NOT committed). Run `git clean -fX site_v2/src/data` before a local dev build, else OOM.
++⚠️ Default-heap `astro build` OOMs at full scale — handled by the deploy job's `--max-old-space-size=8192`.
++A full local export leaves gitignored bulk in `site_v2/src/data/`; run `git clean -fX site_v2/src/data`
++before a local dev build, else OOM.
+ 
+ ## NEXT
+ 
+-1. **Deploy + hosting (group 3)** — pick the vendor, then build the export->build->deploy job
+-   (daily rebuild after the 04:00 pipeline); this is where the raised-heap build setting lands. CPO
+-   decision (vendor) open.
++1. **Deploy + hosting (group 3)** — vendor chosen (Firebase), deploy job BUILT (PR open, manual only).
++   Remaining: CPO merges; CPO does the two GCP prerequisites; then dispatch once to verify the real
++   deploy; then (after cost+schedule confirmation) add the recurring trigger. See OPEN > Hosting.
+ 2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
+ 3. **Small follow-ups** (here in case the task chips don't survive a restart):
+    - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
+@@ -192,10 +188,13 @@ blocked deletion; NOT committed). Run `git clean -fX site_v2/src/data` before a
+   address. Substitutes exist (service/business address) but whether the site needs an Impressum and
+   whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
+   only; does NOT block building.
+-- **Hosting.** Settled 2026-07-23: static build, rebuilt daily after the 04:00 pipeline, CDN-served,
+-  no backend. Vendor open — GitHub Pages (1 GB) and IONOS Deploy Now Starter (50 MB) are both too small
+-  for the full catalog. Lean Firebase Hosting / Cloud Storage+CDN (GCP-native), or Cloudflare Pages if
+-  free bandwidth wins and we render the long tail on demand. Domain at IONOS (portable). Doesn't block building.
++- **Hosting.** Vendor DECIDED 2026-07-24: **Firebase Hosting** (GCP-native, reuses WIF auth, atomic
++  deploys, no fixed floor). Cloud Storage+CDN = later migration path; Cloudflare ruled out (20k-file
++  cap forces a backend). Deploy job built (PR). **Open, both the CPO's:** (1) **Recurring run** — job is
++  manual only; before the auto trigger (`workflow_run` on dbt-scheduled, or a cron) confirm cost+schedule
++  (a free `bq --dry_run` gives exact bytes; the marts scan is ~pennies/month). (2) **Two GCP prereqs**
++  (console, an agent cannot): enable Firebase + create a Hosting site; grant `roles/firebasehosting.admin`
++  to the deploy SA — until then the deploy step fails, build steps pass. Go-public stays imprint-blocked.
+ - **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
+   from here (#687).
+ 
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4c9a9a1..17c3e3a 100644
+index 17c3e3a..81a1d5f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,123 +1,75 @@
--# Task contract — PR-B: team page Squad tab (export + frontend + sample)
-+# Task contract — wire the v2 build to consume the real export
+@@ -1,75 +1,102 @@
+-# Task contract — wire the v2 build to consume the real export
++# Task contract — hosting deploy job (Firebase Hosting, launch group 3)
  
--> Written on a CLEAN tree (branch `feat/team-squad-tab` off main after #813 + #814 merged and
--> DEPLOYED). The warehouse halves are done: `appearances` is corrected (#813) and
--> `minutes_per_appearance` is live in `mart_player_career` (#814, verified in prod: 144,306 played rows
--> carry a value, 26,657 never-played rows are null). This is the consumption + build half.
-+> Written on a CLEAN tree (branch `feat/site-v2-real-data` off main at f586457, after PR-B merged).
-+> Plan: C:\Users\Rami\.claude\plans\deep-puzzling-conway.md (CPO-approved via ExitPlanMode 2026-07-24).
+-> Written on a CLEAN tree (branch `feat/site-v2-real-data` off main at f586457, after PR-B merged).
+-> Plan: C:\Users\Rami\.claude\plans\deep-puzzling-conway.md (CPO-approved via ExitPlanMode 2026-07-24).
++> Written on a CLEAN tree (branch `feat/deploy-site-v2-firebase` off main at 33662ae).
++> Plan: C:\Users\Rami\.claude\plans\rosy-juggling-quill.md (CPO-approved via ExitPlanMode 2026-07-24).
  
  objective: >
--  Build the team page Squad tab from the CPO-approved mock `f6348775`: per-player appearances,
--  mins/app, goals, assists, grouped by position (GK -> DEF -> MID -> FWD -> Other), rows ordered by
--  appearances desc, monogram avatars (no photos). The export joins the deployed `mart_player_career`
--  stats onto each squad member; the frontend renders them; the committed sample `33.json` is
--  re-exported so it is real output (binding rule). No warehouse change.
-+  Make the v2 build generate a page for EVERY team and EVERY fixture from real export output, instead
-+  of one committed sample per page, and resolve competition slugs across ALL active leagues. Launch
-+  group 2 ("real data"), decision-independent. Player + competition pages (undesigned, group 1) and the
-+  export->build->deploy automation (blocked on the hosting vendor, group 3) are OUT.
+-  Make the v2 build generate a page for EVERY team and EVERY fixture from real export output, instead
+-  of one committed sample per page, and resolve competition slugs across ALL active leagues. Launch
+-  group 2 ("real data"), decision-independent. Player + competition pages (undesigned, group 1) and the
+-  export->build->deploy automation (blocked on the hosting vendor, group 3) are OUT.
++  Build the export->build->deploy automation for the v2 site (launch group 3). A CI workflow
++  that runs the full export, builds the ~15k-page site with a raised Node heap, and deploys to
++  Firebase Hosting (the CPO's chosen vendor, 2026-07-24). Ships MANUAL-DISPATCH ONLY and deploys
++  to the Firebase `.web.app` URL with NO custom domain: the recurring run is gated on the CPO's
++  cost+schedule confirmation, and going public is gated on the open imprint question. Both gates
++  stay closed in this PR; opening each is a later one-line change.
  
  refs: >
--  Plan `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md` (PR2 section). `mart_player_career` (live)
--  has per (player, club, competition-season): appearances (corrected, played-legs), minutes,
--  minutes_per_appearance, goals, assists, plus join keys player_sk / team_sk / league_code /
--  season_api_year. `mart_roster` supplies the full squad (identity, incl. never-played members). The
--  export already fetches roster per team (fetch_team_payloads ~660) and shapes it in shape_team_payload
--  (~244) via `_shape_squad_member` (135). Overview (#810) + Performance (#811) tabs are built; Squad is
--  a coming-state today.
-+  Plan file above. Verified this session (Explore map): only team + fixture pages exist, each hardwired
-+  to one imported sample via `getStaticPaths`; no enumeration primitive; `competitions.json` is a
-+  hand-trimmed 2-entry stand-in; the export already writes the full per-entity layout but nothing
-+  consumes it and its output is gitignored (committing the full export is not viable, >100s MB). The
-+  registry carries slug+name per league; the export already builds the `league_code -> {slug, name}`
-+  shape at `scripts/export_site_data.py:992` via `_registry_competitions()` (registry-only, no BigQuery).
+-  Plan file above. Verified this session (Explore map): only team + fixture pages exist, each hardwired
+-  to one imported sample via `getStaticPaths`; no enumeration primitive; `competitions.json` is a
+-  hand-trimmed 2-entry stand-in; the export already writes the full per-entity layout but nothing
+-  consumes it and its output is gitignored (committing the full export is not viable, >100s MB). The
+-  registry carries slug+name per league; the export already builds the `league_code -> {slug, name}`
+-  shape at `scripts/export_site_data.py:992` via `_registry_competitions()` (registry-only, no BigQuery).
++  Plan file above. Verified this session: `dbt-scheduled.yml` (cron 0 4 * * *) is the daily
++  pipeline; it and `pages-match-preview.yml` auth to GCP via WIF secrets GCP_WORKLOAD_IDENTITY_PROVIDER
++  + GCP_SERVICE_ACCOUNT (reused here, no new secret). `scripts/export_site_data.py` already emits the
++  full per-entity layout via `--entities`/`--out` and always writes competitions.json (line ~1155);
++  no export code change is needed. #818 proved the full build needs NODE_OPTIONS=--max-old-space-size=8192
++  and OOMs at default heap. `astro.config.mjs` base is "/v2/" only for the earlier GitHub Pages subpath
++  layout; its own comment anticipates the flip to root.
  
  scope_paths:
-+  # trailing-slash prefix: the page files live under bracketed [lang]/[team] dirs, which fnmatch
-+  # would read as char-classes — the prefix form matches them. Only the team + fixture pages change.
-+  - site_v2/src/pages/
-+  - site_v2/src/data/competitions.json
-   - scripts/export_site_data.py
-   - tests/test_export_site_data.py
--  - site_v2/src/components/team/
+-  # trailing-slash prefix: the page files live under bracketed [lang]/[team] dirs, which fnmatch
+-  # would read as char-classes — the prefix form matches them. Only the team + fixture pages change.
 -  - site_v2/src/pages/
--  - site_v2/src/styles/system.css
--  - site_v2/src/lib/types.ts
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/data/teams/33.json
--  - docs/wireframes/11_team_squad.md
--  - docs/wireframes/99_gaps_register.md
--  - docs/wireframes/00_overview.md
--  - docs/ui_design_brief.md
--  - docs/content_architecture.md
--  - dbt_project/docs/layering.md
--  - dbt_project/models/5_marts/shared/mart_roster.sql
--  - dbt_project/models/5_marts/shared/shared.yml
-+  - .gitignore
+-  - site_v2/src/data/competitions.json
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
+-  - .gitignore
++  - .github/workflows/deploy-site-v2.yml
++  - site_v2/firebase.json
++  - site_v2/astro.config.mjs
++  - docs/site_architecture.md
    - .claude/active_work.md
  
++protected_override: >
++  CPO go for this task, 2026-07-24 (session prompt): "build the export->build->deploy job ...
++  deploys to the chosen vendor" with the explicit note that `.github/workflows/` "is a PROTECTED
++  path — needs a protected_override in the task contract + cto review at the opus floor." Plan
++  CPO-approved via ExitPlanMode same day. Only the ONE new workflow file is added under the
++  protected prefix; no existing workflow, hook, agent or setting is touched.
++
  impact_map: >
--  writers: NONE. No warehouse object, no dbt model, no seed. This PR only CONSUMES the already-deployed
--    `mart_player_career` (from #813/#814). The mart is a leaf; this adds a second reader (the team run)
--    beside the existing player run.
--  downstream: consumption only. The export gains a scoped fetch of `mart_player_career` by team_sk
--    (mirroring the existing roster/benchmark fetches) and a SELECT+JOIN in shape_team_payload: each
--    roster member is matched to its career row by (league_code, season_api_year, player_sk) and the four
--    stats attached. No derivation — mins/app is read from the mart column, never divided here
--    (consumption-layer contract). The frontend adds `TeamSquad.astro`, appends squad CSS to system.css,
--    extends the squad-member type, adds i18n, and swaps ONE coming-state div on the teams page.
--  layer_rules: consumption-layer contract (Appendix A5) — select / group / rename / map-to-display only;
--    no fact derived. Position -> group is display mapping (raw `position` carried by the export, grouped
--    in the frontend). `check_layer_contract` does not gate the site; the reviewers enforce it.
--  deploy_order: none for the warehouse (already deployed). The sample `33.json` MUST be regenerated by
--    running the real export against the deployed mart AFTER the code is written, so the committed sample
--    is genuine output (#805 binding rule) — not hand-edited.
--  blast_radius: bounded. Export: additive fetch + additive fields on squad members (a member with no
--    career row -> stats null; the frontend shows only >= 1 appearance). Existing team payload fields,
--    the player run, and other marts are untouched. Frontend: a new component + appended CSS (the
--    two-line `.pstat` variant SCOPED to the squad so the fixture PlayerRow is unaffected) + one swapped
--    div. Static Astro build; nothing deployed (no hosting), so no runtime blast radius.
-+  writers: NONE. No warehouse/dbt/seed change. `export_site_data.py` gains a registry-only
-+    `competitions.json` emit in `export_all` (reuses `_registry_competitions()`, no new BigQuery query).
-+  downstream: the static site build only. The two page `getStaticPaths` switch from a single-file import
-+    to `import.meta.glob('/src/data/{teams,fixtures}/*.json', {eager:true})` — one page per file present.
-+    `competitions.json` becomes the full registry map, consumed by the fixture page + TeamHeader.astro
-+    via the existing `competitions[league_code].slug` lookup (now covering all leagues). No consumer
-+    breaks: with only the committed samples present (dev/PR), the build produces the same team + fixture
-+    pages as today.
-+  layer_rules: consumption layer (Appendix A5) — select/enumerate/route only, no fact derived. The
-+    export's competitions.json is a registry passthrough (slug+name), not a computed fact.
-+  deploy_order: none. Nothing is deployed (hosting undecided). The full export is generated at build
-+    time and NOT committed (gitignored bulk with sample exceptions), so the repo stays small.
-+  blast_radius: bounded / build-time only. Additive enumeration + a fuller competitions map + gitignore
-+    patterns. No warehouse object, no runtime service. The committed tree still holds only the two
-+    samples + the (tiny) full competitions.json.
+-  writers: NONE. No warehouse/dbt/seed change. `export_site_data.py` gains a registry-only
+-    `competitions.json` emit in `export_all` (reuses `_registry_competitions()`, no new BigQuery query).
+-  downstream: the static site build only. The two page `getStaticPaths` switch from a single-file import
+-    to `import.meta.glob('/src/data/{teams,fixtures}/*.json', {eager:true})` — one page per file present.
+-    `competitions.json` becomes the full registry map, consumed by the fixture page + TeamHeader.astro
+-    via the existing `competitions[league_code].slug` lookup (now covering all leagues). No consumer
+-    breaks: with only the committed samples present (dev/PR), the build produces the same team + fixture
+-    pages as today.
+-  layer_rules: consumption layer (Appendix A5) — select/enumerate/route only, no fact derived. The
+-    export's competitions.json is a registry passthrough (slug+name), not a computed fact.
+-  deploy_order: none. Nothing is deployed (hosting undecided). The full export is generated at build
+-    time and NOT committed (gitignored bulk with sample exceptions), so the repo stays small.
+-  blast_radius: bounded / build-time only. Additive enumeration + a fuller competitions map + gitignore
+-    patterns. No warehouse object, no runtime service. The committed tree still holds only the two
+-    samples + the (tiny) full competitions.json.
++  writers: NONE. No warehouse/dbt/seed/ingestion change. The export step READS marts only
++    (`select *` from consumption marts) and writes JSON into `site_v2/src/data/` at build time;
++    it does not write BigQuery. No prod-warehouse write, so no need for the `prod-warehouse-write`
++    concurrency group.
++  downstream (protected workflow — trace what depends on it, not table lineage):
++    - Fires ONLY on `workflow_dispatch` (manual). No `schedule`, no `workflow_run`, no `push`/`pull_request`
++      trigger, so it runs on nothing automatically and cannot fire on this PR. No existing workflow
++      calls or needs it; it is a new leaf. If it is wrong, a manual dispatch fails and nothing else
++      breaks — no recurring run, no prod write, no other job, no live URL (custom domain not attached).
++    - On failure: the deploy step is the only externally-visible action; it targets the Firebase
++      `.web.app` URL. Until the two GCP prerequisites (enable Firebase, grant roles/firebasehosting.admin
++      to GCP_SERVICE_ACCOUNT) are done, the deploy step fails there and the build steps still pass.
++  downstream (site_v2 config): `astro.config.mjs` base "/v2/" -> "/" changes only internal link/asset
++    prefixes; the `dist/` file layout is unchanged, so `ci-site-v2.yml` (asserts dist/index.html,
++    dist/{de,en,fi}/index.html) still passes. `firebase.json` is consumed only by the new workflow's
++    firebase deploy step.
++  layer_rules: consumption boundary (Appendix A5) — the export selects/enumerates, derives no fact;
++    unchanged here (no export edit). check_layer_contract stays green (no model/staging change).
++  deploy_order: none in the warehouse sense. Conceptually the deploy runs AFTER the 04:00 nightly so
++    it exports fresh marts, but it is manual-only now, so timing is manual; the recurring chain
++    (`workflow_run` on dbt-scheduled, or a later cron) is deferred to the cost+schedule confirmation.
++    Read-only marts access means no serialization vs the nightly is required.
++  blast_radius: bounded / additive. One new workflow (manual-only), one new hosting config, one
++    reversible base flip, one handover edit. No warehouse object, no runtime service, no secret value
++    touched (secrets referenced by name only), no recurring run enabled, nothing public.
  
  decisions_taken: >
--  (1) BUILD the full approved mock's Squad tab — CPO decision 2026-07-23 (AskUserQuestion), settled in
--      the plan. Per-player apps / mins-per-app / goals / assists, position-grouped, monogram avatars.
--  (2) Show squad members with >= 1 appearance, ordered by appearances desc, under an "{n} of {m} shown"
--      caption (m = full roster length) — the mock's "17 of 26" rule. Never-played / no-career-row
--      members are counted in {m}, not listed. Follows the approved mock.
--  (3) Position -> group mapping GK/DEF/MID/FWD from the raw `position` (Goalkeeper/Defender/
--      Midfielder/Attacker), null/other -> "Other"; group order GK -> DEF -> MID -> FWD -> Other. A
--      display mapping, not an export fact.
--  (4) mins/app is read from the mart's `minutes_per_appearance` column; the export and frontend never
--      divide (the reason #814 added the column).
-+  (1) Enumerate via `import.meta.glob` (Astro-idiomatic, no fs); each entity's own `.slug` stays the
-+      URL param (unchanged pattern). CPO-approved plan.
-+  (2) The full competitions map is registry-derived and emitted by the export (reusing
-+      `_registry_competitions()`); committed because it is tiny (~14 leagues).
-+  (3) The bulk team/fixture JSON is gitignored (sample exceptions kept) — the build consumes real data
-+      generated at build time; the repo never carries the full export.
-+  (4) Deploy automation is deferred to the hosting decision; this PR makes the build READY, not deployed.
+-  (1) Enumerate via `import.meta.glob` (Astro-idiomatic, no fs); each entity's own `.slug` stays the
+-      URL param (unchanged pattern). CPO-approved plan.
+-  (2) The full competitions map is registry-derived and emitted by the export (reusing
+-      `_registry_competitions()`); committed because it is tiny (~14 leagues).
+-  (3) The bulk team/fixture JSON is gitignored (sample exceptions kept) — the build consumes real data
+-      generated at build time; the repo never carries the full export.
+-  (4) Deploy automation is deferred to the hosting decision; this PR makes the build READY, not deployed.
++  (1) Vendor = Firebase Hosting (CPO decision 2026-07-24, AskUserQuestion this session).
++  (2) Manual `workflow_dispatch` only in this PR (honours "confirm cost+schedule before any recurring run").
++  (3) Deploy to the Firebase `.web.app` URL, custom domain NOT attached (honours "don't flip public until I say so").
++  (4) Reuse the existing WIF secrets for GCP auth; deploy via ADC, no long-lived key committed or printed.
++  (5) Flip astro `base` "/v2/" -> "/" — required for correct root serving; the "/v2/" base was for the
++      earlier GitHub Pages subpath layout, and the config comment already anticipates the flip. CPO-approved in the plan.
++  (6) Export only the built pages' entities (teams,fixtures) to minimise scan + build; add more when
++      player/competition pages ship.
  
  decisions_reserved:
--  - Absent states (11_team_squad.md §6): a season with no roster -> the designed absent state; an
--    unresolved player (null identity) -> omitted (DQ-guarded upstream); a null birth_date -> omit age,
--    keep the rest. Implemented per the mock; flag at review if any needs a CPO call.
--  - The player, competition, and landing pages remain undesigned — not touched here.
-+  - Where the export runs in CI and where the site deploys — waits on the hosting vendor (group 3).
-+  - Player + competition pages wait on their designs (group 1).
-+  - Build memory/time at full scale (eager glob) — acceptable for team+fixture counts; the long-tail
-+    on-demand optimisation is a later hosting-time concern.
+-  - Where the export runs in CI and where the site deploys — waits on the hosting vendor (group 3).
+-  - Player + competition pages wait on their designs (group 1).
+-  - Build memory/time at full scale (eager glob) — acceptable for team+fixture counts; the long-tail
+-    on-demand optimisation is a later hosting-time concern.
++  - The recurring schedule and its cost: measured exact bytes (via a free `--dry_run`) and the trigger
++    shape (`workflow_run` vs cron) go to the CPO before any automatic run is enabled. Not decided here.
++  - Custom domain, DNS at IONOS, and announcement (go-live) — the CPO's call, also blocked on the
++    imprint operator/address question. Not decided here.
++  - Whether firebase-tools accepts WIF/ADC for hosting deploys in CI: verified at first dispatch; the
++    fallback (a firebasehosting.admin key as a secret) would be raised to the CPO, not adopted silently.
  
  done_when:
--  - Export: `fetch_team_payloads` fetches `mart_player_career` scoped by team_sk; `shape_team_payload`
--    joins career stats onto squad members by (league_code, season_api_year, player_sk);
--    `_shape_squad_member` carries appearances / minutes_per_appearance / goals / assists. A
--    `tests/test_export_site_data.py` case asserts the join keys by player_sk and carries the stats.
--  - Frontend: `TeamSquad.astro` renders position groups (GK->DEF->MID->FWD->Other), rows by apps desc,
--    monogram initials, two-line stat (l1 "{apps} apps · {mins/app} mins/app", l2 "{goals} goals ·
--    {assists} assists", singular/plural), and the "{n} of {m} shown" caption; the teams page renders it
--    in place of the Squad coming-state; the two-line `.pstat` is scoped to the squad; types + i18n
--    (de/en/fi) added.
--  - `data/teams/33.json` re-exported from the deployed mart (real output; the committed sample carries
--    the stats).
--  - `pytest tests/test_export_site_data.py` green; `astro build` clean (3 locales); dev-server render of
--    the Squad tab verified in the browser (groups, ordering, stats, monograms, plural/singular);
--    `validate-local` Tier 1.
-+  - Both pages enumerate all `src/data/{teams,fixtures}/*.json` via `import.meta.glob`; each generates
-+    one page per file x 3 locales; the fixture page resolves its competition slug from the full map.
-+  - `competitions.json` is the full registry-derived `league_code -> {slug, name}` map; the export emits
-+    it in `export_all`; a `tests/test_export_site_data.py` case covers the emit.
-+  - `.gitignore` ignores the bulk team/fixture JSON, keeps `teams/33.json` + `fixtures/1492306.json`.
-+  - Verified at scale: a real export (>= one full competition + a multi-league spot set) generated into
-+    `src/data/`, `astro build` clean in de/en/fi with a page per team + per fixture, spot-checked; then
-+    `src/data/` reverted to the committed samples (bulk NOT committed). Dev/PR build (samples only) still
-+    produces the team + fixture pages.
-+  - `pytest tests/test_export_site_data.py` green; `validate-local` Tier 1.
-   - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
+-  - Both pages enumerate all `src/data/{teams,fixtures}/*.json` via `import.meta.glob`; each generates
+-    one page per file x 3 locales; the fixture page resolves its competition slug from the full map.
+-  - `competitions.json` is the full registry-derived `league_code -> {slug, name}` map; the export emits
+-    it in `export_all`; a `tests/test_export_site_data.py` case covers the emit.
+-  - `.gitignore` ignores the bulk team/fixture JSON, keeps `teams/33.json` + `fixtures/1492306.json`.
+-  - Verified at scale: a real export (>= one full competition + a multi-league spot set) generated into
+-    `src/data/`, `astro build` clean in de/en/fi with a page per team + per fixture, spot-checked; then
+-    `src/data/` reverted to the committed samples (bulk NOT committed). Dev/PR build (samples only) still
+-    produces the team + fixture pages.
+-  - `pytest tests/test_export_site_data.py` green; `validate-local` Tier 1.
+-  - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
++  - `.github/workflows/deploy-site-v2.yml` exists, triggers on `workflow_dispatch` only, auths via the
++    existing WIF secrets, runs the export, builds with NODE_OPTIONS=--max-old-space-size=8192, and
++    deploys `--only hosting` to project football-data-pipeline-gcp. No schedule/workflow_run present.
++  - `site_v2/firebase.json` points hosting at `dist` with trailingSlash true.
++  - `site_v2/astro.config.mjs` base is "/".
++  - `python scripts/check_layer_contract.py` green; `validate-local` Tier 1 green; the sample Astro
++    build is clean in de/en/fi after the base flip.
++  - Workflow YAML parses (actionlint if available, else a YAML load).
++  - ONE commit; review.md covers the full diff with cto-reviewer (opus) + scope-auditor PASS; pushed
++    with an explicit refspec; PR opened. The CPO merges. Deploy is verified only after the CPO does the
++    two GCP prerequisites and dispatches manually — that result is reported, not claimed.
  
--amendments:
--  - 2026-07-24: + docs/wireframes/11_team_squad.md, docs/wireframes/99_gaps_register.md,
--    docs/ui_design_brief.md — authority: bi-analyst + cto review findings (round 1), upheld over the
--    plan's "reconcile as a doc follow-up" deferral because the project convention (14_team_stats.md) is
--    IN-PLACE reconciliation and shipping code that contradicts the locked "identity-only" spec is a live
--    defect. Content: reconcile the three locked docs to the now-statted Squad tab (dated superseded
--    annotations), so no doc contradicts the shipped design. Amended on a clean tree (PR-B changes
--    stashed for the edit).
--  - 2026-07-24: + docs/wireframes/00_overview.md, docs/content_architecture.md — authority: same
--    reviewer findings (bi-analyst + cto, round 2) — the round-1 doc reconciliation fixed the three
--    named docs but did NOT sweep the "identity-only squad" claim across the tree; two more instances
--    survived (the wireframe status index 00_overview.md:68 and content_architecture.md:83). Fix the
--    CLASS: swept all docs (grep) and code comments (export) for the identity-only-squad claim and
--    reconciled every instance. Amended on a clean tree.
--  - 2026-07-24: + dbt_project/docs/layering.md, dbt_project/models/5_marts/shared/mart_roster.sql,
--    dbt_project/models/5_marts/shared/shared.yml — authority: bi-analyst round-3 finding + CPO
--    (AskUserQuestion 2026-07-24, "Fix the 3 lines, then ship", which also authorises a round-cap
--    override). A definitive tree-wide grep (all of docs/ + dbt_project/ + scripts + site_v2) found the
--    stale "no per-club stats (deferred #480)" clause survived in these three dbt mart docs. Fix keeps
--    the ACCURATE "mart_roster carries no stat columns" but removes the stale deferral (the stats ship
--    in mart_player_career, joined at consumption for the Squad tab). Amended on a clean tree.
--  - 2026-07-24: absent-state split — TeamSquad now distinguishes a no-roster season
--    (`squadUnavailable`) from a roster-with-nobody-played season (`squadEmpty`), per
--    11_team_squad.md §6 (bi-analyst finding). In scope already; noted here for the trail.
-+amendments: (none)
-diff --git a/.gitignore b/.gitignore
-index 09f8483..1079b20 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -232,3 +232,11 @@ artifacts/*.js
+-amendments: (none)
++amendments:
++  - 2026-07-24: + docs/site_architecture.md — authority: doc-sync rule (working_agreement §2,
++    scope-auditor FAIL this branch). content: the v2-hosting references (data-flow, tech-stack row,
++    deploy paragraph, decisions-log row) synced from GitHub Pages to Firebase, per the CPO vendor
++    decision 2026-07-24. Mechanical sync of an already-CPO-decided fact, not a new decision. The doc's
++    pre-existing MVP-lifecycle / #377 wording is deliberately NOT touched — this PR is the new-website
++    deploy job; any MVP cleanup is a separate task (CPO directive 2026-07-24, "we work on the new
++    website").
+diff --git a/.github/workflows/deploy-site-v2.yml b/.github/workflows/deploy-site-v2.yml
+new file mode 100644
+index 0000000..13e5c07
+--- /dev/null
++++ b/.github/workflows/deploy-site-v2.yml
+@@ -0,0 +1,96 @@
++name: Deploy site v2 (Firebase Hosting)
++
++# Export -> build -> deploy for the v2 site (launch group 3).
++#
++# TWO GATES ARE DELIBERATELY CLOSED in this workflow:
++#   1. NO recurring run. The only trigger is `workflow_dispatch` (manual). The
++#      automatic chain (a `workflow_run` on dbt-scheduled, or a later cron after
++#      04:00 UTC) is added ONLY after the CPO confirms cost + schedule. A daily
++#      full export is a BigQuery scan; measure the exact bytes with a free
++#      `bq ... --dry_run` step before enabling any recurring run.
++#   2. NOT public. The deploy targets the Firebase `.web.app` URL. The custom
++#      domain (IONOS) is NOT attached here — going public (DNS + announcement) is
++#      a separate CPO decision, also blocked on the open imprint question.
++#
++# Auth reuses the existing Workload Identity secrets (same as dbt-scheduled.yml /
++# pages-match-preview.yml). No new secret; no secret value is printed or committed.
++
++on:
++  workflow_dispatch:
++
++concurrency:
++  # Serialize manual dispatches so two deploys never overlap. This job is
++  # read-only against the warehouse (the export SELECTs marts, writes no prod
++  # table), so it does NOT join the `prod-warehouse-write` group.
++  group: deploy-site-v2
++  cancel-in-progress: false
++
++jobs:
++  export-build-deploy:
++    runs-on: ubuntu-latest
++    permissions:
++      contents: read
++      id-token: write          # for Workload Identity Federation
++    defaults:
++      run:
++        shell: bash
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Setup Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: "3.11"
++
++      - name: Install Python dependencies
++        run: |
++          python -m pip install --upgrade pip
++          pip install -r requirements.txt
++
++      - name: Authenticate to GCP (WIF)
++        uses: google-github-actions/auth@v2
++        with:
++          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
++          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
++
++      - name: Setup gcloud
++        uses: google-github-actions/setup-gcloud@v2
++
++      - name: Export site data (real marts -> per-entity JSON)
++        # Only the entities the BUILT pages consume (team + fixture pages).
++        # competitions.json is always emitted. Add more entities when the
++        # player/competition pages ship, so we do not scan/build data no page
++        # reads yet. Reads marts only; writes no BigQuery table.
++        run: python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data
++
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: 22
++          cache: npm
++          cache-dependency-path: site_v2/package-lock.json
++
++      - name: Install site dependencies
++        working-directory: site_v2
++        run: npm ci
++
++      - name: Build site (raised Node heap)
++        working-directory: site_v2
++        # The full ~15k-page build OOMs at the default heap; the runner has 16 GB,
++        # so an 8 GB old-space is safe (#818 proved this exact setting).
++        env:
++          NODE_OPTIONS: "--max-old-space-size=8192"
++        run: npm run build
++
++      - name: Deploy to Firebase Hosting
++        working-directory: site_v2
++        # Authenticates via the Application Default Credentials the WIF step set up
++        # (GOOGLE_APPLICATION_CREDENTIALS) — no long-lived key. Deploys to the
++        # project's default Hosting site (.web.app), custom domain not attached.
++        # Prerequisites (CPO, one-time in the GCP console): enable Firebase on the
++        # project and grant roles/firebasehosting.admin to the deploy service
++        # account. If firebase-tools rejects WIF/ADC for hosting, the fallback is a
++        # firebasehosting.admin key stored as a secret — raise it, do not adopt it
++        # silently.
++        run: npx --yes firebase-tools@13 deploy --only hosting --project football-data-pipeline-gcp --non-interactive
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index bdfd5b7..349277c 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -19,7 +19,7 @@ players flow through the pipeline and new pages appear automatically.
+ ```
+ dbt marts → per-entity export (Python) → data/{entity}/{id}.json
+   → Astro build (one template × N entities) → static pages + sitemaps + structured data
+-  → GitHub Pages (CDN) → indexed, multilingual
++  → Firebase Hosting (CDN) → indexed, multilingual
+ ```
  
- # site_v2 per-entity export build artifact (#365)
- artifacts/site_data/
-+
-+# site_v2 real-data build: the site build enumerates src/data/{teams,fixtures}/*.json. Only the
-+# committed samples are tracked; a full export populates these dirs at build time (100s MB to >1 GB)
-+# and must never be committed. Keep the samples, ignore the bulk.
-+site_v2/src/data/teams/*.json
-+!site_v2/src/data/teams/33.json
-+site_v2/src/data/fixtures/*.json
-+!site_v2/src/data/fixtures/1492306.json
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index c15a497..ba89f26 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -890,6 +890,18 @@ def fetch_nav(registry_path: str = REGISTRY_PATH) -> dict:
-     return build_nav(_registry_competitions(registry_path))
+ ## 2. Hard constraints (locked)
+@@ -27,7 +27,7 @@ dbt marts → per-entity export (Python) → data/{entity}/{id}.json
+ | Constraint | Source |
+ |---|---|
+ | **The current Matchday IQ MVP (`site/`) stays fully functional until v2 reaches parity.** v2 lives in `site_v2/`; the legacy export + deploy run unchanged; cutover only at CPO sign-off (#377). | CPO, 2026-06-10 |
+-| **Tech stack: Astro**, static output only, deployed to GitHub Pages. Interactivity via islands (charts, search) — no SSR, no backend. | Epic #361 |
++| **Tech stack: Astro**, static output only, deployed to Firebase Hosting (vendor chosen by CPO 2026-07-24, superseding the original GitHub Pages plan). Interactivity via islands (charts, search) — no SSR, no backend. | Epic #361 |
+ | **Hybrid competition IA**: browse by competition group AND by country hub, both derived from registry metadata (#364). Zero-file rule holds. | Epic #361 |
+ | **Metric governance: catalogue-only.** Pages render `metric_catalogue` metrics by their catalogue formula; labels come from catalogue i18n keys. New metrics require a CPO-approved catalogue extension first. | #327 / governance memory |
+ | **Data honesty**: nulls render as "-", never fabricated zeros; no unmodelled KPIs, no fabricated probabilities. Pages with insufficient data are not generated (no thin pages). | north_star.md |
+@@ -162,7 +162,7 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
+                             the legacy pages-match-preview.yml is untouched until cutover
+ ```
  
+-- v2 deploys to a **separate Pages path/preview** during the build phase; the live URL
++- v2 deploys to **Firebase Hosting** (the `.web.app` URL, no custom domain) during the build phase; the live URL
+   serves the MVP until cutover (#377: parity check → CPO sign-off → switch → redirects
+   from old URLs → retire `site/` + legacy export in a separate cleanup PR).
+ - Monetization hooks: templates keep a named slot (header/in-content) rendering nothing —
+@@ -172,7 +172,7 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
  
-+def _competitions_index(registry_path: str = REGISTRY_PATH) -> dict:
-+    """league_code -> {name, slug} for every registry competition (registry-only, no BigQuery).
-+
-+    The frontend's competition slug/name lookup for ALL active leagues
-+    (site_v2/src/data/competitions.json): the fixture page resolves its URL competition segment from
-+    it and TeamHeader reads the display name. Same shape already built inline for leaderboards."""
-+    return {
-+        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
-+        for c in _registry_competitions(registry_path)
-+    }
-+
-+
- def _group2(rows: list[dict], k1: str, k2: str) -> dict:
-     g: dict = {}
-     for r in rows:
-@@ -1139,6 +1151,13 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
-         entries.append({"type": "glossary", "id": "metrics", "slug": None,
-                         "path": "metrics.json", "sha256": sha})
+ | Decision | Status |
+ |---|---|
+-| Astro, static-only, GitHub Pages | locked (CPO, 2026-06-10) |
++| Astro, static-only, Firebase Hosting (was GitHub Pages) | locked (CPO, 2026-06-10; vendor updated 2026-07-24) |
+ | Hybrid IA (groups + country hubs), registry-driven | locked (CPO, 2026-06-10) |
+ | Current MVP stays live until parity cutover | locked (CPO, 2026-06-10) |
+ | All locales URL-prefixed; root redirects by browser language, `en` fallback | proposed default — CPO may override fallback locale |
+diff --git a/site_v2/astro.config.mjs b/site_v2/astro.config.mjs
+index d9173aa..816ce49 100644
+--- a/site_v2/astro.config.mjs
++++ b/site_v2/astro.config.mjs
+@@ -1,17 +1,17 @@
+ // Matchday IQ v2 — Astro config.
+ // Contract: docs/site_architecture.md (epic #361).
+-// Static output only (GitHub Pages, no SSR). All locales are URL-prefixed
++// Static output only (Firebase Hosting, no SSR). All locales are URL-prefixed
+ // (/de/…, /en/…); the root performs a browser-language redirect with `en`
+ // fallback (§3 of the architecture doc — CPO-overridable default).
+-// `base` is "/v2/" for the build-phase preview — the MVP owns the live URL until the
+-// parity cutover (#377), when this flips to root. Wiring the live Pages publish of this
+-// /v2/ artifact is a separate, deliberately-reviewed change (CPO ruling 2026-07-11).
++// `base` is "/" (site root). It was "/v2/" only for the earlier GitHub Pages
++// subpath layout; the deploy target is now Firebase Hosting at the domain root,
++// so the site serves from "/".
+ import { defineConfig } from "astro/config";
  
-+    # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
-+    # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
-+    # teams-only run: the team page reads the competition display name from it).
-+    sha = write_file(out_root, "competitions.json", _competitions_index())
-+    entries.append({"type": "competitions_index", "id": "competitions", "slug": None,
-+                    "path": "competitions.json", "sha256": sha})
-+
-     (out_root / "slug_map.json").write_text(
-         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"
-     )
-diff --git a/site_v2/src/data/competitions.json b/site_v2/src/data/competitions.json
-index 65fbbd1..1d92c0c 100644
---- a/site_v2/src/data/competitions.json
-+++ b/site_v2/src/data/competitions.json
-@@ -1,4 +1,182 @@
- {
--  "BSA": { "slug": "brasileirao" },
--  "PL": { "slug": "premier-league", "name": "Premier League" }
--}
-+  "BL1": {
-+    "name": "1. Fußball-Bundesliga",
-+    "slug": "bundesliga"
-+  },
-+  "WC": {
-+    "name": "FIFA World Cup 2026",
-+    "slug": "world-cup"
-+  },
-+  "WCQEU": {
-+    "name": "WC Qualification Europe",
-+    "slug": "world-cup-qualification-europe"
-+  },
-+  "WCQAF": {
-+    "name": "WC Qualification Africa",
-+    "slug": "world-cup-qualification-africa"
-+  },
-+  "WCQCA": {
-+    "name": "WC Qualification CONCACAF",
-+    "slug": "world-cup-qualification-concacaf"
-+  },
-+  "WCQSA": {
-+    "name": "WC Qualification South America",
-+    "slug": "world-cup-qualification-south-america"
-+  },
-+  "WCQAS": {
-+    "name": "WC Qualification Asia",
-+    "slug": "world-cup-qualification-asia"
-+  },
-+  "WCQIP": {
-+    "name": "WC Qualification Intercontinental Playoffs",
-+    "slug": "world-cup-qualification-playoffs"
-+  },
-+  "WCQOC": {
-+    "name": "WC Qualification Oceania",
-+    "slug": "world-cup-qualification-oceania"
-+  },
-+  "PL": {
-+    "name": "Premier League",
-+    "slug": "premier-league"
-+  },
-+  "PD": {
-+    "name": "La Liga",
-+    "slug": "la-liga"
-+  },
-+  "BL2": {
-+    "name": "2. Fußball-Bundesliga",
-+    "slug": "2-bundesliga"
-+  },
-+  "SA": {
-+    "name": "Serie A",
-+    "slug": "serie-a"
-+  },
-+  "L1": {
-+    "name": "Ligue 1",
-+    "slug": "ligue-1"
-+  },
-+  "VL": {
-+    "name": "Veikkausliiga",
-+    "slug": "veikkausliiga"
-+  },
-+  "LMX": {
-+    "name": "Liga MX",
-+    "slug": "liga-mx"
-+  },
-+  "LP": {
-+    "name": "Liga Portugal",
-+    "slug": "liga-portugal"
-+  },
-+  "MLS": {
-+    "name": "Major League Soccer",
-+    "slug": "mls"
-+  },
-+  "SPL": {
-+    "name": "Saudi Pro League",
-+    "slug": "saudi-pro-league"
-+  },
-+  "ED": {
-+    "name": "Eredivisie",
-+    "slug": "eredivisie"
-+  },
-+  "UCL": {
-+    "name": "UEFA Champions League",
-+    "slug": "champions-league"
-+  },
-+  "UEL": {
-+    "name": "UEFA Europa League",
-+    "slug": "europa-league"
-+  },
-+  "UECL": {
-+    "name": "UEFA Europa Conference League",
-+    "slug": "conference-league"
-+  },
-+  "UESC": {
-+    "name": "UEFA Super Cup",
-+    "slug": "uefa-super-cup"
-+  },
-+  "COAM": {
-+    "name": "Copa América",
-+    "slug": "copa-america"
-+  },
-+  "AFCON": {
-+    "name": "Africa Cup of Nations",
-+    "slug": "africa-cup-of-nations"
-+  },
-+  "ACN": {
-+    "name": "AFC Asian Cup",
-+    "slug": "asian-cup"
-+  },
-+  "GCUP": {
-+    "name": "CONCACAF Gold Cup",
-+    "slug": "gold-cup"
-+  },
-+  "UNL": {
-+    "name": "UEFA Nations League",
-+    "slug": "nations-league"
-+  },
-+  "EURO": {
-+    "name": "UEFA European Championship",
-+    "slug": "euro"
-+  },
-+  "CNL": {
-+    "name": "CONCACAF Nations League",
-+    "slug": "concacaf-nations-league"
-+  },
-+  "BSA": {
-+    "name": "Brasileirão Série A",
-+    "slug": "brasileirao"
-+  },
-+  "APD": {
-+    "name": "Liga Profesional de Fútbol (Argentina)",
-+    "slug": "liga-profesional-argentina"
-+  },
-+  "J1": {
-+    "name": "J1 League",
-+    "slug": "j1-league"
-+  },
-+  "KL1": {
-+    "name": "K League 1",
-+    "slug": "k-league-1"
-+  },
-+  "DFBP": {
-+    "name": "DFB-Pokal",
-+    "slug": "dfb-pokal"
-+  },
-+  "FAC": {
-+    "name": "FA Cup",
-+    "slug": "fa-cup"
-+  },
-+  "CDR": {
-+    "name": "Copa del Rey",
-+    "slug": "copa-del-rey"
-+  },
-+  "CDF": {
-+    "name": "Coupe de France",
-+    "slug": "coupe-de-france"
-+  },
-+  "CIT": {
-+    "name": "Coppa Italia",
-+    "slug": "coppa-italia"
-+  },
-+  "LIBER": {
-+    "name": "Copa Libertadores",
-+    "slug": "copa-libertadores"
-+  },
-+  "CAFCL": {
-+    "name": "CAF Champions League",
-+    "slug": "caf-champions-league"
-+  },
-+  "AFCCL": {
-+    "name": "AFC Champions League Elite",
-+    "slug": "afc-champions-league"
-+  },
-+  "CCCU": {
-+    "name": "CONCACAF Champions Cup",
-+    "slug": "concacaf-champions-cup"
-+  },
-+  "CWC": {
-+    "name": "FIFA Club World Cup",
-+    "slug": "club-world-cup"
+ export default defineConfig({
+   site: "https://ramialfahham.github.io",
+   output: "static",
+-  base: "/v2/",
++  base: "/",
+   trailingSlash: "always",
+   i18n: {
+     // Live locales today (mirrors site/i18n.js SUPPORTED). Scale-out: #370.
+diff --git a/site_v2/firebase.json b/site_v2/firebase.json
+new file mode 100644
+index 0000000..c09730d
+--- /dev/null
++++ b/site_v2/firebase.json
+@@ -0,0 +1,20 @@
++{
++  "hosting": {
++    "public": "dist",
++    "trailingSlash": true,
++    "cleanUrls": false,
++    "ignore": [
++      "firebase.json",
++      "**/.*",
++      "**/node_modules/**"
++    ],
++    "headers": [
++      {
++        "source": "**/_astro/**",
++        "headers": [
++          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
++        ]
++      }
++    ]
 +  }
 +}
-\ No newline at end of file
-diff --git a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
-index 950465e..39c97f1 100644
---- a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
-+++ b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
-@@ -18,22 +18,31 @@ import { t } from "../../../../i18n/strings";
- import { localeHref } from "../../../../lib/href";
- import type { Lang } from "../../../../lib/format";
- import type { Fixture } from "../../../../lib/types";
--import fixtureData from "../../../../data/fixtures/1492306.json";
- import competitions from "../../../../data/competitions.json";
- 
- export function getStaticPaths() {
-   const locales: Lang[] = ["de", "en", "fi"];
--  const fixture = fixtureData as unknown as Fixture;
--  const comp = (competitions as Record<string, { slug: string }>)[fixture.league_code];
--  if (!comp) {
--    throw new Error(
--      `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
--    );
--  }
--  return locales.map((lang) => ({
--    params: { lang, competition: comp.slug, fixture: fixture.slug },
--    props: { fixture, lang },
--  }));
-+  const comps = competitions as Record<string, { slug: string }>;
-+  // Every fixture the export wrote to src/data/fixtures/*.json becomes a page. Dev/PR: the committed
-+  // sample(s); production: the full export at build time (the bulk is gitignored). One page per
-+  // fixture x 3 locales; the competition URL segment is each fixture's league slug from the full map.
-+  // The glob is called inside getStaticPaths (Astro extracts this fn in isolation).
-+  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", {
-+    eager: true,
-+    import: "default",
-+  });
-+  return Object.values(fixtures).flatMap((fixture) => {
-+    const comp = comps[fixture.league_code];
-+    if (!comp) {
-+      throw new Error(
-+        `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
-+      );
-+    }
-+    return locales.map((lang) => ({
-+      params: { lang, competition: comp.slug, fixture: fixture.slug },
-+      props: { fixture, lang },
-+    }));
-+  });
- }
- 
- interface Props {
-diff --git a/site_v2/src/pages/[lang]/teams/[team].astro b/site_v2/src/pages/[lang]/teams/[team].astro
-index 84ef78e..9a06de9 100644
---- a/site_v2/src/pages/[lang]/teams/[team].astro
-+++ b/site_v2/src/pages/[lang]/teams/[team].astro
-@@ -20,16 +20,24 @@ import { t } from "../../../i18n/strings";
- import { localeHref } from "../../../lib/href";
- import type { Lang } from "../../../lib/format";
- import type { Team, TeamSeason } from "../../../lib/types";
--import teamData from "../../../data/teams/33.json";
- import competitions from "../../../data/competitions.json";
- 
- export function getStaticPaths() {
-   const locales: Lang[] = ["de", "en", "fi"];
--  const team = teamData as unknown as Team;
--  return locales.map((lang) => ({
--    params: { lang, team: team.slug },
--    props: { team, lang },
--  }));
-+  // Every team the export wrote to src/data/teams/*.json becomes a page. Dev/PR: the committed
-+  // sample(s); production: the full export populated into the dir at build time (the bulk is
-+  // gitignored, never committed). One page per team x 3 locales. The glob is called inside
-+  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope).
-+  const teams = import.meta.glob<Team>("/src/data/teams/*.json", {
-+    eager: true,
-+    import: "default",
-+  });
-+  return Object.values(teams).flatMap((team) =>
-+    locales.map((lang) => ({
-+      params: { lang, team: team.slug },
-+      props: { team, lang },
-+    })),
-+  );
- }
- 
- interface Props {
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 8f49059..87ba9d2 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -5,6 +5,7 @@ fabricated rows so python-ci validates the logic offline.
- """
- 
- from scripts.export_site_data import (
-+    _competitions_index,
-     _display_group_of_type,
-     _fixture_side,
-     _shape_benchmark_member,
-@@ -676,3 +677,18 @@ def test_build_manifest_counts_by_type():
-     assert m["counts"] == {"team": 2, "player": 1}
-     assert len(m["entries"]) == 3
-     assert "generated_at" in m
-+
-+
-+def test_competitions_index_covers_registry_leagues_with_slug_and_name():
-+    # league_code -> {name, slug} for every active league, registry-derived (no BigQuery).
-+    # This is what site_v2/src/data/competitions.json carries; the fixture page resolves its URL
-+    # competition segment from it, so every entry must have a slug.
-+    idx = _competitions_index()
-+    assert idx, "registry produced no competitions"
-+    for lc, meta in idx.items():
-+        assert isinstance(lc, str) and lc
-+        assert meta.get("slug"), f"{lc} has no slug"
-+        assert "name" in meta
-+    # known active leagues resolve (registry-backed)
-+    assert idx["PL"]["slug"] == "premier-league"
-+    assert idx["BL1"]["slug"]

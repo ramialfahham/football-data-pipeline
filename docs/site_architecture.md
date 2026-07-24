@@ -19,7 +19,7 @@ players flow through the pipeline and new pages appear automatically.
 ```
 dbt marts → per-entity export (Python) → data/{entity}/{id}.json
   → Astro build (one template × N entities) → static pages + sitemaps + structured data
-  → GitHub Pages (CDN) → indexed, multilingual
+  → Firebase Hosting (CDN) → indexed, multilingual
 ```
 
 ## 2. Hard constraints (locked)
@@ -27,7 +27,7 @@ dbt marts → per-entity export (Python) → data/{entity}/{id}.json
 | Constraint | Source |
 |---|---|
 | **The current Matchday IQ MVP (`site/`) stays fully functional until v2 reaches parity.** v2 lives in `site_v2/`; the legacy export + deploy run unchanged; cutover only at CPO sign-off (#377). | CPO, 2026-06-10 |
-| **Tech stack: Astro**, static output only, deployed to GitHub Pages. Interactivity via islands (charts, search) — no SSR, no backend. | Epic #361 |
+| **Tech stack: Astro**, static output only, deployed to Firebase Hosting (vendor chosen by CPO 2026-07-24, superseding the original GitHub Pages plan). Interactivity via islands (charts, search) — no SSR, no backend. | Epic #361 |
 | **Hybrid competition IA**: browse by competition group AND by country hub, both derived from registry metadata (#364). Zero-file rule holds. | Epic #361 |
 | **Metric governance: catalogue-only.** Pages render `metric_catalogue` metrics by their catalogue formula; labels come from catalogue i18n keys. New metrics require a CPO-approved catalogue extension first. | #327 / governance memory |
 | **Data honesty**: nulls render as "-", never fabricated zeros; no unmodelled KPIs, no fabricated probabilities. Pages with insufficient data are not generated (no thin pages). | north_star.md |
@@ -162,7 +162,7 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
                             the legacy pages-match-preview.yml is untouched until cutover
 ```
 
-- v2 deploys to a **separate Pages path/preview** during the build phase; the live URL
+- v2 deploys to **Firebase Hosting** (the `.web.app` URL, no custom domain) during the build phase; the live URL
   serves the MVP until cutover (#377: parity check → CPO sign-off → switch → redirects
   from old URLs → retire `site/` + legacy export in a separate cleanup PR).
 - Monetization hooks: templates keep a named slot (header/in-content) rendering nothing —
@@ -172,7 +172,7 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
 
 | Decision | Status |
 |---|---|
-| Astro, static-only, GitHub Pages | locked (CPO, 2026-06-10) |
+| Astro, static-only, Firebase Hosting (was GitHub Pages) | locked (CPO, 2026-06-10; vendor updated 2026-07-24) |
 | Hybrid IA (groups + country hubs), registry-driven | locked (CPO, 2026-06-10) |
 | Current MVP stays live until parity cutover | locked (CPO, 2026-06-10) |
 | All locales URL-prefixed; root redirects by browser language, `en` fallback | proposed default — CPO may override fallback locale |
