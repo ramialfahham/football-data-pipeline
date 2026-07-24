@@ -1,0 +1,96 @@
+name: Deploy site v2 (Firebase Hosting)
+
+# Export -> build -> deploy for the v2 site (launch group 3).
+#
+# TWO GATES ARE DELIBERATELY CLOSED in this workflow:
+#   1. NO recurring run. The only trigger is `workflow_dispatch` (manual). The
+#      automatic chain (a `workflow_run` on dbt-scheduled, or a later cron after
+#      04:00 UTC) is added ONLY after the CPO confirms cost + schedule. A daily
+#      full export is a BigQuery scan; measure the exact bytes with a free
+#      `bq ... --dry_run` step before enabling any recurring run.
+#   2. NOT public. The deploy targets the Firebase `.web.app` URL. The custom
+#      domain (IONOS) is NOT attached here — going public (DNS + announcement) is
+#      a separate CPO decision, also blocked on the open imprint question.
+#
+# Auth reuses the existing Workload Identity secrets (same as dbt-scheduled.yml /
+# pages-match-preview.yml). No new secret; no secret value is printed or committed.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  # Serialize manual dispatches so two deploys never overlap. This job is
+  # read-only against the warehouse (the export SELECTs marts, writes no prod
+  # table), so it does NOT join the `prod-warehouse-write` group.
+  group: deploy-site-v2
+  cancel-in-progress: false
+
+jobs:
+  export-build-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write          # for Workload Identity Federation
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Export site data (real marts -> per-entity JSON)
+        # Only the entities the BUILT pages consume (team + fixture pages).
+        # competitions.json is always emitted. Add more entities when the
+        # player/competition pages ship, so we do not scan/build data no page
+        # reads yet. Reads marts only; writes no BigQuery table.
+        run: python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site_v2/package-lock.json
+
+      - name: Install site dependencies
+        working-directory: site_v2
+        run: npm ci
+
+      - name: Build site (raised Node heap)
+        working-directory: site_v2
+        # The full ~15k-page build OOMs at the default heap; the runner has 16 GB,
+        # so an 8 GB old-space is safe (#818 proved this exact setting).
+        env:
+          NODE_OPTIONS: "--max-old-space-size=8192"
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        working-directory: site_v2
+        # Authenticates via the Application Default Credentials the WIF step set up
+        # (GOOGLE_APPLICATION_CREDENTIALS) — no long-lived key. Deploys to the
+        # project's default Hosting site (.web.app), custom domain not attached.
+        # Prerequisites (CPO, one-time in the GCP console): enable Firebase on the
+        # project and grant roles/firebasehosting.admin to the deploy service
+        # account. If firebase-tools rejects WIF/ADC for hosting, the fallback is a
+        # firebasehosting.admin key stored as a secret — raise it, do not adopt it
+        # silently.
+        run: npx --yes firebase-tools@13 deploy --only hosting --project football-data-pipeline-gcp --non-interactive
