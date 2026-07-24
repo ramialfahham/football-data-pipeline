@@ -890,6 +890,18 @@ def fetch_nav(registry_path: str = REGISTRY_PATH) -> dict:
     return build_nav(_registry_competitions(registry_path))
 
 
+def _competitions_index(registry_path: str = REGISTRY_PATH) -> dict:
+    """league_code -> {name, slug} for every registry competition (registry-only, no BigQuery).
+
+    The frontend's competition slug/name lookup for ALL active leagues
+    (site_v2/src/data/competitions.json): the fixture page resolves its URL competition segment from
+    it and TeamHeader reads the display name. Same shape already built inline for leaderboards."""
+    return {
+        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+        for c in _registry_competitions(registry_path)
+    }
+
+
 def _group2(rows: list[dict], k1: str, k2: str) -> dict:
     g: dict = {}
     for r in rows:
@@ -1138,6 +1150,13 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "metrics.json", fetch_glossary())
         entries.append({"type": "glossary", "id": "metrics", "slug": None,
                         "path": "metrics.json", "sha256": sha})
+
+    # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
+    # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
+    # teams-only run: the team page reads the competition display name from it).
+    sha = write_file(out_root, "competitions.json", _competitions_index())
+    entries.append({"type": "competitions_index", "id": "competitions", "slug": None,
+                    "path": "competitions.json", "sha256": sha})
 
     (out_root / "slug_map.json").write_text(
         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"

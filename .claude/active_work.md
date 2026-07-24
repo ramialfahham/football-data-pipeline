@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-24**. main has #813 + #814 (Squad warehouse, deployed); `feat/team-squad-tab` (PR-B, Squad tab) reviewed and up._
+_Last updated **2026-07-24**. Team page COMPLETE (all 3 tabs merged). `feat/site-v2-real-data` (real-data wiring) reviewed and up._
 
 ---
 
@@ -25,8 +25,8 @@ verified against the repo on 2026-07-22.
 
 | # | Group | Status | What is left |
 |---|-------|--------|--------------|
-| 1 | **Pages** | 2 of 5 | Fixture (#672) + team page **complete** once PR-B merges (Overview #810 + Performance #811 merged; **Squad tab** reviewed → PR-B). Player, competition, landing pages not designed. |
-| 2 | **Real data** | not started | The build renders from ONE committed sample fixture. `scripts/export_site_data.py` can emit teams/players/fixtures/competitions/nav; nothing consumes a real export yet. |
+| 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
+| 2 | **Real data** | reviewed → PR | The build now CONSUMES the real export (team + fixture pages enumerate via `import.meta.glob`; full competitions map); `feat/site-v2-real-data`. See IN FLIGHT. Deploy automation is group 3. |
 | 3 | **Hosting** | not chosen | Nothing is deployed anywhere. The GitHub Pages recommendation is WITHDRAWN (CPO: *"I want a website that is prepared to scale"*). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
 | 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
@@ -150,33 +150,40 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## DONE — Squad-tab warehouse (#813 + #814, MERGED + DEPLOYED 2026-07-24)
+## DONE 2026-07-24 — the whole TEAM PAGE (Overview #810 + Performance #811 + Squad PR-B, all merged)
 
-- **#813**: fixed `appearances` warehouse-wide to `countif(minutes_played > 0)` (played legs, not squad
-  selections); added `minutes` to `mart_player_career`. Verified in prod: 26,657 zero-appearance rows
-  (never-played members kept at 0).
-- **#814**: added `minutes_per_appearance` (`safe_divide`, catalogue metric, direction `neutral`) to
-  `mart_player_career`. Deployed; 144,306 played rows carry a value, avg 60.5.
+Squad-tab warehouse: **#813** fixed `appearances` warehouse-wide to `countif(minutes_played > 0)`
+(played legs, not squad selections) + added `minutes`; **#814** added `minutes_per_appearance`
+(catalogue metric, `neutral`). Both deployed. Squad tab frontend (PR-B, merged): position-grouped
+per-player apps/mins-per-app/goals/assists, monogram avatars. Team page (all 3 tabs) is COMPLETE.
 
-## IN FLIGHT — branch `feat/team-squad-tab` (PR-B, reviewed → PR). EXPORT + FRONTEND.
+## IN FLIGHT — branch `feat/site-v2-real-data` (reviewed → PR). REAL DATA (launch group 2).
 
-The team page **Squad tab** built from the CPO-approved mock `f6348775` (the last of its three tabs).
-Export joins `mart_player_career` onto each roster member by `player_sk` (selection only);
-`TeamSquad.astro` renders position groups (GK→DEF→MID→FWD→Other), rows by appearances desc, monogram
-avatars, a two-line stat readout (apps · mins/app / goals · assists); `33.json` re-exported (real
-output); types + i18n (de/en/fi); absent-state split (no-roster vs nobody-played). Also reconciled the
-now-superseded "identity-only squad" framing across all docs + dbt mart comments (a 5-round bi-analyst
-sweep; CPO authorised the round-cap override to finish it). All four reviewers PASS. Verified: astro
-build clean (3 locales), 27 rows render for Man Utd, fixture PlayerRow unaffected. This is the LAST
-team-page tab — team page complete once this merges.
+The build now consumes the REAL export instead of one committed sample. Team + fixture
+`getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json` via `import.meta.glob` (one page per
+file); the export emits a full registry-derived `competitions.json` (45 leagues, committed);
+`.gitignore` keeps the two samples and ignores the bulk (populated at build time, never committed).
+All four reviewers PASS. Verified: dev/PR build = 9 pages (samples only, unchanged); a raised-heap
+full build = **14,874 pages across 26 leagues**; all 4498 fixtures resolve their competition slug.
+
+⚠️ **Default-heap `astro build` OOMs on the full set** — a deploy-time ceiling, NOT a wiring bug
+(succeeds at `NODE_OPTIONS=--max-old-space-size=8192`). Mitigation (raise the heap, or long-tail
+on-demand) belongs to the deploy/hosting phase (group 3). Player + competition pages stay OUT
+(undesigned, group 1).
+
+Local note: the scale-verify left ~5000 gitignored bulk files in `site_v2/src/data/{teams,fixtures}/`
+(sandbox blocked their deletion). They are gitignored (not committed); `git clean -fX site_v2/src/data`
+clears them so a local dev build doesn't OOM.
 
 ## NEXT
 
-1. **Real data (launch group 2)** — wire the export into the build so real teams/fixtures render, not
-   one committed sample. Biggest gap to "live"; not blocked on any CPO decision. See hosting note below.
-2. **Whole-site em-dash / AI-tell sweep** — CPO must (2026-07-24), lower priority than the pages:
-   replace em dashes + en-dash records in the display strings (mainly `i18n/strings.ts`) with natural
-   punctuation + add a guard. Spawned as a task. (Also a minor GAP-22→GAP-20 doc cross-ref to fix.)
+1. **Deploy + hosting (group 3)** — pick the vendor, then build the export->build->deploy job
+   (daily rebuild after the 04:00 pipeline); this is where the raised-heap build setting lands. CPO
+   decision (vendor) open.
+2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
+3. **Whole-site em-dash / AI-tell sweep** — CPO must (2026-07-24), lower priority: replace em/en dashes
+   in the display strings (mainly `i18n/strings.ts`) + add a guard. Spawned as a task. Plus two chipped
+   doc fast-follows (site_v2 data/README, GAP-22→GAP-20 cross-ref).
 3. **Player, competition, landing pages** — designed later; do not build undesigned pages.
 
 ---

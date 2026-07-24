@@ -1,123 +1,75 @@
-# Task contract — PR-B: team page Squad tab (export + frontend + sample)
+# Task contract — wire the v2 build to consume the real export
 
-> Written on a CLEAN tree (branch `feat/team-squad-tab` off main after #813 + #814 merged and
-> DEPLOYED). The warehouse halves are done: `appearances` is corrected (#813) and
-> `minutes_per_appearance` is live in `mart_player_career` (#814, verified in prod: 144,306 played rows
-> carry a value, 26,657 never-played rows are null). This is the consumption + build half.
+> Written on a CLEAN tree (branch `feat/site-v2-real-data` off main at f586457, after PR-B merged).
+> Plan: C:\Users\Rami\.claude\plans\deep-puzzling-conway.md (CPO-approved via ExitPlanMode 2026-07-24).
 
 objective: >
-  Build the team page Squad tab from the CPO-approved mock `f6348775`: per-player appearances,
-  mins/app, goals, assists, grouped by position (GK -> DEF -> MID -> FWD -> Other), rows ordered by
-  appearances desc, monogram avatars (no photos). The export joins the deployed `mart_player_career`
-  stats onto each squad member; the frontend renders them; the committed sample `33.json` is
-  re-exported so it is real output (binding rule). No warehouse change.
+  Make the v2 build generate a page for EVERY team and EVERY fixture from real export output, instead
+  of one committed sample per page, and resolve competition slugs across ALL active leagues. Launch
+  group 2 ("real data"), decision-independent. Player + competition pages (undesigned, group 1) and the
+  export->build->deploy automation (blocked on the hosting vendor, group 3) are OUT.
 
 refs: >
-  Plan `C:\Users\Rami\.claude\plans\fuzzy-roaming-zebra.md` (PR2 section). `mart_player_career` (live)
-  has per (player, club, competition-season): appearances (corrected, played-legs), minutes,
-  minutes_per_appearance, goals, assists, plus join keys player_sk / team_sk / league_code /
-  season_api_year. `mart_roster` supplies the full squad (identity, incl. never-played members). The
-  export already fetches roster per team (fetch_team_payloads ~660) and shapes it in shape_team_payload
-  (~244) via `_shape_squad_member` (135). Overview (#810) + Performance (#811) tabs are built; Squad is
-  a coming-state today.
+  Plan file above. Verified this session (Explore map): only team + fixture pages exist, each hardwired
+  to one imported sample via `getStaticPaths`; no enumeration primitive; `competitions.json` is a
+  hand-trimmed 2-entry stand-in; the export already writes the full per-entity layout but nothing
+  consumes it and its output is gitignored (committing the full export is not viable, >100s MB). The
+  registry carries slug+name per league; the export already builds the `league_code -> {slug, name}`
+  shape at `scripts/export_site_data.py:992` via `_registry_competitions()` (registry-only, no BigQuery).
 
 scope_paths:
+  # trailing-slash prefix: the page files live under bracketed [lang]/[team] dirs, which fnmatch
+  # would read as char-classes — the prefix form matches them. Only the team + fixture pages change.
+  - site_v2/src/pages/
+  - site_v2/src/data/competitions.json
   - scripts/export_site_data.py
   - tests/test_export_site_data.py
-  - site_v2/src/components/team/
-  - site_v2/src/pages/
-  - site_v2/src/styles/system.css
-  - site_v2/src/lib/types.ts
-  - site_v2/src/i18n/strings.ts
-  - site_v2/src/data/teams/33.json
-  - docs/wireframes/11_team_squad.md
-  - docs/wireframes/99_gaps_register.md
-  - docs/wireframes/00_overview.md
-  - docs/ui_design_brief.md
-  - docs/content_architecture.md
-  - dbt_project/docs/layering.md
-  - dbt_project/models/5_marts/shared/mart_roster.sql
-  - dbt_project/models/5_marts/shared/shared.yml
+  - .gitignore
   - .claude/active_work.md
 
 impact_map: >
-  writers: NONE. No warehouse object, no dbt model, no seed. This PR only CONSUMES the already-deployed
-    `mart_player_career` (from #813/#814). The mart is a leaf; this adds a second reader (the team run)
-    beside the existing player run.
-  downstream: consumption only. The export gains a scoped fetch of `mart_player_career` by team_sk
-    (mirroring the existing roster/benchmark fetches) and a SELECT+JOIN in shape_team_payload: each
-    roster member is matched to its career row by (league_code, season_api_year, player_sk) and the four
-    stats attached. No derivation — mins/app is read from the mart column, never divided here
-    (consumption-layer contract). The frontend adds `TeamSquad.astro`, appends squad CSS to system.css,
-    extends the squad-member type, adds i18n, and swaps ONE coming-state div on the teams page.
-  layer_rules: consumption-layer contract (Appendix A5) — select / group / rename / map-to-display only;
-    no fact derived. Position -> group is display mapping (raw `position` carried by the export, grouped
-    in the frontend). `check_layer_contract` does not gate the site; the reviewers enforce it.
-  deploy_order: none for the warehouse (already deployed). The sample `33.json` MUST be regenerated by
-    running the real export against the deployed mart AFTER the code is written, so the committed sample
-    is genuine output (#805 binding rule) — not hand-edited.
-  blast_radius: bounded. Export: additive fetch + additive fields on squad members (a member with no
-    career row -> stats null; the frontend shows only >= 1 appearance). Existing team payload fields,
-    the player run, and other marts are untouched. Frontend: a new component + appended CSS (the
-    two-line `.pstat` variant SCOPED to the squad so the fixture PlayerRow is unaffected) + one swapped
-    div. Static Astro build; nothing deployed (no hosting), so no runtime blast radius.
+  writers: NONE. No warehouse/dbt/seed change. `export_site_data.py` gains a registry-only
+    `competitions.json` emit in `export_all` (reuses `_registry_competitions()`, no new BigQuery query).
+  downstream: the static site build only. The two page `getStaticPaths` switch from a single-file import
+    to `import.meta.glob('/src/data/{teams,fixtures}/*.json', {eager:true})` — one page per file present.
+    `competitions.json` becomes the full registry map, consumed by the fixture page + TeamHeader.astro
+    via the existing `competitions[league_code].slug` lookup (now covering all leagues). No consumer
+    breaks: with only the committed samples present (dev/PR), the build produces the same team + fixture
+    pages as today.
+  layer_rules: consumption layer (Appendix A5) — select/enumerate/route only, no fact derived. The
+    export's competitions.json is a registry passthrough (slug+name), not a computed fact.
+  deploy_order: none. Nothing is deployed (hosting undecided). The full export is generated at build
+    time and NOT committed (gitignored bulk with sample exceptions), so the repo stays small.
+  blast_radius: bounded / build-time only. Additive enumeration + a fuller competitions map + gitignore
+    patterns. No warehouse object, no runtime service. The committed tree still holds only the two
+    samples + the (tiny) full competitions.json.
 
 decisions_taken: >
-  (1) BUILD the full approved mock's Squad tab — CPO decision 2026-07-23 (AskUserQuestion), settled in
-      the plan. Per-player apps / mins-per-app / goals / assists, position-grouped, monogram avatars.
-  (2) Show squad members with >= 1 appearance, ordered by appearances desc, under an "{n} of {m} shown"
-      caption (m = full roster length) — the mock's "17 of 26" rule. Never-played / no-career-row
-      members are counted in {m}, not listed. Follows the approved mock.
-  (3) Position -> group mapping GK/DEF/MID/FWD from the raw `position` (Goalkeeper/Defender/
-      Midfielder/Attacker), null/other -> "Other"; group order GK -> DEF -> MID -> FWD -> Other. A
-      display mapping, not an export fact.
-  (4) mins/app is read from the mart's `minutes_per_appearance` column; the export and frontend never
-      divide (the reason #814 added the column).
+  (1) Enumerate via `import.meta.glob` (Astro-idiomatic, no fs); each entity's own `.slug` stays the
+      URL param (unchanged pattern). CPO-approved plan.
+  (2) The full competitions map is registry-derived and emitted by the export (reusing
+      `_registry_competitions()`); committed because it is tiny (~14 leagues).
+  (3) The bulk team/fixture JSON is gitignored (sample exceptions kept) — the build consumes real data
+      generated at build time; the repo never carries the full export.
+  (4) Deploy automation is deferred to the hosting decision; this PR makes the build READY, not deployed.
 
 decisions_reserved:
-  - Absent states (11_team_squad.md §6): a season with no roster -> the designed absent state; an
-    unresolved player (null identity) -> omitted (DQ-guarded upstream); a null birth_date -> omit age,
-    keep the rest. Implemented per the mock; flag at review if any needs a CPO call.
-  - The player, competition, and landing pages remain undesigned — not touched here.
+  - Where the export runs in CI and where the site deploys — waits on the hosting vendor (group 3).
+  - Player + competition pages wait on their designs (group 1).
+  - Build memory/time at full scale (eager glob) — acceptable for team+fixture counts; the long-tail
+    on-demand optimisation is a later hosting-time concern.
 
 done_when:
-  - Export: `fetch_team_payloads` fetches `mart_player_career` scoped by team_sk; `shape_team_payload`
-    joins career stats onto squad members by (league_code, season_api_year, player_sk);
-    `_shape_squad_member` carries appearances / minutes_per_appearance / goals / assists. A
-    `tests/test_export_site_data.py` case asserts the join keys by player_sk and carries the stats.
-  - Frontend: `TeamSquad.astro` renders position groups (GK->DEF->MID->FWD->Other), rows by apps desc,
-    monogram initials, two-line stat (l1 "{apps} apps · {mins/app} mins/app", l2 "{goals} goals ·
-    {assists} assists", singular/plural), and the "{n} of {m} shown" caption; the teams page renders it
-    in place of the Squad coming-state; the two-line `.pstat` is scoped to the squad; types + i18n
-    (de/en/fi) added.
-  - `data/teams/33.json` re-exported from the deployed mart (real output; the committed sample carries
-    the stats).
-  - `pytest tests/test_export_site_data.py` green; `astro build` clean (3 locales); dev-server render of
-    the Squad tab verified in the browser (groups, ordering, stats, monograms, plural/singular);
-    `validate-local` Tier 1.
+  - Both pages enumerate all `src/data/{teams,fixtures}/*.json` via `import.meta.glob`; each generates
+    one page per file x 3 locales; the fixture page resolves its competition slug from the full map.
+  - `competitions.json` is the full registry-derived `league_code -> {slug, name}` map; the export emits
+    it in `export_all`; a `tests/test_export_site_data.py` case covers the emit.
+  - `.gitignore` ignores the bulk team/fixture JSON, keeps `teams/33.json` + `fixtures/1492306.json`.
+  - Verified at scale: a real export (>= one full competition + a multi-league spot set) generated into
+    `src/data/`, `astro build` clean in de/en/fi with a page per team + per fixture, spot-checked; then
+    `src/data/` reverted to the committed samples (bulk NOT committed). Dev/PR build (samples only) still
+    produces the team + fixture pages.
+  - `pytest tests/test_export_site_data.py` green; `validate-local` Tier 1.
   - ONE commit, pushed with an explicit refspec, PR opened. The CPO merges.
 
-amendments:
-  - 2026-07-24: + docs/wireframes/11_team_squad.md, docs/wireframes/99_gaps_register.md,
-    docs/ui_design_brief.md — authority: bi-analyst + cto review findings (round 1), upheld over the
-    plan's "reconcile as a doc follow-up" deferral because the project convention (14_team_stats.md) is
-    IN-PLACE reconciliation and shipping code that contradicts the locked "identity-only" spec is a live
-    defect. Content: reconcile the three locked docs to the now-statted Squad tab (dated superseded
-    annotations), so no doc contradicts the shipped design. Amended on a clean tree (PR-B changes
-    stashed for the edit).
-  - 2026-07-24: + docs/wireframes/00_overview.md, docs/content_architecture.md — authority: same
-    reviewer findings (bi-analyst + cto, round 2) — the round-1 doc reconciliation fixed the three
-    named docs but did NOT sweep the "identity-only squad" claim across the tree; two more instances
-    survived (the wireframe status index 00_overview.md:68 and content_architecture.md:83). Fix the
-    CLASS: swept all docs (grep) and code comments (export) for the identity-only-squad claim and
-    reconciled every instance. Amended on a clean tree.
-  - 2026-07-24: + dbt_project/docs/layering.md, dbt_project/models/5_marts/shared/mart_roster.sql,
-    dbt_project/models/5_marts/shared/shared.yml — authority: bi-analyst round-3 finding + CPO
-    (AskUserQuestion 2026-07-24, "Fix the 3 lines, then ship", which also authorises a round-cap
-    override). A definitive tree-wide grep (all of docs/ + dbt_project/ + scripts + site_v2) found the
-    stale "no per-club stats (deferred #480)" clause survived in these three dbt mart docs. Fix keeps
-    the ACCURATE "mart_roster carries no stat columns" but removes the stale deferral (the stats ship
-    in mart_player_career, joined at consumption for the Squad tab). Amended on a clean tree.
-  - 2026-07-24: absent-state split — TeamSquad now distinguishes a no-roster season
-    (`squadUnavailable`) from a roster-with-nobody-played season (`squadEmpty`), per
-    11_team_squad.md §6 (bi-analyst finding). In scope already; noted here for the trail.
+amendments: (none)
