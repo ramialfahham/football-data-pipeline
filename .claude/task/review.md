@@ -1,60 +1,80 @@
-# Review — feat/player-mins-per-appearance — 2026-07-24
+# Review — feat/team-squad-tab — 2026-07-24
 
-diff_sha256: d416908623cd5c1982e2f16d5c2750781d887668cd4b23a02f64126032ee8496
+diff_sha256: 024b6f7e300844262898bfa183d7de3514136649d70fd8cf67de61f5c2151d20
 
-rounds: 2
+rounds: 5
 
-> PR-A: adds `minutes_per_appearance` = safe_divide(minutes, appearances) to mart_player_career + a
-> metric_catalogue row + a null-safe DQ test, on the appearances denominator corrected in #813. Round 1
-> full: analytics-engineer PASS, football-analytics-expert FAIL (format=integer should be decimal_0;
-> CPO authority not cited), scope-auditor FAIL (same authority gap). Round 2 delta: both fixes made
-> (format -> decimal_0; contract now cites the AskUserQuestion authority), football + scope re-confirmed
-> PASS. analytics-engineer's PASS carries — the only changes since its review are the format field and
-> the contract's authority text, both outside its risk set (mechanics, formula equivalence, the four
-> resolvability/uniqueness/meaning/direction guards, blast radius); format is not validated by any guard.
+rounds_cap_override: CPO authorised closing the doc-reconciliation sweep and shipping — AskUserQuestion
+2026-07-24, "Fix the 3 lines, then ship". The rounds past 3 were NOT code churn: the Squad-tab code
+(export join, frontend, sample, tests, absent-state) passed early and is unchanged; rounds 2-5 were
+the bi-analyst finding the stale "identity-only squad" doc claim in successively more files
+(wireframes -> gaps register -> design brief -> the wireframe status index -> content_architecture ->
+three dbt mart docs -> the component-census rows), i.e. one prose class swept to completion.
+
+> PR-B: the team page Squad tab (mock f6348775). Export joins mart_player_career onto each roster
+> member (selection only); TeamSquad.astro renders position groups (GK->DEF->MID->FWD->Other), rows
+> by appearances desc, monogram avatars, a two-line stat readout; 33.json re-exported (real output);
+> types + i18n (de/en/fi); absent-state split (no-roster vs nobody-played). Plus a tree-wide doc
+> reconciliation of the now-superseded "identity-only squad" framing.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- §10 metric-catalogue authority: the contract now cites the CPO authority (AskUserQuestion 2026-07-23,
-  "Catalogue it now" + "Ship minutes only, fix apps next") in refs and decisions_taken (1), dated and
-  quoted, cross-referable to the escalations log — this executes a recorded, deferred decision now that
-  #813 met its precondition, not a new or reversed one.
-- Scope bounded: the diff touches only the four scope_paths (mart_player_career.sql, shared.yml,
-  metric_catalogue.csv, active_work.md); no export/frontend/build leakage (that is PR-B);
-  `amendments: (none)` is correct for a fresh contract on a fresh branch.
+- Every changed file is within the (thrice-amended) scope_paths; all three amendments are recorded
+  with authority (reviewer findings + the CPO ship ruling). No undeclared file; no warehouse/seed/logic
+  change smuggled into the doc reconciliation.
+- No unilateral §10 decision: position->group mapping, build-time age, and "show >= 1 appearance, N of
+  M caption" all implement the CPO-approved mock; no new metric (minutes_per_appearance was catalogued
+  in the prior PR); the doc edits are reconciliation to shipped behaviour, not new product decisions.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Corrected-denominator + formula equivalence: `appearances`/`minutes` in int_player_club_season__metrics
-  are the #813-corrected atoms; proved `countif(minutes_played > 0)` (catalogue) is identical to the
-  mart's `countif(coalesce(minutes_played,0) > 0)` under BigQuery null-comparison semantics, so the
-  catalogue formula and the mart column agree; the bare countif (no coalesce) honors the no-null-gate
-  rule, matching the clean_sheets precedent.
-- Catalogue guards hand-traced against the real row and int_legs__player_match columns: resolvable
-  (sum/countif allow-listed, minutes_played real), unique (metric_id, entity), meaning-complete, and
-  direction/lower_is_better agree (neutral + false). Same-window (numerator/denominator share one
-  per_fixture CTE). Leaf mart (zero ref() hits); export _shape_career_row does not surface the column,
-  so nothing breaks on merge. Table materialization, no incremental-rename trap. No hardcoded league_code.
+- Export is SELECTION/JOIN only: career stats read from mart_player_career via career_by_key keyed
+  (league_code, season_api_year, player_sk) — unique because career_rows are pre-scoped to one team_sk
+  in the fetch; verified against the mart's (player_sk, team_sk, season_sk) grain and the new test that
+  plants a decoy prior-season row and asserts no leak. mins/app read from the mart column, never divided.
+- The re-exported 33.json is genuine output (both null-safety edge cases faithfully present;
+  full-float-precision values; unrelated scatter/benchmark drift consistent with a real re-run) — the
+  #805 binding rule holds.
+- The dbt doc/comment reconciliation (layering.md, mart_roster.sql, shared.yml) is prose only: no SQL,
+  schema, test, materialization, or grain change; mart_roster's SELECT is verified stat-column-free, so
+  "no per-club stat columns of its own" is accurate.
 
-## football-analytics-expert-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- direction=neutral RATIFIED: mins/app normalises minutes by appearance count (no output in the
-  numerator), so it is a squad-role descriptor with no better/worse pole — a valued super-sub on short
-  cameos is not "worse" than a starter — matching the existing neutral rows (contribution_share,
-  sot_points_gap); lower_is_better=false agrees.
-- format corrected to decimal_0: a divided value like every other ratio row (safe_divide returns
-  FLOAT64), renders identically to integer per site_v2 format.ts; the rest of the row is unregressed
-  (numerator sum(minutes_played), denominator countif(minutes_played > 0), interpretation unchanged).
+- Binding rule: every field TeamSquad renders (appearances, minutes_per_appearance, goals, assists,
+  name, position, nationality, birth_date) exists in the committed 33.json squad members — nothing
+  drawn that the data does not supply. Age is a build-time display derivation (pre-endorsed pattern,
+  mart_roster schema), null-safe.
+- Formatting/i18n: singular/plural correct (1 goal vs 2 goals; 1 app vs apps) in all three locales;
+  position group headers plural + localized; the two-line `.pstat` scoped to `.squad` so the fixture
+  PlayerRow is untouched; absent-state split (squadUnavailable vs squadEmpty) present in de/en/fi.
+- No live description anywhere presents the Squad tab / squad row as identity-only or stats-deferred:
+  a tree-wide substance sweep (docs/ + dbt_project/ + scripts + site_v2) found only dated/struck
+  historical annotations; the /players/squads RAW-ingestion mentions and the mart-accurate "no stat
+  columns" statements are a different layer, correctly left.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Nothing in the platform/build/tooling surface changed since the earlier PASS: no guard/CI/dependency/
+  workflow path in the diff (enumerated all changed files); scripts/export logic unchanged (only three
+  stale comments reworded); TeamSquad.astro/system.css/tests match the contract's done_when.
+- TS/template soundness + scoped CSS confirmed earlier and unaffected; the JS-free tab still resolves
+  for the swapped Squad panel; astro build clean across de/en/fi; the delta since is documentation only.
 
 ## escalations
-- question: is minutes_per_appearance a display-support column or a catalogue-governed metric?
-  CPO ANSWER: catalogue it — "Catalogue it now" (AskUserQuestion 2026-07-23).
-- question: ship the ratio now, or fix the appearances denominator first?
-  CPO ANSWER: "Ship minutes only, fix apps next" (AskUserQuestion 2026-07-23). #813 did the fix; this
-  PR ships the ratio on the corrected denominator.
-- question: direction of minutes_per_appearance — neutral or higher_better?
-  Ratified neutral by the football-analytics-expert reviewer (a reviewer-adjudicated domain call, not a
-  §10 CPO decision).
+- question: reconcile the design docs now, or take the plan's "doc follow-up" deferral?
+  CPO ANSWER: finish the Squad tab first, reconcile now (AskUserQuestion 2026-07-24, "Finish Squad tab
+  first").
+- question: only stale wording in dbt mart docs remains and the review round cap (3) is hit; how to
+  proceed? CPO ANSWER: "Fix the 3 lines, then ship" (AskUserQuestion 2026-07-24) — authorises the
+  round-cap override recorded above.
+
+## follow-ups (non-blocking, recorded so they are not lost)
+- content_architecture.md:83 cites "GAP-22" for the squad-stats resolution; GAP-22 is the Player
+  Career screen's gap — the squad-stats resolution is under GAP-20's ruling. A wrong internal
+  cross-reference (not fan-facing); fix in the deferred doc cleanup.
+- The whole-site em-dash / AI-tell display-text sweep is a separate CPO must (spawned task) — not this PR.
