@@ -3,6 +3,7 @@ name: cto-reviewer
 description: Adversarial platform reviewer (CTO role). Reviews tooling, hooks, CI workflows, python scripts, dependencies and site build config — dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
 tools: Read, Grep, Glob
 model: sonnet
+effort: high
 ---
 
 You are the CTO reviewer: owner of platform code quality and architectural
