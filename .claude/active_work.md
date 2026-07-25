@@ -5,7 +5,7 @@
 > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
 > injection budget of the SessionStart hook meant to deliver it.
 
-_Last updated **2026-07-24**. main GREEN at **33662ae**. IN FLIGHT: hosting deploy job (`feat/deploy-site-v2-firebase`, PR) — manual only, not public; awaits CPO merge + 2 GCP prereqs (see OPEN)._
+_Last updated **2026-07-25**. main GREEN at **b15e4fb**. Firebase deploy is **LIVE and verified** (manual dispatch, `.web.app`, not public) — real team pages render. The 2 GCP prereqs are DONE and the export scan cost is measured (~$0.002/run, negligible). Recurring run (trigger shape only) + go-public still gated (see OPEN)._
 
 ---
 
@@ -27,7 +27,7 @@ verified against the repo on 2026-07-22.
 |---|-------|--------|--------------|
 | 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
 | 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
-| 3 | **Hosting** | vendor chosen; job built (PR) | **Firebase** chosen. Deploy job built (export -> raised-heap build -> `firebase deploy`), **manual only**, `.web.app`, no custom domain. Recurring run + go-public still gated (see OPEN). |
+| 3 | **Hosting** | **DEPLOYED & VERIFIED LIVE** | **Firebase** live at `football-data-pipeline-gcp.web.app` (manual dispatch, `.web.app`, not public). Verified 2026-07-25: real team pages render (Man Utd #3, Liverpool #5 — distinct real data). Recurring run (trigger shape only; cost measured negligible) + go-public still gated (see OPEN). |
 | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
 | 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
 
@@ -37,28 +37,20 @@ Marts and the metric layer are **DONE and gated**. They are not launch work. Do 
 
 ## DECIDED 2026-07-22
 
-**No player photographs. Club crests stay.** CPO verbatim: *"OK no photos"*. Photographs carry
-image rights over real people on top of photo copyright, add the most legal exposure and the least
-information, and the player page is not designed yet so deciding now cost nothing. Crests run
-through 13+ marts and the export, so removing them later is expensive, and the provider's own
-framing for them is "identification and descriptive purposes". **The player page must be designed
-without a portrait.**
-
-**Sequence** (CPO: *"go"*): licensing ✅ → guards ✅ → team page.
+**No player photographs. Club crests stay.** CPO: *"OK no photos"*. Photos carry image rights over real
+people + the most legal exposure for the least info; the player page isn't designed yet so deciding now
+cost nothing. Crests run through 13+ marts (expensive to remove) and are "identification/descriptive".
+**The player page must be designed without a portrait.**
 
 ---
 
 ## API-Football licensing — settled 2026-07-22, NOT a blocker
 
-Terms read in full at `api-football.com/terms` (updated 2025-05-21). Websites are an expected use.
-The one hard prohibition is reselling the data. They grant no publication licence and disclaim the
-question ("must be requested from the competent authorities"), so it sits with the leagues, not with
-them. Logos are "for identification and descriptive purposes"; they claim no rights over them and say
-use may need the rights holders' permission. **THE REAL RISK is operational, not legal:** on a formal
-complaint they may suspend API access immediately and without refund, which stops the whole pipeline.
-
-Open, and NOT for an agent to answer: whether the rights-holder question needs a real lawyer before
-publishing. **An agent must never produce a legal conclusion.**
+Terms (`api-football.com/terms`): websites are expected use; the one hard prohibition is RESELLING the
+data. No publication licence granted (sits with the leagues); logos are "for identification/descriptive
+purposes". **Real risk is operational:** on a formal complaint they may suspend API access without
+refund, stopping the pipeline. Open (NOT for an agent): whether publishing needs a lawyer first. **An
+agent must never produce a legal conclusion.**
 
 ---
 
@@ -94,23 +86,13 @@ Holes 1-4 are now CLOSED by #803, so only the behavioural findings survive here.
 
 ---
 
-## DONE 2026-07-22 — #802 handover rewrite · #803 guardrails · #804 metrics into marts
+## DONE 2026-07-22 — #802/#803/#804 (detail in commits)
 
-Detail is in the commits. Three things from them that are still LIVE:
-
-⚠️ **#804 is UNVERIFIED until the fingerprint is checked.** The rename touched the column
-`deserved_rank` is computed on, so a silent break is possible. After the main-push data build,
-confirm unchanged: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
-`bc6d2587b6f2ad02469ded299fc025b7`. If it moved, the flagship read broke.
-
-⚠️ **#802's rewrite DELETED an "owed work" line** (a metric rename), which then cost two review
-rounds to reconstruct from git. **Anything carried as owed must survive a rewrite, or move to
-`escalations.log` before the rewrite happens.** That is why the OWED section below exists.
-
-**#803 shipped four gates:** protected paths need a blast-radius trace as well as authority; the
-`Artifact` tool is gated on a contract with a real `decisions_reserved`; a Stop hook blocks em
-dashes, section symbols, repo paths in prose and over 2,500 characters of prose; SessionStart is
-wired (it had run nowhere).
+⚠️ **#804 fingerprint (verify if not yet confirmed):** the `deserved_rank` rename could silently break
+the flagship read. Confirm post-build: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
+`bc6d2587b6f2ad02469ded299fc025b7`. **#803** shipped four live gates (blast-radius trace on protected
+paths, Artifact gate, Stop prose hook, SessionStart wiring). Lesson: **owed work must survive a
+rewrite** (why OWED exists below).
 
 ---
 
@@ -150,27 +132,34 @@ reviewers as peers rather than one reviewer reading every diff.
 
 ---
 
-## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (merged)
+## DONE 2026-07-24 — team page (3 tabs) + real-data wiring (#813, #818 merged)
 
-⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed warehouse-wide
-(#813; was counting selections incl. unused subs). `mart_player_career` gained `minutes` +
-`minutes_per_appearance`. Team page: all 3 tabs live.
+⚠️ **`appearances` = played legs** (`minutes_played > 0`), fixed warehouse-wide (#813); `mart_player_career`
+gained `minutes` + `minutes_per_appearance`. Build CONSUMES the real export (#818): team+fixture
+`getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`; full 45-league `competitions.json`.
+⚠️ Default-heap `astro build` OOMs at full scale (deploy job uses `--max-old-space-size=8192`); before a
+local dev build run `git clean -fX site_v2/src/data` else OOM.
 
-## DONE 2026-07-24 — REAL DATA wiring (#818 MERGED, launch group 2)
+## DONE 2026-07-25 — Firebase deploy LIVE + verified · effort pins (#822 merged)
 
-Build CONSUMES the real export: team + fixture `getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`
-via `import.meta.glob`; export emits the full 45-league `competitions.json`; `.gitignore` keeps the 2
-samples, ignores the bulk (built at build time). Proven: raised-heap build = 14,874 pages / 26 leagues.
+**Firebase deploy LIVE + VERIFIED.** Run 30151299421 (12m41s): WIF auth → export → raised-heap build
+→ `firebase deploy` all green, incl. firebase-tools accepting WIF/ADC (was unproven).
+Live at `football-data-pipeline-gcp.web.app`; real team pages render distinct data (Man Utd #3,
+Liverpool #5). Root `/` = "under construction" scaffold (landing not designed). **Manual dispatch,
+`.web.app` only, not public.**
 
-⚠️ Default-heap `astro build` OOMs at full scale — handled by the deploy job's `--max-old-space-size=8192`.
-A full local export leaves gitignored bulk in `site_v2/src/data/`; run `git clean -fX site_v2/src/data`
-before a local dev build, else OOM.
+**Export cost measured:** ~$0.002/run (~0.18 GiB, 15 whole-mart reads) — recurring run unblocked on
+cost; only the trigger shape is left. **#822 merged:** per-agent `effort` pinned (scope-auditor=medium,
+five reviewers=high), models unchanged; personal Opus+high default in gitignored `settings.local.json`
+([[reference-model-effort-automation]]). Follow-ups: actions warn Node 20 deprecation; team-page footer
+says "Sample data · v2 preview" on real data (confirm intended).
 
 ## NEXT
 
-1. **Deploy + hosting (group 3)** — vendor chosen (Firebase), deploy job BUILT (PR open, manual only).
-   Remaining: CPO merges; CPO does the two GCP prerequisites; then dispatch once to verify the real
-   deploy; then (after cost+schedule confirmation) add the recurring trigger. See OPEN > Hosting.
+1. **Deploy + hosting (group 3)** — DONE and LIVE. Firebase deploy verified 2026-07-25 (run
+   30151299421). The only remaining hosting step is the **recurring trigger** — cost is measured
+   negligible, so this is now purely the CPO's trigger-shape choice (`workflow_run` on dbt-scheduled
+   vs a cron). See OPEN > Hosting.
 2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
 3. **Small follow-ups** (here in case the task chips don't survive a restart):
    - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
@@ -188,13 +177,15 @@ before a local dev build, else OOM.
   address. Substitutes exist (service/business address) but whether the site needs an Impressum and
   whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
   only; does NOT block building.
-- **Hosting.** Vendor DECIDED 2026-07-24: **Firebase Hosting** (GCP-native, reuses WIF auth, atomic
-  deploys, no fixed floor). Cloud Storage+CDN = later migration path; Cloudflare ruled out (20k-file
-  cap forces a backend). Deploy job built (PR). **Open, both the CPO's:** (1) **Recurring run** — job is
-  manual only; before the auto trigger (`workflow_run` on dbt-scheduled, or a cron) confirm cost+schedule
-  (a free `bq --dry_run` gives exact bytes; the marts scan is ~pennies/month). (2) **Two GCP prereqs**
-  (console, an agent cannot): enable Firebase + create a Hosting site; grant `roles/firebasehosting.admin`
-  to the deploy SA — until then the deploy step fails, build steps pass. Go-public stays imprint-blocked.
+- **Hosting.** Vendor **Firebase Hosting** (decided 2026-07-24). Deploy is LIVE and VERIFIED
+  2026-07-25 (run 30151299421). The two GCP prereqs are **DONE** (Firebase enabled + default site
+  `football-data-pipeline-gcp.web.app`; `roles/firebasehosting.admin` granted to the deploy SA
+  github-actions-dbt). Cost **MEASURED**: the export scan is ~$0.002/run (~0.18 GiB, 15 queries) —
+  negligible, within BigQuery's 1 TiB/month free tier. **Open, the CPO's:** the **recurring-run
+  trigger shape** (`workflow_run` on dbt-scheduled vs a cron) — cost is no longer a blocker, this is
+  now just the schedule choice. Go-public (custom domain, DNS, announcement) stays imprint-blocked.
+  (Measurement note: the deploy SA github-actions-dbt is shared with the dbt pipeline; to measure the
+  export scan, exclude the dbt-labelled queries in JOBS_BY_PROJECT or the number is ~100x too high.)
 - **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
   from here (#687).
 
@@ -239,8 +230,9 @@ before a local dev build, else OOM.
 
 ## Verified state reference
 
-- **Live to users:** NOTHING. The MVP was retired 2026-07-21 (matchdayiq.io offline, Pages deleted,
-  deploy workflow disabled, `curl` returns 404; DNS untouched). There is no public site.
+- **Live to users:** no PUBLIC site. The MVP was retired 2026-07-21 (matchdayiq.io offline, Pages
+  deleted, `curl` returns 404; DNS untouched). v2 IS deployed to `football-data-pipeline-gcp.web.app`
+  (reachable but unlisted, no custom domain, not announced) — a verification target, not a launch.
 - **v2 built:** the shared design system (`site_v2/src/styles/system.css` + components) and the
   fixture page (#672).
 - **Locked design references:** pattern sheet `be7bd6d3` (the block vocabulary — compose from it,

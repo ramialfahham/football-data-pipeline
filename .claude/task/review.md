@@ -1,21 +1,14 @@
-# Review — chore/pin-review-fleet-effort — 2026-07-25
+# Review — docs/handover-firebase-live — 2026-07-25
 
-diff_sha256: 5bc53e16639136b74e4fc9afd17d46984161937816aa438d0c3760713df8dd34
+diff_sha256: 42460b62d4d76f7392a021314dd02a41bd44fea203ac9a83dd89f22a2b406825
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Effort-value validity + scope: all six agents carry an effort value from the valid set (medium or high, within low|medium|high|xhigh), every changed path is inside scope_paths (`.claude/agents/*.md` plus the always-reviewed contract.md), and the diff matches the CPO-authorized "Balanced" matrix exactly (scope-auditor=medium, five reviewers=high). No out-of-scope change.
-- Authorization + model preservation: the contract carries a protected_override quoting the CPO's 2026-07-25 AskUserQuestion answers, and each agent's existing `model` (scope-auditor=haiku, five=sonnet) is an unchanged context line — the decision is operational cost-tuning, not a §10 product/naming/new-mechanism class, so it is fully authorized and does not subvert the opus-on-guard-paths override.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Model-floor / opus-override integrity: every `model:` value in the patch is an unchanged context line (5×sonnet, 1×haiku); a grep of `.claude/**/*.py` and `.github/**` for effort/model found only unrelated "best-effort" prose, confirming no hook, gate or CI parses agent frontmatter — so the cto-reviewer spawn-time opus MODEL override is on a separate axis from frontmatter EFFORT and is untouched, and routing (`review_routing.json`) binds by agent name, not frontmatter.
-- Protected-path authorization: `.claude/agents/` is in PROTECTED_PREFIXES (task_contract_gate.py:66); the contract carries protected_override quoting the CPO AskUserQuestion answers, and the diff's effort matrix matches the quoted "Balanced" decision line-for-line — not an unauthorized guard edit. New-mechanism (A3) does not fire: `effort` is an existing framework-native frontmatter field being populated, not a new mechanism.
-- Cost tripwire (CFO): the only behavioural change is reviewer reasoning depth (frequency and routing unchanged); the always-on scope-auditor is capped at medium and the dormant five run high — the CPO's recorded decision — and the Opus+high session default is gitignored (.gitignore:229), local-only, and correctly absent from the committed diff, so there is no shared/CI cost and no committed credential.
+- Owed work survives the rewrite: all six deferred OWED commitments (agent set, metric-change skill, crest mirroring, display-contract amendment, legal-counsel consultant, guardrail economics) are intact — the OWED section was not compressed away. The handover's own rule "owed work must survive a rewrite" is honored.
+- Critical operational warnings preserved with exact values through the compression: the #804 fingerprint check (1,376 rows, sum_deserved 16,980, sum_gap -4,573, md5 `bc6d2587b6f2ad02469ded299fc025b7`), the `appearances` = played-legs definition (#813), and the Astro build OOM workaround (`git clean -fX site_v2/src/data`) all survive. Only two files touched (active_work.md + contract.md), both in scope; no §10 decision smuggled in — factual status only.
 
 ## escalations
 (none)
