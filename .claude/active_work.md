@@ -9,7 +9,7 @@ _Last updated **2026-07-26**. main GREEN at **fb3a1a4**. **CURRENT TASK: build t
 ## THE GOAL
 **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
 
-## ⭐ CURRENT TASK — build the frontend FOUNDATION (start here)
+## ⭐ CURRENT TASK — build the frontend FOUNDATION — issue #825 (start here)
 **Why this, not more pages:** a spec audit (2026-07-26) found the frontend is systematic on DATA +
 CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every page became a one-off.
 **CPO decision 2026-07-26: foundation-first, lean process.** Stop building pages until the shared
@@ -39,8 +39,8 @@ desktop RAIL per page type (home = standings/trending/scorers) · footer/legal (
 default-theme policy (dark-fixed vs follow-OS). **Approved this session:** widen desktop to two-column
 ~1100px; dark default + light toggle; the nav list; the breakpoints above.
 
-**Then Phase B (lean process):** add ONLY a schema-validated page-spec contract + a sharpened
-rendered-page reviewer. DEFER: component catalogue, import-boundary rule, one-page driver.
+**Then Phase B (lean process):** add ONLY a schema-validated page-spec contract (#826) + a sharpened
+rendered-page reviewer (#827). DEFER: component catalogue, import-boundary rule, one-page driver (#828).
 **Then Phase C: build pages one at a time** — **player FIRST** (fully spec'd + data-ready, no design
 debate), then home in the new frame.
 
