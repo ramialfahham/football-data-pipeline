@@ -23,6 +23,19 @@ the CTO.
    `docs/wireframes/00_overview.md` (binding rule),
    `docs/ui_design_brief.md` §6, `docs/roles/bi_analyst.md`,
    working_agreement.md Appendix A.
+4. `.claude/task/rendered_page_evidence.md` — REQUIRED whenever the diff touches
+   `site_v2/src/**` with a rendering-affecting change (markup/CSS/component —
+   not e.g. an i18n-string-only edit). The builder produces this before
+   spawning you: what was checked, at which viewport widths, and what was
+   actually observed, using whichever of {screenshot, accessibility tree,
+   mobile layout} were obtainable in that environment (a screenshot tool being
+   broken is not an excuse to skip the other two — it must SAY which it used
+   and why, never silently claim one it didn't capture). **Its absence for a
+   rendering-affecting `site_v2/src/**` diff is itself a finding — check for
+   the file, don't assume the builder remembered it.** You read this the same
+   way you already read `review_input.patch`: a real, auditable artifact — a
+   code read alone cannot show you whether a breakpoint fires or an element
+   overlaps at runtime.
 
 ## Your hunt — every item, every time
 
@@ -51,6 +64,14 @@ the CTO.
    - **A number rendered twice on one screen** is a display defect even when
      every field is real (the 2026-07-21 player mock showed goals and assists
      seven times).
+   - **Rendering defects a code read alone cannot catch**: a breakpoint that
+     doesn't actually fire, overlapping or clipped elements, a broken or
+     missing interaction, an element styled as interactive that is actually
+     inert (or vice versa). Judge this from `rendered_page_evidence.md`, not
+     by re-deriving CSS cascade/specificity from the diff in your head — that
+     is exactly how a real bug (a `>=1010px` search-icon button that never hid
+     because the override's specificity lost to the base rule) passed review
+     on PR #829 undetected.
 2. **Locked metric contract**: display order, groups, tiers exactly as the
    LOCKED tables; tier used to reorder → FAIL; player rows given tiers →
    FAIL; MVP row order disturbed → FAIL.
@@ -71,6 +92,13 @@ the CTO.
 
 PASS requires at least two real risks/edge cases checked, with evidence.
 Cannot find two → ESCALATE. Ambiguous → ESCALATE (§10 meta-rule).
+
+**When the diff has a rendering-affecting `site_v2/src/**` change in scope, at
+least ONE of the two required risks must come from `rendered_page_evidence.md`**
+— not both purely from reading source. A PASS built entirely from a code read
+on a rendering change is not a real check of what #827 exists to catch; treat
+it as not having found two real risks (→ ESCALATE, or FAIL if the evidence
+file is simply missing).
 
 ## Output format (exact; machine-parsed)
 
