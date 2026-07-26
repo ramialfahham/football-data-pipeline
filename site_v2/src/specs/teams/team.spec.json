@@ -1,0 +1,37 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/teams/[team].astro",
+  "entity": "team",
+  "blocks": [
+    {
+      "block": "Team header",
+      "mart": "mart_team_profile",
+      "i18n_keys": ["crumbTeams", "founded", "teamPlayed"]
+    },
+    {
+      "block": "Deserved-vs-actual (flagship)",
+      "mart": "mart_team_profile",
+      "i18n_keys": ["secDeserved", "heroSotDiff", "heroVerdictUnder", "heroVerdictOver", "heroCaption", "heroNoData"]
+    },
+    {
+      "block": "Season-over-season",
+      "mart": "mart_team_profile",
+      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "noYoY"]
+    },
+    {
+      "block": "Upcoming / Results",
+      "mart": "mart_team_fixtures",
+      "i18n_keys": ["secFixtures", "fxHome", "fxAway", "fxNext", "linkFixtures"]
+    },
+    {
+      "block": "Vs-benchmark (bars vs league avg + percentile)",
+      "mart": "mart_team_competition_benchmarks",
+      "i18n_keys": ["vsLeague", "vsLastSeason", "median", "rankOfCount", "notRankable"]
+    },
+    {
+      "block": "Squad / roster",
+      "mart": ["mart_roster", "mart_player_career"],
+      "i18n_keys": ["squadGk", "squadDef", "squadMid", "squadFwd", "squadShown", "squadEmpty", "appOne", "appMany", "minsPerApp"]
+    }
+  ]
+}

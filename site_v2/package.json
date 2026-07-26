@@ -6,6 +6,8 @@
     "node": ">=22"
   },
   "scripts": {
+    "test": "node --test",
+    "prebuild": "npm test && node scripts/check-page-specs.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview"
