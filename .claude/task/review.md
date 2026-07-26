@@ -1,14 +1,14 @@
-# Review — docs/handover-firebase-live — 2026-07-25
+# Review — docs/handover-foundation-build — 2026-07-26
 
-diff_sha256: 42460b62d4d76f7392a021314dd02a41bd44fea203ac9a83dd89f22a2b406825
+diff_sha256: e01b198ad920b2e60c348a1c6e3cf4f608c748478f8c34329f1630c06159d0b9
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Owed work survives the rewrite: all six deferred OWED commitments (agent set, metric-change skill, crest mirroring, display-contract amendment, legal-counsel consultant, guardrail economics) are intact — the OWED section was not compressed away. The handover's own rule "owed work must survive a rewrite" is honored.
-- Critical operational warnings preserved with exact values through the compression: the #804 fingerprint check (1,376 rows, sum_deserved 16,980, sum_gap -4,573, md5 `bc6d2587b6f2ad02469ded299fc025b7`), the `appearances` = played-legs definition (#813), and the Astro build OOM workaround (`git clean -fX site_v2/src/data`) all survive. Only two files touched (active_work.md + contract.md), both in scope; no §10 decision smuggled in — factual status only.
+- Owed-work + warnings survived the full rewrite: all six OWED items (ui-builder/agent set, metric-change skill, mirror crests, amend the display contract, legal-counsel consultant, reviewers-as-peers) and all four ⚠️ warnings (#804 fingerprint + md5, appearances=played-legs, astro-build OOM workaround, third-party-requests defect) are intact. Only `.claude/active_work.md` + the always-allowed contract.md are touched; no scope drift; file is ~11k chars, under the 16k budget.
+- No §10 decision smuggled in: the "approved this session" items (foundation-first, widen desktop to two-column ~1100px, dark+light toggle, the nav list, the breakpoints) are recorded as facts the CPO already decided, while the open questions (nav contents/order, search style, per-page rail, footer/legal, default-theme policy) stay reserved. Two clarity boundary-cases the auditor flagged (nav-order approved-vs-reserved wording; a fallback if a mock link is unreachable) were both addressed by a one-line clarification each in this diff.
 
 ## escalations
 (none)
