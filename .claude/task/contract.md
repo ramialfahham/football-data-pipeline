@@ -1,42 +1,40 @@
-# Task contract — handover refresh (Firebase deploy live + verified, export cost measured)
+# Task contract — handover refresh (foundation build handoff to a new chat)
 
-> Written on a CLEAN tree (branch `docs/handover-firebase-live` off main at b15e4fb).
-> Bookkeeping: refresh the single handover contract to current state. No code, no model change.
+> Written on a CLEAN tree (branch `docs/handover-foundation-build` off main at fb3a1a4).
+> Bookkeeping: refresh the single handover so a fresh chat starts the frontend FOUNDATION build
+> with zero re-investigation. No code, no model change.
 
 objective: >
-  Refresh .claude/active_work.md to the true current state after this session: the Firebase
-  Hosting deploy is LIVE and VERIFIED (manual dispatch, `.web.app`, not public) — real team pages
-  render distinct real data (Man Utd, Liverpool); the two GCP prerequisites (enable Firebase +
-  create the site; grant roles/firebasehosting.admin to the deploy SA github-actions-dbt) are DONE;
-  the per-run export scan cost was MEASURED at ~$0.002/run (~0.18 GiB, 15 queries) — negligible and
-  within BigQuery's free tier, so the recurring run is unblocked on cost and only its trigger shape
-  is left to decide; and PR #822 (per-agent review-fleet effort pins) merged. Keep the file CURRENT
-  STATE ONLY and under 16,000 characters.
+  Rewrite .claude/active_work.md to the true current state so a new chat can begin the frontend
+  FOUNDATION build immediately: the 2026-07-26 spec audit found the frontend systematic on data/
+  content but improvisational on layout/chrome/workflow; CPO decided foundation-first + lean process;
+  the shared-frame design is APPROVED via mock (artifact 87d14109; home-content mock 1c35e7aa); the
+  build = turn the mock into the real Layout.astro shell + system.css responsive system + write the
+  two missing specs (09_chrome + a layout section), composing ONLY from the locked system.css. Carry
+  ALL owed items and the design discipline. Keep CURRENT STATE ONLY and under 16,000 characters.
 
 refs: >
-  This session 2026-07-25. Deploy run 30151299421 (success, 12m41s). Live URL
-  football-data-pipeline-gcp.web.app. Cost measured via region-eu INFORMATION_SCHEMA.JOBS_BY_PROJECT
-  (export = non-dbt-labelled queries under the github-actions-dbt SA; the dbt build+test queries
-  that share that SA must be excluded, or the number is off by ~100x).
+  This session 2026-07-26. Frontend spec audit + backtobayesics process study (both agent runs).
+  CPO decisions this session: widen desktop to ~1100px two-column; foundation-first + lean process;
+  foundation mock "looks good for now". Firebase deploy merged (#821), effort pins merged (#822),
+  prior handover merged (#823) — main now fb3a1a4.
 
 scope_paths:
   - .claude/active_work.md
 
 decisions_taken: >
-  Pure bookkeeping. All facts recorded are already true (deploy succeeded, prereqs done, cost
-  measured); this only writes them into the handover. No product, metric, naming or mechanism
-  decision is made here.
+  Pure bookkeeping. All facts recorded are already true (audit done, CPO decided foundation-first +
+  lean process, foundation mock approved). No new product/metric/mechanism decision is made here.
 
 decisions_reserved:
-  - The recurring-run trigger shape (`workflow_run` on dbt-scheduled vs a later cron) and going
-    public (custom domain, DNS, announcement) remain the CPO's open decisions — recorded in the
-    handover as OPEN, not decided here. Cost is no longer a blocker for the recurring run (measured
-    negligible); the trigger-shape choice is what is left.
+  - The foundation's open design questions (nav contents/order, search style, per-page rail contents,
+    footer/legal, default-theme policy) remain the CPO's §10 calls — recorded in the handover as
+    reserved, not decided here.
 
 done_when:
-  - .claude/active_work.md reflects: Firebase deploy LIVE + verified; the two GCP prereqs DONE; the
-    measured export cost (~$0.002/run, negligible); PR #822 merged. Stays under 16,000 chars.
-  - ONE commit; review.md with scope-auditor PASS (the only required reviewer for this path);
-    pushed with an explicit refspec; PR opened. The CPO merges.
+  - .claude/active_work.md leads with the foundation-build task (design approved, build not started),
+    carries every OWED item and ⚠️ warning intact, records the audit + foundation-first/lean-process
+    decision + design discipline + mock URLs, and stays under 16,000 chars.
+  - ONE commit; review.md with scope-auditor PASS; pushed with an explicit refspec; PR opened. CPO merges.
 
 amendments: (none)

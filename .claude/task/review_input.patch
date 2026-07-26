@@ -1,279 +1,465 @@
 diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 0a3fa35..6eb37e2 100644
+index 6eb37e2..2988913 100644
 --- a/.claude/active_work.md
 +++ b/.claude/active_work.md
-@@ -5,7 +5,7 @@
- > belongs in git, not in this file. It must stay under 16,000 characters, because that is the
- > injection budget of the SessionStart hook meant to deliver it.
+@@ -1,247 +1,158 @@
+ # Active work — handover
  
--_Last updated **2026-07-24**. main GREEN at **33662ae**. IN FLIGHT: hosting deploy job (`feat/deploy-site-v2-firebase`, PR) — manual only, not public; awaits CPO merge + 2 GCP prereqs (see OPEN)._
-+_Last updated **2026-07-25**. main GREEN at **b15e4fb**. Firebase deploy is **LIVE and verified** (manual dispatch, `.web.app`, not public) — real team pages render. The 2 GCP prereqs are DONE and the export scan cost is measured (~$0.002/run, negligible). Recurring run (trigger shape only) + go-public still gated (see OPEN)._
+-> The single handover contract. A fresh chat continues from here. Do not re-scope, and do not
+-> infer the task from an issue title or a memory file. Keep it CURRENT STATE ONLY — history
+-> belongs in git, not in this file. It must stay under 16,000 characters, because that is the
+-> injection budget of the SessionStart hook meant to deliver it.
++> The single handover contract. A fresh chat continues from here. Do not re-scope or infer the task
++> from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
++> 16,000 characters (the SessionStart hook's injection budget).
  
- ---
- 
-@@ -27,7 +27,7 @@ verified against the repo on 2026-07-22.
- |---|-------|--------|--------------|
- | 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
- | 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
--| 3 | **Hosting** | vendor chosen; job built (PR) | **Firebase** chosen. Deploy job built (export -> raised-heap build -> `firebase deploy`), **manual only**, `.web.app`, no custom domain. Recurring run + go-public still gated (see OPEN). |
-+| 3 | **Hosting** | **DEPLOYED & VERIFIED LIVE** | **Firebase** live at `football-data-pipeline-gcp.web.app` (manual dispatch, `.web.app`, not public). Verified 2026-07-25: real team pages render (Man Utd #3, Liverpool #5 — distinct real data). Recurring run (trigger shape only; cost measured negligible) + go-public still gated (see OPEN). |
- | 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
- | 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
- 
-@@ -37,28 +37,20 @@ Marts and the metric layer are **DONE and gated**. They are not launch work. Do
- 
- ## DECIDED 2026-07-22
- 
--**No player photographs. Club crests stay.** CPO verbatim: *"OK no photos"*. Photographs carry
--image rights over real people on top of photo copyright, add the most legal exposure and the least
--information, and the player page is not designed yet so deciding now cost nothing. Crests run
--through 13+ marts and the export, so removing them later is expensive, and the provider's own
--framing for them is "identification and descriptive purposes". **The player page must be designed
--without a portrait.**
+-_Last updated **2026-07-25**. main GREEN at **b15e4fb**. Firebase deploy is **LIVE and verified** (manual dispatch, `.web.app`, not public) — real team pages render. The 2 GCP prereqs are DONE and the export scan cost is measured (~$0.002/run, negligible). Recurring run (trigger shape only) + go-public still gated (see OPEN)._
 -
--**Sequence** (CPO: *"go"*): licensing ✅ → guards ✅ → team page.
-+**No player photographs. Club crests stay.** CPO: *"OK no photos"*. Photos carry image rights over real
-+people + the most legal exposure for the least info; the player page isn't designed yet so deciding now
-+cost nothing. Crests run through 13+ marts (expensive to remove) and are "identification/descriptive".
-+**The player page must be designed without a portrait.**
+----
++_Last updated **2026-07-26**. main GREEN at **fb3a1a4**. **CURRENT TASK: build the frontend FOUNDATION** (shared shell + responsive system) — design APPROVED via mock, build NOT started. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
  
- ---
- 
- ## API-Football licensing — settled 2026-07-22, NOT a blocker
- 
--Terms read in full at `api-football.com/terms` (updated 2025-05-21). Websites are an expected use.
--The one hard prohibition is reselling the data. They grant no publication licence and disclaim the
--question ("must be requested from the competent authorities"), so it sits with the leagues, not with
--them. Logos are "for identification and descriptive purposes"; they claim no rights over them and say
--use may need the rights holders' permission. **THE REAL RISK is operational, not legal:** on a formal
--complaint they may suspend API access immediately and without refund, which stops the whole pipeline.
+ ## THE GOAL
 -
--Open, and NOT for an agent to answer: whether the rights-holder question needs a real lawyer before
--publishing. **An agent must never produce a legal conclusion.**
-+Terms (`api-football.com/terms`): websites are expected use; the one hard prohibition is RESELLING the
-+data. No publication licence granted (sits with the leagues); logos are "for identification/descriptive
-+purposes". **Real risk is operational:** on a formal complaint they may suspend API access without
-+refund, stopping the pipeline. Open (NOT for an agent): whether publishing needs a lawyer first. **An
-+agent must never produce a legal conclusion.**
- 
- ---
- 
-@@ -94,23 +86,13 @@ Holes 1-4 are now CLOSED by #803, so only the behavioural findings survive here.
- 
- ---
- 
--## DONE 2026-07-22 — #802 handover rewrite · #803 guardrails · #804 metrics into marts
+-**The new website live.** Two weeks is the target, three is acceptable, and quality wins over
+-speed. CPO 2026-07-22: *"I prioritize quality over speed. If me make it in 3 weeks it's ok as
+-well. But 2 weeks remains our goal."* Anything that does not serve this is out.
 -
--Detail is in the commits. Three things from them that are still LIVE:
+----
 -
--⚠️ **#804 is UNVERIFIED until the fingerprint is checked.** The rename touched the column
--`deserved_rank` is computed on, so a silent break is possible. After the main-push data build,
--confirm unchanged: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
--`bc6d2587b6f2ad02469ded299fc025b7`. If it moved, the flagship read broke.
+-## WHERE WE STAND — the five launch groups
 -
--⚠️ **#802's rewrite DELETED an "owed work" line** (a metric rename), which then cost two review
--rounds to reconstruct from git. **Anything carried as owed must survive a rewrite, or move to
--`escalations.log` before the rewrite happens.** That is why the OWED section below exists.
-+## DONE 2026-07-22 — #802/#803/#804 (detail in commits)
+-**This is the progress view.** When the CPO asks where we stand, answer from this table. Nothing
+-here comes from the 114-issue tracker, which he has withdrawn confidence in; every row was
+-verified against the repo on 2026-07-22.
+-
+-| # | Group | Status | What is left |
+-|---|-------|--------|--------------|
+-| 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
+-| 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
+-| 3 | **Hosting** | **DEPLOYED & VERIFIED LIVE** | **Firebase** live at `football-data-pipeline-gcp.web.app` (manual dispatch, `.web.app`, not public). Verified 2026-07-25: real team pages render (Man Utd #3, Liverpool #5 — distinct real data). Recurring run (trigger shape only; cost measured negligible) + go-public still gated (see OPEN). |
+-| 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
+-| 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
+-
+-Marts and the metric layer are **DONE and gated**. They are not launch work. Do not reopen them.
+-
+----
+-
+-## DECIDED 2026-07-22
+-
+-**No player photographs. Club crests stay.** CPO: *"OK no photos"*. Photos carry image rights over real
+-people + the most legal exposure for the least info; the player page isn't designed yet so deciding now
+-cost nothing. Crests run through 13+ marts (expensive to remove) and are "identification/descriptive".
+-**The player page must be designed without a portrait.**
+-
+----
+-
+-## API-Football licensing — settled 2026-07-22, NOT a blocker
+-
+-Terms (`api-football.com/terms`): websites are expected use; the one hard prohibition is RESELLING the
+-data. No publication licence granted (sits with the leagues); logos are "for identification/descriptive
+-purposes". **Real risk is operational:** on a formal complaint they may suspend API access without
+-refund, stopping the pipeline. Open (NOT for an agent): whether publishing needs a lawyer first. **An
+-agent must never produce a legal conclusion.**
+-
+----
++**The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
++
++## ⭐ CURRENT TASK — build the frontend FOUNDATION (start here)
++**Why this, not more pages:** a spec audit (2026-07-26) found the frontend is systematic on DATA +
++CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every page became a one-off.
++**CPO decision 2026-07-26: foundation-first, lean process.** Stop building pages until the shared
++frame exists.
++
++**Design is APPROVED** (mock, CPO "looks good for now"): foundation mock = artifact
++`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`.
++If a mock link is unreachable, the written build spec below + the locked refs (`be7bd6d3` / `d70aae67`
++/ `f6348775`) are enough to build from. Build = turn the mock into the real shared shell, composing
++ONLY from the locked `system.css` (no new identity):
++- **`site_v2/src/layouts/Layout.astro`** gains a global header (logo `MatchdayIQ` + main nav
++  `Competitions · Matches · Teams · Players · Standings · Stats` + search + a WORKING dark/light
++  theme toggle) + a footer (links, EN·DE·FI, an imprint slot = pending). Today Layout is a bare
++  `<slot>` hardcoded to `data-theme="dark"`.
++- **`site_v2/src/styles/system.css`** gains the RESPONSIVE layout system it never had (its only media
++  query today is `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), two-column
++  page grid (main + rail, max **~1100px**) **≥900px**, search field **≥1010px** (icon below). The
++  fixture/team/player wireframes ALREADY specify "≥900px two columns, max ~1100px" — never built.
++- **Write the two missing specs:** `docs/wireframes/09_chrome.md` (never written) + a layout-system
++  section (grid / breakpoints / max-widths).
++- **Touches the 2 built pages** (team, fixture) — they inherit the new frame; verify they still render.
++- Plan-mode it; review cycle = cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`).
++
++**Reserved (CPO §10, NOT decided in build):** exact nav contents/order (the listed order is the
++specified start — refine only on CPO word) · search style · what fills the
++desktop RAIL per page type (home = standings/trending/scorers) · footer/legal (imprint-blocked) ·
++default-theme policy (dark-fixed vs follow-OS). **Approved this session:** widen desktop to two-column
++~1100px; dark default + light toggle; the nav list; the breakpoints above.
++
++**Then Phase B (lean process):** add ONLY a schema-validated page-spec contract + a sharpened
++rendered-page reviewer. DEFER: component catalogue, import-boundary rule, one-page driver.
++**Then Phase C: build pages one at a time** — **player FIRST** (fully spec'd + data-ready, no design
++debate), then home in the new frame.
++
++**Borrowed core** (from `github.com/ramialfahham/backtobayesics`, right-sized, NO autonomy):
++page-spec-as-schema-contract; generated component/metric catalogue; import isolation (pages→components
++only); blind default-FAIL reviewer of RENDERED pages (name 2 verified risks); a one-page-at-a-time
++driver keyed to the tracker. Their repo oversells (2 of ~50 pages actually built) — copy ideas, not
++vapourware.
++
++## DESIGN DISCIPLINE (the weak spot — read every time)
++- **Compose from the locked `system.css` ONLY. Never invent a per-page treatment.** Three mocks were
++  rejected in one day for improvising. Locked refs: pattern sheet `be7bd6d3`, fixture `d70aae67`, team
++  `f6348775` (system.css is transcribed from these). Player mock `6c21ef71` NOT approved.
++- **Build it and show it** — a mock IS the design decision; never ask about something visual in words.
++  Reserve open §10 questions in the contract's `decisions_reserved` (the Artifact gate enforces it).
++- **Real data only, no fabrication** — no fake heroes, no invented ranks; honest empty/pending states
++  ("no hero, not shippable" is RETRACTED — an empty slot is honest).
++- **Player-page open content Qs** (Phase C): what a GK's Overview shows; whether YoY holds for a player
++  who changes club/role — use consultants, don't answer by instinct.
++
++## WHERE WE STAND — five launch groups
++| # | Group | Status |
++|---|-------|--------|
++| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell = current task.** Player spec'd + data-ready + UNBUILT. 7 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary, chrome). |
++| 2 | **Real data** | consuming ✅ (export → build → deploy). |
++| 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
++| 4 | **Legal** | not started; imprint blocks publication. |
++| 5 | **CPO decisions** | imprint operator/address (blocks going public). |
++
++Marts + metric layer are DONE and gated — not launch work; do not reopen.
  
--**#803 shipped four gates:** protected paths need a blast-radius trace as well as authority; the
--`Artifact` tool is gated on a contract with a real `decisions_reserved`; a Stop hook blocks em
--dashes, section symbols, repo paths in prose and over 2,500 characters of prose; SessionStart is
--wired (it had run nowhere).
-+⚠️ **#804 fingerprint (verify if not yet confirmed):** the `deserved_rank` rename could silently break
-+the flagship read. Confirm post-build: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
-+`bc6d2587b6f2ad02469ded299fc025b7`. **#803** shipped four live gates (blast-radius trace on protected
-+paths, Artifact gate, Stop prose hook, SessionStart wiring). Lesson: **owed work must survive a
-+rewrite** (why OWED exists below).
- 
- ---
- 
-@@ -150,27 +132,34 @@ reviewers as peers rather than one reviewer reading every diff.
- 
- ---
- 
--## DONE 2026-07-24 — TEAM PAGE complete + appearances fix (merged)
-+## DONE 2026-07-24 — team page (3 tabs) + real-data wiring (#813, #818 merged)
- 
--⚠️ Standing data fact: **`appearances` now = played legs** (`minutes_played > 0`), fixed warehouse-wide
--(#813; was counting selections incl. unused subs). `mart_player_career` gained `minutes` +
--`minutes_per_appearance`. Team page: all 3 tabs live.
-+⚠️ **`appearances` = played legs** (`minutes_played > 0`), fixed warehouse-wide (#813); `mart_player_career`
-+gained `minutes` + `minutes_per_appearance`. Build CONSUMES the real export (#818): team+fixture
-+`getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`; full 45-league `competitions.json`.
-+⚠️ Default-heap `astro build` OOMs at full scale (deploy job uses `--max-old-space-size=8192`); before a
-+local dev build run `git clean -fX site_v2/src/data` else OOM.
- 
--## DONE 2026-07-24 — REAL DATA wiring (#818 MERGED, launch group 2)
-+## DONE 2026-07-25 — Firebase deploy LIVE + verified · effort pins (#822 merged)
- 
--Build CONSUMES the real export: team + fixture `getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`
--via `import.meta.glob`; export emits the full 45-league `competitions.json`; `.gitignore` keeps the 2
--samples, ignores the bulk (built at build time). Proven: raised-heap build = 14,874 pages / 26 leagues.
-+**Firebase deploy LIVE + VERIFIED.** Run 30151299421 (12m41s): WIF auth → export → raised-heap build
-+→ `firebase deploy` all green, incl. firebase-tools accepting WIF/ADC (was unproven).
-+Live at `football-data-pipeline-gcp.web.app`; real team pages render distinct data (Man Utd #3,
-+Liverpool #5). Root `/` = "under construction" scaffold (landing not designed). **Manual dispatch,
-+`.web.app` only, not public.**
- 
--⚠️ Default-heap `astro build` OOMs at full scale — handled by the deploy job's `--max-old-space-size=8192`.
--A full local export leaves gitignored bulk in `site_v2/src/data/`; run `git clean -fX site_v2/src/data`
--before a local dev build, else OOM.
-+**Export cost measured:** ~$0.002/run (~0.18 GiB, 15 whole-mart reads) — recurring run unblocked on
-+cost; only the trigger shape is left. **#822 merged:** per-agent `effort` pinned (scope-auditor=medium,
-+five reviewers=high), models unchanged; personal Opus+high default in gitignored `settings.local.json`
-+([[reference-model-effort-automation]]). Follow-ups: actions warn Node 20 deprecation; team-page footer
-+says "Sample data · v2 preview" on real data (confirm intended).
+ ## ⚠️ v2 makes third-party requests TODAY
+-
+-The committed sample data carries `media.api-sports.io` URLs, and `Crest.astro` and `PlayerRow.astro`
+-render them as `<img src>`. **The exact defect that took the MVP offline is already present in v2.**
+-(An earlier all-clear was wrong: it grepped code and missed the data files.) Fix: mirror crests onto
+-our own origin. That fixes the **privacy** half only, and arguably worsens the rights position since
+-we would host copies. The two pull in opposite directions.
+-
+----
+-
+-## The retrospective (2026-07-22) — what still needs remembering
+-
+-Holes 1-4 are now CLOSED by #803, so only the behavioural findings survive here.
+-
+-- **The recurring defect is fixing the INSTANCE instead of the CLASS.** Every failure today was
+-  this: one word list holed four rounds running, a stale count in six files, a coverage sentence
+-  written in two places and corrected in one. Reviewers were not finding different bugs, they were
+-  finding one bug in new places. **When a reviewer finds the same class twice, stop patching and
+-  sweep it.**
+-- **Inference is not permission, and I made this mistake TWICE in one day** — the metric rename and
+-  the review routing, both §10, both "obviously right", both with no quoted answer. §10 says
+-  escalate "regardless of how obvious", precisely because obviousness is not the test.
+-- **Verify against the real tree, never a hand-picked list**, and least of all a list of files that
+-  do not exist yet. `git ls-files` takes one command.
+-- **The test before asking:** state what I will do if never answered, and what undo costs. No
+-  default nameable → not ready to ask. Cheap undo → do it and say so. **Never ask about something
+-  visual in words; build it and show it.**
+-- **What actually gets read:** CLAUDE.md and the memory index. That is the whole list. Rules that
+-  must hold belong in a hook or a test, not in prose.
+-
+----
+-
+-## DONE 2026-07-22 — #802/#803/#804 (detail in commits)
+-
+-⚠️ **#804 fingerprint (verify if not yet confirmed):** the `deserved_rank` rename could silently break
+-the flagship read. Confirm post-build: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
+-`bc6d2587b6f2ad02469ded299fc025b7`. **#803** shipped four live gates (blast-radius trace on protected
+-paths, Artifact gate, Stop prose hook, SessionStart wiring). Lesson: **owed work must survive a
+-rewrite** (why OWED exists below).
+-
+----
+-
+-## OWED — deferred deliberately, recorded so it is not lost
+-
+-Each of these was proposed, judged worth doing, and NOT done. None is forgotten; none is decided
+-away. Written here because holding them in a chat is how they disappear.
+-
+-**The agent set.** A `ui-expert` DOER (a draft is stashed on `feat/expert-agents-that-build`; good
+-raw material, it names every 2026-07-21 design failure as a prohibition — but move its redundancy and
+-slot-order rules to a reviewer, since a doer cannot police itself). A design reviewer for built
+-pages. `football-analytics-expert` and `data-journalist` as CONSULTANTS, consulted before design and
+-never owning a file surface. A fan probe, given a task rather than an opinion prompt, which must see
+-the RENDERED page. **Unverified prerequisite: whether a subagent's tool calls fire the main session's
+-hooks at all — if not, the artifact gate does not cover a doer. TEST IT, do not assume.**
+-
+-**The metric-change skill.** Adding one team metric touched SIX files across models, schemas and
+-docs, and nothing enumerates that list. The skill's value IS the enumeration. Write it from what
+-#804 actually required, not from imagination.
+-
+-**Mirror the crests.** `site_v2` renders team crests and player photos straight from
+-`media.api-sports.io`, so every visitor's browser talks to a third party — the exact defect that took
+-the MVP offline. Copying them to our own origin fixes the privacy half and does NOT improve the
+-rights position.
+-
+-**Amend the locked display contract** (`docs/wireframes/metrics_display.md`, a 16-row team table) to
+-carry the two metrics #804 surfaced. A §10 display decision; the approved mock shows both.
+-
+-**`legal-counsel` as a consultant** — a risk register from the API-Football terms. Doer later, for
+-the imprint and privacy pages, once the operator question is answered.
+-
+-**The guardrail economics** (raised by the CPO after #803 cost nine rounds). Delta re-review and a
+-round cap of 3 shipped in #807. A staff-level AI-engineering review then judged the machinery core
+-strong (the hash-bound blinded review, the self-gating hooks) but three parts over-scoped; the trim
+-(in flight) cuts them. STILL OWED, deliberately deferred: reviewer model in the routing file, and
+-reviewers as peers rather than one reviewer reading every diff.
+-
+----
+-
+-## DONE 2026-07-24 — team page (3 tabs) + real-data wiring (#813, #818 merged)
+-
+-⚠️ **`appearances` = played legs** (`minutes_played > 0`), fixed warehouse-wide (#813); `mart_player_career`
+-gained `minutes` + `minutes_per_appearance`. Build CONSUMES the real export (#818): team+fixture
+-`getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`; full 45-league `competitions.json`.
+-⚠️ Default-heap `astro build` OOMs at full scale (deploy job uses `--max-old-space-size=8192`); before a
+-local dev build run `git clean -fX site_v2/src/data` else OOM.
+-
+-## DONE 2026-07-25 — Firebase deploy LIVE + verified · effort pins (#822 merged)
+-
+-**Firebase deploy LIVE + VERIFIED.** Run 30151299421 (12m41s): WIF auth → export → raised-heap build
+-→ `firebase deploy` all green, incl. firebase-tools accepting WIF/ADC (was unproven).
+-Live at `football-data-pipeline-gcp.web.app`; real team pages render distinct data (Man Utd #3,
+-Liverpool #5). Root `/` = "under construction" scaffold (landing not designed). **Manual dispatch,
+-`.web.app` only, not public.**
+-
+-**Export cost measured:** ~$0.002/run (~0.18 GiB, 15 whole-mart reads) — recurring run unblocked on
+-cost; only the trigger shape is left. **#822 merged:** per-agent `effort` pinned (scope-auditor=medium,
+-five reviewers=high), models unchanged; personal Opus+high default in gitignored `settings.local.json`
+-([[reference-model-effort-automation]]). Follow-ups: actions warn Node 20 deprecation; team-page footer
+-says "Sample data · v2 preview" on real data (confirm intended).
++Committed sample data + `Crest`/`PlayerRow` render `media.api-sports.io` as `<img>` — the exact defect
++that took the MVP offline. Fix = mirror crests to our origin (fixes the privacy half, not the rights
++half). (The foundation mock uses text initials — no third-party requests.)
++
++## OWED — deferred, not forgotten (must survive rewrites)
++- **The agent set** — a **ui-BUILDER / design-implementer** (the "doer" the CPO wants; a draft was on
++  `feat/expert-agents-that-build`, now merged into main history); a **design reviewer for BUILT pages**
++  (sharpen `bi-analyst-reviewer`: default-FAIL, 2 verified risks, review the RENDERED page); a
++  `football-analytics-expert` + `data-journalist` as **CONSULTANTS** (before design, own no file); a
++  fan probe on the rendered page. **Unverified:** do a subagent's tool calls fire the main session's
++  hooks? TEST, don't assume.
++- **The metric-change skill** — adding one team metric touched SIX files; the skill's value is
++  enumerating them.
++- **Mirror the crests** (above).
++- **Amend the locked display contract** (`docs/wireframes/metrics_display.md`, 16-row team table) for the
++  2 metrics #804 surfaced. §10.
++- **legal-counsel consultant** — risk register from the API-Football terms; doer later for imprint/
++  privacy once the operator question is answered.
++- **Reviewers as peers** (not one reviewer over every diff) — the reviewer-model-in-routing half shipped
++  in #822; the peer split is still owed.
++
++## DONE (history — detail in git)
++- **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
++- **2026-07-25:** Firebase deploy LIVE + verified (run 30151299421); export cost measured ~$0.002/run
++  (exclude dbt-labelled queries in JOBS_BY_PROJECT or it reads ~100x high); **#822** per-agent effort
++  pins merged. ⚠️ follow-ups: actions warn Node 20 deprecation; team-page footer says "Sample data · v2
++  preview" on real data (confirm intended).
++- **2026-07-24:** team page (3 tabs) + real-data wiring (#813, #818). ⚠️ `appearances` = played legs
++  (`minutes_played>0`, #813). ⚠️ default-heap `astro build` OOMs at full scale — deploy uses
++  `--max-old-space-size=8192`; before a local dev build run `git clean -fX site_v2/src/data`.
++- **2026-07-22:** #802/#803/#804. ⚠️ **#804 fingerprint** (verify if not yet confirmed): 1,376 ranked
++  rows, sum_deserved 16,980, sum_gap -4,573, md5 `bc6d2587b6f2ad02469ded299fc025b7`. #803 shipped four
++  live gates. No player photos (CPO). API-Football licensing settled (reselling is the one hard
++  prohibition; real risk is operational suspension). Lessons: fix the CLASS not the instance;
++  inference ≠ permission (§10); verify the real tree.
  
  ## NEXT
+-
+-1. **Deploy + hosting (group 3)** — DONE and LIVE. Firebase deploy verified 2026-07-25 (run
+-   30151299421). The only remaining hosting step is the **recurring trigger** — cost is measured
+-   negligible, so this is now purely the CPO's trigger-shape choice (`workflow_run` on dbt-scheduled
+-   vs a cron). See OPEN > Hosting.
+-2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
+-3. **Small follow-ups** (here in case the task chips don't survive a restart):
+-   - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
+-     display strings (`site_v2/src/i18n/strings.ts`: `aboutWithH2h`, deserved-hero verdicts,
+-     coming-states) with natural punctuation + a guard. Transparent AI text must not LOOK AI-generated.
+-   - **site_v2/src/data/README.md** stale (says one sample) → update to the real-data setup.
+-   - **content_architecture.md** cites "GAP-22" for squad stats; it's GAP-20.
+-   - **fixture PlayerRow** renders "1 assists"/"1 goals" → use the Squad tab's singular i18n pattern.
+-
+----
++1. **Build the frontend FOUNDATION** (the CURRENT TASK above).
++2. Then Phase B (lean process) → Phase C (pages; player first).
++3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
++   stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
++   "1 assists" → singular i18n.
  
--1. **Deploy + hosting (group 3)** — vendor chosen (Firebase), deploy job BUILT (PR open, manual only).
--   Remaining: CPO merges; CPO does the two GCP prerequisites; then dispatch once to verify the real
--   deploy; then (after cost+schedule confirmation) add the recurring trigger. See OPEN > Hosting.
-+1. **Deploy + hosting (group 3)** — DONE and LIVE. Firebase deploy verified 2026-07-25 (run
-+   30151299421). The only remaining hosting step is the **recurring trigger** — cost is measured
-+   negligible, so this is now purely the CPO's trigger-shape choice (`workflow_run` on dbt-scheduled
-+   vs a cron). See OPEN > Hosting.
- 2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
- 3. **Small follow-ups** (here in case the task chips don't survive a restart):
-    - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
-@@ -188,13 +177,15 @@ before a local dev build, else OOM.
-   address. Substitutes exist (service/business address) but whether the site needs an Impressum and
-   whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
-   only; does NOT block building.
--- **Hosting.** Vendor DECIDED 2026-07-24: **Firebase Hosting** (GCP-native, reuses WIF auth, atomic
--  deploys, no fixed floor). Cloud Storage+CDN = later migration path; Cloudflare ruled out (20k-file
--  cap forces a backend). Deploy job built (PR). **Open, both the CPO's:** (1) **Recurring run** — job is
--  manual only; before the auto trigger (`workflow_run` on dbt-scheduled, or a cron) confirm cost+schedule
--  (a free `bq --dry_run` gives exact bytes; the marts scan is ~pennies/month). (2) **Two GCP prereqs**
--  (console, an agent cannot): enable Firebase + create a Hosting site; grant `roles/firebasehosting.admin`
--  to the deploy SA — until then the deploy step fails, build steps pass. Go-public stays imprint-blocked.
-+- **Hosting.** Vendor **Firebase Hosting** (decided 2026-07-24). Deploy is LIVE and VERIFIED
-+  2026-07-25 (run 30151299421). The two GCP prereqs are **DONE** (Firebase enabled + default site
-+  `football-data-pipeline-gcp.web.app`; `roles/firebasehosting.admin` granted to the deploy SA
-+  github-actions-dbt). Cost **MEASURED**: the export scan is ~$0.002/run (~0.18 GiB, 15 queries) —
-+  negligible, within BigQuery's 1 TiB/month free tier. **Open, the CPO's:** the **recurring-run
-+  trigger shape** (`workflow_run` on dbt-scheduled vs a cron) — cost is no longer a blocker, this is
-+  now just the schedule choice. Go-public (custom domain, DNS, announcement) stays imprint-blocked.
-+  (Measurement note: the deploy SA github-actions-dbt is shared with the dbt pipeline; to measure the
-+  export scan, exclude the dbt-labelled queries in JOBS_BY_PROJECT or the number is ~100x too high.)
- - **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
-   from here (#687).
+ ## OPEN — the CPO's alone
+-
+-- **Imprint operator + address.** Blocks publication (#799). CPO 2026-07-23 won't publish his home
+-  address. Substitutes exist (service/business address) but whether the site needs an Impressum and
+-  whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
+-  only; does NOT block building.
+-- **Hosting.** Vendor **Firebase Hosting** (decided 2026-07-24). Deploy is LIVE and VERIFIED
+-  2026-07-25 (run 30151299421). The two GCP prereqs are **DONE** (Firebase enabled + default site
+-  `football-data-pipeline-gcp.web.app`; `roles/firebasehosting.admin` granted to the deploy SA
+-  github-actions-dbt). Cost **MEASURED**: the export scan is ~$0.002/run (~0.18 GiB, 15 queries) —
+-  negligible, within BigQuery's 1 TiB/month free tier. **Open, the CPO's:** the **recurring-run
+-  trigger shape** (`workflow_run` on dbt-scheduled vs a cron) — cost is no longer a blocker, this is
+-  now just the schedule choice. Go-public (custom domain, DNS, announcement) stays imprint-blocked.
+-  (Measurement note: the deploy SA github-actions-dbt is shared with the dbt pipeline; to measure the
+-  export scan, exclude the dbt-labelled queries in JOBS_BY_PROJECT or the number is ~100x too high.)
+-- **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
+-  from here (#687).
+-
+----
++- **Imprint operator + address** — blocks publication (#799); get a lawyer, never conclude it.
++  Publish-time only; does NOT block building.
++- **Hosting recurring run** — cost MEASURED negligible; only the trigger shape (`workflow_run` on
++  dbt-scheduled vs cron) is left. Go-public = imprint-blocked.
++- **The feedback Apps Script** (his Google account, unreachable) — #687.
  
-@@ -239,8 +230,9 @@ before a local dev build, else OOM.
+ ## DO NOT (standing)
+-
+-- Do NOT treat the 114-issue tracker or its 7 milestones as agreed work. Useful only as a checklist
+-  of things somebody noticed. Re-validate before acting on any of it.
+-- Do NOT cite the `road_to_launch` artifact. Superseded.
+-- Do NOT write another planning document. The tracker and this file are the only plan.
+-- Do NOT touch `site/`. RETIRED and frozen 2026-07-21, offline. No parity check, no cutover, no
+-  restore; any edit is work that gets deleted. #377 is void.
++- Do NOT treat the 114-issue tracker / its milestones as agreed work; re-validate before acting.
++- Do NOT write another planning document (the tracker + this file are the plan). A frontend SPEC
++  (chrome/layout/09_chrome) is NOT a planning doc — filling it is the task.
++- Do NOT touch `site/` (retired/frozen 2026-07-21, offline).
+ - Do NOT build a page whose design the CPO has not approved.
+-- Do NOT re-run the data phase. Marts and the metric layer are finished and gated.
+-- Do NOT derive facts in the export or the frontend — select, group and rename only.
+-- **Never merge a PR. The CPO merges.** Branch from main; never commit to main.
+-- PR **#673** was CLOSED 2026-07-22 as superseded (predated the approved 3-tab design; its committed
+-  Arsenal sample was stale and it had never had a display review). Branch `feat/site-v2-team-profile`
+-  is PRESERVED: ~600 lines of team components are raw material for the team page build. Do not
+-  reopen it; harvest from the branch.
+-- Communication: plain language, one question at a time, no file paths or ticket numbers in chat
+-  unless asked, no em dashes.
+-
+----
+-
+-## Operational notes (carried forward — still true)
+-
+-- **dbt CLI and SQLFluff are BROKEN locally** (SQLFluff uses the dbt templater). `ci-data-build` is
+-  the real gate. Offline you CAN run `python scripts/check_layer_contract.py` and read model SQL.
+-- **BigQuery rejects a FROM-less `WHERE`** — a singular test's empty-case fallback needs a FROM.
+-  Only `ci-data-build` catches it.
+-- **Commit mechanics:** ONE substantive commit per PR. `git commit` runs alone, no chaining;
+-  `--amend` is gate-blocked. To collapse: `git reset --soft HEAD~1`, re-stage, recompute the hash vs
+-  main with `python .claude/hooks/git_discipline.py --staged-hash`, re-run every required reviewer on
+-  the full diff, rewrite `review.md`, commit, then `git push --force-with-lease origin <br>:<br>`.
+-- **Standing metric ruling, do NOT relitigate:** a metric's formula is fixed mathematics. Data
+-  availability decides only whether a model can APPLY it. Never put `coalesce`/`countif`/a null-gate
+-  in any `*_expr`.
+-
+----
++- Do NOT derive facts in the export or frontend — select/group/rename only.
++- **Never merge a PR. The CPO merges. Branch from main; never commit to main.**
++- Communication: plain language, lead with the decision, no em dashes, no walls of text.
++
++## Operational notes
++- **dbt CLI + SQLFluff BROKEN locally** — `ci-data-build` is the real gate; offline you can run
++  `python scripts/check_layer_contract.py` + read SQL. BigQuery rejects a FROM-less WHERE.
++- **Frontend:** `site_v2` is Astro; `npm run build` needs `NODE_OPTIONS=--max-old-space-size=8192` at
++  full scale; the deploy workflow (`.github/workflows/deploy-site-v2.yml`, manual-only) does
++  export → build → firebase deploy. The in-app Browser pane is unreliable here (screenshots / file://
++  time out) — verify frontend via the published Artifact's inline render.
++- **Commit mechanics:** ONE substantive commit per PR; `git commit` runs alone (no chaining);
++  `--amend` gate-blocked. Collapse: `git reset --soft HEAD~1`, re-stage, recompute hash vs main
++  (`python .claude/hooks/git_discipline.py --staged-hash`), re-run required reviewers, rewrite
++  `review.md`, commit, `git push --force-with-lease`.
++- **Standing metric ruling:** a metric's formula is fixed math; never put coalesce/countif/null-gate in
++  a `*_expr`.
  
  ## Verified state reference
- 
--- **Live to users:** NOTHING. The MVP was retired 2026-07-21 (matchdayiq.io offline, Pages deleted,
--  deploy workflow disabled, `curl` returns 404; DNS untouched). There is no public site.
-+- **Live to users:** no PUBLIC site. The MVP was retired 2026-07-21 (matchdayiq.io offline, Pages
-+  deleted, `curl` returns 404; DNS untouched). v2 IS deployed to `football-data-pipeline-gcp.web.app`
-+  (reachable but unlisted, no custom domain, not announced) — a verification target, not a launch.
- - **v2 built:** the shared design system (`site_v2/src/styles/system.css` + components) and the
-   fixture page (#672).
- - **Locked design references:** pattern sheet `be7bd6d3` (the block vocabulary — compose from it,
+-
+-- **Live to users:** no PUBLIC site. The MVP was retired 2026-07-21 (matchdayiq.io offline, Pages
+-  deleted, `curl` returns 404; DNS untouched). v2 IS deployed to `football-data-pipeline-gcp.web.app`
+-  (reachable but unlisted, no custom domain, not announced) — a verification target, not a launch.
+-- **v2 built:** the shared design system (`site_v2/src/styles/system.css` + components) and the
+-  fixture page (#672).
+-- **Locked design references:** pattern sheet `be7bd6d3` (the block vocabulary — compose from it,
+-  never invent a per-page treatment), fixture page `d70aae67`, approved team page `f6348775`. Player
+-  mock `6c21ef71` is **NOT approved**.
+-- **The "no hero, not shippable" rule is RETRACTED.** It was self-imposed and it is what forced the
+-  invention of a fake hero. An empty slot is honest.
+-- **Open player-page content questions** (do not answer by instinct — use the consultants): what a
+-  goalkeeper's Overview shows when goals and assists are meaningless for him, and whether
+-  year-over-year survives for a player at all (he changes club, league, role and minutes).
+-- **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards enforce it.
+-  The catalogue is the only source of metric definitions.
++- **Live to users:** no PUBLIC site. v2 IS deployed to `football-data-pipeline-gcp.web.app` (reachable,
++  unlisted, not announced) — a verification target.
++- **v2 built:** the shared design system (`system.css` + 24 components), the fixture page (#672), the
++  team page (3 tabs). **NO shared nav shell / responsive desktop layout yet** (= the foundation task).
++- **Automation:** session default Opus+high in gitignored `settings.local.json`; review-fleet effort
++  pinned (#822) — see [[reference-model-effort-automation]].
++- **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards; the
++  catalogue is the only source of metric definitions.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7737348..21d2d52 100644
+index 21d2d52..1af3568 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,73 +1,42 @@
--# Task contract — automate model/effort selection (session default + review-fleet effort pins)
-+# Task contract — handover refresh (Firebase deploy live + verified, export cost measured)
+@@ -1,42 +1,40 @@
+-# Task contract — handover refresh (Firebase deploy live + verified, export cost measured)
++# Task contract — handover refresh (foundation build handoff to a new chat)
  
--> Written on a CLEAN tree (branch `chore/pin-review-fleet-effort` off main at 646e07c).
--> Plan: C:\Users\Rami\.claude\plans\rosy-juggling-quill.md (CPO-approved via ExitPlanMode 2026-07-25).
-+> Written on a CLEAN tree (branch `docs/handover-firebase-live` off main at b15e4fb).
-+> Bookkeeping: refresh the single handover contract to current state. No code, no model change.
+-> Written on a CLEAN tree (branch `docs/handover-firebase-live` off main at b15e4fb).
+-> Bookkeeping: refresh the single handover contract to current state. No code, no model change.
++> Written on a CLEAN tree (branch `docs/handover-foundation-build` off main at fb3a1a4).
++> Bookkeeping: refresh the single handover so a fresh chat starts the frontend FOUNDATION build
++> with zero re-investigation. No code, no model change.
  
  objective: >
--  Stop the CPO having to manually switch model + reasoning effort. Two changes: (1) a personal
--  standing session default (Opus + high) in the gitignored `.claude/settings.local.json` so ordinary
--  work never needs a manual switch; (2) pin per-agent `effort` on the six review-fleet agents so the
--  adversarial reviewers self-select their tier deterministically instead of inheriting the session
--  effort. Models are already pinned by design and are NOT changed. Matrix (CPO "Balanced"):
--  scope-auditor=medium, the five domain/platform reviewers=high.
-+  Refresh .claude/active_work.md to the true current state after this session: the Firebase
-+  Hosting deploy is LIVE and VERIFIED (manual dispatch, `.web.app`, not public) — real team pages
-+  render distinct real data (Man Utd, Liverpool); the two GCP prerequisites (enable Firebase +
-+  create the site; grant roles/firebasehosting.admin to the deploy SA github-actions-dbt) are DONE;
-+  the per-run export scan cost was MEASURED at ~$0.002/run (~0.18 GiB, 15 queries) — negligible and
-+  within BigQuery's free tier, so the recurring run is unblocked on cost and only its trigger shape
-+  is left to decide; and PR #822 (per-agent review-fleet effort pins) merged. Keep the file CURRENT
-+  STATE ONLY and under 16,000 characters.
+-  Refresh .claude/active_work.md to the true current state after this session: the Firebase
+-  Hosting deploy is LIVE and VERIFIED (manual dispatch, `.web.app`, not public) — real team pages
+-  render distinct real data (Man Utd, Liverpool); the two GCP prerequisites (enable Firebase +
+-  create the site; grant roles/firebasehosting.admin to the deploy SA github-actions-dbt) are DONE;
+-  the per-run export scan cost was MEASURED at ~$0.002/run (~0.18 GiB, 15 queries) — negligible and
+-  within BigQuery's free tier, so the recurring run is unblocked on cost and only its trigger shape
+-  is left to decide; and PR #822 (per-agent review-fleet effort pins) merged. Keep the file CURRENT
+-  STATE ONLY and under 16,000 characters.
++  Rewrite .claude/active_work.md to the true current state so a new chat can begin the frontend
++  FOUNDATION build immediately: the 2026-07-26 spec audit found the frontend systematic on data/
++  content but improvisational on layout/chrome/workflow; CPO decided foundation-first + lean process;
++  the shared-frame design is APPROVED via mock (artifact 87d14109; home-content mock 1c35e7aa); the
++  build = turn the mock into the real Layout.astro shell + system.css responsive system + write the
++  two missing specs (09_chrome + a layout section), composing ONLY from the locked system.css. Carry
++  ALL owed items and the design discipline. Keep CURRENT STATE ONLY and under 16,000 characters.
  
  refs: >
--  Claude Code has no per-task model auto-router (confirmed via claude-code-guide this session): the
--  main model is a single fixed choice, so "automation" = one good default + per-agent pins. `effort`
--  is a valid agent-frontmatter key (low|medium|high|xhigh) and a valid settings key (`effortLevel`).
--  Today no agent pins effort, so all six inherit the session effort — once the session is `high` they
--  all silently run high, against the "reviews must be economic" rule in cto-reviewer.md.
-+  This session 2026-07-25. Deploy run 30151299421 (success, 12m41s). Live URL
-+  football-data-pipeline-gcp.web.app. Cost measured via region-eu INFORMATION_SCHEMA.JOBS_BY_PROJECT
-+  (export = non-dbt-labelled queries under the github-actions-dbt SA; the dbt build+test queries
-+  that share that SA must be excluded, or the number is off by ~100x).
+-  This session 2026-07-25. Deploy run 30151299421 (success, 12m41s). Live URL
+-  football-data-pipeline-gcp.web.app. Cost measured via region-eu INFORMATION_SCHEMA.JOBS_BY_PROJECT
+-  (export = non-dbt-labelled queries under the github-actions-dbt SA; the dbt build+test queries
+-  that share that SA must be excluded, or the number is off by ~100x).
++  This session 2026-07-26. Frontend spec audit + backtobayesics process study (both agent runs).
++  CPO decisions this session: widen desktop to ~1100px two-column; foundation-first + lean process;
++  foundation mock "looks good for now". Firebase deploy merged (#821), effort pins merged (#822),
++  prior handover merged (#823) — main now fb3a1a4.
  
  scope_paths:
--  - .claude/settings.local.json
--  - .claude/agents/*.md
--
--protected_override: >
--  CPO go this session (2026-07-25): "From now on, can we automate model selection in this repo ...
--  don't want to sit here and manually switch between models and effort", then AskUserQuestion answers
--  "Opus + high, fixed", "Yes, pin their tiers", and effort matrix "Balanced". Plan CPO-approved via
--  ExitPlanMode same day. Only the six `.claude/agents/*.md` definitions are touched under the protected
--  prefix (adding one `effort:` line each); no hook, command, workflow, routing file or setting.json is
--  touched, and no agent `model` value is changed.
--
--impact_map: >
--  writers/consumers: the six `.claude/agents/*.md` files are read ONLY by the orchestrator (the main
--    loop) when it spawns review subagents in the Blinding step. NOTHING else reads them: no hook parses
--    agent frontmatter (the gates parse contract.md / review.md / review_routing.json only), CI never
--    reads them, no python/runtime imports them. `review_routing.json` references agents by NAME only,
--    not by their frontmatter, so the effort field is invisible to routing.
--  downstream (protected guard path — trace what depends on the guard, not table lineage):
--    - Adding `effort:` changes only the reasoning effort each reviewer runs at when I spawn it. It does
--      NOT change who reviews what (routing), the model floors, or any gate. If a value is wrong, the
--      only effect is a reviewer runs at the wrong depth on a future review — no build, pipeline, site,
--      CI or gate behaviour changes. cto-reviewer's procedural opus-on-guard-paths override is untouched
--      and still applies (model override at spawn is orthogonal to the frontmatter effort).
--  layer_rules: none — no dbt/model/export/ingestion path in scope; check_layer_contract unaffected.
--  deploy_order: n/a — no warehouse object, no service, no CI trigger changed.
--  blast_radius: review token cost/depth ONLY. scope-auditor runs medium on every commit; the five
--    reviewers run high when their surface is touched (they are dormant otherwise). `settings.local.json`
--    is gitignored (.gitignore:229), affects only the CPO's local session, and is NOT part of the PR diff.
-+  - .claude/active_work.md
+   - .claude/active_work.md
  
  decisions_taken: >
--  (1) Session default = Opus + high (CPO AskUserQuestion 2026-07-25), stored LOCAL/gitignored not in
--      the checked-in settings.json (personal preference on a public portfolio repo).
--  (2) Pin the review fleet's effort; keep every agent's existing `model` unchanged.
--  (3) Effort matrix = Balanced: scope-auditor medium; cto-, analytics-engineer-, bi-analyst-,
--      data-engineer-, football-analytics-expert-reviewer high (CPO AskUserQuestion 2026-07-25).
-+  Pure bookkeeping. All facts recorded are already true (deploy succeeded, prereqs done, cost
-+  measured); this only writes them into the handover. No product, metric, naming or mechanism
-+  decision is made here.
+-  Pure bookkeeping. All facts recorded are already true (deploy succeeded, prereqs done, cost
+-  measured); this only writes them into the handover. No product, metric, naming or mechanism
+-  decision is made here.
++  Pure bookkeeping. All facts recorded are already true (audit done, CPO decided foundation-first +
++  lean process, foundation mock approved). No new product/metric/mechanism decision is made here.
  
  decisions_reserved:
--  - Whether the procedural opus-on-guard-paths override for cto-reviewer should ALSO raise effort
--    (e.g. to xhigh) on guard-path diffs is left open: kept model-only this task, since Opus + high is
--    already deep and extending the rule would edit working_agreement.md §2. Raise to the CPO if a future
--    guard review misses depth.
-+  - The recurring-run trigger shape (`workflow_run` on dbt-scheduled vs a later cron) and going
-+    public (custom domain, DNS, announcement) remain the CPO's open decisions — recorded in the
-+    handover as OPEN, not decided here. Cost is no longer a blocker for the recurring run (measured
-+    negligible); the trigger-shape choice is what is left.
+-  - The recurring-run trigger shape (`workflow_run` on dbt-scheduled vs a later cron) and going
+-    public (custom domain, DNS, announcement) remain the CPO's open decisions — recorded in the
+-    handover as OPEN, not decided here. Cost is no longer a blocker for the recurring run (measured
+-    negligible); the trigger-shape choice is what is left.
++  - The foundation's open design questions (nav contents/order, search style, per-page rail contents,
++    footer/legal, default-theme policy) remain the CPO's §10 calls — recorded in the handover as
++    reserved, not decided here.
  
  done_when:
--  - `.claude/settings.local.json` carries top-level `"model": "opus"` and `"effortLevel": "high"` and
--    still parses as valid JSON.
--  - Each of the six `.claude/agents/*.md` files has one `effort:` line in its frontmatter matching the
--    Balanced matrix; each file still parses (valid YAML frontmatter between the `---` fences); no `model`
--    value changed.
--  - ONE commit; review.md covers the full diff with cto-reviewer (opus, guard-path) + scope-auditor
--    PASS; pushed with an explicit refspec; PR opened. The CPO merges.
-+  - .claude/active_work.md reflects: Firebase deploy LIVE + verified; the two GCP prereqs DONE; the
-+    measured export cost (~$0.002/run, negligible); PR #822 merged. Stays under 16,000 chars.
-+  - ONE commit; review.md with scope-auditor PASS (the only required reviewer for this path);
-+    pushed with an explicit refspec; PR opened. The CPO merges.
+-  - .claude/active_work.md reflects: Firebase deploy LIVE + verified; the two GCP prereqs DONE; the
+-    measured export cost (~$0.002/run, negligible); PR #822 merged. Stays under 16,000 chars.
+-  - ONE commit; review.md with scope-auditor PASS (the only required reviewer for this path);
+-    pushed with an explicit refspec; PR opened. The CPO merges.
++  - .claude/active_work.md leads with the foundation-build task (design approved, build not started),
++    carries every OWED item and ⚠️ warning intact, records the audit + foundation-first/lean-process
++    decision + design discipline + mock URLs, and stays under 16,000 chars.
++  - ONE commit; review.md with scope-auditor PASS; pushed with an explicit refspec; PR opened. CPO merges.
  
  amendments: (none)
