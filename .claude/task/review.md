@@ -1,26 +1,28 @@
-# Review — feat/site-v2-foundation-shell — 2026-07-26
+# Review — fix/827-sharpen-bi-analyst-reviewer — 2026-07-26
 
-diff_sha256: 29a1ddea66a2a226151bcce762b6d1fc781e4d5ba17c7b5aa157a0f654580d7c
+diff_sha256: ce1fa93a7e31dc779e75ad7d753e504834b003644fc34a8e21e4fd88be6434bb
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Layout.astro wrapping new header/footer components around existing page content via `<slot>` — verified that team and fixture pages import Layout, remain unedited in the diff, and their data bindings pass through unchanged; index.astro does not import Layout and is untouched, so the header/footer inheritance is correct and complete.
-- Theme toggle no-flash initialization — verified that a blocking inline script in `<body>` reads localStorage and sets `data-theme` before SiteHeader renders, with safe fallback for private mode, so returning light-theme readers don't see a flash of the hard-coded dark default.
+- Rendering-affected classification boundary when diffs touch both markup and non-rendering code: the contract's definition ("markup/CSS/component — not e.g. i18n-string-only edit") is explicit enough that reviewers can apply it consistently, and mixed-touch diffs are correctly classified by the rendering component present.
+- Evidence method flexibility under the identified broken screenshot tool constraint: the rule requires evidence from "whichever of {screenshot, accessibility tree, mobile layout} were obtainable" and mandates stating which was used; this directly addresses the environment's confirmed tooling gap and prevents blocking all site_v2 PRs.
+
+Note: round 1's scope-auditor spawn returned FAIL on two claims that did not hold up — (a) an
+assertion about "the actual current git branch" that its own toolset (Read/Grep/Glob, no Bash) has
+no way to observe, verified wrong against `git branch --show-current`; (b) a claim that
+`.claude/task/contract.md` must be listed in its own `scope_paths`, contradicted by
+`.claude/hooks/task_contract_gate.py` lines 383-394 (`CONTRACT_REL`/`TASK_DIR_REL` are handled as a
+separate case, exempt from the scope_paths check). Re-spawned cold with both corrections pointed at
+the actual hook source; round 2 verified both independently and passed.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- No new mechanism smuggled past CPO: SiteHeader.astro/SiteFooter.astro are new components, but contract.md's decisions_taken quotes the specific CPO approvals underpinning them and traces them to the approved mock 87d14109. No dependency was added — package.json is unchanged (still only astro) — so the vanilla-JS/localStorage theme toggle is boring technology, not a new package or service.
-- Guard integrity / cost tripwire: confirmed the diff touches none of .claude/hooks/, .claude/settings.json, .claude/review_routing.json, or .github/workflows/** — ci-site-v2.yml is unmodified; no change to run frequency, API call volume, BigQuery bytes, or CI minutes — pure client-side static-site change matching the contract's impact_map.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Binding-rule / fabrication check: SiteHeader/SiteFooter import only i18n/strings, lib/href, lib/format — no src/data/** file, no export-shaped type; none of the export's shape_* functions are referenced. Nothing here is a fabricated field standing in for an unmodelled metric.
-- Wording/labels traced to a locked source: the six nav labels match docs/site_architecture.md §4 verbatim; footer/search chrome matches docs/ui_design_brief.md §5/§7; all 15 new i18n keys present in all three locale dicts (EN/DE/FI), no missing-key fallback risk. Non-blocking nit noted: FI footerDataSource left identical to EN — a translation follow-up, not a fabrication or display-honesty issue.
+- Fail-closed direction: verified the new "missing/absent evidence → FAIL" rule (agent lines 33-34 and 100-101) fails CLOSED, which is correct for a review gate; it introduces no fail-open bypass and does not invert any existing guard.
+- Guard integrity and self-review: verified via `.claude/review_routing.json` that `.claude/agents/**` routes only to cto-reviewer (line 64) and NOT to bi-analyst-reviewer (whose paths are lines 76-78), so the sharpened reviewer cannot review its own change; `protected_override` quotes CPO issue #827 as authority; frontmatter/tools/model pin untouched. Noted non-blocking caveat: the builder-side obligation to produce `rendered_page_evidence.md` is not wired into any builder-facing doc, which will cost one wasted review round per future `site_v2/src` rendering PR — recommend a follow-up one-line addition to working_agreement.md §2 rather than expanding this narrowly-scoped #827 change.
 
 ## escalations
 (none)

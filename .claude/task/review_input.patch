@@ -1,784 +1,203 @@
-diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 4f28f4d..98739bf 100644
---- a/.claude/active_work.md
-+++ b/.claude/active_work.md
-@@ -4,7 +4,7 @@
- > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
- > 16,000 characters (the SessionStart hook's injection budget).
+diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
+index 1001f56..314f1b0 100644
+--- a/.claude/agents/bi-analyst-reviewer.md
++++ b/.claude/agents/bi-analyst-reviewer.md
+@@ -23,6 +23,19 @@ the CTO.
+    `docs/wireframes/00_overview.md` (binding rule),
+    `docs/ui_design_brief.md` §6, `docs/roles/bi_analyst.md`,
+    working_agreement.md Appendix A.
++4. `.claude/task/rendered_page_evidence.md` — REQUIRED whenever the diff touches
++   `site_v2/src/**` with a rendering-affecting change (markup/CSS/component —
++   not e.g. an i18n-string-only edit). The builder produces this before
++   spawning you: what was checked, at which viewport widths, and what was
++   actually observed, using whichever of {screenshot, accessibility tree,
++   mobile layout} were obtainable in that environment (a screenshot tool being
++   broken is not an excuse to skip the other two — it must SAY which it used
++   and why, never silently claim one it didn't capture). **Its absence for a
++   rendering-affecting `site_v2/src/**` diff is itself a finding — check for
++   the file, don't assume the builder remembered it.** You read this the same
++   way you already read `review_input.patch`: a real, auditable artifact — a
++   code read alone cannot show you whether a breakpoint fires or an element
++   overlaps at runtime.
  
--_Last updated **2026-07-26**. main GREEN at **fb3a1a4**. **CURRENT TASK: build the frontend FOUNDATION** (shared shell + responsive system) — design APPROVED via mock, build NOT started. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
-+_Last updated **2026-07-26**. main GREEN at **f855f12**. **CURRENT TASK: the frontend FOUNDATION shell is BUILT** (#825) — branch `feat/site-v2-foundation-shell`, review cycle in progress, PR not yet merged. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+ ## Your hunt — every item, every time
  
- ## THE GOAL
- **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
-@@ -16,22 +16,31 @@ CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every
- frame exists.
+@@ -51,6 +64,14 @@ the CTO.
+    - **A number rendered twice on one screen** is a display defect even when
+      every field is real (the 2026-07-21 player mock showed goals and assists
+      seven times).
++   - **Rendering defects a code read alone cannot catch**: a breakpoint that
++     doesn't actually fire, overlapping or clipped elements, a broken or
++     missing interaction, an element styled as interactive that is actually
++     inert (or vice versa). Judge this from `rendered_page_evidence.md`, not
++     by re-deriving CSS cascade/specificity from the diff in your head — that
++     is exactly how a real bug (a `>=1010px` search-icon button that never hid
++     because the override's specificity lost to the base rule) passed review
++     on PR #829 undetected.
+ 2. **Locked metric contract**: display order, groups, tiers exactly as the
+    LOCKED tables; tier used to reorder → FAIL; player rows given tiers →
+    FAIL; MVP row order disturbed → FAIL.
+@@ -72,6 +93,13 @@ the CTO.
+ PASS requires at least two real risks/edge cases checked, with evidence.
+ Cannot find two → ESCALATE. Ambiguous → ESCALATE (§10 meta-rule).
  
- **Design is APPROVED** (mock, CPO "looks good for now"): foundation mock = artifact
--`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`.
--If a mock link is unreachable, the written build spec below + the locked refs (`be7bd6d3` / `d70aae67`
--/ `f6348775`) are enough to build from. Build = turn the mock into the real shared shell, composing
-+`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`
-+(reference only — home page content is NOT built, that's Phase C). **Built 2026-07-26**, composing
- ONLY from the locked `system.css` (no new identity):
--- **`site_v2/src/layouts/Layout.astro`** gains a global header (logo `MatchdayIQ` + main nav
--  `Competitions · Matches · Teams · Players · Standings · Stats` + search + a WORKING dark/light
--  theme toggle) + a footer (links, EN·DE·FI, an imprint slot = pending). Today Layout is a bare
--  `<slot>` hardcoded to `data-theme="dark"`.
--- **`site_v2/src/styles/system.css`** gains the RESPONSIVE layout system it never had (its only media
--  query today is `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), two-column
--  page grid (main + rail, max **~1100px**) **≥900px**, search field **≥1010px** (icon below). The
--  fixture/team/player wireframes ALREADY specify "≥900px two columns, max ~1100px" — never built.
--- **Write the two missing specs:** `docs/wireframes/09_chrome.md` (never written) + a layout-system
--  section (grid / breakpoints / max-widths).
--- **Touches the 2 built pages** (team, fixture) — they inherit the new frame; verify they still render.
--- Plan-mode it; review cycle = cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`).
-+- **`site_v2/src/layouts/Layout.astro`** now mounts `SiteHeader`/`SiteFooter` (new,
-+  `components/chrome/`) around `<slot>`: brand `MatchdayIQ` (links home) + main nav
-+  `Competitions · Matches · Teams · Players · Standings · Stats` (inert `<span>` — no index pages
-+  exist yet, same no-dead-links convention the fixture/team pages already used) + an inert search
-+  box + a WORKING dark/light theme toggle (persists via `localStorage`, no-flash inline init
-+  script) + a mobile hamburger/drawer. Footer: brand, an inert link row, `EN · DE · FI · Data:
-+  API-Football`, Imprint still pending.
-+- **`system.css`** gained the RESPONSIVE layout system it never had (previously only
-+  `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), a generic
-+  `.shell`/`.page-grid`/`.rail` two-column primitive (max **~1100px**) **≥900px** — built but wired
-+  into ZERO pages (per-page rail contents is reserved) — search field **≥1010px** (icon below;
-+  fixed a specificity bug inherited from the mock where the icon button never actually hid).
-+- **`docs/wireframes/09_chrome.md`** written + a new "Layout system" section in `00_overview.md`.
-+- Team/fixture pages: **zero file changes** — they inherit the new header/footer purely because
-+  Layout.astro wraps their `<slot>`; their own `.inner` (680px) width is untouched. The
-+  fixture/team wireframes' own ~1100px desktop-widen spec is a real, OPEN, not-closed gap — see
-+  09_chrome.md §10.
-+- Verified: `npm run build` green, both pages render correctly, all 3 breakpoints fire, theme
-+  toggle flips + persists across navigation (checked via computed styles/JS, not screenshot — the
-+  Browser pane's screenshot tool is confirmed broken in this environment, text/JS checks only).
-+- Review cycle in progress: cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`,
-+  `docs/wireframes/**`) + scope-auditor.
++**When the diff has a rendering-affecting `site_v2/src/**` change in scope, at
++least ONE of the two required risks must come from `rendered_page_evidence.md`**
++— not both purely from reading source. A PASS built entirely from a code read
++on a rendering change is not a real check of what #827 exists to catch; treat
++it as not having found two real risks (→ ESCALATE, or FAIL if the evidence
++file is simply missing).
++
+ ## Output format (exact; machine-parsed)
  
- **Reserved (CPO §10, NOT decided in build):** exact nav contents/order (the listed order is the
- specified start — refine only on CPO word) · search style · what fills the
-@@ -64,7 +73,7 @@ vapourware.
- ## WHERE WE STAND — five launch groups
- | # | Group | Status |
- |---|-------|--------|
--| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell = current task.** Player spec'd + data-ready + UNBUILT. 7 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary, chrome). |
-+| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell BUILT (#825), PR open awaiting review/merge.** Player spec'd + data-ready + UNBUILT. 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary) — chrome now spec'd. |
- | 2 | **Real data** | consuming ✅ (export → build → deploy). |
- | 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
- | 4 | **Legal** | not started; imprint blocks publication. |
-@@ -95,6 +104,9 @@ half). (The foundation mock uses text initials — no third-party requests.)
-   in #822; the peer split is still owed.
- 
- ## DONE (history — detail in git)
-+- **2026-07-26:** foundation shell BUILT (#825) — Layout.astro header/footer, system.css
-+  responsive system (700/900/1010px), `docs/wireframes/09_chrome.md` + layout-system section,
-+  chrome i18n keys (DE/EN/FI). PR open, not yet merged.
- - **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
- - **2026-07-25:** Firebase deploy LIVE + verified (run 30151299421); export cost measured ~$0.002/run
-   (exclude dbt-labelled queries in JOBS_BY_PROJECT or it reads ~100x high); **#822** per-agent effort
-@@ -110,7 +122,7 @@ half). (The foundation mock uses text initials — no third-party requests.)
-   inference ≠ permission (§10); verify the real tree.
- 
- ## NEXT
--1. **Build the frontend FOUNDATION** (the CURRENT TASK above).
-+1. Get the foundation shell PR (#825, `feat/site-v2-foundation-shell`) through review and merged.
- 2. Then Phase B (lean process) → Phase C (pages; player first).
- 3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
-    stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
-@@ -150,8 +162,10 @@ half). (The foundation mock uses text initials — no third-party requests.)
- ## Verified state reference
- - **Live to users:** no PUBLIC site. v2 IS deployed to `football-data-pipeline-gcp.web.app` (reachable,
-   unlisted, not announced) — a verification target.
--- **v2 built:** the shared design system (`system.css` + 24 components), the fixture page (#672), the
--  team page (3 tabs). **NO shared nav shell / responsive desktop layout yet** (= the foundation task).
-+- **v2 built:** the shared design system (`system.css` + 26 components), the fixture page (#672), the
-+  team page (3 tabs), and now the **shared nav shell + responsive layout system (#825)** — header,
-+  footer, theme toggle, 700/900/1010px breakpoints. The `.shell`/`.page-grid`/`.rail` primitive
-+  exists but is wired into zero pages; team/fixture stay at their locked 680px `.inner` width.
- - **Automation:** session default Opus+high in gitignored `settings.local.json`; review-fleet effort
-   pinned (#822) — see [[reference-model-effort-automation]].
- - **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards; the
+ VERDICT: PASS
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1af3568..a1fe33a 100644
+index a1fe33a..68ebc68 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,40 +1,85 @@
--# Task contract — handover refresh (foundation build handoff to a new chat)
-+# Task contract — frontend foundation shell (#825)
+@@ -1,85 +1,78 @@
+-# Task contract — frontend foundation shell (#825)
++# Task contract — sharpen the built-page reviewer (#827)
  
--> Written on a CLEAN tree (branch `docs/handover-foundation-build` off main at fb3a1a4).
--> Bookkeeping: refresh the single handover so a fresh chat starts the frontend FOUNDATION build
--> with zero re-investigation. No code, no model change.
-+> Written on a CLEAN tree, branch `feat/site-v2-foundation-shell` off `main` (`f855f12`).
-+> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (blinded escalation).
+-> Written on a CLEAN tree, branch `feat/site-v2-foundation-shell` off `main` (`f855f12`).
++> Written on a CLEAN tree, branch `fix/827-sharpen-bi-analyst-reviewer` off `main` (`385fda8`).
+ > See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (blinded escalation).
  
  objective: >
--  Rewrite .claude/active_work.md to the true current state so a new chat can begin the frontend
--  FOUNDATION build immediately: the 2026-07-26 spec audit found the frontend systematic on data/
--  content but improvisational on layout/chrome/workflow; CPO decided foundation-first + lean process;
--  the shared-frame design is APPROVED via mock (artifact 87d14109; home-content mock 1c35e7aa); the
--  build = turn the mock into the real Layout.astro shell + system.css responsive system + write the
--  two missing specs (09_chrome + a layout section), composing ONLY from the locked system.css. Carry
--  ALL owed items and the design discipline. Keep CURRENT STATE ONLY and under 16,000 characters.
-+  Build the v2 site's shared shell: Layout.astro gains a global header (logo, 6-item nav, search,
-+  a working dark/light theme toggle, mobile hamburger+drawer) and a footer; system.css gains the
-+  responsive layout system it never had (nav inline >=700px, two-column main+rail page grid
-+  max ~1100px >=900px, full search field >=1010px). Turns the CPO-approved foundation mock
-+  (artifact 87d14109, "looks good for now") into real code, composing only from the locked
-+  system.css tokens. Writes the two missing specs (docs/wireframes/09_chrome.md + a layout-system
-+  section in 00_overview.md). Issue #825.
+-  Build the v2 site's shared shell: Layout.astro gains a global header (logo, 6-item nav, search,
+-  a working dark/light theme toggle, mobile hamburger+drawer) and a footer; system.css gains the
+-  responsive layout system it never had (nav inline >=700px, two-column main+rail page grid
+-  max ~1100px >=900px, full search field >=1010px). Turns the CPO-approved foundation mock
+-  (artifact 87d14109, "looks good for now") into real code, composing only from the locked
+-  system.css tokens. Writes the two missing specs (docs/wireframes/09_chrome.md + a layout-system
+-  section in 00_overview.md). Issue #825.
++  Upgrade `.claude/agents/bi-analyst-reviewer.md` per issue #827: default-FAIL and PASS-needs-
++  two-verified-risks are already true today; the actual gap is that the reviewer judges the CODE
++  diff and never sees the RENDERED page. This session's own foundation-shell PR (#829) proves the
++  gap: bi-analyst-reviewer PASSED a diff that contained a real rendering bug (a CSS specificity
++  bug meant the >=1010px search-icon button never actually hid), caught only by the builder
++  actually building the site and checking computed styles — not by review. Adds a rendered-page-
++  evidence requirement so the reviewer has real, auditable rendering evidence to judge, not just
++  source code.
  
  refs: >
--  This session 2026-07-26. Frontend spec audit + backtobayesics process study (both agent runs).
--  CPO decisions this session: widen desktop to ~1100px two-column; foundation-first + lean process;
--  foundation mock "looks good for now". Firebase deploy merged (#821), effort pins merged (#822),
--  prior handover merged (#823) — main now fb3a1a4.
-+  .claude/active_work.md (2026-07-26 handover); docs/site_architecture.md §4 (nav is fixed:
-+  "Competitions · Matches · Teams · Players · Standings · Stats"); docs/ui_design_brief.md §5/§7
-+  (persistent search + nav, footer/legal component); mock artifacts 87d14109 (foundation, approved)
-+  and 1c35e7aa (home content, reference only — not built here); memory feedback_design_off_the_cuff
-+  (build approved designs, no invention) and feedback_doc_clutter_discipline (fold into the
-+  authoritative doc).
+-  .claude/active_work.md (2026-07-26 handover); docs/site_architecture.md §4 (nav is fixed:
+-  "Competitions · Matches · Teams · Players · Standings · Stats"); docs/ui_design_brief.md §5/§7
+-  (persistent search + nav, footer/legal component); mock artifacts 87d14109 (foundation, approved)
+-  and 1c35e7aa (home content, reference only — not built here); memory feedback_design_off_the_cuff
+-  (build approved designs, no invention) and feedback_doc_clutter_discipline (fold into the
+-  authoritative doc).
++  Issue #827 (CPO-authored, 2026-07-26): "Upgrade the bi-analyst-reviewer rubric for BUILT
++  frontend pages: default verdict FAIL; a PASS requires naming at least two concrete verified
++  risks; review the RENDERED page (screenshot / accessibility tree / mobile layout), not the
++  code. Small guard-path change (.claude/agents/), independent of the foundation build, so it can
++  be done early." CPO chat instruction this session, 2026-07-26: "NOW, Phase B ... #827 ... Do
++  this one first." The concrete gap example: PR #829's `.search-m` specificity bug (fixed in that
++  PR, but never caught by bi-analyst-reviewer's own pass on that diff).
  
  scope_paths:
-+  - site_v2/src/layouts/Layout.astro
-+  - site_v2/src/components/chrome/**
-+  - site_v2/src/styles/system.css
-+  - site_v2/src/i18n/strings.ts
-+  - docs/wireframes/09_chrome.md
-+  - docs/wireframes/00_overview.md
-   - .claude/active_work.md
- 
-+impact_map: >
-+  Leaf/cosmetic short-form (site_v2/** is structural surface by path, but carries no dbt/warehouse
-+  read or write): this PR touches only Astro components, one CSS file, one i18n dict, and two
-+  wireframe docs under site_v2/src and docs/wireframes. No dbt model, mart, seed, or BigQuery
-+  table is read or written; no export script changes. Blast radius: every page that imports
-+  Layout.astro (today: site_v2/src/pages/[lang]/teams/[team].astro and
-+  .../[competition]/matches/[fixture].astro) visually gains a header and footer — their own
-+  template files are not edited, and their existing data bindings/content are unchanged. The
-+  per-locale index.astro placeholder stub does NOT import Layout today and is untouched. CI
-+  surface: .github/workflows/ci-site-v2.yml (Astro build, path-filtered to site_v2/**) is the
-+  applicable gate; ci-ui.yml only path-filters the legacy site/ MVP and does not apply.
+-  - site_v2/src/layouts/Layout.astro
+-  - site_v2/src/components/chrome/**
+-  - site_v2/src/styles/system.css
+-  - site_v2/src/i18n/strings.ts
+-  - docs/wireframes/09_chrome.md
+-  - docs/wireframes/00_overview.md
+-  - .claude/active_work.md
++  - .claude/agents/bi-analyst-reviewer.md
 +
++protected_override: >
++  `.claude/agents/` is protected (working_agreement.md §2). Authority: CPO-authored issue #827
++  (quoted above, "Upgrade the bi-analyst-reviewer rubric...") plus this session's explicit chat
++  instruction to do #827 first, both 2026-07-26.
+ 
+ impact_map: >
+-  Leaf/cosmetic short-form (site_v2/** is structural surface by path, but carries no dbt/warehouse
+-  read or write): this PR touches only Astro components, one CSS file, one i18n dict, and two
+-  wireframe docs under site_v2/src and docs/wireframes. No dbt model, mart, seed, or BigQuery
+-  table is read or written; no export script changes. Blast radius: every page that imports
+-  Layout.astro (today: site_v2/src/pages/[lang]/teams/[team].astro and
+-  .../[competition]/matches/[fixture].astro) visually gains a header and footer — their own
+-  template files are not edited, and their existing data bindings/content are unchanged. The
+-  per-locale index.astro placeholder stub does NOT import Layout today and is untouched. CI
+-  surface: .github/workflows/ci-site-v2.yml (Astro build, path-filtered to site_v2/**) is the
+-  applicable gate; ci-ui.yml only path-filters the legacy site/ MVP and does not apply.
++  Protected-path form (trace dependents, not table lineage — no dbt/warehouse surface here).
++  Fires: bi-analyst-reviewer is spawned cold in step 2 (Blinding) of the review cycle whenever a
++  staged diff matches its routed paths in `.claude/review_routing.json`
++  (`docs/wireframes/**`, `site/i18n/**`, `site_v2/src/**` — unchanged by this PR, routing itself
++  is not touched). Depends on it: the commit gate (`git_discipline.py`) requires its verdict
++  section in `review.md` for any diff touching those paths; no verdict or a FAIL denies the
++  commit. What stops being enforced if wrong: if the sharpened rubric is too weak, rendering
++  defects in built frontend pages keep passing review undetected — the exact gap #829 exposed. If
++  too strict (e.g. treating a missing screenshot as automatic FAIL): could block every future
++  site_v2 PR in this environment, where the Browser pane's screenshot tool is confirmed broken
++  (verified this session) — mitigated by requiring the evidence file to STATE which of
++  {screenshot, accessibility tree, mobile layout} were captured, not mandate one specific method.
++  Failure mode: malformed reviewer output still fails the commit gate closed (deny) — existing,
++  correct behavior for a review gate, unchanged by this PR.
+ 
  decisions_taken: >
--  Pure bookkeeping. All facts recorded are already true (audit done, CPO decided foundation-first +
--  lean process, foundation mock approved). No new product/metric/mechanism decision is made here.
-+  Foundation-first + lean process (CPO 2026-07-26, active_work.md). Foundation mock 87d14109
-+  approved "looks good for now". Approved this session (active_work.md): widen the shell chrome
-+  to two-column ~1100px; dark default + a light toggle; the nav list
-+  (Competitions/Matches/Teams/Players/Standings/Stats) as the specified start; the three
-+  breakpoints (700/900/1010px). Plan-mode approved 2026-07-26: nav/footer items with no built
-+  target render inert (span, not <a>) — same convention already shipped on the fixture page
-+  breadcrumb and the team page's Explore chips (both hrefless-by-comment for unbuilt targets);
-+  team/fixture pages are not restructured into the two-column grid (no file edits to either page);
-+  theme choice persists via localStorage so the toggle survives static-page navigation; search is
-+  visually present but inert; the layout-system doc section folds into 00_overview.md.
+-  Foundation-first + lean process (CPO 2026-07-26, active_work.md). Foundation mock 87d14109
+-  approved "looks good for now". Approved this session (active_work.md): widen the shell chrome
+-  to two-column ~1100px; dark default + a light toggle; the nav list
+-  (Competitions/Matches/Teams/Players/Standings/Stats) as the specified start; the three
+-  breakpoints (700/900/1010px). Plan-mode approved 2026-07-26: nav/footer items with no built
+-  target render inert (span, not <a>) — same convention already shipped on the fixture page
+-  breadcrumb and the team page's Explore chips (both hrefless-by-comment for unbuilt targets);
+-  team/fixture pages are not restructured into the two-column grid (no file edits to either page);
+-  theme choice persists via localStorage so the toggle survives static-page navigation; search is
+-  visually present but inert; the layout-system doc section folds into 00_overview.md.
++  Scope is exactly issue #827's own stated scope: a small guard-path change to
++  `.claude/agents/bi-analyst-reviewer.md` only. No new tool grant to the reviewer (stays
++  Read/Grep/Glob, read-only, consistent with every other reviewer) — the rendering evidence is a
++  file the reviewer reads via its EXISTING Read tool, the same way it already reads
++  `review_input.patch`/`contract.md`. No change to `.claude/review_routing.json` (also protected,
++  out of this issue's scope) and no change to any other agent definition. Confirmed (checked, not
++  assumed) that `docs/agent_guardrails.md` and `docs/roles/bi_analyst.md` need no matching edit —
++  neither describes the review METHOD in a way this change contradicts.
  
  decisions_reserved:
--  - The foundation's open design questions (nav contents/order, search style, per-page rail contents,
--    footer/legal, default-theme policy) remain the CPO's §10 calls — recorded in the handover as
--    reserved, not decided here.
-+  - Exact nav contents/order — the listed order is the specified start; refine only on CPO word.
-+  - Search style/mechanism — a real input, autocomplete, and any backend are undecided; this PR
-+    ships the mock's inert placeholder only.
-+  - What fills the desktop RAIL per page type (home = standings/trending/scorers per the
-+    home-content mock 1c35e7aa) — the .shell/.page-grid/.rail primitive is built generically in
-+    system.css but wired into zero pages this task.
-+  - Footer/legal content — the Imprint slot stays pending (blocked on the operator/address
-+    question, #799); not resolved here.
-+  - Default-theme policy (dark-fixed vs follow-OS) — this PR ships hard-coded dark as the
-+    no-preference default, per the approved default; whether the site should ever read
-+    prefers-color-scheme instead is not decided.
-+  - The fixture/team wireframes' (01/02) own desktop spec calling for those pages to widen to
-+    ~1100px is a real, currently open gap. Retrofitting an already-shipped, CPO-approved 680px
-+    page's width is a separate design decision, not made in this task — recorded as an open note
-+    in the new layout-system section, not closed.
+-  - Exact nav contents/order — the listed order is the specified start; refine only on CPO word.
+-  - Search style/mechanism — a real input, autocomplete, and any backend are undecided; this PR
+-    ships the mock's inert placeholder only.
+-  - What fills the desktop RAIL per page type (home = standings/trending/scorers per the
+-    home-content mock 1c35e7aa) — the .shell/.page-grid/.rail primitive is built generically in
+-    system.css but wired into zero pages this task.
+-  - Footer/legal content — the Imprint slot stays pending (blocked on the operator/address
+-    question, #799); not resolved here.
+-  - Default-theme policy (dark-fixed vs follow-OS) — this PR ships hard-coded dark as the
+-    no-preference default, per the approved default; whether the site should ever read
+-    prefers-color-scheme instead is not decided.
+-  - The fixture/team wireframes' (01/02) own desktop spec calling for those pages to widen to
+-    ~1100px is a real, currently open gap. Retrofitting an already-shipped, CPO-approved 680px
+-    page's width is a separate design decision, not made in this task — recorded as an open note
+-    in the new layout-system section, not closed.
++  - None for this narrow change. The rendered-page-evidence FORMAT (exact structure of
++    `.claude/task/rendered_page_evidence.md`) is specified loosely by design (state what was
++    captured and why) rather than machine-schema'd — if a future PR finds that too loose, that is
++    a CPO call, not decided here.
  
  done_when:
--  - .claude/active_work.md leads with the foundation-build task (design approved, build not started),
--    carries every OWED item and ⚠️ warning intact, records the audit + foundation-first/lean-process
--    decision + design discipline + mock URLs, and stays under 16,000 chars.
--  - ONE commit; review.md with scope-auditor PASS; pushed with an explicit refspec; PR opened. CPO merges.
-+  - cd site_v2 && npm ci && npm run build succeeds; dist/index.html and dist/{de,en,fi}/index.html
-+    exist (mirrors ci-site-v2.yml).
-+  - Team page and fixture page render with the new header/footer, at phone/tablet/desktop widths,
-+    with the three breakpoints (700/900/1010px) firing correctly.
-+  - Theme toggle flips data-theme and the choice survives navigating between the fixture and team
-+    pages (localStorage persistence).
-+  - docs/wireframes/09_chrome.md written per the 00_overview.md template; 00_overview.md's screen
-+    inventory row 09 flips from pending to spec'd; component census updated.
-+  - ONE commit; review.md with scope-auditor + cto-reviewer + bi-analyst-reviewer verdicts, hash
-+    matching the staged diff; pushed with an explicit refspec; PR opened. CPO merges.
+-  - cd site_v2 && npm ci && npm run build succeeds; dist/index.html and dist/{de,en,fi}/index.html
+-    exist (mirrors ci-site-v2.yml).
+-  - Team page and fixture page render with the new header/footer, at phone/tablet/desktop widths,
+-    with the three breakpoints (700/900/1010px) firing correctly.
+-  - Theme toggle flips data-theme and the choice survives navigating between the fixture and team
+-    pages (localStorage persistence).
+-  - docs/wireframes/09_chrome.md written per the 00_overview.md template; 00_overview.md's screen
+-    inventory row 09 flips from pending to spec'd; component census updated.
+-  - ONE commit; review.md with scope-auditor + cto-reviewer + bi-analyst-reviewer verdicts, hash
+-    matching the staged diff; pushed with an explicit refspec; PR opened. CPO merges.
++  - `.claude/agents/bi-analyst-reviewer.md` YAML frontmatter still parses; structure matches the
++    other five reviewer definitions.
++  - Diff read back: default-FAIL wording intact, PASS-needs-two-risks intact, new
++    rendered-page-evidence Inputs entry present and specific, hunt item added, PASS rule
++    tightened (>=1 of the two risks must come from evidence when a site_v2/src/** rendering
++    change is in scope).
++  - Review cycle: scope-auditor (always) + cto-reviewer, model overridden to opus (this diff
++    touches `.claude/agents/**` — the guard-path rule, working_agreement.md §2). bi-analyst-
++    reviewer is NOT self-routed (this diff touches none of its own routed paths).
++  - ONE commit; review.md hash-locked; pushed with an explicit refspec; PR opened referencing
++    #827. CPO merges; I close #827 myself once merged confirmed via `gh`.
  
  amendments: (none)
-diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
-index 7bc1d84..25d2bb7 100644
---- a/docs/wireframes/00_overview.md
-+++ b/docs/wireframes/00_overview.md
-@@ -50,6 +50,29 @@ Every screen file follows this structure:
-   a competition-neutral format and progressively enhance to the visitor's local
-   timezone with a tiny script (static site cannot know the timezone at build time).
- 
-+## Layout system
-+
-+The responsive chrome + grid contract, built as the frontend-foundation task (#825; full spec:
-+[09_chrome.md](09_chrome.md)). `system.css`'s only breakpoints before this were `@container`
-+queries scoped to a single component (e.g. `.split`, `.yoygrid`) — these three are the first
-+viewport-level `@media` rules beyond `prefers-reduced-motion`, and they govern the shared shell,
-+not any one screen:
-+
-+| Breakpoint | What changes |
-+|---|---|
-+| **≥ 700px** | `.mainnav` goes inline in the header; the hamburger (`.hamburger`) and mobile drawer (`.drawer`) hide. |
-+| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max content width **~1100px** (`.shell`/`.header-in`/`.footer-in`). |
-+| **≥ 1010px** | The header search box (`.searchbox`) becomes a full field; the icon-only mobile search button (`.search-m`) hides. |
-+
-+`.shell`/`.page-grid`/`.rail` is a **generic primitive**, not wired into any page yet — which
-+pages get a rail and what fills it is reserved (per-page rail contents, `.claude/task/contract.md`).
-+It is distinct from the team/fixture pages' own `.inner` (680px, single column, locked from the
-+CPO-approved mocks `d70aae67`/`f6348775`) — those two pages are unchanged by the foundation shell
-+and do not use `.page-grid`. **Open gap**: the original wireframes (01, 02) call for those two
-+pages themselves to widen to ~1100px on desktop with an internal two-column reflow; that has not
-+been built, and closing it means changing an already-shipped page's width — a separate decision,
-+not made here. See 09_chrome.md §10 for the full note.
-+
- ## Screen inventory
- 
- | # | File | Screen | Spec status | PR |
-@@ -63,7 +86,7 @@ Every screen file follows this structure:
- | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
- | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
- | 08 | 08_browse.md | Competitions index + country hubs | pending | 4 |
--| 09 | 09_chrome.md | Nav/header/footer/search/locale/404 | pending | 4 |
-+| 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
- | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
- | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
- | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
-@@ -124,6 +147,10 @@ inventory, flagged as new for the design system (#366).
- | Career-log row (season · comp · apps · goals · assists) | 13 | player row ✓ |
- | Subtotal / career-total line | 13 | ➕ |
- | National-caps block | 13 | ➕ |
-+| Site header (brand, nav, search, theme toggle) | 09 | ✓ (nav … desktop header) |
-+| Mobile nav drawer | 09 | ✓ (nav … mobile bottom-bar or burger) |
-+| Site footer (link row + locale/data-source meta) | 09 | ✓ (footer (legal links)) |
-+| Generic page grid (main + rail) | 09 | ➕ (system-level layout primitive, not a visual component) |
- 
- ## Verification (per screen, before its PR merges)
- 
-diff --git a/docs/wireframes/09_chrome.md b/docs/wireframes/09_chrome.md
-new file mode 100644
-index 0000000..5ef19b1
---- /dev/null
-+++ b/docs/wireframes/09_chrome.md
-@@ -0,0 +1,141 @@
-+# Chrome — global header, footer, search, theme toggle, mobile nav (#391 / #825)
-+
-+## 1. Purpose
-+
-+The chrome that wraps every screen: brand, primary navigation, search, locale/theme controls,
-+and the footer. Unlike the other screens in this folder, chrome has no "stop-scrolling moment" of
-+its own — its job is to be the same, predictable frame on every page so a reader always knows
-+where they are and how to get anywhere else. Built as the frontend-foundation task (#825), from
-+the CPO-approved mock (artifact `87d14109`, "looks good for now").
-+
-+## 2. URL
-+
-+N/A — chrome wraps every route in `site_architecture.md` §3. It renders once, inside
-+`Layout.astro`, around every page's content.
-+
-+## 3. Data sources
-+
-+None. Chrome is fixed product IA (`site_architecture.md` §4: "the nav exposes Competitions ·
-+Matches · Teams · Players · Standings · Stats"), not registry- or mart-driven — it does not vary
-+by competition, team, or any exported payload. Labels are static i18n strings
-+(`site_v2/src/i18n/strings.ts`). This means the binding rule (00_overview.md — "may reference only
-+fields that exist in today's exported JSON") does not apply here; there is no payload to bind to.
-+
-+## 4. Layout
-+
-+```
-+┌────────────────────────────────────────────┐
-+│ MatchdayIQ            [search] [🌓] [☰]     │  (1) header, sticky
-+├────────────────────────────────────────────┤
-+│  ▾ drawer (phone only, hidden by default)   │  (2) drawer — opens on ☰
-+│    Competitions                             │
-+│    Matches                                  │
-+│    Teams / Players / Standings / Stats      │
-+├────────────────────────────────────────────┤
-+│              (page content)                │
-+├────────────────────────────────────────────┤
-+│ MatchdayIQ                                  │  (3) footer
-+│ Competitions · Teams · Players · Stats ·    │
-+│ About · Imprint (pending)                   │
-+│ EN · DE · FI · Data: API-Football           │
-+└────────────────────────────────────────────┘
-+```
-+
-+**Phone (< 700px)**: brand + search icon + theme toggle + hamburger in the header; the 6-item nav
-+lives in the drawer (`#menuBtn` toggles `.drawer.open`), closed by default.
-+
-+**≥ 700px**: the 6-item nav (`.mainnav`) goes inline in the header; the hamburger and drawer are
-+hidden — there is no drawer state to open on a laptop-width screen.
-+
-+**≥ 900px**: a generic two-column page grid (`.shell > .page-grid { main | aside.rail }`, max
-+content width ~1100px, rail border-left) becomes available for any page that needs a context rail
-+alongside its main content. **Not wired into any page this task** — home, competition hub, and
-+leaderboards are the candidates (per the home-content mock `1c35e7aa`'s rail: standings/
-+trending/top-scorers), but per-page rail contents is a reserved CPO call (`.claude/task/contract.md`).
-+The team and fixture pages keep their existing locked single column (`.inner`, 680px, unchanged) —
-+see §10 for the open gap this leaves.
-+
-+**≥ 1010px**: the search box becomes a full field with placeholder text (`.searchbox`); the
-+icon-only mobile search button (`.search-m`) hides.
-+
-+## 5. Module bindings
-+
-+All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3). Keys, all in
-+`site_v2/src/i18n/strings.ts`:
-+
-+| Element | Key(s) |
-+|---|---|
-+| Brand | hardcoded "MatchdayIQ" (proper noun, not translated), links to `localeHref(lang)` |
-+| Main nav (6 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `navStandings`, `navStats` |
-+| Main nav aria-label | `mainNavAria` |
-+| Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
-+| Theme toggle aria | `themeToggleAria` |
-+| Hamburger aria | `menuAria` |
-+| Footer link row (5 of 6 items reuse the nav keys) | `navCompetitions`, `navTeams`, `navPlayers`, `navStats`, `footerAbout` |
-+| Footer Imprint slot | `footerImprintPending` |
-+| Footer data-source line | `footerDataSource` (prefix only — "EN · DE · FI" itself is locale-invariant literal text, language codes are not translated) |
-+
-+## 6. States
-+
-+- **No dead links.** Every nav and footer item except the brand renders as an inert `<span>`
-+  (not `<a>`) because none of Competitions/Matches/Teams/Players/Standings/Stats/About has a
-+  built index page — only team and fixture *detail* pages exist today, reachable only by direct
-+  entity URL, not by browsing from chrome. `.mainnav a, .mainnav span` (and the footer/drawer
-+  equivalents) apply identical styling to both, so an inert item looks no different from a real
-+  one until it's wired. This mirrors the existing convention on the fixture page's breadcrumb and
-+  the team page's Explore chips (both already ship this pattern, pre-dating this task). The brand
-+  is the one real link (to `localeHref(lang)`, which resolves — the locale root is a real, if
-+  placeholder, route today).
-+- **Imprint**: permanently labelled "(pending)" until the CPO settles the operator/address
-+  question (#799); not a data state, a publication gate.
-+- **Search**: visually present, functionally inert — no input element wired, no keystroke
-+  behaviour, no results. Search mechanism/style is a reserved CPO call.
-+- **Theme**: two states, `data-theme="dark"` (default) / `"light"`, toggled by `#themeBtn` and
-+  persisted to `localStorage` (`mdiq-theme`) so the choice survives navigating to a different
-+  static page. A blocking inline script (`Layout.astro`, `<script is:inline>`, first thing inside
-+  `<body>`) applies a saved choice before the header renders, avoiding a flash of the hard-coded
-+  default for a returning light-theme reader. No-preference default is fixed dark; whether the
-+  site should ever read `prefers-color-scheme` instead is a separate, reserved question.
-+- **Drawer**: closed by default on every page load (no persisted open state).
-+
-+## 7. Interactions
-+
-+- Hamburger (`#menuBtn`) toggles `.drawer.open` and its own `aria-expanded`; no outside-click or
-+  Escape-key close (matches the approved mock exactly — nothing more was shown or asked for).
-+- Theme toggle (`#themeBtn`) flips `data-theme` on `<body>` and writes the choice to
-+  `localStorage`; both handlers live in `SiteHeader.astro`'s own `<script>` (module, not
-+  blocking — only the FOUC-prevention read in `Layout.astro` needs to block).
-+- Both are vanilla JS, not the site's existing JS-free radio-toggle CSS pattern (tabs, segments):
-+  that pattern only shows/hides a sibling panel within one component tree, but these two mutate
-+  an attribute across the whole shell (theme) or toggle a landmark nav's visibility (drawer).
-+
-+## 8. SEO
-+
-+N/A for this spec — chrome carries no schema.org markup of its own (`BreadcrumbList` is per-page,
-+already shipped on the fixture and team pages). `robots: noindex` stays on every page while v2 is
-+a build-phase preview (`Layout.astro`, pre-existing, unchanged by this task).
-+
-+## 9. Component census
-+
-+New this task, added to the aggregate census in `00_overview.md`:
-+
-+| Component | File | Brief §7? |
-+|---|---|---|
-+| Site header (brand, nav, search, theme toggle, hamburger) | `components/chrome/SiteHeader.astro` | ✓ ("nav … desktop header") |
-+| Mobile nav drawer | `components/chrome/SiteHeader.astro` (same file — one component, two rendered regions) | ✓ ("nav … mobile bottom-bar or burger") |
-+| Site footer (brand, link row, locale/data-source meta) | `components/chrome/SiteFooter.astro` | ✓ ("footer (legal links)") |
-+| Generic page grid (`.shell`/`.page-grid`/`.rail`) | `styles/system.css` (no dedicated component — a layout primitive, not a visual component) | ➕ (system-level, not in the brief's component list) |
-+
-+## 10. Gaps
-+
-+Not a data gap (chrome has no export dependency, §3) — two open, non-data items, recorded here
-+rather than silently resolved:
-+
-+- **Team/fixture desktop width.** The original wireframes (`01_fixture_page.md` §4,
-+  `02_team_profile.md` §4) call for those two pages themselves to widen to ~1100px on desktop with
-+  an internal two-column reflow. Today they still render at the locked 680px `.inner` single
-+  column (unchanged by this task — see §4 above). Closing this means changing an already-shipped,
-+  CPO-approved page's width, which is a design decision outside this task's contract.
-+- **Rail contents.** The `.page-grid`/`.rail` primitive exists but is wired into zero pages. The
-+  home-content mock (`1c35e7aa`, reference only) shows one candidate rail (standings/trending/
-+  top-scorers) for the eventual home page — CPO decides per page type when that page is built.
-diff --git a/site_v2/src/components/chrome/SiteFooter.astro b/site_v2/src/components/chrome/SiteFooter.astro
-new file mode 100644
-index 0000000..6b53699
---- /dev/null
-+++ b/site_v2/src/components/chrome/SiteFooter.astro
-@@ -0,0 +1,38 @@
-+---
-+// Global site footer (foundation shell, #825) — brand, a link row, and static
-+// locale/data-source meta text. Markup transcribed from the CPO-approved
-+// foundation mock (artifact 87d14109); classes are system.css's.
-+//
-+// Every link-row item is an inert <span> (no index page built for any of
-+// them yet — same "no dead links" convention as the header nav). The Imprint
-+// slot stays labelled pending: publication is blocked on the operator/address
-+// question (#799), a reserved CPO call, not resolved here. "EN · DE · FI" is
-+// locale-invariant literal text (language codes, not translated copy).
-+import { t } from "../../i18n/strings";
-+import { localeHref } from "../../lib/href";
-+import type { Lang } from "../../lib/format";
-+
-+interface Props {
-+  lang: Lang;
-+}
-+const { lang } = Astro.props;
-+
-+const flinks = [
-+  t(lang, "navCompetitions"),
-+  t(lang, "navTeams"),
-+  t(lang, "navPlayers"),
-+  t(lang, "navStats"),
-+  t(lang, "footerAbout"),
-+];
-+---
-+
-+<footer class="site-footer">
-+  <div class="footer-in">
-+    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
-+    <div class="flinks">
-+      {flinks.map((label) => <span>{label}</span>)}
-+      <span class="imp">{t(lang, "footerImprintPending")}</span>
-+    </div>
-+    <div class="fmeta">EN · DE · FI &nbsp;·&nbsp; {t(lang, "footerDataSource")}</div>
-+  </div>
-+</footer>
-diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
-new file mode 100644
-index 0000000..bd01472
---- /dev/null
-+++ b/site_v2/src/components/chrome/SiteHeader.astro
-@@ -0,0 +1,103 @@
-+---
-+// Global site header (foundation shell, #825) — brand, main nav, search, theme
-+// toggle, mobile hamburger + drawer. Markup transcribed from the CPO-approved
-+// foundation mock (artifact 87d14109); classes are system.css's, defined there.
-+//
-+// Nav items render as an inert <span>, not <a>, because none of their index
-+// pages exist yet (only team/fixture DETAIL pages are built) — same "no dead
-+// links" convention already used by the fixture page's breadcrumb and the team
-+// page's Explore chips. Exact nav order/contents is a reserved CPO call
-+// (contract.md); this is the specified starting list, unchanged from the mock.
-+// Search is visually present but inert (no input, no backend) — search style
-+// is a reserved CPO call.
-+import { t } from "../../i18n/strings";
-+import { localeHref } from "../../lib/href";
-+import type { Lang } from "../../lib/format";
-+
-+interface Props {
-+  lang: Lang;
-+}
-+const { lang } = Astro.props;
-+
-+const navItems = [
-+  t(lang, "navCompetitions"),
-+  t(lang, "navMatches"),
-+  t(lang, "navTeams"),
-+  t(lang, "navPlayers"),
-+  t(lang, "navStandings"),
-+  t(lang, "navStats"),
-+];
-+---
-+
-+<header class="site-header">
-+  <div class="header-in">
-+    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
-+
-+    <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
-+      {navItems.map((label) => <span>{label}</span>)}
-+    </nav>
-+
-+    <div class="header-actions">
-+      <div class="searchbox">
-+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-+          <circle cx="11" cy="11" r="7"></circle>
-+          <path d="M21 21l-4.3-4.3"></path>
-+        </svg>
-+        {t(lang, "searchPlaceholder")}
-+      </div>
-+      <button class="iconbtn search-m" aria-label={t(lang, "searchAria")}>
-+        <svg viewBox="0 0 24 24" aria-hidden="true">
-+          <circle cx="11" cy="11" r="7"></circle>
-+          <path d="M21 21l-4.3-4.3"></path>
-+        </svg>
-+      </button>
-+      <button class="iconbtn" id="themeBtn" aria-label={t(lang, "themeToggleAria")}>
-+        <svg viewBox="0 0 24 24" aria-hidden="true">
-+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
-+        </svg>
-+      </button>
-+      <button
-+        class="iconbtn hamburger"
-+        id="menuBtn"
-+        aria-label={t(lang, "menuAria")}
-+        aria-expanded="false"
-+        aria-controls="drawer"
-+      >
-+        <svg viewBox="0 0 24 24" aria-hidden="true">
-+          <path d="M3 6h18M3 12h18M3 18h18"></path>
-+        </svg>
-+      </button>
-+    </div>
-+  </div>
-+
-+  <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
-+    {navItems.map((label) => <span>{label}</span>)}
-+  </nav>
-+</header>
-+
-+<script>
-+  // Theme toggle + mobile drawer. Vanilla JS: these mutate an attribute across
-+  // the whole shell / toggle a sibling nav's visibility, which the site's
-+  // existing JS-free radio-toggle pattern (tabs, segments) can't do — that
-+  // pattern only shows/hides a panel within the same component tree.
-+  const KEY = "mdiq-theme";
-+  const body = document.body;
-+
-+  const themeBtn = document.getElementById("themeBtn");
-+  themeBtn?.addEventListener("click", () => {
-+    const next = body.getAttribute("data-theme") === "light" ? "dark" : "light";
-+    body.setAttribute("data-theme", next);
-+    try {
-+      localStorage.setItem(KEY, next);
-+    } catch {
-+      // localStorage unavailable (private mode / disabled) — toggle still works for this page view
-+    }
-+  });
-+
-+  const menuBtn = document.getElementById("menuBtn");
-+  const drawer = document.getElementById("drawer");
-+  menuBtn?.addEventListener("click", () => {
-+    const open = drawer?.classList.toggle("open") ?? false;
-+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
-+  });
-+</script>
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 36d2bba..67e9521 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -98,6 +98,21 @@ const EN: Dict = {
-   fxNext: "Next",
-   linkFixtures: "Full fixture list",
-   teamFootnote: "Sample data · v2 preview (Matchday IQ)",
-+  // --- chrome (site-wide header/footer, #825) ---
-+  navCompetitions: "Competitions",
-+  navMatches: "Matches",
-+  navTeams: "Teams",
-+  navPlayers: "Players",
-+  navStandings: "Standings",
-+  navStats: "Stats",
-+  mainNavAria: "Main navigation",
-+  searchPlaceholder: "Search teams, players…",
-+  searchAria: "Search",
-+  themeToggleAria: "Toggle theme",
-+  menuAria: "Menu",
-+  footerAbout: "About",
-+  footerImprintPending: "Imprint (pending)",
-+  footerDataSource: "Data: API-Football",
- };
- 
- const DE: Dict = {
-@@ -189,6 +204,21 @@ const DE: Dict = {
-   fxNext: "Nächstes",
-   linkFixtures: "Alle Spiele",
-   teamFootnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
-+  // --- chrome (site-wide header/footer, #825) ---
-+  navCompetitions: "Wettbewerbe",
-+  navMatches: "Spiele",
-+  navTeams: "Mannschaften",
-+  navPlayers: "Spieler",
-+  navStandings: "Tabelle",
-+  navStats: "Statistiken",
-+  mainNavAria: "Hauptnavigation",
-+  searchPlaceholder: "Teams, Spieler suchen…",
-+  searchAria: "Suche",
-+  themeToggleAria: "Design umschalten",
-+  menuAria: "Menü",
-+  footerAbout: "Über uns",
-+  footerImprintPending: "Impressum (in Vorbereitung)",
-+  footerDataSource: "Daten: API-Football",
- };
- 
- const FI: Dict = {
-@@ -280,6 +310,21 @@ const FI: Dict = {
-   fxNext: "Seuraava",
-   linkFixtures: "Kaikki ottelut",
-   teamFootnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
-+  // --- chrome (site-wide header/footer, #825) ---
-+  navCompetitions: "Kilpailut",
-+  navMatches: "Ottelut",
-+  navTeams: "Joukkueet",
-+  navPlayers: "Pelaajat",
-+  navStandings: "Sarjataulukko",
-+  navStats: "Tilastot",
-+  mainNavAria: "Päänavigaatio",
-+  searchPlaceholder: "Hae joukkueita, pelaajia…",
-+  searchAria: "Haku",
-+  themeToggleAria: "Vaihda teema",
-+  menuAria: "Valikko",
-+  footerAbout: "Tietoa",
-+  footerImprintPending: "Vastuutiedot (tulossa)",
-+  footerDataSource: "Data: API-Football",
- };
- 
- const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
-diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
-index c6becd8..d356fd9 100644
---- a/site_v2/src/layouts/Layout.astro
-+++ b/site_v2/src/layouts/Layout.astro
-@@ -3,7 +3,10 @@
- // Astro-scoped) so every page renders the identical tokens + components — the
- // "consistency by construction" lever. Hosts the `.fx` token context on <body>;
- // dark is the default theme (the token block); light is `data-theme="light"`.
-+// Foundation shell (#825): a global header + footer now wrap every page's <slot>.
- import "../styles/system.css";
-+import SiteHeader from "../components/chrome/SiteHeader.astro";
-+import SiteFooter from "../components/chrome/SiteFooter.astro";
- import type { Lang } from "../lib/format";
- 
- interface Props {
-@@ -25,6 +28,23 @@ const { lang, title, description } = Astro.props;
-     {description && <meta name="description" content={description} />}
-   </head>
-   <body class="fx" data-theme="dark">
-+    <script is:inline>
-+      // No-flash theme init: read the saved choice (if any) BEFORE the header/
-+      // footer render, as the very first thing in <body>, so a returning
-+      // light-theme reader never sees a flash of the hard-coded dark default.
-+      // Plain blocking inline script (is:inline opts out of Astro's module
-+      // bundling/deferral) — timing here is the whole point.
-+      (function () {
-+        try {
-+          var saved = localStorage.getItem("mdiq-theme");
-+          if (saved === "light" || saved === "dark") {
-+            document.body.setAttribute("data-theme", saved);
-+          }
-+        } catch (e) {}
-+      })();
-+    </script>
-+    <SiteHeader lang={lang} />
-     <slot />
-+    <SiteFooter lang={lang} />
-   </body>
- </html>
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 4043bd3..bf75172 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -334,4 +334,101 @@ section { margin-top: 36px; }
- .ss-chg.up { color: var(--accent); }
- .ss-chg .u { font-size: 11px; font-weight: 600; opacity: .8; margin-left: 2px; }
- 
-+/* ================================================================ *
-+ *  FOUNDATION SHELL — global header/footer + responsive layout system   *
-+ *  (#825). Transcribed from the CPO-approved foundation mock (artifact  *
-+ *  87d14109, "looks good for now"). Same token contract as above — no   *
-+ *  new colours, no new type scale. Three breakpoints, all viewport      *
-+ *  (@media), distinct from the component-level @container queries      *
-+ *  above: nav goes inline + hamburger/drawer hide >=700px; the page     *
-+ *  grid below goes two-column >=900px; the search field replaces its   *
-+ *  icon-only button >=1010px. Nav/drawer items render as <a> OR <span> *
-+ *  — `.mainnav a, .mainnav span` styles both identically, because most *
-+ *  nav items are inert placeholders (no index page built yet) and get *
-+ *  the same look as a real link, per the codebase's existing no-dead-  *
-+ *  links convention (fixture breadcrumb, team page Explore chips).     *
-+ * ================================================================ */
-+
-+/* ---- global header ---- */
-+.site-header {
-+  position: sticky; top: 0; z-index: 20;
-+  background: color-mix(in srgb, var(--page) 88%, transparent);
-+  -webkit-backdrop-filter: saturate(1.4) blur(8px); backdrop-filter: saturate(1.4) blur(8px);
-+  border-bottom: 1px solid var(--line);
-+}
-+.header-in {
-+  max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
-+  height: 58px; display: flex; align-items: center; gap: 18px;
-+}
-+.brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
-+.brand .iq { color: var(--ink-2); font-weight: 700; }
-+.mainnav { display: none; align-items: center; gap: 2px; margin-left: 4px; }
-+.mainnav a, .mainnav span { font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 9px; border-radius: 7px; }
-+.mainnav a:hover { color: var(--ink); background: var(--surface); }
-+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
-+.searchbox {
-+  display: none; align-items: center; gap: 8px; background: var(--sunk); border: 1px solid var(--line);
-+  border-radius: 8px; padding: 7px 11px; color: var(--muted); font-size: 13px; min-width: 180px;
-+}
-+.searchbox .ico { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex: none; }
-+.iconbtn {
-+  width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line);
-+  border-radius: 8px; background: var(--sunk); color: var(--ink-2); cursor: pointer;
-+}
-+.iconbtn:hover { color: var(--ink); border-color: var(--ink-2); }
-+.iconbtn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
-+.iconbtn.search-m { display: grid; }
-+.hamburger { display: grid; }
-+
-+/* mobile nav drawer */
-+.drawer { display: none; border-top: 1px solid var(--line); background: var(--surface); }
-+.drawer.open { display: block; }
-+.drawer a, .drawer span {
-+  display: block; font-size: 15px; font-weight: 600; color: var(--ink-2);
-+  padding: 13px clamp(16px, 3.5vw, 28px); border-bottom: 1px solid var(--line);
-+}
-+.drawer a:last-child, .drawer span:last-child { border-bottom: 0; }
-+
-+/* ---- generic page grid (main + rail) — a system primitive, not yet wired ---- *
-+ * into any page: which pages get a rail and what fills it is reserved (CPO).   *
-+ * Available for a future page (home, competition hub, leaderboards) to opt     *
-+ * into via `.shell > .page-grid > main + aside.rail`.                          */
-+.shell { max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px) 48px; }
-+.page-grid { display: grid; grid-template-columns: 1fr; gap: 8px 40px; }
-+.rail { min-width: 0; }
-+
-+/* ---- global footer ---- */
-+.site-footer { border-top: 1px solid var(--line); margin-top: 40px; }
-+.footer-in {
-+  max-width: 1100px; margin: 0 auto; padding: 26px clamp(16px, 3.5vw, 28px) 40px;
-+  display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: baseline;
-+}
-+.site-footer .brand { font-size: 15px; }
-+.flinks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
-+.flinks a, .flinks span { font-size: 12.5px; color: var(--muted); }
-+.flinks a:hover { color: var(--ink-2); }
-+.flinks .imp { font-style: italic; }
-+.fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
-+
-+/* nav inline + hamburger/drawer hidden once there's room for the full nav */
-+@media (min-width: 700px) {
-+  .mainnav { display: flex; }
-+  .hamburger { display: none; }
-+  .drawer { display: none !important; }
-+}
-+/* the two-column page grid needs a bit more room than the nav */
-+@media (min-width: 900px) {
-+  .page-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
-+  .rail { border-left: 1px solid var(--line); padding-left: 36px; }
-+}
-+/* widest: search becomes a full field instead of an icon. `.iconbtn.search-m`
-+ * (not the bare class) matches the base rule's specificity (0,0,2) so this
-+ * override actually wins — a bare `.search-m` here loses to `.iconbtn.search-m`
-+ * regardless of source order, which is a real bug the reference mock also had
-+ * (the icon button silently never hid at its own widest breakpoint). */
-+@media (min-width: 1010px) {
-+  .searchbox { display: flex; }
-+  .iconbtn.search-m { display: none; }
-+}
-+
- @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
