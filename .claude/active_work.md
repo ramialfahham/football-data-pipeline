@@ -4,7 +4,9 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
 > 16,000 characters (the SessionStart hook's injection budget).
 
-_Last updated **2026-07-26**. main GREEN at **9990d2b**. **The frontend FOUNDATION shell is MERGED** (#825, PR #829). **NEXT: pick Phase B (#826/#827) or Phase C (player page) — CPO to choose.** Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+_Last updated **2026-07-26**. main GREEN at **385fda8**. **The frontend FOUNDATION shell is MERGED** (#825, PR #829). **SEQUENCE LOCKED (CPO 2026-07-26) — do NOT re-open it:** Phase B now
+(#827 first, then #826) → Phase C (player page, DESIGN-FIRST) → legal/imprint → launch. Firebase
+deploy is LIVE + verified (manual, `.web.app`, not public)._
 
 ## THE GOAL
 **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
@@ -123,11 +125,20 @@ half). (The foundation mock uses text initials — no third-party requests.)
   prohibition; real risk is operational suspension). Lessons: fix the CLASS not the instance;
   inference ≠ permission (§10); verify the real tree.
 
-## NEXT
-1. **CPO to pick**: Phase B (#826 page-spec contract + #827 sharpened rendered-page reviewer —
-   cheap process scaffolding) or go straight to Phase C (player page — fully spec'd + data-ready,
-   no open design debate; real product progress).
-2. Whichever comes first, then the other → home page (in the new shell) after that.
+## NEXT — SEQUENCE LOCKED (CPO 2026-07-26, this exact order, do not re-decide it)
+1. **Phase B now** (no design debate, buildable immediately). For each: branch off main, plan
+   mode, get CPO go, build, review cycle, PR, **close the issue yourself when it merges** (own the
+   full lifecycle — [[feedback-issues-for-upcoming-work]]):
+   - **#827 first** — sharpen the built-page reviewer (bi-analyst-reviewer): default-FAIL, PASS
+     must name two verified risks, review the RENDERED page not the code. Small guard-path change
+     (`.claude/agents/bi-analyst-reviewer.md`) — needs `protected_override` + `impact_map` in the
+     contract per working_agreement.md §2.
+   - **#826 next** — schema-validated page-spec contract; CI rejects an underspecified page.
+2. **THEN Phase C, pages one at a time, DESIGN-FIRST**: player page first. NOT a clean build —
+   open content questions (GK Overview content; does YoY hold across a club/role change) and mock
+   `6c21ef71` is NOT approved. Step one is settling those with the CPO and getting a mock approved,
+   THEN build. Then the home page, in the new shell.
+3. **THEN legal/imprint** (CPO decision, blocks going public), **then launch**.
 3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
    stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
    "1 assists" → singular i18n.
