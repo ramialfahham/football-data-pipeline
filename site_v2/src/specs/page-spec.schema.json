@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://matchdayiq/site_v2/page-spec.schema.json",
+  "title": "Matchday IQ v2 page spec",
+  "description": "One spec per page TEMPLATE (not per rendered instance). Declares the page's blocks, each block's backing dbt mart, and the i18n keys it uses, so a build-time checker (site_v2/scripts/check-page-specs.mjs) can refuse to build a page with no spec or a spec that references something that does not exist. Shape rules here are mirrored by hand in check-page-specs.mjs -- keep the two in sync. See docs/content_architecture.md for the block library this sits on top of.",
+  "type": "object",
+  "required": ["page", "entity", "blocks"],
+  "additionalProperties": false,
+  "properties": {
+    "page": {
+      "type": "string",
+      "description": "The page template's source path, relative to site_v2/src/pages/ (e.g. \"[lang]/teams/[team].astro\")."
+    },
+    "entity": {
+      "type": "string",
+      "enum": ["team", "player", "fixture", "competition", "home"],
+      "description": "The entity type this template renders, per docs/content_architecture.md section 2."
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["block", "mart"],
+        "additionalProperties": false,
+        "properties": {
+          "block": {
+            "type": "string",
+            "description": "Block name, taken verbatim from the \"Block\" column of docs/content_architecture.md section 3 -- no new vocabulary."
+          },
+          "mart": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "minItems": 1, "items": { "type": "string" } }
+            ],
+            "description": "The backing dbt mart model name, e.g. \"mart_team_profile\" (or an array when one block is genuinely backed by more than one mart, e.g. content_architecture.md's \"Squad / roster\" row = mart_roster + mart_player_career). Every value must exist as a real file under dbt_project/models/5_marts/**."
+          },
+          "i18n_keys": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "A representative (not required to be exhaustive) sample of i18n keys this block uses, from site_v2/src/i18n/strings.ts. Every LISTED key must exist in the EN dict; the checker does not require every key a block's components use to be listed here."
+          }
+        }
+      }
+    }
+  }
+}

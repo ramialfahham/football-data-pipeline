@@ -1,28 +1,53 @@
-# Review — fix/827-sharpen-bi-analyst-reviewer — 2026-07-26
+# Review — feat/826-page-spec-contract — 2026-07-26
 
-diff_sha256: ce1fa93a7e31dc779e75ad7d753e504834b003644fc34a8e21e4fd88be6434bb
+diff_sha256: 2a2620dbfdf340c482892dcded8abd0a634fa8d3a3517bd177859c3d3a69e405
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Rendering-affected classification boundary when diffs touch both markup and non-rendering code: the contract's definition ("markup/CSS/component — not e.g. i18n-string-only edit") is explicit enough that reviewers can apply it consistently, and mixed-touch diffs are correctly classified by the rendering component present.
-- Evidence method flexibility under the identified broken screenshot tool constraint: the rule requires evidence from "whichever of {screenshot, accessibility tree, mobile layout} were obtainable" and mandates stating which was used; this directly addresses the environment's confirmed tooling gap and prevents blocking all site_v2 PRs.
-
-Note: round 1's scope-auditor spawn returned FAIL on two claims that did not hold up — (a) an
-assertion about "the actual current git branch" that its own toolset (Read/Grep/Glob, no Bash) has
-no way to observe, verified wrong against `git branch --show-current`; (b) a claim that
-`.claude/task/contract.md` must be listed in its own `scope_paths`, contradicted by
-`.claude/hooks/task_contract_gate.py` lines 383-394 (`CONTRACT_REL`/`TASK_DIR_REL` are handled as a
-separate case, exempt from the scope_paths check). Re-spawned cold with both corrections pointed at
-the actual hook source; round 2 verified both independently and passed.
+- Fixture spec block→mart mappings comply with documented relationships in content_architecture.md; the mislabeled "Single fixture" block is removed, `mart_team_momentum_window` correctly folded into "Form (recent)" per row 73 ("+ `_window` drill-down"); all marts referenced across both committed specs verified to exist under dbt_project/models/5_marts/**.
+- i18n key extraction regex handles packed multi-key lines and hyphenated key formats via the widened pattern `[A-Za-z0-9_-]+`, locked by dedicated regression tests, and guarded by a self-check floor that fails loudly if EN-dict extraction drops below 50 keys.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Fail-closed direction: verified the new "missing/absent evidence → FAIL" rule (agent lines 33-34 and 100-101) fails CLOSED, which is correct for a review gate; it introduces no fail-open bypass and does not invert any existing guard.
-- Guard integrity and self-review: verified via `.claude/review_routing.json` that `.claude/agents/**` routes only to cto-reviewer (line 64) and NOT to bi-analyst-reviewer (whose paths are lines 76-78), so the sharpened reviewer cannot review its own change; `protected_override` quotes CPO issue #827 as authority; frontmatter/tools/model pin untouched. Noted non-blocking caveat: the builder-side obligation to produce `rendered_page_evidence.md` is not wired into any builder-facing doc, which will cost one wasted review round per future `site_v2/src` rendering PR — recommend a follow-up one-line addition to working_agreement.md §2 rather than expanding this narrowly-scoped #827 change.
+- Cross-referenced every mart name in both committed specs against the real filesystem (all 11 exist) and confirmed the round-1 fabricated "Single fixture" block is genuinely gone from the diff; every listed i18n key exists in the real EN dict, none fabricated.
+- Verified the build-gate mechanism actually fires on both real build paths (read ci-site-v2.yml and deploy-site-v2.yml directly: both run `npm run build`, which triggers `prebuild`); verified the two round-1 findings are actually fixed (schema/checker relationship reworded accurately in contract + doc + file comment; check-page-specs.test.mjs exists with 14 real tests including a non-vacuous schema/checker cross-check); confirmed no guard-path touch, no new dependency, correct fail-closed polarity, and re-run/interruption safety by construction (pure read-only script).
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Round-1 fix verified directly against the diff: the fabricated "Single fixture" block is fully removed; `mart_team_momentum_window` is correctly folded into "Form (recent)" and traced to its real field (`form_window`) in `export_site_data.py`, matching content_architecture.md row 73.
+- Every mart and i18n key in both spec files traced to real, existing bindings (mart files on disk, i18n keys in the EN dict, several spot-checked against the actual component code that renders them); block names verified verbatim against content_architecture.md §3; confirmed the diff carries no rendering-affecting site_v2/src/** change, so rendered_page_evidence.md is correctly not required here.
 
 ## escalations
 (none)
+
+---
+
+### Round 1 (superseded — kept for the audit trail)
+
+Round 1 hash: `3a67b88455421deea371cbf7ad748c84567d82ab62c354533a599ccfbaa526d3`
+
+- **scope-auditor**: PASS (scope compliance, mart/i18n existence, no §10 violations; two non-blocking
+  fragility notes: the i18n-key regex charset and the Layout-import regex path-coupling).
+- **cto-reviewer**: FAIL — (1) objective/docs implied the checker validates against
+  `page-spec.schema.json` at runtime; it doesn't. (2) no automated regression test existed for the
+  checker itself.
+- **bi-analyst-reviewer**: FAIL — `fixture.spec.json`'s "Single fixture" block was mislabeled:
+  bound to `mart_team_momentum_window` (which is really "Form (recent)"'s drill-down mart per
+  content_architecture.md row 73), while the real "Single fixture" mart
+  (`mart_team_fixture_stats`/`mart_player_fixture_stats`) names a capability that isn't built on
+  this page.
+
+**Fixes applied between rounds**: reworded contract.md/content_architecture.md/the checker's own
+comment to state plainly the checker hand-rolls rules rather than loading the schema file; added
+`check-page-specs.test.mjs` (14 tests, Node's built-in `node --test`, zero new dependency) including
+a schema/checker cross-check test, wired into `prebuild` via a new `test` script; refactored the
+checker to export its functions and guard the `main()` invocation; widened the i18n-key regex to
+allow hyphens; added a "0 real pages found" abort guard; removed the fabricated "Single fixture"
+block from `fixture.spec.json` and folded its mart into "Form (recent)" where it belongs. Contract
+amended (clean-tree stash-dance) to widen `scope_paths` from the single checker filename to
+`site_v2/scripts/**` to cover the new test file — authority: cto-reviewer's own round-1 finding.

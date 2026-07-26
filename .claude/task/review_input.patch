@@ -1,203 +1,718 @@
-diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
-index 1001f56..314f1b0 100644
---- a/.claude/agents/bi-analyst-reviewer.md
-+++ b/.claude/agents/bi-analyst-reviewer.md
-@@ -23,6 +23,19 @@ the CTO.
-    `docs/wireframes/00_overview.md` (binding rule),
-    `docs/ui_design_brief.md` §6, `docs/roles/bi_analyst.md`,
-    working_agreement.md Appendix A.
-+4. `.claude/task/rendered_page_evidence.md` — REQUIRED whenever the diff touches
-+   `site_v2/src/**` with a rendering-affecting change (markup/CSS/component —
-+   not e.g. an i18n-string-only edit). The builder produces this before
-+   spawning you: what was checked, at which viewport widths, and what was
-+   actually observed, using whichever of {screenshot, accessibility tree,
-+   mobile layout} were obtainable in that environment (a screenshot tool being
-+   broken is not an excuse to skip the other two — it must SAY which it used
-+   and why, never silently claim one it didn't capture). **Its absence for a
-+   rendering-affecting `site_v2/src/**` diff is itself a finding — check for
-+   the file, don't assume the builder remembered it.** You read this the same
-+   way you already read `review_input.patch`: a real, auditable artifact — a
-+   code read alone cannot show you whether a breakpoint fires or an element
-+   overlaps at runtime.
- 
- ## Your hunt — every item, every time
- 
-@@ -51,6 +64,14 @@ the CTO.
-    - **A number rendered twice on one screen** is a display defect even when
-      every field is real (the 2026-07-21 player mock showed goals and assists
-      seven times).
-+   - **Rendering defects a code read alone cannot catch**: a breakpoint that
-+     doesn't actually fire, overlapping or clipped elements, a broken or
-+     missing interaction, an element styled as interactive that is actually
-+     inert (or vice versa). Judge this from `rendered_page_evidence.md`, not
-+     by re-deriving CSS cascade/specificity from the diff in your head — that
-+     is exactly how a real bug (a `>=1010px` search-icon button that never hid
-+     because the override's specificity lost to the base rule) passed review
-+     on PR #829 undetected.
- 2. **Locked metric contract**: display order, groups, tiers exactly as the
-    LOCKED tables; tier used to reorder → FAIL; player rows given tiers →
-    FAIL; MVP row order disturbed → FAIL.
-@@ -72,6 +93,13 @@ the CTO.
- PASS requires at least two real risks/edge cases checked, with evidence.
- Cannot find two → ESCALATE. Ambiguous → ESCALATE (§10 meta-rule).
- 
-+**When the diff has a rendering-affecting `site_v2/src/**` change in scope, at
-+least ONE of the two required risks must come from `rendered_page_evidence.md`**
-+— not both purely from reading source. A PASS built entirely from a code read
-+on a rendering change is not a real check of what #827 exists to catch; treat
-+it as not having found two real risks (→ ESCALATE, or FAIL if the evidence
-+file is simply missing).
-+
- ## Output format (exact; machine-parsed)
- 
- VERDICT: PASS
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a1fe33a..68ebc68 100644
+index 68ebc68..92a29fd 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,85 +1,78 @@
--# Task contract — frontend foundation shell (#825)
-+# Task contract — sharpen the built-page reviewer (#827)
+@@ -1,78 +1,99 @@
+-# Task contract — sharpen the built-page reviewer (#827)
++# Task contract — page-spec contract (#826)
  
--> Written on a CLEAN tree, branch `feat/site-v2-foundation-shell` off `main` (`f855f12`).
-+> Written on a CLEAN tree, branch `fix/827-sharpen-bi-analyst-reviewer` off `main` (`385fda8`).
+-> Written on a CLEAN tree, branch `fix/827-sharpen-bi-analyst-reviewer` off `main` (`385fda8`).
++> Written on a CLEAN tree, branch `feat/826-page-spec-contract` off `main` (`a05c342`).
  > See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (blinded escalation).
  
  objective: >
--  Build the v2 site's shared shell: Layout.astro gains a global header (logo, 6-item nav, search,
--  a working dark/light theme toggle, mobile hamburger+drawer) and a footer; system.css gains the
--  responsive layout system it never had (nav inline >=700px, two-column main+rail page grid
--  max ~1100px >=900px, full search field >=1010px). Turns the CPO-approved foundation mock
--  (artifact 87d14109, "looks good for now") into real code, composing only from the locked
--  system.css tokens. Writes the two missing specs (docs/wireframes/09_chrome.md + a layout-system
--  section in 00_overview.md). Issue #825.
-+  Upgrade `.claude/agents/bi-analyst-reviewer.md` per issue #827: default-FAIL and PASS-needs-
-+  two-verified-risks are already true today; the actual gap is that the reviewer judges the CODE
-+  diff and never sees the RENDERED page. This session's own foundation-shell PR (#829) proves the
-+  gap: bi-analyst-reviewer PASSED a diff that contained a real rendering bug (a CSS specificity
-+  bug meant the >=1010px search-icon button never actually hid), caught only by the builder
-+  actually building the site and checking computed styles — not by review. Adds a rendered-page-
-+  evidence requirement so the reviewer has real, auditable rendering evidence to judge, not just
-+  source code.
+-  Upgrade `.claude/agents/bi-analyst-reviewer.md` per issue #827: default-FAIL and PASS-needs-
+-  two-verified-risks are already true today; the actual gap is that the reviewer judges the CODE
+-  diff and never sees the RENDERED page. This session's own foundation-shell PR (#829) proves the
+-  gap: bi-analyst-reviewer PASSED a diff that contained a real rendering bug (a CSS specificity
+-  bug meant the >=1010px search-icon button never actually hid), caught only by the builder
+-  actually building the site and checking computed styles — not by review. Adds a rendered-page-
+-  evidence requirement so the reviewer has real, auditable rendering evidence to judge, not just
+-  source code.
++  Each site_v2 page template declares a spec (its blocks, the mart each block reads, its i18n
++  label keys) in a small JSON file, checked against a hand-written JSON Schema by a plain-Node
++  checker wired into `npm run build` via `prebuild` — so the build refuses to proceed if a real
++  page has no spec, or its spec names a mart or i18n key that does not actually exist. Issue #826,
++  Phase B of the foundation-first plan (after #825 shell, #827 reviewer).
  
  refs: >
--  .claude/active_work.md (2026-07-26 handover); docs/site_architecture.md §4 (nav is fixed:
--  "Competitions · Matches · Teams · Players · Standings · Stats"); docs/ui_design_brief.md §5/§7
--  (persistent search + nav, footer/legal component); mock artifacts 87d14109 (foundation, approved)
--  and 1c35e7aa (home content, reference only — not built here); memory feedback_design_off_the_cuff
--  (build approved designs, no invention) and feedback_doc_clutter_discipline (fold into the
--  authoritative doc).
-+  Issue #827 (CPO-authored, 2026-07-26): "Upgrade the bi-analyst-reviewer rubric for BUILT
-+  frontend pages: default verdict FAIL; a PASS requires naming at least two concrete verified
-+  risks; review the RENDERED page (screenshot / accessibility tree / mobile layout), not the
-+  code. Small guard-path change (.claude/agents/), independent of the foundation build, so it can
-+  be done early." CPO chat instruction this session, 2026-07-26: "NOW, Phase B ... #827 ... Do
-+  this one first." The concrete gap example: PR #829's `.search-m` specificity bug (fixed in that
-+  PR, but never caught by bi-analyst-reviewer's own pass on that diff).
+-  Issue #827 (CPO-authored, 2026-07-26): "Upgrade the bi-analyst-reviewer rubric for BUILT
+-  frontend pages: default verdict FAIL; a PASS requires naming at least two concrete verified
+-  risks; review the RENDERED page (screenshot / accessibility tree / mobile layout), not the
+-  code. Small guard-path change (.claude/agents/), independent of the foundation build, so it can
+-  be done early." CPO chat instruction this session, 2026-07-26: "NOW, Phase B ... #827 ... Do
+-  this one first." The concrete gap example: PR #829's `.search-m` specificity bug (fixed in that
+-  PR, but never caught by bi-analyst-reviewer's own pass on that diff).
++  Issue #826 (CPO-authored, 2026-07-26): "Each page declares a spec (its blocks, the mart each
++  block reads, its i18n label keys), validated by a schema so CI refuses to build an
++  underspecified page. Sits on top of docs/content_architecture.md (the existing block-to-mart
++  map) and the metric display contract." active_work.md's own scoping: "add ONLY a schema-
++  validated page-spec contract... right-sized, NO autonomy" (adapted from the backtobayesics
++  study, which itself oversold — 2 of ~50 pages actually built there). Design pressure-tested via
++  a Plan sub-agent this session, then independently verified: `.github/workflows/**` is a
++  hook-protected path (`.claude/hooks/task_contract_gate.py` line 66) and `site_v2/` is
++  structural surface (line 88); `zod`/`zod-to-json-schema` exist in `site_v2/node_modules/` only
++  as `astro`'s own transitive dependency (`package-lock.json` lines 1817-1819), not declared in
++  `site_v2/package.json` — confirmed by reading both files directly.
  
  scope_paths:
--  - site_v2/src/layouts/Layout.astro
--  - site_v2/src/components/chrome/**
--  - site_v2/src/styles/system.css
--  - site_v2/src/i18n/strings.ts
--  - docs/wireframes/09_chrome.md
--  - docs/wireframes/00_overview.md
--  - .claude/active_work.md
-+  - .claude/agents/bi-analyst-reviewer.md
-+
-+protected_override: >
-+  `.claude/agents/` is protected (working_agreement.md §2). Authority: CPO-authored issue #827
-+  (quoted above, "Upgrade the bi-analyst-reviewer rubric...") plus this session's explicit chat
-+  instruction to do #827 first, both 2026-07-26.
+-  - .claude/agents/bi-analyst-reviewer.md
+-
+-protected_override: >
+-  `.claude/agents/` is protected (working_agreement.md §2). Authority: CPO-authored issue #827
+-  (quoted above, "Upgrade the bi-analyst-reviewer rubric...") plus this session's explicit chat
+-  instruction to do #827 first, both 2026-07-26.
++  - site_v2/src/specs/**
++  - site_v2/scripts/**
++  - site_v2/package.json
++  - docs/content_architecture.md
  
  impact_map: >
--  Leaf/cosmetic short-form (site_v2/** is structural surface by path, but carries no dbt/warehouse
--  read or write): this PR touches only Astro components, one CSS file, one i18n dict, and two
--  wireframe docs under site_v2/src and docs/wireframes. No dbt model, mart, seed, or BigQuery
--  table is read or written; no export script changes. Blast radius: every page that imports
--  Layout.astro (today: site_v2/src/pages/[lang]/teams/[team].astro and
--  .../[competition]/matches/[fixture].astro) visually gains a header and footer — their own
--  template files are not edited, and their existing data bindings/content are unchanged. The
--  per-locale index.astro placeholder stub does NOT import Layout today and is untouched. CI
--  surface: .github/workflows/ci-site-v2.yml (Astro build, path-filtered to site_v2/**) is the
--  applicable gate; ci-ui.yml only path-filters the legacy site/ MVP and does not apply.
-+  Protected-path form (trace dependents, not table lineage — no dbt/warehouse surface here).
-+  Fires: bi-analyst-reviewer is spawned cold in step 2 (Blinding) of the review cycle whenever a
-+  staged diff matches its routed paths in `.claude/review_routing.json`
-+  (`docs/wireframes/**`, `site/i18n/**`, `site_v2/src/**` — unchanged by this PR, routing itself
-+  is not touched). Depends on it: the commit gate (`git_discipline.py`) requires its verdict
-+  section in `review.md` for any diff touching those paths; no verdict or a FAIL denies the
-+  commit. What stops being enforced if wrong: if the sharpened rubric is too weak, rendering
-+  defects in built frontend pages keep passing review undetected — the exact gap #829 exposed. If
-+  too strict (e.g. treating a missing screenshot as automatic FAIL): could block every future
-+  site_v2 PR in this environment, where the Browser pane's screenshot tool is confirmed broken
-+  (verified this session) — mitigated by requiring the evidence file to STATE which of
-+  {screenshot, accessibility tree, mobile layout} were captured, not mandate one specific method.
-+  Failure mode: malformed reviewer output still fails the commit gate closed (deny) — existing,
-+  correct behavior for a review gate, unchanged by this PR.
+-  Protected-path form (trace dependents, not table lineage — no dbt/warehouse surface here).
+-  Fires: bi-analyst-reviewer is spawned cold in step 2 (Blinding) of the review cycle whenever a
+-  staged diff matches its routed paths in `.claude/review_routing.json`
+-  (`docs/wireframes/**`, `site/i18n/**`, `site_v2/src/**` — unchanged by this PR, routing itself
+-  is not touched). Depends on it: the commit gate (`git_discipline.py`) requires its verdict
+-  section in `review.md` for any diff touching those paths; no verdict or a FAIL denies the
+-  commit. What stops being enforced if wrong: if the sharpened rubric is too weak, rendering
+-  defects in built frontend pages keep passing review undetected — the exact gap #829 exposed. If
+-  too strict (e.g. treating a missing screenshot as automatic FAIL): could block every future
+-  site_v2 PR in this environment, where the Browser pane's screenshot tool is confirmed broken
+-  (verified this session) — mitigated by requiring the evidence file to STATE which of
+-  {screenshot, accessibility tree, mobile layout} were captured, not mandate one specific method.
+-  Failure mode: malformed reviewer output still fails the commit gate closed (deny) — existing,
+-  correct behavior for a review gate, unchanged by this PR.
++  Leaf/cosmetic short-form (site_v2/ is structural surface by path prefix, but this diff carries
++  no dbt/warehouse read or write, no export-script change, no shipped-page-component change): adds
++  two new leaf JSON spec files, one JSON Schema doc, one plain-Node checker script + its test
++  suite (reads `dbt_project/models/5_marts/**/mart_*.sql` filenames for existence only — never
++  parses or queries them), and a one-line `package.json` `prebuild` addition, plus a short doc-sync
++  paragraph in `docs/content_architecture.md`. Blast radius: `npm run build` (both `ci-site-v2.yml`
++  and the real `deploy-site-v2.yml`, since both invoke exactly `npm run build`, which auto-runs
++  `prebuild`) gains a pre-build gate. A page whose spec is present and correct is completely
++  unaffected — the two pages that exist today (team, fixture) get specs written in this same PR,
++  verified green. A future page added WITHOUT a spec fails the build with a named error — the
++  intended behavior, not a regression. No `.github/workflows/**` edit (protected, and unnecessary
++  — `prebuild` covers both real build paths already).
  
  decisions_taken: >
--  Foundation-first + lean process (CPO 2026-07-26, active_work.md). Foundation mock 87d14109
--  approved "looks good for now". Approved this session (active_work.md): widen the shell chrome
--  to two-column ~1100px; dark default + a light toggle; the nav list
--  (Competitions/Matches/Teams/Players/Standings/Stats) as the specified start; the three
--  breakpoints (700/900/1010px). Plan-mode approved 2026-07-26: nav/footer items with no built
--  target render inert (span, not <a>) — same convention already shipped on the fixture page
--  breadcrumb and the team page's Explore chips (both hrefless-by-comment for unbuilt targets);
--  team/fixture pages are not restructured into the two-column grid (no file edits to either page);
--  theme choice persists via localStorage so the toggle survives static-page navigation; search is
--  visually present but inert; the layout-system doc section folds into 00_overview.md.
-+  Scope is exactly issue #827's own stated scope: a small guard-path change to
-+  `.claude/agents/bi-analyst-reviewer.md` only. No new tool grant to the reviewer (stays
-+  Read/Grep/Glob, read-only, consistent with every other reviewer) — the rendering evidence is a
-+  file the reviewer reads via its EXISTING Read tool, the same way it already reads
-+  `review_input.patch`/`contract.md`. No change to `.claude/review_routing.json` (also protected,
-+  out of this issue's scope) and no change to any other agent definition. Confirmed (checked, not
-+  assumed) that `docs/agent_guardrails.md` and `docs/roles/bi_analyst.md` need no matching edit —
-+  neither describes the review METHOD in a way this change contradicts.
+-  Scope is exactly issue #827's own stated scope: a small guard-path change to
+-  `.claude/agents/bi-analyst-reviewer.md` only. No new tool grant to the reviewer (stays
+-  Read/Grep/Glob, read-only, consistent with every other reviewer) — the rendering evidence is a
+-  file the reviewer reads via its EXISTING Read tool, the same way it already reads
+-  `review_input.patch`/`contract.md`. No change to `.claude/review_routing.json` (also protected,
+-  out of this issue's scope) and no change to any other agent definition. Confirmed (checked, not
+-  assumed) that `docs/agent_guardrails.md` and `docs/roles/bi_analyst.md` need no matching edit —
+-  neither describes the review METHOD in a way this change contradicts.
++  Specs live under `site_v2/src/specs/` (not top-level `site_v2/specs/` or inside `src/pages/`) —
++  `.claude/review_routing.json`'s own comment anticipates this ("bi-analyst-reviewer routes to ALL
++  of site_v2/src/**... as well as the specs", CPO ruling 2026-07-22); Astro treats non-page files
++  under `src/pages/` as endpoint candidates, so co-locating there would break the build (verified
++  against `site_v2/node_modules/astro/dist/core/build/*.js`). Validation is hand-rolled plain
++  Node/ESM, not a schema-validator library (`ajv`/`zod`) — the two checks that matter (mart file
++  existence, i18n key existence) are cross-repo-reference checks no library performs anyway; the
++  part a library would help with (shape/type checking) is four lines by hand; importing the
++  `zod` already resolvable via `astro`'s own node_modules would be an undeclared phantom
++  dependency, not a real saving. The i18n check is deliberately loose (a *listed* key must exist;
++  a page need not exhaustively list every key its components use) — the exhaustive-completeness
++  question is #827's job (rendered-page review), not CI's; CI is the cheap always-on mechanical
++  floor against fabricated/renamed/removed keys. Block names are taken verbatim from
++  `docs/content_architecture.md` §3's existing "Block" column — no new vocabulary introduced.
++  The checker does not load/parse `page-spec.schema.json` at runtime (round-1 cto-reviewer finding
++  — the objective's wording previously implied it did); the schema file is authoritative
++  documentation + editor autocomplete, kept from silently diverging from the hand-rolled checker
++  by an automated cross-check test (`check-page-specs.test.mjs`), not by loading it in the hot
++  path. Round-1 bi-analyst-reviewer finding fixed: `fixture.spec.json`'s "Single fixture" block
++  was mislabeled — `mart_team_momentum_window` is the "Form (recent)" drill-down mart per
++  `content_architecture.md` row 73 ("+ `_window` drill-down"), not a real "Single fixture"
++  (`mart_team_fixture_stats`/`mart_player_fixture_stats`) capability, which
++  `RecentMatch.astro`'s own comment confirms is not built on this page ("the matchstats drill-down
++  page isn't built"); the fabricated block is removed, its mart folded into "Form (recent)" where
++  the doc actually locks it.
  
  decisions_reserved:
--  - Exact nav contents/order — the listed order is the specified start; refine only on CPO word.
--  - Search style/mechanism — a real input, autocomplete, and any backend are undecided; this PR
--    ships the mock's inert placeholder only.
--  - What fills the desktop RAIL per page type (home = standings/trending/scorers per the
--    home-content mock 1c35e7aa) — the .shell/.page-grid/.rail primitive is built generically in
--    system.css but wired into zero pages this task.
--  - Footer/legal content — the Imprint slot stays pending (blocked on the operator/address
--    question, #799); not resolved here.
--  - Default-theme policy (dark-fixed vs follow-OS) — this PR ships hard-coded dark as the
--    no-preference default, per the approved default; whether the site should ever read
--    prefers-color-scheme instead is not decided.
--  - The fixture/team wireframes' (01/02) own desktop spec calling for those pages to widen to
--    ~1100px is a real, currently open gap. Retrofitting an already-shipped, CPO-approved 680px
--    page's width is a separate design decision, not made in this task — recorded as an open note
--    in the new layout-system section, not closed.
-+  - None for this narrow change. The rendered-page-evidence FORMAT (exact structure of
-+    `.claude/task/rendered_page_evidence.md`) is specified loosely by design (state what was
-+    captured and why) rather than machine-schema'd — if a future PR finds that too loose, that is
-+    a CPO call, not decided here.
+-  - None for this narrow change. The rendered-page-evidence FORMAT (exact structure of
+-    `.claude/task/rendered_page_evidence.md`) is specified loosely by design (state what was
+-    captured and why) rather than machine-schema'd — if a future PR finds that too loose, that is
+-    a CPO call, not decided here.
++  - None new. This is mechanical scaffolding matching #826's own stated scope.
  
  done_when:
--  - cd site_v2 && npm ci && npm run build succeeds; dist/index.html and dist/{de,en,fi}/index.html
--    exist (mirrors ci-site-v2.yml).
--  - Team page and fixture page render with the new header/footer, at phone/tablet/desktop widths,
--    with the three breakpoints (700/900/1010px) firing correctly.
--  - Theme toggle flips data-theme and the choice survives navigating between the fixture and team
--    pages (localStorage persistence).
--  - docs/wireframes/09_chrome.md written per the 00_overview.md template; 00_overview.md's screen
--    inventory row 09 flips from pending to spec'd; component census updated.
--  - ONE commit; review.md with scope-auditor + cto-reviewer + bi-analyst-reviewer verdicts, hash
--    matching the staged diff; pushed with an explicit refspec; PR opened. CPO merges.
-+  - `.claude/agents/bi-analyst-reviewer.md` YAML frontmatter still parses; structure matches the
-+    other five reviewer definitions.
-+  - Diff read back: default-FAIL wording intact, PASS-needs-two-risks intact, new
-+    rendered-page-evidence Inputs entry present and specific, hunt item added, PASS rule
-+    tightened (>=1 of the two risks must come from evidence when a site_v2/src/** rendering
-+    change is in scope).
-+  - Review cycle: scope-auditor (always) + cto-reviewer, model overridden to opus (this diff
-+    touches `.claude/agents/**` — the guard-path rule, working_agreement.md §2). bi-analyst-
-+    reviewer is NOT self-routed (this diff touches none of its own routed paths).
-+  - ONE commit; review.md hash-locked; pushed with an explicit refspec; PR opened referencing
-+    #827. CPO merges; I close #827 myself once merged confirmed via `gh`.
+-  - `.claude/agents/bi-analyst-reviewer.md` YAML frontmatter still parses; structure matches the
+-    other five reviewer definitions.
+-  - Diff read back: default-FAIL wording intact, PASS-needs-two-risks intact, new
+-    rendered-page-evidence Inputs entry present and specific, hunt item added, PASS rule
+-    tightened (>=1 of the two risks must come from evidence when a site_v2/src/** rendering
+-    change is in scope).
+-  - Review cycle: scope-auditor (always) + cto-reviewer, model overridden to opus (this diff
+-    touches `.claude/agents/**` — the guard-path rule, working_agreement.md §2). bi-analyst-
+-    reviewer is NOT self-routed (this diff touches none of its own routed paths).
++  - `cd site_v2 && npm run build` succeeds with both real specs (team, fixture) present and
++    correct; `dist/index.html` + `dist/{de,en,fi}/index.html` exist.
++  - `node --test scripts` (wired into `prebuild`) passes: unit coverage on `specPathFor`,
++    `extractKeysFromEnBlock` (including the packed-multi-key-per-line regression), `validateSpec`
++    (good spec, missing field, bad entity, bad mart, bad i18n key, multi-violation aggregation),
++    and the schema/checker cross-check.
++  - Deliberately broken in turn and confirmed to fail with a specific, correctly-attributed error,
++    then restored to green: (a) a missing spec file, (b) a spec naming a nonexistent mart, (c) a
++    spec naming a nonexistent i18n key. Multiple simultaneous violations are all reported in one
++    run, not just the first.
++  - The placeholder `site_v2/src/pages/[lang]/index.astro` is confirmed NOT required to have a
++    spec (it does not import Layout.astro).
++  - Review cycle: scope-auditor (always) + cto-reviewer (`site_v2/**`) + bi-analyst-reviewer
++    (`site_v2/src/**`, its own routed territory per the 2026-07-22 ruling).
+   - ONE commit; review.md hash-locked; pushed with an explicit refspec; PR opened referencing
+-    #827. CPO merges; I close #827 myself once merged confirmed via `gh`.
++    #826. CPO merges; I close #826 myself once merged confirmed via `gh`.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-07-26 (clean-tree stash-dance, mid round-1 review response): scope_paths widened from the
++    literal `site_v2/scripts/check-page-specs.mjs` to `site_v2/scripts/**` — authority: cto-
++    reviewer's own round-1 finding requiring a persisted automated test
++    (`check-page-specs.test.mjs`) for the checker, which the literal single-file scope_paths did
++    not cover.
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index 0b86214..c02f192 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -95,6 +95,18 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
+ A block works for any competition and either subject because it's just a mart sliced by
+ `league_code` / entity — so the same block appears on many tabs/pages, defined once.
+ 
++**Machine-enforced since #826**: the block↔mart facts in the table above are additionally checked,
++not just documented. Each page template declares a spec (`site_v2/src/specs/**/*.spec.json`) naming
++its blocks, each block's backing mart, and a sample of its i18n keys. `page-spec.schema.json` is the
++authoritative, hand-written documentation of the spec shape (with editor autocomplete via each
++spec's `$schema` field); `site_v2/scripts/check-page-specs.mjs` enforces the equivalent rules by
++hand (it does not load the schema file at runtime — a test cross-checks the two so they can't
++silently diverge) and runs as `prebuild` (both `ci-site-v2.yml` and the real `deploy-site-v2.yml`
++invoke `npm run build`, which auto-runs it), failing the build if a real page (one importing
++`Layout.astro`) has no spec, or its spec names a mart
++or i18n key that does not actually exist. This is a narrower, machine-checkable subset of what the
++full wireframe specs in `docs/wireframes/` already describe in prose — not a replacement for them.
++
+ ---
+ 
+ ## 4. Pages = tabbed compositions
+diff --git a/site_v2/package.json b/site_v2/package.json
+index 3cb903d..16372a1 100644
+--- a/site_v2/package.json
++++ b/site_v2/package.json
+@@ -6,6 +6,8 @@
+     "node": ">=22"
+   },
+   "scripts": {
++    "test": "node --test",
++    "prebuild": "npm test && node scripts/check-page-specs.mjs",
+     "dev": "astro dev",
+     "build": "astro build",
+     "preview": "astro preview"
+diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
+new file mode 100644
+index 0000000..76b274e
+--- /dev/null
++++ b/site_v2/scripts/check-page-specs.mjs
+@@ -0,0 +1,225 @@
++#!/usr/bin/env node
++// Page-spec contract checker (#826). Runs as `prebuild` (site_v2/package.json), so both real build
++// paths (ci-site-v2.yml and deploy-site-v2.yml -- both invoke exactly `npm run build`) refuse to
++// proceed if a real page has no spec, or its spec names a mart or i18n key that does not exist.
++//
++// Pure and stateless: reads site_v2/src/pages/**, site_v2/src/specs/**,
++// dbt_project/models/5_marts/** (filenames only) and site_v2/src/i18n/strings.ts (text-scanned for
++// the EN dict). Writes nothing, holds no lock, produces no artifact -- reruns and interruption are
++// no-ops by construction.
++//
++// site_v2/src/specs/page-spec.schema.json is the authoritative, hand-written documentation of the
++// spec shape (with editor autocomplete via each spec's "$schema" field) -- this checker does NOT
++// load or interpret that file at runtime; it enforces the same rules by hand (the two real checks
++// that matter, mart/i18n existence, are cross-repo-reference lookups no schema library performs
++// anyway). check-page-specs.test.mjs cross-checks the schema file's required/enum fields against
++// this file's hardcoded equivalents, so the two can't silently drift apart unnoticed.
++
++import { readFileSync, readdirSync, statSync } from "node:fs";
++import { join, relative, sep } from "node:path";
++import { fileURLToPath, pathToFileURL } from "node:url";
++
++export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
++export const REPO_ROOT = join(SITE_ROOT, "..");
++export const PAGES_DIR = join(SITE_ROOT, "src", "pages");
++export const SPECS_DIR = join(SITE_ROOT, "src", "specs");
++export const MARTS_DIR = join(REPO_ROOT, "dbt_project", "models", "5_marts");
++export const STRINGS_FILE = join(SITE_ROOT, "src", "i18n", "strings.ts");
++export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.json");
++
++const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
++export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "home"]);
++
++/** Recursively list files under `dir` whose path passes `matches`. */
++function walk(dir, matches, out = []) {
++  for (const name of readdirSync(dir)) {
++    const full = join(dir, name);
++    const stat = statSync(full);
++    if (stat.isDirectory()) {
++      walk(full, matches, out);
++    } else if (matches(name)) {
++      out.push(full);
++    }
++  }
++  return out;
++}
++
++function toPosix(p) {
++  return p.split(sep).join("/");
++}
++
++export function rel(p) {
++  return toPosix(relative(REPO_ROOT, p));
++}
++
++/** Mirror a page's path under src/specs: drop a leading "[lang]/" segment, strip [ ]
++ * brackets from every remaining segment, swap .astro -> .spec.json. */
++export function specPathFor(pageRelPosix) {
++  let segments = pageRelPosix.split("/");
++  if (segments[0] === "[lang]") segments = segments.slice(1);
++  segments = segments.map((s) => s.replace(/[[\]]/g, ""));
++  const last = segments.pop().replace(/\.astro$/, ".spec.json");
++  segments.push(last);
++  return join(SPECS_DIR, ...segments);
++}
++
++export function findRealPages() {
++  const astroFiles = walk(PAGES_DIR, (name) => name.endsWith(".astro"));
++  const real = [];
++  for (const file of astroFiles) {
++    const src = readFileSync(file, "utf8");
++    if (LAYOUT_IMPORT_RE.test(src)) real.push(file);
++  }
++  return real;
++}
++
++export function collectMartNames() {
++  const files = walk(MARTS_DIR, (name) => name.startsWith("mart_") && name.endsWith(".sql"));
++  return new Set(files.map((f) => f.slice(f.lastIndexOf(sep) + 1).replace(/\.sql$/, "")));
++}
++
++/** Pure extraction, unit-testable without touching a real file: every key`: "` occurrence in a
++ * flat (no nested objects) dict block. Several real keys are packed onto one line, comma-separated
++ * (e.g. `squadGk: "Goalkeepers", squadDef: "Defenders",`) -- this must match every occurrence in
++ * the block, not just the first token per line, or the tail keys on a packed line are missed
++ * (a real bug caught while building this checker, not a hypothetical). Key names allow hyphens
++ * too (`[A-Za-z0-9_-]+`), even though no key uses one today -- narrower would silently mis-parse
++ * the day one does. */
++export function extractKeysFromEnBlock(blockText) {
++  const keys = new Set();
++  for (const m of blockText.matchAll(/([A-Za-z0-9_-]+):\s*"/g)) keys.add(m[1]);
++  return keys;
++}
++
++/** Text-scan strings.ts for the flat EN dict's keys -- it has no nested objects, so extracting the
++ * `const EN: Dict = {...};` block's text and running extractKeysFromEnBlock over it is robust
++ * without a real TS parser. */
++export function collectEnI18nKeys() {
++  const src = readFileSync(STRINGS_FILE, "utf8");
++  const m = src.match(/\nconst EN: Dict = \{([\s\S]*?)\n\};/);
++  if (!m) {
++    return { keys: null, error: `could not locate "const EN: Dict = {...};" block in ${rel(STRINGS_FILE)}` };
++  }
++  const keys = extractKeysFromEnBlock(m[1]);
++  // Self-check: a future reformat of strings.ts must not be able to silently zero out this
++  // extraction and make every i18n_keys entry look "missing" instead of the real problem.
++  const MIN_EXPECTED_KEYS = 50;
++  if (keys.size < MIN_EXPECTED_KEYS) {
++    return {
++      keys: null,
++      error: `extracted only ${keys.size} EN keys from ${rel(STRINGS_FILE)} (expected >= ${MIN_EXPECTED_KEYS}) -- the EN-block extraction regex likely broke on a strings.ts reformat, not that the file actually shrank`,
++    };
++  }
++  return { keys, error: null };
++}
++
++export function readSpec(path, issues) {
++  let raw;
++  try {
++    raw = readFileSync(path, "utf8");
++  } catch {
++    return null; // caller reports "missing spec"
++  }
++  let spec;
++  try {
++    spec = JSON.parse(raw);
++  } catch (e) {
++    issues.push(`${rel(path)}: not valid JSON (${e.message})`);
++    return null;
++  }
++  return spec;
++}
++
++/** Shape rules here are the hand-rolled equivalent of site_v2/src/specs/page-spec.schema.json --
++ * see check-page-specs.test.mjs for the cross-check that keeps them from silently diverging. */
++export function validateSpec(where, spec, martNames, i18nKeys, issues) {
++  if (typeof spec.page !== "string" || !spec.page) {
++    issues.push(`${where}: missing required string field "page"`);
++  }
++  if (!ENTITY_VALUES.has(spec.entity)) {
++    issues.push(`${where}: "entity" must be one of ${[...ENTITY_VALUES].join(", ")}, got ${JSON.stringify(spec.entity)}`);
++  }
++  if (!Array.isArray(spec.blocks) || spec.blocks.length === 0) {
++    issues.push(`${where}: "blocks" must be a non-empty array`);
++    return;
++  }
++  spec.blocks.forEach((b, i) => {
++    const label = b && typeof b.block === "string" ? b.block : `#${i}`;
++    if (!b || typeof b.block !== "string" || !b.block) {
++      issues.push(`${where}: blocks[${i}]: missing required string field "block"`);
++    }
++    const marts = Array.isArray(b?.mart) ? b.mart : b?.mart != null ? [b.mart] : [];
++    if (marts.length === 0) {
++      issues.push(`${where}: blocks[${i}] (${label}): missing required field "mart" (string or array of strings)`);
++    }
++    for (const mart of marts) {
++      if (typeof mart !== "string" || !martNames.has(mart)) {
++        issues.push(`${where}: blocks[${i}] (${label}): mart "${mart}" is not a real file under dbt_project/models/5_marts/**`);
++      }
++    }
++    if (b?.i18n_keys !== undefined) {
++      if (!Array.isArray(b.i18n_keys)) {
++        issues.push(`${where}: blocks[${i}] (${label}): "i18n_keys" must be an array of strings`);
++      } else {
++        for (const key of b.i18n_keys) {
++          if (typeof key !== "string" || !i18nKeys.has(key)) {
++            issues.push(`${where}: blocks[${i}] (${label}): i18n key "${key}" does not exist in the EN dict (site_v2/src/i18n/strings.ts)`);
++          }
++        }
++      }
++    }
++  });
++}
++
++export function main() {
++  const issues = [];
++
++  const { keys: i18nKeys, error: i18nError } = collectEnI18nKeys();
++  if (i18nError) {
++    console.error(`check-page-specs: ${i18nError}`);
++    process.exit(1);
++  }
++  const martNames = collectMartNames();
++
++  const realPages = findRealPages();
++  if (realPages.length === 0) {
++    // Almost certainly the Layout-import detection regex broke (e.g. Layout.astro moved), not
++    // that every real page was actually removed -- fail loudly rather than silently "pass" on
++    // zero pages checked (scope-auditor flagged this exact silent-regression shape).
++    console.error(
++      `check-page-specs: found 0 pages importing layouts/Layout.astro under ${rel(PAGES_DIR)}/** -- ` +
++        "this almost certainly means the Layout-import detection broke, not that every real page " +
++        "was removed. Aborting rather than silently validating nothing.",
++    );
++    process.exit(1);
++  }
++
++  for (const pageFile of realPages) {
++    const pageRelPosix = toPosix(relative(PAGES_DIR, pageFile));
++    const specPath = specPathFor(pageRelPosix);
++    const spec = readSpec(specPath, issues);
++    if (spec === null) {
++      if (!issues.some((i) => i.startsWith(rel(specPath)))) {
++        issues.push(`no spec found for page "${pageRelPosix}" -- expected ${rel(specPath)}`);
++      }
++      continue;
++    }
++    validateSpec(rel(specPath), spec, martNames, i18nKeys, issues);
++  }
++
++  if (issues.length > 0) {
++    console.error(`check-page-specs: ${issues.length} page-spec violation(s):\n`);
++    for (const issue of issues) console.error(`  - ${issue}`);
++    console.error("\nSee docs/content_architecture.md and site_v2/src/specs/page-spec.schema.json.");
++    process.exit(1);
++  }
++
++  console.log(`check-page-specs: ${realPages.length} page(s) validated against their specs. OK.`);
++}
++
++// Only run when executed directly (`node check-page-specs.mjs` / npm's prebuild) -- not when
++// imported by check-page-specs.test.mjs. pathToFileURL normalizes Windows/POSIX argv[1] paths to
++// the same file:// form as import.meta.url for a reliable comparison on both platforms.
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
++  main();
++}
+diff --git a/site_v2/scripts/check-page-specs.test.mjs b/site_v2/scripts/check-page-specs.test.mjs
+new file mode 100644
+index 0000000..6fa1b58
+--- /dev/null
++++ b/site_v2/scripts/check-page-specs.test.mjs
+@@ -0,0 +1,152 @@
++// Regression coverage for check-page-specs.mjs (#826 review finding: a CI gate whose own logic
++// has zero test coverage can silently lose a check -- e.g. someone "simplifying" validateSpec --
++// with nothing left to catch the regression this gate exists to prevent). Node's built-in test
++// runner: zero new dependency, `node --test` (wired into `prebuild`, see package.json).
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import {
++  specPathFor,
++  extractKeysFromEnBlock,
++  validateSpec,
++  collectEnI18nKeys,
++  collectMartNames,
++  ENTITY_VALUES,
++  SCHEMA_FILE,
++} from "./check-page-specs.mjs";
++
++test("specPathFor mirrors the real page paths this repo has today", () => {
++  assert.match(specPathFor("[lang]/teams/[team].astro").replace(/\\/g, "/"), /specs\/teams\/team\.spec\.json$/);
++  assert.match(
++    specPathFor("[lang]/[competition]/matches/[fixture].astro").replace(/\\/g, "/"),
++    /specs\/competition\/matches\/fixture\.spec\.json$/,
++  );
++});
++
++test("specPathFor only strips a LEADING [lang] segment; deeper brackets still stripped, extension still swapped", () => {
++  assert.match(specPathFor("[competition]/index.astro").replace(/\\/g, "/"), /specs\/competition\/index\.spec\.json$/);
++});
++
++test("extractKeysFromEnBlock catches every key on a packed, comma-separated line", () => {
++  // Regression lock for the real bug caught while building this checker: several EN keys are
++  // packed onto one line (e.g. `squadGk: "Goalkeepers", squadDef: "Defenders",`), and a
++  // line-anchored regex only caught the first.
++  const fake = '  squadGk: "Goalkeepers", squadDef: "Defenders", squadMid: "Midfielders",\n  seasonToDate: "season to date",\n';
++  const keys = extractKeysFromEnBlock(fake);
++  assert.deepEqual([...keys].sort(), ["seasonToDate", "squadDef", "squadGk", "squadMid"]);
++});
++
++test("extractKeysFromEnBlock allows hyphenated key names", () => {
++  const keys = extractKeysFromEnBlock('  some-key: "value",\n');
++  assert.ok(keys.has("some-key"));
++});
++
++test("validateSpec: a well-formed spec produces no issues", () => {
++  const issues = [];
++  validateSpec(
++    "fake.spec.json",
++    { page: "x.astro", entity: "team", blocks: [{ block: "Team header", mart: "mart_team_profile", i18n_keys: ["founded"] }] },
++    new Set(["mart_team_profile"]),
++    new Set(["founded"]),
++    issues,
++  );
++  assert.deepEqual(issues, []);
++});
++
++test("validateSpec: a block mart array with multiple marts validates each one", () => {
++  const issues = [];
++  validateSpec(
++    "fake.spec.json",
++    { page: "x.astro", entity: "team", blocks: [{ block: "Squad / roster", mart: ["mart_roster", "mart_player_career"] }] },
++    new Set(["mart_roster", "mart_player_career"]),
++    new Set(),
++    issues,
++  );
++  assert.deepEqual(issues, []);
++});
++
++test("validateSpec: flags a missing required field", () => {
++  const issues = [];
++  validateSpec("fake.spec.json", { entity: "team", blocks: [{ block: "x", mart: "mart_x" }] }, new Set(["mart_x"]), new Set(), issues);
++  assert.ok(issues.some((i) => i.includes('missing required string field "page"')));
++});
++
++test("validateSpec: flags an entity outside the enum", () => {
++  const issues = [];
++  validateSpec(
++    "fake.spec.json",
++    { page: "x.astro", entity: "nonsense", blocks: [{ block: "x", mart: "mart_x" }] },
++    new Set(["mart_x"]),
++    new Set(),
++    issues,
++  );
++  assert.ok(issues.some((i) => i.includes('"entity" must be one of')));
++});
++
++test("validateSpec: flags a mart that is not a real file, naming the block and the bad value", () => {
++  const issues = [];
++  validateSpec(
++    "fake.spec.json",
++    { page: "x.astro", entity: "team", blocks: [{ block: "Upcoming / Results", mart: "mart_team_fixturezz" }] },
++    new Set(["mart_team_fixtures"]),
++    new Set(),
++    issues,
++  );
++  assert.ok(issues.some((i) => i.includes("Upcoming / Results") && i.includes('mart "mart_team_fixturezz"')));
++});
++
++test("validateSpec: flags an i18n key that is not in the EN dict, naming the block and the bad key", () => {
++  const issues = [];
++  validateSpec(
++    "fake.spec.json",
++    { page: "x.astro", entity: "team", blocks: [{ block: "Vs-benchmark", mart: "mart_x", i18n_keys: ["median", "mediant"] }] },
++    new Set(["mart_x"]),
++    new Set(["median"]),
++    issues,
++  );
++  assert.ok(issues.some((i) => i.includes("Vs-benchmark") && i.includes('i18n key "mediant"')));
++  assert.ok(!issues.some((i) => i.includes('"median"')));
++});
++
++test("validateSpec: reports every violation in one pass, not just the first", () => {
++  const issues = [];
++  validateSpec(
++    "fake.spec.json",
++    {
++      page: "x.astro",
++      entity: "team",
++      blocks: [
++        { block: "A", mart: "mart_missing_1" },
++        { block: "B", mart: "mart_x", i18n_keys: ["missingKey"] },
++      ],
++    },
++    new Set(["mart_x"]),
++    new Set(),
++    issues,
++  );
++  assert.equal(issues.length, 2);
++});
++
++test("real EN dict extraction stays above the self-check floor (guards against a silent strings.ts reformat)", () => {
++  const { keys, error } = collectEnI18nKeys();
++  assert.equal(error, null);
++  assert.ok(keys.size >= 50);
++});
++
++test("real mart directory has at least the marts both committed specs reference", () => {
++  const marts = collectMartNames();
++  for (const name of ["mart_team_profile", "mart_team_fixtures", "mart_roster", "mart_head_to_head"]) {
++    assert.ok(marts.has(name), `expected ${name} to exist under dbt_project/models/5_marts/**`);
++  }
++});
++
++test("page-spec.schema.json's required/enum fields match this checker's hardcoded equivalents", () => {
++  // The runtime checker does not load this schema file (see its own top comment for why) -- this
++  // is the automated cross-check that keeps the hand-written schema doc and the hand-rolled
++  // checker from silently diverging (2026-07-26 review finding).
++  const schema = JSON.parse(readFileSync(SCHEMA_FILE, "utf8"));
++  assert.deepEqual(schema.required, ["page", "entity", "blocks"]);
++  assert.deepEqual(new Set(schema.properties.entity.enum), ENTITY_VALUES);
++  assert.deepEqual(schema.properties.blocks.items.required, ["block", "mart"]);
++});
+diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
+new file mode 100644
+index 0000000..87f15b1
+--- /dev/null
++++ b/site_v2/src/specs/competition/matches/fixture.spec.json
+@@ -0,0 +1,27 @@
++{
++  "$schema": "../../page-spec.schema.json",
++  "page": "[lang]/[competition]/matches/[fixture].astro",
++  "entity": "fixture",
++  "blocks": [
++    {
++      "block": "Match preview (two sides)",
++      "mart": "mart_fixture_standing_context",
++      "i18n_keys": ["crumbMatches", "eyebrowPreview", "vs", "timeTBD"]
++    },
++    {
++      "block": "Form (recent)",
++      "mart": ["mart_team_momentum", "mart_team_season_record", "mart_team_momentum_window"],
++      "i18n_keys": ["secForm", "segLast5", "segSeason", "scopeAllComps", "secRecent", "noRecentForm", "noMatchStats"]
++    },
++    {
++      "block": "Lineups / key players",
++      "mart": "mart_player_momentum",
++      "i18n_keys": ["secPlayers", "playersWindow", "posF", "posM", "posD", "posG"]
++    },
++    {
++      "block": "Head-to-head",
++      "mart": "mart_head_to_head",
++      "i18n_keys": ["secH2H", "meetings", "draws", "lastMeeting", "firstMeeting", "fullH2H"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
+new file mode 100644
+index 0000000..63b66ac
+--- /dev/null
++++ b/site_v2/src/specs/page-spec.schema.json
+@@ -0,0 +1,47 @@
++{
++  "$schema": "http://json-schema.org/draft-07/schema#",
++  "$id": "https://matchdayiq/site_v2/page-spec.schema.json",
++  "title": "Matchday IQ v2 page spec",
++  "description": "One spec per page TEMPLATE (not per rendered instance). Declares the page's blocks, each block's backing dbt mart, and the i18n keys it uses, so a build-time checker (site_v2/scripts/check-page-specs.mjs) can refuse to build a page with no spec or a spec that references something that does not exist. Shape rules here are mirrored by hand in check-page-specs.mjs -- keep the two in sync. See docs/content_architecture.md for the block library this sits on top of.",
++  "type": "object",
++  "required": ["page", "entity", "blocks"],
++  "additionalProperties": false,
++  "properties": {
++    "page": {
++      "type": "string",
++      "description": "The page template's source path, relative to site_v2/src/pages/ (e.g. \"[lang]/teams/[team].astro\")."
++    },
++    "entity": {
++      "type": "string",
++      "enum": ["team", "player", "fixture", "competition", "home"],
++      "description": "The entity type this template renders, per docs/content_architecture.md section 2."
++    },
++    "blocks": {
++      "type": "array",
++      "minItems": 1,
++      "items": {
++        "type": "object",
++        "required": ["block", "mart"],
++        "additionalProperties": false,
++        "properties": {
++          "block": {
++            "type": "string",
++            "description": "Block name, taken verbatim from the \"Block\" column of docs/content_architecture.md section 3 -- no new vocabulary."
++          },
++          "mart": {
++            "oneOf": [
++              { "type": "string" },
++              { "type": "array", "minItems": 1, "items": { "type": "string" } }
++            ],
++            "description": "The backing dbt mart model name, e.g. \"mart_team_profile\" (or an array when one block is genuinely backed by more than one mart, e.g. content_architecture.md's \"Squad / roster\" row = mart_roster + mart_player_career). Every value must exist as a real file under dbt_project/models/5_marts/**."
++          },
++          "i18n_keys": {
++            "type": "array",
++            "items": { "type": "string" },
++            "description": "A representative (not required to be exhaustive) sample of i18n keys this block uses, from site_v2/src/i18n/strings.ts. Every LISTED key must exist in the EN dict; the checker does not require every key a block's components use to be listed here."
++          }
++        }
++      }
++    }
++  }
++}
+diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
+new file mode 100644
+index 0000000..e187f21
+--- /dev/null
++++ b/site_v2/src/specs/teams/team.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/teams/[team].astro",
++  "entity": "team",
++  "blocks": [
++    {
++      "block": "Team header",
++      "mart": "mart_team_profile",
++      "i18n_keys": ["crumbTeams", "founded", "teamPlayed"]
++    },
++    {
++      "block": "Deserved-vs-actual (flagship)",
++      "mart": "mart_team_profile",
++      "i18n_keys": ["secDeserved", "heroSotDiff", "heroVerdictUnder", "heroVerdictOver", "heroCaption", "heroNoData"]
++    },
++    {
++      "block": "Season-over-season",
++      "mart": "mart_team_profile",
++      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "noYoY"]
++    },
++    {
++      "block": "Upcoming / Results",
++      "mart": "mart_team_fixtures",
++      "i18n_keys": ["secFixtures", "fxHome", "fxAway", "fxNext", "linkFixtures"]
++    },
++    {
++      "block": "Vs-benchmark (bars vs league avg + percentile)",
++      "mart": "mart_team_competition_benchmarks",
++      "i18n_keys": ["vsLeague", "vsLastSeason", "median", "rankOfCount", "notRankable"]
++    },
++    {
++      "block": "Squad / roster",
++      "mart": ["mart_roster", "mart_player_career"],
++      "i18n_keys": ["squadGk", "squadDef", "squadMid", "squadFwd", "squadShown", "squadEmpty", "appOne", "appMany", "minsPerApp"]
++    }
++  ]
++}

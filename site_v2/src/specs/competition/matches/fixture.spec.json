@@ -1,0 +1,27 @@
+{
+  "$schema": "../../page-spec.schema.json",
+  "page": "[lang]/[competition]/matches/[fixture].astro",
+  "entity": "fixture",
+  "blocks": [
+    {
+      "block": "Match preview (two sides)",
+      "mart": "mart_fixture_standing_context",
+      "i18n_keys": ["crumbMatches", "eyebrowPreview", "vs", "timeTBD"]
+    },
+    {
+      "block": "Form (recent)",
+      "mart": ["mart_team_momentum", "mart_team_season_record", "mart_team_momentum_window"],
+      "i18n_keys": ["secForm", "segLast5", "segSeason", "scopeAllComps", "secRecent", "noRecentForm", "noMatchStats"]
+    },
+    {
+      "block": "Lineups / key players",
+      "mart": "mart_player_momentum",
+      "i18n_keys": ["secPlayers", "playersWindow", "posF", "posM", "posD", "posG"]
+    },
+    {
+      "block": "Head-to-head",
+      "mart": "mart_head_to_head",
+      "i18n_keys": ["secH2H", "meetings", "draws", "lastMeeting", "firstMeeting", "fullH2H"]
+    }
+  ]
+}

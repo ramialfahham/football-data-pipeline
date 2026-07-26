@@ -95,6 +95,18 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 A block works for any competition and either subject because it's just a mart sliced by
 `league_code` / entity — so the same block appears on many tabs/pages, defined once.
 
+**Machine-enforced since #826**: the block↔mart facts in the table above are additionally checked,
+not just documented. Each page template declares a spec (`site_v2/src/specs/**/*.spec.json`) naming
+its blocks, each block's backing mart, and a sample of its i18n keys. `page-spec.schema.json` is the
+authoritative, hand-written documentation of the spec shape (with editor autocomplete via each
+spec's `$schema` field); `site_v2/scripts/check-page-specs.mjs` enforces the equivalent rules by
+hand (it does not load the schema file at runtime — a test cross-checks the two so they can't
+silently diverge) and runs as `prebuild` (both `ci-site-v2.yml` and the real `deploy-site-v2.yml`
+invoke `npm run build`, which auto-runs it), failing the build if a real page (one importing
+`Layout.astro`) has no spec, or its spec names a mart
+or i18n key that does not actually exist. This is a narrower, machine-checkable subset of what the
+full wireframe specs in `docs/wireframes/` already describe in prose — not a replacement for them.
+
 ---
 
 ## 4. Pages = tabbed compositions
