@@ -1,465 +1,784 @@
 diff --git a/.claude/active_work.md b/.claude/active_work.md
-index 6eb37e2..2988913 100644
+index 4f28f4d..98739bf 100644
 --- a/.claude/active_work.md
 +++ b/.claude/active_work.md
-@@ -1,247 +1,158 @@
- # Active work — handover
+@@ -4,7 +4,7 @@
+ > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
+ > 16,000 characters (the SessionStart hook's injection budget).
  
--> The single handover contract. A fresh chat continues from here. Do not re-scope, and do not
--> infer the task from an issue title or a memory file. Keep it CURRENT STATE ONLY — history
--> belongs in git, not in this file. It must stay under 16,000 characters, because that is the
--> injection budget of the SessionStart hook meant to deliver it.
-+> The single handover contract. A fresh chat continues from here. Do not re-scope or infer the task
-+> from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
-+> 16,000 characters (the SessionStart hook's injection budget).
- 
--_Last updated **2026-07-25**. main GREEN at **b15e4fb**. Firebase deploy is **LIVE and verified** (manual dispatch, `.web.app`, not public) — real team pages render. The 2 GCP prereqs are DONE and the export scan cost is measured (~$0.002/run, negligible). Recurring run (trigger shape only) + go-public still gated (see OPEN)._
--
-----
-+_Last updated **2026-07-26**. main GREEN at **fb3a1a4**. **CURRENT TASK: build the frontend FOUNDATION** (shared shell + responsive system) — design APPROVED via mock, build NOT started. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+-_Last updated **2026-07-26**. main GREEN at **fb3a1a4**. **CURRENT TASK: build the frontend FOUNDATION** (shared shell + responsive system) — design APPROVED via mock, build NOT started. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
++_Last updated **2026-07-26**. main GREEN at **f855f12**. **CURRENT TASK: the frontend FOUNDATION shell is BUILT** (#825) — branch `feat/site-v2-foundation-shell`, review cycle in progress, PR not yet merged. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
  
  ## THE GOAL
--
--**The new website live.** Two weeks is the target, three is acceptable, and quality wins over
--speed. CPO 2026-07-22: *"I prioritize quality over speed. If me make it in 3 weeks it's ok as
--well. But 2 weeks remains our goal."* Anything that does not serve this is out.
--
-----
--
--## WHERE WE STAND — the five launch groups
--
--**This is the progress view.** When the CPO asks where we stand, answer from this table. Nothing
--here comes from the 114-issue tracker, which he has withdrawn confidence in; every row was
--verified against the repo on 2026-07-22.
--
--| # | Group | Status | What is left |
--|---|-------|--------|--------------|
--| 1 | **Pages** | 2 of 5 built | Fixture (#672) + **team page COMPLETE** (Overview #810 + Performance #811 + Squad, all merged). Player, competition, landing pages not designed. |
--| 2 | **Real data** | consuming ✅ | Build CONSUMES the real export (#818 merged): team + fixture pages enumerate via `import.meta.glob`; full 45-league competitions map. The export→build→deploy job is group 3 (hosting). |
--| 3 | **Hosting** | **DEPLOYED & VERIFIED LIVE** | **Firebase** live at `football-data-pipeline-gcp.web.app` (manual dispatch, `.web.app`, not public). Verified 2026-07-25: real team pages render (Man Utd #3, Liverpool #5 — distinct real data). Recurring run (trigger shape only; cost measured negligible) + go-public still gated (see OPEN). |
--| 4 | **Legal** | not started | No imprint, no privacy policy, no licensing note in the repo. Third-party image requests still present (below). |
--| 5 | **CPO decisions** | 2 open | Operator identity + imprint address (blocks publication). Hosting choice (blocks deployment). Neither blocks building. |
--
--Marts and the metric layer are **DONE and gated**. They are not launch work. Do not reopen them.
--
-----
--
--## DECIDED 2026-07-22
--
--**No player photographs. Club crests stay.** CPO: *"OK no photos"*. Photos carry image rights over real
--people + the most legal exposure for the least info; the player page isn't designed yet so deciding now
--cost nothing. Crests run through 13+ marts (expensive to remove) and are "identification/descriptive".
--**The player page must be designed without a portrait.**
--
-----
--
--## API-Football licensing — settled 2026-07-22, NOT a blocker
--
--Terms (`api-football.com/terms`): websites are expected use; the one hard prohibition is RESELLING the
--data. No publication licence granted (sits with the leagues); logos are "for identification/descriptive
--purposes". **Real risk is operational:** on a formal complaint they may suspend API access without
--refund, stopping the pipeline. Open (NOT for an agent): whether publishing needs a lawyer first. **An
--agent must never produce a legal conclusion.**
--
-----
-+**The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
-+
-+## ⭐ CURRENT TASK — build the frontend FOUNDATION (start here)
-+**Why this, not more pages:** a spec audit (2026-07-26) found the frontend is systematic on DATA +
-+CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every page became a one-off.
-+**CPO decision 2026-07-26: foundation-first, lean process.** Stop building pages until the shared
-+frame exists.
-+
-+**Design is APPROVED** (mock, CPO "looks good for now"): foundation mock = artifact
-+`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`.
-+If a mock link is unreachable, the written build spec below + the locked refs (`be7bd6d3` / `d70aae67`
-+/ `f6348775`) are enough to build from. Build = turn the mock into the real shared shell, composing
-+ONLY from the locked `system.css` (no new identity):
-+- **`site_v2/src/layouts/Layout.astro`** gains a global header (logo `MatchdayIQ` + main nav
-+  `Competitions · Matches · Teams · Players · Standings · Stats` + search + a WORKING dark/light
-+  theme toggle) + a footer (links, EN·DE·FI, an imprint slot = pending). Today Layout is a bare
-+  `<slot>` hardcoded to `data-theme="dark"`.
-+- **`site_v2/src/styles/system.css`** gains the RESPONSIVE layout system it never had (its only media
-+  query today is `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), two-column
-+  page grid (main + rail, max **~1100px**) **≥900px**, search field **≥1010px** (icon below). The
-+  fixture/team/player wireframes ALREADY specify "≥900px two columns, max ~1100px" — never built.
-+- **Write the two missing specs:** `docs/wireframes/09_chrome.md` (never written) + a layout-system
-+  section (grid / breakpoints / max-widths).
-+- **Touches the 2 built pages** (team, fixture) — they inherit the new frame; verify they still render.
-+- Plan-mode it; review cycle = cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`).
-+
-+**Reserved (CPO §10, NOT decided in build):** exact nav contents/order (the listed order is the
-+specified start — refine only on CPO word) · search style · what fills the
-+desktop RAIL per page type (home = standings/trending/scorers) · footer/legal (imprint-blocked) ·
-+default-theme policy (dark-fixed vs follow-OS). **Approved this session:** widen desktop to two-column
-+~1100px; dark default + light toggle; the nav list; the breakpoints above.
-+
-+**Then Phase B (lean process):** add ONLY a schema-validated page-spec contract + a sharpened
-+rendered-page reviewer. DEFER: component catalogue, import-boundary rule, one-page driver.
-+**Then Phase C: build pages one at a time** — **player FIRST** (fully spec'd + data-ready, no design
-+debate), then home in the new frame.
-+
-+**Borrowed core** (from `github.com/ramialfahham/backtobayesics`, right-sized, NO autonomy):
-+page-spec-as-schema-contract; generated component/metric catalogue; import isolation (pages→components
-+only); blind default-FAIL reviewer of RENDERED pages (name 2 verified risks); a one-page-at-a-time
-+driver keyed to the tracker. Their repo oversells (2 of ~50 pages actually built) — copy ideas, not
-+vapourware.
-+
-+## DESIGN DISCIPLINE (the weak spot — read every time)
-+- **Compose from the locked `system.css` ONLY. Never invent a per-page treatment.** Three mocks were
-+  rejected in one day for improvising. Locked refs: pattern sheet `be7bd6d3`, fixture `d70aae67`, team
-+  `f6348775` (system.css is transcribed from these). Player mock `6c21ef71` NOT approved.
-+- **Build it and show it** — a mock IS the design decision; never ask about something visual in words.
-+  Reserve open §10 questions in the contract's `decisions_reserved` (the Artifact gate enforces it).
-+- **Real data only, no fabrication** — no fake heroes, no invented ranks; honest empty/pending states
-+  ("no hero, not shippable" is RETRACTED — an empty slot is honest).
-+- **Player-page open content Qs** (Phase C): what a GK's Overview shows; whether YoY holds for a player
-+  who changes club/role — use consultants, don't answer by instinct.
-+
-+## WHERE WE STAND — five launch groups
-+| # | Group | Status |
-+|---|-------|--------|
-+| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell = current task.** Player spec'd + data-ready + UNBUILT. 7 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary, chrome). |
-+| 2 | **Real data** | consuming ✅ (export → build → deploy). |
-+| 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
-+| 4 | **Legal** | not started; imprint blocks publication. |
-+| 5 | **CPO decisions** | imprint operator/address (blocks going public). |
-+
-+Marts + metric layer are DONE and gated — not launch work; do not reopen.
+ **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
+@@ -16,22 +16,31 @@ CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every
+ frame exists.
  
- ## ⚠️ v2 makes third-party requests TODAY
--
--The committed sample data carries `media.api-sports.io` URLs, and `Crest.astro` and `PlayerRow.astro`
--render them as `<img src>`. **The exact defect that took the MVP offline is already present in v2.**
--(An earlier all-clear was wrong: it grepped code and missed the data files.) Fix: mirror crests onto
--our own origin. That fixes the **privacy** half only, and arguably worsens the rights position since
--we would host copies. The two pull in opposite directions.
--
-----
--
--## The retrospective (2026-07-22) — what still needs remembering
--
--Holes 1-4 are now CLOSED by #803, so only the behavioural findings survive here.
--
--- **The recurring defect is fixing the INSTANCE instead of the CLASS.** Every failure today was
--  this: one word list holed four rounds running, a stale count in six files, a coverage sentence
--  written in two places and corrected in one. Reviewers were not finding different bugs, they were
--  finding one bug in new places. **When a reviewer finds the same class twice, stop patching and
--  sweep it.**
--- **Inference is not permission, and I made this mistake TWICE in one day** — the metric rename and
--  the review routing, both §10, both "obviously right", both with no quoted answer. §10 says
--  escalate "regardless of how obvious", precisely because obviousness is not the test.
--- **Verify against the real tree, never a hand-picked list**, and least of all a list of files that
--  do not exist yet. `git ls-files` takes one command.
--- **The test before asking:** state what I will do if never answered, and what undo costs. No
--  default nameable → not ready to ask. Cheap undo → do it and say so. **Never ask about something
--  visual in words; build it and show it.**
--- **What actually gets read:** CLAUDE.md and the memory index. That is the whole list. Rules that
--  must hold belong in a hook or a test, not in prose.
--
-----
--
--## DONE 2026-07-22 — #802/#803/#804 (detail in commits)
--
--⚠️ **#804 fingerprint (verify if not yet confirmed):** the `deserved_rank` rename could silently break
--the flagship read. Confirm post-build: 1,376 ranked rows, sum_deserved 16,980, sum_gap -4,573, md5
--`bc6d2587b6f2ad02469ded299fc025b7`. **#803** shipped four live gates (blast-radius trace on protected
--paths, Artifact gate, Stop prose hook, SessionStart wiring). Lesson: **owed work must survive a
--rewrite** (why OWED exists below).
--
-----
--
--## OWED — deferred deliberately, recorded so it is not lost
--
--Each of these was proposed, judged worth doing, and NOT done. None is forgotten; none is decided
--away. Written here because holding them in a chat is how they disappear.
--
--**The agent set.** A `ui-expert` DOER (a draft is stashed on `feat/expert-agents-that-build`; good
--raw material, it names every 2026-07-21 design failure as a prohibition — but move its redundancy and
--slot-order rules to a reviewer, since a doer cannot police itself). A design reviewer for built
--pages. `football-analytics-expert` and `data-journalist` as CONSULTANTS, consulted before design and
--never owning a file surface. A fan probe, given a task rather than an opinion prompt, which must see
--the RENDERED page. **Unverified prerequisite: whether a subagent's tool calls fire the main session's
--hooks at all — if not, the artifact gate does not cover a doer. TEST IT, do not assume.**
--
--**The metric-change skill.** Adding one team metric touched SIX files across models, schemas and
--docs, and nothing enumerates that list. The skill's value IS the enumeration. Write it from what
--#804 actually required, not from imagination.
--
--**Mirror the crests.** `site_v2` renders team crests and player photos straight from
--`media.api-sports.io`, so every visitor's browser talks to a third party — the exact defect that took
--the MVP offline. Copying them to our own origin fixes the privacy half and does NOT improve the
--rights position.
--
--**Amend the locked display contract** (`docs/wireframes/metrics_display.md`, a 16-row team table) to
--carry the two metrics #804 surfaced. A §10 display decision; the approved mock shows both.
--
--**`legal-counsel` as a consultant** — a risk register from the API-Football terms. Doer later, for
--the imprint and privacy pages, once the operator question is answered.
--
--**The guardrail economics** (raised by the CPO after #803 cost nine rounds). Delta re-review and a
--round cap of 3 shipped in #807. A staff-level AI-engineering review then judged the machinery core
--strong (the hash-bound blinded review, the self-gating hooks) but three parts over-scoped; the trim
--(in flight) cuts them. STILL OWED, deliberately deferred: reviewer model in the routing file, and
--reviewers as peers rather than one reviewer reading every diff.
--
-----
--
--## DONE 2026-07-24 — team page (3 tabs) + real-data wiring (#813, #818 merged)
--
--⚠️ **`appearances` = played legs** (`minutes_played > 0`), fixed warehouse-wide (#813); `mart_player_career`
--gained `minutes` + `minutes_per_appearance`. Build CONSUMES the real export (#818): team+fixture
--`getStaticPaths` enumerate `src/data/{teams,fixtures}/*.json`; full 45-league `competitions.json`.
--⚠️ Default-heap `astro build` OOMs at full scale (deploy job uses `--max-old-space-size=8192`); before a
--local dev build run `git clean -fX site_v2/src/data` else OOM.
--
--## DONE 2026-07-25 — Firebase deploy LIVE + verified · effort pins (#822 merged)
--
--**Firebase deploy LIVE + VERIFIED.** Run 30151299421 (12m41s): WIF auth → export → raised-heap build
--→ `firebase deploy` all green, incl. firebase-tools accepting WIF/ADC (was unproven).
--Live at `football-data-pipeline-gcp.web.app`; real team pages render distinct data (Man Utd #3,
--Liverpool #5). Root `/` = "under construction" scaffold (landing not designed). **Manual dispatch,
--`.web.app` only, not public.**
--
--**Export cost measured:** ~$0.002/run (~0.18 GiB, 15 whole-mart reads) — recurring run unblocked on
--cost; only the trigger shape is left. **#822 merged:** per-agent `effort` pinned (scope-auditor=medium,
--five reviewers=high), models unchanged; personal Opus+high default in gitignored `settings.local.json`
--([[reference-model-effort-automation]]). Follow-ups: actions warn Node 20 deprecation; team-page footer
--says "Sample data · v2 preview" on real data (confirm intended).
-+Committed sample data + `Crest`/`PlayerRow` render `media.api-sports.io` as `<img>` — the exact defect
-+that took the MVP offline. Fix = mirror crests to our origin (fixes the privacy half, not the rights
-+half). (The foundation mock uses text initials — no third-party requests.)
-+
-+## OWED — deferred, not forgotten (must survive rewrites)
-+- **The agent set** — a **ui-BUILDER / design-implementer** (the "doer" the CPO wants; a draft was on
-+  `feat/expert-agents-that-build`, now merged into main history); a **design reviewer for BUILT pages**
-+  (sharpen `bi-analyst-reviewer`: default-FAIL, 2 verified risks, review the RENDERED page); a
-+  `football-analytics-expert` + `data-journalist` as **CONSULTANTS** (before design, own no file); a
-+  fan probe on the rendered page. **Unverified:** do a subagent's tool calls fire the main session's
-+  hooks? TEST, don't assume.
-+- **The metric-change skill** — adding one team metric touched SIX files; the skill's value is
-+  enumerating them.
-+- **Mirror the crests** (above).
-+- **Amend the locked display contract** (`docs/wireframes/metrics_display.md`, 16-row team table) for the
-+  2 metrics #804 surfaced. §10.
-+- **legal-counsel consultant** — risk register from the API-Football terms; doer later for imprint/
-+  privacy once the operator question is answered.
-+- **Reviewers as peers** (not one reviewer over every diff) — the reviewer-model-in-routing half shipped
-+  in #822; the peer split is still owed.
-+
-+## DONE (history — detail in git)
-+- **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
-+- **2026-07-25:** Firebase deploy LIVE + verified (run 30151299421); export cost measured ~$0.002/run
-+  (exclude dbt-labelled queries in JOBS_BY_PROJECT or it reads ~100x high); **#822** per-agent effort
-+  pins merged. ⚠️ follow-ups: actions warn Node 20 deprecation; team-page footer says "Sample data · v2
-+  preview" on real data (confirm intended).
-+- **2026-07-24:** team page (3 tabs) + real-data wiring (#813, #818). ⚠️ `appearances` = played legs
-+  (`minutes_played>0`, #813). ⚠️ default-heap `astro build` OOMs at full scale — deploy uses
-+  `--max-old-space-size=8192`; before a local dev build run `git clean -fX site_v2/src/data`.
-+- **2026-07-22:** #802/#803/#804. ⚠️ **#804 fingerprint** (verify if not yet confirmed): 1,376 ranked
-+  rows, sum_deserved 16,980, sum_gap -4,573, md5 `bc6d2587b6f2ad02469ded299fc025b7`. #803 shipped four
-+  live gates. No player photos (CPO). API-Football licensing settled (reselling is the one hard
-+  prohibition; real risk is operational suspension). Lessons: fix the CLASS not the instance;
-+  inference ≠ permission (§10); verify the real tree.
+ **Design is APPROVED** (mock, CPO "looks good for now"): foundation mock = artifact
+-`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`.
+-If a mock link is unreachable, the written build spec below + the locked refs (`be7bd6d3` / `d70aae67`
+-/ `f6348775`) are enough to build from. Build = turn the mock into the real shared shell, composing
++`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`
++(reference only — home page content is NOT built, that's Phase C). **Built 2026-07-26**, composing
+ ONLY from the locked `system.css` (no new identity):
+-- **`site_v2/src/layouts/Layout.astro`** gains a global header (logo `MatchdayIQ` + main nav
+-  `Competitions · Matches · Teams · Players · Standings · Stats` + search + a WORKING dark/light
+-  theme toggle) + a footer (links, EN·DE·FI, an imprint slot = pending). Today Layout is a bare
+-  `<slot>` hardcoded to `data-theme="dark"`.
+-- **`site_v2/src/styles/system.css`** gains the RESPONSIVE layout system it never had (its only media
+-  query today is `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), two-column
+-  page grid (main + rail, max **~1100px**) **≥900px**, search field **≥1010px** (icon below). The
+-  fixture/team/player wireframes ALREADY specify "≥900px two columns, max ~1100px" — never built.
+-- **Write the two missing specs:** `docs/wireframes/09_chrome.md` (never written) + a layout-system
+-  section (grid / breakpoints / max-widths).
+-- **Touches the 2 built pages** (team, fixture) — they inherit the new frame; verify they still render.
+-- Plan-mode it; review cycle = cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`).
++- **`site_v2/src/layouts/Layout.astro`** now mounts `SiteHeader`/`SiteFooter` (new,
++  `components/chrome/`) around `<slot>`: brand `MatchdayIQ` (links home) + main nav
++  `Competitions · Matches · Teams · Players · Standings · Stats` (inert `<span>` — no index pages
++  exist yet, same no-dead-links convention the fixture/team pages already used) + an inert search
++  box + a WORKING dark/light theme toggle (persists via `localStorage`, no-flash inline init
++  script) + a mobile hamburger/drawer. Footer: brand, an inert link row, `EN · DE · FI · Data:
++  API-Football`, Imprint still pending.
++- **`system.css`** gained the RESPONSIVE layout system it never had (previously only
++  `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), a generic
++  `.shell`/`.page-grid`/`.rail` two-column primitive (max **~1100px**) **≥900px** — built but wired
++  into ZERO pages (per-page rail contents is reserved) — search field **≥1010px** (icon below;
++  fixed a specificity bug inherited from the mock where the icon button never actually hid).
++- **`docs/wireframes/09_chrome.md`** written + a new "Layout system" section in `00_overview.md`.
++- Team/fixture pages: **zero file changes** — they inherit the new header/footer purely because
++  Layout.astro wraps their `<slot>`; their own `.inner` (680px) width is untouched. The
++  fixture/team wireframes' own ~1100px desktop-widen spec is a real, OPEN, not-closed gap — see
++  09_chrome.md §10.
++- Verified: `npm run build` green, both pages render correctly, all 3 breakpoints fire, theme
++  toggle flips + persists across navigation (checked via computed styles/JS, not screenshot — the
++  Browser pane's screenshot tool is confirmed broken in this environment, text/JS checks only).
++- Review cycle in progress: cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`,
++  `docs/wireframes/**`) + scope-auditor.
+ 
+ **Reserved (CPO §10, NOT decided in build):** exact nav contents/order (the listed order is the
+ specified start — refine only on CPO word) · search style · what fills the
+@@ -64,7 +73,7 @@ vapourware.
+ ## WHERE WE STAND — five launch groups
+ | # | Group | Status |
+ |---|-------|--------|
+-| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell = current task.** Player spec'd + data-ready + UNBUILT. 7 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary, chrome). |
++| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell BUILT (#825), PR open awaiting review/merge.** Player spec'd + data-ready + UNBUILT. 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary) — chrome now spec'd. |
+ | 2 | **Real data** | consuming ✅ (export → build → deploy). |
+ | 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
+ | 4 | **Legal** | not started; imprint blocks publication. |
+@@ -95,6 +104,9 @@ half). (The foundation mock uses text initials — no third-party requests.)
+   in #822; the peer split is still owed.
+ 
+ ## DONE (history — detail in git)
++- **2026-07-26:** foundation shell BUILT (#825) — Layout.astro header/footer, system.css
++  responsive system (700/900/1010px), `docs/wireframes/09_chrome.md` + layout-system section,
++  chrome i18n keys (DE/EN/FI). PR open, not yet merged.
+ - **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
+ - **2026-07-25:** Firebase deploy LIVE + verified (run 30151299421); export cost measured ~$0.002/run
+   (exclude dbt-labelled queries in JOBS_BY_PROJECT or it reads ~100x high); **#822** per-agent effort
+@@ -110,7 +122,7 @@ half). (The foundation mock uses text initials — no third-party requests.)
+   inference ≠ permission (§10); verify the real tree.
  
  ## NEXT
--
--1. **Deploy + hosting (group 3)** — DONE and LIVE. Firebase deploy verified 2026-07-25 (run
--   30151299421). The only remaining hosting step is the **recurring trigger** — cost is measured
--   negligible, so this is now purely the CPO's trigger-shape choice (`workflow_run` on dbt-scheduled
--   vs a cron). See OPEN > Hosting.
--2. **Player, competition, landing pages (group 1)** — design first, then build (do not build undesigned).
--3. **Small follow-ups** (here in case the task chips don't survive a restart):
--   - **Em-dash / AI-tell sweep (CPO must, 2026-07-24)** — replace em dashes + en-dash records in the
--     display strings (`site_v2/src/i18n/strings.ts`: `aboutWithH2h`, deserved-hero verdicts,
--     coming-states) with natural punctuation + a guard. Transparent AI text must not LOOK AI-generated.
--   - **site_v2/src/data/README.md** stale (says one sample) → update to the real-data setup.
--   - **content_architecture.md** cites "GAP-22" for squad stats; it's GAP-20.
--   - **fixture PlayerRow** renders "1 assists"/"1 goals" → use the Squad tab's singular i18n pattern.
--
-----
-+1. **Build the frontend FOUNDATION** (the CURRENT TASK above).
-+2. Then Phase B (lean process) → Phase C (pages; player first).
-+3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
-+   stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
-+   "1 assists" → singular i18n.
- 
- ## OPEN — the CPO's alone
--
--- **Imprint operator + address.** Blocks publication (#799). CPO 2026-07-23 won't publish his home
--  address. Substitutes exist (service/business address) but whether the site needs an Impressum and
--  whether a substitute suffices is a LEGAL question — get a lawyer, never conclude it. Publish-time
--  only; does NOT block building.
--- **Hosting.** Vendor **Firebase Hosting** (decided 2026-07-24). Deploy is LIVE and VERIFIED
--  2026-07-25 (run 30151299421). The two GCP prereqs are **DONE** (Firebase enabled + default site
--  `football-data-pipeline-gcp.web.app`; `roles/firebasehosting.admin` granted to the deploy SA
--  github-actions-dbt). Cost **MEASURED**: the export scan is ~$0.002/run (~0.18 GiB, 15 queries) —
--  negligible, within BigQuery's 1 TiB/month free tier. **Open, the CPO's:** the **recurring-run
--  trigger shape** (`workflow_run` on dbt-scheduled vs a cron) — cost is no longer a blocker, this is
--  now just the schedule choice. Go-public (custom domain, DNS, announcement) stays imprint-blocked.
--  (Measurement note: the deploy SA github-actions-dbt is shared with the dbt pipeline; to measure the
--  export scan, exclude the dbt-labelled queries in JOBS_BY_PROJECT or the number is ~100x too high.)
--- **The feedback Apps Script and the data it collected**, in his own Google account, unreachable
--  from here (#687).
--
-----
-+- **Imprint operator + address** — blocks publication (#799); get a lawyer, never conclude it.
-+  Publish-time only; does NOT block building.
-+- **Hosting recurring run** — cost MEASURED negligible; only the trigger shape (`workflow_run` on
-+  dbt-scheduled vs cron) is left. Go-public = imprint-blocked.
-+- **The feedback Apps Script** (his Google account, unreachable) — #687.
- 
- ## DO NOT (standing)
--
--- Do NOT treat the 114-issue tracker or its 7 milestones as agreed work. Useful only as a checklist
--  of things somebody noticed. Re-validate before acting on any of it.
--- Do NOT cite the `road_to_launch` artifact. Superseded.
--- Do NOT write another planning document. The tracker and this file are the only plan.
--- Do NOT touch `site/`. RETIRED and frozen 2026-07-21, offline. No parity check, no cutover, no
--  restore; any edit is work that gets deleted. #377 is void.
-+- Do NOT treat the 114-issue tracker / its milestones as agreed work; re-validate before acting.
-+- Do NOT write another planning document (the tracker + this file are the plan). A frontend SPEC
-+  (chrome/layout/09_chrome) is NOT a planning doc — filling it is the task.
-+- Do NOT touch `site/` (retired/frozen 2026-07-21, offline).
- - Do NOT build a page whose design the CPO has not approved.
--- Do NOT re-run the data phase. Marts and the metric layer are finished and gated.
--- Do NOT derive facts in the export or the frontend — select, group and rename only.
--- **Never merge a PR. The CPO merges.** Branch from main; never commit to main.
--- PR **#673** was CLOSED 2026-07-22 as superseded (predated the approved 3-tab design; its committed
--  Arsenal sample was stale and it had never had a display review). Branch `feat/site-v2-team-profile`
--  is PRESERVED: ~600 lines of team components are raw material for the team page build. Do not
--  reopen it; harvest from the branch.
--- Communication: plain language, one question at a time, no file paths or ticket numbers in chat
--  unless asked, no em dashes.
--
-----
--
--## Operational notes (carried forward — still true)
--
--- **dbt CLI and SQLFluff are BROKEN locally** (SQLFluff uses the dbt templater). `ci-data-build` is
--  the real gate. Offline you CAN run `python scripts/check_layer_contract.py` and read model SQL.
--- **BigQuery rejects a FROM-less `WHERE`** — a singular test's empty-case fallback needs a FROM.
--  Only `ci-data-build` catches it.
--- **Commit mechanics:** ONE substantive commit per PR. `git commit` runs alone, no chaining;
--  `--amend` is gate-blocked. To collapse: `git reset --soft HEAD~1`, re-stage, recompute the hash vs
--  main with `python .claude/hooks/git_discipline.py --staged-hash`, re-run every required reviewer on
--  the full diff, rewrite `review.md`, commit, then `git push --force-with-lease origin <br>:<br>`.
--- **Standing metric ruling, do NOT relitigate:** a metric's formula is fixed mathematics. Data
--  availability decides only whether a model can APPLY it. Never put `coalesce`/`countif`/a null-gate
--  in any `*_expr`.
--
-----
-+- Do NOT derive facts in the export or frontend — select/group/rename only.
-+- **Never merge a PR. The CPO merges. Branch from main; never commit to main.**
-+- Communication: plain language, lead with the decision, no em dashes, no walls of text.
-+
-+## Operational notes
-+- **dbt CLI + SQLFluff BROKEN locally** — `ci-data-build` is the real gate; offline you can run
-+  `python scripts/check_layer_contract.py` + read SQL. BigQuery rejects a FROM-less WHERE.
-+- **Frontend:** `site_v2` is Astro; `npm run build` needs `NODE_OPTIONS=--max-old-space-size=8192` at
-+  full scale; the deploy workflow (`.github/workflows/deploy-site-v2.yml`, manual-only) does
-+  export → build → firebase deploy. The in-app Browser pane is unreliable here (screenshots / file://
-+  time out) — verify frontend via the published Artifact's inline render.
-+- **Commit mechanics:** ONE substantive commit per PR; `git commit` runs alone (no chaining);
-+  `--amend` gate-blocked. Collapse: `git reset --soft HEAD~1`, re-stage, recompute hash vs main
-+  (`python .claude/hooks/git_discipline.py --staged-hash`), re-run required reviewers, rewrite
-+  `review.md`, commit, `git push --force-with-lease`.
-+- **Standing metric ruling:** a metric's formula is fixed math; never put coalesce/countif/null-gate in
-+  a `*_expr`.
- 
+-1. **Build the frontend FOUNDATION** (the CURRENT TASK above).
++1. Get the foundation shell PR (#825, `feat/site-v2-foundation-shell`) through review and merged.
+ 2. Then Phase B (lean process) → Phase C (pages; player first).
+ 3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
+    stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
+@@ -150,8 +162,10 @@ half). (The foundation mock uses text initials — no third-party requests.)
  ## Verified state reference
--
--- **Live to users:** no PUBLIC site. The MVP was retired 2026-07-21 (matchdayiq.io offline, Pages
--  deleted, `curl` returns 404; DNS untouched). v2 IS deployed to `football-data-pipeline-gcp.web.app`
--  (reachable but unlisted, no custom domain, not announced) — a verification target, not a launch.
--- **v2 built:** the shared design system (`site_v2/src/styles/system.css` + components) and the
--  fixture page (#672).
--- **Locked design references:** pattern sheet `be7bd6d3` (the block vocabulary — compose from it,
--  never invent a per-page treatment), fixture page `d70aae67`, approved team page `f6348775`. Player
--  mock `6c21ef71` is **NOT approved**.
--- **The "no hero, not shippable" rule is RETRACTED.** It was self-imposed and it is what forced the
--  invention of a fake hero. An empty slot is honest.
--- **Open player-page content questions** (do not answer by instinct — use the consultants): what a
--  goalkeeper's Overview shows when goals and assists are meaningless for him, and whether
--  year-over-year survives for a player at all (he changes club, league, role and minutes).
--- **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards enforce it.
--  The catalogue is the only source of metric definitions.
-+- **Live to users:** no PUBLIC site. v2 IS deployed to `football-data-pipeline-gcp.web.app` (reachable,
-+  unlisted, not announced) — a verification target.
-+- **v2 built:** the shared design system (`system.css` + 24 components), the fixture page (#672), the
-+  team page (3 tabs). **NO shared nav shell / responsive desktop layout yet** (= the foundation task).
-+- **Automation:** session default Opus+high in gitignored `settings.local.json`; review-fleet effort
-+  pinned (#822) — see [[reference-model-effort-automation]].
-+- **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards; the
-+  catalogue is the only source of metric definitions.
+ - **Live to users:** no PUBLIC site. v2 IS deployed to `football-data-pipeline-gcp.web.app` (reachable,
+   unlisted, not announced) — a verification target.
+-- **v2 built:** the shared design system (`system.css` + 24 components), the fixture page (#672), the
+-  team page (3 tabs). **NO shared nav shell / responsive desktop layout yet** (= the foundation task).
++- **v2 built:** the shared design system (`system.css` + 26 components), the fixture page (#672), the
++  team page (3 tabs), and now the **shared nav shell + responsive layout system (#825)** — header,
++  footer, theme toggle, 700/900/1010px breakpoints. The `.shell`/`.page-grid`/`.rail` primitive
++  exists but is wired into zero pages; team/fixture stay at their locked 680px `.inner` width.
+ - **Automation:** session default Opus+high in gitignored `settings.local.json`; review-fleet effort
+   pinned (#822) — see [[reference-model-effort-automation]].
+ - **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards; the
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 21d2d52..1af3568 100644
+index 1af3568..a1fe33a 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,42 +1,40 @@
--# Task contract — handover refresh (Firebase deploy live + verified, export cost measured)
-+# Task contract — handover refresh (foundation build handoff to a new chat)
+@@ -1,40 +1,85 @@
+-# Task contract — handover refresh (foundation build handoff to a new chat)
++# Task contract — frontend foundation shell (#825)
  
--> Written on a CLEAN tree (branch `docs/handover-firebase-live` off main at b15e4fb).
--> Bookkeeping: refresh the single handover contract to current state. No code, no model change.
-+> Written on a CLEAN tree (branch `docs/handover-foundation-build` off main at fb3a1a4).
-+> Bookkeeping: refresh the single handover so a fresh chat starts the frontend FOUNDATION build
-+> with zero re-investigation. No code, no model change.
+-> Written on a CLEAN tree (branch `docs/handover-foundation-build` off main at fb3a1a4).
+-> Bookkeeping: refresh the single handover so a fresh chat starts the frontend FOUNDATION build
+-> with zero re-investigation. No code, no model change.
++> Written on a CLEAN tree, branch `feat/site-v2-foundation-shell` off `main` (`f855f12`).
++> See docs/working_agreement.md §2 (contract), §10 (decision rights), §11 (blinded escalation).
  
  objective: >
--  Refresh .claude/active_work.md to the true current state after this session: the Firebase
--  Hosting deploy is LIVE and VERIFIED (manual dispatch, `.web.app`, not public) — real team pages
--  render distinct real data (Man Utd, Liverpool); the two GCP prerequisites (enable Firebase +
--  create the site; grant roles/firebasehosting.admin to the deploy SA github-actions-dbt) are DONE;
--  the per-run export scan cost was MEASURED at ~$0.002/run (~0.18 GiB, 15 queries) — negligible and
--  within BigQuery's free tier, so the recurring run is unblocked on cost and only its trigger shape
--  is left to decide; and PR #822 (per-agent review-fleet effort pins) merged. Keep the file CURRENT
--  STATE ONLY and under 16,000 characters.
-+  Rewrite .claude/active_work.md to the true current state so a new chat can begin the frontend
-+  FOUNDATION build immediately: the 2026-07-26 spec audit found the frontend systematic on data/
-+  content but improvisational on layout/chrome/workflow; CPO decided foundation-first + lean process;
-+  the shared-frame design is APPROVED via mock (artifact 87d14109; home-content mock 1c35e7aa); the
-+  build = turn the mock into the real Layout.astro shell + system.css responsive system + write the
-+  two missing specs (09_chrome + a layout section), composing ONLY from the locked system.css. Carry
-+  ALL owed items and the design discipline. Keep CURRENT STATE ONLY and under 16,000 characters.
+-  Rewrite .claude/active_work.md to the true current state so a new chat can begin the frontend
+-  FOUNDATION build immediately: the 2026-07-26 spec audit found the frontend systematic on data/
+-  content but improvisational on layout/chrome/workflow; CPO decided foundation-first + lean process;
+-  the shared-frame design is APPROVED via mock (artifact 87d14109; home-content mock 1c35e7aa); the
+-  build = turn the mock into the real Layout.astro shell + system.css responsive system + write the
+-  two missing specs (09_chrome + a layout section), composing ONLY from the locked system.css. Carry
+-  ALL owed items and the design discipline. Keep CURRENT STATE ONLY and under 16,000 characters.
++  Build the v2 site's shared shell: Layout.astro gains a global header (logo, 6-item nav, search,
++  a working dark/light theme toggle, mobile hamburger+drawer) and a footer; system.css gains the
++  responsive layout system it never had (nav inline >=700px, two-column main+rail page grid
++  max ~1100px >=900px, full search field >=1010px). Turns the CPO-approved foundation mock
++  (artifact 87d14109, "looks good for now") into real code, composing only from the locked
++  system.css tokens. Writes the two missing specs (docs/wireframes/09_chrome.md + a layout-system
++  section in 00_overview.md). Issue #825.
  
  refs: >
--  This session 2026-07-25. Deploy run 30151299421 (success, 12m41s). Live URL
--  football-data-pipeline-gcp.web.app. Cost measured via region-eu INFORMATION_SCHEMA.JOBS_BY_PROJECT
--  (export = non-dbt-labelled queries under the github-actions-dbt SA; the dbt build+test queries
--  that share that SA must be excluded, or the number is off by ~100x).
-+  This session 2026-07-26. Frontend spec audit + backtobayesics process study (both agent runs).
-+  CPO decisions this session: widen desktop to ~1100px two-column; foundation-first + lean process;
-+  foundation mock "looks good for now". Firebase deploy merged (#821), effort pins merged (#822),
-+  prior handover merged (#823) — main now fb3a1a4.
+-  This session 2026-07-26. Frontend spec audit + backtobayesics process study (both agent runs).
+-  CPO decisions this session: widen desktop to ~1100px two-column; foundation-first + lean process;
+-  foundation mock "looks good for now". Firebase deploy merged (#821), effort pins merged (#822),
+-  prior handover merged (#823) — main now fb3a1a4.
++  .claude/active_work.md (2026-07-26 handover); docs/site_architecture.md §4 (nav is fixed:
++  "Competitions · Matches · Teams · Players · Standings · Stats"); docs/ui_design_brief.md §5/§7
++  (persistent search + nav, footer/legal component); mock artifacts 87d14109 (foundation, approved)
++  and 1c35e7aa (home content, reference only — not built here); memory feedback_design_off_the_cuff
++  (build approved designs, no invention) and feedback_doc_clutter_discipline (fold into the
++  authoritative doc).
  
  scope_paths:
++  - site_v2/src/layouts/Layout.astro
++  - site_v2/src/components/chrome/**
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - docs/wireframes/09_chrome.md
++  - docs/wireframes/00_overview.md
    - .claude/active_work.md
  
++impact_map: >
++  Leaf/cosmetic short-form (site_v2/** is structural surface by path, but carries no dbt/warehouse
++  read or write): this PR touches only Astro components, one CSS file, one i18n dict, and two
++  wireframe docs under site_v2/src and docs/wireframes. No dbt model, mart, seed, or BigQuery
++  table is read or written; no export script changes. Blast radius: every page that imports
++  Layout.astro (today: site_v2/src/pages/[lang]/teams/[team].astro and
++  .../[competition]/matches/[fixture].astro) visually gains a header and footer — their own
++  template files are not edited, and their existing data bindings/content are unchanged. The
++  per-locale index.astro placeholder stub does NOT import Layout today and is untouched. CI
++  surface: .github/workflows/ci-site-v2.yml (Astro build, path-filtered to site_v2/**) is the
++  applicable gate; ci-ui.yml only path-filters the legacy site/ MVP and does not apply.
++
  decisions_taken: >
--  Pure bookkeeping. All facts recorded are already true (deploy succeeded, prereqs done, cost
--  measured); this only writes them into the handover. No product, metric, naming or mechanism
--  decision is made here.
-+  Pure bookkeeping. All facts recorded are already true (audit done, CPO decided foundation-first +
-+  lean process, foundation mock approved). No new product/metric/mechanism decision is made here.
+-  Pure bookkeeping. All facts recorded are already true (audit done, CPO decided foundation-first +
+-  lean process, foundation mock approved). No new product/metric/mechanism decision is made here.
++  Foundation-first + lean process (CPO 2026-07-26, active_work.md). Foundation mock 87d14109
++  approved "looks good for now". Approved this session (active_work.md): widen the shell chrome
++  to two-column ~1100px; dark default + a light toggle; the nav list
++  (Competitions/Matches/Teams/Players/Standings/Stats) as the specified start; the three
++  breakpoints (700/900/1010px). Plan-mode approved 2026-07-26: nav/footer items with no built
++  target render inert (span, not <a>) — same convention already shipped on the fixture page
++  breadcrumb and the team page's Explore chips (both hrefless-by-comment for unbuilt targets);
++  team/fixture pages are not restructured into the two-column grid (no file edits to either page);
++  theme choice persists via localStorage so the toggle survives static-page navigation; search is
++  visually present but inert; the layout-system doc section folds into 00_overview.md.
  
  decisions_reserved:
--  - The recurring-run trigger shape (`workflow_run` on dbt-scheduled vs a later cron) and going
--    public (custom domain, DNS, announcement) remain the CPO's open decisions — recorded in the
--    handover as OPEN, not decided here. Cost is no longer a blocker for the recurring run (measured
--    negligible); the trigger-shape choice is what is left.
-+  - The foundation's open design questions (nav contents/order, search style, per-page rail contents,
-+    footer/legal, default-theme policy) remain the CPO's §10 calls — recorded in the handover as
-+    reserved, not decided here.
+-  - The foundation's open design questions (nav contents/order, search style, per-page rail contents,
+-    footer/legal, default-theme policy) remain the CPO's §10 calls — recorded in the handover as
+-    reserved, not decided here.
++  - Exact nav contents/order — the listed order is the specified start; refine only on CPO word.
++  - Search style/mechanism — a real input, autocomplete, and any backend are undecided; this PR
++    ships the mock's inert placeholder only.
++  - What fills the desktop RAIL per page type (home = standings/trending/scorers per the
++    home-content mock 1c35e7aa) — the .shell/.page-grid/.rail primitive is built generically in
++    system.css but wired into zero pages this task.
++  - Footer/legal content — the Imprint slot stays pending (blocked on the operator/address
++    question, #799); not resolved here.
++  - Default-theme policy (dark-fixed vs follow-OS) — this PR ships hard-coded dark as the
++    no-preference default, per the approved default; whether the site should ever read
++    prefers-color-scheme instead is not decided.
++  - The fixture/team wireframes' (01/02) own desktop spec calling for those pages to widen to
++    ~1100px is a real, currently open gap. Retrofitting an already-shipped, CPO-approved 680px
++    page's width is a separate design decision, not made in this task — recorded as an open note
++    in the new layout-system section, not closed.
  
  done_when:
--  - .claude/active_work.md reflects: Firebase deploy LIVE + verified; the two GCP prereqs DONE; the
--    measured export cost (~$0.002/run, negligible); PR #822 merged. Stays under 16,000 chars.
--  - ONE commit; review.md with scope-auditor PASS (the only required reviewer for this path);
--    pushed with an explicit refspec; PR opened. The CPO merges.
-+  - .claude/active_work.md leads with the foundation-build task (design approved, build not started),
-+    carries every OWED item and ⚠️ warning intact, records the audit + foundation-first/lean-process
-+    decision + design discipline + mock URLs, and stays under 16,000 chars.
-+  - ONE commit; review.md with scope-auditor PASS; pushed with an explicit refspec; PR opened. CPO merges.
+-  - .claude/active_work.md leads with the foundation-build task (design approved, build not started),
+-    carries every OWED item and ⚠️ warning intact, records the audit + foundation-first/lean-process
+-    decision + design discipline + mock URLs, and stays under 16,000 chars.
+-  - ONE commit; review.md with scope-auditor PASS; pushed with an explicit refspec; PR opened. CPO merges.
++  - cd site_v2 && npm ci && npm run build succeeds; dist/index.html and dist/{de,en,fi}/index.html
++    exist (mirrors ci-site-v2.yml).
++  - Team page and fixture page render with the new header/footer, at phone/tablet/desktop widths,
++    with the three breakpoints (700/900/1010px) firing correctly.
++  - Theme toggle flips data-theme and the choice survives navigating between the fixture and team
++    pages (localStorage persistence).
++  - docs/wireframes/09_chrome.md written per the 00_overview.md template; 00_overview.md's screen
++    inventory row 09 flips from pending to spec'd; component census updated.
++  - ONE commit; review.md with scope-auditor + cto-reviewer + bi-analyst-reviewer verdicts, hash
++    matching the staged diff; pushed with an explicit refspec; PR opened. CPO merges.
  
  amendments: (none)
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 7bc1d84..25d2bb7 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -50,6 +50,29 @@ Every screen file follows this structure:
+   a competition-neutral format and progressively enhance to the visitor's local
+   timezone with a tiny script (static site cannot know the timezone at build time).
+ 
++## Layout system
++
++The responsive chrome + grid contract, built as the frontend-foundation task (#825; full spec:
++[09_chrome.md](09_chrome.md)). `system.css`'s only breakpoints before this were `@container`
++queries scoped to a single component (e.g. `.split`, `.yoygrid`) — these three are the first
++viewport-level `@media` rules beyond `prefers-reduced-motion`, and they govern the shared shell,
++not any one screen:
++
++| Breakpoint | What changes |
++|---|---|
++| **≥ 700px** | `.mainnav` goes inline in the header; the hamburger (`.hamburger`) and mobile drawer (`.drawer`) hide. |
++| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max content width **~1100px** (`.shell`/`.header-in`/`.footer-in`). |
++| **≥ 1010px** | The header search box (`.searchbox`) becomes a full field; the icon-only mobile search button (`.search-m`) hides. |
++
++`.shell`/`.page-grid`/`.rail` is a **generic primitive**, not wired into any page yet — which
++pages get a rail and what fills it is reserved (per-page rail contents, `.claude/task/contract.md`).
++It is distinct from the team/fixture pages' own `.inner` (680px, single column, locked from the
++CPO-approved mocks `d70aae67`/`f6348775`) — those two pages are unchanged by the foundation shell
++and do not use `.page-grid`. **Open gap**: the original wireframes (01, 02) call for those two
++pages themselves to widen to ~1100px on desktop with an internal two-column reflow; that has not
++been built, and closing it means changing an already-shipped page's width — a separate decision,
++not made here. See 09_chrome.md §10 for the full note.
++
+ ## Screen inventory
+ 
+ | # | File | Screen | Spec status | PR |
+@@ -63,7 +86,7 @@ Every screen file follows this structure:
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+ | 08 | 08_browse.md | Competitions index + country hubs | pending | 4 |
+-| 09 | 09_chrome.md | Nav/header/footer/search/locale/404 | pending | 4 |
++| 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
+ | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
+ | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
+ | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
+@@ -124,6 +147,10 @@ inventory, flagged as new for the design system (#366).
+ | Career-log row (season · comp · apps · goals · assists) | 13 | player row ✓ |
+ | Subtotal / career-total line | 13 | ➕ |
+ | National-caps block | 13 | ➕ |
++| Site header (brand, nav, search, theme toggle) | 09 | ✓ (nav … desktop header) |
++| Mobile nav drawer | 09 | ✓ (nav … mobile bottom-bar or burger) |
++| Site footer (link row + locale/data-source meta) | 09 | ✓ (footer (legal links)) |
++| Generic page grid (main + rail) | 09 | ➕ (system-level layout primitive, not a visual component) |
+ 
+ ## Verification (per screen, before its PR merges)
+ 
+diff --git a/docs/wireframes/09_chrome.md b/docs/wireframes/09_chrome.md
+new file mode 100644
+index 0000000..5ef19b1
+--- /dev/null
++++ b/docs/wireframes/09_chrome.md
+@@ -0,0 +1,141 @@
++# Chrome — global header, footer, search, theme toggle, mobile nav (#391 / #825)
++
++## 1. Purpose
++
++The chrome that wraps every screen: brand, primary navigation, search, locale/theme controls,
++and the footer. Unlike the other screens in this folder, chrome has no "stop-scrolling moment" of
++its own — its job is to be the same, predictable frame on every page so a reader always knows
++where they are and how to get anywhere else. Built as the frontend-foundation task (#825), from
++the CPO-approved mock (artifact `87d14109`, "looks good for now").
++
++## 2. URL
++
++N/A — chrome wraps every route in `site_architecture.md` §3. It renders once, inside
++`Layout.astro`, around every page's content.
++
++## 3. Data sources
++
++None. Chrome is fixed product IA (`site_architecture.md` §4: "the nav exposes Competitions ·
++Matches · Teams · Players · Standings · Stats"), not registry- or mart-driven — it does not vary
++by competition, team, or any exported payload. Labels are static i18n strings
++(`site_v2/src/i18n/strings.ts`). This means the binding rule (00_overview.md — "may reference only
++fields that exist in today's exported JSON") does not apply here; there is no payload to bind to.
++
++## 4. Layout
++
++```
++┌────────────────────────────────────────────┐
++│ MatchdayIQ            [search] [🌓] [☰]     │  (1) header, sticky
++├────────────────────────────────────────────┤
++│  ▾ drawer (phone only, hidden by default)   │  (2) drawer — opens on ☰
++│    Competitions                             │
++│    Matches                                  │
++│    Teams / Players / Standings / Stats      │
++├────────────────────────────────────────────┤
++│              (page content)                │
++├────────────────────────────────────────────┤
++│ MatchdayIQ                                  │  (3) footer
++│ Competitions · Teams · Players · Stats ·    │
++│ About · Imprint (pending)                   │
++│ EN · DE · FI · Data: API-Football           │
++└────────────────────────────────────────────┘
++```
++
++**Phone (< 700px)**: brand + search icon + theme toggle + hamburger in the header; the 6-item nav
++lives in the drawer (`#menuBtn` toggles `.drawer.open`), closed by default.
++
++**≥ 700px**: the 6-item nav (`.mainnav`) goes inline in the header; the hamburger and drawer are
++hidden — there is no drawer state to open on a laptop-width screen.
++
++**≥ 900px**: a generic two-column page grid (`.shell > .page-grid { main | aside.rail }`, max
++content width ~1100px, rail border-left) becomes available for any page that needs a context rail
++alongside its main content. **Not wired into any page this task** — home, competition hub, and
++leaderboards are the candidates (per the home-content mock `1c35e7aa`'s rail: standings/
++trending/top-scorers), but per-page rail contents is a reserved CPO call (`.claude/task/contract.md`).
++The team and fixture pages keep their existing locked single column (`.inner`, 680px, unchanged) —
++see §10 for the open gap this leaves.
++
++**≥ 1010px**: the search box becomes a full field with placeholder text (`.searchbox`); the
++icon-only mobile search button (`.search-m`) hides.
++
++## 5. Module bindings
++
++All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3). Keys, all in
++`site_v2/src/i18n/strings.ts`:
++
++| Element | Key(s) |
++|---|---|
++| Brand | hardcoded "MatchdayIQ" (proper noun, not translated), links to `localeHref(lang)` |
++| Main nav (6 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `navStandings`, `navStats` |
++| Main nav aria-label | `mainNavAria` |
++| Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
++| Theme toggle aria | `themeToggleAria` |
++| Hamburger aria | `menuAria` |
++| Footer link row (5 of 6 items reuse the nav keys) | `navCompetitions`, `navTeams`, `navPlayers`, `navStats`, `footerAbout` |
++| Footer Imprint slot | `footerImprintPending` |
++| Footer data-source line | `footerDataSource` (prefix only — "EN · DE · FI" itself is locale-invariant literal text, language codes are not translated) |
++
++## 6. States
++
++- **No dead links.** Every nav and footer item except the brand renders as an inert `<span>`
++  (not `<a>`) because none of Competitions/Matches/Teams/Players/Standings/Stats/About has a
++  built index page — only team and fixture *detail* pages exist today, reachable only by direct
++  entity URL, not by browsing from chrome. `.mainnav a, .mainnav span` (and the footer/drawer
++  equivalents) apply identical styling to both, so an inert item looks no different from a real
++  one until it's wired. This mirrors the existing convention on the fixture page's breadcrumb and
++  the team page's Explore chips (both already ship this pattern, pre-dating this task). The brand
++  is the one real link (to `localeHref(lang)`, which resolves — the locale root is a real, if
++  placeholder, route today).
++- **Imprint**: permanently labelled "(pending)" until the CPO settles the operator/address
++  question (#799); not a data state, a publication gate.
++- **Search**: visually present, functionally inert — no input element wired, no keystroke
++  behaviour, no results. Search mechanism/style is a reserved CPO call.
++- **Theme**: two states, `data-theme="dark"` (default) / `"light"`, toggled by `#themeBtn` and
++  persisted to `localStorage` (`mdiq-theme`) so the choice survives navigating to a different
++  static page. A blocking inline script (`Layout.astro`, `<script is:inline>`, first thing inside
++  `<body>`) applies a saved choice before the header renders, avoiding a flash of the hard-coded
++  default for a returning light-theme reader. No-preference default is fixed dark; whether the
++  site should ever read `prefers-color-scheme` instead is a separate, reserved question.
++- **Drawer**: closed by default on every page load (no persisted open state).
++
++## 7. Interactions
++
++- Hamburger (`#menuBtn`) toggles `.drawer.open` and its own `aria-expanded`; no outside-click or
++  Escape-key close (matches the approved mock exactly — nothing more was shown or asked for).
++- Theme toggle (`#themeBtn`) flips `data-theme` on `<body>` and writes the choice to
++  `localStorage`; both handlers live in `SiteHeader.astro`'s own `<script>` (module, not
++  blocking — only the FOUC-prevention read in `Layout.astro` needs to block).
++- Both are vanilla JS, not the site's existing JS-free radio-toggle CSS pattern (tabs, segments):
++  that pattern only shows/hides a sibling panel within one component tree, but these two mutate
++  an attribute across the whole shell (theme) or toggle a landmark nav's visibility (drawer).
++
++## 8. SEO
++
++N/A for this spec — chrome carries no schema.org markup of its own (`BreadcrumbList` is per-page,
++already shipped on the fixture and team pages). `robots: noindex` stays on every page while v2 is
++a build-phase preview (`Layout.astro`, pre-existing, unchanged by this task).
++
++## 9. Component census
++
++New this task, added to the aggregate census in `00_overview.md`:
++
++| Component | File | Brief §7? |
++|---|---|---|
++| Site header (brand, nav, search, theme toggle, hamburger) | `components/chrome/SiteHeader.astro` | ✓ ("nav … desktop header") |
++| Mobile nav drawer | `components/chrome/SiteHeader.astro` (same file — one component, two rendered regions) | ✓ ("nav … mobile bottom-bar or burger") |
++| Site footer (brand, link row, locale/data-source meta) | `components/chrome/SiteFooter.astro` | ✓ ("footer (legal links)") |
++| Generic page grid (`.shell`/`.page-grid`/`.rail`) | `styles/system.css` (no dedicated component — a layout primitive, not a visual component) | ➕ (system-level, not in the brief's component list) |
++
++## 10. Gaps
++
++Not a data gap (chrome has no export dependency, §3) — two open, non-data items, recorded here
++rather than silently resolved:
++
++- **Team/fixture desktop width.** The original wireframes (`01_fixture_page.md` §4,
++  `02_team_profile.md` §4) call for those two pages themselves to widen to ~1100px on desktop with
++  an internal two-column reflow. Today they still render at the locked 680px `.inner` single
++  column (unchanged by this task — see §4 above). Closing this means changing an already-shipped,
++  CPO-approved page's width, which is a design decision outside this task's contract.
++- **Rail contents.** The `.page-grid`/`.rail` primitive exists but is wired into zero pages. The
++  home-content mock (`1c35e7aa`, reference only) shows one candidate rail (standings/trending/
++  top-scorers) for the eventual home page — CPO decides per page type when that page is built.
+diff --git a/site_v2/src/components/chrome/SiteFooter.astro b/site_v2/src/components/chrome/SiteFooter.astro
+new file mode 100644
+index 0000000..6b53699
+--- /dev/null
++++ b/site_v2/src/components/chrome/SiteFooter.astro
+@@ -0,0 +1,38 @@
++---
++// Global site footer (foundation shell, #825) — brand, a link row, and static
++// locale/data-source meta text. Markup transcribed from the CPO-approved
++// foundation mock (artifact 87d14109); classes are system.css's.
++//
++// Every link-row item is an inert <span> (no index page built for any of
++// them yet — same "no dead links" convention as the header nav). The Imprint
++// slot stays labelled pending: publication is blocked on the operator/address
++// question (#799), a reserved CPO call, not resolved here. "EN · DE · FI" is
++// locale-invariant literal text (language codes, not translated copy).
++import { t } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  lang: Lang;
++}
++const { lang } = Astro.props;
++
++const flinks = [
++  t(lang, "navCompetitions"),
++  t(lang, "navTeams"),
++  t(lang, "navPlayers"),
++  t(lang, "navStats"),
++  t(lang, "footerAbout"),
++];
++---
++
++<footer class="site-footer">
++  <div class="footer-in">
++    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
++    <div class="flinks">
++      {flinks.map((label) => <span>{label}</span>)}
++      <span class="imp">{t(lang, "footerImprintPending")}</span>
++    </div>
++    <div class="fmeta">EN · DE · FI &nbsp;·&nbsp; {t(lang, "footerDataSource")}</div>
++  </div>
++</footer>
+diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
+new file mode 100644
+index 0000000..bd01472
+--- /dev/null
++++ b/site_v2/src/components/chrome/SiteHeader.astro
+@@ -0,0 +1,103 @@
++---
++// Global site header (foundation shell, #825) — brand, main nav, search, theme
++// toggle, mobile hamburger + drawer. Markup transcribed from the CPO-approved
++// foundation mock (artifact 87d14109); classes are system.css's, defined there.
++//
++// Nav items render as an inert <span>, not <a>, because none of their index
++// pages exist yet (only team/fixture DETAIL pages are built) — same "no dead
++// links" convention already used by the fixture page's breadcrumb and the team
++// page's Explore chips. Exact nav order/contents is a reserved CPO call
++// (contract.md); this is the specified starting list, unchanged from the mock.
++// Search is visually present but inert (no input, no backend) — search style
++// is a reserved CPO call.
++import { t } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  lang: Lang;
++}
++const { lang } = Astro.props;
++
++const navItems = [
++  t(lang, "navCompetitions"),
++  t(lang, "navMatches"),
++  t(lang, "navTeams"),
++  t(lang, "navPlayers"),
++  t(lang, "navStandings"),
++  t(lang, "navStats"),
++];
++---
++
++<header class="site-header">
++  <div class="header-in">
++    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
++
++    <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
++      {navItems.map((label) => <span>{label}</span>)}
++    </nav>
++
++    <div class="header-actions">
++      <div class="searchbox">
++        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
++          <circle cx="11" cy="11" r="7"></circle>
++          <path d="M21 21l-4.3-4.3"></path>
++        </svg>
++        {t(lang, "searchPlaceholder")}
++      </div>
++      <button class="iconbtn search-m" aria-label={t(lang, "searchAria")}>
++        <svg viewBox="0 0 24 24" aria-hidden="true">
++          <circle cx="11" cy="11" r="7"></circle>
++          <path d="M21 21l-4.3-4.3"></path>
++        </svg>
++      </button>
++      <button class="iconbtn" id="themeBtn" aria-label={t(lang, "themeToggleAria")}>
++        <svg viewBox="0 0 24 24" aria-hidden="true">
++          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
++        </svg>
++      </button>
++      <button
++        class="iconbtn hamburger"
++        id="menuBtn"
++        aria-label={t(lang, "menuAria")}
++        aria-expanded="false"
++        aria-controls="drawer"
++      >
++        <svg viewBox="0 0 24 24" aria-hidden="true">
++          <path d="M3 6h18M3 12h18M3 18h18"></path>
++        </svg>
++      </button>
++    </div>
++  </div>
++
++  <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
++    {navItems.map((label) => <span>{label}</span>)}
++  </nav>
++</header>
++
++<script>
++  // Theme toggle + mobile drawer. Vanilla JS: these mutate an attribute across
++  // the whole shell / toggle a sibling nav's visibility, which the site's
++  // existing JS-free radio-toggle pattern (tabs, segments) can't do — that
++  // pattern only shows/hides a panel within the same component tree.
++  const KEY = "mdiq-theme";
++  const body = document.body;
++
++  const themeBtn = document.getElementById("themeBtn");
++  themeBtn?.addEventListener("click", () => {
++    const next = body.getAttribute("data-theme") === "light" ? "dark" : "light";
++    body.setAttribute("data-theme", next);
++    try {
++      localStorage.setItem(KEY, next);
++    } catch {
++      // localStorage unavailable (private mode / disabled) — toggle still works for this page view
++    }
++  });
++
++  const menuBtn = document.getElementById("menuBtn");
++  const drawer = document.getElementById("drawer");
++  menuBtn?.addEventListener("click", () => {
++    const open = drawer?.classList.toggle("open") ?? false;
++    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
++  });
++</script>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 36d2bba..67e9521 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -98,6 +98,21 @@ const EN: Dict = {
+   fxNext: "Next",
+   linkFixtures: "Full fixture list",
+   teamFootnote: "Sample data · v2 preview (Matchday IQ)",
++  // --- chrome (site-wide header/footer, #825) ---
++  navCompetitions: "Competitions",
++  navMatches: "Matches",
++  navTeams: "Teams",
++  navPlayers: "Players",
++  navStandings: "Standings",
++  navStats: "Stats",
++  mainNavAria: "Main navigation",
++  searchPlaceholder: "Search teams, players…",
++  searchAria: "Search",
++  themeToggleAria: "Toggle theme",
++  menuAria: "Menu",
++  footerAbout: "About",
++  footerImprintPending: "Imprint (pending)",
++  footerDataSource: "Data: API-Football",
+ };
+ 
+ const DE: Dict = {
+@@ -189,6 +204,21 @@ const DE: Dict = {
+   fxNext: "Nächstes",
+   linkFixtures: "Alle Spiele",
+   teamFootnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
++  // --- chrome (site-wide header/footer, #825) ---
++  navCompetitions: "Wettbewerbe",
++  navMatches: "Spiele",
++  navTeams: "Mannschaften",
++  navPlayers: "Spieler",
++  navStandings: "Tabelle",
++  navStats: "Statistiken",
++  mainNavAria: "Hauptnavigation",
++  searchPlaceholder: "Teams, Spieler suchen…",
++  searchAria: "Suche",
++  themeToggleAria: "Design umschalten",
++  menuAria: "Menü",
++  footerAbout: "Über uns",
++  footerImprintPending: "Impressum (in Vorbereitung)",
++  footerDataSource: "Daten: API-Football",
+ };
+ 
+ const FI: Dict = {
+@@ -280,6 +310,21 @@ const FI: Dict = {
+   fxNext: "Seuraava",
+   linkFixtures: "Kaikki ottelut",
+   teamFootnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
++  // --- chrome (site-wide header/footer, #825) ---
++  navCompetitions: "Kilpailut",
++  navMatches: "Ottelut",
++  navTeams: "Joukkueet",
++  navPlayers: "Pelaajat",
++  navStandings: "Sarjataulukko",
++  navStats: "Tilastot",
++  mainNavAria: "Päänavigaatio",
++  searchPlaceholder: "Hae joukkueita, pelaajia…",
++  searchAria: "Haku",
++  themeToggleAria: "Vaihda teema",
++  menuAria: "Valikko",
++  footerAbout: "Tietoa",
++  footerImprintPending: "Vastuutiedot (tulossa)",
++  footerDataSource: "Data: API-Football",
+ };
+ 
+ const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
+diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
+index c6becd8..d356fd9 100644
+--- a/site_v2/src/layouts/Layout.astro
++++ b/site_v2/src/layouts/Layout.astro
+@@ -3,7 +3,10 @@
+ // Astro-scoped) so every page renders the identical tokens + components — the
+ // "consistency by construction" lever. Hosts the `.fx` token context on <body>;
+ // dark is the default theme (the token block); light is `data-theme="light"`.
++// Foundation shell (#825): a global header + footer now wrap every page's <slot>.
+ import "../styles/system.css";
++import SiteHeader from "../components/chrome/SiteHeader.astro";
++import SiteFooter from "../components/chrome/SiteFooter.astro";
+ import type { Lang } from "../lib/format";
+ 
+ interface Props {
+@@ -25,6 +28,23 @@ const { lang, title, description } = Astro.props;
+     {description && <meta name="description" content={description} />}
+   </head>
+   <body class="fx" data-theme="dark">
++    <script is:inline>
++      // No-flash theme init: read the saved choice (if any) BEFORE the header/
++      // footer render, as the very first thing in <body>, so a returning
++      // light-theme reader never sees a flash of the hard-coded dark default.
++      // Plain blocking inline script (is:inline opts out of Astro's module
++      // bundling/deferral) — timing here is the whole point.
++      (function () {
++        try {
++          var saved = localStorage.getItem("mdiq-theme");
++          if (saved === "light" || saved === "dark") {
++            document.body.setAttribute("data-theme", saved);
++          }
++        } catch (e) {}
++      })();
++    </script>
++    <SiteHeader lang={lang} />
+     <slot />
++    <SiteFooter lang={lang} />
+   </body>
+ </html>
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 4043bd3..bf75172 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -334,4 +334,101 @@ section { margin-top: 36px; }
+ .ss-chg.up { color: var(--accent); }
+ .ss-chg .u { font-size: 11px; font-weight: 600; opacity: .8; margin-left: 2px; }
+ 
++/* ================================================================ *
++ *  FOUNDATION SHELL — global header/footer + responsive layout system   *
++ *  (#825). Transcribed from the CPO-approved foundation mock (artifact  *
++ *  87d14109, "looks good for now"). Same token contract as above — no   *
++ *  new colours, no new type scale. Three breakpoints, all viewport      *
++ *  (@media), distinct from the component-level @container queries      *
++ *  above: nav goes inline + hamburger/drawer hide >=700px; the page     *
++ *  grid below goes two-column >=900px; the search field replaces its   *
++ *  icon-only button >=1010px. Nav/drawer items render as <a> OR <span> *
++ *  — `.mainnav a, .mainnav span` styles both identically, because most *
++ *  nav items are inert placeholders (no index page built yet) and get *
++ *  the same look as a real link, per the codebase's existing no-dead-  *
++ *  links convention (fixture breadcrumb, team page Explore chips).     *
++ * ================================================================ */
++
++/* ---- global header ---- */
++.site-header {
++  position: sticky; top: 0; z-index: 20;
++  background: color-mix(in srgb, var(--page) 88%, transparent);
++  -webkit-backdrop-filter: saturate(1.4) blur(8px); backdrop-filter: saturate(1.4) blur(8px);
++  border-bottom: 1px solid var(--line);
++}
++.header-in {
++  max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
++  height: 58px; display: flex; align-items: center; gap: 18px;
++}
++.brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
++.brand .iq { color: var(--ink-2); font-weight: 700; }
++.mainnav { display: none; align-items: center; gap: 2px; margin-left: 4px; }
++.mainnav a, .mainnav span { font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 9px; border-radius: 7px; }
++.mainnav a:hover { color: var(--ink); background: var(--surface); }
++.header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
++.searchbox {
++  display: none; align-items: center; gap: 8px; background: var(--sunk); border: 1px solid var(--line);
++  border-radius: 8px; padding: 7px 11px; color: var(--muted); font-size: 13px; min-width: 180px;
++}
++.searchbox .ico { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex: none; }
++.iconbtn {
++  width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line);
++  border-radius: 8px; background: var(--sunk); color: var(--ink-2); cursor: pointer;
++}
++.iconbtn:hover { color: var(--ink); border-color: var(--ink-2); }
++.iconbtn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
++.iconbtn.search-m { display: grid; }
++.hamburger { display: grid; }
++
++/* mobile nav drawer */
++.drawer { display: none; border-top: 1px solid var(--line); background: var(--surface); }
++.drawer.open { display: block; }
++.drawer a, .drawer span {
++  display: block; font-size: 15px; font-weight: 600; color: var(--ink-2);
++  padding: 13px clamp(16px, 3.5vw, 28px); border-bottom: 1px solid var(--line);
++}
++.drawer a:last-child, .drawer span:last-child { border-bottom: 0; }
++
++/* ---- generic page grid (main + rail) — a system primitive, not yet wired ---- *
++ * into any page: which pages get a rail and what fills it is reserved (CPO).   *
++ * Available for a future page (home, competition hub, leaderboards) to opt     *
++ * into via `.shell > .page-grid > main + aside.rail`.                          */
++.shell { max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px) 48px; }
++.page-grid { display: grid; grid-template-columns: 1fr; gap: 8px 40px; }
++.rail { min-width: 0; }
++
++/* ---- global footer ---- */
++.site-footer { border-top: 1px solid var(--line); margin-top: 40px; }
++.footer-in {
++  max-width: 1100px; margin: 0 auto; padding: 26px clamp(16px, 3.5vw, 28px) 40px;
++  display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: baseline;
++}
++.site-footer .brand { font-size: 15px; }
++.flinks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
++.flinks a, .flinks span { font-size: 12.5px; color: var(--muted); }
++.flinks a:hover { color: var(--ink-2); }
++.flinks .imp { font-style: italic; }
++.fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
++
++/* nav inline + hamburger/drawer hidden once there's room for the full nav */
++@media (min-width: 700px) {
++  .mainnav { display: flex; }
++  .hamburger { display: none; }
++  .drawer { display: none !important; }
++}
++/* the two-column page grid needs a bit more room than the nav */
++@media (min-width: 900px) {
++  .page-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
++  .rail { border-left: 1px solid var(--line); padding-left: 36px; }
++}
++/* widest: search becomes a full field instead of an icon. `.iconbtn.search-m`
++ * (not the bare class) matches the base rule's specificity (0,0,2) so this
++ * override actually wins — a bare `.search-m` here loses to `.iconbtn.search-m`
++ * regardless of source order, which is a real bug the reference mock also had
++ * (the icon button silently never hid at its own widest breakpoint). */
++@media (min-width: 1010px) {
++  .searchbox { display: flex; }
++  .iconbtn.search-m { display: none; }
++}
++
+ @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

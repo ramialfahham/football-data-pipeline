@@ -1,0 +1,103 @@
+---
+// Global site header (foundation shell, #825) — brand, main nav, search, theme
+// toggle, mobile hamburger + drawer. Markup transcribed from the CPO-approved
+// foundation mock (artifact 87d14109); classes are system.css's, defined there.
+//
+// Nav items render as an inert <span>, not <a>, because none of their index
+// pages exist yet (only team/fixture DETAIL pages are built) — same "no dead
+// links" convention already used by the fixture page's breadcrumb and the team
+// page's Explore chips. Exact nav order/contents is a reserved CPO call
+// (contract.md); this is the specified starting list, unchanged from the mock.
+// Search is visually present but inert (no input, no backend) — search style
+// is a reserved CPO call.
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+
+const navItems = [
+  t(lang, "navCompetitions"),
+  t(lang, "navMatches"),
+  t(lang, "navTeams"),
+  t(lang, "navPlayers"),
+  t(lang, "navStandings"),
+  t(lang, "navStats"),
+];
+---
+
+<header class="site-header">
+  <div class="header-in">
+    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
+
+    <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
+      {navItems.map((label) => <span>{label}</span>)}
+    </nav>
+
+    <div class="header-actions">
+      <div class="searchbox">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+        {t(lang, "searchPlaceholder")}
+      </div>
+      <button class="iconbtn search-m" aria-label={t(lang, "searchAria")}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+      </button>
+      <button class="iconbtn" id="themeBtn" aria-label={t(lang, "themeToggleAria")}>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+      <button
+        class="iconbtn hamburger"
+        id="menuBtn"
+        aria-label={t(lang, "menuAria")}
+        aria-expanded="false"
+        aria-controls="drawer"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 6h18M3 12h18M3 18h18"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
+    {navItems.map((label) => <span>{label}</span>)}
+  </nav>
+</header>
+
+<script>
+  // Theme toggle + mobile drawer. Vanilla JS: these mutate an attribute across
+  // the whole shell / toggle a sibling nav's visibility, which the site's
+  // existing JS-free radio-toggle pattern (tabs, segments) can't do — that
+  // pattern only shows/hides a panel within the same component tree.
+  const KEY = "mdiq-theme";
+  const body = document.body;
+
+  const themeBtn = document.getElementById("themeBtn");
+  themeBtn?.addEventListener("click", () => {
+    const next = body.getAttribute("data-theme") === "light" ? "dark" : "light";
+    body.setAttribute("data-theme", next);
+    try {
+      localStorage.setItem(KEY, next);
+    } catch {
+      // localStorage unavailable (private mode / disabled) — toggle still works for this page view
+    }
+  });
+
+  const menuBtn = document.getElementById("menuBtn");
+  const drawer = document.getElementById("drawer");
+  menuBtn?.addEventListener("click", () => {
+    const open = drawer?.classList.toggle("open") ?? false;
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+</script>

@@ -50,6 +50,29 @@ Every screen file follows this structure:
   a competition-neutral format and progressively enhance to the visitor's local
   timezone with a tiny script (static site cannot know the timezone at build time).
 
+## Layout system
+
+The responsive chrome + grid contract, built as the frontend-foundation task (#825; full spec:
+[09_chrome.md](09_chrome.md)). `system.css`'s only breakpoints before this were `@container`
+queries scoped to a single component (e.g. `.split`, `.yoygrid`) — these three are the first
+viewport-level `@media` rules beyond `prefers-reduced-motion`, and they govern the shared shell,
+not any one screen:
+
+| Breakpoint | What changes |
+|---|---|
+| **≥ 700px** | `.mainnav` goes inline in the header; the hamburger (`.hamburger`) and mobile drawer (`.drawer`) hide. |
+| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max content width **~1100px** (`.shell`/`.header-in`/`.footer-in`). |
+| **≥ 1010px** | The header search box (`.searchbox`) becomes a full field; the icon-only mobile search button (`.search-m`) hides. |
+
+`.shell`/`.page-grid`/`.rail` is a **generic primitive**, not wired into any page yet — which
+pages get a rail and what fills it is reserved (per-page rail contents, `.claude/task/contract.md`).
+It is distinct from the team/fixture pages' own `.inner` (680px, single column, locked from the
+CPO-approved mocks `d70aae67`/`f6348775`) — those two pages are unchanged by the foundation shell
+and do not use `.page-grid`. **Open gap**: the original wireframes (01, 02) call for those two
+pages themselves to widen to ~1100px on desktop with an internal two-column reflow; that has not
+been built, and closing it means changing an already-shipped page's width — a separate decision,
+not made here. See 09_chrome.md §10 for the full note.
+
 ## Screen inventory
 
 | # | File | Screen | Spec status | PR |
@@ -63,7 +86,7 @@ Every screen file follows this structure:
 | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
 | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
 | 08 | 08_browse.md | Competitions index + country hubs | pending | 4 |
-| 09 | 09_chrome.md | Nav/header/footer/search/locale/404 | pending | 4 |
+| 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
 | 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
 | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
@@ -124,6 +147,10 @@ inventory, flagged as new for the design system (#366).
 | Career-log row (season · comp · apps · goals · assists) | 13 | player row ✓ |
 | Subtotal / career-total line | 13 | ➕ |
 | National-caps block | 13 | ➕ |
+| Site header (brand, nav, search, theme toggle) | 09 | ✓ (nav … desktop header) |
+| Mobile nav drawer | 09 | ✓ (nav … mobile bottom-bar or burger) |
+| Site footer (link row + locale/data-source meta) | 09 | ✓ (footer (legal links)) |
+| Generic page grid (main + rail) | 09 | ➕ (system-level layout primitive, not a visual component) |
 
 ## Verification (per screen, before its PR merges)
 

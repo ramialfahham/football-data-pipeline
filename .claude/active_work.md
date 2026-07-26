@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
 > 16,000 characters (the SessionStart hook's injection budget).
 
-_Last updated **2026-07-26**. main GREEN at **fb3a1a4**. **CURRENT TASK: build the frontend FOUNDATION** (shared shell + responsive system) — design APPROVED via mock, build NOT started. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+_Last updated **2026-07-26**. main GREEN at **f855f12**. **CURRENT TASK: the frontend FOUNDATION shell is BUILT** (#825) — branch `feat/site-v2-foundation-shell`, review cycle in progress, PR not yet merged. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
 
 ## THE GOAL
 **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
@@ -16,22 +16,31 @@ CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every 
 frame exists.
 
 **Design is APPROVED** (mock, CPO "looks good for now"): foundation mock = artifact
-`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`.
-If a mock link is unreachable, the written build spec below + the locked refs (`be7bd6d3` / `d70aae67`
-/ `f6348775`) are enough to build from. Build = turn the mock into the real shared shell, composing
+`87d14109-c6ff-41d2-a3bf-eb59d4e46459`; home-content mock = `1c35e7aa-eca6-44a5-9cbb-b3382fb27c90`
+(reference only — home page content is NOT built, that's Phase C). **Built 2026-07-26**, composing
 ONLY from the locked `system.css` (no new identity):
-- **`site_v2/src/layouts/Layout.astro`** gains a global header (logo `MatchdayIQ` + main nav
-  `Competitions · Matches · Teams · Players · Standings · Stats` + search + a WORKING dark/light
-  theme toggle) + a footer (links, EN·DE·FI, an imprint slot = pending). Today Layout is a bare
-  `<slot>` hardcoded to `data-theme="dark"`.
-- **`site_v2/src/styles/system.css`** gains the RESPONSIVE layout system it never had (its only media
-  query today is `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), two-column
-  page grid (main + rail, max **~1100px**) **≥900px**, search field **≥1010px** (icon below). The
-  fixture/team/player wireframes ALREADY specify "≥900px two columns, max ~1100px" — never built.
-- **Write the two missing specs:** `docs/wireframes/09_chrome.md` (never written) + a layout-system
-  section (grid / breakpoints / max-widths).
-- **Touches the 2 built pages** (team, fixture) — they inherit the new frame; verify they still render.
-- Plan-mode it; review cycle = cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`).
+- **`site_v2/src/layouts/Layout.astro`** now mounts `SiteHeader`/`SiteFooter` (new,
+  `components/chrome/`) around `<slot>`: brand `MatchdayIQ` (links home) + main nav
+  `Competitions · Matches · Teams · Players · Standings · Stats` (inert `<span>` — no index pages
+  exist yet, same no-dead-links convention the fixture/team pages already used) + an inert search
+  box + a WORKING dark/light theme toggle (persists via `localStorage`, no-flash inline init
+  script) + a mobile hamburger/drawer. Footer: brand, an inert link row, `EN · DE · FI · Data:
+  API-Football`, Imprint still pending.
+- **`system.css`** gained the RESPONSIVE layout system it never had (previously only
+  `prefers-reduced-motion`): nav inline **≥700px** (hamburger drawer below), a generic
+  `.shell`/`.page-grid`/`.rail` two-column primitive (max **~1100px**) **≥900px** — built but wired
+  into ZERO pages (per-page rail contents is reserved) — search field **≥1010px** (icon below;
+  fixed a specificity bug inherited from the mock where the icon button never actually hid).
+- **`docs/wireframes/09_chrome.md`** written + a new "Layout system" section in `00_overview.md`.
+- Team/fixture pages: **zero file changes** — they inherit the new header/footer purely because
+  Layout.astro wraps their `<slot>`; their own `.inner` (680px) width is untouched. The
+  fixture/team wireframes' own ~1100px desktop-widen spec is a real, OPEN, not-closed gap — see
+  09_chrome.md §10.
+- Verified: `npm run build` green, both pages render correctly, all 3 breakpoints fire, theme
+  toggle flips + persists across navigation (checked via computed styles/JS, not screenshot — the
+  Browser pane's screenshot tool is confirmed broken in this environment, text/JS checks only).
+- Review cycle in progress: cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`,
+  `docs/wireframes/**`) + scope-auditor.
 
 **Reserved (CPO §10, NOT decided in build):** exact nav contents/order (the listed order is the
 specified start — refine only on CPO word) · search style · what fills the
@@ -64,7 +73,7 @@ vapourware.
 ## WHERE WE STAND — five launch groups
 | # | Group | Status |
 |---|-------|--------|
-| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell = current task.** Player spec'd + data-ready + UNBUILT. 7 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary, chrome). |
+| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell BUILT (#825), PR open awaiting review/merge.** Player spec'd + data-ready + UNBUILT. 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary) — chrome now spec'd. |
 | 2 | **Real data** | consuming ✅ (export → build → deploy). |
 | 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
 | 4 | **Legal** | not started; imprint blocks publication. |
@@ -95,6 +104,9 @@ half). (The foundation mock uses text initials — no third-party requests.)
   in #822; the peer split is still owed.
 
 ## DONE (history — detail in git)
+- **2026-07-26:** foundation shell BUILT (#825) — Layout.astro header/footer, system.css
+  responsive system (700/900/1010px), `docs/wireframes/09_chrome.md` + layout-system section,
+  chrome i18n keys (DE/EN/FI). PR open, not yet merged.
 - **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
 - **2026-07-25:** Firebase deploy LIVE + verified (run 30151299421); export cost measured ~$0.002/run
   (exclude dbt-labelled queries in JOBS_BY_PROJECT or it reads ~100x high); **#822** per-agent effort
@@ -110,7 +122,7 @@ half). (The foundation mock uses text initials — no third-party requests.)
   inference ≠ permission (§10); verify the real tree.
 
 ## NEXT
-1. **Build the frontend FOUNDATION** (the CURRENT TASK above).
+1. Get the foundation shell PR (#825, `feat/site-v2-foundation-shell`) through review and merged.
 2. Then Phase B (lean process) → Phase C (pages; player first).
 3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
    stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
@@ -150,8 +162,10 @@ half). (The foundation mock uses text initials — no third-party requests.)
 ## Verified state reference
 - **Live to users:** no PUBLIC site. v2 IS deployed to `football-data-pipeline-gcp.web.app` (reachable,
   unlisted, not announced) — a verification target.
-- **v2 built:** the shared design system (`system.css` + 24 components), the fixture page (#672), the
-  team page (3 tabs). **NO shared nav shell / responsive desktop layout yet** (= the foundation task).
+- **v2 built:** the shared design system (`system.css` + 26 components), the fixture page (#672), the
+  team page (3 tabs), and now the **shared nav shell + responsive layout system (#825)** — header,
+  footer, theme toggle, 700/900/1010px breakpoints. The `.shell`/`.page-grid`/`.rail` primitive
+  exists but is wired into zero pages; team/fixture stay at their locked 680px `.inner` width.
 - **Automation:** session default Opus+high in gitignored `settings.local.json`; review-fleet effort
   pinned (#822) — see [[reference-model-effort-automation]].
 - **Metric layer:** all 78 catalogue rows carry `direction` + `interpretation`; six guards; the
