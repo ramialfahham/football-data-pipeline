@@ -98,6 +98,21 @@ const EN: Dict = {
   fxNext: "Next",
   linkFixtures: "Full fixture list",
   teamFootnote: "Sample data · v2 preview (Matchday IQ)",
+  // --- chrome (site-wide header/footer, #825) ---
+  navCompetitions: "Competitions",
+  navMatches: "Matches",
+  navTeams: "Teams",
+  navPlayers: "Players",
+  navStandings: "Standings",
+  navStats: "Stats",
+  mainNavAria: "Main navigation",
+  searchPlaceholder: "Search teams, players…",
+  searchAria: "Search",
+  themeToggleAria: "Toggle theme",
+  menuAria: "Menu",
+  footerAbout: "About",
+  footerImprintPending: "Imprint (pending)",
+  footerDataSource: "Data: API-Football",
 };
 
 const DE: Dict = {
@@ -189,6 +204,21 @@ const DE: Dict = {
   fxNext: "Nächstes",
   linkFixtures: "Alle Spiele",
   teamFootnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
+  // --- chrome (site-wide header/footer, #825) ---
+  navCompetitions: "Wettbewerbe",
+  navMatches: "Spiele",
+  navTeams: "Mannschaften",
+  navPlayers: "Spieler",
+  navStandings: "Tabelle",
+  navStats: "Statistiken",
+  mainNavAria: "Hauptnavigation",
+  searchPlaceholder: "Teams, Spieler suchen…",
+  searchAria: "Suche",
+  themeToggleAria: "Design umschalten",
+  menuAria: "Menü",
+  footerAbout: "Über uns",
+  footerImprintPending: "Impressum (in Vorbereitung)",
+  footerDataSource: "Daten: API-Football",
 };
 
 const FI: Dict = {
@@ -280,6 +310,21 @@ const FI: Dict = {
   fxNext: "Seuraava",
   linkFixtures: "Kaikki ottelut",
   teamFootnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
+  // --- chrome (site-wide header/footer, #825) ---
+  navCompetitions: "Kilpailut",
+  navMatches: "Ottelut",
+  navTeams: "Joukkueet",
+  navPlayers: "Pelaajat",
+  navStandings: "Sarjataulukko",
+  navStats: "Tilastot",
+  mainNavAria: "Päänavigaatio",
+  searchPlaceholder: "Hae joukkueita, pelaajia…",
+  searchAria: "Haku",
+  themeToggleAria: "Vaihda teema",
+  menuAria: "Valikko",
+  footerAbout: "Tietoa",
+  footerImprintPending: "Vastuutiedot (tulossa)",
+  footerDataSource: "Data: API-Football",
 };
 
 const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };

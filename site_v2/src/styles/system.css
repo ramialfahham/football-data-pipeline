@@ -334,4 +334,101 @@ section { margin-top: 36px; }
 .ss-chg.up { color: var(--accent); }
 .ss-chg .u { font-size: 11px; font-weight: 600; opacity: .8; margin-left: 2px; }
 
+/* ================================================================ *
+ *  FOUNDATION SHELL — global header/footer + responsive layout system   *
+ *  (#825). Transcribed from the CPO-approved foundation mock (artifact  *
+ *  87d14109, "looks good for now"). Same token contract as above — no   *
+ *  new colours, no new type scale. Three breakpoints, all viewport      *
+ *  (@media), distinct from the component-level @container queries      *
+ *  above: nav goes inline + hamburger/drawer hide >=700px; the page     *
+ *  grid below goes two-column >=900px; the search field replaces its   *
+ *  icon-only button >=1010px. Nav/drawer items render as <a> OR <span> *
+ *  — `.mainnav a, .mainnav span` styles both identically, because most *
+ *  nav items are inert placeholders (no index page built yet) and get *
+ *  the same look as a real link, per the codebase's existing no-dead-  *
+ *  links convention (fixture breadcrumb, team page Explore chips).     *
+ * ================================================================ */
+
+/* ---- global header ---- */
+.site-header {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(8px); backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.header-in {
+  max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
+  height: 58px; display: flex; align-items: center; gap: 18px;
+}
+.brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
+.brand .iq { color: var(--ink-2); font-weight: 700; }
+.mainnav { display: none; align-items: center; gap: 2px; margin-left: 4px; }
+.mainnav a, .mainnav span { font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 9px; border-radius: 7px; }
+.mainnav a:hover { color: var(--ink); background: var(--surface); }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.searchbox {
+  display: none; align-items: center; gap: 8px; background: var(--sunk); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 11px; color: var(--muted); font-size: 13px; min-width: 180px;
+}
+.searchbox .ico { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex: none; }
+.iconbtn {
+  width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--sunk); color: var(--ink-2); cursor: pointer;
+}
+.iconbtn:hover { color: var(--ink); border-color: var(--ink-2); }
+.iconbtn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
+.iconbtn.search-m { display: grid; }
+.hamburger { display: grid; }
+
+/* mobile nav drawer */
+.drawer { display: none; border-top: 1px solid var(--line); background: var(--surface); }
+.drawer.open { display: block; }
+.drawer a, .drawer span {
+  display: block; font-size: 15px; font-weight: 600; color: var(--ink-2);
+  padding: 13px clamp(16px, 3.5vw, 28px); border-bottom: 1px solid var(--line);
+}
+.drawer a:last-child, .drawer span:last-child { border-bottom: 0; }
+
+/* ---- generic page grid (main + rail) — a system primitive, not yet wired ---- *
+ * into any page: which pages get a rail and what fills it is reserved (CPO).   *
+ * Available for a future page (home, competition hub, leaderboards) to opt     *
+ * into via `.shell > .page-grid > main + aside.rail`.                          */
+.shell { max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px) 48px; }
+.page-grid { display: grid; grid-template-columns: 1fr; gap: 8px 40px; }
+.rail { min-width: 0; }
+
+/* ---- global footer ---- */
+.site-footer { border-top: 1px solid var(--line); margin-top: 40px; }
+.footer-in {
+  max-width: 1100px; margin: 0 auto; padding: 26px clamp(16px, 3.5vw, 28px) 40px;
+  display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: baseline;
+}
+.site-footer .brand { font-size: 15px; }
+.flinks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.flinks a, .flinks span { font-size: 12.5px; color: var(--muted); }
+.flinks a:hover { color: var(--ink-2); }
+.flinks .imp { font-style: italic; }
+.fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+
+/* nav inline + hamburger/drawer hidden once there's room for the full nav */
+@media (min-width: 700px) {
+  .mainnav { display: flex; }
+  .hamburger { display: none; }
+  .drawer { display: none !important; }
+}
+/* the two-column page grid needs a bit more room than the nav */
+@media (min-width: 900px) {
+  .page-grid { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+  .rail { border-left: 1px solid var(--line); padding-left: 36px; }
+}
+/* widest: search becomes a full field instead of an icon. `.iconbtn.search-m`
+ * (not the bare class) matches the base rule's specificity (0,0,2) so this
+ * override actually wins — a bare `.search-m` here loses to `.iconbtn.search-m`
+ * regardless of source order, which is a real bug the reference mock also had
+ * (the icon button silently never hid at its own widest breakpoint). */
+@media (min-width: 1010px) {
+  .searchbox { display: flex; }
+  .iconbtn.search-m { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
