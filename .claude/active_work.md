@@ -4,12 +4,12 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
 > 16,000 characters (the SessionStart hook's injection budget).
 
-_Last updated **2026-07-26**. main GREEN at **f855f12**. **CURRENT TASK: the frontend FOUNDATION shell is BUILT** (#825) — branch `feat/site-v2-foundation-shell`, review cycle in progress, PR not yet merged. Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+_Last updated **2026-07-26**. main GREEN at **9990d2b**. **The frontend FOUNDATION shell is MERGED** (#825, PR #829). **NEXT: pick Phase B (#826/#827) or Phase C (player page) — CPO to choose.** Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
 
 ## THE GOAL
 **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
 
-## ⭐ CURRENT TASK — build the frontend FOUNDATION — issue #825 (start here)
+## ⭐ RECENT — the frontend FOUNDATION shell — issue #825 (MERGED, PR #829, 2026-07-26)
 **Why this, not more pages:** a spec audit (2026-07-26) found the frontend is systematic on DATA +
 CONTENT but improvisational on LAYOUT, CHROME, and page-production — so every page became a one-off.
 **CPO decision 2026-07-26: foundation-first, lean process.** Stop building pages until the shared
@@ -39,8 +39,9 @@ ONLY from the locked `system.css` (no new identity):
 - Verified: `npm run build` green, both pages render correctly, all 3 breakpoints fire, theme
   toggle flips + persists across navigation (checked via computed styles/JS, not screenshot — the
   Browser pane's screenshot tool is confirmed broken in this environment, text/JS checks only).
-- Review cycle in progress: cto-reviewer (shell/config) + bi-analyst-reviewer (`site_v2/src/**`,
-  `docs/wireframes/**`) + scope-auditor.
+- Review cycle: cto-reviewer + bi-analyst-reviewer + scope-auditor all PASS, round 1. One
+  non-blocking nit (FI `footerDataSource` left untranslated, identical to EN) — a fast-follow, not
+  fixed in #829 to avoid a review round for one word.
 
 **Reserved (CPO §10, NOT decided in build):** exact nav contents/order (the listed order is the
 specified start — refine only on CPO word) · search style · what fills the
@@ -73,7 +74,7 @@ vapourware.
 ## WHERE WE STAND — five launch groups
 | # | Group | Status |
 |---|-------|--------|
-| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell BUILT (#825), PR open awaiting review/merge.** Player spec'd + data-ready + UNBUILT. 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary) — chrome now spec'd. |
+| 1 | **Pages** | 2 of 5 built (fixture + team). **Foundation shell MERGED (#825, PR #829).** Player spec'd + data-ready + UNBUILT. 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary) — chrome now spec'd. |
 | 2 | **Real data** | consuming ✅ (export → build → deploy). |
 | 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
 | 4 | **Legal** | not started; imprint blocks publication. |
@@ -104,9 +105,10 @@ half). (The foundation mock uses text initials — no third-party requests.)
   in #822; the peer split is still owed.
 
 ## DONE (history — detail in git)
-- **2026-07-26:** foundation shell BUILT (#825) — Layout.astro header/footer, system.css
-  responsive system (700/900/1010px), `docs/wireframes/09_chrome.md` + layout-system section,
-  chrome i18n keys (DE/EN/FI). PR open, not yet merged.
+- **2026-07-26:** foundation shell MERGED (#825, PR #829, commit 9990d2b) — Layout.astro
+  header/footer, system.css responsive system (700/900/1010px), `docs/wireframes/09_chrome.md` +
+  layout-system section, chrome i18n keys (DE/EN/FI). Known follow-up: FI footerDataSource
+  untranslated.
 - **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
 - **2026-07-25:** Firebase deploy LIVE + verified (run 30151299421); export cost measured ~$0.002/run
   (exclude dbt-labelled queries in JOBS_BY_PROJECT or it reads ~100x high); **#822** per-agent effort
@@ -122,8 +124,10 @@ half). (The foundation mock uses text initials — no third-party requests.)
   inference ≠ permission (§10); verify the real tree.
 
 ## NEXT
-1. Get the foundation shell PR (#825, `feat/site-v2-foundation-shell`) through review and merged.
-2. Then Phase B (lean process) → Phase C (pages; player first).
+1. **CPO to pick**: Phase B (#826 page-spec contract + #827 sharpened rendered-page reviewer —
+   cheap process scaffolding) or go straight to Phase C (player page — fully spec'd + data-ready,
+   no open design debate; real product progress).
+2. Whichever comes first, then the other → home page (in the new shell) after that.
 3. Small follow-ups: em-dash/AI-tell sweep in `site_v2/src/i18n/strings.ts`; `site_v2/src/data/README.md`
    stale; `content_architecture.md` cites GAP-22 (should be GAP-20) for squad; fixture PlayerRow
    "1 assists" → singular i18n.
