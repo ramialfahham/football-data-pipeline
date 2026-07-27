@@ -4,57 +4,86 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
 > 16,000 characters (the SessionStart hook's injection budget).
 
-_Last updated **2026-07-27**. main GREEN at **95c0dd1**. **Phase B is DONE** — #825/#827/#826 all
-MERGED. **CURRENT: Phase C player OVERVIEW tab is mostly designed and CPO-reviewed; 5 CPO decisions
-are open before it can be built.** The render failure is DIAGNOSED and the working delivery practice
-is recorded below. Performance and Career tabs NOT started. **FIRST ACTION next session: read the
-design-state comment on #753 — it is the authority and splits every item by who decided it. Do not
-build from its section C.** Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+_Last updated **2026-07-27** (late). main GREEN at **bf2ddf9**. **THE PLAN CHANGED THIS SESSION.**
+**SEO is now a BUILD GATE (#844), not an occasional review — CPO ruling — and it is the next major
+work.** The player Overview tab is **BUILT, reviewed, and sitting UNCOMMITTED in `git stash@{0}`**,
+held from merge on #845 and #846. **FIRST ACTIONS next session: (1) read "⭐ CURRENT" below, (2) note
+the stash before doing any git work, (3) the CPO owes a §10 classification on #846.**
+Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
 
 ## THE GOAL
 **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
 
-## ⭐ CURRENT — Phase C player OVERVIEW: 5 CPO decisions open, then build (2026-07-27, #753)
+## ⭐ CURRENT — SEO is a BUILD GATE (#844). Player Overview built but HELD.
 
-**The authority is the design-state comment on #753, not this summary.** It splits EVERY item by who
-decided it: (A) decided by the CPO, (B) CPO direction implemented, (C) **STILL OPEN — do not build
-from these**, (D) factual findings, (E) data deps, (F) recommendation. An earlier version of that
-comment wrongly marked open items "approved"; it was rewritten. Trust the sections, not memory.
+### 1. THE RULING THAT CHANGED THE PLAN (2026-07-27)
 
-**THE 5 OPEN CPO DECISIONS** (the rest of section C I will default and state explicitly):
-1. **One URL with 3 tabs (mirrors the shipped team page) vs 3 sub-paths** (specs 12/13 carry their
-   own canonicals + meta). **Decide FIRST** — changes what gets built and invalidates those sections.
-2. Does the **9-row season bundle leave Overview** for Performance (a change to spec 03).
-3. The team's **thinned record strip** — accept, or restore the standing line and drop rank/points
-   from block 1. **Touches the LIVE team page.**
-4. Does the **inert selector ship looking clickable** (#362)?
-5. **Wording + names** (§10, CPO-only): block-1 heading (breaks for cups — "current vs last season"
-   with no last season), the appearances line, the scope line, `Fixtures` vs `Match log`, and the
-   rank-delta sign convention (15th→3rd is −12 as a number, +12 as an improvement).
+CPO: *"This is not an ad-hoc situation where we occasionally run the SEO expert. SEO optimization has
+to be ensured during the whole process of building the website."* A reviewer is after-the-fact and
+cannot ensure anything.
 
-**RENDER FAILURE: DIAGNOSED.** Not sharing/permission (artifact existed, CPO-owned, served complete
-HTML) and not CSP (zero external refs). Prime suspect: every tab panel sat behind
-`.page{display:none}` revealed only by `#tab-x:checked ~`. **Working practice — keep doing all three:
-show ONE tab at a time (no hidden panels), publish to a NEW artifact URL (never republish), deliver
-via Artifact AND SendUserFile.** Every mock since has rendered.
+**#844 — extend #826's page-spec contract so no page BUILDS without declaring its SEO surface**:
+canonical + hreflang, title/description **uniqueness across the generated set** (presence is
+worthless at scale), schema.org type, **inbound hub + outbound edges**, page-count driver
+(`entity × dimensions × locale`), and the minimum-data gate. Then every future page type — analysis,
+predictions, anything — inherits it by construction.
 
-**Approved design in brief** (provenance in #753 A/B): block order = **current vs last season →
-deserved vs actual → fixtures**, identical on team and player. Player block 1 = **goals, assists,
-shots on target, key passes**. Strip = **games played only** (mins/app + substitute apps → the
-Performance tab). Player strip states **appearances out of the club's matches**. **Scope line under
-the tabs** (option 2) on both pages. Chips fixed **44px** so both pill groups are exactly **140px**
-and align; a label before each group; each label+group is atomic; 560px container query.
-**The outfielder is the DEFAULT page; the goalkeeper is the VARIANT** (a keeper is 1 of 4 position
-groups — designing the canonical page around one was a real mistake this session).
+**This REORDERS the locked sequence: #369 becomes a prerequisite for the remaining pages**, because
+each page built before the gate is a page to retrofit. Fixture, team and player all need retrofitting
+already (`Layout.astro` has no canonical, no hreflang, no structured data; it sets `noindex`, correct
+until cutover #377).
 
-**⚠️ The chip change edits shipped `system.css`** (`.cchip` auto-width → fixed 44px box). It affects
-the **LIVE team page**, not only a mock.
+**Siblings, all filed today:** **#845** minimum-data gate (what earns a page) · **#843** slugs are
+recomputed from the current name every export, so a rename changes every URL and loses its equity,
+and the alias §3 promises does not exist · **#846** window selection in the frontend.
 
-**Data deps.** **#840** (club match count for the "of 38"; rank YoY + sign) blocks the player strip
-line only. **#838** (points is a synthetic 3-1-0 tally in EVERY competition: FA Cup renders 0, UEL
-renders 32 against a real league-phase 18) and **#839** (phase spike — tables vs brackets) block the
-**TEAM** Overview's cup behaviour, **not** the player page. **#841** (pass accuracy 23–30% since 2022
-vs 72–73% before) blocks player **PERFORMANCE**, not Overview.
+**`seo-expert-reviewer` exists (merged, #842) but is INERT** — absent from `.claude/review_routing.json`,
+so it fires on nothing. Routing it is an **open governance ask** (protected file).
+
+### 2. ⚠️ THE PLAYER OVERVIEW IS BUILT AND UNCOMMITTED — IN A STASH
+
+```
+git stash list          # stash@{0} "feat/player-overview-tab: Overview tab BUILT+reviewed, held on #845 and #846"
+git checkout feat/player-overview-tab && git stash pop
+```
+
+**Do NOT start player work from scratch — it is done.** Build green, 447 tests green,
+`bi-analyst-reviewer` and `scope-auditor` both PASS. It is uncommitted only because the commit gate
+rejects a FAIL and `analytics-engineer-reviewer` FAILed on #846.
+
+**Held on TWO issues:**
+- **#845** — the deploy exports `teams,fixtures` only, so shipping this puts **hundreds of real dead
+  links on the LIVE team page**. Fixing it by adding `players` means **154,644 pages** (51,548 players
+  × 3 locales) against a build already needing 8GB at one-sixteenth of that, and that volume of thin
+  pages shrinks crawl budget domain-wide. **CPO chose option (d): hold until the gate defines what
+  earns a page.**
+- **#846** — the featured season is chosen by window selection in page code, which `layering.md`
+  forbids. **Needs a §10 CLASSIFICATION from the CPO**: is "which season does this page open on" a
+  warehouse fact or a display default? The contract's text says the former; the shipped team page
+  assumes the latter, with a *different* implementation. Moving it into the export does NOT fix it —
+  the export is the consumption layer too.
+
+**What the build proved (three defects only building could find):** the featured season landed on a
+**World Cup** for an international · `system.css` had **no reveal rule for a `career` tab**, so the
+third tab could never open (fixed) · link resolution was a glob over committed files, which the CPO
+rejected — links are now data-driven from payload slugs the export carries.
+
+**Design state: the authority is #753's design-state comment**, which splits every item by who decided
+it (A decided / B CPO direction / **C STILL OPEN — do not build from these** / D findings / E deps /
+F recommendation). Everything in section C is still open, including the tab-vs-URL question.
+
+**RENDER FAILURE: DIAGNOSED. Keep doing all three:** show ONE tab at a time (no hidden panels),
+publish to a **NEW** artifact URL (never republish), deliver via Artifact **and** SendUserFile.
+
+**Not in the branch, still owed:** the chip/pill sizing change the CPO approved (`.cchip` fixed 44px
+so both pill groups are 140px and align, label before each group) — deliberately a separate PR
+because it edits shipped `system.css` and affects the LIVE team page.
+
+**Data deps.** **#840** (club match count for "37 of 38"; rank YoY + sign convention) · **#838**
+(points is a synthetic 3-1-0 tally in EVERY competition: FA Cup renders 0, UEL renders 32 against a
+real league-phase 18) and **#839** (phase spike — tables vs brackets) block the **TEAM** Overview's
+cup behaviour, not the player page · **#841** (pass accuracy 23–30% since 2022 vs 72–73% before)
+blocks player **PERFORMANCE**.
 
 ## ⭐ Phase B — DONE (2026-07-26): foundation shell + lean-process scaffolding
 - **#825 (PR #829)**: global header/footer (nav, search, working theme toggle, mobile drawer) in
@@ -91,7 +120,7 @@ right-sized): component/metric catalogue, import-boundary rule, one-page driver 
 ## WHERE WE STAND — five launch groups
 | # | Group | Status |
 |---|-------|--------|
-| 1 | **Pages** | 2 of 5 built (fixture + team). **Phase B DONE** (#825, #827, #826 — all merged). **CURRENT: player page — Overview designed + CPO-reviewed, 5 decisions open, then build; Performance/Career not started.** 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary) — chrome now spec'd. |
+| 1 | **Pages** | 2 of 5 built (fixture + team); player Overview built but HELD (see ⭐ CURRENT). All 3 need SEO-gate retrofit. 6 of 15 screens UNSPEC'D (home, competition hub, browse, leaderboards, h2h, glossary). |
 | 2 | **Real data** | consuming ✅ (export → build → deploy). |
 | 3 | **Hosting** | LIVE + verified. Recurring trigger (cost measured negligible) + go-public still gated (OPEN). |
 | 4 | **Legal** | not started; imprint blocks publication. |
@@ -138,19 +167,17 @@ half). (The foundation mock uses text initials — no third-party requests.)
   reselling is the one hard prohibition. Lessons: fix the CLASS not the instance; verify the real
   tree.
 
-## NEXT — SEQUENCE LOCKED (CPO 2026-07-26, this exact order, do not re-decide it)
-1. **CURRENT: Phase C player page.** Read "⭐ CURRENT" then #753's design-state comment. Next
-   actions in order: **(a) get the 5 open CPO decisions** (URL structure first — it changes what is
-   built); **(b) build the Overview tab** — branch off main, plan mode, CPO go, review cycle, PR;
-   **(c) THEN Performance, THEN Career, one tab at a time**, deciding each tab's content boundary
-   against Overview before mocking it. Close #753 myself once merged (own the full lifecycle —
-   [[feedback-issues-for-upcoming-work]]).
-2. Then the home page, in the new shell (home-content mock `1c35e7aa` is reference only).
-3. **THEN legal/imprint** (CPO decision, blocks going public), **then launch**.
-4. Small follow-ups: em-dash sweep in `strings.ts`; `site_v2/src/data/README.md` stale;
-   `content_architecture.md` cites GAP-22 (should be GAP-20); fixture PlayerRow "1 assists" →
-   singular i18n; FI `footerDataSource` untranslated (#825); wire `rendered_page_evidence.md` into
-   a builder-facing doc (#833).
+## NEXT — RE-SEQUENCED 2026-07-27 (SEO gate now precedes the remaining pages)
+1. **#846 §10 classification (CPO owes this)** — warehouse fact or display default? Unblocks the
+   player branch's second hold.
+2. **#844 SEO build gate + #845 minimum-data gate.** The prerequisite: every page built before the
+   gate is a page to retrofit. #845 also decides what enters the deploy's `--entities`.
+3. **Retrofit fixture/team/player against the gate; then the player branch merges** and Performance
+   → Career follow, one tab at a time, each boundary decided before mocking.
+4. Then the home page (mock `1c35e7aa` is reference only), **then legal/imprint**, then launch.
+5. Small follow-ups: route `seo-expert-reviewer` (governance); em-dash sweep in `strings.ts`;
+   `site_v2/src/data/README.md` stale; `content_architecture.md` cites GAP-22 (should be GAP-20);
+   fixture PlayerRow "1 assists" → singular i18n; #833.
 
 ## OPEN — the CPO's alone
 - **Imprint operator + address** — blocks publication (#799); get a lawyer, never conclude it.
