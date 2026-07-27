@@ -21,6 +21,17 @@ models:
     description: >
       One row per team_api_id: latest ingest across (league_code, team_api_id) rows
       from base_apif__teams. Entity resolution for dim_team. Grain: team_api_id.
+
+      Also applies the CPO-owned display-name corrections from the team_name_overrides seed
+      (#850). This is the layer where they belong: base prepares the entity, the core dim
+      publishes an already-settled one (CPO ruling, 2026-07-27). It matters because the
+      provider's short name is the ONLY team name in the product — it drives the fixture
+      card, the page H1, the title, the meta description and the URL slug (#851) — so the
+      correction has to land once, upstream of all of them.
+
+      Note for anyone reading a historical row elsewhere: fct_fixture_event's
+      team_name_snapshot is written on insert and never revisited, so it deliberately keeps
+      the name as it stood at ingest time and will not reflect a later correction.
     config:
       tags: ["base", "api_football", "team_context"]
     tests:

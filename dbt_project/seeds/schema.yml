@@ -256,3 +256,55 @@ seeds:
         description: "Human note + external-evidence reference for the correction (required — the governance control)."
         tests:
           - not_null
+
+  - name: team_name_overrides
+    description: >
+      CPO-owned corrections to a team's DISPLAY NAME, applied in base_apif__teams_global (#850).
+      The provider's /teams endpoint sends a short label of unverified quality ("Rangers",
+      "Lokomotiv") and it is the ONLY team name in the product — it drives the fixture card, the
+      page H1, the <title>, the meta description and the URL slug (#851) — so 18 teams in 9 groups
+      were previously indistinguishable from one another. Correcting the name here fixes every one
+      of those surfaces at once.
+
+      GOVERNANCE: add a row ONLY where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the
+      provider, and record that source in the row. Never taste, never a nickname, and never a
+      locale preference — `Bayern München` is NOT corrected to `Bayern Munich` (CPO ruled one
+      locale-independent slug). An earlier draft asserted "Glasgow Rangers" from memory and was
+      wrong: Wikipedia states that has never been the club's official name. Verify externally, one
+      club at a time.
+
+      NOT the mechanism for duplicate provider ids — one club under two ids is
+      fixture_event_team_overrides.csv with mode=alias, because two URLs for one club is worse than
+      the collision. Nyasa Big Bullets (#4596/#4599) and Dragon (#3045/#21310) are therefore
+      deliberately absent, as is Warriors #4207 whose identity is unresolved.
+
+      assert_team_name_overrides_still_needed fails the build if a row's value equals the
+      provider's current name, so a correction the provider has since adopted is removed rather
+      than left to rot.
+    config:
+      column_types:
+        team_api_id: int64
+        team_name: string
+        source: string
+        note: string
+    columns:
+      - name: team_api_id
+        description: "The team whose display name is corrected. Must exist in dim_team."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_api_id
+      - name: team_name
+        description: "The club's actual name, as established by the external source in `source`."
+        tests:
+          - not_null
+      - name: source
+        description: "URL of the external source of record establishing the name (required — the governance control)."
+        tests:
+          - not_null
+      - name: note
+        description: "Why the provider's value is wrong, and what this row collides with."
+        tests:
+          - not_null
