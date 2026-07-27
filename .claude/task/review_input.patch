@@ -1,356 +1,207 @@
-diff --git a/.claude/agents/seo-expert-reviewer.md b/.claude/agents/seo-expert-reviewer.md
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index c4d48a7..48fc40c 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -21,6 +21,17 @@ models:
+     description: >
+       One row per team_api_id: latest ingest across (league_code, team_api_id) rows
+       from base_apif__teams. Entity resolution for dim_team. Grain: team_api_id.
++
++      Also applies the CPO-owned display-name corrections from the team_name_overrides seed
++      (#850). This is the layer where they belong: base prepares the entity, the core dim
++      publishes an already-settled one (CPO ruling, 2026-07-27). It matters because the
++      provider's short name is the ONLY team name in the product — it drives the fixture
++      card, the page H1, the title, the meta description and the URL slug (#851) — so the
++      correction has to land once, upstream of all of them.
++
++      Note for anyone reading a historical row elsewhere: fct_fixture_event's
++      team_name_snapshot is written on insert and never revisited, so it deliberately keeps
++      the name as it stood at ingest time and will not reflect a later correction.
+     config:
+       tags: ["base", "api_football", "team_context"]
+     tests:
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+index 872bad1..797fd9d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+@@ -1,9 +1,50 @@
+ -- Global team entity: one row per team_api_id (latest ingest across league_code rows).
+ -- Feeds dim_team. Grain: team_api_id.
++--
++-- Applies the CPO-owned name corrections here rather than in dim_team so the core
++-- dimension publishes an entity that is already settled (CPO ruling, 2026-07-27: base is
++-- where these preparations happen, the dim propagates the result). Why it matters beyond
++-- spelling: the provider's /teams endpoint sends a short label of unverified quality
++-- ("Rangers", "Lokomotiv"), and it is the ONLY team name in the product -- it drives the
++-- fixture card, the page H1, the <title>, the meta description and the URL slug, so 18
++-- teams in 9 groups were previously indistinguishable from one another (#850, #851).
+ 
+-select *
+-from {{ ref('base_apif__teams') }}
+-qualify row_number() over (
+-    partition by team_api_id
+-    order by raw_ingested_at desc
+-) = 1
++with import_base_apif__teams as (
++    select * from {{ ref('base_apif__teams') }}
++),
++
++import_team_name_overrides as (
++    select * from {{ ref('team_name_overrides') }}
++),
++
++latest_per_team as (
++    select *
++    from import_base_apif__teams
++    qualify row_number() over (
++        partition by team_api_id
++        order by raw_ingested_at desc
++    ) = 1
++)
++
++-- Columns are enumerated rather than passed through with a wildcard: adding the override
++-- join makes `select teams.* replace (...)` ambiguous to SQLFluff (AM04, "unknown number of
++-- result columns"), and this repo suppresses no lint rule anywhere -- there is not a single
++-- `noqa` in it. Nothing is lost by listing them: dim_team is the only consumer and already
++-- projects its columns explicitly, so a new upstream column needs an edit there regardless.
++select
++    teams.league_code,
++    teams.team_api_id,
++    teams.team_code,
++    teams.team_country,
++    teams.team_founded_year,
++    teams.team_logo_url,
++    teams.venue_api_id,
++    teams.venue_name,
++    teams.venue_address,
++    teams.venue_city,
++    teams.venue_capacity,
++    teams.raw_ingested_at,
++    coalesce(overrides.team_name, teams.team_name) as team_name
++from latest_per_team as teams
++left join import_team_name_overrides as overrides
++    on teams.team_api_id = overrides.team_api_id
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 6c2efb0..19be6cd 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -256,3 +256,55 @@ seeds:
+         description: "Human note + external-evidence reference for the correction (required — the governance control)."
+         tests:
+           - not_null
++
++  - name: team_name_overrides
++    description: >
++      CPO-owned corrections to a team's DISPLAY NAME, applied in base_apif__teams_global (#850).
++      The provider's /teams endpoint sends a short label of unverified quality ("Rangers",
++      "Lokomotiv") and it is the ONLY team name in the product — it drives the fixture card, the
++      page H1, the <title>, the meta description and the URL slug (#851) — so 18 teams in 9 groups
++      were previously indistinguishable from one another. Correcting the name here fixes every one
++      of those surfaces at once.
++
++      GOVERNANCE: add a row ONLY where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the
++      provider, and record that source in the row. Never taste, never a nickname, and never a
++      locale preference — `Bayern München` is NOT corrected to `Bayern Munich` (CPO ruled one
++      locale-independent slug). An earlier draft asserted "Glasgow Rangers" from memory and was
++      wrong: Wikipedia states that has never been the club's official name. Verify externally, one
++      club at a time.
++
++      NOT the mechanism for duplicate provider ids — one club under two ids is
++      fixture_event_team_overrides.csv with mode=alias, because two URLs for one club is worse than
++      the collision. Nyasa Big Bullets (#4596/#4599) and Dragon (#3045/#21310) are therefore
++      deliberately absent, as is Warriors #4207 whose identity is unresolved.
++
++      assert_team_name_overrides_still_needed fails the build if a row's value equals the
++      provider's current name, so a correction the provider has since adopted is removed rather
++      than left to rot.
++    config:
++      column_types:
++        team_api_id: int64
++        team_name: string
++        source: string
++        note: string
++    columns:
++      - name: team_api_id
++        description: "The team whose display name is corrected. Must exist in dim_team."
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('dim_team')
++              field: team_api_id
++      - name: team_name
++        description: "The club's actual name, as established by the external source in `source`."
++        tests:
++          - not_null
++      - name: source
++        description: "URL of the external source of record establishing the name (required — the governance control)."
++        tests:
++          - not_null
++      - name: note
++        description: "Why the provider's value is wrong, and what this row collides with."
++        tests:
++          - not_null
+diff --git a/dbt_project/seeds/team_name_overrides.csv b/dbt_project/seeds/team_name_overrides.csv
 new file mode 100644
-index 0000000..f67c4f8
+index 0000000..a3d7d8e
 --- /dev/null
-+++ b/.claude/agents/seo-expert-reviewer.md
-@@ -0,0 +1,114 @@
-+---
-+name: seo-expert-reviewer
-+description: Adversarial organic-search reviewer (SEO Expert role). Reviews URL and IA structure, metadata uniqueness, canonical/hreflang, structured data, crawlability and the internal-link graph across site_v2 pages/layouts/specs, the two architecture docs, and the export's slug/narrative surface. Read-only. Invoked in step 2 (Blinding) of the review cycle. NOT YET ROUTED — dormant until review_routing.json is amended, which is a separate governance event.
-+tools: Read, Grep, Glob
-+model: sonnet
-+effort: high
-+---
-+
-+You are the SEO-Expert reviewer: owner of whether this site is findable. You are
-+NOT the builder. Default verdict FAIL; praise banned. Your territory:
-+`site_v2/src/pages/**`, `site_v2/src/layouts/**`, `site_v2/src/specs/**`,
-+`docs/site_architecture.md`, `docs/content_architecture.md`, and the slug /
-+narrative surface of `scripts/export_site_data.py`.
-+
-+The premise that makes you necessary: this is a **programmatic** site. A defect
-+you miss in one template ships across every entity × season × locale. There is
-+no such thing as a small SEO bug here.
-+
-+## Inputs
-+
-+1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-+2. `.claude/task/contract.md`.
-+3. The locked contracts: `docs/site_architecture.md` (§2 hard constraints, §3 URL
-+   scheme + slugs + locale routing, §6 SEO surface), `docs/content_architecture.md`
-+   (§2 entity types + page-count drivers, §4 tab sets, §5 navigation graph),
-+   `docs/roles/seo_expert.md`, working_agreement.md Appendix A.
-+4. `site_v2/src/specs/**/*.spec.json` — the #826 page-spec contract. A real page
-+   without a spec already fails the build; your question is whether the spec
-+   describes something that should be indexed at all.
-+
-+## Your hunt — every item, every time
-+
-+1. **Does the page earn its URL?** Apply the three-part test (brief, principle 1):
-+   its own search intent, data the parent does not show, and enough data to clear
-+   the minimum-data gate. A new route failing any part → FAIL. A view that passes
-+   all three but is buried in a parent as a CSS/JS panel is the same finding in
-+   reverse: it should be a URL and is not.
-+2. **Uniqueness, not presence.** For any templated `<title>`, meta description or
-+   H1, reason about the *generated set* across entities, not the single example in
-+   the diff. Two entities differing only by name inside a 60-character title are
-+   near-duplicates at scale. "A title tag exists" is not a check and does not
-+   count toward your two risks.
-+3. **Canonical and hreflang.** One canonical per page per locale; hreflang across
-+   the full locale set plus `x-default`; symmetric, every alternate pointing back.
-+   A canonical pointing at a different tab, season or locale → FAIL.
-+4. **Crawlability.** Content reachable only through a radio/label control, a
-+   `display:none` panel or a JS island is content a crawler cannot traverse. If it
-+   should rank, it needs an `href`. The shipped `Tabs.astro` binds labels to hidden
-+   radios — legitimate as a control, disqualifying as navigation.
-+5. **Structured data mirrors the page.** schema.org type per `site_architecture.md`
-+   §6, and every asserted field must actually be rendered on that page. Markup
-+   claiming what the page does not show is fabrication in another syntax → FAIL
-+   (A2 family).
-+6. **Internal-link graph.** `content_architecture.md` §5 names the required edges.
-+   An entity page that neither links out to its neighbours nor is linked to from
-+   anywhere is an orphan, whatever its metadata says.
-+7. **Thin-page gate.** §2 locks "pages with insufficient data are not generated".
-+   A route that can emit a page with no substance, or one padded with filler
-+   instead of a real data-to-text narrative → FAIL.
-+8. **Slug stability.** §3: slugs never change once published; a rename produces an
-+   alias, never a new canonical. A diff changing an existing slug format without
-+   an alias → FAIL.
-+9. **Page-count driver declared.** Any NEW page type must state its driver
-+   (entity × dimensions × locale). Without one nobody can reason about crawl
-+   budget or indexation, and it is not a programmatic page — it is a one-off.
-+10. **SEO-driven fabrication.** Any number, rank, label or sentence added to give
-+    a page something to say rather than because a mart produces it. This collides
-+    with the locked data-honesty constraint; honesty wins → FAIL.
-+
-+## Verdict rules (no free passes)
-+
-+PASS requires at least two real risks/edge cases checked, with evidence.
-+Cannot find two → ESCALATE. Ambiguous → ESCALATE (§10 meta-rule).
-+
-+**Neither of the two may be a presence check.** At programmatic scale "the tag is
-+there" is trivially true and tells you nothing — reason about the generated set.
-+A PASS resting on presence checks is not a check; treat it as not having found
-+two real risks.
-+
-+**Anything amending `docs/site_architecture.md` §3 (the URL scheme) or
-+`content_architecture.md` §2/§4 (entity types, tab sets) is CPO-class (§10) →
-+ESCALATE, never PASS on your own authority.** Those are locked, and downstream
-+issues inherit them.
-+
-+## Output format (exact; machine-parsed)
-+
-+VERDICT: PASS
-+risks_checked:
-+- <risk 1>
-+- <risk 2>
-+
-+or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
-+
-+## Delta re-review
-+
-+A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
-+already returned PASS on an earlier hash of this SAME branch; a first review is
-+never a delta review. It names what changed since your pass.
-+
-+Then judge that delta and your own prior findings, and nothing else. Do not
-+re-audit what you already passed and do not re-derive conclusions you already
-+reached — say so and move on. Your verdict still covers the whole branch at the
-+stated hash: it rests on your earlier PASS plus this delta.
-+
-+**Refuse when the delta is too large for that to hold.** If what changed
-+undermines the basis of your earlier pass — the logic you traced was rewritten,
-+the surface widened, the thing you verified no longer exists — return
-+VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
-+cost saving, never a way to move a change past you while you look through a
-+keyhole.
-+
-+Why this exists: every round used to re-run every reviewer over the entire diff
-+even when one file had changed, which is what made a nine-round PR cost what it
-+did (CPO 2026-07-22: the process "has to be more economic").
-diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 5d6992b..bcaed1c 100644
---- a/.claude/task/contract.md
-+++ b/.claude/task/contract.md
-@@ -1,39 +1,104 @@
--# Task contract — handover: player-page mock drift correction (bookkeeping)
-+# Task contract — add the SEO Expert role (brief + reviewer agent)
- 
--> Written on a CLEAN tree, branch `docs/handover-player-page-drift` off `main` (`95c0dd1`).
--> Bookkeeping only — no code, no model, no product decision made here.
-+> Written on a CLEAN tree, branch `feat/seo-expert-role` off `main` (`6266b8f`).
-+> Adds a role brief and its reviewer agent. Routing is NOT changed here — that is a separate
-+> governance ask (see decisions_reserved).
- 
- objective: >
--  Record the CPO's correction on the player-page mock ("badly drifting": redundancy, content/
--  design-language inconsistency across the 3 tabs, no decided per-tab content boundary) into
--  .claude/active_work.md, alongside the corrected process (decide per-tab boundaries in writing
--  first, build tabs one at a time). Memory (feedback_design_off_the_cuff.md,
--  project_player_page_design.md, MEMORY.md) and issue #753 already carry this same correction,
--  written this same session.
-+  Create the missing SEO Expert role as two artefacts: the role brief (docs/roles/seo_expert.md) and
-+  its adversarial reviewer agent (.claude/agents/seo-expert-reviewer.md), matching the shape of the
-+  existing briefs (docs/roles/bi_analyst.md, growth_expert.md) and agents
-+  (.claude/agents/bi-analyst-reviewer.md). The brief owns organic acquisition: URL/IA structure,
-+  indexation, metadata uniqueness, structured data, the internal-link graph, anti-thin-content and
-+  crawlability. It explicitly bounds against growth_expert.md, which owns retention and sharing.
- 
- refs: >
--  This session, 2026-07-27, continuing directly from PR #836 (merged). CPO: "the player mockup
--  hasn't been approved yet. You were badly drifting with your proposals" then, on being asked what
--  specifically: "redundancy, inconsistency (content, design language), lack of clarity what to show
--  where. we have to go through each tab one by one." Confirmed against the mock: Save percentage
--  and Pass accuracy each appeared verbatim in both Overview and Performance tabs with no stated
--  reason.
-+  CPO, 2026-07-27, this session: "It seems we need an expert SEO role in the project, that helps
-+  achieveing the goal. No dead document." and, on the proposal to write the brief + agent and bring
-+  the routing change as a governance ask: "go ahead".
-+
-+  The gap is concrete and verified this session: site_architecture.md opens by describing v2 as a
-+  "programmatic content platform" producing "tens of thousands of SEO-relevant pages", and §6 defines
-+  a whole SEO surface owned by #369 — yet none of the 11 existing role briefs owns SEO.
-+  growth_expert.md, the closest, covers retention/sharing/habit/word-of-mouth and does not mention
-+  organic search once.
-+
-+  "No dead document" is the operative constraint: review_routing.json's own _doc names three briefs
-+  as "dormant-but-undefined" (ui-expert, data-journalist, legal-counsel) — briefs that exist and
-+  never fire. Routing is what makes a role live, and routing is a PROTECTED file.
- 
- scope_paths:
--  - .claude/active_work.md
-+  - docs/roles/seo_expert.md
-+  - .claude/agents/seo-expert-reviewer.md
-+
-+protected_override: >
-+  `.claude/agents/**` is a PROTECTED governance path (the guards themselves). The CPO approved
-+  creating this agent explicitly and specifically, in this session, answering the proposal
-+  "Want me to write the brief and the agent now, and bring you the routing change as the governance
-+  ask?" with "go ahead".
-+
-+  SCOPE OF THE OVERRIDE — deliberately narrow. It authorises creating ONE new agent file,
-+  `.claude/agents/seo-expert-reviewer.md`. It does NOT authorise editing any existing agent, and it
-+  does NOT authorise touching `.claude/review_routing.json`, which the same CPO message kept as a
-+  separate governance ask that is still outstanding. The new agent is therefore INERT on merge: it
-+  is absent from the routing table, so the commit gate never requires its verdict and it fires on
-+  no diff. Making it live is the follow-up governance ask.
-+
-+impact_map: >
-+  Blast radius of adding ONE file to `.claude/agents/` (traced, not assumed):
-+
-+  1. **`tests/test_governance_hooks.py::test_every_reviewer_brief_carries_the_identical_delta_section`
-+     — the real dependency, and it BITES.** It globs the live `.claude/agents/*.md` directory (a
-+     deliberate choice over a hand list, review-economics 2026-07-22), asserts at least 6 briefs,
-+     and asserts that the text following `## Delta re-review` is **byte-identical across every
-+     brief**. Adding a 7th file makes it a participant immediately. A paraphrased delta section
-+     turns CI red. Mitigation: the new agent's delta section is copied byte-for-byte from an
-+     existing brief and verified by running the test before commit — not retyped.
-+  2. **`.claude/hooks/task_contract_gate.py`** lists `.claude/agents/` in `PROTECTED_PREFIXES`, which
-+     is what gated this edit. Adding a file does not change the gate's behaviour for any other path.
-+  3. **`scripts/check_task_artifacts.py` + the commit gate** compute the REQUIRED reviewer set from
-+     `.claude/review_routing.json` — **not** from the agents directory. An agent absent from routing
-+     is therefore never required by any commit or CI run. This is why the new file is inert: it
-+     changes no required reviewer set on any existing or future diff.
-+  4. **The harness** discovers agent types from this directory, so `seo-expert-reviewer` becomes
-+     selectable by the Agent tool. Nothing invokes it automatically.
-+
-+  **What stops being enforced if it is wrong: nothing.** The file is inert until routed, so a
-+  mistake in it cannot weaken an existing guard or let a bad diff through. The failure mode is the
-+  opposite one — a red CI via dependency 1.
-+
-+  **On failure:** the test fails on the PR before merge; no runtime, pipeline or site impact; no
-+  reviewer set changes anywhere. Revert is deleting one file.
- 
- decisions_taken: >
--  Pure bookkeeping. No new product/metric/mechanism decision. Records a CPO correction and its
--  process fix; does not decide any content question.
-+  None that are product decisions. The brief RECORDS existing locked constraints (site_architecture
-+  §2 no-thin-pages, §3 slug stability and locale prefixing, §6 SEO surface; content_architecture §5
-+  navigation graph) and states a three-part test for when a view earns its own URL. That test is
-+  written as this role's PRINCIPLE for judging, not as a ruling on any current page — the live
-+  tab-vs-URL question is explicitly recorded as OPEN in the brief's "Current responsibility".
- 
- decisions_reserved:
--  - Both player-page content questions remain open pending an actual approved mock. The corrected
--    process (tab-by-tab, written content boundaries) is itself a process fix, not a content
--    decision.
-+  - **Routing is NOT touched here.** Adding seo-expert-reviewer to .claude/review_routing.json is a
-+    governance event on a PROTECTED file and needs CPO approval with protected_override. Without it
-+    the role is a dead document by construction — this is the follow-up ask, not an omission.
-+  - Whether a tab earns its own URL (site_architecture §3 + content_architecture §2 define one URL
-+    per entity; wireframes 12/13 define /stats/ and /career/ sub-paths — the two CONTRADICT). The
-+    brief records the conflict; it does not resolve it. Resolving it amends a locked scheme (§10).
-+  - Whether the tab sets reconcile to content_architecture §4 (Player = Overview/Matches/Stats/
-+    Career; Team = Overview/Matches/Stats/Squad/History) versus the three shipped/designed. Recorded
-+    as open in the brief, not decided.
- 
- done_when:
--  - active_work.md's "⭐ CURRENT" section records the drift correction precisely (redundancy
--    example, inconsistency, the tab-by-tab process fix) without softening or overstating it.
--  - ONE commit; artifact-exempt (active_work.md only); pushed with an explicit refspec; PR opened.
-+  - docs/roles/seo_expert.md exists, matches the established brief shape, is specific to THIS project
-+    (cites the real locked constraints and the real open conflicts), and bounds against growth_expert.
-+  - .claude/agents/seo-expert-reviewer.md exists, matches the established agent shape (frontmatter
-+    name/description/tools/model/effort; Inputs; hunt list; verdict rules; exact output format;
-+    delta re-review clause), and is read-only.
-+  - ONE commit; review cycle run (these paths are not artifact-exempt); pushed with an explicit
-+    refspec; PR opened.
-+  - The routing change is brought to the CPO as an explicit governance ask, not applied.
- 
--amendments: (none)
-+amendments:
-+  - 2026-07-27: contract rewritten from the previous task (handover bookkeeping, merged as PR #837)
-+    to this task, on a clean tree at main 6266b8f. CPO authority: "go ahead" (this session), on the
-+    proposal to write the brief and the agent and bring routing separately.
-diff --git a/docs/roles/seo_expert.md b/docs/roles/seo_expert.md
++++ b/dbt_project/seeds/team_name_overrides.csv
+@@ -0,0 +1,15 @@
++team_api_id,team_name,source,note
++257,Rangers FC,https://en.wikipedia.org/wiki/Rangers_F.C.,"Provider sends bare ""Rangers"". Wikipedia: often called Glasgow Rangers but that has never been the official name. Collides with 4459."
++4459,Hong Kong Rangers FC,https://en.wikipedia.org/wiki/Hong_Kong_Rangers_FC,"Provider sends bare ""Rangers"". Collides with 257. Provider founded=1960; Wikipedia says 1958 (not corrected here)."
++597,FC Lokomotiv Moscow,https://en.wikipedia.org/wiki/FC_Lokomotiv_Moscow,"Provider /teams sends bare ""Lokomotiv""; /fixtures and /standings already say ""Lokomotiv Moscow"". Collides with 3695."
++3695,PFC Lokomotiv Tashkent,https://en.wikipedia.org/wiki/PFC_Lokomotiv_Tashkent,"Provider sends bare ""Lokomotiv"". Collides with 597."
++414,Roda JC Kerkrade,https://en.wikipedia.org/wiki/Roda_JC_Kerkrade,"Provider sends bare ""Roda"". Collides with 9684."
++9684,CD Roda,https://en.wikipedia.org/wiki/CD_Roda,"Provider sends bare ""Roda"". Villarreal-based academy club. Collides with 414."
++3381,FK Velež Mostar,https://en.wikipedia.org/wiki/FK_Vele%C5%BE_Mostar,"Provider sends bare ""Velež"". Collides with 9739."
++9739,Vélez CF,https://en.wikipedia.org/wiki/V%C3%A9lez_CF,"Provider sends bare ""Vélez"". Vélez-Málaga club. Collides with 3381."
++14281,FC Drita,https://en.wikipedia.org/wiki/FC_Drita,"Provider sends bare ""Drita"". Gjilan, Kosovo. Collides with 2248."
++2248,KF Drita Bogovinë,https://en.wikipedia.org/wiki/KF_Drita_Bogovin%C3%AB,"Provider sends bare ""Drita"". Bogovinje, North Macedonia. Collides with 14281."
++6410,Al Nasr Benghazi SC,https://en.wikipedia.org/wiki/Al_Nasr_Benghazi_SC,"Provider sends bare ""Al-Nasr"". Collides with 2878."
++2878,Al-Nasr SC Salalah,https://en.wikipedia.org/wiki/Al-Nasr_SC_(Salalah),"Provider sends bare ""Al Nasr"". Collides with 6410."
++21310,AS Dragon,https://en.wikipedia.org/wiki/A.S._Dragon_(football),"Provider sends bare ""Dragon"". Papeete, Tahiti. Record 3045 is a suspected duplicate of this club and is NOT corrected here (see decisions_reserved)."
++10531,Warriors FC,https://en.wikipedia.org/wiki/Warriors_FC,"Provider sends bare ""Warriors"". Singapore, Choa Chu Kang. Collides with 4207, whose identity is unresolved and which is therefore NOT corrected here."
+diff --git a/dbt_project/tests/assert_team_name_overrides_still_needed.sql b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
 new file mode 100644
-index 0000000..bfdde31
+index 0000000..10b2c72
 --- /dev/null
-+++ b/docs/roles/seo_expert.md
-@@ -0,0 +1,96 @@
-+# Role Brief — SEO Expert
++++ b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
+@@ -0,0 +1,37 @@
++-- A name override must still be a CORRECTION. If the provider has since adopted the same
++-- name, the row is dead weight: it silently does nothing, and the next reader cannot tell
++-- whether it is load-bearing or stale. Fail so it gets removed.
++--
++-- Compares against base_apif__teams (PRE-override) rather than base_apif__teams_global,
++-- which is where the coalesce is applied and would therefore always agree with the seed.
++-- The dedup below deliberately mirrors base_apif__teams_global's own
++-- `qualify row_number() ... order by raw_ingested_at desc` so the comparison is against the
++-- same provider row that model would have published.
 +
-+## Purpose
++with import_base_apif__teams as (
++    select * from {{ ref('base_apif__teams') }}
++),
 +
-+Own organic search as the product's primary acquisition channel. [`site_architecture.md`](../site_architecture.md)
-+describes v2 as a **programmatic content platform** rendering "tens of thousands of SEO-relevant pages" — which only
-+pays off if the machine that produces pages also produces *rankable* ones. This role owns whether it does.
++import_team_name_overrides as (
++    select * from {{ ref('team_name_overrides') }}
++),
 +
-+Boundary with the **Growth Expert**: that role owns what happens *after* a fan arrives — retention, sharing, habit,
-+word of mouth. This role owns whether they arrive at all.
++provider_name as (
++    select
++        team_api_id,
++        team_name
++    from import_base_apif__teams
++    qualify row_number() over (
++        partition by team_api_id
++        order by raw_ingested_at desc
++    ) = 1
++)
 +
-+---
-+
-+## What this role optimises for
-+
-+- **Earned indexable surface**: pages that exist because they answer a distinct query, not because a template could emit them
-+- **Uniqueness at scale**: a templated title producing near-identical strings across thousands of entities is a duplicate-content generator, not a title
-+- **Crawl efficiency**: crawl budget spent on pages that matter, reachable by links a crawler can actually follow
-+- **Link-equity flow**: the navigation graph in [`content_architecture.md`](../content_architecture.md) §5 is the crawl path, not only a UX nicety
-+- **Intent match**: the page a searcher lands on answers the query they actually typed
-+
-+---
-+
-+## What this role never compromises
-+
-+- **No thin pages to inflate counts.** `site_architecture.md` §2 locks "pages with insufficient data are not generated". More URLs is not the goal; more *useful* URLs is.
-+- **No SEO-driven fabrication.** This collides head-on with the locked data-honesty constraint, and honesty wins every time. Never invent a number, a rank or a narrative to give a page something to say.
-+- **No doorway pages, keyword stuffing, cloaking or hidden text.** A page shows a crawler exactly what it shows a fan.
-+- **No unlocalised duplication.** Every locale is prefixed and hreflang-symmetric. Translations are alternates, never near-duplicates competing with each other.
-+- **No silent URL changes.** Slugs never change once published (§3); a rename produces an alias, never a new canonical.
-+
-+---
-+
-+## Principles
-+
-+1. **Every page earns its URL — a three-part test.** A view becomes its own URL when it has (a) its own search
-+   intent, (b) data the parent does not show, and (c) enough data to clear the minimum-data gate. Fail any one and
-+   it is a fragment of its parent, not a page. This is what settles tab-versus-URL questions as a rule instead of
-+   an argument per page.
-+2. **Uniqueness is the constraint, not presence.** Asserting that a title tag exists is worthless at programmatic
-+   scale. The check is whether the *generated set* is distinct — the same for meta descriptions and H1s.
-+3. **A programmatic defect is multiplied by the page-count driver.** One wrong canonical in one template is one
-+   wrong canonical across every entity × season × locale. SEO bugs here are never small.
-+4. **Structured data mirrors the page, never exceeds it.** Markup claiming a field the page does not render is a
-+   fabrication in a different syntax.
-+5. **Crawlers follow links, not controls.** Content reachable only through a CSS or JS control sits behind a door a
-+   crawler cannot open. If a view should rank, it needs an `href`.
-+6. **Honest content is the SEO strategy.** The anti-thin-content answer is the data-to-text narrative generator
-+   (§6 / #369) — real sentences from real mart values — never padding and never filler prose.
-+7. **Locale symmetry.** Every locale prefixed, hreflang across all plus `x-default`, per-locale sitemaps under an
-+   index. Each language is its own market and its own ranking opportunity.
-+8. **The zero-file rule extends to SEO.** Adding a competition, team or player must produce correct SEO surface with
-+   no template edit. If a new entity needs hand-tuned metadata, the template is wrong.
-+
-+---
-+
-+## Handoff points
-+
-+| From | Receives |
-+|------|----------|
-+| **CPO** | Which markets and locales matter, launch timing, what may be indexed |
-+| **BI Analyst** | What each page actually shows, so metadata and structured data describe it truthfully |
-+| **Analytics Engineer** | Which fields the export can carry for metadata, narratives and the slug map |
-+
-+| To | Hands off |
-+|----|-----------|
-+| **UI Expert** | URL and IA structure, internal-link placement, what must be an anchor rather than a control |
-+| **BI Analyst** | Where a page needs more substance to clear the minimum-data gate |
-+| **Analytics Engineer** | Fields required for titles, descriptions, narratives, sitemaps and the slug map |
-+| **Growth Expert** | Where organic landings meet the retention loop (the arrival handoff) |
-+| **CPO** | Recommendations on indexable surface, trade-offs made explicit |
-+
-+---
-+
-+## Current responsibility
-+
-+**#369 — the SEO engine**: structured data, per-locale sitemaps, templated metadata, data-to-text narratives, and
-+the internal-linking graph.
-+
-+**OPEN (2026-07-27) — does a tab earn its own URL?** `site_architecture.md` §3 and `content_architecture.md` §2
-+both define **one URL per entity**, tabs inside it, with the page-count driver stated as entities × languages. The
-+wireframes ([12](../wireframes/12_player_stats.md), [13](../wireframes/13_player_career.md)) instead define
-+`/stats/` and `/career/` sub-paths, each with its own canonical, title and meta description. **The locked scheme
-+and the screen specs contradict each other, and the conflict is unresolved.** Settling it needs evidence — query
-+intent, competitor URL structures, indexation arithmetic across the phased locale set — not a preference. Apply
-+principle 1. Amending §3 is a §10 decision.
-+
-+**OPEN — the tab sets diverge from the settled ones.** `content_architecture.md` §4 states the tab set per entity
-+is settled at **Player = Overview · Matches · Stats · Career** and **Team = Overview · Matches · Stats · Squad ·
-+History**. The shipped team page has three tabs; the player page is being designed with three. Under principle 1
-+that divergence has direct SEO consequences, and it needs reconciling before the URL question can be answered.
-+
-+**NOT YET LIVE.** This brief only becomes operative when `seo-expert-reviewer` is wired into
-+`.claude/review_routing.json`, which is a PROTECTED file and a governance event. Until then this role does not fire
-+on any diff and is, by the project's own definition, a dormant brief — the same state as ui-expert,
-+data-journalist and legal-counsel.
++select
++    overrides.team_api_id,
++    overrides.team_name as override_name,
++    provider.team_name as provider_name
++from import_team_name_overrides as overrides
++inner join provider_name as provider
++    on overrides.team_api_id = provider.team_api_id
++where overrides.team_name = provider.team_name
