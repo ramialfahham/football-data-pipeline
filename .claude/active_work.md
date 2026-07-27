@@ -4,12 +4,12 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Must stay under
 > 16,000 characters (the SessionStart hook's injection budget).
 
-_Last updated **2026-07-27** (late). main GREEN at **bf2ddf9**. **THE PLAN CHANGED THIS SESSION.**
-**SEO is now a BUILD GATE (#844), not an occasional review — CPO ruling — and it is the next major
-work.** The player Overview tab is **BUILT, reviewed, and sitting UNCOMMITTED in `git stash@{0}`**,
-held from merge on #845 and #846. **FIRST ACTIONS next session: (1) read "⭐ CURRENT" below, (2) note
-the stash before doing any git work, (3) the CPO owes a §10 classification on #846.**
-Firebase deploy is LIVE + verified (manual, `.web.app`, not public)._
+_Last updated **2026-07-27** (late). main GREEN at **f0ac5aa**. **THE PLAN CHANGED TWICE THIS
+SESSION.** **(1) SEO is now a BUILD GATE (#844)**, not an occasional review — CPO ruling — and it is
+the next major work. **(2) The player page is now FOUR tabs (#848)**, the fourth conditional. The
+Overview tab is **BUILT but UNCOMMITTED in a git stash, with a known-wrong default rule**, held on
+#845 + #846. **FIRST ACTIONS: read "⭐ CURRENT", check `git stash list` before any git work, read
+#848 before shaping the International tab.** Firebase deploy LIVE + verified (manual, not public)._
 
 ## THE GOAL
 **The new website live.** ~2–3 weeks; **quality over speed** (CPO 2026-07-22).
@@ -40,28 +40,51 @@ and the alias §3 promises does not exist · **#846** window selection in the fr
 **`seo-expert-reviewer` exists (merged, #842) but is INERT** — absent from `.claude/review_routing.json`,
 so it fires on nothing. Routing it is an **open governance ask** (protected file).
 
-### 2. ⚠️ THE PLAYER OVERVIEW IS BUILT AND UNCOMMITTED — IN A STASH
+### 2. ⭐ NEW: the player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
+
+| Tab | Lens | Shown |
+|---|---|---|
+| Overview · Performance · Career | **club only** | always |
+| **International** | **national** | **only when `national_appearances_total >= 1`** |
+
+**A tab, not a lens toggle** — a toggle is a control a crawler cannot follow, so the national lens
+would have no URL for a real search intent. The condition is a **served fact**, so ingesting more
+national data (friendlies are NOT ingested yet) makes the tab appear with zero template change.
+
+**The International tab carries a competition selector + PERFORMANCE, not just counts.** The agent
+proposed omitting both, claiming national peer groups were too small; **checked and false** — WC 2026
+already has 314 players with benchmark rows (DEF 136, MID 99, GK 41, ATT 38), larger than most
+leagues. The CPO's test question ("how did Mbappé perform at WC 2026 — where does the site say?") had
+no answer without it. **Full decision + rationale on #848 — read it before shaping the tab.**
+
+**Four consequences NOT actioned (all CPO-class):** wireframe 13's Career must hand over its National
+team section · `content_architecture.md` §4 states a DIFFERENT settled tab set · no wireframe file
+exists for this screen · #846 changes shape.
+
+### 3. ⚠️ THE PLAYER OVERVIEW IS BUILT BUT UNCOMMITTED — IN A STASH, WITH A KNOWN-WRONG RULE
 
 ```
-git stash list          # stash@{0} "feat/player-overview-tab: Overview tab BUILT+reviewed, held on #845 and #846"
+git stash list     # "feat/player-overview-tab: Overview BUILT; page default rule is WRONG (seasons[0]=WC) …"
 git checkout feat/player-overview-tab && git stash pop
 ```
 
-**Do NOT start player work from scratch — it is done.** Build green, 447 tests green,
-`bi-analyst-reviewer` and `scope-auditor` both PASS. It is uncommitted only because the commit gate
-rejects a FAIL and `analytics-engineer-reviewer` FAILed on #846.
+**Do NOT rebuild it — it exists.** Build green, 447 tests green, `bi-analyst-reviewer` and
+`scope-auditor` PASS on it. Uncommitted because the gate rejects a FAIL.
 
-**Held on TWO issues:**
-- **#845** — the deploy exports `teams,fixtures` only, so shipping this puts **hundreds of real dead
-  links on the LIVE team page**. Fixing it by adding `players` means **154,644 pages** (51,548 players
-  × 3 locales) against a build already needing 8GB at one-sixteenth of that, and that volume of thin
-  pages shrinks crawl budget domain-wide. **CPO chose option (d): hold until the gate defines what
-  earns a page.**
-- **#846** — the featured season is chosen by window selection in page code, which `layering.md`
-  forbids. **Needs a §10 CLASSIFICATION from the CPO**: is "which season does this page open on" a
-  warehouse fact or a display default? The contract's text says the former; the shipped team page
-  assumes the latter, with a *different* implementation. Moving it into the export does NOT fix it —
-  the export is the consumption layer too.
+**⚠️ Its default-season rule is WRONG as stashed.** It uses `seasons[0]` = most recent of ANY
+competition, so both sample players open on **World Cup 2026** with their national side. Under #848
+the club tabs are club-only, so the rule must be *the most recent CLUB season*. Do not ship the
+stashed rule.
+
+**Held on:**
+- **#845** — the deploy exports `teams,fixtures` only, so shipping puts **hundreds of real dead links
+  on the LIVE team page**. Adding `players` means **154,644 pages** against a build already needing
+  8GB at a sixteenth of that. **CPO chose (d): hold until the gate defines what earns a page.**
+- **#846** — now scoped as: **the payload must carry the lens per season, and which club season is
+  featured.** The frontend may not decide it (window selection, forbidden by `layering.md`) and
+  neither may the export — **the export is the consumption layer too**. So it is a mart change.
+  Rule to serve: most recent `entity_type='club'` season; tie-break within a year still undecided
+  (Rogers has UEL, PL and FAC all in 2025).
 
 **What the build proved (three defects only building could find):** the featured season landed on a
 **World Cup** for an international · `system.css` had **no reveal rule for a `career` tab**, so the
@@ -85,37 +108,29 @@ real league-phase 18) and **#839** (phase spike — tables vs brackets) block th
 cup behaviour, not the player page · **#841** (pass accuracy 23–30% since 2022 vs 72–73% before)
 blocks player **PERFORMANCE**.
 
-## ⭐ Phase B — DONE (2026-07-26): foundation shell + lean-process scaffolding
-- **#825 (PR #829)**: global header/footer (nav, search, working theme toggle, mobile drawer) in
-  `Layout.astro`, from mock `87d14109`. `system.css` breakpoints (700/900/1010px). Home-content
-  mock `1c35e7aa` is reference only — home page NOT built.
-- **#827 (PR #832)**: `bi-analyst-reviewer` now requires rendered-page evidence for
-  `site_v2/src/**` diffs, not just a code read.
-- **#826 (PR #834)**: schema-validated page-spec contract — build refuses an underspecified page.
+## Phase B — DONE (2026-07-26)
+#825 global header/footer shell (mock `87d14109`; breakpoints 700/900/1010px) · #827 bi-analyst now
+requires rendered-page evidence for `site_v2/src/**` · #826 page-spec contract, build refuses an
+underspecified page (**this is the mechanism #844 extends**). Home mock `1c35e7aa` = reference only.
 
-**Reserved (CPO §10, still standing):** exact nav order · search style · desktop RAIL contents per
-page type · footer/legal (imprint-blocked) · default-theme policy. **Deferred** (backtobayesics,
-right-sized): component/metric catalogue, import-boundary rule, one-page driver (#828).
+**Reserved (CPO §10, standing):** nav order · search style · desktop RAIL per page type · footer/legal
+(imprint-blocked) · default-theme policy. **Deferred:** component/metric catalogue, import-boundary
+rule, one-page driver (#828).
 
 ## DESIGN DISCIPLINE (the weak spot — read every time)
-- **Compose from the locked `system.css` ONLY. Never invent a per-page treatment.** Locked refs:
-  pattern sheet `be7bd6d3`, fixture `d70aae67`, team `f6348775`. Player mock `6c21ef71` NOT approved.
-- **Design for the DEFAULT case, not an edge case.** The player page was designed around a
-  goalkeeper because the open question (#366) happened to be about keepers. A keeper is 1 of 4
-  position groups. Two conclusions drawn from that page were wrong until it was rebuilt on an
-  outfielder. Pick the representative subject first, handle the variant second.
-- **Never fill an empty slot to balance a layout.** Cards were put in a player strip purely because
-  the right side looked empty — same reflex as the invented hero of 2026-07-21. If nothing honest
-  belongs there, the space stays empty or the block changes shape.
-- **Survey the real tree before recommending an architecture.** A phase model was proposed from 3
-  competitions; surveying all 44 refuted 3 of its 4 structural claims in one query.
-- **Build it and show it** — a mock IS the design decision; never ask about something visual in words.
-  Reserve open §10 questions in the contract's `decisions_reserved` (the Artifact gate enforces it).
-- **Real data only, no fabrication** — no fake heroes, no invented ranks; honest empty/pending states
-  ("no hero, not shippable" is RETRACTED — an empty slot is honest).
-- **Multi-tab pages: decide per-tab content ownership in writing FIRST, build ONE tab at a time.**
-  Never build all tabs in one pass — that is what produced the redundancy/inconsistency drift.
-  Check ALL sibling wireframe files + the shipped tab component for the entity, not one file alone.
+- **Compose from the locked `system.css` ONLY.** Refs: `be7bd6d3` · fixture `d70aae67` · team
+  `f6348775`. Player mock `6c21ef71` NOT approved.
+- **READ THE DOCS FIRST, don't assert.** This session: proposed an architecture from 3 competitions
+  (surveying all 44 refuted 3 of its 4 claims); missed that the club/national split was already
+  modelled in `competition_types.csv`; claimed national peer groups were too small (WC 2026 has 314
+  ranked players). Every one was one query away.
+- **Design for the DEFAULT case, not an edge case** — the page was built around a goalkeeper because
+  the open question happened to be about keepers; two conclusions were wrong until rebuilt outfield.
+- **Never fill an empty slot to balance a layout** (cards in a strip, the invented hero of 07-21).
+- **Build it and show it** — a mock IS the decision; never ask about something visual in words.
+- **Real data only** — honest empty states; "no hero, not shippable" is RETRACTED.
+- **Multi-tab pages: write the per-tab content boundary FIRST, build ONE tab at a time.** Check ALL
+  sibling wireframes + the shipped tab component, not one file.
 
 ## WHERE WE STAND — five launch groups
 | # | Group | Status |
@@ -148,18 +163,12 @@ half). (The foundation mock uses text initials — no third-party requests.)
   half; the peer split is still owed.
 
 ## DONE (history — detail in git)
-- **2026-07-27:** Phase C player **Overview** designed with the CPO over many rounds; render failure
-  diagnosed; **4 issues filed (#838 #839 #840 #841)** and #753's design-state comment rewritten to
-  separate CPO decisions from open questions. Overview mostly settled, 5 CPO decisions open.
-  Performance/Career not started. No repo code changed beyond this handover.
-- **2026-07-26:** Phase B complete — #825 (PR #829, commit 9990d2b), #827 (PR #832, commit
-  c290df9), #826 (PR #834, commit a1e4909). #826 went through 2 review rounds: round 1 caught a
-  mislabeled fixture spec block (bi-analyst-reviewer) and a schema/checker wording overclaim plus
-  missing test coverage (cto-reviewer); both fixed, round 2 clean PASS. Follow-up filed: #833
-  (wire the rendered_page_evidence.md obligation into a builder-facing doc).
-- **2026-07-26:** frontend spec audit + backtobayesics study; foundation mock approved.
-- **2026-07-25:** Firebase deploy LIVE + verified; export cost ~$0.002/run; **#822** effort pins
-  merged. ⚠️ team-page footer says "Sample data" on real data (confirm intended).
+- **2026-07-27:** player Overview designed AND built; render failure diagnosed; SEO re-scoped to a
+  build gate; player page re-scoped to 4 tabs. **Issues filed: #838 #839 #840 #841 #843 #844 #845
+  #846 #848**; #842 (SEO role) and #847 (handover) merged. #753 carries the full design state.
+- **2026-07-26:** Phase B complete (#825/#827/#826); frontend spec audit; foundation mock approved.
+- **2026-07-25:** Firebase deploy LIVE + verified; export cost ~$0.002/run; #822 effort pins merged.
+  ⚠️ team-page footer says "Sample data" on real data (confirm intended).
 - **2026-07-24:** team page (3 tabs) + real-data wiring. ⚠️ `appearances` = played legs
   (`minutes_played>0`). ⚠️ `astro build` OOMs at full scale — needs
   `--max-old-space-size=8192`; before a local dev build run `git clean -fX site_v2/src/data`.
