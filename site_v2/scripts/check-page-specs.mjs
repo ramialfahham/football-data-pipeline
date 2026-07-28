@@ -30,6 +30,24 @@ export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.jso
 const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
 export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "home"]);
 
+// --- the SEO gate's declaration half (#844) -------------------------------------------------
+// This file checks that what a spec DECLARES exists. scripts/audit-seo.mjs checks that what the
+// build EMITS matches it. Neither is sufficient alone: a declaration nothing verifies is a wish,
+// and an output check with nothing to compare against has no expectation to hold the page to.
+export const SEO_REQUIRED = [
+  "canonical", "hreflang", "title", "description",
+  "schema_org", "links", "minimum_data", "page_count_driver", "url_permanence",
+];
+export const CANONICAL_VALUES = new Set(["self"]);
+export const HREFLANG_VALUES = new Set(["all-locales", "none"]);
+export const URL_PERMANENCE_VALUES = new Set(["permanent", "ephemeral"]);
+/** Allowed in `seo.title`/`seo.description` INSTEAD of an i18n key, and only on a stub: a scaffold
+ * holds its handful of strings inline rather than leaving dead keys in all three dictionaries once
+ * #367 deletes it. Anything else must be a real EN key, which is what forces a page's title through
+ * t() — a concatenated title is locale-independent, and that is exactly how all three locales came
+ * to ship byte-identical titles before this gate existed. */
+export const INLINE_COPY = "inline";
+
 /** Recursively list files under `dir` whose path passes `matches`. */
 function walk(dir, matches, out = []) {
   for (const name of readdirSync(dir)) {
@@ -130,6 +148,62 @@ export function readSpec(path, issues) {
   return spec;
 }
 
+/** The SEO block (#844). Pure: takes the spec and the known EN keys, pushes issues.
+ *
+ * Every page BUILDS with an SEO surface declared, or it does not build — that is the CPO ruling
+ * this implements ("SEO optimization has to be ensured during the whole process of building the
+ * website"). A reviewer looking at finished pages cannot ensure anything. */
+export function validateSeo(where, spec, i18nKeys, issues) {
+  const seo = spec.seo;
+  if (!seo || typeof seo !== "object" || Array.isArray(seo)) {
+    issues.push(`${where}: missing required "seo" block — no page ships without declaring its search surface (#844)`);
+    return;
+  }
+  for (const field of SEO_REQUIRED) {
+    if (seo[field] === undefined) issues.push(`${where}: seo.${field} is required`);
+  }
+  if (seo.canonical !== undefined && !CANONICAL_VALUES.has(seo.canonical)) {
+    issues.push(`${where}: seo.canonical must be one of ${[...CANONICAL_VALUES].join(", ")}, got ${JSON.stringify(seo.canonical)}`);
+  }
+  if (seo.hreflang !== undefined && !HREFLANG_VALUES.has(seo.hreflang)) {
+    issues.push(`${where}: seo.hreflang must be one of ${[...HREFLANG_VALUES].join(", ")}, got ${JSON.stringify(seo.hreflang)}`);
+  }
+  if (seo.url_permanence !== undefined && !URL_PERMANENCE_VALUES.has(seo.url_permanence)) {
+    issues.push(`${where}: seo.url_permanence must be one of ${[...URL_PERMANENCE_VALUES].join(", ")}, got ${JSON.stringify(seo.url_permanence)}`);
+  }
+  // An "ephemeral" URL is allowed — fixture URLs genuinely are one today (#861) — but saying so
+  // without saying WHY turns a known defect into a shrug.
+  if (seo.url_permanence === "ephemeral" && !seo.url_permanence_note) {
+    issues.push(`${where}: seo.url_permanence is "ephemeral" — seo.url_permanence_note must say what breaks and which issue fixes it`);
+  }
+  for (const field of ["title", "description"]) {
+    const value = seo[field];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || !value) {
+      issues.push(`${where}: seo.${field} must be a non-empty string`);
+    } else if (value === INLINE_COPY) {
+      if (spec.stub !== true) {
+        issues.push(`${where}: seo.${field} may only be "${INLINE_COPY}" on a page with "stub": true — a real page's ${field} must be an i18n key, so it goes through t() and actually differs per locale`);
+      }
+    } else if (!i18nKeys.has(value)) {
+      issues.push(`${where}: seo.${field} names i18n key "${value}", which does not exist in the EN dict (site_v2/src/i18n/strings.ts)`);
+    }
+  }
+  const links = seo.links;
+  if (links !== undefined) {
+    if (!links || typeof links !== "object" || Array.isArray(links)) {
+      issues.push(`${where}: seo.links must be an object with "inbound_hub" and "outbound"`);
+    } else {
+      if (typeof links.inbound_hub !== "string" || !links.inbound_hub) {
+        issues.push(`${where}: seo.links.inbound_hub is required (use "none" to declare an orphan explicitly)`);
+      }
+      if (!Array.isArray(links.outbound)) {
+        issues.push(`${where}: seo.links.outbound must be an array (possibly empty)`);
+      }
+    }
+  }
+}
+
 /** Shape rules here are the hand-rolled equivalent of site_v2/src/specs/page-spec.schema.json --
  * see check-page-specs.test.mjs for the cross-check that keeps them from silently diverging. */
 export function validateSpec(where, spec, martNames, i18nKeys, issues) {
@@ -139,8 +213,16 @@ export function validateSpec(where, spec, martNames, i18nKeys, issues) {
   if (!ENTITY_VALUES.has(spec.entity)) {
     issues.push(`${where}: "entity" must be one of ${[...ENTITY_VALUES].join(", ")}, got ${JSON.stringify(spec.entity)}`);
   }
-  if (!Array.isArray(spec.blocks) || spec.blocks.length === 0) {
-    issues.push(`${where}: "blocks" must be a non-empty array`);
+  validateSeo(where, spec, i18nKeys, issues);
+
+  // `stub: true` waives the non-empty-blocks rule and NOTHING else — a scaffold still ships a URL,
+  // so its seo block is validated above exactly like any other page's.
+  if (!Array.isArray(spec.blocks)) {
+    issues.push(`${where}: "blocks" must be an array`);
+    return;
+  }
+  if (spec.blocks.length === 0 && spec.stub !== true) {
+    issues.push(`${where}: "blocks" must be a non-empty array (or declare "stub": true)`);
     return;
   }
   spec.blocks.forEach((b, i) => {

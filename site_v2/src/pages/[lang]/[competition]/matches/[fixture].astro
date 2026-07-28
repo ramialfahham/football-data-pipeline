@@ -52,7 +52,24 @@ interface Props {
 const { fixture, lang } = Astro.props;
 const { home, away } = fixture;
 
-const title = `${home.name} vs ${away.name} — ${fixture.league_name}`;
+// Title per 01_fixture_page.md section 8, THROUGH t() (#844). It was string-concatenated from two
+// locale-independent fields, so all three locales shipped a byte-identical <title>. That wireframe
+// ends the fixture title with the COMPETITION (unlike the team title, which ends with the brand) —
+// both are built exactly as approved rather than generalised to one shape.
+// The competition name comes from the REGISTRY (competitions.json), not the provider's
+// `fixture.league_name`. The provider calls the Brazilian top flight "Serie A" — ambiguous with
+// Italy's, on a Brazilian match — while the registry has "Brasileirão Série A" and the team page
+// already reads it. Two pages were naming the same concept from two sources; this is the
+// authoritative one. (Provider names taken on trust are the #850 class.)
+const compName =
+  (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code]?.name ??
+  fixture.league_name ??
+  fixture.league_code;
+const title = t(lang, "seoFixtureTitle", {
+  home: home.name ?? "",
+  away: away.name ?? "",
+  competition: compName,
+});
 const description = t(lang, "aboutNoH2h", {
   home: home.name ?? "",
   away: away.name ?? "",
@@ -66,9 +83,31 @@ const crumbs = [
   { label: fixture.league_name ?? fixture.league_code },
   { label: t(lang, "crumbMatches") },
 ];
+
+// schema.org/SportsEvent per 01_fixture_page.md section 8. Selection only — every value is a served
+// payload field. Optional members are omitted rather than emitted null: the audit rejects a graph
+// carrying null/empty values, because a present-but-empty property is worse than an absent one.
+const entity = {
+  "@type": "SportsEvent",
+  name: `${home.name} vs ${away.name}`,
+  sport: "Football",
+  ...(fixture.kickoff ? { startDate: fixture.kickoff } : {}),
+  ...(fixture.venue ? { location: { "@type": "Place", name: fixture.venue } } : {}),
+  ...(fixture.league_name ? { superEvent: { "@type": "SportsOrganization", name: fixture.league_name } } : {}),
+  competitor: [home, away]
+    .filter((s) => s?.name)
+    .map((s) => ({ "@type": "SportsTeam", name: s.name, ...(s.crest ? { logo: s.crest } : {}) })),
+};
 ---
 
-<Layout lang={lang} title={title} description={description}>
+<Layout
+  lang={lang}
+  title={title}
+  description={description}
+  entity={entity}
+  crumbs={crumbs.map((c) => ({ name: c.label, href: c.href }))}
+  image={home.crest ?? undefined}
+>
   <div class="inner">
     <Breadcrumb items={crumbs} />
     <Masthead fixture={fixture} lang={lang} />

@@ -58,15 +58,45 @@ const season: TeamSeason =
 const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
 const compName = comp?.name ?? season.league_code;
 
-const title = `${team.name} — ${compName}`;
-const description = `${team.name} · ${compName}`;
+// Title/description per 02_team_profile.md section 8, THROUGH t() (#844). Before this they were
+// built by string concatenation from `team.name` + `compName`, both of which are locale-independent
+// (the registry carries ONE `name` per competition), so all three locales shipped byte-identical
+// <title> and <meta description>. The descriptive words are the entire locale signal.
+// No numbers here until #838: `points` is a synthetic 3-1-0 tally, so a templated "N points" would
+// put a known-false figure into a surface search engines cache separately from the page.
+const title = t(lang, "seoTeamTitle", { team: team.name ?? "" });
+const description = t(lang, "seoTeamDesc", { team: team.name ?? "", competition: compName });
+
+// schema.org/SportsTeam per the same section. Selection only — every value is a served payload
+// field; nothing here is computed.
+const entity = {
+  "@type": "SportsTeam",
+  name: team.name ?? undefined,
+  sport: "Football",
+  ...(team.crest ? { logo: team.crest } : {}),
+  ...(team.founded_year ? { foundingDate: String(team.founded_year) } : {}),
+  ...(team.country ? { location: { "@type": "Place", name: team.country } } : {}),
+  ...(comp?.name ? { memberOf: { "@type": "SportsOrganization", name: comp.name } } : {}),
+};
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name: t(lang, "crumbTeams") },
+  { name: team.name ?? "" },
+];
 
 // Explore chips (SEO/navigation) — inert this increment; the league table and
 // top-scorers pages are not built yet.
 const linkChips = [t(lang, "table"), t(lang, "topScorers")];
 ---
 
-<Layout lang={lang} title={title} description={description}>
+<Layout
+  lang={lang}
+  title={title}
+  description={description}
+  entity={entity}
+  crumbs={crumbs}
+  image={team.crest ?? undefined}
+>
   <div class="inner">
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>

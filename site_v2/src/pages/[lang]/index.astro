@@ -1,5 +1,18 @@
 ---
 // Per-locale landing placeholder. Real landing: #367 after the design pass (#366).
+//
+// It now goes through Layout (#844) rather than hand-rolling its own <html>. The original plan
+// proposed EXEMPTING the scaffolds from the SEO gate; that reasoning was inverted. A scaffold is a
+// URL THAT SHIPS, so a canonical, an hreflang set and a unique title are TRUE facts about it — and
+// the exemption would have hidden the defect the gate exists to catch: all three locales were
+// emitting `<title>Matchday Pilot</title>`, byte-identical.
+//
+// Its page spec waives only `blocks`, behind `stub: true`, because it genuinely has no content
+// blocks yet. `STUB_PAGES` in src/config/indexability.mjs lists it, and the audit refuses to let
+// INDEXABLE flip to true while that list is non-empty — a stub in the index is a thin page.
+import Layout from "../../layouts/Layout.astro";
+import type { Lang } from "../../lib/format";
+
 export function getStaticPaths() {
   return [
     { params: { lang: "de" } },
@@ -7,24 +20,25 @@ export function getStaticPaths() {
     { params: { lang: "fi" } },
   ];
 }
-const { lang } = Astro.params;
-const headline: Record<string, string> = {
+const lang = (Astro.params.lang ?? "en") as Lang;
+
+// Not in strings.ts: these are scaffold copy that #367 deletes outright, and adding them to the
+// shared dictionaries would leave three dead keys behind in every locale.
+const headline: Record<Lang, string> = {
   de: "Matchday Pilot v2 — im Aufbau",
   en: "Matchday Pilot v2 — under construction",
   fi: "Matchday Pilot v2 — rakenteilla",
 };
+const blurb: Record<Lang, string> = {
+  de: "Fußballanalysen für Fans. Diese Seite entsteht gerade.",
+  en: "Football analytics for fans. This site is being built.",
+  fi: "Jalkapalloanalytiikkaa faneille. Sivustoa rakennetaan parhaillaan.",
+};
 ---
 
-<!doctype html>
-<html lang={lang}>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex" />
-    <title>Matchday Pilot</title>
-  </head>
-  <body>
-    <h1>{headline[lang ?? "en"]}</h1>
-    <p>v2 scaffold (#362, epic #361). The live product is unaffected.</p>
-  </body>
-</html>
+<Layout lang={lang} title={headline[lang]} description={blurb[lang]}>
+  <div class="inner">
+    <h1>{headline[lang]}</h1>
+    <p>{blurb[lang]}</p>
+  </div>
+</Layout>

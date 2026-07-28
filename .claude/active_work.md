@@ -5,10 +5,10 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-07-28**. main GREEN at **9e4ca94** (A/#854, B/#857, **C1/#862 all MERGED**). **IN
-FLIGHT: branch `chore/rename-brand-sweep`** = the docs half of the rename, which C1 reserved. The
-product is **Matchday Pilot**, domain `matchdaypilot.com`; next real work is **C2 = #844 gate +
-emitted surface**. The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in git
+_Last updated **2026-07-28**. main GREEN at **ac74d1f** (A/#854, B/#857, C1/#862, sweep/#865 all
+MERGED). **IN FLIGHT: branch `feat/844-seo-build-gate`** = C2, the SEO build gate + emitted surface.
+The product is **Matchday Pilot**, domain `matchdaypilot.com`.
+The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in git
 stash@{0} with a known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS: read "⭐ CURRENT", run `git stash list` before any git work, read #848 before
 shaping the International tab.**
 
@@ -28,8 +28,8 @@ present a plan he has not seen challenged._
 | **A** | #850 team name corrections in base | ✅ MERGED #854 |
 | **B** | #852 drop the provider id, slug DERIVED in the warehouse | ✅ MERGED #857 |
 | **C1** | Rename the SITE surface + `site` → `matchdaypilot.com` | ✅ MERGED #862 |
-| **sweep** | Docs brand + board key + **the MVP-status false-claim class** (CPO widened it) | ← IN FLIGHT |
-| **C2** | **#844 SEO gate** + the emitted surface (canonical/hreflang/OG/JSON-LD/sitemap) | next |
+| **sweep** | Docs brand + board key + **the MVP-status false-claim class** | ✅ MERGED #865 |
+| **C2** | **#844 SEO gate** + the emitted surface (canonical/hreflang/OG/JSON-LD/sitemap) | ← IN FLIGHT |
 | **D** | Pre-launch with #799/#377: slug persistence, the freeze, #843's redirects | — |
 
 **⚠ The GitHub Project board is now `Matchday Pilot - Project Board` (renamed 2026-07-28, CPO
@@ -41,8 +41,6 @@ together — never "tidy" one alone.
 `| Matchday IQ` title templates (C2 rewrites them and DROPS the brand) · `site_v2/package*.json` (C2) ·
 `system.css:2` (locked, stripped at build) · **`site/**`, the retired prototype, where `Matchday IQ` is
 CORRECT HISTORY** — renaming it would attribute a dead MVP to a product that never shipped.
-
-**#844 was never blocked by the slug** — a spec declares the canonical *template*, not the value.
 
 **Rulings** (escalations.log): **E3 = TRANSLITERATE** — fold to the base letter where one exists,
 expand only where none does, so `ü→u` AND `ß→ss` are ONE rule · **E2 = the warehouse** produces slugs ·
@@ -56,22 +54,26 @@ silently takes `/teams/dragon/`,
 DESTROYED weeks after kickoff** — 4,598 live vs 52,585 finished with no page. Latent under `noindex`,
 catastrophic at #377.
 
-### 1. WHY #844 EXISTS (the ruling stands; it is C2)
+### 1. #844, BUILT IN C2
 
-CPO: *"SEO optimization has to be ensured during the whole process of building the website."* A
-reviewer is after-the-fact and cannot ensure anything.
+CPO: *"SEO optimization has to be ensured during the whole process of building the website."*
 
-**#844 — extend #826's page-spec contract so no page BUILDS without declaring its SEO surface.**
-Declare at `prebuild` · verify over `dist/` (uniqueness only exists after generation) · a minimal
-emitter in `Layout.astro`. **⚠ The verifier must be an Astro INTEGRATION (`astro:build:done`), not an
-npm `postbuild`: `ignore-scripts` skips pre/post but still runs the main script, giving a complete
-`dist/` with no checks and exit 0.** Full design on #844 + artifact `4fe25734`.
+**What C2 ships:** the spec's required `seo` block (`prebuild`) · `scripts/audit-seo.mjs` verifying
+the EMITTED `dist/` (uniqueness exists only after generation) · `Layout.astro` emitting
+canonical/hreflang+x-default/OG+Twitter/JSON-LD `@graph` · `indexability.mjs` as the ONE switch +
+`robots.txt` · sitemap GENERATED but unreferenced (50k splitting exercised now, not at go-live) ·
+a title WIDTH check (px, not chars; fails at 660 not 600 — deliberate, see the constant). An Astro
+integration for the `assets` page-count driver, NOT the `--ignore-scripts` bypass the plan claimed.
 
-**C2 also carries the SEO list two experts rated above the slug change** (the dead-host `site` half is
-FIXED by #862): no canonical/hreflang/sitemap/`robots.txt` · all three locales ship **byte-identical
-titles and descriptions** · the two built pages link to each other **zero** times and `LinksFooter`
-renders `<span>` where `<a>` belongs · uniqueness domain is **entity × locale**, since `<h1>{team.name}`
-is identical across locales by construction. Retrofit fixture + team in C2 or main ships red.
+**It caught a LIVE defect on its first run:** all three locales shipped byte-identical `<title>` and
+`<meta description>` (both concatenated from two locale-independent fields). Fixed via `t()`. **The
+plan's proposal to EXEMPT the scaffolds would have hidden it.**
+
+**Still open from the challenge:** `LinksFooter` renders `<span>` where `<a>` belongs (its
+conditional-link rule is a NEW rule, own PR) · no redirect/alias mechanism · no 404 strategy for the
+fixture cliff · structured-data COMPLETENESS (the check is format-only) · rich vs thin tier ·
+OG-image fitness · localised COMPETITION names (registry has one `name`, so English readers see
+"1. Fußball-Bundesliga").
 
 **Siblings:** **#845** minimum-data gate (what earns a page) · **#843** reframed — the URL is derived
 from an unverified mutable field, not merely "changes on rename" · **#846** window selection in the
@@ -134,6 +136,12 @@ rule, one-page driver (#828).
 - **Verify a rename against RENDERED TEXT, never a source grep or `outerHTML`** — split markup defeats
   both; Astro EMITS `<!-- -->`, so use `{/* … */}`; `git grep` is BRE, so `?` is a literal (use `-E`).
   Memory `feedback_verify_renames_against_rendered_text`.
+- **I CANNOT self-assess copy in ANY language, English included.** C2's nine SEO strings went to the
+  CPO after a §10 FAIL and four of mine were wrong: German missing a required article, Finnish
+  `sarjassa` + an uninflected borrowed noun, `muoto` (shape) where football says `kunto`, and a
+  separator I changed on an unverified claim a reviewer agreed with. **The retired MVP's
+  `site/i18n/*.json` is 127 VALIDATED strings per locale — check new copy against it.** Em dashes
+  read as AI-generated; titles take a colon.
 - **Design for the DEFAULT case, not an edge case** — the page was built around a goalkeeper and two
   conclusions were wrong until rebuilt on an outfielder.
 - **Never fill an empty slot to balance a layout** (cards in a strip, the invented hero of 07-21).
@@ -172,10 +180,13 @@ carries the player design state. Metric layer (#802/#803/#804) complete.
 1. **Player branch merges** (needs #846 + #845), then Performance → Career, one tab at a time, each
    content boundary decided before mocking.
 2. Home page (mock `1c35e7aa` is reference only), **then legal/imprint**, then launch.
-3. Follow-ups: **#863 — a PROTECTED path can be edited with NO `protected_override`** (the post-check
-   tests scope, never protection); route `seo-expert-reviewer`; em-dash sweep in `strings.ts`;
-   `src/data/README.md` stale; `content_architecture.md` cites GAP-22 (should be GAP-20); fixture
-   PlayerRow "1 assists" singular i18n; #833; the 4-way locale-list duplication.
+3. Follow-ups: **#863** a PROTECTED path is editable with NO `protected_override` (the post-check
+   tests scope, never protection) · **#866** `Regular Season - 20` untranslated in every locale ·
+   **#864** two stale `cutover` comments in `site_v2/src` · **14 em dashes left in shipped copy**,
+   worst is `heroVerdictUnder` on the team page · **#838 renders in the BODY** (`RecordStrip:28`),
+   so keeping the number out of `<meta>` protects a surface Google increasingly bypasses — must land
+   before indexing · route `seo-expert-reviewer`; `content_architecture.md` cites GAP-22 (should be
+   GAP-20); fixture PlayerRow "1 assists" singular; #833; the 4-way locale-list duplication.
 
 ## OPEN — the CPO's alone
 - **Imprint operator + address** — blocks publication (#799); get a lawyer, never conclude it.
