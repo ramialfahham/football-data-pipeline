@@ -25,19 +25,19 @@ fields that exist in today's exported JSON") does not apply here; there is no pa
 
 ```
 ┌────────────────────────────────────────────┐
-│ MatchdayIQ            [search] [🌓] [☰]     │  (1) header, sticky
+│ MatchdayPilot         [search] [🌓] [☰]     │  (1) header, sticky
 ├────────────────────────────────────────────┤
-│  ▾ drawer (phone only, hidden by default)   │  (2) drawer — opens on ☰
-│    Competitions                             │
-│    Matches                                  │
-│    Teams / Players / Standings / Stats      │
+│  ▾ drawer (phone only, hidden by default)  │  (2) drawer — opens on ☰
+│    Competitions                            │
+│    Matches                                 │
+│    Teams / Players / Standings / Stats     │
 ├────────────────────────────────────────────┤
 │              (page content)                │
 ├────────────────────────────────────────────┤
-│ MatchdayIQ                                  │  (3) footer
-│ Competitions · Teams · Players · Stats ·    │
-│ About · Imprint (pending)                   │
-│ EN · DE · FI · Data: API-Football           │
+│ MatchdayPilot                              │  (3) footer
+│ Competitions · Teams · Players · Stats ·   │
+│ About · Imprint (pending)                  │
+│ EN · DE · FI · Data: API-Football          │
 └────────────────────────────────────────────┘
 ```
 
@@ -65,7 +65,7 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 
 | Element | Key(s) |
 |---|---|
-| Brand | hardcoded "MatchdayIQ" (proper noun, not translated), links to `localeHref(lang)` |
+| Brand | hardcoded "MatchdayPilot" (proper noun, not translated), links to `localeHref(lang)`. Rendered as SPLIT markup — `Matchday<span class="iq">Pilot</span>` — so no source file contains the joined string; verify any future rename against rendered text, never a grep (#862) |
 | Main nav (6 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `navStandings`, `navStats` |
 | Main nav aria-label | `mainNavAria` |
 | Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
@@ -91,7 +91,7 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 - **Search**: visually present, functionally inert — no input element wired, no keystroke
   behaviour, no results. Search mechanism/style is a reserved CPO call.
 - **Theme**: two states, `data-theme="dark"` (default) / `"light"`, toggled by `#themeBtn` and
-  persisted to `localStorage` (`mdiq-theme`) so the choice survives navigating to a different
+  persisted to `localStorage` (`mdp-theme`) so the choice survives navigating to a different
   static page. A blocking inline script (`Layout.astro`, `<script is:inline>`, first thing inside
   `<body>`) applies a saved choice before the header renders, avoiding a flash of the hard-coded
   default for a returning light-theme reader. No-preference default is fixed dark; whether the

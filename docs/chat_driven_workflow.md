@@ -27,7 +27,7 @@ To keep requests visible across chats, board sync is active via:
 - `.github/workflows/board-request-sync.yml`
 
 Behavior:
-- Auto-add open PRs and open issues to `Matchday IQ - Project Board`
+- Auto-add open PRs and open issues to `Matchday Pilot - Project Board`
 - Auto-update `Status` from item state (for example `In Progress`, `Done`, `Live`)
 - No label requirements
 

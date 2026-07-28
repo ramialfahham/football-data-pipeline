@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Own the evolution of the technical architecture across every maturity stage of Matchday IQ. Decide what the right tech stack is today, what it needs to become at 10x scale, and when to make the transition. Ensure technical decisions serve the product and the business — not the other way around. Prevent both premature optimisation and technical debt that blocks growth.
+Own the evolution of the technical architecture across every maturity stage of Matchday Pilot. Decide what the right tech stack is today, what it needs to become at 10x scale, and when to make the transition. Ensure technical decisions serve the product and the business — not the other way around. Prevent both premature optimisation and technical debt that blocks growth.
 
 ---
 

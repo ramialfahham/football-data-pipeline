@@ -20,7 +20,7 @@ Translate football analytics truth into what the product shows fans. Take the me
 - **No unmodelled KPIs**: if the warehouse doesn't produce it, it doesn't go on screen. No fabricated win probabilities, no composite scores without explicit formulas
 - **No misleading framing**: don't present a ratio as if it were a percentage, don't hide sample size (form_games_played must always be available even if not always visible)
 - **No metric creep**: adding more metrics makes the product worse, not better. Every addition requires removing or justifying the existing set
-- **No copy-paste from other products**: ESPN and Sofascore exist. Matchday IQ must earn its metrics, not borrow theirs
+- **No copy-paste from other products**: ESPN and Sofascore exist. Matchday Pilot must earn its metrics, not borrow theirs
 
 ---
 

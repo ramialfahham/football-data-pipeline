@@ -9,7 +9,7 @@
 | **SQLFluff** (`sqlfluff lint models/<path>` from `dbt_project/`) | SQL linting; uses dbt templater which requires BQ credentials | No |
 | **dbt build/run** | Builds models in BigQuery | No |
 | **Ingestion** (`python -m ingestion.api_football.main`) | Calls API-Football and loads into BigQuery | No (needs `API_FOOTBALL_API_KEY` + GCP auth) |
-| **Static site** (`python -m http.server 8080` from `site/`) | Matchday IQ landing page + sub-pages | Yes (data pages show "not available" without exported JSON) |
+| **Static site** (`python -m http.server 8080` from `site/`) | The RETIRED Matchday IQ prototype (frozen 2026-07-21, offline, kept for reference only — the successor is Matchday Pilot in `site_v2/`) | Yes (data pages show "not available" without exported JSON) |
 
 ### Activation
 

@@ -1,4 +1,4 @@
-# UI design brief — Matchday IQ v2
+# UI design brief — Matchday Pilot v2
 
 > The data-grounded brief for the v2 visual design pass (#366, epic #361). Written to
 > be handed to a design tool (Claude Design) or a human UI/UX expert as a
@@ -8,7 +8,7 @@
 
 ## 1. Product context
 
-**Matchday IQ** — a fun, sticky pre-match companion for football fans: the site you
+**Matchday Pilot** — a fun, sticky pre-match companion for football fans: the site you
 open in the sports bar before kickoff, share with your group chat, and argue over.
 Not a stats database, not a betting tool. Casual fans must feel smart in seconds;
 hardcore fans must find depth on demand.

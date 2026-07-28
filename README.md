@@ -9,7 +9,7 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-**Status.** The pipeline runs daily behind automated data-quality and CI checks. The fan-facing web app (Matchday IQ) is a prototype, currently offline; a v2 with a new information architecture is in development.
+**Status.** The pipeline runs daily behind automated data-quality and CI checks. The first fan-facing web app was a prototype and is now retired; its successor (**Matchday Pilot**) is in development with a new information architecture.
 
 ## Architecture
 

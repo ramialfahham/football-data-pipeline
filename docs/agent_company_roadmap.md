@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Run Matchday IQ like an agent company: high automation, clear ownership, and minimal founder interrupts.
+Run Matchday Pilot like an agent company: high automation, clear ownership, and minimal founder interrupts.
 
 This roadmap is intentionally scope-controlled.
 

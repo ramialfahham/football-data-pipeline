@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Ensure that every piece of content Matchday IQ displays, every data source it consumes, and every commercial relationship it enters is legally sound. This role protects the product from IP and licensing risk, keeps user data handling compliant with applicable law, and ensures monetisation is structured correctly from the start.
+Ensure that every piece of content Matchday Pilot displays, every data source it consumes, and every commercial relationship it enters is legally sound. This role protects the product from IP and licensing risk, keeps user data handling compliant with applicable law, and ensures monetisation is structured correctly from the start.
 
 ---
 
