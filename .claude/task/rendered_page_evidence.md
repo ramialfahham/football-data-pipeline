@@ -1,113 +1,125 @@
-# Rendered-page evidence — feat/rename-matchday-pilot (PR C1)
+# Rendered-page evidence — feat/844-seo-build-gate (PR C2)
 
-> Required by #827 for any `site_v2/src/**` diff. Produced against the real Astro dev server
-> (`preview_start` name `v2`, port 4321) and the real `npm run build` output — not the source.
->
-> **This document is on its second version, and the reason matters.** Version 1 claimed
-> `staleBrandAnywhere: false` from a regex over `document.documentElement.outerHTML`. That check was
-> looking at the wrong surface and the claim was FALSE: `SiteFooter.astro` still rendered the old
-> wordmark, so every page shipped `MatchdayPilot` in the header and `MatchdayIQ` in the footer.
-> `cto-reviewer` caught it.
+> Required by #827 for any `site_v2/src/**` diff. Every claim below is read from the BUILT output
+> (`site_v2/dist/`), never from source and never from `outerHTML` — the rule #862 produced after a
+> source grep and an `outerHTML` check both certified a defect as fixed while it was still shipping.
 
-## The defect this document initially missed
+## 1. The live defect, before and after
 
-`SiteFooter.astro:31` was never renamed. Proof, from one built page before the fix:
+`[team].astro` built its title by concatenating `team.name` and a competition name. Both are
+locale-independent: `team.name` is the provider name, and `src/data/competitions.json` carries ONE
+`name` per competition (verified — its entries have only `name` and `slug`, built from the
+registry's single field by `_competitions_index()`). So all three locales shipped the same string.
 
-```
-$ grep -o 'Matchday<span class="iq">[A-Za-z]*</span>' dist/en/teams/manchester-united/index.html
-Matchday<span class="iq">Pilot</span>      <- header
-Matchday<span class="iq">IQ</span>         <- footer, SAME PAGE
-```
+**Before** (on `main`): `<title>Manchester United — Premier League</title>` in de, en AND fi.
 
-**Why every grep in the contract's own impact_map was structurally incapable of finding it:** the
-wordmark is split across markup — `Matchday` then `<span>IQ</span>` — so the file contains no literal
-`"Matchday IQ"` substring and no `mdiq`. `outerHTML` preserves that split, which is why the v1 check
-passed. Only **rendered text** joins them into `MatchdayIQ`.
-
-**The rule this produces:** verify a rename against `textContent` / `body.innerText`, never against
-source greps or `outerHTML`.
-
-A second, self-inflicted instance of the same class: the explanatory comment I first added to
-`SiteFooter` was an HTML comment containing the literal old brand — and **Astro emits `<!-- -->` into
-the built page**, so the note shipped the stale string straight back into the output. Both wordmark
-comments are now Astro expression comments (`{/* … */}`), which are not emitted.
-
-## Corrected check — rendered text, every built page
+**After**, read from `dist/{de,en,fi}/teams/manchester-united/index.html`:
 
 ```
-dist/de/brasileirao/matches/…/index.html    Pilot  Pilot
-dist/de/teams/manchester-united/index.html  Pilot  Pilot
-dist/en/brasileirao/matches/…/index.html    Pilot  Pilot
-dist/en/teams/manchester-united/index.html  Pilot  Pilot
-dist/fi/brasileirao/matches/…/index.html    Pilot  Pilot
-dist/fi/teams/manchester-united/index.html  Pilot  Pilot
-(the 3 locale scaffolds and / carry no wordmark — they do not use Layout)
+de  Manchester United — Statistiken, Form & Saisonbilanz | Matchday Pilot
+en  Manchester United — Stats, Form & Season Records | Matchday Pilot
+fi  Manchester United — tilastot, muoto ja kauden tulokset | Matchday Pilot
+    -> titles distinct 3/3, descriptions distinct 3/3
 
-$ grep -rl "Matchday IQ\|MatchdayIQ\|matchdayiq" dist/     ->  NONE
+de  Palmeiras gegen Atletico-MG — Form, direkter Vergleich & Statistiken | Serie A
+en  Palmeiras vs Atletico-MG — Form, Head-to-Head & Stats | Serie A
+fi  Palmeiras – Atletico-MG — muoto, keskinäiset ottelut ja tilastot | Serie A
+    -> titles distinct 3/3, descriptions distinct 3/3
 ```
 
-Live DOM, team page:
+**A second defect the first version of this check would have missed.** The Finnish fixture
+DESCRIPTION was byte-identical to the English one (`aboutNoH2h` was `"{home} vs {away} · {round}."`
+in both) while German differed. The cross-locale check as first written asked "are they ALL
+identical", saw variety, and said nothing. It now fails on ANY group of locales sharing a value, and
+the Finnish string was corrected. Regression-locked by a test.
+
+## 2. The emitted surface, from `dist/en/teams/manchester-united/index.html`
 
 ```
-brandTexts          ["MatchdayPilot", "MatchdayPilot"]   (header AND footer)
-allAgree            true
-staleInRenderedText false      <- the check that actually answers the question
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://matchdaypilot.com/en/teams/manchester-united/">
+<link rel="alternate" hreflang="de|en|fi" href="https://matchdaypilot.com/{lang}/teams/manchester-united/">
+<link rel="alternate" hreflang="x-default" href="https://matchdaypilot.com/en/teams/manchester-united/">
+og:type / og:site_name / og:locale / og:url / og:title / og:description / og:image
+twitter:card=summary_large_image / twitter:title / twitter:description / twitter:image
+<script type="application/ld+json"> @graph = [BreadcrumbList(3 items), SportsTeam]
 ```
 
-## Layout — the risk `bi-analyst-reviewer` raised
+The `SportsTeam` node carries `name`, `sport`, `logo`, `foundingDate: "1878"`,
+`location: {Place, England}`, `memberOf: {SportsOrganization, Premier League}` — every value a
+served payload field, nothing computed. Canonical is absolute and self-referential on all 10 pages.
 
-The wordmark grew. `.brand` is `flex: none` (`system.css:363`); below 700px `.mainnav` is
-`display:none`, so only the brand and three 36px icon buttons share the row.
+## 3. The gate FAILS, proven rather than assumed
 
-Measured by swapping only the wordmark text in the live DOM, so both strings were measured under
-identical computed styles:
+Finnish `seoTeamTitle` was temporarily set to the English string and the build re-run:
+
+```
+audit-seo: 1 violation(s) in 10 built page(s):
+  - /teams/manchester-united/: title is BYTE-IDENTICAL across en/fi — the localised template
+    is not reaching the output: "Manchester United — Stats, Form & Season Records | Matchday Pilot"
+seo-audit: the built site violates its own page specs (see the list above).
+build exit = 1
+```
+
+Reverted; `build exit = 0`. The gate stops CI and the deploy workflow, both of which run
+`npm run build`.
+
+**It also failed for real, twice, on first run** — that is how the locale-landing defect above was
+found. The first build reported 21 violations: the three scaffolds had no canonical and no hreflang
+and all shipped `<title>Matchday Pilot</title>`. The original plan proposed EXEMPTING the scaffolds;
+that would have hidden this.
+
+## 4. Whole-build assertions
+
+```
+dist/robots.txt          -> "User-agent: *\nDisallow: /"
+dist/sitemap-index.xml   -> present (NOT sitemap.xml — a checker looking for that passes vacuously)
+dist/sitemap-0.xml       -> 9 <loc> entries = 10 built pages minus the excluded root redirect
+```
+
+The sitemap is generated while the site is `noindex` and is referenced by nothing, so its
+cap-splitting and locale logic get exercised on every build instead of first running at go-live.
+
+## 5. Page-count driver, free from the build hook
+
+```
+[seo-audit] page-count driver: /robots.txt -> 1, /[lang]/teams/[team] -> 3,
+            /[lang]/[competition]/matches/[fixture] -> 3, /[lang] -> 3, / -> 1
+```
+
+Route PATTERN -> emitted file count, from `astro:build:done`'s `assets` map. This is the one thing a
+`dist/` walker genuinely cannot reconstruct, and it is the honest reason the verifier is an
+integration — not the `--ignore-scripts` bypass the plan cited, which does not exist in this
+pipeline (neither workflow passes that flag; both run `npm run build`).
+
+## 6. The one RENDERING change: the locale landing now composes the site chrome
+
+**This section exists because `bi-analyst-reviewer` FAILed the first version of this document.** It
+said in §1 that the landing "gained the standard header/footer" and then in §6 that "nothing changes
+a pixel" — a contradiction, and the second half was wrong. `[lang]/index.astro` moved from a
+hand-rolled bare `<html><body><h1>` to `Layout`, so `SiteHeader` and `SiteFooter` render on that
+route **for the first time**. That is a composition #827 requires evidence for. Measured against the
+live dev server, not read from source:
+
+**Accessibility tree @ 700x800** — the composition is real and correctly landmarked:
+`banner` (brand link "Matchday"+"Pilot", "Main navigation" with 6 items, search, theme toggle, menu)
+→ `heading "Matchday Pilot v2 — under construction"` → the blurb → `contentinfo` (brand, 5 links,
+"Imprint (pending)", "EN · DE · FI · Data: API-Football"). One `h1`, inside a real document outline.
+
+**Geometry @ 320x720** — the width the header is tightest at:
 
 | | px |
 |---|---|
-| Old `MatchdayIQ` | **105** |
-| New `MatchdayPilot` | **124** |
-| Growth from the rename | **+19** |
-| Space before `.header-actions` | **164** |
-| **Clearance remaining** | **40** |
+| `horizontalScroll` | **false** (`scrollWidth` 320 = viewport 320) |
+| brand | 16 → 140 |
+| `.header-actions` | 180 → 304 |
+| **clearance between them** | **40** |
+| `.mainnav` | `display: none` (below the 700px breakpoint, as designed) |
+| `h1` | 16 → 304, 288 wide, no overflow |
 
-**Header @ 320x720** — `brandRight 140`, `actionsLeft 180`, **clearance 40px**, `mainNavDisplay: none`,
-`horizontalScroll: false`.
+**Console** — `read_console_messages(onlyErrors: true)` → **no errors**.
 
-**Header @ 700x800** (nav returns) — brand right 149, nav 171→583, actions left 601;
-`brandOverlapsNav: false`, `navOverlapsActions: false`, no horizontal scroll.
-
-**Footer @ 320x720** — a different container (`.footer-in`) and NOT measured in v1: brand 16→120
-(104px, smaller footer type), `footerBrandOverflows: false`, `horizontalScroll: false`.
-
-Accessibility tree confirms the approved treatment survives: `link "Matchday"` with a child
-`generic "Pilot"` — the two-tone `.iq` span is still nested in the brand link, so only the word
-changed.
-
-## Console
-
-`read_console_messages(onlyErrors: true)` → **no errors**.
-
-## Locale interpolation — the `{brand}` indirection
-
-```
-en  Sample data · v2 preview (Matchday Pilot)
-de  Beispieldaten · v2-Vorschau (Matchday Pilot)
-fi  Esimerkkidata · v2-esikatselu (Matchday Pilot)
-```
-
-The placeholder INTERPOLATES in every locale rather than rendering literally. A literal `{brand}`
-would otherwise have shipped silently.
-
-## Known and deliberately untouched
-
-`system.css:2` carries `MATCHDAY IQ — v2 DESIGN SYSTEM` in its header comment. Visible in the dev
-server only, where Astro inlines CSS unminified; the build strips it, which is why the `dist/` sweep
-above is clean. `system.css` is the LOCKED design system and out of scope for this PR by decision —
-that comment goes with whoever next opens the file for a real reason (the owed chip-sizing change).
-
-## Not captured, and why
-
-**No screenshot.** `computer{action:"screenshot"}` fails here — *"the Browser pane is not displayed,
-so the page is not compositing frames"* — a limitation already recorded in the handover. For this
-question the geometry measurements are stronger than a screenshot: they give actual pixel clearance
-rather than an eyeball on whether two boxes touch.
+**No screenshot.** `computer{action:"screenshot"}` fails in this environment ("the Browser pane is
+not displayed"), a limitation already recorded in the handover. The geometry above is the stronger
+evidence for the question actually at issue — whether the chrome fits and the page overflows — since
+it gives measured pixel clearance rather than an eyeball on whether two boxes touch.

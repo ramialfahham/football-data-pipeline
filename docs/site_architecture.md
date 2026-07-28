@@ -66,6 +66,14 @@ Reserved (structural only, render nothing until built — #376):
   (global ambition; overridable by CPO) and renders a language chooser for no-JS/bots.
 - Locale set (phased, #370): `de en fi` live → `es fr it nl pt` → `ar` (RTL, needs
   design-system support first).
+- **`hreflang="x-default"` points at the `en` URL, NOT at `/`** (#844). This paragraph did not say
+  which, and the answer was about to be settled implicitly by a checker — recorded here instead,
+  because a machine-enforced rule that exists only in code is not a documented decision.
+  Reasoning: `/` is a CLIENT-SIDE language redirect, and a crawler resolving `x-default` cannot run
+  it, so pointing there hands the fallback to a page that renders nothing for the audience
+  `x-default` exists to serve. The `en` URL is a real page. `/` keeps the job this paragraph gives
+  it (a human arriving with no locale match); it simply is not the hreflang fallback.
+  If the CPO overrides the `en` fallback above, `x-default` follows it — the two are one decision.
 
 ### Slugs (locale-independent)
 - **Competition**: `slug` field in the registry (#364), e.g. `bundesliga`,

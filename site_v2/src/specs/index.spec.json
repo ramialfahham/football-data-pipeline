@@ -1,0 +1,22 @@
+{
+  "$schema": "./page-spec.schema.json",
+  "page": "[lang]/index.astro",
+  "entity": "home",
+  "stub": true,
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "inline",
+    "description": "inline",
+    "schema_org": "none",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": []
+    },
+    "minimum_data": "None — this is a scaffold. #367 replaces it with the real landing, at which point stub must be removed and blocks declared.",
+    "page_count_driver": "count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The locale root is the most permanent URL on the site; only its CONTENT changes when #367 lands."
+  },
+  "blocks": []
+}

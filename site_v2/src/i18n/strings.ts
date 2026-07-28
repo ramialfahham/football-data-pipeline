@@ -108,6 +108,51 @@ const EN: Dict = {
   fxNext: "Next",
   linkFixtures: "Full fixture list",
   teamFootnote: "Sample data · v2 preview ({brand})",
+
+  // SEO templates (#844). These are the ONLY reason a page's <title> and <meta description> differ
+  // across locales: the entity name and the competition name are locale-independent (the registry
+  // carries one `name` per competition), so the DESCRIPTIVE words carry the whole locale signal.
+  // Before this, all three locales shipped byte-identical titles and descriptions.
+  // Shape follows the approved wireframes verbatim -- 02_team_profile.md section 8 ends the team
+  // title with the brand; 01_fixture_page.md section 8 ends the fixture title with the competition.
+  // NO NUMBERS in these until #838 lands: `points` is a synthetic 3-1-0 tally computed regardless of
+  // the competition's rules, so a templated "N points" would write a known-false figure into a
+  // surface search engines cache independently of the page.
+  // Colon, not an em dash. CPO 2026-07-28: the dash "looks terribly like AI generated" — and he is
+  // right that it is a tell, especially as a clause separator. A colon is the conventional
+  // entity-then-descriptor form in a page title, reads as edited rather than generated, and costs
+  // two characters less against a budget these titles already overrun.
+  // The middle is deliberately SHORT. It is byte-identical on all 3,250 team pages, so it
+  // differentiates nothing between them, while the two parts that DO vary (the brand here, the
+  // competition on the fixture title) are exactly what Google truncates first. Measured: the long
+  // middle put the team title at 64 characters for "Manchester United" and 71 for "Borussia
+  // Mönchengladbach", pushing the brand out of the result entirely. Spending the budget on a
+  // constant and losing the variable is the wrong way round.
+  // NO brand suffix. CPO reversed his earlier "keep the brand" ruling on 2026-07-28 after
+  // seo-expert-reviewer argued it: a suffix is EARNED by equity, not a way to build it. It cost 17
+  // characters — 28-36% of the title budget — on ~9,750 team page/locale combinations, and with
+  // 3,250 identical suffixes Google reads it as boilerplate and truncates it anyway. The brand does
+  // NOT leave the page: Layout.astro emits `og:site_name` unconditionally. Reinstate when branded
+  // query volume in Search Console shows the name has something to trade on.
+  // Four descriptors, not two. It was cut to "Stats & Form" to make room for the brand suffix, and
+  // once the suffix went the cut had no reason left — 31 characters against a ~600px budget wasted
+  // half the title. Each word maps to a query the page ANSWERS: Stats -> Performance benchmarks,
+  // Form -> the Overview form window, Squad -> the Squad tab, Fixtures -> the fixtures block.
+  // Nothing here is promised that the page does not render. Measured worst case (Borussia
+  // Mönchengladbach): 516px EN / 543px DE / 554px FI, all inside 600px.
+  seoTeamTitle: "{team}: Stats, Form, Squad & Fixtures",
+  // Parentheses, same as DE and FI. "in {competition}" has the IDENTICAL defect English-side that
+  // it had in German: "in THE Premier League" and "in THE Championship" take an article, "in Serie
+  // A" and "in Ligue 1" do not, and a template cannot know which it has. I fixed German for exactly
+  // this reason in this same PR and left English alone — treating it as the trusted baseline, which
+  // is the failure this contract's own amendment 3 records. bi-analyst-reviewer caught it.
+  seoTeamDesc: "{team} ({competition}): form, fixtures, squad and season statistics.",
+  // NO descriptive middle on the fixture title. It carries TWO entity names plus a competition, so
+  // any middle at all overruns: with "Form & Stats" the German came to 69 and the Finnish to 65.
+  // Nothing is really lost — the query for a fixture page IS the two team names, "vs" already says
+  // what kind of page this is, and the competition is the part that distinguishes a league meeting
+  // from a cup tie. The keyword was costing the differentiator.
+  seoFixtureTitle: "{home} vs {away} | {competition}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Competitions",
   navMatches: "Matches",
@@ -214,6 +259,30 @@ const DE: Dict = {
   fxNext: "Nächstes",
   linkFixtures: "Alle Spiele",
   teamFootnote: "Beispieldaten · v2-Vorschau ({brand})",
+
+  // APPOSITIVE, not a preposition. The first version read "{team} in {competition}: …", justified as
+  // avoiding the gender problem (die Bundesliga / der DFB-Pokal / die Premier League — a template
+  // cannot inflect an article for a competition it does not know). That was a misdiagnosis: German
+  // "in" before a named competition ALWAYS takes a case-marked article, so dropping it did not make
+  // the sentence gender-neutral, it made it ungrammatical on every German team page. The
+  // PARENTHETICAL form needs no article and no case, and all three locales now share it.
+  // Parentheses in the description, not the en dash Gemini supplied: same anti-AI-tell reason, and
+  // they sidestep the article problem too — "(Premier League)" needs no case-marked article, where
+  // "in der/im {competition}" would need one the template cannot know.
+  // "Kader" and "Spiele" are reused verbatim from the CPO-approved description below, so the two
+  // surfaces name the same things with the same words.
+  seoTeamTitle: "{team}: Statistiken, Form, Kader & Spiele",
+  seoTeamDesc: "{team} ({competition}): Form, Spiele, Kader und Saisonstatistiken.",
+  // "gegen" stays, and the reason is worth recording. I briefly changed it to "vs." to claw back
+  // 3 characters after a real pairing ("Wolverhampton Wanderers gegen Manchester United | Premier
+  // League", ~624px vs the ~600px budget) overran. The gate rejected that instantly: this title is
+  // made ONLY of proper nouns, so once "gegen" becomes "vs." the German and Finnish titles are
+  // BYTE-IDENTICAL and there is nothing left to tell the locales apart.
+  // The general point: a title of pure proper nouns cannot be localised. "gegen" is the entire
+  // German signal in this string, so it is not spare budget — it is the localisation.
+  // The overrun on that one extreme pairing is accepted; the competition truncates, which is the
+  // least-bad thing to lose, and the team names a reader searched for stay visible.
+  seoFixtureTitle: "{home} gegen {away} | {competition}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Wettbewerbe",
   navMatches: "Spiele",
@@ -266,8 +335,19 @@ const FI: Dict = {
   topScorers: "Maalintekijät",
   fullH2H: "Kaikki kohtaamiset",
   footnote: "Esimerkkidata · v2-esikatselu ({brand})",
-  aboutWithH2h: "{home} vs {away} · {round}. Joukkueet ovat kohdanneet {meetings} kertaa — {record}.",
-  aboutNoH2h: "{home} vs {away} · {round}.",
+  // "–" not "vs": the Finnish values were byte-identical to the English ones, so two of three
+  // locales shipped the same <meta description>. Caught only after the cross-locale check was
+  // tightened to fail on any GROUP of locales sharing a value rather than on all three matching —
+  // the weaker form saw German differ and concluded the template was working.
+  // "vs." to match this locale's own fixture TITLE. I had switched these to an en dash on the
+  // unverified claim that Finnish football writing prefers one; the CPO's source uses "vs.", and
+  // the page was contradicting itself — title "Palmeiras vs. Atletico-MG", description
+  // "Palmeiras – Atletico-MG".
+  // ⚠ RESIDUAL: this now differs from the EN string only by the full stop after "vs". The audit's
+  // byte-identical check passes, but only just, and passing it is not the same as being localised.
+  // A real Finnish description is copy, so it is the CPO's call, not a fix I can make quietly.
+  aboutWithH2h: "{home} vs. {away} · {round}. Joukkueet ovat kohdanneet {meetings} kertaa: {record}.",
+  aboutNoH2h: "{home} vs. {away} · {round}.",
   posF: "Hyökkäys", posM: "Keskikenttä", posD: "Puolustus", posG: "Maalivahti",
   // --- team page (Overview) ---
   crumbTeams: "Joukkueet",
@@ -320,6 +400,26 @@ const FI: Dict = {
   fxNext: "Seuraava",
   linkFixtures: "Kaikki ottelut",
   teamFootnote: "Esimerkkidata · v2-esikatselu ({brand})",
+
+  // Finnish takes an appositive rather than a genitive: a proper noun cannot be inflected from a
+  // template, so "{team}: ..." (not "{team}n tilastot") is the only form that stays grammatical
+  // for every club name.
+  // CPO-supplied, 2026-07-28 (§10 — user-visible copy is his call). "kunto", not "muoto": muoto is
+  // shape/format, and the football sense of form is kunto — corroborated by the MVP corpus, which
+  // renders "form window" as `kuntojakso` (site/i18n/fi.json). ⚠ `secForm: "Muotovertailu"` above
+  // carries the same error and is NOT corrected here — it is shipped copy he has not ruled on.
+  // "ja" in the team title and "&" in the fixture title are both the CPO's own choices, kept as he
+  // wrote them; only the length changed.
+  seoTeamTitle: "{team}: tilastot, kunto, kokoonpano ja ottelut",
+  // Was "{team} sarjassa {competition}: …". `sarjassa` is inessive and governs a case the bare
+  // borrowed league name cannot carry ("Premier Leaguessa" / "Valioliigassa"), so the template read
+  // as machine translation. Parentheses instead: no case, no inflection, and they work for a
+  // league name in any language. Same form as the EN and DE descriptions.
+  seoTeamDesc: "{team} ({competition}): kunto, ottelut, kokoonpano ja kauden tilastot.",
+  // "vs." restored. I had changed it to an en dash, asserting Finnish football writing prefers one;
+  // bi-analyst-reviewer agreed. Neither of us verified it and the CPO's source disagrees — three
+  // unverified opinions are not evidence. Capital K and "&" are his too, kept verbatim.
+  seoFixtureTitle: "{home} vs. {away} | {competition}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Kilpailut",
   navMatches: "Ottelut",

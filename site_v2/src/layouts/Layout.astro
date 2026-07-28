@@ -8,13 +8,56 @@ import "../styles/system.css";
 import SiteHeader from "../components/chrome/SiteHeader.astro";
 import SiteFooter from "../components/chrome/SiteFooter.astro";
 import type { Lang } from "../lib/format";
+import { alternatePaths } from "../lib/href";
+import { INDEXABLE } from "../config/indexability.mjs";
 
 interface Props {
   lang: Lang;
   title: string;
   description?: string;
+  /** This page's schema.org entity node (SportsTeam, SportsEvent, …), joined into a @graph with
+   * the BreadcrumbList below. Its `@type` must match the page spec's `seo.schema_org` — the audit
+   * compares the two against the EMITTED html. */
+  entity?: Record<string, unknown>;
+  /** Ordered breadcrumb trail; `href` omitted for the current (last) item. */
+  crumbs?: { name: string; href?: string }[];
+  /** Absolute or site-relative image for the OG/Twitter card. */
+  image?: string;
 }
-const { lang, title, description } = Astro.props;
+const { lang, title, description, entity, crumbs, image } = Astro.props;
+
+// Canonical from Astro.site + the PATHNAME. Never Astro.url.href: in a static build that carries
+// the dev/preview origin (localhost:4321), so every canonical would point at a machine that is not
+// the site. `site` is https://matchdaypilot.com (astro.config.mjs).
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const alternates = alternatePaths(Astro.url.pathname);
+const absolute = (p: string) => new URL(p, Astro.site).href;
+const ogImage = image ? absolute(image) : undefined;
+
+// x-default points at the `en` page, NOT at `/`. `/` is Astro's generated root redirect stub — a
+// client-side language redirect a crawler cannot follow — whereas the en URL is a real page that
+// renders. Recorded in site_architecture.md section 3, which designs `/` for humans with no locale
+// match: a different job. (#844)
+const xDefault = alternates.en;
+
+// One @graph, not two <script> blocks: wireframes 01/02 section 8 require BreadcrumbList AND the
+// entity type on the same page, and a graph is how schema.org expresses that they describe one
+// document. Emitted only when there is something real to say — an empty graph is worse than none.
+const graph = [
+  ...(crumbs?.length
+    ? [{
+        "@type": "BreadcrumbList",
+        itemListElement: crumbs.map((c, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          name: c.name,
+          ...(c.href ? { item: absolute(c.href) } : {}),
+        })),
+      }]
+    : []),
+  ...(entity ? [entity] : []),
+];
+const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org", "@graph": graph }) : null;
 ---
 
 <!doctype html>
@@ -22,10 +65,35 @@ const { lang, title, description } = Astro.props;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- v2 is a build-phase preview; keep it out of the index until the parity cutover (#377). -->
-    <meta name="robots" content="noindex" />
+    {/* Indexability comes from ONE switch (src/config/indexability.mjs), shared with robots.txt and
+        the build-time audit, so the two can never disagree. Astro expression comment, not `<!-- -->`,
+        which would be emitted into every built page. */}
+    {!INDEXABLE && <meta name="robots" content="noindex" />}
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
+
+    <link rel="canonical" href={canonical} />
+    {Object.entries(alternates).map(([l, p]) => (
+      <link rel="alternate" hreflang={l} href={absolute(p)} />
+    ))}
+    {xDefault && <link rel="alternate" hreflang="x-default" href={absolute(xDefault)} />}
+
+    {/* OG + Twitter on every page: wireframes 01/02 section 8 require the card, and shareability is
+        a north-star pillar. The TAGS are unconditional; the IMAGE is not — a card with a broken or
+        absent image is better than one pointing at nothing. */}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Matchday Pilot" />
+    <meta property="og:locale" content={lang} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+    {jsonLd && <script type="application/ld+json" set:html={jsonLd} />}
   </head>
   <body class="fx" data-theme="dark">
     <script is:inline>

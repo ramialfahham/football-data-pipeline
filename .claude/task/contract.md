@@ -1,259 +1,245 @@
-# Task contract — sweep the old brand, the board key, and the MVP-status false-claim class
+# Task contract — #844: SEO becomes a build gate, and the surface it gates
 
-> ⚠ **THE OBJECTIVE WAS WIDENED BY THE CPO ON 2026-07-28, MID-REVIEW.** It began as a brand rename.
-> `scope-auditor` FAILed round 2 with the right complaint: the scope was growing through amendments
-> in response to reviewer FAILs rather than going back to the CPO. It was put to him as three
-> options, and he chose *"Keep it as one PR, you authorize the wider scope"* — explicitly naming
-> "rename plus correcting the whole MVP-status class plus the ASCII realign". Amendments 3 and 4 are
-> therefore CPO-authorised scope, not builder drift. See amendment 6.
-
-> Written on a CLEAN tree, branch `chore/rename-brand-sweep` off `main` (`9e4ca94`, PR C1 merged).
-> `gh pr list --state open` -> EMPTY, so this is a hard dependency of nothing and a new branch is
-> correct (§3a).
+> Written on a CLEAN tree, branch `feat/844-seo-build-gate` off `main` (`ac74d1f`).
+> `gh pr list --state open` -> EMPTY, so this is a hard dependency of nothing.
+> PR C2 of the C sequence. C1 (#862) renamed the site surface; the sweep (#865) fixed the docs.
 
 objective: >
-  PR C1 (#862) renamed the SITE surface and deliberately reserved the docs sweep. The CPO then asked
-  for it directly: *"Maybe you need to clean up every reference to MatchdayIQ because it's
-  MatchdayPilot now."* This is that sweep, plus the one occurrence that is not prose at all.
+  CPO ruling: *"SEO optimization has to be ensured during the whole process of building the
+  website"* — a reviewer is after-the-fact and cannot ensure anything. Extend #826's page-spec
+  contract so **no page builds without declaring its SEO surface**, add the verifier that checks the
+  declaration against the REAL emitted `dist/`, and emit the surface itself.
 
-  **This is NOT a find-and-replace.** Two findings below make a blind replace actively wrong.
+  **The plan was challenged by two independent reviewers before the CPO saw it (#858) and did not
+  survive.** 12 findings; three plan claims were false; one is a LIVE defect in shipped code. What is
+  built here is the rewritten plan, not the original. See `decisions_taken`.
 
 refs: >
-  CPO, 2026-07-28, verbatim above. C1 = #862, merged.
-  #860 owns `north_star.md`. PR C2 owns the wireframe SEO title templates and `package.json`.
-  Memory `feedback_review_cost_discipline`: do not pay full adversarial-review price for prose.
-  Memory `project_mvp_retired`: the MVP was retired 2026-07-21 — offline, Pages deleted, `site/`
-  frozen. **No parity, no cutover, no restore.**
-
-protected_override: >
-  CPO, 2026-07-28, choosing "Rename board + all 5 refs" from an explicit three-way question whose
-  option text read *"I change the string in both workflows and the 3 docs in the same PR"*. The
-  PROTECTED paths this authorises are exactly `.github/workflows/board-request-sync.yml` and
-  `.github/workflows/_paused/project-status-sync.yml`, and the authorised change is exactly the
-  `PROJECT_BOARD_TITLE` value. No trigger, permission, secret or step is touched in either file.
-  **This field was MISSING until cto-reviewer FAILed round 1 — see amendment 4, which is the real
-  finding here.**
+  #844 (this), and its 2026-07-28 comment recording the full challenge outcome.
+  #826 page-spec contract · #827 rendered-page evidence · #838 synthetic points · #839 phase spike ·
+  #843 slug equity · #845 minimum-data gate · #861 fixture URL permanence · #864 stale cutover
+  comments in `site_v2/src` (this PR's surface — fix them here, they are in scope).
+  CPO 2026-07-28: titles KEEP the brand suffix.
+  `docs/wireframes/01_fixture_page.md` §8 and `02_team_profile.md` §8 specify title/description.
 
 scope_paths:
-  # A. Rename — these name the product GOING FORWARD
-  - README.md
-  - docs/agent_company_roadmap.md
-  - docs/roles/bi_analyst.md
-  - docs/roles/cfo.md
-  - docs/roles/cto.md
-  - docs/roles/growth_expert.md
-  - docs/roles/legal_counsel.md
+  # NOTE: fnmatch patterns. `[lang]`/`[team]` are CHARACTER CLASSES to fnmatch, so a literal Astro
+  # dynamic-route path can never match itself. Verified before writing.
+  - site_v2/src/specs/page-spec.schema.json
+  - site_v2/src/specs/teams/team.spec.json
+  - site_v2/src/specs/competition/matches/fixture.spec.json
+  - site_v2/scripts/check-page-specs.mjs
+  - site_v2/scripts/check-page-specs.test.mjs
+  - site_v2/scripts/audit-seo.mjs
+  - site_v2/scripts/audit-seo.test.mjs
+  - site_v2/integrations/seo-audit.mjs
+  - site_v2/src/config/indexability.mjs
+  - site_v2/src/pages/robots.txt.ts
+  - site_v2/src/layouts/Layout.astro
+  - site_v2/src/pages/*/teams/*.astro
+  - site_v2/src/pages/*/*/matches/*.astro
+  - site_v2/src/pages/*/index.astro       # the locale landing — see amendment 1
+  - site_v2/src/specs/index.spec.json     # its spec
+  - site_v2/src/lib/href.ts
+  - site_v2/src/i18n/strings.ts
+  - site_v2/astro.config.mjs
+  - site_v2/package.json
+  - site_v2/package-lock.json
   - docs/site_architecture.md
-  - docs/ui_design_brief.md
-  - docs/wireframes/00_overview.md
-  - docs/wireframes/09_chrome.md
-  # B. The live lookup key — must move in lockstep with the real board
-  - .github/workflows/board-request-sync.yml
-  - .github/workflows/_paused/project-status-sync.yml
-  - docs/board_request_sync.md
-  - docs/project_status_sync.md
-  - docs/chat_driven_workflow.md
-  # C. Correct-not-rename — renaming these would launder a FALSE claim
-  - scripts/export_site_data.py
-  - AGENTS.md
-  # D. The MVP-status false-claim class, CPO-authorised 2026-07-28 (amendments 6 and 7)
-  - CLAUDE.md
-  - docs/north_star.md   # ONE LINE ONLY (:37, the false claim). Its H1, brand and positioning
-                         # remain RESERVED to #860 — see amendment 7 for why that split is exact.
-  # artifacts
   - .claude/task/contract.md
   - .claude/task/review.md
+  - .claude/task/rendered_page_evidence.md
   - .claude/active_work.md
 
 impact_map: >
-  measurement: the first sweep I ran was WRONG and the corrected numbers are these. `git grep -i
-  "matchday ?iq"` treats `?` as a LITERAL in basic regex, so the spaced form `Matchday IQ` was never
-  searched at all — the same "the check could not have found it" class the C1 review caught twice.
-  Extended regex (`grep -lEi "matchday ?iq|mdiq|matchdayiq\.io"`): **45 files on main before C1, 38
-  after**. Re-run before and after this PR.
+  **THE LIVE DEFECT THIS PR EXISTS TO FIX FIRST.** Measured, not assumed:
 
-  **FINDING 1 — one occurrence is a LIVE LOOKUP KEY, not prose.**
-  `PROJECT_BOARD_TITLE: Matchday IQ - Project Board` is matched against the real GitHub Project by
-  title: `board-request-sync.yml:101` does `allProjects.find(p => p?.title === boardTitle)` and
-  **`throw`s** at :104 when nothing matches. The board really is named that
-  (`PVT_kwHOBm8D884BYSRV`, confirmed via `gh project list`). Changing the string alone BREAKS the
-  sync; renaming the board alone breaks it too. **The board rename and these 5 files must ship
-  together.** CPO approved renaming the board, 2026-07-28.
-  ⚠ Residual window, stated rather than hidden: `board-request-sync` fires on `pull_request` AND
-  `issues` events. `pull_request` runs use the workflow from the PR merge ref, which carries the fix,
-  so this PR's own checks are fine. `issues` events run the workflow from the DEFAULT branch, which
-  still holds the old string until merge — so opening or closing an issue between the board rename
-  and this PR merging fails that one job. Low stakes, short, and it cannot be avoided while the
-  lookup is by title.
+      site_v2/src/pages/[lang]/teams/[team].astro:61-62
+        const title       = `${team.name} — ${compName}`;
+        const description = `${team.name} · ${compName}`;
+      site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro:55
+        const title       = `${home.name} vs ${away.name} — ${fixture.league_name}`;
 
-  **FINDING 2 — for the RETIRED MVP the correct edit is usually NOT to rename.**
-  `site/` was Matchday IQ. Matchday Pilot has never shipped anything. Calling the frozen prototype
-  "the Matchday Pilot MVP" would attribute retired work to a product with no releases — a worse
-  error than the stale name. Where a line describes the retired thing, the old name is CORRECT
-  HISTORY and stays; where it describes the product going forward, it is renamed. Two lines are
-  worse than stale, they are FALSE, and renaming them would launder the falsehood into the new
-  brand:
-    - `docs/site_architecture.md:29`, in the **locked constraints table**: *"The current Matchday IQ
-      MVP (`site/`) stays fully functional until v2 reaches parity ... cutover only at CPO sign-off
-      (#377)."* The MVP was retired 2026-07-21. There is no parity path and no cutover.
-    - `scripts/export_site_data.py:8`: *"The current Matchday IQ MVP keeps running until cutover
-      (#377)."* Same falsehood, same date.
+    `team.name` is the provider name and `compName` comes from `src/data/competitions.json`, whose
+    entries carry ONLY `name` and `slug` — **no locale keying** (verified by reading the file and
+    `_competitions_index()` in `scripts/export_site_data.py:907`, which builds it from the registry's
+    single `name` field). So **every team page ships a byte-identical `<title>` AND
+    `<meta description>` across de/en/fi, and every fixture page a byte-identical `<title>`.** The
+    fixture DESCRIPTION is the one that is already localised (it goes through `t()`).
 
-  writers: every file is hand-authored. **Zero data changes**: no dbt model, no seed, no mart, no
-    warehouse object, and `export_site_data.py` is touched in its MODULE DOCSTRING only — not one
-    line of executable code.
+    The original plan would never have caught this: it declared cross-locale uniqueness "impossible
+    by construction" — true of the `<h1>` (`TeamHeader.astro:33` is `<h1>{team.name}</h1>`) — and
+    generalised that to the whole axis. **The achievable narrower assertion is that the DESCRIPTIVE
+    portion of title/description must differ across locales**, and it fails today.
 
-  downstream: `.github/workflows/**` and `scripts/**` are cto-routed. `ci-ui.yml` is path-filtered to
-    `site/**`, which this PR does not touch. No `site_v2/**` path is touched, so `ci-site-v2` and
-    `bi-analyst-reviewer` stay dormant. Docs are read by agents, not built.
+    **The fix needs no warehouse change.** The wireframes already specify localised titles
+    (`{name} — Stats, Form & Season Records | Matchday Pilot`); today's code simply has no
+    descriptive portion at all. Whether an English reader should see "Bundesliga" instead of the
+    registry's "1. Fußball-Bundesliga" is a separate registry/naming question — NOT bundled.
 
-  deploy_order: none. No migration, no rebuild, no nightly interaction. The board rename is a GitHub
-    account action taken immediately before this PR opens.
+  writers: every file is hand-authored except `package-lock.json` (regenerated by npm, committed in
+    the same commit or `npm ci` breaks).
 
-  blast_radius: ~20 prose occurrences, 1 live lookup key, 1 documented-wrong localStorage key, 2
-    false status claims. Nothing user-visible: there is no public site.
+  downstream: `site_v2/**` is the consumption layer — this PR derives NO fact. Titles, descriptions
+    and JSON-LD select and format fields the payload already carries. **Zero data changes**: no dbt
+    model, no seed, no mart, no export. `scripts/export_site_data.py` is NOT touched.
+
+  layer_rules: the emitted surface is display. The one judgement call is JSON-LD `@type`, which is a
+    declared CONSTANT per spec, not derived from data.
+
+  deploy_order: no migration. `ci-site-v2` builds from the two committed samples on any `site_v2/**`
+    change. `deploy-site-v2` stays `workflow_dispatch` only and is NOT modified. Nothing reaches any
+    deployed surface until the CPO triggers it.
+
+  blast_radius: every built page gains `<link rel="canonical">`, hreflang + `x-default`, OG + Twitter
+    tags and a JSON-LD `@graph`; `noindex` is RETAINED. A new `robots.txt` route emits
+    `Disallow: /`. A sitemap is GENERATED but unreferenced. `npm run build` gains a post-build audit
+    that FAILS the build on a violation — a new way for the build to break, deliberately.
+    ⚠ New dependency `@astrojs/sitemap`. Measured, because the plan's claim was wrong (below).
 
 decisions_taken: >
-  - **Rename the GitHub Project board to `Matchday Pilot - Project Board`** and change all 5
-    references in this PR. CPO approved, 2026-07-28, choosing this over leaving it stale.
-  - **`docs/wireframes/09_chrome.md:94` is a CORRECTNESS fix, not cosmetics.** It documents the theme
-    key as `mdiq-theme`; C1 changed it to `mdp-theme`. The doc has been wrong since #862 merged.
-  - The two FALSE MVP-status claims are corrected rather than renamed, per Finding 2. This is the
-    narrowest honest edit: a rename that carries a lie forward is worse than no rename.
-  - **This is prose, and it is reviewed as prose.** Per `feedback_review_cost_discipline`, the sweep
-    was done once up front and the reviewers are asked to confirm narrowly, not to re-derive it.
+  - **Titles KEEP the brand suffix** — CPO, 2026-07-28, choosing "Keep the brand" over the plan's
+    unilateral drop. `docs/wireframes/02_team_profile.md` §8 already specified it, so the plan was
+    diverging from an approved artifact without saying so. Rationale on the issue.
+  - **NO number-bearing descriptions until #838 lands.** The plan specced
+    `{rank} in {competition}, {points} points from {played} games` with a fallback only on NULL.
+    #838 makes `points` a synthetic 3-1-0 tally computed regardless of the competition's rules —
+    Europa League renders 32 against a real 18. Not null, just WRONG, so a null-fallback cannot
+    catch it. That would write a known-false number into a `<meta description>` Google caches
+    independently of the page and re-serves after the mart is fixed. Data honesty is
+    non-negotiable (CLAUDE.md), so descriptions use only fields that are honest today.
+  - **`url_permanence` is a DECLARED FACT, not a promise.** As planned it was self-contradicting: it
+    existed so the gate "refuses a page that cannot survive its own entity's state change", but the
+    fixture template provably fails that today (#861: `fetch_fixture_payloads` emits only
+    `status_short in ('NS','TBD') and fixture_date >= current_date()`, so 4,598 live vs 52,585
+    finished with no page), so the gate would have failed CI the moment it shipped. It becomes
+    `permanent | ephemeral`, and the gate blocks only a page claiming permanence it cannot back.
+    #861 stays the work, not the blocker.
+  - **The full-build CI job is DESCOPED.** It would have put a BigQuery scan and Workload Identity
+    credentials into a `pull_request`-triggered workflow. `deploy-site-v2.yml:5-14` explicitly gates
+    that class on a measured `bq --dry_run` byte count plus CPO approval, and `ci-site-v2.yml` has
+    ZERO GCP dependency today (verified). Full-corpus verification happens ONCE via the existing
+    manual workflow before merge. No new credentials, no recurring spend.
+  - **The sitemap GENERATES but is not referenced.** Deferring it entirely would leave the 50k-cap
+    splitting and the locale-reciprocal index logic with zero CI exercise until go-live — the exact
+    silent-until-live failure this gate exists to prevent. `robots.txt` does not list it and nothing
+    links it, so a `noindex` corpus is not advertised.
+  - **The verifier is an Astro INTEGRATION, but NOT for the reason the plan gave.** The plan cited
+    `npm --ignore-scripts` skipping pre/post hooks. That npm behaviour is real, but **neither
+    workflow ever passes `--ignore-scripts` and both run `npm run build`, never bare `astro build`**
+    (verified), so the bypass is not present in this pipeline. The REAL reason is that
+    `astro:build:done` hands over `assets` keyed by route PATTERN, which IS the page-count driver
+    for free and which a `dist/` walker cannot reconstruct. Hooks fire in `integrations` array
+    order, so the audit is placed AFTER `sitemap()`.
+  - **`@astrojs/sitemap` is pinned `^3` — and the plan's stated reason was FICTION.** It claimed
+    "v4 is the Astro-6 peer". Measured: `@astrojs/sitemap@latest` IS **3.7.3**; there is no v4, and
+    3.7.3 declares **no `peerDependencies` at all**, so there is no conflict with the installed
+    astro 5.18.2. `^3` is right because 3.x is the current major, not because v4 exists.
+  - **`indexability.mjs` is `.mjs`** — CI's node cannot `import` a `.ts` file without a loader, and
+    the checker runs as plain node.
+  - **#864 is fixed here.** `Layout.astro:25` and `lib/href.ts:3` carry the retired-MVP cutover
+    framing. `Layout.astro:25` is the comment attached to the very `noindex` this PR replaces with a
+    switch, so fixing it elsewhere would be artificial.
 
 decisions_reserved:
-  - **`docs/north_star.md`'s H1, brand and positioning** — #860 rewrites those wholesale. Renaming
-    them now is work #860 discards. **Its line 37 is NO LONGER reserved** — see amendment 7.
-  - **The 6 wireframe SEO title templates** (`| Matchday IQ` in `02`, `03`, `11`, `12`, `13`, `14`) —
-    PR C2 rewrites these exact lines, and its approved plan DROPS the brand from titles entirely.
-    Renaming them now is churn plus a guaranteed conflict.
-  - **`site_v2/package.json` + `package-lock.json`** (`"name": "matchdayiq-site-v2"`) — never present
-    in an HTTP response. C2 edits `package.json` anyway to add `@astrojs/sitemap`, and the lockfile
-    must move in the same commit as the manifest.
-  - **`site_v2/src/styles/system.css:2`** — the LOCKED design system; the comment is stripped at
-    build. cto-reviewer agreed with leaving it in C1.
-  - **`site/**`** — 9 files, ~50 hits, all `window.MATCHDAYIQ_*` JS globals in the retired, frozen
-    prototype. `Deploy match preview` is `disabled_manually`; there is no reader. Renaming dead
-    globals is breakage risk for zero benefit, and per Finding 2 the old name is correct there.
-  - **`docs/player_stats_ui_data_modeling_concept.md:5`** — *"the existing Matchday IQ flow"* is a
-    May-2026 concept doc describing the RETIRED MVP's match-preview flow. Accurate history.
+  - **`LinksFooter`'s conditional-link rule** — a chip becomes `<a>` only when a payload exists. Its
+    cited precedent was FALSE (`SiteHeader.astro:41` / `SiteFooter.astro:40` render unconditional
+    `<span>` with no lookup of any kind), so it is a NEW rule and gets its own PR and its own
+    scrutiny. `import.meta.glob` itself is NOT new — it is already the payload-discovery mechanism
+    in both built pages, so it adds no new class of build cost.
+  - **Localised COMPETITION names.** The registry has one `name` per competition, so English readers
+    see "1. Fußball-Bundesliga". Real, and NOT required to fix the duplicate-title defect. A
+    registry/naming question, which is CPO territory.
+  - **The redirect/alias mechanism** `site_architecture.md` §3 promises ("a rename produces a new
+    alias, never a new canonical"), and the H2H reversed-order alias. PR D (#843/#852).
+  - **A 404 strategy for the fixture cliff** (#861) — a crawler hitting a vanished fixture URL gets
+    Firebase's generic host error. Needs #861 decided first.
+  - **Structured-data COMPLETENESS** (does `SportsEvent` carry `startDate`/`location`/`competitor`
+    well enough for a rich result). This PR checks FORMAT: parses, `@type` matches the spec, no
+    null/empty/placeholder values. Completeness is a content decision per entity.
+  - **The rich vs thin-SEO tier split** (`content_architecture.md` §2) and **OG image fitness**
+    (provider crests are small and near-square; social wants 1200x630). Both need #845's
+    minimum-data gate decided first.
+  - **Promoting `SectionHead` to a real heading level** and the `<h2>`-`<h6>` gap — a design-system
+    change to a locked file.
 
 done_when:
-  - **`mdiq` returns NOTHING** across the target set. No exceptions: it is a dead key.
-  - **Every remaining `Matchday IQ` in the target set sits on a line that also says `RETIRED`.**
-    See amendment 1 — the original "returns NOTHING" form was WRONG and is NARROWED, not deleted.
-  - `gh project list --owner ramialfahham` shows `Matchday Pilot - Project Board`, and `grep -rn
-    "PROJECT_BOARD_TITLE" .github/` matches that title EXACTLY, character for character.
-  - Every remaining hit in the repo is one of the reserved classes above, enumerated in `review.md`
-    so no future reader "fixes" the board key and breaks the sync.
-  - No `site_v2/**` path and no `dbt_project/**` path appears in the diff.
-  - `scripts/export_site_data.py` diff touches the docstring only — `git diff` shows no change
-    outside lines 1-14.
-  - ONE commit.
-  - Required reviewers: **FOUR**, computed from `review_routing.json` rather than guessed —
-    scope-auditor (always) · cto-reviewer (`scripts/**`, `.github/workflows/**`) ·
-    analytics-engineer-reviewer (`scripts/export_*.py`) · bi-analyst-reviewer (`docs/wireframes/**`).
-    See amendment 2.
+  - `npm test` passes, and the new audit has PURE-FUNCTION tests (no synthetic `dist/` tree) with a
+    `MIN_EXPECTED`-style self-check so a broken regex reports itself instead of passing everything.
+    Fixtures live in `__fixtures__`, NEVER `test/` — `node --test` executes anything in a directory
+    literally named `test` (verified).
+  - `npm run build` succeeds AND the audit actually runs (proven by breaking one check and capturing
+    the real failure output, then restoring).
+  - **The live defect is fixed and PROVEN**: the three locales' `<title>` and `<meta description>`
+    for the same team, and the same fixture, shown side by side DIFFERING.
+  - Every built page carries canonical (absolute, self-consistent), hreflang + `x-default`, OG +
+    Twitter, and a JSON-LD `@graph` that parses.
+  - `noindex` on every page; `robots.txt` says `Disallow: /`; a sitemap EXISTS in `dist/` and is
+    referenced by nothing.
+  - `grep -rn "cutover" site_v2/src/` returns NOTHING (#864).
+  - Rendered-page evidence per #827, verified against **rendered text / built output**, never a
+    source grep and never `outerHTML`.
+  - ONE commit. Reviewers: computed from `review_routing.json`, not predicted.
 
 amendments:
-  - 2026-07-28: **`done_when` clause 1 NARROWED, not deleted** — authority: the assertion as first
-    written (`grep -rEi "matchday ?iq|mdiq" <target set>` returns NOTHING) is UNSATISFIABLE without
-    breaking Finding 2, which this same contract states. Three lines keep the old name because they
-    label RETIRED work, and renaming them would attribute a dead prototype to a product that has
-    never shipped. The temptation was to drop the clause; per `feedback_never_loosen_a_guard` it is
-    instead narrowed to where it still holds:
-      - `mdiq` -> still NOTHING, unconditionally. It is a dead localStorage key with no historical
-        reading, so no exception is legitimate. **Verified: zero.**
-      - `Matchday IQ` -> every remaining hit must be on a line that ALSO contains `RETIRED`. A
-        newly-stale forward-looking reference would not carry that word, so the guard still fails on
-        exactly the thing it exists to catch. **Verified: 3 hits, all with RETIRED** — `AGENTS.md`,
-        `docs/site_architecture.md`, `scripts/export_site_data.py`.
-    This is a strictly SMALLER hole than deleting the clause, and the three exceptions are
-    enumerated rather than described, so a future reader can diff the list.
-  - 2026-07-28: **required-reviewer list corrected from 2 to 4** — authority: I WROTE the list from
-    memory and it was wrong. Computing it from `review_routing.json` with the same `fnmatch` the gate
-    uses adds `analytics-engineer-reviewer` (`scripts/export_*.py` routes to it as well as
-    cto-reviewer) and `bi-analyst-reviewer` (`docs/wireframes/**`). No enforcement gap existed — the
-    commit gate derives the required set itself and would have denied the commit — but a contract
-    that states the wrong set invites someone to spawn two reviewers and stall. Recorded because
-    "predict the reviewer set" is the wrong habit: compute it.
-  - 2026-07-28: **`docs/site_architecture.md` swept for the WHOLE false-claim class, not the two
-    lines I happened to hit** — authority: analytics-engineer-reviewer FAILed round 1, correctly. My
-    Finding 2 claimed to have found "two false lines". It had found two of **six**, and patching
-    only those left the file self-contradictory: §2's locked row now said "no cutover" while §7
-    (`:196-197`, `:200`, `:203-205`) still described the legacy export "keeping running until #377",
-    a `pages-match-preview.yml` "untouched until cutover", and #377 as "parity check → CPO sign-off →
-    switch → redirects from old URLs"; §8's decisions log still carried "Current MVP stays live until
-    parity cutover | **locked**". A doc that contradicts itself is worse than one that is uniformly
-    stale. Swept by grepping the file for the CLASS (`cutover|parity|#377|stays live|keeps running`)
-    rather than re-reading the diff, per `feedback_fix_the_class_not_the_instance`. §7 now states
-    what is true (the legacy export is dead, `pages-match-preview.yml` is `disabled_manually` —
-    verified via `gh workflow list`), §8's row is struck through and marked SUPERSEDED, and §1's
-    workstream list says "go-live (#377)" not "migration (#377)".
-  - 2026-07-28: **`docs/wireframes/09_chrome.md` ASCII box realigned — all 8 content rows, not the
-    1 reported** — authority: bi-analyst-reviewer FAILed round 1 on the footer wordmark row being
-    wider than the box. Measured rather than accepted: the row it named was **45 interior characters
-    on `main` too**, and my edit had held every edited row's original width exactly. The real defect
-    is PRE-EXISTING and larger — the drawer block (`:30-33`) and footer block (`:37-40`) were both
-    45 while every border row was 44. The reviewer's proposed fix (shrink only line 37) would have
-    made the footer block *internally* inconsistent as well. All 8 rows are now 44, verified by a
-    script that measures every row rather than by counting spaces in a diff. Taken inside this PR
-    rather than deferred because I am already editing this drawing and shipping one that does not
-    close is not a defensible hand-off.
-  - 2026-07-28: **`protected_override` ADDED — and the reason it was missing is a GUARD HOLE, not a
-    typo** — authority: cto-reviewer FAILed round 1. `.github/workflows/` is in
-    `task_contract_gate.py:66`'s `PROTECTED_PREFIXES`, so editing those two files required this
-    field. It was absent, and the edit went through anyway. I reproduced why, and there are **two
-    independent holes**, neither fixable here (`.claude/hooks/**` is itself PROTECTED and out of
-    this contract's scope — filed separately):
-      1. **PreToolUse never fired.** `_SED_I` (`:81`) anchors the filename group on `$`, so it
-         cannot match a loop: `for f in …; do sed -i '…' "$f"; done` ends in `; done`, and the
-         target is a VARIABLE the regex could not resolve even if it matched. Verified by importing
-         the hook and calling `_SED_I.findall()` on the exact command I ran -> `[]`.
-      2. **The PostToolUse "ironclad net" cannot catch it either.** `_gate_bash_post` flags a file
-         only when `not _matches_scope(...)`. These two files ARE in `scope_paths`, so the
-         protection test is never reached — **a PROTECTED file that is in scope with no override is
-         invisible to the backstop.** Verified by evaluating the predicate directly.
-    Both holes are in a guard, so per `feedback_never_loosen_a_guard` neither gets worked around;
-    the contract now carries the field the gate wanted, and the hook defect is escalated on its own.
-  - 2026-07-28: **the OBJECTIVE was widened by the CPO, and `CLAUDE.md` added to scope** —
-    authority: `scope-auditor` FAILed round 2, ruling that amendments 3 and 4 had grown the scope in
-    response to reviewer FAILs instead of returning to the CPO, and that the branch "cannot be
-    assessed as a delta anymore". **I did not argue it into a PASS.** It was put to the CPO as three
-    options — split into two PRs (my recommendation), authorise the wider scope, or drop the
-    corrections and file them — and he chose to **authorise the wider scope**, explicitly including
-    "correcting the whole MVP-status class plus the ASCII realign". Amendments 3 and 4 are now
-    authorised scope rather than drift, and the objective above is restated to match.
-    **What the widened objective then forced:** `analytics-engineer-reviewer` swept the SAME class
-    repo-wide in round 2 and found two live instances outside `scope_paths` that the brand grep could
-    never have caught, because neither contains the string "Matchday IQ":
-      - `CLAUDE.md:53` — *"The legacy card MVP … stays live until cutover (#377)."* **Added to scope
-        and corrected.** This is the file loaded at the top of every session and it self-declares
-        that it OVERRIDES default behaviour, so a false claim here is the highest-harm instance in
-        the repo — leaving it while fixing six lower-harm ones would be the exact
-        `feedback_fix_the_class_not_the_instance` failure this amendment exists to close.
-      - `.github/workflows/ci-site-v2.yml:4` — the same false framing in a code COMMENT. **NOT fixed
-        here, deliberately.** It is a PROTECTED path and this contract's `protected_override` is
-        bounded to the two board-sync workflows by name. Widening a protected-path override
-        mid-review to reach a comment is precisely the creep the field exists to prevent, and the
-        harm is near zero (no agent or job reads it). It rides with #863, which already needs its own
-        CPO-approved contract for `.claude/hooks/**`.
-  - 2026-07-28: **`docs/north_star.md:37` moved OUT of `decisions_reserved`, one line only** —
-    authority: the CPO's widened objective (amendment 6) covers the whole MVP-status class, and my
-    own repo-wide sweep — run because reviewers had now found this class twice in places my brand
-    grep could not reach — turned up a third live instance no reviewer had named:
-    *"**Legacy MVP (live until cutover, #377):** … It stays fully functional until v2 reaches parity
-    and the CPO signs off the switch."* `north_star.md` is one of the three authorities `CLAUDE.md`
-    tells every session to read FIRST. Leaving it would mean the north star contradicts both
-    `CLAUDE.md` and `site_architecture.md` after this PR — a worse state than before it.
-    **The reservation is narrowed, not lifted, and the boundary is the same one this contract has
-    used throughout:** correcting a FALSE claim is a different act from RENAMING. #860 owns the H1,
-    the brand and the positioning, and this PR touches none of them. It touches one sentence that is
-    factually untrue.
-    Sweep evidence, so the next reader can re-run it rather than trust it:
-    `grep -rnEi "stays live until|keeps running until|until (the )?(parity )?cutover|until v2
-    reaches parity"` over `*.md`/`*.yml`/`*.py`. After this PR the only surviving hits are
-    `site_architecture.md:218` (the struck-through SUPERSEDED row, which must keep the words to
-    record what was superseded) and `ci-site-v2.yml:4` (PROTECTED, deferred to #863 above).
+  - 2026-07-28: **THE BRAND SUFFIX RULING WAS REVERSED BY THE CPO** — authority: he originally ruled
+    "titles KEEP the brand" (recorded in `decisions_taken`). `seo-expert-reviewer`, told explicitly
+    NOT to soften its answer because he had already ruled, said a suffix is EARNED by equity and is
+    not a way to build it: 17 characters, 28-36% of the title budget, across ~9,750 team
+    page/locale combinations, on the deepest crawl tier — and with 3,250 identical suffixes Google
+    reads it as boilerplate and truncates it first. Measured: it WAS the first thing cut.
+    The fact that changed his mind is that `Layout.astro` already emits `og:site_name`
+    unconditionally, so the brand does not leave the site, only the indexed title. He reversed it.
+    Reinstate when Search Console shows branded-query volume worth the budget.
+  - 2026-07-28: **the nine SEO strings were WRITTEN BY THE CPO, not by me** — authority:
+    `bi-analyst-reviewer` FAILed on §10, correctly: user-visible copy is a CPO decision *every
+    time*, and his earlier ruling covered only whether to keep the brand, not the wording or its
+    translations. Four errors of mine surfaced in the exchange that followed, all in copy I had
+    already called finished: the German dropped an article German grammar requires; the Finnish used
+    `sarjassa` with an uninflected borrowed noun; both used `muoto` (shape) where the football sense
+    of form is `kunto` — corroborated by the retired MVP's own corpus, which says `kuntojakso`; and
+    I had switched the Finnish fixture separator to an en dash on an unverified claim that
+    `bi-analyst-reviewer` agreed with and the CPO's source contradicted.
+    He then ruled on presentation twice more: em dashes "look terribly like AI generated" (titles
+    take a colon, the DE/FI descriptions parentheses, which also removes the article problem), and
+    the shortened titles were "too short" once the brand freed the budget.
+    **The lesson is not "ask about copy". It is that I cannot self-assess copy in ANY language,
+    including English**, which I had been treating as a trusted baseline for no reason.
+  - 2026-07-28: **+ a title WIDTH check in `audit-seo.mjs`** — authority: `cto-reviewer` and
+    `seo-expert-reviewer` both found the gate had NO length check at all, so the overruns were
+    caught by me, by hand — which does not scale to 3,250 entities x 3 locales. It measures rendered
+    PIXELS, not characters: Google truncates on width (~600px) and nearly every club and competition
+    name here opens with a wide capital.
+    **It fails at 660px, not 600, and that is calibration rather than slack.** The estimator is
+    approximate, and a marginal overrun on a real fixture is unfixable — two proper nouns plus a
+    competition, nothing to cut. A large overrun means the TEMPLATE is wrong, which is fixable. Both
+    halves are locked by tests so nobody "tightens" it to 600 and starts failing nightly builds on
+    long club names.
+    It earned itself immediately: it rejected a German fixture title I had shortened to `vs.`,
+    because a title of pure proper nouns has nothing locale-specific left once `gegen` goes, making
+    the German and Finnish BYTE-IDENTICAL.
+  - 2026-07-28: **the fixture page now reads the competition name from the REGISTRY** — authority:
+    the CPO's own Finnish example exposed it. The fixture page used the provider's
+    `fixture.league_name`, which says `Serie A` for the Brazilian top flight — ambiguous with
+    Italy's, on a Brazilian match — while `competitions.json` held `Brasileirão Série A` and the
+    TEAM page already read it. Two pages naming one concept from two sources; this is the
+    authoritative one. Same class as #850.
+  - 2026-07-28: **#866 filed rather than fixed** — the CPO spotted `Regular Season - 20` rendering
+    untranslated in all three locales, in the page body AND in every fixture's `<meta description>`
+    and OG/Twitter description. It is `fixture.round` verbatim from the provider. NOT fixable here:
+    turning it into a phase plus a number is TAXONOMY MAPPING, which `layering.md` forbids in the
+    consumption layer. The export must serve `{phase, number}`; the frontend already has the words
+    (`throughMatchday` renders "bis Spieltag {n}"). Related to #839, which defines the phase set.
+  - 2026-07-28: **+ `site_v2/src/pages/*/index.astro` and `site_v2/src/specs/index.spec.json`** —
+    authority: the gate I just built FAILED THE BUILD on them, which is the contract's own
+    `done_when` working exactly as intended. The locale landing hand-rolls its own `<html>` instead
+    of using `Layout`, so it emitted no canonical and no hreflang, and all three locales shipped
+    `<title>Matchday Pilot</title>` — **byte-identical**, the very defect this PR exists to fix,
+    sitting on a page my `scope_paths` had not listed.
+    The original plan proposed EXEMPTING the scaffolds. That reasoning was inverted: a scaffold is a
+    URL THAT SHIPS, so canonical, hreflang and a unique title are true facts about it, and an
+    exemption would have hidden the defect rather than fixed it. It moves to `Layout` and takes a
+    spec that waives only `blocks`, behind `stub: true`.
+    Recorded rather than quietly widened: the contract-gate hook denied the write, I stopped, and
+    amended on a clean tree. (Contrast the sweep PR, where a `sed` loop slipped a protected-path
+    edit past the same gate — #863.)

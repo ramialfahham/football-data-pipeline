@@ -2,6 +2,21 @@
   "$schema": "../page-spec.schema.json",
   "page": "[lang]/teams/[team].astro",
   "entity": "team",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoTeamTitle",
+    "description": "seoTeamDesc",
+    "schema_org": "SportsTeam",
+    "links": {
+      "inbound_hub": "competition",
+      "outbound": ["fixture", "competition", "player"]
+    },
+    "minimum_data": "At least one season row with a played count. #845 will set the real threshold; today the export only writes teams that have a mart_team_profile row at all.",
+    "page_count_driver": "count(src/data/teams/*.json) x count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "A team URL survives its entity's state changes. It is NOT yet stable across a RENAME: the slug is re-derived every build (#843/#852). Nothing is published, so no equity is at risk today."
+  },
   "blocks": [
     {
       "block": "Team header",

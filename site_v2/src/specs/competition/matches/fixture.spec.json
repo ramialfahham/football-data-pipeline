@@ -2,6 +2,21 @@
   "$schema": "../../page-spec.schema.json",
   "page": "[lang]/[competition]/matches/[fixture].astro",
   "entity": "fixture",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoFixtureTitle",
+    "description": "aboutNoH2h",
+    "schema_org": "SportsEvent",
+    "links": {
+      "inbound_hub": "competition",
+      "outbound": ["team", "competition"]
+    },
+    "minimum_data": "Both sides resolvable with a name, and a kickoff. #845 sets the real threshold.",
+    "url_permanence": "ephemeral",
+    "url_permanence_note": "DECLARED FALSE ON PURPOSE (#861). fetch_fixture_payloads exports only status_short in ('NS','TBD') AND kickoff >= today, so a fixture page EXISTS for a few weeks and then vanishes when the match is played -- 4,598 live against 52,585 finished with no page. One URL is meant to serve preview AND report (01_fixture_page.md). Harmless while every page is noindex; it destroys accumulated URLs the moment INDEXABLE flips. The gate records this rather than refusing the page, because refusing would block #844 on #861 instead of surfacing it.",
+    "page_count_driver": "count(src/data/fixtures/*.json) x count(locales) -- CHANGES DAILY, which is why this field is a formula and not a number"
+  },
   "blocks": [
     {
       "block": "Match preview (two sides)",
