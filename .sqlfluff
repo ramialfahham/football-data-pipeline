@@ -9,6 +9,21 @@ tab_space_size = 4
 project_dir = dbt_project
 profiles_dir = ~/.dbt
 
+# Only read when someone passes `--templater jinja`, so CI (which uses the dbt
+# templater above, and resolves project macros natively) is unaffected.
+#
+# It exists because the dbt templater needs GCP credentials, so the ONLY way to lint
+# locally is `--templater jinja` -- and without this path any model calling a project
+# macro fails with "Undefined jinja template variable", which silently turns a local
+# lint into a no-op. That gap cost two CI round-trips on PR #854.
+#
+#   cd dbt_project && python -m sqlfluff lint <model> --templater jinja --dialect bigquery
+#
+# Run the FULL rule set, never a `--rules` subset: a subset run on #854 reported AM04
+# and LT02 and missed ST06, which then failed in CI.
+[sqlfluff:templater:jinja]
+load_macros_from_path = dbt_project/macros
+
 [sqlfluff:indentation]
 indented_joins = false
 indented_using_on = true

@@ -32,6 +32,27 @@ models:
       Note for anyone reading a historical row elsewhere: fct_fixture_event's
       team_name_snapshot is written on insert and never revisited, so it deliberately keeps
       the name as it stood at ingest time and will not reflect a later correction.
+
+      Also derives team_slug, the permanent locale-independent URL segment (#852), from the
+      CORRECTED name via a symmetric, closed collision ladder. Symmetric: a contested name is
+      given to nobody, so no ranking or per-collision adjudication is ever needed. Each
+      candidate is tested against the strings already assigned, not merely against its own
+      contending group, because a country-anchored candidate can equal a DIFFERENT team's bare
+      slug (the Ararat / Ararat-Armenia pair is that shape, though both sit at level 1 today so
+      the anti-join has not fired) and a `{name}-{id}` candidate can equal a bare slug too,
+      since club names embed digits (`1899 Hoffenheim` owns `hoffenheim-1899`).
+
+      STATED RESIDUAL, not closed: if a level-3 `{name}-{id}` candidate is itself already taken,
+      team_slug is NULL and the not_null test stops the build naming the team. Reaching it takes
+      a club named "<X> <another club's provider id>" in the same country as that club. That is a
+      data situation for a human, and the fix is an override row — not a wider rule and not an
+      automatic escape hatch. An earlier revision added a doubled-hyphen terminal here because
+      kebab_slug can never emit `--`; it was provably unique and it was a hack, buying closure
+      with a URL no reader should see, for a case that fires zero times. Removed deliberately.
+
+      Note the two most common level-3 triggers are DATA DEFECTS rather than naming problems:
+      a same-country duplicate record (#850's open alias decision) and a null country (#853 — 39
+      teams, 22 of which have a country in stg_apif__teams). Fixing those mostly empties level 3.
     config:
       tags: ["base", "api_football", "team_context"]
     tests:
