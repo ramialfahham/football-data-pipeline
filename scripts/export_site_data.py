@@ -83,11 +83,21 @@ def _kebab(name: str | None) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "-", base).strip("-").lower()
 
 
-def slugify(name: str | None, entity_id: int) -> str:
-    """Stable, locale-independent URL slug: ``{kebab-name}-{id}``.
+def player_slug_with_id(name: str | None, entity_id: int) -> str:
+    """PLAYER URL slug: ``{kebab-name}-{id}``.
 
-    The id suffix guarantees uniqueness and stability across renames (a rename
-    keeps the same slug). Matches docs/site_architecture.md section 3.
+    Named for its one remaining caller on purpose. Team slugs are NOT built here any
+    more -- they are derived in the warehouse and served on ``mart_team_profile`` as
+    ``team_slug`` (#852), because assigning an identifier is derivation and this script
+    is the consumption layer (#846). Calling this for a team would put the provider id
+    back in a team URL, which the CPO ruled out.
+
+    Two things a reader should not trust from the old version of this docstring:
+    it claimed the id suffix gave "stability across renames" -- it does not, because
+    the name half is recomputed from the current name on every export, which is #843.
+    And ``_kebab`` DELETES any character NFKD cannot decompose, so a player named
+    Sigurðsson still loses a letter here. The transliteration fix (CPO ruling E3)
+    landed for teams only; players inherit it when player slugs move to the warehouse.
     """
     base = _kebab(name)
     return f"{base}-{entity_id}" if base else str(entity_id)
@@ -289,7 +299,10 @@ def shape_team_payload(
     return {
         "type": "team",
         "team_id": team_id,
-        "slug": slugify(latest.get("team_name"), team_id),
+        # Served, not computed: mart_team_profile carries team_slug, derived in the warehouse
+        # from the corrected name (#852). A slug built here would be identity generation in the
+        # consumption layer, and would reintroduce the provider id the CPO ruled out.
+        "slug": latest.get("team_slug"),
         "name": latest.get("team_name"),
         "country": latest.get("team_country"),
         "crest": latest.get("team_logo_url"),
@@ -472,7 +485,7 @@ def shape_player_payload(
     return {
         "type": "player",
         "player_id": player_id,
-        "slug": slugify(latest.get("player_name"), player_id),
+        "slug": player_slug_with_id(latest.get("player_name"), player_id),
         "name": latest.get("player_name"),
         "nationality": latest.get("player_nationality"),
         "birth_date": latest.get("player_birth_date"),
@@ -611,7 +624,7 @@ def _strip_identity(row: dict) -> dict:
     """Drop the repeated identity columns from a per-season row (they live once
     at the top of the payload, not on every season)."""
     drop = {
-        "team_name", "team_country", "team_logo_url",
+        "team_name", "team_slug", "team_country", "team_logo_url",
         "team_founded_year", "venue_name", "venue_city", "venue_capacity",
         "player_name", "player_first_name", "player_last_name",
         "player_nationality", "player_birth_date", "player_photo_url",

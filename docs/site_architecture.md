@@ -67,22 +67,60 @@ Reserved (structural only, render nothing until built — #376):
 - Locale set (phased, #370): `de en fi` live → `es fr it nl pt` → `ar` (RTL, needs
   design-system support first).
 
-### Slugs (stable, locale-independent)
+### Slugs (locale-independent)
 - **Competition**: `slug` field in the registry (#364), e.g. `bundesliga`,
   `premier-league`, `world-cup`. Never derived from display names at build time.
 - **Season**: from `season_api_year` + registry `season_type`: split-year → `2025-26`,
   calendar-year → `2026`.
-- **Team**: `{kebab-name}-{team_api_id}`, e.g. `bayern-munchen-157`. The id suffix
-  guarantees uniqueness and stability across renames; the name part carries the SEO.
-- **Player**: `{kebab-name}-{player_api_id}`, e.g. `jamal-musiala-1090`.
+- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id** — CPO
+  ruling 2026-07-27, *"there is no aston-villa-66"*. Derived in
+  `base_apif__teams_global` from the CORRECTED name (#850) and published on `dim_team`,
+  because assigning an identifier is derivation and the export is the consumption layer
+  (#846). Collisions resolve by a **symmetric, closed ladder**: an uncontested name takes
+  its own slug; a contested one is given to *nobody* and every contender takes
+  `{name}-{country}`; if that is still not free anywhere, or the country is missing, or
+  the name folds to nothing, the provider id is appended. That last branch is the **only**
+  place an id appears in any URL, and today it fires for exactly two rows — one club the
+  provider stores twice (#850's open alias decision).
+- **Player**: `{kebab-name}-{player_api_id}`, e.g. `jamal-musiala-1090`. Still carries the
+  id: 18.5% of provider player names collide (1.6% on the full name), so the team scheme
+  does not transfer unchanged. Moving player slugs to the warehouse is its own work.
 - **Fixture**: `{yyyy-mm-dd}-{home-team-slug-name}-vs-{away-team-slug-name}` under the
-  competition's `/matches/`; the export carries `fixture_api_id` for the data join.
+  competition's `/matches/`; the export carries `fixture_api_id` for the data join. Built in
+  the export from team NAMES, so it does not yet share the team slug's transliteration —
+  tracked with the player move.
 - **H2H pair**: lower `team_api_id` first → one canonical URL per pair; the reversed
   order is generated as a redirect/canonical alias.
 - **Metric**: `metric_id` from `metric_catalogue`, kebab-cased.
+
+#### Spelling: fold to the base letter, expand only where there is none
+CPO ruling on escalation E3, 2026-07-27. A character that decomposes to a base letter takes
+that letter; a character with no base letter takes its conventional digraph:
+
+| | |
+|---|---|
+| `Bayern München` → `bayern-munchen` | `ü` HAS a base letter |
+| `Rot-Weiß Essen` → `rot-weiss-essen` | `ß` has NONE |
+
+Those are **one rule, not an inconsistency** — the same rule `unidecode` and `iconv
+//TRANSLIT` implement, and what Transfermarkt ships. Do not "fix" the apparent mismatch by
+expanding umlauts to `ue`/`oe`/`ae`: it would change 17 German clubs' URLs for nothing.
+The map lives in `macros/team_name_normalization.sql`; `assert_team_name_slug_alphabet`
+fails the build on a letter it does not cover. Add targets from an external source of
+record, never from the glyph's shape — two were wrong that way on the first attempt.
+
+#### ⚠ Slugs are NOT yet stable across renames
+The slug is **derived on every build**, so a rename or a newly ingested same-named team can
+change a URL. Nothing is published yet — no public site, every page `noindex` — so no link
+equity is at risk today, and the CPO deliberately deferred persistence rather than making
+the warehouse non-reproducible before launch.
+
+**Before this site goes public, #852 must land**: the slug assigned once and stored, plus the
+alias/301 mechanism, so the promise below holds. Until then, treat it as an intent:
+
 - Slug map (entity → slug → id) is produced by the export (#365) and is the single
-  source for routing and internal links. Slugs never change once published; a rename
-  produces a new alias, not a new canonical.
+  source for routing and internal links. **Target state (#852, not yet true):** slugs never
+  change once published; a rename produces a new alias, not a new canonical.
 
 ## 4. Hybrid competition IA
 

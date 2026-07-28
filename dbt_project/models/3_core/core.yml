@@ -165,8 +165,29 @@ models:
         description: "API-Football team id."
         tests: [not_null]
       - name: team_name
-        description: "Team display name from API-Football."
+        description: >
+          Team display name. API-Football's value, with the CPO-owned corrections from the
+          team_name_overrides seed applied in base (#850). This is the ONLY team name in the
+          product — the fixture card, the page H1, the title and the meta description all read
+          it — so a wrong value here is wrong on every surface at once (#851).
         tests: [not_null]
+      - name: team_slug
+        description: >
+          The team's permanent, locale-independent URL segment: /{locale}/teams/{team_slug}/
+          (docs/site_architecture.md section 3). Derived in base_apif__teams_global from the
+          CORRECTED name, so it changes when a correction lands — slugs are not yet persisted,
+          which is #852's remaining half (PR D). Carries no provider id except in the terminal
+          collision case (a same-country duplicate, a missing country, or a name that folds to
+          nothing), which is the only place an id appears in any URL.
+          BOTH tests are load-bearing, for different reasons. `unique`: two teams on one slug
+          would mean two pages resolving to one path, and in a static build one silently
+          overwrites the other. `not_null`: the ladder deliberately yields NULL rather than
+          inventing a stranger URL when even the id-suffixed candidate is already taken, so this
+          test IS the escalation path for that case — it stops the build and names the team so a
+          human resolves it with an override row. Reaching it takes a club named
+          "<X> <another club's provider id>" in the same country as that club; expected NULLs
+          today: zero.
+        tests: [not_null, unique]
       - name: team_code
         description: "Short team code (3-4 letters) from API-Football."
       - name: team_country

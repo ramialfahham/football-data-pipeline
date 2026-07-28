@@ -24,7 +24,7 @@ from scripts.export_site_data import (
     shape_player_payload,
     shape_team_payload,
     shape_top_players,
-    slugify,
+    player_slug_with_id,
 )
 
 
@@ -179,38 +179,56 @@ def test_shape_fixture_payload_composes_header_and_sides():
     assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
 
 
-def test_slugify_folds_accents_and_appends_id():
-    assert slugify("Bayern München", 157) == "bayern-munchen-157"
+def test_player_slug_folds_accents_and_appends_id():
+    assert player_slug_with_id("Bayern München", 157) == "bayern-munchen-157"
 
 
-def test_slugify_collapses_punctuation_and_spaces():
-    assert slugify("Brighton & Hove Albion", 51) == "brighton-hove-albion-51"
+def test_player_slug_collapses_punctuation_and_spaces():
+    assert player_slug_with_id("Brighton & Hove Albion", 51) == "brighton-hove-albion-51"
 
 
-def test_slugify_falls_back_to_id_when_name_empty():
-    assert slugify("", 99) == "99"
-    assert slugify(None, 99) == "99"
+def test_player_slug_falls_back_to_id_when_name_empty():
+    assert player_slug_with_id("", 99) == "99"
+    assert player_slug_with_id(None, 99) == "99"
+
+
+def test_player_slug_still_drops_undecomposable_letters():
+    """Pins the KNOWN, deliberate gap so it is visible rather than discovered.
+
+    `_kebab` folds via NFKD then drops whatever is left non-ASCII, so a character with no
+    decomposition vanishes instead of transliterating. The CPO ruled transliteration (E3),
+    and it landed for TEAM slugs, which are now derived in the warehouse. Player slugs still
+    run through this function, so they still lose the letter. When player slugs move to the
+    warehouse this test should start failing -- and the fix is to delete it, not to widen it.
+    """
+    assert player_slug_with_id("Sigurðsson", 1) == "sigursson-1"
+    assert player_slug_with_id("Preußen", 2) == "preuen-2"
 
 
 def test_shape_team_payload_identity_from_latest_and_seasons_desc():
     rows = [
         {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
-         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u", "points": 78,
+         "team_name": "Bayern", "team_slug": "bayern-munchen", "team_country": "Germany",
+         "team_logo_url": "u", "points": 78,
          "team_founded_year": 1900, "venue_name": "Old", "venue_city": "München", "venue_capacity": 70000},
         {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
-         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2", "points": 82,
+         "team_name": "Bayern München", "team_slug": "bayern-munchen", "team_country": "Germany",
+         "team_logo_url": "u2", "points": 82,
          "team_founded_year": 1900, "venue_name": "Allianz Arena", "venue_city": "München", "venue_capacity": 75000},
     ]
     p = shape_team_payload(rows)
     assert p["team_id"] == 157
-    assert p["slug"] == "bayern-munchen-157"          # from the 2025 (latest) row
+    # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
+    # The old assertion was "bayern-munchen-157" -- that id is exactly what the CPO ruled out.
+    assert p["slug"] == "bayern-munchen"              # from the 2025 (latest) row
     assert p["name"] == "Bayern München"
     # GAP-01: founded year + venue from the latest row; venue is a nested block
     assert p["founded_year"] == 1900
     assert p["venue"] == {"name": "Allianz Arena", "city": "München", "capacity": 75000}
     assert [s["season_api_year"] for s in p["seasons"]] == [2025, 2024]  # desc
-    # identity columns (incl. founded/venue) are stripped from per-season rows
+    # identity columns (incl. founded/venue and the slug) are stripped from per-season rows
     assert "team_name" not in p["seasons"][0]
+    assert "team_slug" not in p["seasons"][0]
     assert "team_founded_year" not in p["seasons"][0] and "venue_name" not in p["seasons"][0]
     assert p["seasons"][0]["points"] == 82
 

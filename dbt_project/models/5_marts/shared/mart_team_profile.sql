@@ -63,6 +63,9 @@ select
     reg.competition_type,
     -- identity
     t.team_name,
+    -- the permanent URL segment; carried so the export can SELECT it rather than compute a
+    -- slug of its own, which would be identity derivation in the consumption layer (#846)
+    t.team_slug,
     t.team_code,
     t.team_country,
     t.team_logo_url,

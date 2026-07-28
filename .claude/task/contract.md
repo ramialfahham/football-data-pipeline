@@ -1,146 +1,178 @@
-# Task contract — team name corrections (PR A of four)
+# Task contract — the team slug loses the provider id (PR B of four)
 
-> Written on a CLEAN tree, branch `feat/team-name-corrections` off `main` (`92474bc`).
-> This is the FIRST of four PRs split out of a plan that two independent reviewers judged
-> over-scoped. It is deliberately the smallest piece: a seed of externally verified name
-> corrections and its base-layer join. No slug work, no new model class, no export change.
+> Written on a CLEAN tree, branch `feat/team-slug-no-provider-id` off `main` (`9578f4d`).
+> PR A (#854, team name corrections) is merged. This PR removes the provider id from the team URL and
+> moves slug derivation into the warehouse. Persistence is deliberately NOT here.
+>
+> This contract is written against the SECOND version of the plan. Two independent experts challenged
+> the first version and found six factual errors in it; every one is corrected below and the list is
+> in the plan file so they are not repeated.
 
 objective: >
-  `dim_team` is a passive pass-through of the provider's `/teams` endpoint, which returns a short
-  display label of unverified quality. That single field drives the fixture card, the team page H1,
-  the `<title>`, the meta description and the URL slug, so 18 teams in 9 groups are currently
-  indistinguishable from each other ("Rangers" vs "Rangers", "Lokomotiv" vs "Lokomotiv"). This adds
-  a CPO-owned seed of 14 externally verified corrections and joins it in the base layer, so every
-  downstream surface inherits one corrected name from one place.
+  `slugify(name, id)` in `scripts/export_site_data.py:86` appends the provider id to every team slug
+  and recomputes the whole slug from the current name on every export. The CPO ruled the id out:
+  "I don't want aston-villa-66 or similar as part of the url. there is no aston-villa-66."
 
-  Independently valuable and NOT a slug change: it is what makes `<title>` uniqueness across the
-  generated set achievable, which is #844's binding requirement.
+  Derive `team_slug` in the warehouse instead, from the already-settled team name, using a symmetric
+  collision ladder that needs no adjudication. Publish it on `dim_team`, carry it through
+  `mart_team_profile`, and have the export select it rather than compute it. `/en/teams/aston-villa-66/`
+  becomes `/en/teams/aston-villa/`.
+
+  Also settles E3 (transliterate, do not strip): `_kebab`'s NFKD-then-ascii-ignore DELETES any
+  character NFKD cannot decompose, so `Preußen Münster` currently yields `preuen-munster`.
 
 refs: >
-  #850 (the verified table with per-row sources) · #851 (why one field is display AND identity) ·
-  #844 (the SEO build gate this enables).
+  #852 (slug engine — this PR is its DERIVED half; the persisted half is PR D) · #850 (the name
+  corrections this builds on) · #851 (why the name is identity) · #843 (the URL is derived from an
+  unverified mutable field).
 
-  Two independent assessments, 2026-07-27, both concluded the slug-assignment engine (#852) does NOT
-  block #844 and should be deferred; the name corrections are the half with a real claim to gating
-  it. #852 is downgraded to PR D accordingly.
+  `.claude/task/escalations.log:45` — E2 and E3, PENDING since 2026-06-14, both ruled this session.
+  E3 = transliterate (CPO, AskUserQuestion, 2026-07-27). E2 = the warehouse produces slugs, which
+  follows from #846 (the export is the consumption layer).
 
-  Domain knowledge gathered before building (working_agreement norm): every corrected name was
-  verified against an external source one club at a time, per
-  [[feedback-verify-real-world-identity]], after an earlier draft asserted "Glasgow Rangers" from
-  memory and was corrected by the CPO ("the actual name is rangers fc / do your homework").
-  Wikipedia: the club "is often referred to as Glasgow Rangers, though this has never been its
-  official name."
+  Domain knowledge gathered BEFORE building, not in review: two independent expert challenges of the
+  first plan (an analytics engineer and an SEO/IA expert, both verifying against BigQuery and the
+  repo). They corrected the transliteration targets against external convention, found the collision
+  ladder was not closed, and found the proposed guard could never fire.
 
 scope_paths:
-  - dbt_project/seeds/team_name_overrides.csv
-  - dbt_project/seeds/schema.yml
+  - dbt_project/macros/team_name_normalization.sql
   - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
   - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/tests/assert_team_name_overrides_still_needed.sql
+  - dbt_project/models/3_core/dim_team.sql
+  - dbt_project/models/3_core/core.yml
+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+  - dbt_project/models/5_marts/shared/marts.yml
+  - dbt_project/seeds/schema.yml
+  - dbt_project/tests/assert_team_name_slug_alphabet.sql
+  - scripts/export_site_data.py
+  - tests/test_export_site_data.py
+  - docs/site_architecture.md
+  - .sqlfluff
+  - site_v2/src/data/teams/33.json
+  - .claude/task/escalations.log
   - .claude/active_work.md
 
 impact_map: >
-  writers: `base_apif__teams_global` is written only by dbt, from `base_apif__teams`
-    (grain league_code x team_api_id) deduped to grain team_api_id via
-    `qualify row_number() over (partition by team_api_id order by raw_ingested_at desc) = 1`.
-    The new seed `team_name_overrides` is written by `dbt seed`.
+  writers: `base_apif__teams_global` (a VIEW) is written only by dbt from `base_apif__teams`, deduped
+    to grain `team_api_id`. It already applies the PR A name-override join. The new `team_slug` is
+    derived here, after the name is settled — a slug computed from an uncorrected name would be wrong.
 
-  downstream: EVIDENCE (grep over the real tree — `dbt ls` cannot be run, dbt CLI is broken locally
-    per the handover's Operational notes, so `ci-data-build` is the authoritative check):
+  downstream: EVIDENCE (grep over the real tree; `dbt ls` cannot run — dbt CLI is broken locally per
+    the handover, so `ci-data-build` is authoritative):
 
       $ grep -rl "base_apif__teams_global" dbt_project/models/
-      dbt_project/models/2_base/api_football/base.yml
-      dbt_project/models/3_core/core.yml
-      dbt_project/models/3_core/dim_team.sql          <- the ONLY .sql child
+      2_base/api_football/base.yml · 3_core/core.yml · 3_core/dim_team.sql   <- only .sql child
 
-      $ grep -rl "dim_team" dbt_project/models/5_marts/ | wc -l    -> 17
-      $ grep -rl "ref('dim_team')" dbt_project/models/ | wc -l     -> 21
+      $ grep -rl "dim_team" dbt_project/models/5_marts/ | wc -l   -> 17
+      $ grep -rl "ref('dim_team')" dbt_project/models/ | wc -l    -> 21
 
-    So: ONE direct child (`dim_team`, a pure projection), 17 mart models downstream of it, 21 models
-    in total. Plus `scripts/export_site_data.py`, which joins `dim_team` for the fixture payload's
-    `home_team_name` / `away_team_name` at lines 850-851 — `fct_fixture` carries no team name of its
-    own. The corrected name therefore reaches every surface.
+    `mart_team_profile.sql` imports `dim_team` at line 35 and projects identity columns explicitly at
+    lines 65-72 (`t.team_name`, `t.team_code`, `t.team_country`, ...). `fetch_team_payloads`
+    (`export_site_data.py:664`) reads ONLY that mart, so `team_slug` is unreachable in the export
+    without adding the column there. The first plan version missed this and would not have worked.
 
-    CORRECTION: an earlier draft of this contract asserted "27 mart models" from memory. Counted, it
-    is 17 marts / 21 models. scope-auditor flagged it as an Appendix A6 assert-before-measure defect;
-    fixed here by running the command and pasting the output rather than by arguing the number.
+  layer_rules: `check_layer_contract.py::check_base_layer` requires every `2_base` model to be a VIEW —
+    unchanged, this adds columns to an existing view. Its purity rules (no join, no distinct) are
+    scoped to `STAGING_API_DIR` and do not apply to base; `BASE_FORBIDDEN_UPWARD_REF` matches only
+    `ref('dim_|fct_|int_|mart_')`, so the macro and the seed are fine. `layering.md` §2_base allows
+    "standardized keys and attributes that downstream layers can rely on", which is what a slug is.
+    The model ALREADY uses a window (`qualify row_number()`), so the collision window is the existing
+    house pattern rather than a novelty. `engineering_standards.md` line 26 requires an import CTE per
+    `ref()`; §1.3 sanctions a macro for "an expression that must sit inside other queries".
 
-  layer_rules: `check_layer_contract.py::check_base_layer` requires every `2_base` model to
-    materialise as a VIEW — this change adds a join to an existing view and does not alter its
-    materialisation. `layering.md` places "first logical transformations so the warehouse agrees on
-    what a team is" in base, which is exactly this. The CPO ruled the placement explicitly
-    (2026-07-27): "the single source of truth for these dimensions... should be in the core layer in
-    dim tables that propagate downstream. Base is the right layer to do these preparations."
-    `engineering_standards.md` line 26 requires an explicit import CTE per `ref()`; line 82 requires
-    `unique`/`not_null` on grain columns.
+  deploy_order: `base_apif__teams_global` is a view and `dim_team` / `mart_team_profile` are
+    full-refresh tables, so all three rebuild from scratch on the next run — no migration, no
+    incremental backfill. NOT touched: `fct_fixture` (which is `materialized='table'`, contrary to what
+    the first plan asserted) and the three genuinely incremental facts. Safe around the 04:00 nightly:
+    a pre-merge run produces today's id-suffixed slugs, exactly as now.
+    WARNING: CI and prod share dbt datasets only in the sense that `generate_schema_name` prefixes
+    non-prod targets (`ci_core` etc.), so a PR build cannot touch prod — but no local `dbt build` will
+    be run regardless.
 
-  deploy_order: `dim_team` is a full-refresh table and `base_apif__teams_global` is a view, so both
-    rebuild from scratch on the next run — no migration, no incremental backfill, no
-    `--full-refresh` needed. The seed must be loaded before the base model compiles, which
-    `dbt build` orders automatically via `ref()`. Safe around the 04:00 nightly: worst case the
-    nightly runs pre-merge and produces today's (uncorrected) names, exactly as now.
-    WARNING: this project shares dbt datasets between CI and prod
-    (`project_dbt_shared_ci_prod_datasets`), so a stray local build can clobber prod — no local
-    `dbt build` will be run.
-
-  blast_radius: 14 rows change `team_name` in `dim_team` out of 3,249. Every mart and the export
-    inherit the new string. NO numeric value changes anywhere — this touches a display/identity
-    string only, no metric, no key, no join column. `team_sk` and `team_api_id` are untouched, so
-    every relationship test is unaffected.
-    KNOWN and deliberate: `fct_fixture_event.team_name_snapshot` is written on insert and never
-    revisited, so it keeps the pre-correction string for historical rows. That is the
-    `reference_incremental_rename_full_refresh` trap. Handled by documenting the column as
-    deliberately historical rather than by a self-heal branch — a self-heal is a separate change to
-    an incremental fact and out of scope here.
+  blast_radius: every team slug changes — 3,249 of 3,249 rows. NO numeric value changes anywhere: this
+    adds one string column and alters one string column's derivation. `team_sk` / `team_api_id` are
+    untouched, so every relationship test is unaffected.
+    URL fallout is near zero because the internal link graph barely exists: `grep -rn "href" site_v2/src`
+    returns only `SiteHeader`, `SiteFooter`, the fixture `Breadcrumb`, `index.astro`'s locale links and
+    the team page's Home crumb. No team or player deep link exists in the built site.
+    ⚠ `site_v2/src/data/teams/33.json` is a COMMITTED sample carrying `"slug": "manchester-united-33"`,
+    and `[team].astro:37` feeds `team.slug` into `getStaticPaths`. It must be regenerated in this PR or
+    the CI-built site serves a URL the export no longer emits.
+    ⚠ Fixture URLs still derive from team NAMES via `fixture_slug()` and are NOT changed here, so a
+    fixture URL and a team URL can disagree for the 7 transliteration-affected clubs until that follows.
+    Measured churn from PR A's 14 renames: 259 of 58,647 fixtures. Recorded, not fixed.
 
 decisions_taken: >
-  - The seed exists and is CPO-owned. Same class as the existing `fixture_event_team_overrides.csv`
-    (#526). Authority: the CPO asked "Correct the name -> how?" and, on the answer, "yes write it
-    down. this is very important work. we can't allow ambiguity here."
-  - The join goes in BASE, not in `dim_team`. Direct CPO ruling, quoted in layer_rules above; an
-    earlier draft that put the `coalesce` in `dim_team` was corrected on exactly this point.
-  - A row may only be added where an AUTHORITATIVE EXTERNAL SOURCE disagrees with the provider, and
-    the source URL is recorded in the row. Never taste.
-  - `Bayern München` is NOT corrected to `Bayern Munich`. The CPO ruled one locale-independent slug:
-    "It should be bayern-munchen and not bayern-munich because then we should discuss french spanish
-    or whatever language versions."
+  - The provider id leaves the team URL. Direct CPO ruling, quoted in objective.
+  - E3 = TRANSLITERATE, not strip. CPO ruling via AskUserQuestion, 2026-07-27, logged in
+    escalations.log by this PR. The RULE (validated by both expert challenges, and what `unidecode` and
+    Transfermarkt do): fold to the base letter where one exists, expand only where none does. So
+    `ü→u` (`bayern-munchen`) and `ß→ss` (`rot-weiss-essen`) are ONE rule, not an inconsistency.
+  - E2 = the warehouse produces slugs. Follows from #846: assigning identity is derivation, and the
+    export is the consumption layer.
+  - The collision ladder is SYMMETRIC — a contested name goes to nobody, all contenders take the
+    country anchor. No ranking, no importance ordering, no per-collision adjudication. CPO: "i can't
+    answer them out of my head and i don't know if i shall always do the babysitting."
+  - Two transliteration targets corrected against external sources before building: `ə → a` (the club
+    is Sabail FK; `sebail` exists nowhere) and `đ → dj` (Đoković → Djokovic).
 
 decisions_reserved:
-  - Which provider id is canonical in each duplicate pair (Nyasa Big Bullets #4596/#4599, Dragon
-    #3045/#21310). NOT decided here and NOT in scope — those are alias rows for
-    `fixture_event_team_overrides.csv`, and the Dragon pair is "near-certain, not proven". A §10
-    identity call, and per [[feedback-verify-real-world-identity]] it needs external ground truth,
-    not an inference from our own tables.
-  - The identity of "Warriors" #4207 (Hong Kong). Its ground is shared by three other clubs and no
-    standalone HK club of that name was found. Left UNCORRECTED rather than guessed.
-  - Whether the ~15 abbreviation/nickname cases (`Sheffield Utd`, `West Brom`) are corrections or
-    the names the site should use. Not touched here; they are display preference, not a provider
-    error, so adding them would breach the "external source disagrees" rule this contract sets.
-  - The country-coalesce defect in this same file (22 of 39 null-country teams DO have a country in
-    `stg_apif__teams`; `qualify row_number()` takes one league's row whole and discards it).
-    Verified during review and recorded on #853. Deliberately OUT of scope per
-    [[feedback-scope-discipline]] — it is a separate data-quality fix in a file I happen to be
-    editing, and bundling it is exactly the unauthorized addition that rule forbids.
+  - Persistence. The slug stays DERIVED so the warehouse remains rebuildable from raw. Making it an
+    append-only registry with `--full-refresh` blocked would be the first non-reproducible object in
+    this warehouse — a §10 NEW-mechanism trade to bring explicitly at launch (PR D / #852), together
+    with the `firebase.json` redirects #843 needs. Not decided here.
+  - Whether records failing an identity check may hold a slug at all. Two phantom records will silently
+    take a canonical bare slug: #3045 (`Dragon`, France, no venue, no founded year — suspected
+    duplicate of #21310 AS Dragon) takes `/teams/dragon/`, and #4207 (`Warriors`, Hong-Kong, identity
+    unresolved) takes `/teams/warriors/`. Neither collides, so neither produces any signal. Which
+    records are duplicates is #850's OPEN alias decision. Shipped as-is with the table in the PR body so
+    the choice is explicit rather than silent.
+  - Deleting the dead `team_name_key` macro (zero callers, verified repo-wide). Unrelated to this PR;
+    needs an explicit yes, so it is NOT touched here.
+  - Player and coach slugs. `slugify()` STAYS for players (`export_site_data.py:475`); deleting it
+    would be a `NameError`. The player map has 95 unmapped residual characters including Cyrillic
+    homoglyphs and bidi marks, so the map is settled for TEAMS only.
+  - Whether `slug_map.json` should be keyed by `(type, slug)` rather than the bare slug string.
+    Measured collisions today: team↔player 20, player↔coach 90 — harmless only while ids are present.
+    Recorded for #844; not changed here.
 
 done_when:
-  - `dbt_project/seeds/team_name_overrides.csv` holds exactly the 14 rows from #850, each with its
-    source URL, and no row for #4207, #4596, #4599 or #3045.
-  - `base_apif__teams_global.sql` has an explicit import CTE per `ref()` (standards line 26), joins
-    on `team_api_id`, and `coalesce`s the override over the provider name. Materialisation still
-    view.
-  - `seeds/schema.yml` declares `unique` + `not_null` on `team_api_id` (standards line 82) — without
-    it a duplicated seed row fans out `dim_team` and multiplies every team.
-  - A singular test asserts no override row equals the provider's current name, so a row the
-    provider has since fixed fails rather than rotting. NOTE (scope-auditor, round 1): that test uses
-    an INNER join, so it cannot flag an override whose `team_api_id` has vanished from the provider.
-    That case is covered instead by the seed's `relationships` test to `ref('dim_team')`, which fails
-    when the id no longer exists — the two together are bidirectional, and no code change is needed.
-  - `python scripts/check_layer_contract.py` passes.
-  - `python -m pytest tests/ -q` passes (governance hooks + export tests).
-  - SQL lint and `dbt parse`/build are verified by CI, NOT locally — dbt CLI and SQLFluff are both
-    broken in this environment and a local build would write to the shared prod dataset.
-  - Required reviewers per `review_routing.json` for these paths: scope-auditor (always),
-    analytics-engineer-reviewer (`dbt_project/**`). NOTE: `seo-expert-reviewer` is merged but absent
-    from routing, so it fires on nothing — routing it remains an open governance ask.
+  - A `slugify()` macro exists with the 9-entry lowercase transliteration map (which covers all 17
+    affected characters because `lower()` folds the uppercase halves), format characters DELETED rather
+    than hyphenated, and the fold-vs-expand rule stated in a comment.
+  - `base_apif__teams_global` derives `team_slug` with the CLOSED ladder: each level's candidate tested
+    against the whole assigned set, not just its own group, plus an empty-candidate fallback to the id.
+  - `dim_team` publishes `team_slug` with `unique` + `not_null`; `mart_team_profile` carries it; the
+    export selects it and no longer computes a team slug.
+  - `assert_team_name_slug_alphabet.sql` fails on any source name containing a letter that is neither
+    ASCII-after-NFKD nor in the map. The guard is on the INPUT — an output-shape guard cannot fire,
+    because the final `[^a-z0-9]+ → -` step guarantees the output alphabet.
+  - `site_v2/src/data/teams/33.json` regenerated to `manchester-united`.
+  - `.sqlfluff` carries `load_macros_from_path` so a model calling the macro can be linted locally.
+  - Verified against BigQuery: 3,249 distinct slugs, 0 empty, the id fallback firing EXACTLY twice
+    (the Nyasa pair), no level-2 candidate equal to another team's level-1 slug (the live Ararat /
+    Ararat-Armenia case), and `sabail` / `preussen-munster` / `rot-weiss-essen` among the outputs.
+  - `pytest tests/ -q`, `python scripts/check_layer_contract.py`, and a FULL-rule-set sqlfluff lint all
+    pass. A `--rules` subset missed ST06 on PR A; do not use one.
+  - ONE commit. `--staged-hash` equals CI's recomputed `main...HEAD` only when the branch is a single
+    commit; that cost a round on PR A.
+  - Required reviewers for these paths: scope-auditor (always), analytics-engineer-reviewer
+    (`dbt_project/**`), cto-reviewer (`scripts/**`, `.sqlfluff` is not routed but `scripts/**` is).
+    NOTE: `seo-expert-reviewer` is merged but still absent from `review_routing.json`, so the PR that
+    changes every team URL gets NO SEO review. Routing it is a protected-file governance ask and
+    remains the CPO's.
 
-amendments: (none)
+amendments:
+  - 2026-07-28: + site_v2/src/data/teams/33.json — authority: the CPO-approved plan for this PR
+    already names it ("site_v2/src/data/teams/33.json regenerated to manchester-united") and
+    done_when requires it; it was omitted from scope_paths by mistake, not by intent. No scope
+    widening: the file is the single committed team sample and its `slug` field is exactly the
+    string this PR changes. Leaving it stale would make the CI-built site serve
+    /en/teams/manchester-united-33/ while the export emits manchester-united, because
+    [team].astro feeds `team.slug` straight into getStaticPaths.
+  - 2026-07-28: NOT amended, deliberately — `dbt_project/.sqlfluff`. A nested config exists and
+    is the one that applies when linting from dbt_project/, so it would also benefit from the
+    jinja macro path. But the root `.sqlfluff` (in scope) is enough to lint from the repo root,
+    which is what this PR's verification uses, so adding the nested one would be convenience-
+    driven scope creep. Recorded as a follow-up instead.
