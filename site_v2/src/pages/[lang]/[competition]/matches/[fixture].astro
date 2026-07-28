@@ -14,7 +14,7 @@ import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
 import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
-import { t } from "../../../../i18n/strings";
+import { t, BRAND } from "../../../../i18n/strings";
 import { localeHref } from "../../../../lib/href";
 import type { Lang } from "../../../../lib/format";
 import type { Fixture } from "../../../../lib/types";
@@ -101,6 +101,6 @@ const crumbs = [
     <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
     <LinksFooter fixture={fixture} lang={lang} />
 
-    <div class="footnote">{t(lang, "footnote")}</div>
+    <div class="footnote">{t(lang, "footnote", { brand: BRAND })}</div>
   </div>
 </Layout>

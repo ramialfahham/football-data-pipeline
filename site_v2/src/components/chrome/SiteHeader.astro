@@ -31,7 +31,11 @@ const navItems = [
 
 <header class="site-header">
   <div class="header-in">
-    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
+    {/* Wordmark — must stay in lockstep with SiteFooter. The `.iq` class and its two-tone treatment
+        are kept deliberately: system.css is the locked design system, so a rename changes the WORD
+        and nothing visual. An Astro expression comment, not `<!-- -->`, which would be emitted into
+        every built page. */}
+    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
 
     <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
       {navItems.map((label) => <span>{label}</span>)}
@@ -80,7 +84,9 @@ const navItems = [
   // the whole shell / toggle a sibling nav's visibility, which the site's
   // existing JS-free radio-toggle pattern (tabs, segments) can't do — that
   // pattern only shows/hides a panel within the same component tree.
-  const KEY = "mdiq-theme";
+  // Renamed with the product. Discards any saved preference — free today, because the site is
+  // unpublished (noindex, unlisted) so there is no reader to lose one. Must match Layout.astro.
+  const KEY = "mdp-theme";
   const body = document.body;
 
   const themeBtn = document.getElementById("themeBtn");

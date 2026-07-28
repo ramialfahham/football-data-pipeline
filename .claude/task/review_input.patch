@@ -1,795 +1,384 @@
-diff --git a/.sqlfluff b/.sqlfluff
-index b43438d..e207d41 100644
---- a/.sqlfluff
-+++ b/.sqlfluff
-@@ -9,6 +9,21 @@ tab_space_size = 4
- project_dir = dbt_project
- profiles_dir = ~/.dbt
- 
-+# Only read when someone passes `--templater jinja`, so CI (which uses the dbt
-+# templater above, and resolves project macros natively) is unaffected.
-+#
-+# It exists because the dbt templater needs GCP credentials, so the ONLY way to lint
-+# locally is `--templater jinja` -- and without this path any model calling a project
-+# macro fails with "Undefined jinja template variable", which silently turns a local
-+# lint into a no-op. That gap cost two CI round-trips on PR #854.
-+#
-+#   cd dbt_project && python -m sqlfluff lint <model> --templater jinja --dialect bigquery
-+#
-+# Run the FULL rule set, never a `--rules` subset: a subset run on #854 reported AM04
-+# and LT02 and missed ST06, which then failed in CI.
-+[sqlfluff:templater:jinja]
-+load_macros_from_path = dbt_project/macros
-+
- [sqlfluff:indentation]
- indented_joins = false
- indented_using_on = true
-diff --git a/dbt_project/macros/team_name_normalization.sql b/dbt_project/macros/team_name_normalization.sql
-index e8f9f88..8b5513b 100644
---- a/dbt_project/macros/team_name_normalization.sql
-+++ b/dbt_project/macros/team_name_normalization.sql
-@@ -17,3 +17,115 @@ trim(
-     )
- )
- {%- endmacro %}
-+
-+
-+{#
-+  URL slug from a display name. Produces `[a-z0-9-]` only, with no leading,
-+  trailing or doubled hyphen. This is the permanent team URL (#852), so the output
-+  is user-visible and expensive to change once published -- treat any edit here as
-+  a URL migration, not a refactor.
-+
-+  THE RULE (CPO ruling on E3, 2026-07-27, recorded in .claude/task/escalations.log):
-+  fold to the base letter where one exists; expand only where none does.
-+    u-umlaut HAS a base letter  -> Bayern Munchen  -> bayern-munchen
-+    sharp-s has NONE            -> Rot-Weiss Essen -> rot-weiss-essen
-+  Those two are ONE rule, not an inconsistency. Anyone "fixing" the apparent
-+  mismatch by expanding umlauts to ue/oe/ae would change 17 German clubs' URLs for
-+  nothing. This is what unidecode and iconv //TRANSLIT do, and what Transfermarkt
-+  ships.
-+
-+  Why an explicit map is unavoidable: NFKD decomposes an accented letter into base
-+  plus combining mark, and the mark-strip below then removes the mark. But the ten
-+  characters mapped here have NO decomposition, so NFKD leaves them intact and the
-+  final [^a-z0-9]+ step would DELETE them -- which is the defect this replaces
-+  (Preussen Munster came out as preuen-munster). Ten lowercase entries cover all
-+  seventeen affected characters, because lower() folds the uppercase halves
-+  (verified in BigQuery, not assumed).
-+
-+  Targets verified against external sources rather than glyph shape, because two
-+  were wrong on the first attempt:
-+    schwa       -> a   Sabail FK; Qabala, Shamakhi. NOT e -- a schwa merely LOOKS
-+                       like an e, and "sebail" is a string that exists nowhere.
-+    d-with-stroke -> dj  Djokovic, the established ASCII digraph. NOT d.
-+    sharp-s -> ss · ae-lig -> ae · oe-lig -> oe · thorn -> th (Thor) ·
-+    eth -> d (Sigurdsson) · o-slash -> o (Odegaard) · l-stroke -> l ·
-+    dotless-i -> i
-+  Two classes are DELETED rather than hyphenated, because a hyphen there is wrong:
-+    format characters (\p{Cf}) -- soft hyphen, LRM, LRE. Invisible in the name, so
-+      a name carrying one must not gain a visible hyphen.
-+    apostrophes and quote marks -- O'Neill becomes oneill, which is how it is typed
-+      and searched, not o-neill.
-+
-+  The guard for anything this map misses is assert_team_name_slug_alphabet.sql, and
-+  it checks the INPUT alphabet. A guard on the OUTPUT cannot work: the final
-+  [^a-z0-9]+ step guarantees the output charset, so an unmapped character is
-+  silently folded away and an output check could never fail on it.
-+
-+  Deliberately TWO macros rather than one. A single expression nesting all of this is
-+  ~18 function calls deep, and SQLFluff aborts with "Maximum parse depth exceeded
-+  (limit 255)" once the templater expands it -- so the model would lint clean locally
-+  with the macro unresolved and then fail in CI. Splitting the chain in half, applied
-+  over two CTE steps, keeps both halves parseable. Found by linting, not by reasoning
-+  about it.
-+#}
-+{% macro slug_prepare(name_expr) -%}
-+lower(regexp_replace(coalesce(cast({{ name_expr }} as string), ''), r'\p{Cf}', ''))
-+{%- endmacro %}
-+
-+
-+{#
-+  The transliteration map, as DATA rather than nested code. Each character of the
-+  prepared string is looked up in the map and replaced, or passed through unchanged.
-+
-+  Written this way for a measured reason, not a stylistic one: a chain of ten nested
-+  `replace()` calls exceeds SQLFluff's parse-depth limit (255) -- probed, the ceiling is
-+  about eight nested function calls, because each level costs roughly 28 tree levels. A
-+  nested chain would therefore have to be split across CTE steps, which would scatter one
-+  map over several places and invite an edit to half of it. Here all ten pairs sit
-+  together, and adding an eleventh is one line.
-+
-+  Takes an expression already run through slug_prepare (lowercased, format characters
-+  removed), so the map only needs lowercase entries.
-+#}
-+{% macro translit_latin(prepared_expr) -%}
-+(
-+    select string_agg(coalesce(m.to_chars, ch), '' order by pos)
-+    from unnest(split({{ prepared_expr }}, '')) as ch with offset as pos
-+    left join
-+        unnest([
-+            struct('ß' as from_char, 'ss' as to_chars),
-+            struct('æ', 'ae'),
-+            struct('œ', 'oe'),
-+            struct('þ', 'th'),
-+            struct('ð', 'd'),
-+            struct('đ', 'dj'),
-+            struct('ø', 'o'),
-+            struct('ł', 'l'),
-+            struct('ı', 'i'),
-+            struct('ə', 'a')
-+        ]) as m
-+        on m.from_char = ch
-+)
-+{%- endmacro %}
-+
-+
-+{#
-+  Second half of the slug pipeline: takes the output of translit_latin and produces
-+  `[a-z0-9-]` with no leading, trailing or doubled hyphen. Separate from the map above
-+  only to keep each expression inside SQLFluff's parse-depth limit.
-+#}
-+{% macro kebab_slug(ascii_expr) -%}
-+regexp_replace(
-+    regexp_replace(
-+        regexp_replace(
-+            normalize(coalesce({{ ascii_expr }}, ''), NFKD),
-+            r'[\x{0027}\x{2018}\x{2019}\x{02BC}\x{00B4}`\p{Mn}]',
-+            ''
-+        ),
-+        r'[^a-z0-9]+',
-+        '-'
-+    ),
-+    r'^-+|-+$',
-+    ''
-+)
-+{%- endmacro %}
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 48fc40c..80f1e6f 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -32,6 +32,27 @@ models:
-       Note for anyone reading a historical row elsewhere: fct_fixture_event's
-       team_name_snapshot is written on insert and never revisited, so it deliberately keeps
-       the name as it stood at ingest time and will not reflect a later correction.
-+
-+      Also derives team_slug, the permanent locale-independent URL segment (#852), from the
-+      CORRECTED name via a symmetric, closed collision ladder. Symmetric: a contested name is
-+      given to nobody, so no ranking or per-collision adjudication is ever needed. Each
-+      candidate is tested against the strings already assigned, not merely against its own
-+      contending group, because a country-anchored candidate can equal a DIFFERENT team's bare
-+      slug (the Ararat / Ararat-Armenia pair is that shape, though both sit at level 1 today so
-+      the anti-join has not fired) and a `{name}-{id}` candidate can equal a bare slug too,
-+      since club names embed digits (`1899 Hoffenheim` owns `hoffenheim-1899`).
-+
-+      STATED RESIDUAL, not closed: if a level-3 `{name}-{id}` candidate is itself already taken,
-+      team_slug is NULL and the not_null test stops the build naming the team. Reaching it takes
-+      a club named "<X> <another club's provider id>" in the same country as that club. That is a
-+      data situation for a human, and the fix is an override row — not a wider rule and not an
-+      automatic escape hatch. An earlier revision added a doubled-hyphen terminal here because
-+      kebab_slug can never emit `--`; it was provably unique and it was a hack, buying closure
-+      with a URL no reader should see, for a case that fires zero times. Removed deliberately.
-+
-+      Note the two most common level-3 triggers are DATA DEFECTS rather than naming problems:
-+      a same-country duplicate record (#850's open alias decision) and a null country (#853 — 39
-+      teams, 22 of which have a country in stg_apif__teams). Fixing those mostly empties level 3.
-     config:
-       tags: ["base", "api_football", "team_context"]
-     tests:
-diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-index 797fd9d..af1f0a6 100644
---- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-@@ -24,27 +24,199 @@ latest_per_team as (
-         partition by team_api_id
-         order by raw_ingested_at desc
-     ) = 1
-+),
-+
-+-- Columns are enumerated rather than passed through with a wildcard: the override join makes
-+-- `select teams.* replace (...)` ambiguous to SQLFluff (AM04, "unknown number of result
-+-- columns"), and this repo suppresses no lint rule anywhere -- there is not a single `noqa`
-+-- in it. Nothing is lost by listing them: dim_team is the only consumer and already projects
-+-- its columns explicitly, so a new upstream column needs an edit there regardless.
-+corrected as (
-+    select
-+        teams.league_code,
-+        teams.team_api_id,
-+        teams.team_code,
-+        teams.team_country,
-+        teams.team_founded_year,
-+        teams.team_logo_url,
-+        teams.venue_api_id,
-+        teams.venue_name,
-+        teams.venue_address,
-+        teams.venue_city,
-+        teams.venue_capacity,
-+        teams.raw_ingested_at,
-+        coalesce(overrides.team_name, teams.team_name) as team_name
-+    from latest_per_team as teams
-+    left join import_team_name_overrides as overrides
-+        on teams.team_api_id = overrides.team_api_id
-+),
-+
-+-- team_slug: the permanent, locale-independent team URL (#852). Derived HERE and not in the
-+-- export, because assigning an identifier is derivation and the export is the consumption
-+-- layer (#846). Derived AFTER the name is settled above -- a slug built from an uncorrected
-+-- provider name would be the wrong URL.
-+--
-+-- The ladder is SYMMETRIC: a contested name is given to NOBODY, so no ranking, no importance
-+-- ordering and no per-collision adjudication is ever needed.
-+--
-+-- Each candidate is also tested against the strings already assigned, not merely against its own
-+-- contending group. Two hazards need that, both LATENT on today's data rather than firing:
-+--   * a level-2 candidate equalling a DIFFERENT team's level-1 slug. `Ararat` + Armenia would
-+--     yield `ararat-armenia`, which is `Ararat-Armenia`'s own bare slug. Both sit at level 1
-+--     today because `ararat` is uncontested, so the anti-join has never fired -- one more
-+--     Armenian club named Ararat is all it takes.
-+--   * a level-3 `{name}-{id}` equalling an existing bare slug, since club names embed digits
-+--     (`1899 Hoffenheim` owns `hoffenheim-1899`).
-+-- Both are caught here rather than by the `unique` test on dim_team.team_slug, because the
-+-- nightly runs a bare `dbt build` and a failed test there skips every downstream model. What is
-+-- deliberately NOT caught here is the residual beyond level 3 -- see the terminal's comment.
-+--
-+-- A team that won its bare slug at level 1 KEEPS it; only the escalating team falls through.
-+-- Penalising the bystander would be the wrong reading of "symmetric".
-+--
-+-- Three CTE steps rather than one expression: the whole slug pipeline nested in a single
-+-- expression exceeds SQLFluff's parse-depth limit once the templater expands it. The probed
-+-- ceiling is about eight nested function calls (see the macro's note).
-+prepared as (
-+    select
-+        corrected.*,
-+        {{ slug_prepare('team_name') }} as name_prepared,
-+        {{ slug_prepare('team_country') }} as country_prepared
-+    from corrected
-+),
-+
-+transliterated as (
-+    select
-+        prepared.*,
-+        {{ translit_latin('name_prepared') }} as name_ascii,
-+        {{ translit_latin('country_prepared') }} as country_ascii
-+    from prepared
-+),
-+
-+candidates as (
-+    select
-+        transliterated.*,
-+        {{ kebab_slug('name_ascii') }} as slug_base,
-+        {{ kebab_slug('country_ascii') }} as slug_anchor
-+    from transliterated
-+),
-+
-+base_contended as (
-+    select
-+        candidates.*,
-+        count(*) over (partition by slug_base) as base_contenders
-+    from candidates
-+),
-+
-+-- level 1 winners: their slug is settled and must not be taken by anyone escalating
-+accepted_level_1 as (
-+    select distinct slug_base as taken
-+    from base_contended
-+    where
-+        base_contenders = 1
-+        and slug_base != ''
-+),
-+
-+anchored as (
-+    select
-+        base_contended.*,
-+        case
-+            when base_contenders > 1 and slug_anchor != ''
-+                then concat(slug_base, '-', slug_anchor)
-+        end as slug_anchored
-+    from base_contended
-+),
-+
-+anchor_contended as (
-+    select
-+        anchored.*,
-+        accepted_level_1.taken is not null as anchor_hits_level_1,
-+        countif(anchored.base_contenders > 1)
-+            over (partition by anchored.slug_anchored) as anchor_contenders
-+    from anchored
-+    left join accepted_level_1
-+        on anchored.slug_anchored = accepted_level_1.taken
-+),
-+
-+-- every string already taken by the time level 3 runs. Level 3 must be tested against THIS,
-+-- not merely against its own peers: `{name}-{id}` is unique among id-suffixed rows because the
-+-- id is, but nothing stops it equalling a level-1 winner's bare slug. Club names embed digits
-+-- routinely (1899 Hoffenheim, 1860 Munchen, 1. FC Koln), so a bare slug can end in `-NNNN`.
-+assigned_before_level_3 as (
-+    select distinct slug_base as taken
-+    from anchor_contended
-+    where
-+        base_contenders = 1
-+        and slug_base != ''
-+    union distinct
-+    select distinct slug_anchored
-+    from anchor_contended
-+    where
-+        slug_anchored is not null
-+        and not anchor_hits_level_1
-+        and anchor_contenders = 1
-+),
-+
-+level_3 as (
-+    select
-+        anchor_contended.*,
-+        concat(
-+            coalesce(nullif(slug_anchored, ''), nullif(slug_base, ''), 'team'),
-+            '-',
-+            cast(team_api_id as string)
-+        ) as slug_with_id
-+    from anchor_contended
-+),
-+
-+level_3_checked as (
-+    select
-+        level_3.*,
-+        assigned_before_level_3.taken is not null as id_slug_taken
-+    from level_3
-+    left join assigned_before_level_3
-+        on level_3.slug_with_id = assigned_before_level_3.taken
- )
- 
---- Columns are enumerated rather than passed through with a wildcard: adding the override
---- join makes `select teams.* replace (...)` ambiguous to SQLFluff (AM04, "unknown number of
---- result columns"), and this repo suppresses no lint rule anywhere -- there is not a single
---- `noqa` in it. Nothing is lost by listing them: dim_team is the only consumer and already
---- projects its columns explicitly, so a new upstream column needs an edit there regardless.
- select
--    teams.league_code,
--    teams.team_api_id,
--    teams.team_code,
--    teams.team_country,
--    teams.team_founded_year,
--    teams.team_logo_url,
--    teams.venue_api_id,
--    teams.venue_name,
--    teams.venue_address,
--    teams.venue_city,
--    teams.venue_capacity,
--    teams.raw_ingested_at,
--    coalesce(overrides.team_name, teams.team_name) as team_name
--from latest_per_team as teams
--left join import_team_name_overrides as overrides
--    on teams.team_api_id = overrides.team_api_id
-+    league_code,
-+    team_api_id,
-+    team_code,
-+    team_country,
-+    team_founded_year,
-+    team_logo_url,
-+    venue_api_id,
-+    venue_name,
-+    venue_address,
-+    venue_city,
-+    venue_capacity,
-+    raw_ingested_at,
-+    team_name,
-+    case
-+        -- level 1: an uncontested name takes its own slug
-+        when base_contenders = 1 and slug_base != '' then slug_base
-+        -- level 2: every contender takes the country anchor, if that is free everywhere
-+        when
-+            slug_anchored is not null
-+            and not anchor_hits_level_1
-+            and anchor_contenders = 1
-+            then slug_anchored
-+        -- level 3, terminal: the ONLY place a provider id appears in a URL. Fires for a
-+        -- same-country duplicate, a null country, or a name that folds to nothing -- and note
-+        -- that the first two of those are DATA DEFECTS (#850's open alias decision, and #853's
-+        -- 39 null countries of which 22 have a country sitting in stg_apif__teams), not naming
-+        -- problems. Fix those and this branch mostly stops firing.
-+        --
-+        -- If even this collides with an already-assigned slug, the row gets NULL and the
-+        -- not_null test on dim_team.team_slug stops the build and names the team. That is the
-+        -- CORRECT failure: it takes a club literally named "<X> <some other club's provider id>"
-+        -- in the same country as that club, which is a data situation a human should look at,
-+        -- not one an automatic escape hatch should paper over with a stranger URL.
-+        --
-+        -- An earlier revision invented a doubled-hyphen terminal here, on the grounds that
-+        -- kebab_slug can never emit `--` so it was provably unique. It was provably unique and it
-+        -- was a hack: it bought closure with a URL (`hoffenheim--1899`) that no reader should be
-+        -- shown, to avoid a case that fires zero times. Removed deliberately -- see the residual
-+        -- stated in base.yml rather than an escape hatch hidden in a case expression.
-+        when not id_slug_taken then slug_with_id
-+    end as team_slug
-+from level_3_checked
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 9c24890..2703dde 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -165,8 +165,29 @@ models:
-         description: "API-Football team id."
-         tests: [not_null]
-       - name: team_name
--        description: "Team display name from API-Football."
--        tests: [not_null]
-+        description: >
-+          Team display name. API-Football's value, with the CPO-owned corrections from the
-+          team_name_overrides seed applied in base (#850). This is the ONLY team name in the
-+          product — the fixture card, the page H1, the title and the meta description all read
-+          it — so a wrong value here is wrong on every surface at once (#851).
-+        tests: [not_null]
-+      - name: team_slug
-+        description: >
-+          The team's permanent, locale-independent URL segment: /{locale}/teams/{team_slug}/
-+          (docs/site_architecture.md section 3). Derived in base_apif__teams_global from the
-+          CORRECTED name, so it changes when a correction lands — slugs are not yet persisted,
-+          which is #852's remaining half (PR D). Carries no provider id except in the terminal
-+          collision case (a same-country duplicate, a missing country, or a name that folds to
-+          nothing), which is the only place an id appears in any URL.
-+          BOTH tests are load-bearing, for different reasons. `unique`: two teams on one slug
-+          would mean two pages resolving to one path, and in a static build one silently
-+          overwrites the other. `not_null`: the ladder deliberately yields NULL rather than
-+          inventing a stranger URL when even the id-suffixed candidate is already taken, so this
-+          test IS the escalation path for that case — it stops the build and names the team so a
-+          human resolves it with an override row. Reaching it takes a club named
-+          "<X> <another club's provider id>" in the same country as that club; expected NULLs
-+          today: zero.
-+        tests: [not_null, unique]
-       - name: team_code
-         description: "Short team code (3-4 letters) from API-Football."
-       - name: team_country
-diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
-index 7a69879..30ca3ef 100644
---- a/dbt_project/models/3_core/dim_team.sql
-+++ b/dbt_project/models/3_core/dim_team.sql
-@@ -4,10 +4,15 @@ with import_base_apif__teams_global as (
-     select * from {{ ref('base_apif__teams_global') }}
- )
- 
-+-- team_slug is the team's permanent, locale-independent URL segment
-+-- (/{locale}/teams/{team_slug}/, docs/site_architecture.md section 3). Derived in base and
-+-- merely published here, like every other attribute: base prepares, the dim propagates.
-+-- It carries no provider id except in the terminal collision case (CPO ruling, #852).
- select
-     cast(team_api_id as int64) as team_sk,
-     team_api_id,
-     team_name,
-+    team_slug,
-     team_code,
-     team_country,
-     team_founded_year,
-diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index 5cc6db6..e6d0251 100644
---- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -63,6 +63,9 @@ select
-     reg.competition_type,
-     -- identity
-     t.team_name,
-+    -- the permanent URL segment; carried so the export can SELECT it rather than compute a
-+    -- slug of its own, which would be identity derivation in the consumption layer (#846)
-+    t.team_slug,
-     t.team_code,
-     t.team_country,
-     t.team_logo_url,
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 19be6cd..93c231b 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -273,10 +273,18 @@ seeds:
-       wrong: Wikipedia states that has never been the club's official name. Verify externally, one
-       club at a time.
- 
--      NOT the mechanism for duplicate provider ids — one club under two ids is
--      fixture_event_team_overrides.csv with mode=alias, because two URLs for one club is worse than
--      the collision. Nyasa Big Bullets (#4596/#4599) and Dragon (#3045/#21310) are therefore
--      deliberately absent, as is Warriors #4207 whose identity is unresolved.
-+      NOT the mechanism for duplicate provider ids. Nyasa Big Bullets (#4596/#4599) and Dragon
-+      (#3045/#21310) are therefore deliberately absent, as is Warriors #4207 whose identity is
-+      unresolved.
-+
-+      CORRECTION (2026-07-28, #852): an earlier version of this description said those duplicates
-+      "go to fixture_event_team_overrides.csv with mode=alias". That is FALSE and was never
-+      checked — that seed is ref()d only by base_apif__fixture_events, so it corrects event
-+      attribution and nothing in the team-identity chain reads it. An alias row there folds no
-+      team, removes no URL and changes no slug. There is currently NO mechanism that collapses two
-+      duplicate team records, which is why #3045 silently takes /teams/dragon/ while the real club
-+      takes /teams/as-dragon/, and why the Nyasa pair is the only place a provider id still appears
-+      in a team URL. Building that mechanism is #850's open alias decision.
- 
-       assert_team_name_overrides_still_needed fails the build if a row's value equals the
-       provider's current name, so a correction the provider has since adopted is removed rather
-diff --git a/dbt_project/tests/assert_team_name_slug_alphabet.sql b/dbt_project/tests/assert_team_name_slug_alphabet.sql
+diff --git a/.claude/task/rendered_page_evidence.md b/.claude/task/rendered_page_evidence.md
 new file mode 100644
-index 0000000..bea75c5
+index 0000000..11af6d5
 --- /dev/null
-+++ b/dbt_project/tests/assert_team_name_slug_alphabet.sql
-@@ -0,0 +1,62 @@
-+-- The guard on the slug transliteration map, and it deliberately checks the INPUT.
-+--
-+-- A guard on the OUTPUT cannot work. The slug pipeline ends in `[^a-z0-9]+ -> '-'`, which
-+-- GUARANTEES the output is `[a-z0-9-]` whatever went in, so an unmapped character is silently
-+-- folded away or deleted and an output-shape assertion could never fail on it. The first draft
-+-- of this PR proposed exactly that guard and it would have asserted nothing.
-+--
-+-- So: fail when a source team name contains a letter that will NOT survive the pipeline
-+-- intact -- one that is neither ASCII after NFKD decomposition and mark-stripping, nor covered
-+-- by the transliteration map in macros/team_name_normalization.sql. That is the condition
-+-- under which a name silently loses a character from its URL, which is how
-+-- `Preussen Munster` became `preuen-munster`.
-+--
-+-- When this fails, the fix is to add the character to translit_latin's map with a target
-+-- verified against an external source of record -- never to widen this test. Two targets were
-+-- wrong on the first attempt precisely because they were inferred from the glyph.
-+--
-+-- Scope is teams, matching what the map is settled for. Player and coach names still carry
-+-- unmapped residue (Cyrillic homoglyphs, bidi marks), so extending this to them is part of
-+-- their own slug work, not a silent inheritance.
++++ b/.claude/task/rendered_page_evidence.md
+@@ -0,0 +1,113 @@
++# Rendered-page evidence — feat/rename-matchday-pilot (PR C1)
 +
-+with import_dim_team as (
-+    select * from {{ ref('dim_team') }}
-+),
++> Required by #827 for any `site_v2/src/**` diff. Produced against the real Astro dev server
++> (`preview_start` name `v2`, port 4321) and the real `npm run build` output — not the source.
++>
++> **This document is on its second version, and the reason matters.** Version 1 claimed
++> `staleBrandAnywhere: false` from a regex over `document.documentElement.outerHTML`. That check was
++> looking at the wrong surface and the claim was FALSE: `SiteFooter.astro` still rendered the old
++> wordmark, so every page shipped `MatchdayPilot` in the header and `MatchdayIQ` in the footer.
++> `cto-reviewer` caught it.
 +
-+-- one row per character of each team name, after the same preparation the slug does:
-+-- format characters removed, lowercased, then NFKD-decomposed with combining marks stripped
-+exploded as (
-+    select
-+        import_dim_team.team_api_id,
-+        import_dim_team.team_name,
-+        ch
-+    from import_dim_team,
-+        unnest(
-+            split(
-+                regexp_replace(
-+                    normalize(
-+                        lower(regexp_replace(coalesce(team_name, ''), r'\p{Cf}', '')),
-+                        nfkd
-+                    ),
-+                    r'\p{Mn}',
-+                    ''
-+                ),
-+                ''
-+            )
-+        ) as ch
-+)
++## The defect this document initially missed
 +
-+select
-+    team_api_id,
-+    team_name,
-+    ch as unmapped_character,
-+    to_code_points(ch)[offset(0)] as codepoint
-+from exploded
-+where ch != ''
-+-- a letter (so punctuation, digits and spaces are out of scope -- the pipeline turns
-+-- those into separators on purpose)
-+and regexp_contains(ch, r'\p{L}')
-+-- that is not plain ASCII
-+and not regexp_contains(ch, r'^[a-z0-9]$')
-+-- and is not one the transliteration map handles
-+and ch not in ('ß', 'æ', 'œ', 'þ', 'ð', 'đ', 'ø', 'ł', 'ı', 'ə')
-diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index 349277c..d60ed5d 100644
---- a/docs/site_architecture.md
-+++ b/docs/site_architecture.md
-@@ -67,22 +67,60 @@ Reserved (structural only, render nothing until built — #376):
- - Locale set (phased, #370): `de en fi` live → `es fr it nl pt` → `ar` (RTL, needs
-   design-system support first).
- 
--### Slugs (stable, locale-independent)
-+### Slugs (locale-independent)
- - **Competition**: `slug` field in the registry (#364), e.g. `bundesliga`,
-   `premier-league`, `world-cup`. Never derived from display names at build time.
- - **Season**: from `season_api_year` + registry `season_type`: split-year → `2025-26`,
-   calendar-year → `2026`.
--- **Team**: `{kebab-name}-{team_api_id}`, e.g. `bayern-munchen-157`. The id suffix
--  guarantees uniqueness and stability across renames; the name part carries the SEO.
--- **Player**: `{kebab-name}-{player_api_id}`, e.g. `jamal-musiala-1090`.
-+- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id** — CPO
-+  ruling 2026-07-27, *"there is no aston-villa-66"*. Derived in
-+  `base_apif__teams_global` from the CORRECTED name (#850) and published on `dim_team`,
-+  because assigning an identifier is derivation and the export is the consumption layer
-+  (#846). Collisions resolve by a **symmetric, closed ladder**: an uncontested name takes
-+  its own slug; a contested one is given to *nobody* and every contender takes
-+  `{name}-{country}`; if that is still not free anywhere, or the country is missing, or
-+  the name folds to nothing, the provider id is appended. That last branch is the **only**
-+  place an id appears in any URL, and today it fires for exactly two rows — one club the
-+  provider stores twice (#850's open alias decision).
-+- **Player**: `{kebab-name}-{player_api_id}`, e.g. `jamal-musiala-1090`. Still carries the
-+  id: 18.5% of provider player names collide (1.6% on the full name), so the team scheme
-+  does not transfer unchanged. Moving player slugs to the warehouse is its own work.
- - **Fixture**: `{yyyy-mm-dd}-{home-team-slug-name}-vs-{away-team-slug-name}` under the
--  competition's `/matches/`; the export carries `fixture_api_id` for the data join.
-+  competition's `/matches/`; the export carries `fixture_api_id` for the data join. Built in
-+  the export from team NAMES, so it does not yet share the team slug's transliteration —
-+  tracked with the player move.
- - **H2H pair**: lower `team_api_id` first → one canonical URL per pair; the reversed
-   order is generated as a redirect/canonical alias.
- - **Metric**: `metric_id` from `metric_catalogue`, kebab-cased.
++`SiteFooter.astro:31` was never renamed. Proof, from one built page before the fix:
 +
-+#### Spelling: fold to the base letter, expand only where there is none
-+CPO ruling on escalation E3, 2026-07-27. A character that decomposes to a base letter takes
-+that letter; a character with no base letter takes its conventional digraph:
++```
++$ grep -o 'Matchday<span class="iq">[A-Za-z]*</span>' dist/en/teams/manchester-united/index.html
++Matchday<span class="iq">Pilot</span>      <- header
++Matchday<span class="iq">IQ</span>         <- footer, SAME PAGE
++```
 +
-+| | |
++**Why every grep in the contract's own impact_map was structurally incapable of finding it:** the
++wordmark is split across markup — `Matchday` then `<span>IQ</span>` — so the file contains no literal
++`"Matchday IQ"` substring and no `mdiq`. `outerHTML` preserves that split, which is why the v1 check
++passed. Only **rendered text** joins them into `MatchdayIQ`.
++
++**The rule this produces:** verify a rename against `textContent` / `body.innerText`, never against
++source greps or `outerHTML`.
++
++A second, self-inflicted instance of the same class: the explanatory comment I first added to
++`SiteFooter` was an HTML comment containing the literal old brand — and **Astro emits `<!-- -->` into
++the built page**, so the note shipped the stale string straight back into the output. Both wordmark
++comments are now Astro expression comments (`{/* … */}`), which are not emitted.
++
++## Corrected check — rendered text, every built page
++
++```
++dist/de/brasileirao/matches/…/index.html    Pilot  Pilot
++dist/de/teams/manchester-united/index.html  Pilot  Pilot
++dist/en/brasileirao/matches/…/index.html    Pilot  Pilot
++dist/en/teams/manchester-united/index.html  Pilot  Pilot
++dist/fi/brasileirao/matches/…/index.html    Pilot  Pilot
++dist/fi/teams/manchester-united/index.html  Pilot  Pilot
++(the 3 locale scaffolds and / carry no wordmark — they do not use Layout)
++
++$ grep -rl "Matchday IQ\|MatchdayIQ\|matchdayiq" dist/     ->  NONE
++```
++
++Live DOM, team page:
++
++```
++brandTexts          ["MatchdayPilot", "MatchdayPilot"]   (header AND footer)
++allAgree            true
++staleInRenderedText false      <- the check that actually answers the question
++```
++
++## Layout — the risk `bi-analyst-reviewer` raised
++
++The wordmark grew. `.brand` is `flex: none` (`system.css:363`); below 700px `.mainnav` is
++`display:none`, so only the brand and three 36px icon buttons share the row.
++
++Measured by swapping only the wordmark text in the live DOM, so both strings were measured under
++identical computed styles:
++
++| | px |
 +|---|---|
-+| `Bayern München` → `bayern-munchen` | `ü` HAS a base letter |
-+| `Rot-Weiß Essen` → `rot-weiss-essen` | `ß` has NONE |
++| Old `MatchdayIQ` | **105** |
++| New `MatchdayPilot` | **124** |
++| Growth from the rename | **+19** |
++| Space before `.header-actions` | **164** |
++| **Clearance remaining** | **40** |
 +
-+Those are **one rule, not an inconsistency** — the same rule `unidecode` and `iconv
-+//TRANSLIT` implement, and what Transfermarkt ships. Do not "fix" the apparent mismatch by
-+expanding umlauts to `ue`/`oe`/`ae`: it would change 17 German clubs' URLs for nothing.
-+The map lives in `macros/team_name_normalization.sql`; `assert_team_name_slug_alphabet`
-+fails the build on a letter it does not cover. Add targets from an external source of
-+record, never from the glyph's shape — two were wrong that way on the first attempt.
++**Header @ 320x720** — `brandRight 140`, `actionsLeft 180`, **clearance 40px**, `mainNavDisplay: none`,
++`horizontalScroll: false`.
 +
-+#### ⚠ Slugs are NOT yet stable across renames
-+The slug is **derived on every build**, so a rename or a newly ingested same-named team can
-+change a URL. Nothing is published yet — no public site, every page `noindex` — so no link
-+equity is at risk today, and the CPO deliberately deferred persistence rather than making
-+the warehouse non-reproducible before launch.
++**Header @ 700x800** (nav returns) — brand right 149, nav 171→583, actions left 601;
++`brandOverlapsNav: false`, `navOverlapsActions: false`, no horizontal scroll.
 +
-+**Before this site goes public, #852 must land**: the slug assigned once and stored, plus the
-+alias/301 mechanism, so the promise below holds. Until then, treat it as an intent:
++**Footer @ 320x720** — a different container (`.footer-in`) and NOT measured in v1: brand 16→120
++(104px, smaller footer type), `footerBrandOverflows: false`, `horizontalScroll: false`.
 +
- - Slug map (entity → slug → id) is produced by the export (#365) and is the single
--  source for routing and internal links. Slugs never change once published; a rename
--  produces a new alias, not a new canonical.
-+  source for routing and internal links. **Target state (#852, not yet true):** slugs never
-+  change once published; a rename produces a new alias, not a new canonical.
++Accessibility tree confirms the approved treatment survives: `link "Matchday"` with a child
++`generic "Pilot"` — the two-tone `.iq` span is still nested in the brand link, so only the word
++changed.
++
++## Console
++
++`read_console_messages(onlyErrors: true)` → **no errors**.
++
++## Locale interpolation — the `{brand}` indirection
++
++```
++en  Sample data · v2 preview (Matchday Pilot)
++de  Beispieldaten · v2-Vorschau (Matchday Pilot)
++fi  Esimerkkidata · v2-esikatselu (Matchday Pilot)
++```
++
++The placeholder INTERPOLATES in every locale rather than rendering literally. A literal `{brand}`
++would otherwise have shipped silently.
++
++## Known and deliberately untouched
++
++`system.css:2` carries `MATCHDAY IQ — v2 DESIGN SYSTEM` in its header comment. Visible in the dev
++server only, where Astro inlines CSS unminified; the build strips it, which is why the `dist/` sweep
++above is clean. `system.css` is the LOCKED design system and out of scope for this PR by decision —
++that comment goes with whoever next opens the file for a real reason (the owed chip-sizing change).
++
++## Not captured, and why
++
++**No screenshot.** `computer{action:"screenshot"}` fails here — *"the Browser pane is not displayed,
++so the page is not compositing frames"* — a limitation already recorded in the handover. For this
++question the geometry measurements are stronger than a screenshot: they give actual pixel clearance
++rather than an eyeball on whether two boxes touch.
+diff --git a/site_v2/astro.config.mjs b/site_v2/astro.config.mjs
+index 816ce49..cdad7ac 100644
+--- a/site_v2/astro.config.mjs
++++ b/site_v2/astro.config.mjs
+@@ -1,4 +1,4 @@
+-// Matchday IQ v2 — Astro config.
++// Matchday Pilot v2 — Astro config.
+ // Contract: docs/site_architecture.md (epic #361).
+ // Static output only (Firebase Hosting, no SSR). All locales are URL-prefixed
+ // (/de/…, /en/…); the root performs a browser-language redirect with `en`
+@@ -9,7 +9,13 @@
+ import { defineConfig } from "astro/config";
  
- ## 4. Hybrid competition IA
+ export default defineConfig({
+-  site: "https://ramialfahham.github.io",
++  // The production origin. Was `https://ramialfahham.github.io` — a host DELETED on 2026-07-21 when
++  // the MVP was retired, so every absolute URL derived from it would have resolved nowhere. Nothing
++  // consumes Astro.site yet (canonical, hreflang and the sitemap arrive in PR C2), so this corrects a
++  // latent-wrong value before anything starts depending on it.
++  // `www` -> apex is an HTTP redirect configured when the custom domain is connected in Firebase
++  // Hosting; it is NOT expressible in firebase.json, whose redirects match on path only.
++  site: "https://matchdaypilot.com",
+   output: "static",
+   base: "/",
+   trailingSlash: "always",
+diff --git a/site_v2/src/components/chrome/SiteFooter.astro b/site_v2/src/components/chrome/SiteFooter.astro
+index 6b53699..fc725f8 100644
+--- a/site_v2/src/components/chrome/SiteFooter.astro
++++ b/site_v2/src/components/chrome/SiteFooter.astro
+@@ -28,7 +28,14 @@ const flinks = [
  
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index ba89f26..4359d88 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -83,11 +83,21 @@ def _kebab(name: str | None) -> str:
-     return re.sub(r"[^a-zA-Z0-9]+", "-", base).strip("-").lower()
+ <footer class="site-footer">
+   <div class="footer-in">
+-    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
++    {/* Wordmark — must stay in lockstep with SiteHeader. The `.iq` class and its two-tone treatment
++        are kept deliberately: system.css is the locked design system, so a rename changes the WORD
++        and nothing visual. Note the brand is SPLIT by the span, so a source grep for the joined
++        product name cannot find it — verify any future rename against RENDERED TEXT. That blind
++        spot is exactly how this instance was missed and caught in review.
++        An Astro expression comment, not `<!-- -->`, because HTML comments are EMITTED to the built
++        page — a note naming the old brand would ship it straight back into the output. */}
++    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
+     <div class="flinks">
+       {flinks.map((label) => <span>{label}</span>)}
+       <span class="imp">{t(lang, "footerImprintPending")}</span>
+diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
+index bd01472..f6bce28 100644
+--- a/site_v2/src/components/chrome/SiteHeader.astro
++++ b/site_v2/src/components/chrome/SiteHeader.astro
+@@ -31,7 +31,11 @@ const navItems = [
  
+ <header class="site-header">
+   <div class="header-in">
+-    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
++    {/* Wordmark — must stay in lockstep with SiteFooter. The `.iq` class and its two-tone treatment
++        are kept deliberately: system.css is the locked design system, so a rename changes the WORD
++        and nothing visual. An Astro expression comment, not `<!-- -->`, which would be emitted into
++        every built page. */}
++    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
  
--def slugify(name: str | None, entity_id: int) -> str:
--    """Stable, locale-independent URL slug: ``{kebab-name}-{id}``.
--
--    The id suffix guarantees uniqueness and stability across renames (a rename
--    keeps the same slug). Matches docs/site_architecture.md section 3.
-+def player_slug_with_id(name: str | None, entity_id: int) -> str:
-+    """PLAYER URL slug: ``{kebab-name}-{id}``.
+     <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
+       {navItems.map((label) => <span>{label}</span>)}
+@@ -80,7 +84,9 @@ const navItems = [
+   // the whole shell / toggle a sibling nav's visibility, which the site's
+   // existing JS-free radio-toggle pattern (tabs, segments) can't do — that
+   // pattern only shows/hides a panel within the same component tree.
+-  const KEY = "mdiq-theme";
++  // Renamed with the product. Discards any saved preference — free today, because the site is
++  // unpublished (noindex, unlisted) so there is no reader to lose one. Must match Layout.astro.
++  const KEY = "mdp-theme";
+   const body = document.body;
+ 
+   const themeBtn = document.getElementById("themeBtn");
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 67e9521..5260dc6 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -9,6 +9,16 @@ import type { Lang } from "../lib/format";
+ 
+ type Dict = Record<string, string>;
+ 
++/** The product name, in ONE place. Interpolated into strings via `t()`'s `{brand}` param.
++ *
++ * Deliberately a plain constant substituted at call time rather than a template literal inside
++ * the dictionaries: `site_v2/scripts/check-page-specs.mjs` extracts the EN key set with
++ * `/([A-Za-z0-9_-]+):\s*"/g`, which matches on a DOUBLE QUOTE. Rewriting a dictionary entry as
++ * a backtick template would silently drop that key from the set the build gate checks, and the
++ * gate's own `MIN_EXPECTED_KEYS` floor is too coarse to notice two keys going missing. Keep every
++ * dictionary value double-quoted. */
++export const BRAND = "Matchday Pilot";
 +
-+    Named for its one remaining caller on purpose. Team slugs are NOT built here any
-+    more -- they are derived in the warehouse and served on ``mart_team_profile`` as
-+    ``team_slug`` (#852), because assigning an identifier is derivation and this script
-+    is the consumption layer (#846). Calling this for a team would put the provider id
-+    back in a team URL, which the CPO ruled out.
-+
-+    Two things a reader should not trust from the old version of this docstring:
-+    it claimed the id suffix gave "stability across renames" -- it does not, because
-+    the name half is recomputed from the current name on every export, which is #843.
-+    And ``_kebab`` DELETES any character NFKD cannot decompose, so a player named
-+    Sigurðsson still loses a letter here. The transliteration fix (CPO ruling E3)
-+    landed for teams only; players inherit it when player slugs move to the warehouse.
-     """
-     base = _kebab(name)
-     return f"{base}-{entity_id}" if base else str(entity_id)
-@@ -289,7 +299,10 @@ def shape_team_payload(
-     return {
-         "type": "team",
-         "team_id": team_id,
--        "slug": slugify(latest.get("team_name"), team_id),
-+        # Served, not computed: mart_team_profile carries team_slug, derived in the warehouse
-+        # from the corrected name (#852). A slug built here would be identity generation in the
-+        # consumption layer, and would reintroduce the provider id the CPO ruled out.
-+        "slug": latest.get("team_slug"),
-         "name": latest.get("team_name"),
-         "country": latest.get("team_country"),
-         "crest": latest.get("team_logo_url"),
-@@ -472,7 +485,7 @@ def shape_player_payload(
-     return {
-         "type": "player",
-         "player_id": player_id,
--        "slug": slugify(latest.get("player_name"), player_id),
-+        "slug": player_slug_with_id(latest.get("player_name"), player_id),
-         "name": latest.get("player_name"),
-         "nationality": latest.get("player_nationality"),
-         "birth_date": latest.get("player_birth_date"),
-@@ -611,7 +624,7 @@ def _strip_identity(row: dict) -> dict:
-     """Drop the repeated identity columns from a per-season row (they live once
-     at the top of the payload, not on every season)."""
-     drop = {
--        "team_name", "team_country", "team_logo_url",
-+        "team_name", "team_slug", "team_country", "team_logo_url",
-         "team_founded_year", "venue_name", "venue_city", "venue_capacity",
-         "player_name", "player_first_name", "player_last_name",
-         "player_nationality", "player_birth_date", "player_photo_url",
-diff --git a/site_v2/src/data/teams/33.json b/site_v2/src/data/teams/33.json
-index a3b5353..fa07d71 100644
---- a/site_v2/src/data/teams/33.json
-+++ b/site_v2/src/data/teams/33.json
+ const EN: Dict = {
+   crumbHome: "Home",
+   crumbMatches: "Matches",
+@@ -43,7 +53,7 @@ const EN: Dict = {
+   table: "Table",
+   topScorers: "Top scorers",
+   fullH2H: "Full head-to-head",
+-  footnote: "Sample data · v2 preview (Matchday IQ)",
++  footnote: "Sample data · v2 preview ({brand})",
+   aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times — {record}.",
+   aboutNoH2h: "{home} vs {away} · {round}.",
+   posF: "Forward", posM: "Midfield", posD: "Defence", posG: "Goalkeeper",
+@@ -97,7 +107,7 @@ const EN: Dict = {
+   fxAway: "Away",
+   fxNext: "Next",
+   linkFixtures: "Full fixture list",
+-  teamFootnote: "Sample data · v2 preview (Matchday IQ)",
++  teamFootnote: "Sample data · v2 preview ({brand})",
+   // --- chrome (site-wide header/footer, #825) ---
+   navCompetitions: "Competitions",
+   navMatches: "Matches",
+@@ -149,7 +159,7 @@ const DE: Dict = {
+   table: "Tabelle",
+   topScorers: "Torjäger",
+   fullH2H: "Kompletter Vergleich",
+-  footnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
++  footnote: "Beispieldaten · v2-Vorschau ({brand})",
+   aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander — {record}.",
+   aboutNoH2h: "{home} gegen {away} · {round}.",
+   posF: "Angriff", posM: "Mittelfeld", posD: "Abwehr", posG: "Tor",
+@@ -203,7 +213,7 @@ const DE: Dict = {
+   fxAway: "Auswärts",
+   fxNext: "Nächstes",
+   linkFixtures: "Alle Spiele",
+-  teamFootnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
++  teamFootnote: "Beispieldaten · v2-Vorschau ({brand})",
+   // --- chrome (site-wide header/footer, #825) ---
+   navCompetitions: "Wettbewerbe",
+   navMatches: "Spiele",
+@@ -255,7 +265,7 @@ const FI: Dict = {
+   table: "Sarjataulukko",
+   topScorers: "Maalintekijät",
+   fullH2H: "Kaikki kohtaamiset",
+-  footnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
++  footnote: "Esimerkkidata · v2-esikatselu ({brand})",
+   aboutWithH2h: "{home} vs {away} · {round}. Joukkueet ovat kohdanneet {meetings} kertaa — {record}.",
+   aboutNoH2h: "{home} vs {away} · {round}.",
+   posF: "Hyökkäys", posM: "Keskikenttä", posD: "Puolustus", posG: "Maalivahti",
+@@ -309,7 +319,7 @@ const FI: Dict = {
+   fxAway: "Vieras",
+   fxNext: "Seuraava",
+   linkFixtures: "Kaikki ottelut",
+-  teamFootnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
++  teamFootnote: "Esimerkkidata · v2-esikatselu ({brand})",
+   // --- chrome (site-wide header/footer, #825) ---
+   navCompetitions: "Kilpailut",
+   navMatches: "Ottelut",
+diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
+index d356fd9..bc769ec 100644
+--- a/site_v2/src/layouts/Layout.astro
++++ b/site_v2/src/layouts/Layout.astro
+@@ -36,7 +36,7 @@ const { lang, title, description } = Astro.props;
+       // bundling/deferral) — timing here is the whole point.
+       (function () {
+         try {
+-          var saved = localStorage.getItem("mdiq-theme");
++          var saved = localStorage.getItem("mdp-theme");
+           if (saved === "light" || saved === "dark") {
+             document.body.setAttribute("data-theme", saved);
+           }
+diff --git a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
+index 39c97f1..d3c630f 100644
+--- a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
+@@ -14,7 +14,7 @@ import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
+ import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
+ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+ import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
+-import { t } from "../../../../i18n/strings";
++import { t, BRAND } from "../../../../i18n/strings";
+ import { localeHref } from "../../../../lib/href";
+ import type { Lang } from "../../../../lib/format";
+ import type { Fixture } from "../../../../lib/types";
+@@ -101,6 +101,6 @@ const crumbs = [
+     <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
+     <LinksFooter fixture={fixture} lang={lang} />
+ 
+-    <div class="footnote">{t(lang, "footnote")}</div>
++    <div class="footnote">{t(lang, "footnote", { brand: BRAND })}</div>
+   </div>
+ </Layout>
+diff --git a/site_v2/src/pages/[lang]/index.astro b/site_v2/src/pages/[lang]/index.astro
+index d3cb7e9..3a01e3c 100644
+--- a/site_v2/src/pages/[lang]/index.astro
++++ b/site_v2/src/pages/[lang]/index.astro
+@@ -9,9 +9,9 @@ export function getStaticPaths() {
+ }
+ const { lang } = Astro.params;
+ const headline: Record<string, string> = {
+-  de: "Matchday IQ v2 — im Aufbau",
+-  en: "Matchday IQ v2 — under construction",
+-  fi: "Matchday IQ v2 — rakenteilla",
++  de: "Matchday Pilot v2 — im Aufbau",
++  en: "Matchday Pilot v2 — under construction",
++  fi: "Matchday Pilot v2 — rakenteilla",
+ };
+ ---
+ 
+@@ -21,7 +21,7 @@ const headline: Record<string, string> = {
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1" />
+     <meta name="robots" content="noindex" />
+-    <title>Matchday IQ</title>
++    <title>Matchday Pilot</title>
+   </head>
+   <body>
+     <h1>{headline[lang ?? "en"]}</h1>
+diff --git a/site_v2/src/pages/[lang]/teams/[team].astro b/site_v2/src/pages/[lang]/teams/[team].astro
+index 9a06de9..138cf4c 100644
+--- a/site_v2/src/pages/[lang]/teams/[team].astro
++++ b/site_v2/src/pages/[lang]/teams/[team].astro
+@@ -16,7 +16,7 @@ import TeamFixtures from "../../../components/team/TeamFixtures.astro";
+ import TeamPerformance from "../../../components/team/TeamPerformance.astro";
+ import TeamSquad from "../../../components/team/TeamSquad.astro";
+ import SectionHead from "../../../components/ui/SectionHead.astro";
+-import { t } from "../../../i18n/strings";
++import { t, BRAND } from "../../../i18n/strings";
+ import { localeHref } from "../../../lib/href";
+ import type { Lang } from "../../../lib/format";
+ import type { Team, TeamSeason } from "../../../lib/types";
+@@ -108,6 +108,6 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
+       <TeamSquad season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
+     </div>
+ 
+-    <div class="footnote">{t(lang, "teamFootnote")}</div>
++    <div class="footnote">{t(lang, "teamFootnote", { brand: BRAND })}</div>
+   </div>
+ </Layout>
+diff --git a/site_v2/src/pages/index.astro b/site_v2/src/pages/index.astro
+index 3aa0e08..d9ee799 100644
+--- a/site_v2/src/pages/index.astro
++++ b/site_v2/src/pages/index.astro
+@@ -10,7 +10,7 @@ const locales = ["de", "en", "fi"];
+     <meta charset="utf-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1" />
+     <meta name="robots" content="noindex" />
+-    <title>Matchday IQ</title>
++    <title>Matchday Pilot</title>
+     <script is:inline>
+       (function () {
+         var supported = ["de", "en", "fi"];
+@@ -21,7 +21,7 @@ const locales = ["de", "en", "fi"];
+     </script>
+   </head>
+   <body>
+-    <h1>Matchday IQ</h1>
++    <h1>Matchday Pilot</h1>
+     <ul>
+       {locales.map((l) => (
+         <li><a href={`./${l}/`}>{l.toUpperCase()}</a></li>
+diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
+index 63b66ac..a00142b 100644
+--- a/site_v2/src/specs/page-spec.schema.json
++++ b/site_v2/src/specs/page-spec.schema.json
 @@ -1,7 +1,7 @@
  {
-   "type": "team",
-   "team_id": 33,
--  "slug": "manchester-united-33",
-+  "slug": "manchester-united",
-   "name": "Manchester United",
-   "country": "England",
-   "crest": "https://media.api-sports.io/football/teams/33.png",
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 87ba9d2..9cdb7d6 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -24,7 +24,7 @@ from scripts.export_site_data import (
-     shape_player_payload,
-     shape_team_payload,
-     shape_top_players,
--    slugify,
-+    player_slug_with_id,
- )
- 
- 
-@@ -179,38 +179,56 @@ def test_shape_fixture_payload_composes_header_and_sides():
-     assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
- 
- 
--def test_slugify_folds_accents_and_appends_id():
--    assert slugify("Bayern München", 157) == "bayern-munchen-157"
-+def test_player_slug_folds_accents_and_appends_id():
-+    assert player_slug_with_id("Bayern München", 157) == "bayern-munchen-157"
- 
- 
--def test_slugify_collapses_punctuation_and_spaces():
--    assert slugify("Brighton & Hove Albion", 51) == "brighton-hove-albion-51"
-+def test_player_slug_collapses_punctuation_and_spaces():
-+    assert player_slug_with_id("Brighton & Hove Albion", 51) == "brighton-hove-albion-51"
- 
- 
--def test_slugify_falls_back_to_id_when_name_empty():
--    assert slugify("", 99) == "99"
--    assert slugify(None, 99) == "99"
-+def test_player_slug_falls_back_to_id_when_name_empty():
-+    assert player_slug_with_id("", 99) == "99"
-+    assert player_slug_with_id(None, 99) == "99"
-+
-+
-+def test_player_slug_still_drops_undecomposable_letters():
-+    """Pins the KNOWN, deliberate gap so it is visible rather than discovered.
-+
-+    `_kebab` folds via NFKD then drops whatever is left non-ASCII, so a character with no
-+    decomposition vanishes instead of transliterating. The CPO ruled transliteration (E3),
-+    and it landed for TEAM slugs, which are now derived in the warehouse. Player slugs still
-+    run through this function, so they still lose the letter. When player slugs move to the
-+    warehouse this test should start failing -- and the fix is to delete it, not to widen it.
-+    """
-+    assert player_slug_with_id("Sigurðsson", 1) == "sigursson-1"
-+    assert player_slug_with_id("Preußen", 2) == "preuen-2"
- 
- 
- def test_shape_team_payload_identity_from_latest_and_seasons_desc():
-     rows = [
-         {"team_sk": 157, "season_api_year": 2024, "league_code": "BL1",
--         "team_name": "Bayern", "team_country": "Germany", "team_logo_url": "u", "points": 78,
-+         "team_name": "Bayern", "team_slug": "bayern-munchen", "team_country": "Germany",
-+         "team_logo_url": "u", "points": 78,
-          "team_founded_year": 1900, "venue_name": "Old", "venue_city": "München", "venue_capacity": 70000},
-         {"team_sk": 157, "season_api_year": 2025, "league_code": "BL1",
--         "team_name": "Bayern München", "team_country": "Germany", "team_logo_url": "u2", "points": 82,
-+         "team_name": "Bayern München", "team_slug": "bayern-munchen", "team_country": "Germany",
-+         "team_logo_url": "u2", "points": 82,
-          "team_founded_year": 1900, "venue_name": "Allianz Arena", "venue_city": "München", "venue_capacity": 75000},
-     ]
-     p = shape_team_payload(rows)
-     assert p["team_id"] == 157
--    assert p["slug"] == "bayern-munchen-157"          # from the 2025 (latest) row
-+    # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
-+    # The old assertion was "bayern-munchen-157" -- that id is exactly what the CPO ruled out.
-+    assert p["slug"] == "bayern-munchen"              # from the 2025 (latest) row
-     assert p["name"] == "Bayern München"
-     # GAP-01: founded year + venue from the latest row; venue is a nested block
-     assert p["founded_year"] == 1900
-     assert p["venue"] == {"name": "Allianz Arena", "city": "München", "capacity": 75000}
-     assert [s["season_api_year"] for s in p["seasons"]] == [2025, 2024]  # desc
--    # identity columns (incl. founded/venue) are stripped from per-season rows
-+    # identity columns (incl. founded/venue and the slug) are stripped from per-season rows
-     assert "team_name" not in p["seasons"][0]
-+    assert "team_slug" not in p["seasons"][0]
-     assert "team_founded_year" not in p["seasons"][0] and "venue_name" not in p["seasons"][0]
-     assert p["seasons"][0]["points"] == 82
- 
+   "$schema": "http://json-schema.org/draft-07/schema#",
+-  "$id": "https://matchdayiq/site_v2/page-spec.schema.json",
+-  "title": "Matchday IQ v2 page spec",
++  "$id": "https://matchdaypilot/site_v2/page-spec.schema.json",
++  "title": "Matchday Pilot v2 page spec",
+   "description": "One spec per page TEMPLATE (not per rendered instance). Declares the page's blocks, each block's backing dbt mart, and the i18n keys it uses, so a build-time checker (site_v2/scripts/check-page-specs.mjs) can refuse to build a page with no spec or a spec that references something that does not exist. Shape rules here are mirrored by hand in check-page-specs.mjs -- keep the two in sync. See docs/content_architecture.md for the block library this sits on top of.",
+   "type": "object",
+   "required": ["page", "entity", "blocks"],

@@ -16,7 +16,7 @@ import TeamFixtures from "../../../components/team/TeamFixtures.astro";
 import TeamPerformance from "../../../components/team/TeamPerformance.astro";
 import TeamSquad from "../../../components/team/TeamSquad.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
-import { t } from "../../../i18n/strings";
+import { t, BRAND } from "../../../i18n/strings";
 import { localeHref } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
 import type { Team, TeamSeason } from "../../../lib/types";
@@ -108,6 +108,6 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
       <TeamSquad season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
     </div>
 
-    <div class="footnote">{t(lang, "teamFootnote")}</div>
+    <div class="footnote">{t(lang, "teamFootnote", { brand: BRAND })}</div>
   </div>
 </Layout>
