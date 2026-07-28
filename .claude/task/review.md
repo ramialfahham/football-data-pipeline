@@ -1,130 +1,108 @@
-# Review — feat/team-slug-no-provider-id — 2026-07-28
+# Review — feat/rename-matchday-pilot — 2026-07-28
 
 > Machine-checked review artifact (governance G3). Written in step 4 (Lock), after staging and after
-> the blinded reviewers returned. **Three rounds, at the cap.** The history matters, so it is here
-> rather than lost:
+> the blinded reviewers returned. **Three rounds, at the cap.** Both FAILs were real, and both were
+> the same failure class, so the history is here rather than lost:
 >
-> **Round 1 — analytics-engineer-reviewer FAIL, and it was a real bug.** The level-3 terminal
-> (`{candidate}-{id}`) was unique among id-suffixed rows because the id is, but was never
-> anti-joined against the slugs already assigned at levels 1 and 2. Reachable, because club names
-> embed digits: `1899 Hoffenheim` owns `hoffenheim-1899`. The model's own header and `base.yml`
-> claimed unconditional closure and were wrong. Its second finding was also mine: I asserted both
-> that level 2 fires on zero real rows AND that the Ararat case was "live" and "BigQuery-verified".
-> Measured — `3682 Ararat` and `3683 Ararat-Armenia` both sit at level 1, so the anti-join has never
-> fired. The data pattern is live; the mechanism is latent.
+> **Round 1 — bi-analyst-reviewer FAIL: no rendered-page evidence.** #827 requires it for any
+> `site_v2/src/**` diff. I had quoted `dist/` strings inline, which proves text substitution and says
+> NOTHING about layout. Its specific finding: the wordmark grows from `MatchdayIQ` to
+> `MatchdayPilot` while `.brand` is `flex: none` (`system.css:363`) in a header where, below 700px,
+> `.mainnav` is `display:none`. My claim that the rename "changes the word and nothing visual" was an
+> assertion about layout I had never measured. Measured since: **+19px, 40px clearance remaining at
+> 320px**, no overflow, no horizontal scroll.
 >
-> **Round 2 — closed the gap, and introduced a hack.** An `assigned_before_level_3` anti-join, plus a
-> level-4 terminal inserting a DOUBLED hyphen, justified because `kebab_slug` collapses runs so `--`
-> is unreachable. Provably unique. Both reviewers passed it.
+> **Round 2 — cto-reviewer FAIL, on a REAL missed rename.** `SiteFooter.astro` was never renamed, so
+> every shipped page carried `MatchdayPilot` in the header and `MatchdayIQ` in the footer — both
+> present in one built file.
 >
-> **Round 3 — the CPO rejected the output on sight** (*"A double hyphen? Seriously? Looks
-> extraordinary hacky."*) and he was right. Level 4 is deleted. The anti-join stays. The residual is
-> now STATED: if a level-3 candidate is itself taken, `team_slug` is NULL and `not_null` stops the
-> build naming the team. Removing the branch changed NO output — 3,250 distinct slugs before and
-> after, zero double hyphens either way. It was machinery for a case that has never occurred.
+> **Why every check in this contract was structurally incapable of finding it, which is the lesson.**
+> The wordmark is split across markup — `Matchday` then `<span>IQ</span>` — so no file contains the
+> literal `"Matchday IQ"` and none contains `mdiq`. The impact_map's own grep evidence could never
+> have caught it. Worse, it falsified my round-1 evidence artifact: it claimed
+> `staleBrandAnywhere: false` from a regex over `document.documentElement.outerHTML`, which
+> **preserves the span split**. Over `textContent` the string is contiguous `MatchdayIQ` and matches.
+> **A rename is verified against RENDERED TEXT — never a source grep, never `outerHTML`.**
 >
-> **The reason it was wrong is not only aesthetic.** Two of the three triggers that push a team to
-> level 3 are DATA DEFECTS, not naming problems: a same-country duplicate record (#850's open alias
-> decision — the entire reason the Nyasa pair is there) and a null country (#853: 39 teams, 22 of
-> which have a country sitting in `stg_apif__teams`). An automatic escape hatch below level 3 made
-> that absorption invisible. Both docs now name the owners.
+> A second, self-inflicted instance of the same class inside the fix: the explanatory comment I first
+> added to `SiteFooter` was an HTML comment naming the old brand, and **Astro emits `<!-- -->` into
+> the built page** — shipping the stale string straight back into the output. Both wordmark comments
+> are now Astro expression comments (`{/* … */}`).
+>
+> **Round 3 — all three PASS**, each re-verified against the real `dist/` rather than against the
+> corrected prose. `grep -rl "Matchday IQ\|MatchdayIQ\|matchdayiq" dist/` returns nothing;
+> all 12 wordmark occurrences read `Pilot`; the only comment surviving in any built page is the
+> pre-existing `noindex` note.
 
-diff_sha256: 9bb99a180a66bf04dcb8dddabb7dbcf800a0daf279daab8595f22733f02f8d3d
+diff_sha256: e71d5494102cc330c83a1db7b24f8f3a14431ccda58579c0df8652128dbd4c6b
 
 rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- **Removing level 4 is guard STRENGTHENING, not loosening** — the standing rule here is "never
-  loosen a guard", so this was audited directly. The level-4 branch was not a guard; it was an
-  automatic workaround that ensured `not_null` could never fail, neutering it. Deleting it gives the
-  guard teeth: a level-3 collision now stops the build and names the team instead of silently
-  emitting a URL no reader should see.
-- **Data-defect ownership is now named rather than absorbed** — the docs cite #850 (alias decision
-  for duplicate records) and #853 (39 null countries) as the owners of the two common level-3
-  triggers, which is what stops a future reader reinventing level 4 as a "fix".
-- Rounds 1-2 risks, unaffected by this delta: scope held with one legitimate amendment
-  (`site_v2/src/data/teams/33.json`, named in the approved plan, omitted from `scope_paths` by
-  mistake) and one deliberately REFUSED amendment (`dbt_project/.sqlfluff`, recorded as refused);
-  every `decisions_reserved` item still reserved (persistence, player/coach slugs, the dead
-  `team_name_key` macro, the two phantom records); the `site_architecture.md` §3 rewrite is a
-  correction that relocates the "never change once published" promise to an explicit target state
-  rather than deleting it; the FALSE `mode=alias` claim the previous PR left in `seeds/schema.yml` is
-  corrected with a dated CORRECTION note explaining why it was wrong.
-- ⚠️ HONEST CAVEAT ON THIS ROUND'S VERDICT: scope-auditor used **zero tool calls** in round 3 and
-  wrote "CORRECT IF PRESENT" about the doc changes, so its round-3 verdict rests on my description
-  rather than on reading the files. I verified the claims myself by grep: the hack-was-removed note
-  is at `base_apif__teams_global.sql:215-218` and `base.yml:49-52`, the DATA DEFECTS note at
-  `base_apif__teams_global.sql:205` and `base.yml:53-55`, the STATED RESIDUAL at `base.yml:45`, and
-  the `not_null`-as-escalation-path wording at `core.yml:186`. Recorded rather than glossed.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- **The NULL path is correctly modelled and correctly caught**, verified by reading the current file
-  rather than the summary: the final `case` has no `else`, which in BigQuery yields NULL, and
-  `core.yml` carries both `not_null` and `unique` on `team_slug`. The reviewer then found an edge I
-  had not stated — if the branch fired for TWO OR MORE teams, `unique`'s `group by` treats NULLs as
-  one group and would ALSO fail. The two tests reinforce each other; there is no gap between them.
-- **Round 1's actual gap stays closed** — `assigned_before_level_3` is unmodified, and its two
-  `where` clauses were re-checked against the final case's level-1 and level-2 winning conditions and
-  still match exactly. Removing level 4 only changes the disposition of the (verified zero) rows that
-  would have collided AT level 3; every non-NULL slug remains provably collision-free.
-- **The docs no longer overclaim** — `base.yml` says "STATED RESIDUAL, not closed", which is strictly
-  more honest than round 2's "closure is unconditional" and matches what is actually true.
-- **It agreed with the removal on substance, not taste**, and grounded that in this repo's own
-  standards: the site is pre-launch (`noindex`, no public site), so failing loud costs nothing today;
-  reaching the branch requires an underlying data defect FIRST, which is exactly the
-  ambiguous-identity situation the codebase says should get a human and an override row rather than a
-  silent rule; and it is not new blast radius, because `unique` already carried "any collision halts
-  the nightly" exposure — `not_null` now shares it for a strictly narrower, zero-occurrence case, and
-  names the offending team instead of requiring someone to diff URLs.
-- Rounds 1-2, unaffected: no `team_slug` leakage into unrelated marts (all 21 `ref('dim_team')`
-  consumers checked; the two that `select *` enumerate their projection); layer placement legitimate
-  against the actual text of `layering.md`; the level-4 `--` proof was independently re-derived from
-  the regex before being removed; export purity correct with `team_slug` in the identity-drop set.
+- **Four amendments on a "rename the site surface" PR — ruled DISCOVERY, not drift.** I put the
+  question to it in exactly those terms, including that my own reading was self-serving, rather than
+  defend it. Its ruling, per amendment: 1 (fnmatch patterns) is a syntax repair covering the same
+  four files, no scope change; 2 (`page-spec.schema.json`) was already in `scope_paths` and makes
+  this contract's own `done_when` TRUE rather than weakening it; 3 (`launch.json` +
+  `rendered_page_evidence.md`) are both in `scope_paths` and required to satisfy `done_when`'s #827
+  clause; 4 (`SiteFooter.astro`) was NOT in `scope_paths` and is the one that mattered — admitted on
+  the grounds that the objective *"rename the SITE surface"* covers all surface renderings, the
+  omission was an impact_map blind spot rather than builder convenience, and the amendment was
+  prompted by a reviewer FAIL. No `decisions_reserved` item moved; no §10 boundary crossed.
+- **Grep-based impact_map evidence has a structural blind spot on split markup.** Recorded as the
+  transferable lesson: for frontend markup work, string search is necessary but not sufficient, and
+  the only reason this did not ship was that the review cycle caught what the contract's own
+  evidence commands could not. (Appendix A6.)
+- **Header/footer brand consistency verified at the source**, not from my description: both
+  components now render the same `Matchday<span class="iq">Pilot</span>` structure and both take the
+  brand from the single exported constant.
+- **The refused fifth amendment is correct discipline.** `system.css:2` still carries
+  `MATCHDAY IQ — v2 DESIGN SYSTEM` in a header comment. Leaving it beats amending the LOCKED design
+  system for a comment that is not load-bearing and is stripped at build.
 
 ## cto-reviewer
 VERDICT: PASS
-> Round 2 verdict, carried forward: round 3 touched only `base_apif__teams_global.sql`, `base.yml` and
-> `core.yml` — all `dbt_project/**`, none of them a cto-routed surface.
 risks_checked:
-- **The `.sqlfluff` change cannot affect CI** — `ci-data-build.yml` lints with
-  `working-directory: dbt_project` and no `--templater` override, so it resolves the untouched nested
-  config (`templater = dbt`) and never invokes the jinja templater; `ci-validate.yml` does not run
-  sqlfluff at all; no hook reads `.sqlfluff`. The new section is inert unless `--templater jinja` is
-  passed explicitly.
-- **A non-blocking fragility, recorded rather than dropped:** the old `slugify()` could never return
-  empty, so the payload's `slug` was never `None`. `latest.get("team_slug")` can be, and
-  `slug_map[None]` would silently become the JSON key `"null"` and collide across teams. Judged
-  acceptable: every other identity field in that payload relies on `.get()` the same way, and
-  `team_slug` has MORE protection than most (`not_null` and `unique`). Note this interacts with round
-  3 — the NULL case is now reachable in principle, and `not_null` is what stops it reaching the
-  export at all.
-- Rename hygiene: the repo was grepped for `slugify`; only the updated test file and an accurate
-  mention in `active_work.md` remain. The rename prevents a future caller reusing it for a team and
-  reintroducing the id the CPO ruled out.
-- The pinning test is honest — `_kebab`'s NFKD-then-ascii-ignore path was traced by hand for both
-  literals, so `sigursson-1` and `preuen-2` are real current behaviour, not guessed.
+- **The round-2 FAIL is closed in the BUILD, not just the source.** Re-verified all 12 wordmark
+  occurrences across the built pages read `Pilot`; the header/footer pair in a single file was the
+  specific defect and both now agree.
+- **No HTML comment leaks the old brand into any built page.** The only comment surviving anywhere
+  in `dist/` is the pre-existing `noindex` note — confirming the self-inflicted second instance is
+  closed, and that the `{/* … */}` conversion behaves as claimed.
+- **`mdiq-theme` → `mdp-theme` is a deliberate, stated discard**, not a silent side effect: it drops
+  every saved theme preference, which is free only because the site is unpublished (`noindex`,
+  unlisted) so there is no reader to lose one. `SiteHeader.astro` and `Layout.astro` were checked to
+  use the same key — a mismatch would silently break the toggle's persistence.
+- **`astro.config.mjs` `site` corrected from a host DELETED on 2026-07-21** to `matchdaypilot.com`.
+  Nothing consumes `Astro.site` yet (no canonical, no sitemap — that is C2), so this is a
+  latent-wrong value fixed before anything depends on it. `www → apex` is configured at domain
+  connection, NOT in `firebase.json`, where a path-only redirect would loop.
+- Agreed with leaving `system.css:2`'s stale comment untouched: the file is locked and the comment
+  is stripped at build.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
-> Round 2 verdict, carried forward: round 3 touched no `site_v2/**` file.
 risks_checked:
-- **The binding rule, traced end to end** rather than taken from prose: base derives `team_slug` →
-  `dim_team` publishes it → `mart_team_profile` selects it → the export reads it. The value the
-  committed sample asserts is one the warehouse genuinely produces, which is the fabrication class
-  this reviewer hunts for. It also confirmed `slugify` no longer exists, so no live path could put
-  the id back on a team slug.
-- **Rendered-page evidence (#827) correctly does not apply**, established by grepping `\.slug\b`
-  across all of `site_v2/src`: the only consumers are `getStaticPaths` in two page files — route
-  generation, never template interpolation. No component reads `.slug`. This changes which path a
-  page is generated at, not anything a reader sees.
-- Sample self-consistency: `33.json` contains the slug exactly once with no stale `-33` elsewhere,
-  and the only other committed sample never embeds a team slug.
-- The team/player slug shape divergence is disclosed in the `site_architecture.md` diff with its
-  reason and marked out of scope in `decisions_reserved`.
+- **The split-wordmark defect is fixed at the byte level**, verified by grepping the real
+  `dist/en/teams/manchester-united/index.html` directly rather than trusting the corrected evidence
+  doc: `Matchday<span class="iq">Pilot</span>` appears twice (header and footer), and a
+  case-insensitive sweep of the whole `dist/` tree for the old brand returns zero files.
+- **Footer wordmark layout at 320x720 — a container neither reviewer had measured.** `.footer-in`,
+  104px wordmark (smaller footer type), `footerBrandOverflows: false`, no horizontal scroll. This
+  closes the round-1 layout finding symmetrically with the header measurement.
+- **No third reader-visible brand surface was missed**, verified by its own sweep of all of
+  `site_v2/` — wider than `site_v2/src/`. The only additional hits are `"matchday-aligned"` in
+  `TeamPerformance.astro`/`DeservedHero.astro`, which is football-window vocabulary and not the
+  brand, and `package.json`'s `"name": "matchdayiq-site-v2"`, an npm identifier that never appears in
+  any HTTP response. Left for C2, which edits `package.json` anyway to add `@astrojs/sitemap`.
+- **`{brand}` interpolates in all three locales** rather than rendering literally — a literal
+  `{brand}` would have shipped silently. Confirmed the EN key count extracted by
+  `check-page-specs.mjs`'s own regex is 110 before and after, proving the `t()`-param form (not a
+  template literal) did not blind the existing gate.
+- On sufficiency for #827: yes, and the stated rule — verify a rename against rendered/joined text,
+  never source greps or `outerHTML` — is the correct generalization of what let this past both of us.
 
 ## escalations
 (none)

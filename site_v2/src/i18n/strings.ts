@@ -9,6 +9,16 @@ import type { Lang } from "../lib/format";
 
 type Dict = Record<string, string>;
 
+/** The product name, in ONE place. Interpolated into strings via `t()`'s `{brand}` param.
+ *
+ * Deliberately a plain constant substituted at call time rather than a template literal inside
+ * the dictionaries: `site_v2/scripts/check-page-specs.mjs` extracts the EN key set with
+ * `/([A-Za-z0-9_-]+):\s*"/g`, which matches on a DOUBLE QUOTE. Rewriting a dictionary entry as
+ * a backtick template would silently drop that key from the set the build gate checks, and the
+ * gate's own `MIN_EXPECTED_KEYS` floor is too coarse to notice two keys going missing. Keep every
+ * dictionary value double-quoted. */
+export const BRAND = "Matchday Pilot";
+
 const EN: Dict = {
   crumbHome: "Home",
   crumbMatches: "Matches",
@@ -43,7 +53,7 @@ const EN: Dict = {
   table: "Table",
   topScorers: "Top scorers",
   fullH2H: "Full head-to-head",
-  footnote: "Sample data · v2 preview (Matchday IQ)",
+  footnote: "Sample data · v2 preview ({brand})",
   aboutWithH2h: "{home} vs {away} · {round}. The two clubs have met {meetings} times — {record}.",
   aboutNoH2h: "{home} vs {away} · {round}.",
   posF: "Forward", posM: "Midfield", posD: "Defence", posG: "Goalkeeper",
@@ -97,7 +107,7 @@ const EN: Dict = {
   fxAway: "Away",
   fxNext: "Next",
   linkFixtures: "Full fixture list",
-  teamFootnote: "Sample data · v2 preview (Matchday IQ)",
+  teamFootnote: "Sample data · v2 preview ({brand})",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Competitions",
   navMatches: "Matches",
@@ -149,7 +159,7 @@ const DE: Dict = {
   table: "Tabelle",
   topScorers: "Torjäger",
   fullH2H: "Kompletter Vergleich",
-  footnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
+  footnote: "Beispieldaten · v2-Vorschau ({brand})",
   aboutWithH2h: "{home} gegen {away} · {round}. Die Klubs trafen bereits {meetings} Mal aufeinander — {record}.",
   aboutNoH2h: "{home} gegen {away} · {round}.",
   posF: "Angriff", posM: "Mittelfeld", posD: "Abwehr", posG: "Tor",
@@ -203,7 +213,7 @@ const DE: Dict = {
   fxAway: "Auswärts",
   fxNext: "Nächstes",
   linkFixtures: "Alle Spiele",
-  teamFootnote: "Beispieldaten · v2-Vorschau (Matchday IQ)",
+  teamFootnote: "Beispieldaten · v2-Vorschau ({brand})",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Wettbewerbe",
   navMatches: "Spiele",
@@ -255,7 +265,7 @@ const FI: Dict = {
   table: "Sarjataulukko",
   topScorers: "Maalintekijät",
   fullH2H: "Kaikki kohtaamiset",
-  footnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
+  footnote: "Esimerkkidata · v2-esikatselu ({brand})",
   aboutWithH2h: "{home} vs {away} · {round}. Joukkueet ovat kohdanneet {meetings} kertaa — {record}.",
   aboutNoH2h: "{home} vs {away} · {round}.",
   posF: "Hyökkäys", posM: "Keskikenttä", posD: "Puolustus", posG: "Maalivahti",
@@ -309,7 +319,7 @@ const FI: Dict = {
   fxAway: "Vieras",
   fxNext: "Seuraava",
   linkFixtures: "Kaikki ottelut",
-  teamFootnote: "Esimerkkidata · v2-esikatselu (Matchday IQ)",
+  teamFootnote: "Esimerkkidata · v2-esikatselu ({brand})",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Kilpailut",
   navMatches: "Ottelut",

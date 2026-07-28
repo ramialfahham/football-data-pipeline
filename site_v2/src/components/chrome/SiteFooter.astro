@@ -28,7 +28,14 @@ const flinks = [
 
 <footer class="site-footer">
   <div class="footer-in">
-    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">IQ</span></a>
+    {/* Wordmark — must stay in lockstep with SiteHeader. The `.iq` class and its two-tone treatment
+        are kept deliberately: system.css is the locked design system, so a rename changes the WORD
+        and nothing visual. Note the brand is SPLIT by the span, so a source grep for the joined
+        product name cannot find it — verify any future rename against RENDERED TEXT. That blind
+        spot is exactly how this instance was missed and caught in review.
+        An Astro expression comment, not `<!-- -->`, because HTML comments are EMITTED to the built
+        page — a note naming the old brand would ship it straight back into the output. */}
+    <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
     <div class="flinks">
       {flinks.map((label) => <span>{label}</span>)}
       <span class="imp">{t(lang, "footerImprintPending")}</span>

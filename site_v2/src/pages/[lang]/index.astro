@@ -9,9 +9,9 @@ export function getStaticPaths() {
 }
 const { lang } = Astro.params;
 const headline: Record<string, string> = {
-  de: "Matchday IQ v2 — im Aufbau",
-  en: "Matchday IQ v2 — under construction",
-  fi: "Matchday IQ v2 — rakenteilla",
+  de: "Matchday Pilot v2 — im Aufbau",
+  en: "Matchday Pilot v2 — under construction",
+  fi: "Matchday Pilot v2 — rakenteilla",
 };
 ---
 
@@ -21,7 +21,7 @@ const headline: Record<string, string> = {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Matchday IQ</title>
+    <title>Matchday Pilot</title>
   </head>
   <body>
     <h1>{headline[lang ?? "en"]}</h1>

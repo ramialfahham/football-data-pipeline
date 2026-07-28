@@ -36,7 +36,7 @@ const { lang, title, description } = Astro.props;
       // bundling/deferral) — timing here is the whole point.
       (function () {
         try {
-          var saved = localStorage.getItem("mdiq-theme");
+          var saved = localStorage.getItem("mdp-theme");
           if (saved === "light" || saved === "dark") {
             document.body.setAttribute("data-theme", saved);
           }

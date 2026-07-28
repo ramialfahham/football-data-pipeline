@@ -4,56 +4,45 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > chars (the SessionStart hook's budget).
 
-_Last updated **2026-07-28**. main GREEN at **9578f4d** (PR A / #854 MERGED). **IN FLIGHT: branch
-`feat/team-slug-no-provider-id` = PR B of a FOUR-PR sequence (⭐ CURRENT §0). Built + fully verified,
-not yet committed.** SEO is a BUILD GATE (#844) but is **PR C, not next** — two independent reviewers
-found it was never blocked. The player page is FOUR tabs (#848); its Overview is **BUILT but
-UNCOMMITTED in git stash@{0} with a known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS:
-read "⭐ CURRENT" §0, run `git stash list` before any git work, read #848 before shaping the
-International tab.** Firebase deploy LIVE + verified (manual, not public)._
+_Last updated **2026-07-28**. main GREEN at **27b26e9** (PRs A/#854 and B/#857 MERGED). **IN FLIGHT:
+branch `feat/rename-matchday-pilot` = PR C1.** The product is renamed **Matchday Pilot**, domain
+`matchdaypilot.com`. PR C was split on its own scope warning: **C1 rename (this), C2 = #844 gate +
+emitted surface.** The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in git
+stash@{0} with a known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS: read "⭐ CURRENT",
+run `git stash list` before any git work, read #848 before shaping the International tab.**
+
+**NEW PROCESS (#858), in force: every plan is challenged by two independent reviewers BEFORE the CPO
+sees it.** Its first use on C2's plan found 24 defects across two rewrites, four structural. Do not
+present a plan he has not seen challenged._
 
 ## THE GOAL
 **The new website live.** ~2–3 weeks; quality over speed (CPO 2026-07-22).
 
-## ⭐ CURRENT — four PRs. PR A in flight. #844 is PR C, not next.
+## ⭐ CURRENT — C1 rename in flight, then C2 (#844).
 
-### 0. THE SEQUENCE (2026-07-27, after two independent assessments)
+### 0. THE SEQUENCE
 
-CPO: *"there is no aston-villa-66."* Chasing that exposed **`dim_team` as a passive pass-through** —
-the provider's short name is the ONLY team name in the product and drives the fixture card, H1,
-`<title>`, meta description **and the slug**, across team/player/coach/country. **#850 #851 #852 #853
-filed.** Two independent reviewers judged the resulting plan over-scoped; split:
-
-| PR | Scope | Blocks #844? |
+| PR | Scope | State |
 |---|---|---|
-| **A** ✅ MERGED #854 | #850 names: seed + join in `base_apif__teams_global` | it *enabled* it |
-| **B** ← IN FLIGHT | Drop the id — slug **DERIVED** in the warehouse, nothing persisted | no |
-| **C** | **#844 SEO build gate** (design approved, artifact `4fe25734`) + the SEO list below | — |
-| **D** | Pre-launch with #799/#377: persistence, the freeze, **and** #843's `firebase.json` redirects | no |
+| **A** | #850 team name corrections in base | ✅ MERGED #854 |
+| **B** | #852 drop the provider id, slug DERIVED in the warehouse | ✅ MERGED #857 |
+| **C1** | Rename to **Matchday Pilot** + `site` → `matchdaypilot.com` | ← IN FLIGHT |
+| **C2** | **#844 SEO gate** + the emitted surface (canonical/hreflang/OG/JSON-LD/sitemap) | next |
+| **D** | Pre-launch with #799/#377: slug persistence, the freeze, #843's redirects | — |
 
-**#844 was never blocked** — a spec declares the canonical *template*, not the value. The "#850 must
-land first" claim is FALSE and retracted on #852, **now PR D**.
+**#844 was never blocked by the slug** — a spec declares the canonical *template*, not the value.
 
-**PR B state: built + verified, uncommitted.** `team_slug` derived in base via a symmetric CLOSED
-ladder, published on `dim_team` (`unique`+`not_null`), carried through `mart_team_profile`; the export
-SELECTS it (`slugify`→`player_slug_with_id`, players only). Real data: **3,250 rows, 3,250 distinct
-slugs, 0 empty**, id fallback firing **exactly twice** (Nyasa); `aston-villa-66`→`aston-villa`,
-`sabail`. 448 tests + layer + lint clean; guard returns 0.
-
-**Rulings** (in escalations.log): **E3 = TRANSLITERATE** — fold to the base letter where one exists,
+**Rulings** (escalations.log): **E3 = TRANSLITERATE** — fold to the base letter where one exists,
 expand only where none does, so `ü→u` AND `ß→ss` are ONE rule · **E2 = the warehouse** produces slugs ·
-ONE locale-independent slug. Corrected from external sources, not the glyph: **`ə→a`** (the club is
-**Sabail** FK) and **`đ→dj`** (Djokovic).
+ONE locale-independent slug · **base prepares, the core dim publishes.**
 
-**Measured gotchas:** a 10-deep `replace()` chain **exceeds SQLFluff's parse-depth limit** (ceiling ≈8),
-so the map is DATA (`unnest` + struct array) over 3 CTE steps · a guard on the slug OUTPUT can never
-fire, so it checks the INPUT alphabet · level 2 is **dead code today**, exercised synthetically.
-
-**Carry forward:** country anchor corrupted — 39 teams lack a country, **22 have one in
+**Carry into C2/D:** country anchor corrupted — 39 teams lack a country, **22 have one in
 `stg_apif__teams`** · `slug_map` is flat, so **90 player kebabs equal coach kebabs** · players still
 id-suffixed · `fixture_slug` still from NAMES in Python · `team_name_key` zero callers ·
 `dbt_project/.sqlfluff` lacks the jinja macro path · **#3045 silently takes `/teams/dragon/`, #4207
-`/teams/warriors/`** (no collision, no signal, and PR D freezes them).
+`/teams/warriors/`** (no collision, no signal, and PR D freezes them) · **#861: fixture URLs are
+DESTROYED weeks after kickoff** — 4,598 live vs 52,585 finished with no page. Latent under `noindex`,
+catastrophic at #377.
 
 ### 1. WHY #844 EXISTS (the ruling stands; it is now PR C)
 
@@ -219,6 +208,12 @@ the player design state. Metric layer (#802/#803/#804) complete.
   reviewers, rewrite `review.md`, commit, `git push --force-with-lease`.
 - **Contract edits need a CLEAN tree** — stash-dance with explicit paths (`git stash push -- <files>`;
   `git add` a NEW file first or the pathspec fails) so the player-Overview stash is untouched.
+- **⚠ `scope_paths` uses `fnmatch`, so `[lang]`/`[team]` are CHARACTER CLASSES.** A literal Astro
+  dynamic-route path can NEVER match itself — use `site_v2/src/pages/*/teams/*.astro` etc. Every v2
+  route is dynamic, so this bites every frontend contract.
+- **⚠ `src/pages/index.astro` is DEAD CODE.** Astro's i18n `prefixDefaultLocale` generates its own root
+  redirect that overwrites it — the shipped `/index.html` is Astro's stub (and it already emits a
+  correct `<link rel="canonical">`). Editing that file changes nothing that ships.
 
 ## Verified state reference
 - **Live to users:** no PUBLIC site. v2 is on `football-data-pipeline-gcp.web.app` (unlisted).

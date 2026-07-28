@@ -1,4 +1,4 @@
-// Matchday IQ v2 — Astro config.
+// Matchday Pilot v2 — Astro config.
 // Contract: docs/site_architecture.md (epic #361).
 // Static output only (Firebase Hosting, no SSR). All locales are URL-prefixed
 // (/de/…, /en/…); the root performs a browser-language redirect with `en`
@@ -9,7 +9,13 @@
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  site: "https://ramialfahham.github.io",
+  // The production origin. Was `https://ramialfahham.github.io` — a host DELETED on 2026-07-21 when
+  // the MVP was retired, so every absolute URL derived from it would have resolved nowhere. Nothing
+  // consumes Astro.site yet (canonical, hreflang and the sitemap arrive in PR C2), so this corrects a
+  // latent-wrong value before anything starts depending on it.
+  // `www` -> apex is an HTTP redirect configured when the custom domain is connected in Firebase
+  // Hosting; it is NOT expressible in firebase.json, whose redirects match on path only.
+  site: "https://matchdaypilot.com",
   output: "static",
   base: "/",
   trailingSlash: "always",
