@@ -41,7 +41,7 @@ Settings path:
 
 The workflow targets the Project titled:
 
-- `Matchday IQ - Project Board`
+- `Matchday Pilot - Project Board`
 
 If you rename the project, update `PROJECT_BOARD_TITLE` in the workflow file.
 

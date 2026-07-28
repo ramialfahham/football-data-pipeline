@@ -1,6 +1,6 @@
 # Website blueprint — overview & format contract (#391)
 
-> The wireframe-level spec for every screen of Matchday IQ v2. This folder is the
+> The wireframe-level spec for every screen of Matchday Pilot v2. This folder is the
 > **primary input** to the design pass (#366) and the template build (#368), and a
 > direct input to SEO (#369). The brief (`docs/ui_design_brief.md`) sets look-and-feel
 > principles; `docs/site_architecture.md` fixes IA/URLs; these wireframes bind every

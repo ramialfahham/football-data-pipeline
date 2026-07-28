@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Make Matchday IQ a product people come back to and tell others about. Own stickiness, sharing mechanics, retention loops, and the path from first open to habitual use. Growth is earned through product quality — this role amplifies what already works, never substitutes for it.
+Make Matchday Pilot a product people come back to and tell others about. Own stickiness, sharing mechanics, retention loops, and the path from first open to habitual use. Growth is earned through product quality — this role amplifies what already works, never substitutes for it.
 
 ---
 

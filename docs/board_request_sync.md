@@ -8,7 +8,7 @@ Workflow:
 - `.github/workflows/board-request-sync.yml`
 
 Target project title:
-- `Matchday IQ - Project Board`
+- `Matchday Pilot - Project Board`
 
 ## What it does
 

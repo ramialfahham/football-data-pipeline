@@ -4,9 +4,10 @@ Turns the dbt marts into one JSON file per entity the website has a page for, so
 the Astro build (#368) can render "one template x N entities". This is the engine
 of the programmatic site: marts -> per-entity JSON -> templates -> pages.
 
-ADDITIVE and isolated: it does not touch the legacy ``export_pages_data.py`` or
-the live Pages deploy. The current Matchday IQ MVP keeps running until cutover
-(#377). Output is a build artifact (gitignored), not committed.
+ADDITIVE and isolated: it does not touch the legacy ``export_pages_data.py``.
+The Matchday IQ MVP it once ran alongside was RETIRED on 2026-07-21 (offline,
+Pages deleted, ``site/`` frozen), so there is no cutover to wait for; #377 is now
+the go-live of v2 itself. Output is a build artifact (gitignored), not committed.
 
 Contract: ``docs/site_architecture.md`` section 5 (template -> export file -> mart).
 Data is locale-independent; display labels resolve at build time from the metric

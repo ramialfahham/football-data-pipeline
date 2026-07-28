@@ -1,7 +1,7 @@
-# Site architecture — Matchday IQ v2 (programmatic content site)
+# Site architecture — Matchday Pilot (programmatic content site)
 
 > The contract for epic #361. Every v2 workstream — templates (#368), export (#365),
-> SEO (#369), i18n (#370), design (#366), migration (#377) — builds against this
+> SEO (#369), i18n (#370), design (#366), go-live (#377) — builds against this
 > document. Change it only with CPO sign-off; downstream issues inherit changes.
 >
 > **Content model:** the reusable blocks → tabs → navigation structure these templates render is
@@ -26,7 +26,7 @@ dbt marts → per-entity export (Python) → data/{entity}/{id}.json
 
 | Constraint | Source |
 |---|---|
-| **The current Matchday IQ MVP (`site/`) stays fully functional until v2 reaches parity.** v2 lives in `site_v2/`; the legacy export + deploy run unchanged; cutover only at CPO sign-off (#377). | CPO, 2026-06-10 |
+| **The Matchday IQ MVP (`site/`) is RETIRED — offline, Pages deleted, frozen.** v2 (Matchday Pilot) lives in `site_v2/` and is the only surface being built. There is **no parity requirement, no cutover and no restore**; #377 is now the go-live of v2 itself, not a switch away from the MVP. Legal pages become a v2 build requirement (#799). | CPO, 2026-07-21, superseding CPO 2026-06-10 |
 | **Tech stack: Astro**, static output only, deployed to Firebase Hosting (vendor chosen by CPO 2026-07-24, superseding the original GitHub Pages plan). Interactivity via islands (charts, search) — no SSR, no backend. | Epic #361 |
 | **Hybrid competition IA**: browse by competition group AND by country hub, both derived from registry metadata (#364). Zero-file rule holds. | Epic #361 |
 | **Metric governance: catalogue-only.** Pages render `metric_catalogue` metrics by their catalogue formula; labels come from catalogue i18n keys. New metrics require a CPO-approved catalogue extension first. | #327 / governance memory |
@@ -193,16 +193,19 @@ site_v2/                    Astro project (#362) — isolated from site/
   src/pages/[locale]/…      file-based + programmatic routes per §3
   src/components/           design-system components (#366)
   src/i18n/                 locale chrome strings (#370)
-scripts/export_site_data.py per-entity export (#365) — NEW, additive;
-                            export_pages_data.py (legacy) keeps running until #377
+scripts/export_site_data.py per-entity export (#365) — the ONLY live export
+                            export_pages_data.py (legacy) is DEAD, kept for reference
 data/ (build artifact)      per-entity JSON, slug map, export manifest — not committed
 .github/workflows/          v2 build/deploy workflow, path-filtered to site_v2/**;
-                            the legacy pages-match-preview.yml is untouched until cutover
+                            pages-match-preview.yml is DISABLED (`disabled_manually`)
 ```
 
-- v2 deploys to **Firebase Hosting** (the `.web.app` URL, no custom domain) during the build phase; the live URL
-  serves the MVP until cutover (#377: parity check → CPO sign-off → switch → redirects
-  from old URLs → retire `site/` + legacy export in a separate cleanup PR).
+- v2 deploys to **Firebase Hosting** (`.web.app`, unlisted, `noindex`). **There is no live MVP for it
+  to serve behind** — `site/` went offline 2026-07-21 and its Pages deployment was deleted, so #377 is
+  v2's own go-live on `matchdaypilot.com`: legal/imprint (#799) → CPO sign-off → connect the custom
+  domain → drop `noindex` and publish the sitemap. **No parity check, no switch, and no redirects from
+  old URLs** (the old URLs are gone and were never indexed under the new domain). Retiring `site/` +
+  the legacy export is a cleanup PR that no longer blocks anything.
 - Monetization hooks: templates keep a named slot (header/in-content) rendering nothing —
   placeholders only, no implementation.
 
@@ -212,7 +215,7 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
 |---|---|
 | Astro, static-only, Firebase Hosting (was GitHub Pages) | locked (CPO, 2026-06-10; vendor updated 2026-07-24) |
 | Hybrid IA (groups + country hubs), registry-driven | locked (CPO, 2026-06-10) |
-| Current MVP stays live until parity cutover | locked (CPO, 2026-06-10) |
+| ~~Current MVP stays live until parity cutover~~ | **SUPERSEDED** (CPO, 2026-07-21): the MVP is retired, so there is no parity gate and no cutover — see §2 |
 | All locales URL-prefixed; root redirects by browser language, `en` fallback | proposed default — CPO may override fallback locale |
 | Slug formats per §3 | proposed default — review in #363 PR |
 | Island framework for charts (svelte vs preact) | open — decide in #362 |

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Own the financial model of Matchday IQ. Track costs at every layer of the stack, model revenue at each business model stage, and advise the CPO on when to invest, when to stay lean, and what financial thresholds trigger the next stage of the product. Make sure ambition and financial reality stay aligned.
+Own the financial model of Matchday Pilot. Track costs at every layer of the stack, model revenue at each business model stage, and advise the CPO on when to invest, when to stay lean, and what financial thresholds trigger the next stage of the product. Make sure ambition and financial reality stay aligned.
 
 ---
 
