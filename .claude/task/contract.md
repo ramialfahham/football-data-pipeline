@@ -1,245 +1,70 @@
-# Task contract — #844: SEO becomes a build gate, and the surface it gates
+# Task contract — ignore CPO working documents dropped in the repo root
 
-> Written on a CLEAN tree, branch `feat/844-seo-build-gate` off `main` (`ac74d1f`).
-> `gh pr list --state open` -> EMPTY, so this is a hard dependency of nothing.
-> PR C2 of the C sequence. C1 (#862) renamed the site surface; the sweep (#865) fixed the docs.
+> Written on a CLEAN tree. Branch `chore/handover-2026-07-29` (PR #869 already carries the handover
+> commit). To get a clean tree at all, the untracked PDF was MOVED to the scratchpad and its sha256
+> recorded (`894a6c28…`); it is restored to its original path, byte-identical, once the ignore rule
+> is committed. Nothing is deleted at any point.
 
 objective: >
-  CPO ruling: *"SEO optimization has to be ensured during the whole process of building the
-  website"* — a reviewer is after-the-fact and cannot ensure anything. Extend #826's page-spec
-  contract so **no page builds without declaring its SEO surface**, add the verifier that checks the
-  declaration against the REAL emitted `dist/`, and emit the surface itself.
+  `AI-Assisted Company Building Project.pdf` is a CPO working document sitting untracked in the repo
+  root. It trips the contract gate and the stop gate on **every turn**, and the stop gate's only
+  suggested remedy is *"delete untracked strays"* — which would destroy his file.
 
-  **The plan was challenged by two independent reviewers before the CPO saw it (#858) and did not
-  survive.** 12 findings; three plan claims were false; one is a LIVE defect in shipped code. What is
-  built here is the rewritten plan, not the original. See `decisions_taken`.
+  Add a root-anchored `/*.pdf` ignore rule so the tree is clean without deleting or committing it.
 
 refs: >
-  #844 (this), and its 2026-07-28 comment recording the full challenge outcome.
-  #826 page-spec contract · #827 rendered-page evidence · #838 synthetic points · #839 phase spike ·
-  #843 slug equity · #845 minimum-data gate · #861 fixture URL permanence · #864 stale cutover
-  comments in `site_v2/src` (this PR's surface — fix them here, they are in scope).
-  CPO 2026-07-28: titles KEEP the brand suffix.
-  `docs/wireframes/01_fixture_page.md` §8 and `02_team_profile.md` §8 specify title/description.
+  CPO, 2026-07-29, verbatim: **"add it to .gitignore"**, chosen from three options put to him
+  (move it out of the repo, .gitignore, or a local `.git/info/exclude`).
+  The document's content is already distilled into #868; the file itself is not project source.
+
+protected_override: >
+  Not applicable — `.gitignore` is in neither `PROTECTED_PREFIXES` nor `PROTECTED_FILES`
+  (`task_contract_gate.py:66-72`). Stated so a reader does not have to wonder.
 
 scope_paths:
-  # NOTE: fnmatch patterns. `[lang]`/`[team]` are CHARACTER CLASSES to fnmatch, so a literal Astro
-  # dynamic-route path can never match itself. Verified before writing.
-  - site_v2/src/specs/page-spec.schema.json
-  - site_v2/src/specs/teams/team.spec.json
-  - site_v2/src/specs/competition/matches/fixture.spec.json
-  - site_v2/scripts/check-page-specs.mjs
-  - site_v2/scripts/check-page-specs.test.mjs
-  - site_v2/scripts/audit-seo.mjs
-  - site_v2/scripts/audit-seo.test.mjs
-  - site_v2/integrations/seo-audit.mjs
-  - site_v2/src/config/indexability.mjs
-  - site_v2/src/pages/robots.txt.ts
-  - site_v2/src/layouts/Layout.astro
-  - site_v2/src/pages/*/teams/*.astro
-  - site_v2/src/pages/*/*/matches/*.astro
-  - site_v2/src/pages/*/index.astro       # the locale landing — see amendment 1
-  - site_v2/src/specs/index.spec.json     # its spec
-  - site_v2/src/lib/href.ts
-  - site_v2/src/i18n/strings.ts
-  - site_v2/astro.config.mjs
-  - site_v2/package.json
-  - site_v2/package-lock.json
-  - docs/site_architecture.md
+  - .gitignore
   - .claude/task/contract.md
   - .claude/task/review.md
-  - .claude/task/rendered_page_evidence.md
   - .claude/active_work.md
 
 impact_map: >
-  **THE LIVE DEFECT THIS PR EXISTS TO FIX FIRST.** Measured, not assumed:
+  writers: one hand-authored ignore rule. **Zero code, zero data, zero behaviour changed.** No dbt
+    model, no Python, no site source, no workflow, no test, no CI.
 
-      site_v2/src/pages/[lang]/teams/[team].astro:61-62
-        const title       = `${team.name} — ${compName}`;
-        const description = `${team.name} · ${compName}`;
-      site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro:55
-        const title       = `${home.name} vs ${away.name} — ${fixture.league_name}`;
+  downstream: `/*.pdf` is anchored to the repo ROOT by its leading slash, so it cannot hide a PDF
+    nested anywhere deeper in the tree. Verified nothing is shadowed:
+    `git ls-files "*.pdf"` -> EMPTY, so no tracked file is affected.
 
-    `team.name` is the provider name and `compName` comes from `src/data/competitions.json`, whose
-    entries carry ONLY `name` and `slug` — **no locale keying** (verified by reading the file and
-    `_competitions_index()` in `scripts/export_site_data.py:907`, which builds it from the registry's
-    single `name` field). So **every team page ships a byte-identical `<title>` AND
-    `<meta description>` across de/en/fi, and every fixture page a byte-identical `<title>`.** The
-    fixture DESCRIPTION is the one that is already localised (it goes through `t()`).
+  deploy_order: none. No migration, no rebuild, no CI interaction.
 
-    The original plan would never have caught this: it declared cross-locale uniqueness "impossible
-    by construction" — true of the `<h1>` (`TeamHeader.astro:33` is `<h1>{team.name}</h1>`) — and
-    generalised that to the whole axis. **The achievable narrower assertion is that the DESCRIPTIVE
-    portion of title/description must differ across locales**, and it fails today.
-
-    **The fix needs no warehouse change.** The wireframes already specify localised titles
-    (`{name} — Stats, Form & Season Records | Matchday Pilot`); today's code simply has no
-    descriptive portion at all. Whether an English reader should see "Bundesliga" instead of the
-    registry's "1. Fußball-Bundesliga" is a separate registry/naming question — NOT bundled.
-
-  writers: every file is hand-authored except `package-lock.json` (regenerated by npm, committed in
-    the same commit or `npm ci` breaks).
-
-  downstream: `site_v2/**` is the consumption layer — this PR derives NO fact. Titles, descriptions
-    and JSON-LD select and format fields the payload already carries. **Zero data changes**: no dbt
-    model, no seed, no mart, no export. `scripts/export_site_data.py` is NOT touched.
-
-  layer_rules: the emitted surface is display. The one judgement call is JSON-LD `@type`, which is a
-    declared CONSTANT per spec, not derived from data.
-
-  deploy_order: no migration. `ci-site-v2` builds from the two committed samples on any `site_v2/**`
-    change. `deploy-site-v2` stays `workflow_dispatch` only and is NOT modified. Nothing reaches any
-    deployed surface until the CPO triggers it.
-
-  blast_radius: every built page gains `<link rel="canonical">`, hreflang + `x-default`, OG + Twitter
-    tags and a JSON-LD `@graph`; `noindex` is RETAINED. A new `robots.txt` route emits
-    `Disallow: /`. A sitemap is GENERATED but unreferenced. `npm run build` gains a post-build audit
-    that FAILS the build on a violation — a new way for the build to break, deliberately.
-    ⚠ New dependency `@astrojs/sitemap`. Measured, because the plan's claim was wrong (below).
+  blast_radius: one line plus a comment in `.gitignore`. The PDF stays on disk, untouched, and git
+    simply stops reporting it.
 
 decisions_taken: >
-  - **Titles KEEP the brand suffix** — CPO, 2026-07-28, choosing "Keep the brand" over the plan's
-    unilateral drop. `docs/wireframes/02_team_profile.md` §8 already specified it, so the plan was
-    diverging from an approved artifact without saying so. Rationale on the issue.
-  - **NO number-bearing descriptions until #838 lands.** The plan specced
-    `{rank} in {competition}, {points} points from {played} games` with a fallback only on NULL.
-    #838 makes `points` a synthetic 3-1-0 tally computed regardless of the competition's rules —
-    Europa League renders 32 against a real 18. Not null, just WRONG, so a null-fallback cannot
-    catch it. That would write a known-false number into a `<meta description>` Google caches
-    independently of the page and re-serves after the mart is fixed. Data honesty is
-    non-negotiable (CLAUDE.md), so descriptions use only fields that are honest today.
-  - **`url_permanence` is a DECLARED FACT, not a promise.** As planned it was self-contradicting: it
-    existed so the gate "refuses a page that cannot survive its own entity's state change", but the
-    fixture template provably fails that today (#861: `fetch_fixture_payloads` emits only
-    `status_short in ('NS','TBD') and fixture_date >= current_date()`, so 4,598 live vs 52,585
-    finished with no page), so the gate would have failed CI the moment it shipped. It becomes
-    `permanent | ephemeral`, and the gate blocks only a page claiming permanence it cannot back.
-    #861 stays the work, not the blocker.
-  - **The full-build CI job is DESCOPED.** It would have put a BigQuery scan and Workload Identity
-    credentials into a `pull_request`-triggered workflow. `deploy-site-v2.yml:5-14` explicitly gates
-    that class on a measured `bq --dry_run` byte count plus CPO approval, and `ci-site-v2.yml` has
-    ZERO GCP dependency today (verified). Full-corpus verification happens ONCE via the existing
-    manual workflow before merge. No new credentials, no recurring spend.
-  - **The sitemap GENERATES but is not referenced.** Deferring it entirely would leave the 50k-cap
-    splitting and the locale-reciprocal index logic with zero CI exercise until go-live — the exact
-    silent-until-live failure this gate exists to prevent. `robots.txt` does not list it and nothing
-    links it, so a `noindex` corpus is not advertised.
-  - **The verifier is an Astro INTEGRATION, but NOT for the reason the plan gave.** The plan cited
-    `npm --ignore-scripts` skipping pre/post hooks. That npm behaviour is real, but **neither
-    workflow ever passes `--ignore-scripts` and both run `npm run build`, never bare `astro build`**
-    (verified), so the bypass is not present in this pipeline. The REAL reason is that
-    `astro:build:done` hands over `assets` keyed by route PATTERN, which IS the page-count driver
-    for free and which a `dist/` walker cannot reconstruct. Hooks fire in `integrations` array
-    order, so the audit is placed AFTER `sitemap()`.
-  - **`@astrojs/sitemap` is pinned `^3` — and the plan's stated reason was FICTION.** It claimed
-    "v4 is the Astro-6 peer". Measured: `@astrojs/sitemap@latest` IS **3.7.3**; there is no v4, and
-    3.7.3 declares **no `peerDependencies` at all**, so there is no conflict with the installed
-    astro 5.18.2. `^3` is right because 3.x is the current major, not because v4 exists.
-  - **`indexability.mjs` is `.mjs`** — CI's node cannot `import` a `.ts` file without a loader, and
-    the checker runs as plain node.
-  - **#864 is fixed here.** `Layout.astro:25` and `lib/href.ts:3` carry the retired-MVP cutover
-    framing. `Layout.astro:25` is the comment attached to the very `noindex` this PR replaces with a
-    switch, so fixing it elsewhere would be artificial.
+  - **Root-anchored `/*.pdf`, not a bare `*.pdf`.** A bare pattern would silently ignore a PDF
+    ANYWHERE in the tree, including one a future task legitimately wants tracked (a design export, a
+    licence, a vendor spec). The leading slash confines the rule to the drop zone that actually
+    causes the problem.
+  - **Ignore rather than commit.** A 1.2 MB PDF export of a chat is a personal working document, not
+    project source.
+  - **Ignore rather than delete.** The stop gate suggested deleting it. It is the CPO's file. A gate
+    is never a reason to destroy someone's data — and its content was read and preserved as #868
+    before any of this.
 
 decisions_reserved:
-  - **`LinksFooter`'s conditional-link rule** — a chip becomes `<a>` only when a payload exists. Its
-    cited precedent was FALSE (`SiteHeader.astro:41` / `SiteFooter.astro:40` render unconditional
-    `<span>` with no lookup of any kind), so it is a NEW rule and gets its own PR and its own
-    scrutiny. `import.meta.glob` itself is NOT new — it is already the payload-discovery mechanism
-    in both built pages, so it adds no new class of build cost.
-  - **Localised COMPETITION names.** The registry has one `name` per competition, so English readers
-    see "1. Fußball-Bundesliga". Real, and NOT required to fix the duplicate-title defect. A
-    registry/naming question, which is CPO territory.
-  - **The redirect/alias mechanism** `site_architecture.md` §3 promises ("a rename produces a new
-    alias, never a new canonical"), and the H2H reversed-order alias. PR D (#843/#852).
-  - **A 404 strategy for the fixture cliff** (#861) — a crawler hitting a vanished fixture URL gets
-    Firebase's generic host error. Needs #861 decided first.
-  - **Structured-data COMPLETENESS** (does `SportsEvent` carry `startDate`/`location`/`competitor`
-    well enough for a rich result). This PR checks FORMAT: parses, `@type` matches the spec, no
-    null/empty/placeholder values. Completeness is a content decision per entity.
-  - **The rich vs thin-SEO tier split** (`content_architecture.md` §2) and **OG image fitness**
-    (provider crests are small and near-square; social wants 1200x630). Both need #845's
-    minimum-data gate decided first.
-  - **Promoting `SectionHead` to a real heading level** and the `<h2>`-`<h6>` gap — a design-system
-    change to a locked file.
+  - **The governance deadlock itself is NOT fixed here.** Between tasks there is no valid contract,
+    so every path is out of scope; the stop gate demands a clean tree; and its only suggested remedy
+    is deletion. Three non-destructive fixes were blocked in sequence — `.git/info/exclude`,
+    `.gitignore`, and writing this very contract — until the file was physically moved out of the
+    repo to manufacture the clean tree the gate required. That is a real hole of the same class as
+    #863 and deserves its own issue. Filing it is not this task.
 
 done_when:
-  - `npm test` passes, and the new audit has PURE-FUNCTION tests (no synthetic `dist/` tree) with a
-    `MIN_EXPECTED`-style self-check so a broken regex reports itself instead of passing everything.
-    Fixtures live in `__fixtures__`, NEVER `test/` — `node --test` executes anything in a directory
-    literally named `test` (verified).
-  - `npm run build` succeeds AND the audit actually runs (proven by breaking one check and capturing
-    the real failure output, then restoring).
-  - **The live defect is fixed and PROVEN**: the three locales' `<title>` and `<meta description>`
-    for the same team, and the same fixture, shown side by side DIFFERING.
-  - Every built page carries canonical (absolute, self-consistent), hreflang + `x-default`, OG +
-    Twitter, and a JSON-LD `@graph` that parses.
-  - `noindex` on every page; `robots.txt` says `Disallow: /`; a sitemap EXISTS in `dist/` and is
-    referenced by nothing.
-  - `grep -rn "cutover" site_v2/src/` returns NOTHING (#864).
-  - Rendered-page evidence per #827, verified against **rendered text / built output**, never a
-    source grep and never `outerHTML`.
-  - ONE commit. Reviewers: computed from `review_routing.json`, not predicted.
+  - `git status --short` is EMPTY once the PDF is restored — no untracked stray, no modified file.
+  - The PDF exists again at its original path with sha256 `894a6c288bc72bb1eb2f059b67078547fab17f5b67c5fde1e1ee569851a9ea2f`.
+  - `git check-ignore -v "AI-Assisted Company Building Project.pdf"` names the new rule.
+  - `git ls-files "*.pdf"` still EMPTY, proving no tracked file was shadowed.
+  - ONE commit on the existing branch.
 
 amendments:
-  - 2026-07-28: **THE BRAND SUFFIX RULING WAS REVERSED BY THE CPO** — authority: he originally ruled
-    "titles KEEP the brand" (recorded in `decisions_taken`). `seo-expert-reviewer`, told explicitly
-    NOT to soften its answer because he had already ruled, said a suffix is EARNED by equity and is
-    not a way to build it: 17 characters, 28-36% of the title budget, across ~9,750 team
-    page/locale combinations, on the deepest crawl tier — and with 3,250 identical suffixes Google
-    reads it as boilerplate and truncates it first. Measured: it WAS the first thing cut.
-    The fact that changed his mind is that `Layout.astro` already emits `og:site_name`
-    unconditionally, so the brand does not leave the site, only the indexed title. He reversed it.
-    Reinstate when Search Console shows branded-query volume worth the budget.
-  - 2026-07-28: **the nine SEO strings were WRITTEN BY THE CPO, not by me** — authority:
-    `bi-analyst-reviewer` FAILed on §10, correctly: user-visible copy is a CPO decision *every
-    time*, and his earlier ruling covered only whether to keep the brand, not the wording or its
-    translations. Four errors of mine surfaced in the exchange that followed, all in copy I had
-    already called finished: the German dropped an article German grammar requires; the Finnish used
-    `sarjassa` with an uninflected borrowed noun; both used `muoto` (shape) where the football sense
-    of form is `kunto` — corroborated by the retired MVP's own corpus, which says `kuntojakso`; and
-    I had switched the Finnish fixture separator to an en dash on an unverified claim that
-    `bi-analyst-reviewer` agreed with and the CPO's source contradicted.
-    He then ruled on presentation twice more: em dashes "look terribly like AI generated" (titles
-    take a colon, the DE/FI descriptions parentheses, which also removes the article problem), and
-    the shortened titles were "too short" once the brand freed the budget.
-    **The lesson is not "ask about copy". It is that I cannot self-assess copy in ANY language,
-    including English**, which I had been treating as a trusted baseline for no reason.
-  - 2026-07-28: **+ a title WIDTH check in `audit-seo.mjs`** — authority: `cto-reviewer` and
-    `seo-expert-reviewer` both found the gate had NO length check at all, so the overruns were
-    caught by me, by hand — which does not scale to 3,250 entities x 3 locales. It measures rendered
-    PIXELS, not characters: Google truncates on width (~600px) and nearly every club and competition
-    name here opens with a wide capital.
-    **It fails at 660px, not 600, and that is calibration rather than slack.** The estimator is
-    approximate, and a marginal overrun on a real fixture is unfixable — two proper nouns plus a
-    competition, nothing to cut. A large overrun means the TEMPLATE is wrong, which is fixable. Both
-    halves are locked by tests so nobody "tightens" it to 600 and starts failing nightly builds on
-    long club names.
-    It earned itself immediately: it rejected a German fixture title I had shortened to `vs.`,
-    because a title of pure proper nouns has nothing locale-specific left once `gegen` goes, making
-    the German and Finnish BYTE-IDENTICAL.
-  - 2026-07-28: **the fixture page now reads the competition name from the REGISTRY** — authority:
-    the CPO's own Finnish example exposed it. The fixture page used the provider's
-    `fixture.league_name`, which says `Serie A` for the Brazilian top flight — ambiguous with
-    Italy's, on a Brazilian match — while `competitions.json` held `Brasileirão Série A` and the
-    TEAM page already read it. Two pages naming one concept from two sources; this is the
-    authoritative one. Same class as #850.
-  - 2026-07-28: **#866 filed rather than fixed** — the CPO spotted `Regular Season - 20` rendering
-    untranslated in all three locales, in the page body AND in every fixture's `<meta description>`
-    and OG/Twitter description. It is `fixture.round` verbatim from the provider. NOT fixable here:
-    turning it into a phase plus a number is TAXONOMY MAPPING, which `layering.md` forbids in the
-    consumption layer. The export must serve `{phase, number}`; the frontend already has the words
-    (`throughMatchday` renders "bis Spieltag {n}"). Related to #839, which defines the phase set.
-  - 2026-07-28: **+ `site_v2/src/pages/*/index.astro` and `site_v2/src/specs/index.spec.json`** —
-    authority: the gate I just built FAILED THE BUILD on them, which is the contract's own
-    `done_when` working exactly as intended. The locale landing hand-rolls its own `<html>` instead
-    of using `Layout`, so it emitted no canonical and no hreflang, and all three locales shipped
-    `<title>Matchday Pilot</title>` — **byte-identical**, the very defect this PR exists to fix,
-    sitting on a page my `scope_paths` had not listed.
-    The original plan proposed EXEMPTING the scaffolds. That reasoning was inverted: a scaffold is a
-    URL THAT SHIPS, so canonical, hreflang and a unique title are true facts about it, and an
-    exemption would have hidden the defect rather than fixed it. It moves to `Layout` and takes a
-    spec that waives only `blocks`, behind `stub: true`.
-    Recorded rather than quietly widened: the contract-gate hook denied the write, I stopped, and
-    amended on a clean tree. (Contrast the sweep PR, where a `sed` loop slipped a protected-path
-    edit past the same gate — #863.)
+  - (none)

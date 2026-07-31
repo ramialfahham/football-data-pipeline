@@ -240,3 +240,12 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/33.json
 site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1492306.json
+
+# CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
+# Not project source, so not committed -- and not deleted either: the contract and stop gates flag
+# any untracked stray, and the stop gate's suggested remedy ("delete untracked strays") would
+# destroy his file. Content worth keeping is distilled into a GitHub issue instead; the Gemini
+# company-building conversation became #868.
+# ROOT-ANCHORED on purpose. A bare `*.pdf` would silently hide a PDF anywhere in the tree, including
+# one a future task legitimately wants tracked.
+/*.pdf
