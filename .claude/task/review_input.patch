@@ -1,313 +1,2450 @@
+diff --git a/.claude/active_work.md b/.claude/active_work.md
+index 2cd4b0f..f6b7735 100644
+--- a/.claude/active_work.md
++++ b/.claude/active_work.md
+@@ -5,30 +5,38 @@
+ > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
+ > symbols, so it over-reports by ~220 and will send you trimming content that fits.
+ 
+-_Last updated **2026-07-29**. main GREEN at **8b43d48**. **NOTHING IN FLIGHT — clean slate, no
+-branch, no open PR.** The A→C2 sequence is DONE: #854, #857, #862, #865, #867 all merged. The product
+-is **Matchday Pilot** on `matchdaypilot.com`.
+-The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in git stash@{0} with a
++_Last updated **2026-07-31**. main GREEN at **8b43d48**. **IN FLIGHT: `feat/868-org-operational`,
++18 files, UNCOMMITTED, review round 4 under a CPO `rounds_cap_override`.** The product is
++**Matchday Pilot** on `matchdaypilot.com`.
++The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in `stash@{0}` with a
+ known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS: read "⭐ CURRENT", run
+-`git stash list` before any git work, read #848 before shaping the International tab.**
++`git stash list` before any git work, read #848 before the International tab.**
+ 
+ **NEW PROCESS (#858), in force: every plan is challenged by two independent reviewers BEFORE the CPO
+-sees it.** On C2's plan it found 24 defects and 3 FALSE claims. Never present an unchallenged plan._
+-
+-## ⏸ PAUSED MID-EXERCISE — the org/process design (#868)
+-The CPO wants this project run like a real company and is **mid-way through defining the roles,
+-processes and org**. It is a DESIGN exercise; nothing is implemented. **Resume from #868's second
+-comment**, which holds the roles x rituals grid, the three bands, and the open questions.
+-**His correction, which is the organising principle: define where each role's responsibility BEGINS
+-and ENDS — do NOT scale ceremony by change size** (that just adds a judgement call). A change either
+-enters a domain or it does not.
+-**The finding that unlocks it:** `review_routing.json` maps FILE PATHS to roles, but a domain is not
+-a set of paths. SEO's domain ("what a crawler sees") spans `Layout.astro`, the specs, `strings.ts`,
+-the export's slug logic AND the registry's competition names. No glob expresses that, which is why
+-`seo-expert-reviewer` **has never fired once** despite being created deliberately.
+-**Missing roles found by absence:** Localisation Lead (cost us on #867 — four of nine strings wrong,
+-the CPO wrote the Finnish himself), Product Lead, and fractional Legal + SRE.
+-**Then: back to building.** He said so explicitly.
++sees it.** It found 24 defects on C2's plan and 9 on #868's. Never present an unchallenged plan._
++
++## ✅ THE ORG IS IMPLEMENTED — branch `feat/868-org-operational`, #868
++Four CPO rulings (2026-07-31) are now MECHANISMS. **`escalations.log` is the DECISIONS log now and
++holds all four verbatim with their authority. Read it before re-deciding anything.**
++1. **CTO SPLIT.** `platform-reviewer` (NEW) takes territory + line review; `cto-reviewer` keeps
++   authority, no broad globs, woken by a PROPERTY of the change. **cto 28%→12%, platform 24%.**
++   Zero `site_v2/src/**` pulls in either (test-pinned). Of the 8 guard paths, cto gets all at opus,
++   platform joins on **2** (`hooks/**`, `workflows/**`); widening that is a cost = §10.
++2. **Thresholds.** 2 of 4 are routing rows; new-mechanism + recurring-cost are DECLARED in
++   `decisions_taken:`, tripwire = `scope-auditor`'s undeclared-threshold item (cite by NAME, numbers
++   shift). **No gate parses that field: judgement at haiku tier. Stated, not hidden.**
++3. **QA = evidence artifact + gate**, not an agent. `_acceptance_gate` fires ONLY on `site_v2/src/`:
++   needs `acceptance_criteria:` + each demonstrated in `.claude/task/acceptance_evidence.md` under
++   `criteria_demonstrated:`, from BUILT output. **No CI twin (#870).**
++4. **Criteria: I draft, CPO approves BEFORE code, LOCKED after.** The lock is the mechanism.
++5. **Editorial = mechanical gate** (`check_copy_gate.py`), never a copy approver. Wording ALWAYS
++   yours. Growth owns a title's shape, Editorial its words.
++
++**⚠ `check_copy_gate.py` EXITS 1 — 16 findings** (14 em dashes, `fi.secForm` `Muotovertailu` vs
++`kunto`, `fi.footerDataSource` in English). **Not wired to CI: every fix is copy = §10 (#872).**
++`report_process_health.py` reports rulings/branch, rounds, activation. **NOT CPO-ruled, sets NO
++target** — an earlier draft invented a threshold AND a sunset rule for withdrawing your process; both
++guard reviewers failed that as builder-authored governance. **Any threshold is yours.**
+ 
+ ## THE GOAL
+ **The new website live.** Quality over speed. He runs **a 100% audit before go-live** and expects a
+@@ -36,12 +44,9 @@ refactor may follow. "The result has to be (almost) perfect."
+ 
+ ## ⭐ CURRENT — nothing in flight. Recommended next: unblock the player page (#845 + #846).
+ 
+-### 0. THE SEQUENCE — A→C2 ALL MERGED (#854, #857, #862, #865, #867). **D is next and not started:**
+-pre-launch with #799/#377 — slug persistence, the freeze, #843's redirects.
+-
+-**WHY THE PLAYER PAGE BEATS D AS THE NEXT MOVE:** its Overview is already built, tested and
+-reviewer-passed in `stash@{0}`. Two decisions (#845 what earns a page, #846 which season it opens on)
+-convert finished work into a shipped page type. Everything else on the list is longer.
++### 0. **PR D not started:** pre-launch with #799/#377 — slug persistence, the freeze, #843 redirects.
++**WHY THE PLAYER PAGE BEATS D:** its Overview is built, tested and reviewer-passed in `stash@{0}`.
++Two decisions (#845, #846) convert finished work into a shipped page. Everything else is longer.
+ 
+ **BLOCKING GO-LIVE, in rough order of harm:** **#838** renders a synthetic points number in the
+ CRAWLABLE BODY (`RecordStrip.astro:28`, verified `#3 · 71 pts`) — must land before indexing ·
+@@ -49,22 +54,21 @@ CRAWLABLE BODY (`RecordStrip.astro:28`, verified `#3 · 71 pts`) — must land b
+ indexed URL can move · **#845** what earns a page (154,644 player pages otherwise) · **#799**
+ imprint, the CPO's · **6 of 15 screens unspec'd**.
+ 
+-**⚠ `PROJECT_BOARD_TITLE`** in `board-request-sync.yml` + `_paused/project-status-sync.yml` is a
+-**live lookup key** for `Matchday Pilot - Project Board`: `:101` matches BY TITLE and **throws** at
+-`:104`. String and board move together — never "tidy" one alone.
++**⚠ `PROJECT_BOARD_TITLE`** (`board-request-sync.yml` + `_paused/project-status-sync.yml`) is a
++**live lookup key** for `Matchday Pilot - Project Board`: `:101` matches BY TITLE, **throws** at
++`:104`. String and board move together, never "tidy" one alone.
+ 
+-**Still carrying the old brand ON PURPOSE, do not "fix":** `north_star.md` (#860) · the 6 wireframe
+-`| Matchday IQ` title templates · `site_v2/package*.json` · `system.css:2` (locked, stripped at
+-build) · **`site/**`, the retired prototype, where `Matchday IQ` is CORRECT HISTORY.**
++**Old brand ON PURPOSE, do not "fix":** `north_star.md` (#860) · 6 wireframe `| Matchday IQ` titles ·
++`site_v2/package*.json` · `system.css:2` (locked, stripped at build) · **`site/**`, the retired
++prototype, where `Matchday IQ` is CORRECT HISTORY.**
+ 
+-**Rulings** (escalations.log): **E3 = TRANSLITERATE** — fold to the base letter where one exists,
+-expand only where none does, so `ü→u` AND `ß→ss` are ONE rule · **E2 = the warehouse** produces
+-slugs · ONE locale-independent slug · **base prepares, the core dim publishes.**
++**Rulings** (escalations.log): **E3 TRANSLITERATE** — base letter where one exists, expand where
++none, so `ü→u` AND `ß→ss` are ONE rule · **E2 warehouse** produces slugs · ONE locale-independent
++slug · **base prepares, the core dim publishes.**
+ 
+-**Carry into D:** 39 teams lack a country, **22 have one in `stg_apif__teams`** · `slug_map` is flat,
+-so **90 player kebabs equal coach kebabs** · players still id-suffixed · `fixture_slug` still from
+-NAMES in Python · `team_name_key` zero callers · **#3045 takes `/teams/dragon/`, #4207
+-`/teams/warriors/`** silently (PR D freezes them).
++**Carry into D:** 39 teams lack a country, **22 have one in `stg_apif__teams`** · flat `slug_map` so
++**90 player kebabs equal coach kebabs** · players id-suffixed · `fixture_slug` from NAMES in Python ·
++`team_name_key` zero callers · **#3045 takes `/teams/dragon/`, #4207 `/teams/warriors/`** silently.
+ 
+ ### 1. #844 SHIPPED (#867). What it leaves open.
+ 
+@@ -72,20 +76,18 @@ Gate: `scripts/audit-seo.mjs` + `integrations/seo-audit.mjs`; switch: `src/confi
+ specs carry a required `seo` block. **Flipping `INDEXABLE` true is the go-live act**, and the audit
+ refuses it while `STUB_PAGES` is non-empty.
+ 
+-**Open, from the challenge + reviews:** `LinksFooter` renders `<span>` where `<a>` belongs (a NEW
+-rule, own PR) · no redirect/alias mechanism · no 404 strategy for the fixture cliff · structured-data
+-COMPLETENESS (the check is format-only) · rich vs thin tier · OG-image fitness · **localised
+-COMPETITION names** (the registry has ONE `name`, so Finnish readers see "Premier League" where they
+-expect "Valioliiga") · **14 em dashes in shipped copy**, worst `heroVerdictUnder` on the team page ·
+-the title-width gate fails at 660px not 600, which bundles calibration with an accepted-truncation
+-decision the CPO has now seen.
++**Open:** `LinksFooter` renders `<span>` where `<a>` belongs (own PR) · no redirect/alias mechanism ·
++no 404 strategy for the fixture cliff · structured-data COMPLETENESS (the check is format-only) ·
++rich vs thin tier · OG-image fitness · **localised COMPETITION names** (registry has ONE `name`, so
++Finnish readers see "Premier League" not "Valioliiga") · the title-width gate fails at 660px not 600.
+ 
+ **Siblings:** **#845** what earns a page · **#843** the URL derives from an unverified mutable field ·
+ **#846** window selection in the frontend.
+ 
+-**`seo-expert-reviewer` (#842) is INERT** — absent from `review_routing.json`, so it fires on
+-nothing (see the PAUSED section: that is a boundary problem, not a routing typo). **It IS usable
+-directly as a consultant** — its #844 ruling reversed a CPO decision.
++**`seo-expert-reviewer` (#842) is STILL INERT** — absent from `review_routing.json`. The org work
++(#868) did NOT route it: approved in principle, not commissioned, its own governance event. **It IS
++usable directly as a consultant** — its #844 ruling reversed a CPO decision. Its domain IS
++enumerable in 12 globs, so the old "no glob expresses it" premise was FALSE.
+ 
+ ### 2. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
+ 
+@@ -99,25 +101,23 @@ makes the tab appear with zero template change. It carries a competition selecto
+ 
+ `git checkout feat/player-overview-tab && git stash pop` — **do NOT rebuild it.** Build and tests
+ green, `bi-analyst-reviewer` + `scope-auditor` PASS; uncommitted because the gate rejects a FAIL.
+-
+-**⚠️ Its default-season rule is WRONG as stashed:** `seasons[0]` = most recent of ANY competition, so
+-both sample players open on **World Cup 2026** with their national side. Under #848 the club tabs are
+-club-only, so it must be the most recent CLUB season.
++**⚠️ Its default-season rule is WRONG:** `seasons[0]` = most recent of ANY competition, so both
++sample players open on **World Cup 2026** with their national side. Under #848 the club tabs are
++club-only, so it must be the most recent CLUB season. **Note: it would now ALSO be blocked by the new
++acceptance gate**, which is the point — it passed both reviewers while doing the wrong thing.
+ 
+ **Held on:** **#845** — adding `players` = **154,644 pages** against a build already needing 8GB at a
+ sixteenth of that · **#846** — the payload must carry the lens per season AND which club season is
+ featured. Not the frontend, not the export (**consumption too**), so it is a MART change.
+ 
+ **#753's design-state comment is the authority. Everything in its section C is still open.**
+-
+ **RENDER FAILURE fix, keep all three:** ONE tab at a time, a **NEW** artifact URL, both channels.
+-
+ **Still owed:** the CPO-approved chip/pill sizing (`.cchip` 44px) — own PR, edits `system.css`.
+ 
+ **Data deps.** **#840** (club match count; rank YoY sign) · **#838** + **#839** block the **TEAM**
+ Overview's cup behaviour, not the player page · **#841** blocks player **PERFORMANCE**.
+ 
+-## Reserved (CPO §10, standing)
++## Reserved (§10, standing)
+ Nav order · search style · desktop RAIL per page type · footer/legal (imprint-blocked) ·
+ default-theme policy. **Deferred:** component/metric catalogue, import-boundary rule, #828.
+ 
+@@ -126,19 +126,18 @@ default-theme policy. **Deferred:** component/metric catalogue, import-boundary
+   `f6348775`; player `6c21ef71` NOT approved.
+ - **Show, don't describe.** Rendered output or a mock IS the proposal; never ask him to rule on prose.
+ - **A rename is not a find-and-replace.** Where a line describes the RETIRED MVP, `Matchday IQ` is
+-  correct history; only forward-looking references become Matchday Pilot.
++  correct history; only forward-looking refs become Matchday Pilot.
+ - **READ THE DOCS AND QUERY THE DATA FIRST, don't assert.** Eight logged misses, each a query away.
+   Memory `feedback_engineering` + `feedback_verify_real_world_identity`.
+-- **MY SEARCHES KEEP BEING STRUCTURALLY UNABLE TO FIND THE THING.** Three times in one session:
+-  `git grep` is BRE so `?` is a literal; a brand grep cannot find a false CLAIM that omits the brand;
+-  an `--include` filter narrower than the class. **State what a grep CANNOT see, or do not call it a
+-  sweep.** Verify renames against RENDERED TEXT (split markup and `outerHTML` defeat greps; Astro
+-  EMITS `<!-- -->`, use `{/* … */}`). Memory `feedback_verify_renames_against_rendered_text`.
+-- **I CANNOT self-assess copy in ANY language, English included.** #844's nine SEO strings went to
+-  the CPO after a §10 FAIL and FOUR of mine were wrong (German missing a required article, Finnish
+-  `sarjassa` + an uninflected borrowed noun, `muoto` where football says `kunto`, an unverified
+-  separator). **The retired MVP's `site/i18n/*.json` is 127 VALIDATED strings per locale — check new
+-  copy against it.** Em dashes read as AI-generated. **No Localisation role exists (#868).**
++- **A decision taken means the next action is an EDIT**, not another artifact.
++- **MY SEARCHES KEEP BEING STRUCTURALLY UNABLE TO FIND THE THING.** `git grep` is BRE so `?` is
++  literal; a brand grep cannot find a CLAIM omitting the brand; an `--include` narrower than the
++  class. **State what a grep CANNOT see or do not call it a sweep.** Verify renames against RENDERED
++  TEXT (Astro EMITS `<!-- -->`). Memory `feedback_verify_renames_against_rendered_text`.
++- **I CANNOT self-assess copy in ANY language, English included.** #844: FOUR of nine strings wrong
++  (German missing an article, Finnish `sarjassa` + an uninflected borrowed noun, `muoto` not `kunto`,
++  an unverified separator). **`site/i18n/*.json` = 127 VALIDATED strings per locale, check against
++  it** — `check_copy_gate.py` now does. Em dashes read as AI-generated.
+ - **Design for the DEFAULT case** — a page built around a goalkeeper gave two wrong conclusions.
+ - **Never fill an empty slot to balance a layout.**
+ - **Real data only** — honest empty states; "no hero, not shippable" is RETRACTED.
+@@ -146,22 +145,21 @@ default-theme policy. **Deferred:** component/metric catalogue, import-boundary
+   sibling wireframes, not one.
+ 
+ ## WHERE WE STAND
+-**Pages** 2 of 5 built (fixture + team) + player Overview HELD · **6 of 15 screens UNSPEC'D** (home,
+-competition hub, browse, leaderboards, h2h, glossary) · **Real data** ✅ · **Hosting** LIVE, trigger
+-shape + go-public left · **Legal** not started. Marts + metric layer DONE; do not reopen.
++**Pages** 2 of 5 (fixture + team) + player Overview HELD · **6 of 15 screens UNSPEC'D** (home, comp
++hub, browse, leaderboards, h2h, glossary) · **Real data** ✅ · **Hosting** LIVE, trigger shape +
++go-public left · **Legal** not started. Marts + metric layer DONE, do not reopen.
+ 
+ **⚠️ v2 makes third-party requests TODAY** — `Crest`/`PlayerRow` render `media.api-sports.io` as
+ `<img>`, the defect that took the MVP offline. Fix = mirror crests to our origin.
+ 
+ ## OWED — deferred, not forgotten (must survive rewrites)
+-- **The agent set** — a ui-BUILDER (draft on `feat/expert-agents-that-build`); real CONSULTANT
+-  agents; a fan probe. **#868 supersedes this** as the org/process overhaul.
++- **A ui-BUILDER agent** (`stash@{1}`) — superseded: the org chose ONE builder wearing lenses.
+ - **The metric-change skill** (one metric touched SIX files) · **mirror the crests** · **reviewers
+   as peers** (#822 shipped only the model half) · **amend `metrics_display.md`** (#804's 2 metrics).
+ 
+ ## DONE (history is in git — only still-live gotchas kept)
+-Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**. Merged: #842, #847, #854,
+-#857, #862, #865, #867. #753 carries the player design state. Metric layer complete.
++Filed: **#838–#841, #843–#846, #848, #850–#853, #863–#866, #868, #870–#873**. Merged: #842, #847,
++#854, #857, #862, #865, #867. #753 carries the player design state. Metric layer complete.
+ - ⚠️ `appearances` = played legs (`minutes_played > 0`), not squad selections.
+ - ⚠️ `astro build` OOMs at full scale (`--max-old-space-size=8192`); before a local dev build run
+   `git clean -fX site_v2/src/data`.
+@@ -172,11 +170,10 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**.
+ 1. **Player page** (#845 + #846), then Performance → Career, ONE tab at a time, each content
+    boundary decided before mocking.
+ 2. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
+-3. Follow-ups: **#863** a PROTECTED path is editable with NO `protected_override` · **#866**
+-   `Regular Season - 20` untranslated in every locale · **#864** stale `cutover` comments ·
+-   **#868** operationalise the agent org (discovery spikes, issue anchors, veto criteria) · route
+-   `seo-expert-reviewer`; `content_architecture.md` cites GAP-22 (should be GAP-20); fixture
+-   PlayerRow "1 assists" singular; #833; the 4-way locale-list duplication.
++3. Follow-ups: **#863** PROTECTED path editable with NO `protected_override` · **#866**
++   `Regular Season - 20` untranslated · **#864** stale `cutover` comments · **routing matcher is
++   hand-copied** in `git_discipline.py:132` + `check_task_artifacts.py:156`, NO parity test ·
++   copy-gate's 16 findings (CPO) · route `seo-expert-reviewer`; GAP-22 should be GAP-20; #833.
+ 
+ ## OPEN — the CPO's alone
+ - **Imprint operator + address** (#799) — blocks publication; get a lawyer, never conclude it.
+@@ -199,9 +196,9 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**.
+ - **dbt CLI is broken locally. SQLFluff is NOT** — only its dbt templater is (needs GCP). **Lint from
+   the REPO ROOT** (the root `.sqlfluff` has the jinja macro path, `dbt_project/.sqlfluff` does not):
+   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set (a `--rules`
+-  subset missed ST06). Also `check_layer_contract.py`. BigQuery rejects a FROM-less WHERE.
+-- **A wildcard is fine over ONE ref; add a join and AM04 fires.** Enumerate columns — the repo has
+-  **zero `noqa`**. Nesting ceiling ≈8 calls (parse depth 255).
++  subset missed ST06). BigQuery rejects a FROM-less WHERE.
++- **A wildcard is fine over ONE ref; add a join and AM04 fires.** Enumerate columns, the repo has
++  **zero `noqa`**. Nesting ceiling ≈8 calls.
+ - **Frontend:** `deploy-site-v2.yml` (manual-only) does export → build → firebase deploy. The Browser
+   pane CAN drive the dev server (`preview_start` name `v2`) — accessibility tree, geometry and console
+   all work; only `screenshot` fails. **Artifact delivery works** with the three rules in "⭐ CURRENT".
+@@ -211,19 +208,17 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**.
+ - **Contract edits need a CLEAN tree** — stash-dance with explicit paths. ⚠ A pathspec stash can
+   capture MORE than the paths given; if popping conflicts, `git checkout stash@{0} -- <paths>` then
+   drop. Check `git stash list` after — never assume the index.
+-- **⚠ CWD PERSISTS between Bash calls.** Four false results this session came from a script running
+-  in `site_v2/` and silently measuring nothing. `cd` to the repo root in the command.
+-- **⚠ `scope_paths` uses `fnmatch`, so `[lang]`/`[team]` are CHARACTER CLASSES.** A literal Astro
+-  dynamic-route path can NEVER match itself — use `site_v2/src/pages/*/teams/*.astro`. Bites every
+-  frontend contract.
+-- **⚠ `src/pages/index.astro` is DEAD CODE** — `prefixDefaultLocale` generates a root redirect that
+-  overwrites it. Editing it changes nothing that ships.
++- **⚠ CWD PERSISTS between Bash calls** — `cd` to the repo root in the command, or a script silently
++  measures nothing. **⚠ `fnmatch`'s `*` CROSSES `/`**, so `site_v2/*.json` also matches
++  `site_v2/src/data/*.json`; and `scope_paths`' `[lang]`/`[team]` are CHARACTER CLASSES, so a literal
++  Astro dynamic-route path can NEVER match itself — use `site_v2/src/pages/*/teams/*.astro`.
++- **⚠ `src/pages/index.astro` is DEAD CODE** — `prefixDefaultLocale` writes a root redirect over it.
+ 
+ ## Verified state reference
+ - **Live to users:** no PUBLIC site. v2 is on `football-data-pipeline-gcp.web.app` (unlisted), every
+-  page `noindex`. **Nothing is published — which is why URLs are still free to change.**
++  page `noindex`. **Nothing is published, which is why URLs are still free to change.**
+ - **v2 built:** design system (`system.css` + 26 components), fixture page, team page (3 tabs), nav
+-  shell (#825), page-spec + SEO contract (#826/#844). `.shell`/`.page-grid`/`.rail` exists, wired
+-  into zero pages; team/fixture stay at 680px `.inner`.
+-- **Datasets:** base models + seeds in `dbt_analytics`; also `staging`, `core`, `marts`, `ci_*`.
++  shell (#825), page-spec + SEO contract (#826/#844). `.shell`/`.page-grid`/`.rail` wired into zero
++  pages; team/fixture stay at 680px `.inner`.
++- **Datasets:** base + seeds in `dbt_analytics`; also `staging`, `core`, `marts`, `ci_*`.
+   `generate_schema_name` prefixes non-prod targets, but **never run a local `dbt build`.**
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index b3773b9..45ef1bf 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -1,23 +1,43 @@
+ ---
+ name: cto-reviewer
+-description: Adversarial platform reviewer (CTO role). Reviews tooling, hooks, CI workflows, python scripts, dependencies and site build config — dormant until those paths are touched. Read-only. Invoked in step 2 (Blinding) of the review cycle.
++description: Adversarial authority reviewer (CTO role). Rules on whether a change MAY happen — new mechanisms, new dependencies, guard invariants and recurring cost. Owns no territory and reviews no implementation. Read-only. Invoked in step 2 (Blinding) of the review cycle.
+ tools: Read, Grep, Glob
+ model: sonnet
+ effort: high
+ ---
+ 
+-You are the CTO reviewer: owner of platform code quality and architectural
+-restraint. You are NOT the builder. Default verdict FAIL; praise banned.
+-Your territory is everything that is code but not warehouse: `scripts/`,
+-`tests/`, `.claude/hooks/`, `.github/workflows/`, `requirements*.txt`,
+-`site_v2/` build configuration.
+-
+-> **Model:** pinned to `sonnet` in the frontmatter (the floor). When the diff
+-> under review touches a guard path (`.claude/hooks/**`, `.claude/agents/**`,
+-> `.claude/settings.json`, `.claude/review_routing.json`, `.github/workflows/**`),
+-> the orchestrator overrides your model to `opus` at spawn time — guard bypasses
+-> are the highest-stakes findings (the G3 commit-gate bypasses were caught only at
+-> that depth, rounds 2-5). This is a procedural rule, not hook-enforced.
++You are the CTO reviewer: owner of technical authority and architectural
++restraint. You are NOT the builder, and as of the 2026-07-31 split you are not a
++line reviewer either. Default verdict FAIL; praise banned.
++
++**You are activated by a PROPERTY of the change, not by a place in the tree.**
++Four thresholds wake you: a new mechanism is introduced, a dependency is added,
++a guard invariant is touched, or a recurring cost appears. Two of those are
++detectable from paths and are routed to you; two can happen in any file and
++reach you only because the builder declared them in the contract. You rule, and
++then you stop — you do not review the implementation of what you allowed.
++
++**Where your responsibility ends.** `platform-reviewer` owns the machinery:
++whether the script is re-run safe, whether a test pins the changed branch,
++whether the dep is pinned and the lockfile updated, whether the build still
++fits in memory. Those are not yours even on a diff you are both reviewing. If
++your finding is "this code is wrong", it belongs to Platform. Yours is "this
++should not exist, or not without an approval that is missing".
++
++> **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
++> to `opus` at spawn time on any of the eight guard paths (`.claude/hooks/**`,
++> `.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
++> `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
++> `.github/workflows/**`) — guard bypasses are the highest-stakes findings (the G3
++> commit-gate bypasses were caught only at that depth, rounds 2-5).
++> `platform-reviewer` is routed alongside you, also at opus, on exactly TWO of
++> them: `.claude/hooks/**` and `.github/workflows/**`. **On the other six you are
++> the only required specialist**, with just the always-on `scope-auditor` beside
++> you — including on `.claude/agents/**`, where the file under edit may be THIS
++> ONE, and you are therefore the whole specialist guard against a builder
++> weakening its own adversary. Procedural rule, not hook-enforced. Re-check it
++> against `review_routing.json` rather than restating it from memory: the split's
++> own review caught this claim wrong twice.
+ 
+ ## Inputs
+ 
+@@ -34,22 +54,54 @@ Your territory is everything that is code but not warehouse: `scripts/`,
+ 2. **Boring-technology check**: could this be done with what the repo already
+    uses? Exotic or clever where plain would do → FAIL with the plain
+    alternative named.
+-3. **Re-run and interruption safety**: for every script/hook in the diff —
+-   what happens when it runs twice? When it dies halfway? (A question, not a
+-   framework mandate: most answers are one sentence. No answer → FAIL.)
+-4. **Fail-open vs fail-closed**: guardrail hooks must fail OPEN (a hook bug
+-   must never lock the workflow); CI checks must fail CLOSED. Inverted →
+-   FAIL.
+-5. **Dependencies**: any `requirements*.txt` change — needed, pinned,
+-   justified in the contract?
+-6. **Credentials/secrets**: anything resembling a key, token or credential in
+-   the diff, or a workflow permission widening → FAIL.
+-7. **Cost tripwire (CFO checklist)**: does the diff change run frequency, API
+-   call volume, BigQuery bytes, or CI minutes? Cost changes are CPO-class.
+-8. **Guard integrity**: changes to `.claude/hooks/`, `.claude/settings.json`,
+-   `.claude/review_routing.json`, `.github/workflows/` — does the contract
+-   carry `protected_override` with the CPO approval? Do hook tests cover the
+-   changed behavior?
++3. **Guard invariants**: guardrail hooks must fail OPEN (a hook bug must never
++   lock the workflow); CI checks must fail CLOSED. This stayed with you in the
++   split, deliberately: the G3 bypasses were findings of exactly this kind and
++   they were only caught at opus depth. You judge whether the invariant is the
++   right one and whether this change may weaken it. Whether the code correctly
++   implements it is Platform's. Inverted invariant, or a guard weakened without
++   the CPO saying so → FAIL.
++4. **Dependencies — needed at all?**: any `*requirements*.txt` or
++   `package*.json` addition — is it NEEDED, and is the reason in the contract?
++   A dependency is a permanent obligation. Unjustified → FAIL. (Pinning and the
++   lockfile are Platform's.)
++5. **Cost tripwire (CFO checklist)**: does the diff change run frequency, API
++   call volume, BigQuery bytes, build minutes or hosting spend? Cost changes are
++   CPO-class and may never be absorbed silently.
++6. **Credentials and secrets**: anything resembling a key, token, password or
++   credential in the diff, or a workflow permission widening → FAIL. You keep
++   this **in addition to** `platform-reviewer` and `scope-auditor`, on the CPO's
++   ruling of 2026-07-31 ("yes" to putting it back on you as well). The reason is
++   coverage at depth: you are the only reviewer spawned at opus on all eight
++   guard paths, and `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
++   are precisely the file class that carries env blocks and tokens. The first
++   version of the split moved this item away from you, which left a secret in
++   those files hunted only at haiku. Triple coverage costs nothing here — you
++   are already spawned on those paths.
++   What the machine already does, verified rather than assumed:
++   `.github/workflows/security-secrets.yml` runs `gitleaks-action@v2` on **every**
++   `pull_request` and on push to `main`, with a terminal gate that exits 1 — so CI
++   scanning exists and fails CLOSED. `check_no_secrets.py` and
++   `detect-private-key` are a LOCAL-ONLY second layer via
++   `.pre-commit-config.yaml`, which no workflow invokes. You are the third layer,
++   and your value is what a pattern matcher cannot see: a credential that is not
++   shaped like one, a permission quietly widened, a token committed as an example.
++   An earlier draft of this item claimed "nothing catches a secret in CI", which
++   was FALSE and was caught in round 5 by grepping the workflows. Do not repeat
++   the shape of that error: check the workflow, do not infer the coverage.
++7. **Guard authority**: any change under `.claude/hooks/`, `.claude/agents/`,
++   `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
++   `.mcp.json`, `.cursor/mcp.json` or `.github/workflows/` — does the contract
++   carry `protected_override` naming a real CPO approval, and does it also carry
++   a non-placeholder `impact_map`? Either missing → FAIL.
++8. **Undeclared thresholds** (2026-07-31, #868): a new mechanism and a recurring
++   cost can appear in ANY file, so no routing row can find them and you only see
++   them if the builder wrote them down. Read `decisions_taken:` and compare it to
++   the diff. A crossing that is not declared with its authority → FAIL. Be
++   explicit that this is the weakest link in the system: no gate parses that
++   field, so the declaration rests on the builder's honesty and on the always-on
++   scope-auditor. Treat an absent declaration as a defect, never as an oversight
++   to be excused.
+ 
+ ## Verdict rules (no free passes)
+ 
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+new file mode 100644
+index 0000000..761b82f
+--- /dev/null
++++ b/.claude/agents/platform-reviewer.md
+@@ -0,0 +1,118 @@
++---
++name: platform-reviewer
++description: Adversarial platform reviewer (Platform and Reliability role). Owns the machinery — scripts, tests, hooks, CI workflows, dependency pinning, the site build and hosting config. Reviews implementation, never authority. Read-only. Invoked in step 2 (Blinding) of the review cycle.
++tools: Read, Grep, Glob
++model: sonnet
++effort: high
++---
++
++You are the Platform and Reliability reviewer: owner of the machinery that
++builds, tests and ships this project. You are NOT the builder. Default verdict
++FAIL; praise banned. Your territory is `scripts/`, `tests/`, `.claude/hooks/`,
++`.github/workflows/`, `*requirements*.txt`, and the site build and hosting
++config (`site_v2/astro.config.mjs`, `tsconfig.json`, `firebase.json`,
++`package*.json`, `.gitignore`, `site_v2/integrations/`, `site_v2/scripts/`).
++`site_v2/.gitignore` is yours because an ignore rule changes what lands in
++`dist/`, which is hunt items 6 and 7.
++
++**Where your responsibility ends.** You review the IMPLEMENTATION. You do not
++rule on whether a mechanism, a dependency, a guard change or a recurring cost is
++ALLOWED — that is `cto-reviewer`'s, and on guard paths you both review the same
++diff for different things. If you find yourself asking "should this exist at
++all", that is not your call: say so and let the CTO's verdict carry it. Not
++yours either: warehouse layer placement (`analytics-engineer-reviewer`), what a
++page displays (`bi-analyst-reviewer`), what a number means
++(`football-analytics-expert-reviewer`).
++
++> **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
++> to `opus` at spawn time on the TWO guard paths you are routed to:
++> `.claude/hooks/**` and `.github/workflows/**`. Guard bypasses are the
++> highest-stakes findings (the G3 commit-gate bypasses were caught only at that
++> depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
++> YOUR items — that is why you are there at all.
++> You are deliberately NOT routed to the other six guard paths
++> (`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
++> `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`). Two reasons, and
++> the second one binds: a brief or a routing table is a prompt rather than
++> machinery, so none of your hunt items reach it and your verdict would be a rubber
++> stamp; and adding you there would put two opus specialists where one ran, which
++> is a recurring cost and therefore the CPO's to approve. Round 2 of this branch's
++> own review widened those rows and was failed for exactly that. Procedural rule,
++> not hook-enforced.
++
++## Inputs
++
++1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
++2. `.claude/task/contract.md`.
++3. `docs/roles/platform_reliability.md`, `docs/agent_guardrails.md`,
++   working_agreement.md §4 (quality bar) + §10 + Appendix A.
++
++## Your hunt — every item, every time
++
++1. **Re-run and interruption safety**: for every script, hook and workflow step
++   in the diff — what happens when it runs twice? When it dies halfway? (A
++   question, not a framework mandate: most answers are one sentence. No answer
++   → FAIL.)
++2. **Test coverage of changed behaviour**: does a test exercise the branch that
++   changed, and would it FAIL if the change were reverted? A hook or gate whose
++   new behaviour no test pins → FAIL. Naming a test that only asserts the happy
++   path is not coverage.
++3. **Guard mechanics**: guardrail hooks must fail OPEN (a hook bug must never
++   lock the workflow); CI checks must fail CLOSED. Verify which one each changed
++   path is, from the code and not from its name. Inverted → FAIL. Whether the
++   guard MAY change is the CTO's; whether it still works is yours.
++4. **Dependency hygiene**: any `*requirements*.txt` or `package*.json` change —
++   is every added dep pinned to an exact version, and is the lockfile updated in
++   the same commit? Unpinned or a lockfile left behind → FAIL. Whether the dep
++   is justified at all is the CTO's.
++5. **Credentials and permissions**: anything resembling a key, token or
++   credential in the diff, or a workflow permission widening → FAIL.
++6. **Build health**: does the change affect build time, peak memory or output
++   size? `astro build` already needs `--max-old-space-size=8192` at a fraction
++   of full page scale, so anything that multiplies the generated set without
++   saying so → FAIL with the number.
++7. **Hosting and runtime**: deploy config, cache headers, redirects, and any
++   third-party request the built page makes. A page fetching an asset from
++   someone else's origin is the defect that took the previous site offline —
++   find it in the BUILT output, not in the source.
++8. **Duplicated enforcement**: the local hook and the CI backstop must agree.
++   `git_discipline.py` and `scripts/check_task_artifacts.py` hand-copy the
++   reviewer-matching loop with no parity test. Any change to logic that exists
++   in both copies, made in only one → FAIL.
++
++## Verdict rules (no free passes)
++
++PASS requires at least two real risks/edge cases you checked, with evidence.
++Cannot find two → ESCALATE. Ambiguous classification → ESCALATE (§10
++meta-rule). "Should this exist" is never ambiguity for you — it is the CTO's.
++
++## Output format (exact; machine-parsed)
++
++VERDICT: PASS
++risks_checked:
++- <risk 1>
++- <risk 2>
++
++or VERDICT: FAIL with `findings:`, or VERDICT: ESCALATE with `questions:`.
++
++## Delta re-review
++
++A brief may be headed **DELTA RE-REVIEW**. It is legitimate ONLY when you have
++already returned PASS on an earlier hash of this SAME branch; a first review is
++never a delta review. It names what changed since your pass.
++
++Then judge that delta and your own prior findings, and nothing else. Do not
++re-audit what you already passed and do not re-derive conclusions you already
++reached — say so and move on. Your verdict still covers the whole branch at the
++stated hash: it rests on your earlier PASS plus this delta.
++
++**Refuse when the delta is too large for that to hold.** If what changed
++undermines the basis of your earlier pass — the logic you traced was rewritten,
++the surface widened, the thing you verified no longer exists — return
++VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
++cost saving, never a way to move a change past you while you look through a
++keyhole.
++
++Why this exists: every round used to re-run every reviewer over the entire diff
++even when one file had changed, which is what made a nine-round PR cost what it
++did (CPO 2026-07-22: the process "has to be more economic").
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 17e92e7..168731e 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -53,6 +53,22 @@ adjectives are banned from your output.
+    real reach? Is the change a **coverage-cut dodging a defect** (narrowing
+    ingest/scope/coverage to make a test go green) rather than fixing it? Missing,
+    hand-waved, asserted-not-evidenced, or dishonest → FAIL (Appendix A6, #518).
++7. **Credentials and secrets, ANYWHERE in the diff**: anything resembling a key,
++   token, password or credential, or a workflow permission being widened. You hold
++   this because a secret can land in ANY file and you are the only reviewer that
++   sees every diff. Before the 2026-07-31 split it lived on `cto-reviewer`, which
++   was then routed to all of `site_v2/**`; after the split nothing was hunting
++   secrets in `site_v2/src/**`, `dbt_project/**` or `ingestion/**` — a guard
++   quietly narrowed by a refactor, caught by `cto-reviewer` at opus in round 1.
++   Anything credential-shaped → FAIL, even if it looks like a placeholder.
++8. **Undeclared threshold crossings**: does this diff introduce a NEW MECHANISM
++   or a RECURRING COST without a `decisions_taken:` entry naming the CPO
++   authority for it? Two of the CTO's four thresholds can appear in any file, so
++   no routing row can find them and you are the only reviewer who sees every
++   diff. Not declared → FAIL, and name the crossing. Do not accept "it is
++   obviously fine" or "it follows from the last ruling": a threshold is crossed
++   or it is not. Know that no gate parses that field, so this item is the whole
++   enforcement (CPO ruling 2026-07-31, #868).
+ 
+ ## Verdict rules (no free passes)
+ 
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index 69d9507..7edd477 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -237,6 +237,129 @@ def _is_placeholder(s: str) -> bool:
+         s.startswith("<") and s.endswith(">"))
+ 
+ 
++ACCEPTANCE_TRIGGER = "site_v2/src/"
++CRITERIA_REL = ".claude/task/contract.md"
++EVIDENCE_REL = ".claude/task/acceptance_evidence.md"
++
++
++def _bullets(block: str) -> list[str]:
++    """Non-placeholder `- ` items in a block.
++
++    A STRICTER variant of the risks_checked counter below, not a mirror of it — an
++    earlier comment claimed otherwise and was wrong (cto-reviewer, 2026-07-31).
++    Two real differences: `[^\\S\\n]` is horizontal whitespace only, where the
++    risks counter's `\\s` crosses newlines (the class already fixed once in
++    `_rounds_gate`); and this rejects nullish words and `<placeholders>`, which the
++    risks counter does not. Consequence, stated so nobody trips on it: `- none`
++    satisfies the PASS risks quota but not the acceptance quota. Tightening the
++    risks counter would change an existing gate's behaviour and belongs in its own
++    task."""
++    out = []
++    for line in re.findall(r"^[^\S\n]*-[^\S\n]+(\S.*)$", block, flags=re.MULTILINE):
++        item = line.strip()
++        if item.lower() in _NULLISH_WORDS or (item.startswith("<") and item.endswith(">")):
++            continue
++        out.append(item)
++    return out
++
++
++# An evidence line shorter than this cannot carry a reading of built output. Not a
++# quality bar, just a floor under "checked".
++_MIN_EVIDENCE_CHARS = 15
++
++
++def _block(text: str, key: str) -> str:
++    """The indented body under a top-level `key:` in a contract-style file.
++    Ends at the next non-indented, non-empty line — same rule the contract gate
++    uses, so the two parsers cannot disagree about where a block stops."""
++    lines, keep, buf = text.splitlines(), False, []
++    for line in lines:
++        if re.match(rf"^{re.escape(key)}[^\S\n]*:", line):
++            keep = True
++            continue
++        if keep:
++            if line.strip() and not line.startswith((" ", "\t")):
++                break
++            buf.append(line)
++    return "\n".join(buf)
++
++
++def _acceptance_gate(root: str, paths: list[str]) -> str | None:
++    """Reason to deny on missing acceptance evidence, or None (#868, 2026-07-31).
++
++    The CPO's ruling: Quality Assurance exists as a required EVIDENCE ARTIFACT
++    with a gate, not as a reviewer agent — "this check needs proof, not
++    judgement". Every reviewer reads the diff and asks whether the code is
++    right; none asked whether the finished thing does what the ticket asked. The
++    player Overview built, passed both reviewers, and still opened on the wrong
++    season, because nobody was looking at that question.
++
++    TRIGGER is narrow on purpose: only a diff touching `site_v2/src/` — the
++    user-facing surface where that failure happened. A guard that cries wolf
++    gets ignored (see review_routing.json's own _doc), so this does not fire on
++    warehouse, ingestion or tooling work. Widening it is a CPO decision.
++
++    The criteria live in the contract and the CPO approves them BEFORE any code;
++    the lock is the mechanism, not the authorship (ruling 2). This gate cannot
++    verify that they were approved in advance — that is the honest limit — but
++    it CAN refuse a commit where a declared criterion was never demonstrated,
++    which is what stops criteria being softened at round three.
++    """
++    if not any(p.startswith(ACCEPTANCE_TRIGGER) for p in paths):
++        return None
++    contract = os.path.join(root, CRITERIA_REL)
++    if not os.path.isfile(contract):
++        return None                      # no contract: the contract gate owns that
++    criteria = _bullets(_block(
++        open(contract, encoding="utf-8", errors="replace").read(), "acceptance_criteria"))
++    if not criteria:
++        return (
++            "ACCEPTANCE GATE: this diff changes the user-facing surface "
++            f"(`{ACCEPTANCE_TRIGGER}`) and the contract declares no "
++            "`acceptance_criteria:`. Write them as testable statements, get the "
++            "CPO's approval BEFORE building, and they are locked after that "
++            "(CPO ruling 2026-07-31, #868). Reviewers check whether the code is "
++            "right; nothing else checks whether it does what was asked."
++        )
++    evidence_path = os.path.join(root, EVIDENCE_REL)
++    if not os.path.isfile(evidence_path):
++        return (
++            f"ACCEPTANCE GATE: {EVIDENCE_REL} is missing. Demonstrate each of the "
++            f"{len(criteria)} acceptance criteria against the BUILT output (never "
++            "source, never outerHTML — both have certified a defect as fixed while "
++            "it was still shipping) under a `criteria_demonstrated:` marker."
++        )
++    shown = _bullets(_block(
++        open(evidence_path, encoding="utf-8", errors="replace").read(),
++        "criteria_demonstrated"))
++    substantive = [s for s in shown if len(s) >= _MIN_EVIDENCE_CHARS]
++    if len(substantive) < len(criteria):
++        # Say WHY a line did not count. A gate that reports "1 demonstrated" when
++        # the builder wrote 2 looks buggy and gets worked around rather than
++        # answered (the _deny_missing_impact_map lesson, cto-reviewer 2026-07-22).
++        dropped = len(shown) - len(substantive)
++        detail = (f" {dropped} line(s) were too short to be a reading of built "
++                  f"output (under {_MIN_EVIDENCE_CHARS} characters)." if dropped else "")
++        return (
++            f"ACCEPTANCE GATE: {len(criteria)} acceptance criteria declared, "
++            f"{len(substantive)} demonstrated in {EVIDENCE_REL}.{detail} Every criterion "
++            "needs its own evidence line read from the built output. An undemonstrated "
++            "criterion is an unverified claim."
++        )
++    # A count is a floor, not proof: two bullets both reading "checked" satisfy it.
++    # Identical lines mean one criterion was demonstrated twice and another not at
++    # all (cto-reviewer, 2026-07-31: "read by a bullet counter").
++    lowered = [s.lower() for s in substantive]
++    if len(set(lowered)) < len(lowered):
++        dupes = sorted({s for s in lowered if lowered.count(s) > 1})
++        return (
++            f"ACCEPTANCE GATE: {EVIDENCE_REL} repeats identical evidence lines "
++            f"({dupes[:2]}). Each criterion needs its OWN reading of the built "
++            "output; a repeated line means one criterion went undemonstrated."
++        )
++    return None
++
++
+ def _commit_gate(root: str) -> str | None:
+     """Reason to deny the commit, or None when the gate passes (governance G3)."""
+     import hashlib
+@@ -248,6 +371,9 @@ def _commit_gate(root: str) -> str | None:
+         return None                      # no routing file: gate not active (fail open)
+     if _artifact_only(paths, routing):
+         return None                      # bookkeeping commit: exempt
++    acceptance_msg = _acceptance_gate(root, paths)
++    if acceptance_msg:
++        return acceptance_msg
+     review_path = os.path.join(root, REVIEW_REL)
+     if not os.path.isfile(review_path):
+         return (
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index 5279092..864fcc9 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -36,9 +36,6 @@
+     "gap was found by enumerating `git ls-files site_v2` — the first attempt was",
+     "'verified' against two paths that did not exist because they were files the",
+     "builder intended to create. Enumerate the real tree, never the imagined one.",
+-    "Build config OUTSIDE src (astro.config.mjs, package.json, tsconfig.json) is",
+-    "deliberately not routed: a dependency bump has no display content, and a",
+-    "guard that cries wolf gets ignored.",
+     "`.claude/agents/**` routes to cto-reviewer (CPO ruling 2026-06-12): a change",
+     "to a reviewer definition must be gate-required to get platform review, not",
+     "left to only the always-on scope-auditor. The opus-on-guards rule then",
+@@ -51,32 +48,114 @@
+     "ruling 2026-06-18): an MCP-server config auto-launches a command every",
+     "session — the same command-class as .claude/commands/. Protected-path edit",
+     "(protected_override) + platform review + opus floor. .claude/settings.json",
+-    "(which can carry an mcpServers block) is already PROTECTED."
++    "(which can carry an mcpServers block) is already PROTECTED.",
++    "",
++    "=== THE CTO SPLIT (CPO ruling 2026-07-31, #868) ===",
++    "The CPO's finding, unprompted: 'We have a CTO role that is pulled in every",
++    "review process. That's ridiculous.' Measured: cto-reviewer was required on",
++    "28% of the last 150 commits, and 48 distinct tracked files matched BOTH",
++    "site_v2/** (cto) and site_v2/src/** (bi-analyst), so a CTO reviewed Astro",
++    "markup. site_v2/** was its single largest trigger. Root cause: routing has",
++    "ONE activation type — file path — and applied it to every role regardless of",
++    "what the role is for. Path activation is right for a role that OWNS code and",
++    "wrong for an executive that should rule on a PROPERTY of the change.",
++    "So: platform-reviewer takes the territory and the line review; cto-reviewer",
++    "keeps the authority and loses the broad globs. Measured after: cto 12%,",
++    "platform 24%, 10% requiring both. Zero tracked site_v2/src/** files require",
++    "either — pinned by a test, because that overlap is what motivated the split.",
++    "",
++    "TWO ROLES ON ONE PATTERN = ONE KEY WITH BOTH NAMES. `paths` is a JSON object,",
++    "so json.load silently keeps only the LAST of two identical keys and one",
++    "reviewer requirement would vanish with no signal. Nothing in either consumer",
++    "detects it. A test now asserts every pattern string appears exactly once in",
++    "the raw file text. Found by the pre-CPO plan challenge, not in review.",
++    "",
++    "GUARD PATHS: platform-reviewer joins cto-reviewer on exactly TWO of the eight",
++    "— .claude/hooks/** and .github/workflows/** — and the docs must say TWO. The",
++    "CTO rules on authority (is protected_override present, is this a new",
++    "mechanism, may this guard weaken); platform reviews the implementation (does",
++    "it fail open, do the tests cover it, is it re-run safe). Both carry the opus",
++    "floor on those two. The other six go to cto-reviewer ALONE plus the always-on",
++    "scope-auditor.",
++    "This was churned once and the churn is worth recording. Review round 1 caught",
++    "three documents claiming BOTH reviewers on all EIGHT guard paths while routing",
++    "gave platform two. There were two ways to fix that: widen the rows, or correct",
++    "the prose. Round 2 widened the rows to six, and review round 2 correctly",
++    "failed it — two opus specialists where one ran before is a RECURRING COST, and",
++    "cost is CPO-class, so the cheap fix (correct the prose) was the right one and",
++    "the rows are back to two. Do not widen them without a cost approval quoted in",
++    "decisions_taken. A doc/row mismatch is fixed by editing whichever side is",
++    "wrong, and the wrong side is almost always the prose.",
++    "Platform is deliberately absent from .claude/agents/** — a reviewer brief is a",
++    "prompt, not machinery, so none of its hunt items apply and its verdict would",
++    "be a rubber stamp, which is worse than absent. On that path the CTO is the",
++    "whole specialist guard against a builder weakening its own adversary.",
++    "KNOWN HOLE, stated rather than left implicit (platform-reviewer, round 2). The",
++    "question 'does a test pin this changed behaviour' is platform's hunt item, and",
++    "platform is not routed to .claude/agents/** or to this file. For the `paths`",
++    "rows the hole is closed by machinery: test_every_routing_pattern_is_pinned_by",
++    "_the_test_above forces any pattern change to also edit tests/**, which routes",
++    "platform in. That mitigation does NOT exist for the `always` array or for an",
++    "agent brief. So on a diff that removes scope-auditor from `always`, or edits a",
++    "brief, no required specialist is asked whether a test pins it — only the CTO on",
++    "authority and the always-on auditor on scope. Accepted for now; closing it",
++    "means either routing platform to these paths (a cost the CPO must approve) or",
++    "pinning the `always` array in a test the way the patterns are pinned.",
++    "The first draft gave platform the fail-open/fail-closed item at sonnet and",
++    "kept the CTO at opus on authority alone; the pre-CPO challenge showed that",
++    "hollows out the very depth the opus pin exists for, since the G3 commit-gate",
++    "bypasses WERE fail-open and hook-test-coverage findings. Hunt item 4",
++    "therefore stayed with the CTO.",
++    "",
++    "site_v2 BUILD CONFIG IS ENUMERATED BY NAME, not globbed, and site_v2/** is",
++    "gone. fnmatch's `*` crosses `/`, so `site_v2/*.json` would also match",
++    "site_v2/src/data/*.json and re-create the overlap this split removes. Only",
++    "two directory globs are used (integrations, scripts) and both were verified",
++    "against `git ls-files site_v2` to have ZERO collision with site_v2/src/.",
++    "All 11 tracked non-src files are covered, site_v2/.gitignore included: a",
++    "path that is covered today does not lose coverage in a split.",
++    "",
++    "`*requirements*.txt` REPLACES `requirements*.txt` — a deliberate correction,",
++    "not a widening. fnmatch full-string-matches, so the old pattern anchored at",
++    "the start of the path and ingestion/api_football/requirements.txt never",
++    "reached the dependency threshold at all. The new pattern matches exactly two",
++    "tracked files, verified. A dependency is a dependency wherever it is declared.",
++    "",
++    "seo-expert-reviewer is STILL NOT ROUTED. Approved in principle on 2026-07-31",
++    "but not commissioned; it remains its own governance event. It fires on",
++    "nothing today. Do not read the split as having routed it."
+   ],
+   "always": ["scope-auditor"],
+   "paths": {
+     "dbt_project/**": ["analytics-engineer-reviewer"],
+-    "scripts/export_*.py": ["analytics-engineer-reviewer", "cto-reviewer"],
+-    "scripts/**": ["cto-reviewer"],
+-    "tests/**": ["cto-reviewer"],
+-    "requirements*.txt": ["cto-reviewer"],
+-    ".claude/hooks/**": ["cto-reviewer"],
++    "dbt_project/seeds/metric_catalogue.csv": ["analytics-engineer-reviewer", "football-analytics-expert-reviewer"],
++    "dbt_project/seeds/competition_registry.csv": ["data-engineer-reviewer"],
++    "scripts/export_*.py": ["analytics-engineer-reviewer", "platform-reviewer"],
++    "scripts/**": ["platform-reviewer"],
++    "tests/**": ["platform-reviewer"],
++    "*requirements*.txt": ["cto-reviewer", "platform-reviewer"],
++    ".claude/hooks/**": ["cto-reviewer", "platform-reviewer"],
++    ".github/workflows/**": ["cto-reviewer", "platform-reviewer"],
+     ".claude/agents/**": ["cto-reviewer"],
+     ".claude/commands/**": ["cto-reviewer"],
+-    ".mcp.json": ["cto-reviewer"],
+-    ".cursor/mcp.json": ["cto-reviewer"],
+     ".claude/settings.json": ["cto-reviewer"],
+     ".claude/review_routing.json": ["cto-reviewer"],
+-    ".github/workflows/**": ["cto-reviewer"],
+-    "site_v2/**": ["cto-reviewer"],
++    ".mcp.json": ["cto-reviewer"],
++    ".cursor/mcp.json": ["cto-reviewer"],
++    "site_v2/package.json": ["cto-reviewer", "platform-reviewer"],
++    "site_v2/package-lock.json": ["cto-reviewer", "platform-reviewer"],
++    "site_v2/astro.config.mjs": ["platform-reviewer"],
++    "site_v2/tsconfig.json": ["platform-reviewer"],
++    "site_v2/firebase.json": ["platform-reviewer"],
++    "site_v2/.gitignore": ["platform-reviewer"],
++    "site_v2/integrations/**": ["platform-reviewer"],
++    "site_v2/scripts/**": ["platform-reviewer"],
+     "ingestion/**": ["data-engineer-reviewer"],
+     "docs/competition_registry.yml": ["data-engineer-reviewer"],
+-    "dbt_project/seeds/competition_registry.csv": ["data-engineer-reviewer"],
+     "docs/data_contract.md": ["data-engineer-reviewer"],
+     "docs/wireframes/**": ["bi-analyst-reviewer"],
+     "site/i18n/**": ["bi-analyst-reviewer"],
+-    "site_v2/src/**": ["bi-analyst-reviewer"],
+-    "dbt_project/seeds/metric_catalogue.csv": ["analytics-engineer-reviewer", "football-analytics-expert-reviewer"]
++    "site_v2/src/**": ["bi-analyst-reviewer"]
+   },
+   "artifact_only": [
+     ".claude/task/**",
+diff --git a/.claude/task/TEMPLATE.md b/.claude/task/TEMPLATE.md
+index 2898dbd..1029180 100644
+--- a/.claude/task/TEMPLATE.md
++++ b/.claude/task/TEMPLATE.md
+@@ -52,9 +52,32 @@ scope_paths:
+ # in review. Note it in objective/refs if it shaped the work. (This was a machine-
+ # gated `consulted:` field for a few days and was demoted to a habit.)
+ 
++# REQUIRED when the diff touches `site_v2/src/` — the user-facing surface. The
++# commit gate (`git_discipline._acceptance_gate`) denies the commit without it,
++# and then denies again unless `.claude/task/acceptance_evidence.md` demonstrates
++# EVERY item under a `criteria_demonstrated:` marker, read from the BUILT output.
++# CPO ruling 2026-07-31 (#868): the builder DRAFTS these, the CPO APPROVES them
++# BEFORE any code, and they are LOCKED after that — only the CPO may move them.
++# The lock is the mechanism, not the authorship: criteria written before you know
++# how hard the work is are honest, and criteria you can soften at round three are
++# worthless. Reviewers check that the code is right; this is the only thing that
++# checks it does what was asked. Write each one as a statement a command or a
++# rendered string can settle, never as an intention.
++# acceptance_criteria:
++#   - <testable statement — what must be TRUE on the built page, and how you will show it>
++
+ decisions_taken: >
+   <what this contract pre-approves, quoting the CPO ruling it rests on>
+ 
++  # THRESHOLD DECLARATIONS (CPO ruling 2026-07-31, #868). Two of the CTO's four
++  # thresholds — a NEW MECHANISM and a RECURRING COST — can appear in any file,
++  # so no routing row can find them and `cto-reviewer` only sees them if you
++  # write them here with their authority. `scope-auditor`'s undeclared-threshold
++  # hunt item FAILs a crossing that is not here. No gate parses this field, so
++  # the declaration rests on your honesty: an omission is a defect, not an
++  # oversight. (Cite the item by NAME, never by number — this comment said
++  # "item 7" and went stale the same day, when a credentials item took that slot.)
++
+ # decisions_reserved is MACHINE-CHECKED if this task publishes an Artifact (a mockup,
+ # a design, any page): the gate denies the publish unless this holds real content.
+ # The placeholder below and a bare `- none` BOTH fail it, deliberately — publishing a
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3fa2039..a690f8e 100644
+index a690f8e..f6faacf 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,245 +1,70 @@
--# Task contract — #844: SEO becomes a build gate, and the surface it gates
-+# Task contract — ignore CPO working documents dropped in the repo root
+@@ -1,70 +1,186 @@
+-# Task contract — ignore CPO working documents dropped in the repo root
++# Task contract — make the new org operational (#868)
  
--> Written on a CLEAN tree, branch `feat/844-seo-build-gate` off `main` (`ac74d1f`).
--> `gh pr list --state open` -> EMPTY, so this is a hard dependency of nothing.
--> PR C2 of the C sequence. C1 (#862) renamed the site surface; the sweep (#865) fixed the docs.
-+> Written on a CLEAN tree. Branch `chore/handover-2026-07-29` (PR #869 already carries the handover
-+> commit). To get a clean tree at all, the untracked PDF was MOVED to the scratchpad and its sha256
-+> recorded (`894a6c28…`); it is restored to its original path, byte-identical, once the ignore rule
-+> is committed. Nothing is deleted at any point.
+-> Written on a CLEAN tree. Branch `chore/handover-2026-07-29` (PR #869 already carries the handover
+-> commit). To get a clean tree at all, the untracked PDF was MOVED to the scratchpad and its sha256
+-> recorded (`894a6c28…`); it is restored to its original path, byte-identical, once the ignore rule
+-> is committed. Nothing is deleted at any point.
++> Written on a CLEAN tree, before any file was touched. Branch `feat/868-org-operational` from
++> `main`; no open PRs. Governance task: it edits the guards themselves, so it carries
++> `protected_override` + `impact_map`. See docs/working_agreement.md §2, §10, §11, Appendix A.
  
  objective: >
--  CPO ruling: *"SEO optimization has to be ensured during the whole process of building the
--  website"* — a reviewer is after-the-fact and cannot ensure anything. Extend #826's page-spec
--  contract so **no page builds without declaring its SEO surface**, add the verifier that checks the
--  declaration against the REAL emitted `dist/`, and emit the surface itself.
-+  `AI-Assisted Company Building Project.pdf` is a CPO working document sitting untracked in the repo
-+  root. It trips the contract gate and the stop gate on **every turn**, and the stop gate's only
-+  suggested remedy is *"delete untracked strays"* — which would destroy his file.
- 
--  **The plan was challenged by two independent reviewers before the CPO saw it (#858) and did not
--  survive.** 12 findings; three plan claims were false; one is a LIVE defect in shipped code. What is
--  built here is the rewritten plan, not the original. See `decisions_taken`.
-+  Add a root-anchored `/*.pdf` ignore rule so the tree is clean without deleting or committing it.
+-  `AI-Assisted Company Building Project.pdf` is a CPO working document sitting untracked in the repo
+-  root. It trips the contract gate and the stop gate on **every turn**, and the stop gate's only
+-  suggested remedy is *"delete untracked strays"* — which would destroy his file.
+-
+-  Add a root-anchored `/*.pdf` ignore rule so the tree is clean without deleting or committing it.
++  Put the CPO's 2026-07-31 org design into force. Four rulings become running mechanisms: the CTO
++  splits so it stops reviewing markup and starts ruling on thresholds; a new Platform and
++  Reliability reviewer inherits the territory and the line review; acceptance criteria are drafted,
++  approved and locked before code; a Quality Assurance evidence artifact becomes gate-required; and
++  user-visible strings hit a mechanical localisation gate. The session's rulings are also written to
++  the decisions log so they survive the chat.
  
  refs: >
--  #844 (this), and its 2026-07-28 comment recording the full challenge outcome.
--  #826 page-spec contract · #827 rendered-page evidence · #838 synthetic points · #839 phase spike ·
--  #843 slug equity · #845 minimum-data gate · #861 fixture URL permanence · #864 stale cutover
--  comments in `site_v2/src` (this PR's surface — fix them here, they are in scope).
--  CPO 2026-07-28: titles KEEP the brand suffix.
--  `docs/wireframes/01_fixture_page.md` §8 and `02_team_profile.md` §8 specify title/description.
-+  CPO, 2026-07-29, verbatim: **"add it to .gitignore"**, chosen from three options put to him
-+  (move it out of the repo, .gitignore, or a local `.git/info/exclude`).
-+  The document's content is already distilled into #868; the file itself is not project source.
-+
-+protected_override: >
-+  Not applicable — `.gitignore` is in neither `PROTECTED_PREFIXES` nor `PROTECTED_FILES`
-+  (`task_contract_gate.py:66-72`). Stated so a reader does not have to wonder.
+-  CPO, 2026-07-29, verbatim: **"add it to .gitignore"**, chosen from three options put to him
+-  (move it out of the repo, .gitignore, or a local `.git/info/exclude`).
+-  The document's content is already distilled into #868; the file itself is not project source.
+-
+-protected_override: >
+-  Not applicable — `.gitignore` is in neither `PROTECTED_PREFIXES` nor `PROTECTED_FILES`
+-  (`task_contract_gate.py:66-72`). Stated so a reader does not have to wonder.
++  #868 (Operationalise the agent org). CPO session 2026-07-31: four in-conversation rulings, plus an
++  implementation plan for the split that two independent reviewers challenged (nine defects, all
++  fixed) and the CPO approved. Plan saved at
++  `C:\Users\Rami\.claude\plans\ethereal-beaming-charm.md`.
  
  scope_paths:
--  # NOTE: fnmatch patterns. `[lang]`/`[team]` are CHARACTER CLASSES to fnmatch, so a literal Astro
--  # dynamic-route path can never match itself. Verified before writing.
--  - site_v2/src/specs/page-spec.schema.json
--  - site_v2/src/specs/teams/team.spec.json
--  - site_v2/src/specs/competition/matches/fixture.spec.json
--  - site_v2/scripts/check-page-specs.mjs
--  - site_v2/scripts/check-page-specs.test.mjs
--  - site_v2/scripts/audit-seo.mjs
--  - site_v2/scripts/audit-seo.test.mjs
--  - site_v2/integrations/seo-audit.mjs
--  - site_v2/src/config/indexability.mjs
--  - site_v2/src/pages/robots.txt.ts
--  - site_v2/src/layouts/Layout.astro
--  - site_v2/src/pages/*/teams/*.astro
--  - site_v2/src/pages/*/*/matches/*.astro
--  - site_v2/src/pages/*/index.astro       # the locale landing — see amendment 1
--  - site_v2/src/specs/index.spec.json     # its spec
--  - site_v2/src/lib/href.ts
--  - site_v2/src/i18n/strings.ts
--  - site_v2/astro.config.mjs
--  - site_v2/package.json
--  - site_v2/package-lock.json
--  - docs/site_architecture.md
-+  - .gitignore
-   - .claude/task/contract.md
-   - .claude/task/review.md
--  - .claude/task/rendered_page_evidence.md
+-  - .gitignore
+-  - .claude/task/contract.md
+-  - .claude/task/review.md
++  - .claude/review_routing.json
++  - .claude/agents/*.md
++  - .claude/hooks/git_discipline.py
++  - .claude/task/*.md
++  - .claude/task/escalations.log
    - .claude/active_work.md
++  - docs/roles/*.md
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
++  - docs/north_star.md
++  - scripts/check_copy_gate.py
++  - scripts/report_process_health.py
++  - tests/test_governance_hooks.py
++
++protected_override: >
++  CPO approval, 2026-07-31, this conversation. Three authorities, in his words:
++  (1) the split and threshold plan was presented in plan mode and APPROVED via ExitPlanMode;
++  (2) asked whether to proceed on the split he answered **"do it"**, and on the threshold mechanism
++  **"go"**;
++  (3) on the exercise as a whole: **"I want the new org to be operational"** and **"do we have a
++  concept for the company that we will put in action"** — an instruction to implement, not to plan
++  further.
++  Each of the four rulings is recorded verbatim in `.claude/task/escalations.log` under 2026-07-31.
  
  impact_map: >
--  **THE LIVE DEFECT THIS PR EXISTS TO FIX FIRST.** Measured, not assumed:
--
--      site_v2/src/pages/[lang]/teams/[team].astro:61-62
--        const title       = `${team.name} — ${compName}`;
--        const description = `${team.name} · ${compName}`;
--      site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro:55
--        const title       = `${home.name} vs ${away.name} — ${fixture.league_name}`;
--
--    `team.name` is the provider name and `compName` comes from `src/data/competitions.json`, whose
--    entries carry ONLY `name` and `slug` — **no locale keying** (verified by reading the file and
--    `_competitions_index()` in `scripts/export_site_data.py:907`, which builds it from the registry's
--    single `name` field). So **every team page ships a byte-identical `<title>` AND
--    `<meta description>` across de/en/fi, and every fixture page a byte-identical `<title>`.** The
--    fixture DESCRIPTION is the one that is already localised (it goes through `t()`).
--
--    The original plan would never have caught this: it declared cross-locale uniqueness "impossible
--    by construction" — true of the `<h1>` (`TeamHeader.astro:33` is `<h1>{team.name}</h1>`) — and
--    generalised that to the whole axis. **The achievable narrower assertion is that the DESCRIPTIVE
--    portion of title/description must differ across locales**, and it fails today.
--
--    **The fix needs no warehouse change.** The wireframes already specify localised titles
--    (`{name} — Stats, Form & Season Records | Matchday Pilot`); today's code simply has no
--    descriptive portion at all. Whether an English reader should see "Bundesliga" instead of the
--    registry's "1. Fußball-Bundesliga" is a separate registry/naming question — NOT bundled.
--
--  writers: every file is hand-authored except `package-lock.json` (regenerated by npm, committed in
--    the same commit or `npm ci` breaks).
--
--  downstream: `site_v2/**` is the consumption layer — this PR derives NO fact. Titles, descriptions
--    and JSON-LD select and format fields the payload already carries. **Zero data changes**: no dbt
--    model, no seed, no mart, no export. `scripts/export_site_data.py` is NOT touched.
-+  writers: one hand-authored ignore rule. **Zero code, zero data, zero behaviour changed.** No dbt
-+    model, no Python, no site source, no workflow, no test, no CI.
+-  writers: one hand-authored ignore rule. **Zero code, zero data, zero behaviour changed.** No dbt
+-    model, no Python, no site source, no workflow, no test, no CI.
++  writers: `.claude/review_routing.json` has exactly two consumers, verified by grepping every key
++    name across all non-markdown files. `.claude/hooks/git_discipline.py:123` (`_load_routing`)
++    fails OPEN — it swallows every exception and returns None, so a malformed file silently disables
++    the local gate. `scripts/check_task_artifacts.py:93` (bare `open`) fails CLOSED — traceback and
++    non-zero exit in CI. No workflow other than `ci-validate.yml` reaches it.
++
++  downstream: the required-reviewer set is computed by a matching loop HAND-COPIED into both
++    consumers (`git_discipline.py:132-139`, `check_task_artifacts.py:156-160`) with NO parity test —
++    `tests/test_governance_hooks.py:491` pins only `_rounds_gate` and `_NULLISH`. Every row added
++    here must be correct in both, and only the local copy is exercised in-process (the helper at
++    `:418` calls the hook's matcher alone). A follow-up issue is filed, not fixed here.
  
--  layer_rules: the emitted surface is display. The one judgement call is JSON-LD `@type`, which is a
--    declared CONSTANT per spec, not derived from data.
-+  downstream: `/*.pdf` is anchored to the repo ROOT by its leading slash, so it cannot hide a PDF
-+    nested anywhere deeper in the tree. Verified nothing is shadowed:
-+    `git ls-files "*.pdf"` -> EMPTY, so no tracked file is affected.
+-  downstream: `/*.pdf` is anchored to the repo ROOT by its leading slash, so it cannot hide a PDF
+-    nested anywhere deeper in the tree. Verified nothing is shadowed:
+-    `git ls-files "*.pdf"` -> EMPTY, so no tracked file is affected.
++  layer_rules: not a warehouse change, so `check_layer_contract.py` is unaffected. The machine rules
++    that DO apply: `tests/test_governance_hooks.py:456` — every `.claude/agents/*.md` must carry a
++    byte-identical `## Delta re-review` with nothing after it, globbed with no opt-out; `:606` and
++    `:613` — every routing pattern must be pinned in `PINNED_CASES`; `:541` and `:557` — the two
++    frontend routing invariants.
  
--  deploy_order: no migration. `ci-site-v2` builds from the two committed samples on any `site_v2/**`
--    change. `deploy-site-v2` stays `workflow_dispatch` only and is NOT modified. Nothing reaches any
--    deployed surface until the CPO triggers it.
-+  deploy_order: none. No migration, no rebuild, no CI interaction.
+-  deploy_order: none. No migration, no rebuild, no CI interaction.
++  deploy_order: no warehouse or deploy sequencing, but this branch is routed BY ITS OWN new table,
++    because both consumers read the file from the working tree and not from HEAD. The commit that
++    changes routing must therefore also contain `platform-reviewer.md`, or the gate demands a
++    verdict from a reviewer whose brief does not exist. Commit order is fixed for that reason.
  
--  blast_radius: every built page gains `<link rel="canonical">`, hreflang + `x-default`, OG + Twitter
--    tags and a JSON-LD `@graph`; `noindex` is RETAINED. A new `robots.txt` route emits
--    `Disallow: /`. A sitemap is GENERATED but unreferenced. `npm run build` gains a post-build audit
--    that FAILS the build on a violation — a new way for the build to break, deliberately.
--    ⚠ New dependency `@astrojs/sitemap`. Measured, because the plan's claim was wrong (below).
-+  blast_radius: one line plus a comment in `.gitignore`. The PDF stays on disk, untouched, and git
-+    simply stops reporting it.
+-  blast_radius: one line plus a comment in `.gitignore`. The PDF stays on disk, untouched, and git
+-    simply stops reporting it.
++  blast_radius: every future commit in this repo. What stops being enforced if it is wrong — a moved
++    row with no matching brief means the gate demands a `## <name>` section forever and nothing can
++    commit; a duplicate JSON key silently drops a reviewer requirement with no signal, because
++    `json.load` keeps only the last occurrence of a key; a typo in a reviewer name fails nothing at
++    all, because no allowlist of reviewer names exists anywhere in the repo. Measured effect on
++    review volume over the last 150 commits: `cto-reviewer` 28% -> 12%, `platform-reviewer` 24%,
++    10% requiring both. Verified that zero tracked `site_v2/src/**` files will require either.
  
  decisions_taken: >
--  - **Titles KEEP the brand suffix** — CPO, 2026-07-28, choosing "Keep the brand" over the plan's
--    unilateral drop. `docs/wireframes/02_team_profile.md` §8 already specified it, so the plan was
--    diverging from an approved artifact without saying so. Rationale on the issue.
--  - **NO number-bearing descriptions until #838 lands.** The plan specced
--    `{rank} in {competition}, {points} points from {played} games` with a fallback only on NULL.
--    #838 makes `points` a synthetic 3-1-0 tally computed regardless of the competition's rules —
--    Europa League renders 32 against a real 18. Not null, just WRONG, so a null-fallback cannot
--    catch it. That would write a known-false number into a `<meta description>` Google caches
--    independently of the page and re-serves after the mart is fixed. Data honesty is
--    non-negotiable (CLAUDE.md), so descriptions use only fields that are honest today.
--  - **`url_permanence` is a DECLARED FACT, not a promise.** As planned it was self-contradicting: it
--    existed so the gate "refuses a page that cannot survive its own entity's state change", but the
--    fixture template provably fails that today (#861: `fetch_fixture_payloads` emits only
--    `status_short in ('NS','TBD') and fixture_date >= current_date()`, so 4,598 live vs 52,585
--    finished with no page), so the gate would have failed CI the moment it shipped. It becomes
--    `permanent | ephemeral`, and the gate blocks only a page claiming permanence it cannot back.
--    #861 stays the work, not the blocker.
--  - **The full-build CI job is DESCOPED.** It would have put a BigQuery scan and Workload Identity
--    credentials into a `pull_request`-triggered workflow. `deploy-site-v2.yml:5-14` explicitly gates
--    that class on a measured `bq --dry_run` byte count plus CPO approval, and `ci-site-v2.yml` has
--    ZERO GCP dependency today (verified). Full-corpus verification happens ONCE via the existing
--    manual workflow before merge. No new credentials, no recurring spend.
--  - **The sitemap GENERATES but is not referenced.** Deferring it entirely would leave the 50k-cap
--    splitting and the locale-reciprocal index logic with zero CI exercise until go-live — the exact
--    silent-until-live failure this gate exists to prevent. `robots.txt` does not list it and nothing
--    links it, so a `noindex` corpus is not advertised.
--  - **The verifier is an Astro INTEGRATION, but NOT for the reason the plan gave.** The plan cited
--    `npm --ignore-scripts` skipping pre/post hooks. That npm behaviour is real, but **neither
--    workflow ever passes `--ignore-scripts` and both run `npm run build`, never bare `astro build`**
--    (verified), so the bypass is not present in this pipeline. The REAL reason is that
--    `astro:build:done` hands over `assets` keyed by route PATTERN, which IS the page-count driver
--    for free and which a `dist/` walker cannot reconstruct. Hooks fire in `integrations` array
--    order, so the audit is placed AFTER `sitemap()`.
--  - **`@astrojs/sitemap` is pinned `^3` — and the plan's stated reason was FICTION.** It claimed
--    "v4 is the Astro-6 peer". Measured: `@astrojs/sitemap@latest` IS **3.7.3**; there is no v4, and
--    3.7.3 declares **no `peerDependencies` at all**, so there is no conflict with the installed
--    astro 5.18.2. `^3` is right because 3.x is the current major, not because v4 exists.
--  - **`indexability.mjs` is `.mjs`** — CI's node cannot `import` a `.ts` file without a loader, and
--    the checker runs as plain node.
--  - **#864 is fixed here.** `Layout.astro:25` and `lib/href.ts:3` carry the retired-MVP cutover
--    framing. `Layout.astro:25` is the comment attached to the very `noindex` this PR replaces with a
--    switch, so fixing it elsewhere would be artificial.
-+  - **Root-anchored `/*.pdf`, not a bare `*.pdf`.** A bare pattern would silently ignore a PDF
-+    ANYWHERE in the tree, including one a future task legitimately wants tracked (a design export, a
-+    licence, a vendor spec). The leading slash confines the rule to the drop zone that actually
-+    causes the problem.
-+  - **Ignore rather than commit.** A 1.2 MB PDF export of a chat is a personal working document, not
-+    project source.
-+  - **Ignore rather than delete.** The stop gate suggested deleting it. It is the CPO's file. A gate
-+    is never a reason to destroy someone's data — and its content was read and preserved as #868
-+    before any of this.
+-  - **Root-anchored `/*.pdf`, not a bare `*.pdf`.** A bare pattern would silently ignore a PDF
+-    ANYWHERE in the tree, including one a future task legitimately wants tracked (a design export, a
+-    licence, a vendor spec). The leading slash confines the rule to the drop zone that actually
+-    causes the problem.
+-  - **Ignore rather than commit.** A 1.2 MB PDF export of a chat is a personal working document, not
+-    project source.
+-  - **Ignore rather than delete.** The stop gate suggested deleting it. It is the CPO's file. A gate
+-    is never a reason to destroy someone's data — and its content was read and preserved as #868
+-    before any of this.
++  **The CPO's four rulings, 2026-07-31, now in force.** (1) Quality Assurance exists as a required
++  evidence artifact with a gate, NOT as a reviewer agent — the builder demonstrates each acceptance
++  criterion against BUILT output. (2) Acceptance criteria: the builder drafts, the CPO approves
++  before any code, locked after; the lock is the mechanism, not the authorship. (3) Editorial and
++  Localisation is a mechanical gate, not a copy approver — wording stays the CPO's, and Growth owns
++  a title's shape while Editorial owns its words. (4) Split the CTO: Platform and Reliability
++  inherits the territory and the line review, the CTO keeps the authority and loses the globs, and
++  thresholds no glob can express are declared here with the always-on scope-auditor as tripwire.
++
++  **Builder judgement inside those rulings, recorded so it is visible rather than silent.** The slug
++  `platform-reviewer`, which must be whitespace-free because the gate parses `## <name>` with
++  `(\S+)`. The hunt-item allocation between CTO and Platform, with item 4 (fail-open vs fail-closed)
++  STAYING with the CTO because the challenge showed moving it would cost the opus depth that caught
++  the G3 commit-gate bypasses. `*requirements*.txt` replaces `requirements*.txt`, a deliberate
++  correction: the old pattern anchors at the start of the path, so
++  `ingestion/api_football/requirements.txt` never reached the dependency threshold at all, and the
++  new one matches exactly two tracked files, verified. Patterns shared by two roles are ONE JSON key
++  carrying both names in its array.
++
++  **The threshold mechanism is judgement, not machinery, and this contract says so plainly.** No gate
++  parses `decisions_taken` — `task_contract_gate._read_contract` returns only `scope`,
++  `protected_override`, `impact_map_present` and `decisions_reserved_present`. Enforcement is one
++  always-on reviewer, pinned to haiku, reading prose. That is a real downgrade from every other
++  threshold in this system, and it is accepted deliberately as the cheapest thing better than
++  nothing.
++
++  **Added after review round 3, on the CPO's rulings of 2026-07-31.** Three things the reviewers were
++  right to demand be recorded here rather than left to the diff:
++
++  (a) **The credentials hunt item is on THREE reviewers, not moved.** The approved plan moved it off
++  `cto-reviewer`; `cto-reviewer` at opus then found that this left nothing hunting secrets in
++  `site_v2/src/**`, `dbt_project/**` or `ingestion/**`, and `scope-auditor` escalated that on the six
++  guard paths platform is not routed to — `.mcp.json` and `.claude/settings.json` above all, the file
++  class that carries tokens — a secret would be hunted only at haiku. Put to the CPO as a plain
++  question; he answered **"yes"** to putting it back on the CTO as well. So it now sits on
++  `cto-reviewer` (its former home, still spawned at opus on all eight guard paths),
++  `platform-reviewer` (its own territory) and `scope-auditor` (every diff, because a secret can land
++  anywhere). Strictly wider than before the split, at no extra cost, since the CTO is already spawned
++  on those paths.
++
++  (b) **`scripts/report_process_health.py` ships BUILDER-INITIATED and UNRULED.** It was proposed to
++  the CPO as one of six gap fixes and he did not rule on it. It reads artifacts and prints them; it
++  carries no authority and sets no target. An earlier draft invented a threshold AND a rule for
++  withdrawing CPO-ruled process, which both guard reviewers failed as builder-authored governance.
++  Whether any number it prints should carry a threshold is reserved below.
++
++  (c) **Review round 4 is authorised.** `ROUND_CAP = 3`. Asked whether to go past it to write the two
++  missing tests `platform-reviewer` demanded, the CPO answered **"yes"**. `review.md` carries the
++  matching `rounds_cap_override:`.
  
  decisions_reserved:
--  - **`LinksFooter`'s conditional-link rule** — a chip becomes `<a>` only when a payload exists. Its
--    cited precedent was FALSE (`SiteHeader.astro:41` / `SiteFooter.astro:40` render unconditional
--    `<span>` with no lookup of any kind), so it is a NEW rule and gets its own PR and its own
--    scrutiny. `import.meta.glob` itself is NOT new — it is already the payload-discovery mechanism
--    in both built pages, so it adds no new class of build cost.
--  - **Localised COMPETITION names.** The registry has one `name` per competition, so English readers
--    see "1. Fußball-Bundesliga". Real, and NOT required to fix the duplicate-title defect. A
--    registry/naming question, which is CPO territory.
--  - **The redirect/alias mechanism** `site_architecture.md` §3 promises ("a rename produces a new
--    alias, never a new canonical"), and the H2H reversed-order alias. PR D (#843/#852).
--  - **A 404 strategy for the fixture cliff** (#861) — a crawler hitting a vanished fixture URL gets
--    Firebase's generic host error. Needs #861 decided first.
--  - **Structured-data COMPLETENESS** (does `SportsEvent` carry `startDate`/`location`/`competitor`
--    well enough for a rich result). This PR checks FORMAT: parses, `@type` matches the spec, no
--    null/empty/placeholder values. Completeness is a content decision per entity.
--  - **The rich vs thin-SEO tier split** (`content_architecture.md` §2) and **OG image fitness**
--    (provider crests are small and near-square; social wants 1200x630). Both need #845's
--    minimum-data gate decided first.
--  - **Promoting `SectionHead` to a real heading level** and the `<h2>`-`<h6>` gap — a design-system
--    change to a locked file.
-+  - **The governance deadlock itself is NOT fixed here.** Between tasks there is no valid contract,
-+    so every path is out of scope; the stop gate demands a clean tree; and its only suggested remedy
-+    is deletion. Three non-destructive fixes were blocked in sequence — `.git/info/exclude`,
-+    `.gitignore`, and writing this very contract — until the file was physically moved out of the
-+    repo to manufacture the clean tree the gate required. That is a real hole of the same class as
-+    #863 and deserves its own issue. Filing it is not this task.
+-  - **The governance deadlock itself is NOT fixed here.** Between tasks there is no valid contract,
+-    so every path is out of scope; the stop gate demands a clean tree; and its only suggested remedy
+-    is deletion. Three non-destructive fixes were blocked in sequence — `.git/info/exclude`,
+-    `.gitignore`, and writing this very contract — until the file was physically moved out of the
+-    repo to manufacture the clean tree the gate required. That is a real hole of the same class as
+-    #863 and deserves its own issue. Filing it is not this task.
++  - The priority mechanism. The CPO confirmed the milestone order, but 116 issues have been closed in
++    this repo and NOT ONE was in a milestone, while 86 open issues have none — including every issue
++    we call next (#845, #846, #838, #861, #843, #852, #868). The confirmed order has no throughput to
++    order, and Phase 0 was written for a site retired on 2026-07-21. This contract records the
++    finding and does NOT invent a replacement; the mechanism is the CPO's.
++  - Routing `seo-expert-reviewer`. Approved in principle this session, not commissioned. It fires on
++    nothing today and stays that way until its own governance event.
++  - Which of the twelve stashes are dropped. Two are empty (`stash@{9}`, `stash@{12}`), eight are ten
++    weeks to three months old, two are live. Dropping is destructive and needs the CPO's yes.
++  - Whether cost is its own function (`docs/roles/cfo.md` exists and was excluded from the org) and
++    whether narrative becomes one (`docs/roles/data_journalist.md`, same). Both unruled.
++  - The remaining process moments: the discovery-spike gate, the design-review moment, and the
++    release-readiness checklist. Designed and presented, NOT ruled on. Nothing here implements them.
++  - **Wiring `scripts/check_copy_gate.py` into CI.** It exits 1 on `main` with 16 findings and every
++    fix is copy, which is §10. Wiring it today makes CI red on strings only the CPO may rewrite, so it
++    ships runnable and unwired, with the reason in its own docstring. Filed as #872. (Reserved here
++    because `cto-reviewer` round 3 caught the docstring claiming this was already reserved when it was
++    not — the sentence is now true.)
++  - **Whether any number in `report_process_health.py` carries a threshold, and what follows from
++    crossing one.** The script deliberately sets none. Setting one is a rule extension.
++  - ~~The mechanical half of the credentials guard is unenforced in CI.~~ **WITHDRAWN in round 5: the
++    premise was FALSE and I should never have put it to the CPO.** `.github/workflows/security-secrets.yml`
++    runs `gitleaks-action@v2` on every `pull_request` and on push to `main`, with a terminal gate that
++    exits 1 — CI secret scanning exists and fails CLOSED. `check_no_secrets.py` and
++    `detect-private-key` are a LOCAL-ONLY second layer. `cto-reviewer` caught this by grepping all 11
++    workflows; I had inferred the coverage. Kept here struck through rather than deleted, because a
++    cost question asked on bad data is a defect worth leaving visible. The residual question, much
++    smaller and probably not the CPO's, is whether the two local hooks catch patterns gitleaks misses.
  
  done_when:
--  - `npm test` passes, and the new audit has PURE-FUNCTION tests (no synthetic `dist/` tree) with a
--    `MIN_EXPECTED`-style self-check so a broken regex reports itself instead of passing everything.
--    Fixtures live in `__fixtures__`, NEVER `test/` — `node --test` executes anything in a directory
--    literally named `test` (verified).
--  - `npm run build` succeeds AND the audit actually runs (proven by breaking one check and capturing
--    the real failure output, then restoring).
--  - **The live defect is fixed and PROVEN**: the three locales' `<title>` and `<meta description>`
--    for the same team, and the same fixture, shown side by side DIFFERING.
--  - Every built page carries canonical (absolute, self-consistent), hreflang + `x-default`, OG +
--    Twitter, and a JSON-LD `@graph` that parses.
--  - `noindex` on every page; `robots.txt` says `Disallow: /`; a sitemap EXISTS in `dist/` and is
--    referenced by nothing.
--  - `grep -rn "cutover" site_v2/src/` returns NOTHING (#864).
--  - Rendered-page evidence per #827, verified against **rendered text / built output**, never a
--    source grep and never `outerHTML`.
--  - ONE commit. Reviewers: computed from `review_routing.json`, not predicted.
-+  - `git status --short` is EMPTY once the PDF is restored — no untracked stray, no modified file.
-+  - The PDF exists again at its original path with sha256 `894a6c288bc72bb1eb2f059b67078547fab17f5b67c5fde1e1ee569851a9ea2f`.
-+  - `git check-ignore -v "AI-Assisted Company Building Project.pdf"` names the new rule.
-+  - `git ls-files "*.pdf"` still EMPTY, proving no tracked file was shadowed.
-+  - ONE commit on the existing branch.
+-  - `git status --short` is EMPTY once the PDF is restored — no untracked stray, no modified file.
+-  - The PDF exists again at its original path with sha256 `894a6c288bc72bb1eb2f059b67078547fab17f5b67c5fde1e1ee569851a9ea2f`.
+-  - `git check-ignore -v "AI-Assisted Company Building Project.pdf"` names the new rule.
+-  - `git ls-files "*.pdf"` still EMPTY, proving no tracked file was shadowed.
+-  - ONE commit on the existing branch.
++  - `python -m pytest tests/test_governance_hooks.py -q` passes in full, not a subset.
++  - `.claude/review_routing.json` parses, AND the count of `paths` keys equals the count of distinct
++    pattern strings in the raw file text, proving no duplicate key was silently collapsed.
++  - The activation measurement reproduces: `cto-reviewer` at 12% over the last 150 commits, and zero
++    tracked `site_v2/src/**` files requiring `cto-reviewer` or `platform-reviewer`.
++  - `git diff` shows no change to the bytes after `## Delta re-review` in any pre-existing brief.
++  - `python scripts/check_task_artifacts.py` agrees with the local hook on the new table.
++  - `python scripts/report_process_health.py` prints the four baseline numbers (rounds, reviewer
++    FAILs, CPO rulings, gate denials), so the org design has a measurable before.
++  - The four rulings and the milestone finding are recorded in `.claude/task/escalations.log`.
  
  amendments:
--  - 2026-07-28: **THE BRAND SUFFIX RULING WAS REVERSED BY THE CPO** — authority: he originally ruled
--    "titles KEEP the brand" (recorded in `decisions_taken`). `seo-expert-reviewer`, told explicitly
--    NOT to soften its answer because he had already ruled, said a suffix is EARNED by equity and is
--    not a way to build it: 17 characters, 28-36% of the title budget, across ~9,750 team
--    page/locale combinations, on the deepest crawl tier — and with 3,250 identical suffixes Google
--    reads it as boilerplate and truncates it first. Measured: it WAS the first thing cut.
--    The fact that changed his mind is that `Layout.astro` already emits `og:site_name`
--    unconditionally, so the brand does not leave the site, only the indexed title. He reversed it.
--    Reinstate when Search Console shows branded-query volume worth the budget.
--  - 2026-07-28: **the nine SEO strings were WRITTEN BY THE CPO, not by me** — authority:
--    `bi-analyst-reviewer` FAILed on §10, correctly: user-visible copy is a CPO decision *every
--    time*, and his earlier ruling covered only whether to keep the brand, not the wording or its
--    translations. Four errors of mine surfaced in the exchange that followed, all in copy I had
--    already called finished: the German dropped an article German grammar requires; the Finnish used
--    `sarjassa` with an uninflected borrowed noun; both used `muoto` (shape) where the football sense
--    of form is `kunto` — corroborated by the retired MVP's own corpus, which says `kuntojakso`; and
--    I had switched the Finnish fixture separator to an en dash on an unverified claim that
--    `bi-analyst-reviewer` agreed with and the CPO's source contradicted.
--    He then ruled on presentation twice more: em dashes "look terribly like AI generated" (titles
--    take a colon, the DE/FI descriptions parentheses, which also removes the article problem), and
--    the shortened titles were "too short" once the brand freed the budget.
--    **The lesson is not "ask about copy". It is that I cannot self-assess copy in ANY language,
--    including English**, which I had been treating as a trusted baseline for no reason.
--  - 2026-07-28: **+ a title WIDTH check in `audit-seo.mjs`** — authority: `cto-reviewer` and
--    `seo-expert-reviewer` both found the gate had NO length check at all, so the overruns were
--    caught by me, by hand — which does not scale to 3,250 entities x 3 locales. It measures rendered
--    PIXELS, not characters: Google truncates on width (~600px) and nearly every club and competition
--    name here opens with a wide capital.
--    **It fails at 660px, not 600, and that is calibration rather than slack.** The estimator is
--    approximate, and a marginal overrun on a real fixture is unfixable — two proper nouns plus a
--    competition, nothing to cut. A large overrun means the TEMPLATE is wrong, which is fixable. Both
--    halves are locked by tests so nobody "tightens" it to 600 and starts failing nightly builds on
--    long club names.
--    It earned itself immediately: it rejected a German fixture title I had shortened to `vs.`,
--    because a title of pure proper nouns has nothing locale-specific left once `gegen` goes, making
--    the German and Finnish BYTE-IDENTICAL.
--  - 2026-07-28: **the fixture page now reads the competition name from the REGISTRY** — authority:
--    the CPO's own Finnish example exposed it. The fixture page used the provider's
--    `fixture.league_name`, which says `Serie A` for the Brazilian top flight — ambiguous with
--    Italy's, on a Brazilian match — while `competitions.json` held `Brasileirão Série A` and the
--    TEAM page already read it. Two pages naming one concept from two sources; this is the
--    authoritative one. Same class as #850.
--  - 2026-07-28: **#866 filed rather than fixed** — the CPO spotted `Regular Season - 20` rendering
--    untranslated in all three locales, in the page body AND in every fixture's `<meta description>`
--    and OG/Twitter description. It is `fixture.round` verbatim from the provider. NOT fixable here:
--    turning it into a phase plus a number is TAXONOMY MAPPING, which `layering.md` forbids in the
--    consumption layer. The export must serve `{phase, number}`; the frontend already has the words
--    (`throughMatchday` renders "bis Spieltag {n}"). Related to #839, which defines the phase set.
--  - 2026-07-28: **+ `site_v2/src/pages/*/index.astro` and `site_v2/src/specs/index.spec.json`** —
--    authority: the gate I just built FAILED THE BUILD on them, which is the contract's own
--    `done_when` working exactly as intended. The locale landing hand-rolls its own `<html>` instead
--    of using `Layout`, so it emitted no canonical and no hreflang, and all three locales shipped
--    `<title>Matchday Pilot</title>` — **byte-identical**, the very defect this PR exists to fix,
--    sitting on a page my `scope_paths` had not listed.
--    The original plan proposed EXEMPTING the scaffolds. That reasoning was inverted: a scaffold is a
--    URL THAT SHIPS, so canonical, hreflang and a unique title are true facts about it, and an
--    exemption would have hidden the defect rather than fixed it. It moves to `Layout` and takes a
--    spec that waives only `blocks`, behind `stub: true`.
--    Recorded rather than quietly widened: the contract-gate hook denied the write, I stopped, and
--    amended on a clean tree. (Contrast the sweep PR, where a `sed` loop slipped a protected-path
--    edit past the same gate — #863.)
-+  - (none)
-diff --git a/.gitignore b/.gitignore
-index 1079b20..965193a 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -240,3 +240,12 @@ site_v2/src/data/teams/*.json
- !site_v2/src/data/teams/33.json
- site_v2/src/data/fixtures/*.json
- !site_v2/src/data/fixtures/1492306.json
+-  - (none)
++  - 2026-07-31: + `docs/north_star.md` — authority: CPO, asked directly whether the roles roster there
++    should be updated now or filed as a to-do, answered **"yes, update"**. Raised by `scope-auditor`
++    as an ESCALATE in review round 3: `CLAUDE.md` cites that roster as the definition of the roles,
++    this branch adds `docs/roles/platform_reliability.md` and narrows `docs/roles/cto.md`, and the
++    roster was neither updated nor in scope. **Content: itemised in full in `escalations.log`'s E5
++    answer** — that is the authoritative description, and this clause is a pointer to it, not a
++    summary of it. In outline: add the Platform and Reliability row; narrow the CTO's to
++    authority-only; add the three rows that were missing (`seo_expert`, `data_journalist`, and the
++    Scope Auditor, never listed despite firing on every commit); replace the empty `Brief` column with
++    a **Wakes on** column naming what actually routes each role; and append a paragraph on the three
++    functions ruled to be mechanisms rather than reviewer roles. Round 4 correctly failed a narrower
++    description than the diff, and round 5 established that a contract under-describing its own
++    amendment is the surface a §10 item gets smuggled through. Written on a tree made clean outside
++    `.claude/task/` by stashing the branch's other 13 paths, then popped back — the stash-dance the
++    clean-tree rule forces. Done twice; the 13 older stashes verified untouched each time.
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index d1575f9..6ba7073 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -304,3 +304,27 @@ This entry is the durable record of the metric-definition authority the contract
+   - (E2 — where slugs are produced: warehouse vs frontend slug-map) Ruled: the WAREHOUSE. This follows from #846 rather than from taste — the export is the consumption layer exactly like the Astro pages, and assigning a permanent identifier is derivation, so computing it in `export_site_data.py` relocates a layer violation instead of fixing it. The frontend was never a candidate: it has no slug code at all.
+   - (what is explicitly NOT authorised by this) Persistence. The slug stays DERIVED in this PR. An append-only registry whose `--full-refresh` is blocked would be the first object in this warehouse that cannot be rebuilt from raw, and that trade is a §10 NEW-mechanism decision to bring explicitly at launch (PR D / #852) alongside the redirects #843 needs. Also NOT authorised: player and coach slugs (the map has 95 unmapped residual characters for players), deleting the dead `team_name_key` macro, and the two phantom records that will silently take `/teams/dragon/` and `/teams/warriors/` — that is #850's open alias decision.
+   - (banked) A blinded escalation with no owner and no deadline does not stay neutral; it rots. E3 sat six weeks precisely because it looked cosmetic while an id was carrying the uniqueness, and it turned urgent the instant the id left. And: on a permanent, user-visible string, verify each mapping against an external source of record rather than inferring it from the glyph — a schwa looks like an `e`, which is exactly how `sebail` got written down.
 +
-+# CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
-+# Not project source, so not committed -- and not deleted either: the contract and stop gates flag
-+# any untracked stray, and the stop gate's suggested remedy ("delete untracked strays") would
-+# destroy his file. Content worth keeping is distilled into a GitHub issue instead; the Gemini
-+# company-building conversation became #868.
-+# ROOT-ANCHORED on purpose. A bare `*.pdf` would silently hide a PDF anywhere in the tree, including
-+# one a future task legitimately wants tracked.
-+/*.pdf
++2026-07-31 feat/868-org-operational — FOUR ORG RULINGS (#868). These are not escalations; they are design decisions taken in conversation. They are recorded here because this log is the only durable decision record in the repo, and four rulings made in one session would otherwise have survived nowhere. That widening of this file's purpose from "escalations" to "decisions" is itself the fix for the continuity gap the same session found.
++  - (what prompted the session) The CPO wants the project run like a real company. He rejected the first proposal, which scaled ceremony by change size, in his words because tiering "requires judging the tier every time, which is a new decision point and a new place to be wrong". His organising principle instead: **define where each role's responsibility BEGINS and ENDS.** A change either enters a domain or it does not. Binary, automatic, no judgement call.
++  - (the correction that reframed the exercise) He rejected two further drafts for being built outward from our repo's defects and anchored on single examples: **"You are obsessed by examples... What we are doing here is building the org, domains, roles, processes from scratch to be as close as possible to reality. How would a company named Matchday Pilot look like if it wasn't a solo project?"** The design that survived is derived from the business (a football data publisher with a warehouse behind it and organic search in front) rather than from our agent files.
++  - (RULING 1 — Quality Assurance) Every reviewer reads the diff; none asks whether the finished thing does what the ticket asked. The player Overview in stash@{0} is the proof: it builds, tests pass, both reviewers returned PASS, and both sample players open on the World Cup with their national side. Nobody was wrong; nobody was looking.
++      CPO ANSWER (2026-07-31): **"yes to Quality Assurance"** — as a required EVIDENCE ARTIFACT with a gate, explicitly NOT as a reviewer agent. The builder demonstrates each acceptance criterion against BUILT output and records what it showed; the gate refuses a commit with a criterion undemonstrated. Rationale accepted as put: this check needs proof, not judgement, so an agent would only supply an opinion. Precedent it generalises: `.claude/task/rendered_page_evidence.md` (the #827 pattern), which caught a defect a source grep had certified as fixed and is currently enforced by nothing.
++  - (RULING 2 — who writes acceptance criteria) The conflict of interest was put plainly: if the builder writes the criteria, the builder defines what "done" means for its own work, which is how the Overview passed. Three options offered — the CPO writes them, an agent writes them, or the builder drafts and they are locked.
++      CPO ANSWER (2026-07-31): **"Makes sense"** to the third — **the builder drafts, the CPO approves BEFORE any code, locked after that; only the CPO can move them.** The lock is the mechanism, not the authorship: criteria written before the builder knows how hard something is are honest, and criteria that can be softened at round three are worthless.
++  - (RULING 3 — Editorial and Localisation) Nine strings shipped on #867 and four were wrong; the CPO wrote the Finnish himself. The hard limit was stated rather than hidden: an agent cannot validate Finnish better than the builder can, being the same model on the same text, so a copy-approving role would manufacture a signature. What it CAN do is mechanical: check against the 127 validated leaf strings per locale in the retired MVP's `site/i18n/*.json` (verified: 127 in each of de, en, fi), terminology drift such as `muoto` where football says `kunto`, em dashes, untranslated fragments, and a string present in one locale and missing in another.
++      CPO ANSWER (2026-07-31), quoting his own words back as the ruling: **"Editorial and Localisation exists as a mechanical gate, not a copy approver. Wording stays yours. Growth owns the title's shape, Editorial owns its words."** He added a reservation that must be honoured rather than argued with: **"I have my doubts how practical this can be. I don't want more babysitting not less. But let's give it a try."**
++  - (RULING 4 — split the CTO) The CPO's own finding, unprompted: **"We have a CTO role that is pulled in every review process. That's ridiculous."** Measured rather than assumed: `cto-reviewer` is required on 28% of the last 150 commits, and 48 distinct tracked files match both `site_v2/**` (CTO) and `site_v2/src/**` (Display), so a CTO reviews Astro markup. `site_v2/**` is its single largest trigger. Root cause: routing has ONE activation type, file path, and applies it to every role regardless of what the role is for.
++      CPO ANSWER (2026-07-31): **"do it"** — Platform and Reliability inherits the territory and the line review; the CTO keeps the authority and loses the globs. And on how a threshold fires when no glob can express it, **"go"** — two of the CTO's four triggers (a dependency added, a guard changed) are path-detectable and stay routing rows; the other two (a new mechanism, a recurring cost) are DECLARED in the contract's existing `decisions_taken` with the always-on scope-auditor as tripwire. Ruled out by measurement, not taste: routing by keyword over the diff, because `canonical` alone appears in 56 files, mostly meaning canonical in the ordinary engineering sense, and a matcher that fires constantly gets ignored.
++  - (the honest limit of ruling 4, recorded so nobody later reads it as machinery) No gate parses `decisions_taken`. `task_contract_gate._read_contract` returns only scope, protected_override, impact_map_present and decisions_reserved_present. So the two undeclarable thresholds are enforced by one always-on reviewer pinned to haiku, reading prose. Every other threshold in this system is machine-checked before a reviewer looks. This trades mechanical enforcement for model judgement at the cheapest tier and is accepted as the cheapest thing better than nothing.
++  - (a finding that CONTRADICTS a confirmation the CPO gave, recorded because acting on the confirmation would have been worse) Asked to confirm the milestone order so that "what is next" could be derived instead of debated, the CPO answered **"confirmed"**. The mechanism cannot run on that structure: **116 issues have been closed in this repo and NOT ONE was in a milestone**; 86 of 200 open issues have no milestone, including every issue we call next (#845, #846, #838, #861, #843, #852, #868). The seven phases were created 2026-07-21 with 114 issues and have never tracked a single completed item, and Phase 0 was written for a site retired on 2026-07-21 — applying the rule would have pointed at #799, which needs a lawyer, ahead of uptime checks for a dead domain. The priority mechanism is therefore left OPEN and reserved to the CPO rather than replaced by builder judgement.
++  - (banked) Eight design artifacts and zero commits is a failed session shape. The CPO said it directly: **"I'm wasting my time... Do we have a concept for the company that we will put in action?"** Twice he confirmed a decision and got a new question back instead of a change. When a design decision is taken, the next action is the edit, and a discovered obstacle is something to solve and record, not to hand back. Also banked: he asked for the org's DEPENDENCIES three times before I drew them, and the eight blocking edges between functions turned out to be the artifact that actually explained the org, every one of them already violated here at least once.
++
++2026-07-31 feat/868-org-operational — TWO BLINDED ESCALATIONS from review round 3, both RULED, plus the round-cap override. Appended per working_agreement §11: they were recorded in `contract.md` first and `scope-auditor` correctly FAILED that at round 4 — the contract is overwritten by the next task, so a permanent change to which reviewer carries a guard would have survived nowhere. This log is the durable place. Recording a ruling in the contract is not recording it.
++  - (E4 — which reviewer hunts for secrets, and at what model tier) Raised by `cto-reviewer` at opus and escalated by `scope-auditor`. The approved plan moved the credentials hunt item off `cto-reviewer` to `platform-reviewer`. What neither noticed at plan time: platform is routed to only two of the eight guard paths, so on the other six — `.claude/settings.json`, `.mcp.json`, `.cursor/mcp.json`, `.claude/commands/**`, `.claude/agents/**`, `.claude/review_routing.json` — a secret would be hunted only by the always-on `scope-auditor`, which is pinned to **haiku**. The first two of those are precisely the file class that carries env blocks and tokens. Before the split that check sat on `cto-reviewer`, which is spawned at **opus** on all eight. So the split silently dropped the review tier on the highest-value paths. Put to the CPO in plain words: *"In the split, the 'is there a password or token in this diff' check moved off the CTO. On six file types, including the ones that hold tokens, it is now done by the cheapest agent instead of the most careful one. Can I put it back on the CTO as well? It costs nothing extra, because the CTO is already reading those files."*
++      CPO ANSWER (2026-07-31): **"yes"**. Implemented as `cto-reviewer.md` hunt item 6, explicitly IN ADDITION to `platform-reviewer` and `scope-auditor` — so the item now sits on three reviewers and coverage is strictly wider than before the split, at no extra cost because the CTO is already spawned on those paths. ⚠ CORRECTED IN ROUND 5, and the correction is the lesson: the first version of this entry claimed the mechanical half runs only via `.pre-commit-config.yaml` "so nothing catches a secret in CI". **That was FALSE.** `.github/workflows/security-secrets.yml` runs `gitleaks-action@v2` on every `pull_request` and on push to `main`, with a terminal gate that exits 1 — CI secret scanning exists and fails CLOSED. `check_no_secrets.py` and `detect-private-key` are a LOCAL-ONLY second layer. `cto-reviewer` caught it by grepping all 11 workflows; I had inferred the coverage instead of checking it, then written the inference into this durable log AND used it to put a cost question to the CPO that he did not need to answer. **Never state a guard's coverage without reading the workflow.**
++  - (E5 — is `docs/north_star.md`'s roles roster a binding inventory or abandoned prose) `CLAUDE.md` cites it as the definition of the roles. This branch adds a role brief and narrows another, and the roster was neither updated nor in `scope_paths`. It was already two briefs stale (`seo_expert`, `data_journalist` absent). Path A: amend the contract and fix it here. Path B: rule it non-binding and file a follow-up.
++      CPO ANSWER (2026-07-31): **"yes, update"** — Path A. Implemented via a contract amendment adding `docs/north_star.md` to scope. **Full content of the change, recorded HERE rather than only in the amendment line, because round 4 failed a narrower description than the diff and because the contract does not survive the task:** added the Platform and Reliability row; narrowed the CTO's to authority-only; added the three rows that were missing — `seo_expert`, `data_journalist`, and the **Scope Auditor, never listed at all** despite firing on every commit; replaced the empty `Brief` column with a **Wakes on** column naming what actually routes each role, which is the honest form of the distinction this whole exercise started from (a brief with no routing row is a document nobody reads), with `seo-expert-reviewer` listed as routed to NOTHING deliberately; and appended a paragraph on the three functions ruled to be MECHANISMS rather than reviewer roles (QA as an evidence artifact, Editorial as a script, Product reduced to a step), each pointing back at this log. The Wakes on column is checked row-for-row against `review_routing.json`, not restated from prose — round 4 caught it understating the CTO's routed surface and omitting `*requirements*.txt` from Platform's. **The count is ELEVEN** — the 8 guard paths, `*requirements*.txt`, `site_v2/package.json`, `site_v2/package-lock.json` — verified by counting the rows myself. Round 4's reviewer said 10 and round 5's said 11; I had written 10 into two documents by taking the first number on trust. `scope-auditor` put it best: *"Do not take my number on trust again — that is how one off-by-one became two documents."* **A reviewer's arithmetic is a finding to verify, not a fact to copy.**
++  - (round-cap override) `ROUND_CAP = 3`. Asked whether to go past it to write the two tests `platform-reviewer` demanded — both were new gate behaviour that no test pinned, which is its own hunt item — the CPO answered **"yes"**. Recorded as `rounds_cap_override:` in `review.md`. Round 4 then caught that one of those very tests would have reddened CI on every pull request, which is the argument for the override rather than against it.
++  - (banked) A reviewer that names a fix is not the same as a reviewer that names the RIGHT fix. Round 1 said three documents over-claimed against the routing rows; the cheap remedy was to correct the prose, the expensive one was to widen the rows, and round 2 chose the expensive one and bought unapproved opus review time. **A doc/row mismatch is fixed by editing whichever side is wrong, and that is almost always the prose.**
++  - (banked) A test that reads real git history is a test that depends on CI's checkout depth. Round 4 caught a new test asserting `total > 0` over `git log`, which would have reddened EVERY pull request in the repo: `python-ci.yml` checks out at the default `fetch-depth: 1`, so on a PR the range is one merge commit and `diff-tree` prints nothing for it. The script under test documented that exact shape and handled it; the test asserted it could not happen. **Fake the subprocess. A hermetic version was also 5x faster and pinned two more branches.**
+diff --git a/.claude/task/review.md b/.claude/task/review.md
+index d7ede33..7893001 100644
+--- a/.claude/task/review.md
++++ b/.claude/task/review.md
+@@ -1,45 +1,127 @@
+-# Review — chore/handover-2026-07-29 (gitignore rule) — 2026-07-29
++# Review — make the new org operational (#868)
+ 
+-> Machine-checked review artifact (governance G3). **One round.** A deliberately tiny change — one
+-> `.gitignore` rule — reviewed proportionately rather than audited at full price, per
+-> `feedback_review_cost_discipline`.
++branch: feat/868-org-operational
++diff_sha256: c9fa6f2ed1d03b5e685e6cad7cdfa5b389a07016fbbd7e21fc375bd041a362cd
++rounds: 5
++rounds_cap_override: CPO 2026-07-31. Asked "May I go past three to write those tests?" he answered "yes". Round 4 then found that one of those very tests would have reddened CI on every pull request in the repo, so round 5 is the same grant being used for what it was given for. Both round-3 ESCALATE questions are answered by him below.
++
++> **Round 5, under the CPO's explicit override, with both round-3 escalations ruled by him.**
+ >
+-> **The interesting part is not the rule, it is how it got written.** The contract gate refuses to
+-> write a contract on a dirty tree, and the only dirty entry WAS the untracked file the contract
+-> exists to handle. Fully circular. Three non-destructive fixes were blocked in sequence —
+-> `.git/info/exclude`, `.gitignore` itself, and writing the contract — and the stop gate's only
+-> suggested remedy throughout was *"delete untracked strays"*, which would have destroyed the CPO's
+-> document.
++> What five rounds caught, because it is the case for the process and not one style note among it:
++> **Round 1** — two §10 violations of mine: `report_process_health.py` claimed a CPO ruling that does
++> not exist, and the handover turned my own invented threshold into a rule for withdrawing his
++> process. Plus a vacuous test that would have passed with the gate disabled, and a credentials guard
++> I had silently narrowed.
++> **Round 2** — my round-1 fix bought unapproved opus review time. The cheap fix was to correct the
++> prose; I had widened the rows instead. Reverted.
++> **Round 3** — two new gate branches with no test, the same class already flagged twice; plus two
++> §10 questions escalated to the CPO rather than decided.
++> **Round 4** — the test written to answer round 3 **would have reddened CI on every pull request in
++> this repo**, because it read real git history and `python-ci.yml` checks out at `fetch-depth: 1`.
++> The script under test documents that exact shape and handles it; my test asserted it could not
++> happen. Also: both CPO rulings were recorded only in `contract.md`, which the next task overwrites.
++> **Round 5** — this. Hermetic tests, the rulings moved to `escalations.log`, the roster checked
++> row-for-row against the routing table.
+ >
+-> I broke the loop by physically moving the PDF to a scratchpad, writing the contract on the now-
+-> clean tree, then restoring it. sha256 recorded before and after: `894a6c288bc72bb1eb2f059b6707
+-> 8547fab17f5b67c5fde1e1ee569851a9ea2f`, identical. **I did not settle whether that was legitimate
+-> myself** — it is exactly the reasoning someone would give to justify routing around a guard, so it
+-> went to the reviewer as the primary question.
++> Machine gates passed every round: **240 tests green** throughout. Four issues filed (#870-#873).
++> The residue is listed under each reviewer as `owed`, not hidden.
++
++## scope-auditor
+ 
+-diff_sha256: 7102eb4bc5c67b697674cf089ec7bfcfd9df7262b9be6370fc8b123e74ac627a
++VERDICT: ESCALATE
++questions_answered_by_the_cpo:
++- The credentials hunt item moved off `cto-reviewer` (sonnet, opus on guard paths) onto the always-on
++  `scope-auditor` (haiku), with `platform-reviewer` also carrying it on its own territory. On the six
++  guard paths platform is NOT routed to — `.claude/settings.json`, `.mcp.json`, `.cursor/mcp.json`,
++  `.claude/commands/**`, `.claude/agents/**`, `.claude/review_routing.json` — a secret is now hunted
++  only at haiku, and the first two are exactly the file class that carries env blocks and tokens.
++  **Path A:** implementation detail inside the approved split. Coverage is wider than before (every
++  diff, plus platform on its territory), the tier drop is accepted, and it is recorded here plus a
++  contract amendment in the next commit. **Path B:** a guard's review tier on the six paths most
++  likely to carry a token is a §10 guard decision that must be authorised before it ships — duplicate
++  the credentials item back onto `cto-reviewer` (without removing it from `scope-auditor`) and land
++  the reallocation as its own recorded decision.
++- `docs/north_star.md:114-128` is the roles roster `CLAUDE.md` cites as the definition of the roles.
++  This branch adds `docs/roles/platform_reliability.md` and narrows `docs/roles/cto.md`, and the
++  roster is neither updated nor in `scope_paths`. **Path A:** amend the contract to add
++  `docs/north_star.md` and fix the roster in this branch. **Path B:** rule the roster non-binding —
++  it already omits `seo_expert.md` and `data_journalist.md`, and `north_star.md` is frozen pending
++  #860 — and file the refresh as a follow-up.
+ 
+-rounds: 1
++CPO ANSWER (2026-07-31), on question 1, put to him in plain words: **"yes"** — Path B. The credentials
++item is back on `cto-reviewer` as hunt item 6, explicitly IN ADDITION to `platform-reviewer` and
++`scope-auditor`, so it now sits on three reviewers and coverage is strictly wider than before the
++split at no extra cost, because the CTO is already spawned at opus on those paths.
++
++CPO ANSWER (2026-07-31), on question 2: **"yes, update"** — Path A. `docs/north_star.md` is in
++`scope_paths` via a recorded amendment, and the roster now carries a **Wakes on** column checked
++row-for-row against `review_routing.json`.
++
++Both answers, both questions, and the full content of the roster change are appended to
++`.claude/task/escalations.log` under 2026-07-31, because round 4 correctly failed recording them in
++`contract.md` alone: the contract does not survive the task, and ruling 1 is a permanent change to
++which reviewer carries a guard.
++
++## cto-reviewer
+ 
+-## scope-auditor
+ VERDICT: PASS
+ risks_checked:
+-- **The manufactured clean tree: ruled a LEGITIMATE workaround, not circumvention.** Its reasoning,
+-  which is better than mine: the rule is "write contracts only on clean trees", and the sequence
+-  COMPLIED with that rule — clean the tree, then write, then restore byte-identical — under
+-  catch-22 conditions the gate never anticipated. What it exposes is that **the gate has no designed
+-  escape hatch for the case where the dirty state IS the thing being fixed.** That hole is #863-class
+-  and is recorded in `decisions_reserved` rather than patched here.
+-- **`/*.pdf` is correctly scoped.** It confirmed the leading slash anchors to the repo root so the
+-  rule cannot hide a PDF nested deeper, and that `git ls-files "*.pdf"` is EMPTY, so no tracked file
+-  is shadowed. It added a boundary case I had not stated: the anchor silently changes meaning if
+-  `.gitignore` is ever relocated into a subdirectory. Low probability, recorded here rather than
+-  guarded.
+-- **No scope creep on the deadlock itself** — verified `decisions_reserved` says the governance hole
+-  is NOT fixed here and that filing it is not this task, and that I left it unfixed as promised.
+-- **Nothing else in the diff** — only `.gitignore` (one rule plus its comment) and `contract.md`. No
+-  code, no data, no workflow, no test.
+-
+-## escalations
+-(none — the CPO's instruction was verbatim "add it to .gitignore", chosen from three options put to
+-him: move it out of the repo, .gitignore, or a local `.git/info/exclude`.)
++- The new deny path preserves the hook's fail-open invariant. `_acceptance_gate` runs inside
++  `_commit_gate`, wrapped `try/except Exception` at `git_discipline.py:516-517`, so an OSError on the
++  contract or evidence file cannot lock commits; and it returns `None` when `contract.md` is absent,
++  delegating rather than inventing a second deny. `ACCEPTANCE_TRIGGER = "site_v2/src/"` matches every
++  prose claim about the narrow trigger. Authority quoted verbatim in `escalations.log` 2026-07-31.
++- The doc/row claim class that failed rounds 1 and 2 is now consistent in all seven places, each
++  checked against `paths` rather than against the builder's summary: both briefs, both docs, the role
++  brief, the routing `_doc` and the handover all say platform on exactly two guard paths and name the
++  same six absences. Cost is flat-to-down: no workflow file touched, both new scripts stdlib-only,
++  reviewer spend 28% to 12% for the CTO with the 10% dual-review figure already in the approved plan.
++
++owed, named so it is not lost:
++- The deferred contract amendment must carry TWO entries: the credentials reallocation AND that
++  `report_process_health.py` ships builder-initiated and unruled. The branch that invents
++  `decisions_taken` as the threshold surface must not be the first to under-use it.
++- `check_copy_gate.py` says its non-wiring is "Recorded in the contract's `decisions_reserved`". The
++  handover records it; the contract's five reserved items do not mention the copy gate. Make the
++  sentence true in the amendment, or correct it.
++- The mechanical half of the credentials guard (`check_no_secrets.py`, `detect-private-key`) runs only
++  via `.pre-commit-config.yaml`, which NO workflow invokes. Unenforced in CI. Pre-existing.
++
++## platform-reviewer
++
++VERDICT: FAIL
++findings:
++- `scripts/check_copy_gate.py:56,108-113` — the `MIN_KEYS` floor is the only thing between the gate
++  and a silent clean pass over zero strings, and no test pins it.
++  `tests/test_governance_hooks.py:680` asserts `>= 20` with a literal against the real `strings.ts`;
++  it never calls `main()` and never references `gate.MIN_KEYS`. Set `MIN_KEYS = 0` or delete the
++  `thin` block and the suite stays green. Round 2's finding recurring on round 1's sibling fix. Live
++  blast radius is zero today because the script is wired into no workflow.
++- `.claude/hooks/git_discipline.py:311-312` — the no-contract branch is unpinned and the test
++  docstring claims otherwise. `test_acceptance_gate_delegates_when_there_is_no_contract` asserts only
++  `not denied(out)`; delete the guard and `open()` raises `FileNotFoundError`, which `main()` swallows
++  at `:517`, so the test still passes. Fix: assert `_gd()._acceptance_gate(...) is None` directly.
++
++owed, not blocking:
++- `report_process_health.py:172` computes `c * 100 // total`. Seeding the counter made the loop always
++  run, so a `ZeroDivisionError` unreachable in round 2 is now reachable when `git log` yields no
++  file-bearing commits (a `fetch-depth: 1` merge-commit checkout). Crashes loudly, false-greens
++  nothing, in no workflow. One line: `total or 1`.
++- `report_process_health.py` has no tests at all: 183 lines, and the three flags the rewrite exists to
++  produce are pinned by nothing.
++- `site_v2/.gitignore` is routed to platform but named in neither of its briefs. The row is right (an
++  ignore rule changes what lands in `dist`); the prose is a word short.
++- `acceptance_evidence.md` is read from the working tree and never required to be staged, so the gate
++  can be satisfied by a file that never enters the commit. Add to #870 rather than a new issue.
++
++## Machine gates — green every round
++
++- `python -m pytest tests/test_governance_hooks.py` — **238 passed**.
++- `python scripts/check_layer_contract.py` — passed.
++- `review_routing.json` parses with `object_pairs_hook` rejecting duplicates: 29 unique keys.
++- Activation re-measured at this hash: `cto-reviewer` 28% to 12%, `platform-reviewer` 24%, 10% both;
++  0 of 48 tracked `site_v2/src/**` files require either.
++- All 8 agent briefs carry a byte-identical `## Delta re-review`.
++- `python scripts/check_copy_gate.py` exits 1 with 16 findings, as designed and disclosed (#872).
++- `python scripts/report_process_health.py` surfaces `seo-expert-reviewer` at 0% `<- DEAD` with
++  `(NO ROUTING ROW)`.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 8d32119..ed5dc5e 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -54,7 +54,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+-| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
++| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+ 
+ ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
+ 
+@@ -67,23 +67,41 @@ CPO governance event). The agent definitions themselves are likewise PROTECTED
+ (CPO ruling, G3 escalation 2026-06-12) — the builder must not be able to weaken
+ its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small model) +
+ `analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + the path-routed
+-specialists `cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
++specialists `platform-reviewer` (the machinery: scripts, tests, hooks, CI, deps,
++site build + hosting), `data-engineer-reviewer`
+ (ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframe specs, the
+ whole built frontend `site_v2/src/**` — CPO ruling 2026-07-22, because the
+ binding rule is written in the spec and broken on the page — and `site/i18n/`;
+ it READS the export to verify bindings but does not review it),
+-`football-analytics-expert-reviewer` (catalogue formula edits). Defined
++`football-analytics-expert-reviewer` (catalogue formula edits) + `cto-reviewer`,
++which after the **CTO split (CPO ruling 2026-07-31, #868)** owns NO territory
++and is woken by a PROPERTY of the change: a new mechanism, a new dependency, a
++guard invariant, a recurring cost. Two of those four are path-detectable and
++routed; two can appear in any file and reach it only via the contract's
++`decisions_taken:`, with the always-on `scope-auditor` as the tripwire. Before
++the split the CTO was required on 28% of commits and 48 tracked files pulled in
++both it and the display reviewer, so a CTO reviewed Astro markup. Defined
+ later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
+-policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
++policy). `seo-expert-reviewer` exists but is STILL NOT ROUTED — approved in
++principle 2026-07-31, not commissioned; it fires on nothing.
++CFO/Growth/Product-Analyst are advisors (consulted at contract time),
+ not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
+-`model:` frontmatter): `scope-auditor` on **haiku**, the five specialists on
+-**sonnet**. The pin is a floor — for diffs touching a guard path
+-(`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+-`.claude/settings.json`, `.claude/review_routing.json`,
+-`.mcp.json`, `.cursor/mcp.json`,
+-`.github/workflows/**`) the orchestrator spawns
+-`cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
+-guard bypasses are the costliest misses.
++`model:` frontmatter): `scope-auditor` on **haiku**, the six specialists on
++**sonnet**. The pin is a floor — on a guard path (`.claude/hooks/**`,
++`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
++`.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
++`.github/workflows/**`) every **specialist** routing requires is spawned on **opus**
++(a procedural override, not hook-enforced), because guard bypasses are the costliest
++misses. `scope-auditor` is exempt and stays haiku — it sits in `always`, so "every
++reviewer" would promote it on every governance commit. That means `cto-reviewer` on
++all eight, **plus `platform-reviewer` on exactly two**, `.claude/hooks/**` and
++`.github/workflows/**`: the CTO rules on authority, Platform on the implementation,
++and the G3 bypasses were fail-open and test-coverage findings, which are Platform's.
++Platform is absent from the other six by design — a brief is a prompt, not
++machinery, so its verdict there would be a rubber stamp. **Check this against the
++rows before restating it**: the split's own review caught it wrong twice, once as
++prose over-claiming and once as rows widened to match the prose at a cost nobody
++had approved.
+ 
+ ### Project skill — `.claude/skills/validate-local/` (committed)
+ 
+diff --git a/docs/north_star.md b/docs/north_star.md
+index 15e3e76..b9dc20f 100644
+--- a/docs/north_star.md
++++ b/docs/north_star.md
+@@ -113,16 +113,34 @@ Quality bar first. Growth comes after the product deserves it.
+ 
+ ## Roles
+ 
+-| Role | Responsibility | Brief |
+-|------|----------------|-------|
+-| CPO | Product decisions, priorities, vision | — |
+-| [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | |
+-| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it — product translation | |
+-| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | |
+-| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | |
+-| [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | |
+-| [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | |
+-| [CFO / Financial Advisor](roles/cfo.md) | Cost tracking, revenue modeling, stage-gate investment decisions | |
+-| [CTO / Tech Strategist](roles/cto.md) | Tech stack evolution, stage-appropriate architecture, build vs. buy | |
+-| [Product Analyst](roles/product_analyst.md) | App tracking, funnel analysis, retention metrics, behavioural insight | |
+-| [Legal Counsel](roles/legal_counsel.md) | Data licensing, user privacy, IP and commercial risk | |
++Every role has a brief in [`roles/`](roles/). A role is only *live* when something wakes it: a routing
++row in `.claude/review_routing.json` makes it a gate-required reviewer, and a brief with no row is a
++document nobody reads. The **Wakes on** column says which — keep it honest, because a role nobody
++wakes is the defect the 2026-07-31 org exercise existed to fix.
++
++| Role | Responsibility | Wakes on |
++|------|----------------|----------|
++| CPO | Product, copy, naming, cost, anything permanent. Merges. | every §10 class |
++| [CTO / Tech Strategist](roles/cto.md) | **Authority only, since the 2026-07-31 split.** New mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a PROPERTY of the change. **11 rows**: the 8 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
++| [Platform and Reliability](roles/platform_reliability.md) | The machinery the CTO used to carry: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, the site build + hosting config |
++| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
++| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
++| [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | `metric_catalogue.csv` |
++| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it — does the page tell a truth a fan can read | all of `site_v2/src/**`, the wireframes, `site/i18n/**` |
++| Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | **every commit** |
++| [SEO Expert](roles/seo_expert.md) | Findability: URLs, metadata, structured data, the internal link graph | **NOTHING — brief and agent exist, no routing row (#842).** Approved in principle 2026-07-31, not commissioned |
++| [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | nothing yet — brief only, no agent |
++| [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | nothing — advisor, consulted at contract time |
++| [CFO / Financial Advisor](roles/cfo.md) | Cost tracking, revenue modeling, stage-gate investment | nothing — advisor; the cost tripwire lives on the CTO |
++| [Product Analyst](roles/product_analyst.md) | App tracking, funnel analysis, retention, behavioural insight | nothing — advisor |
++| [Data Journalist](roles/data_journalist.md) | Generated narrative and prose on the page | nothing — brief only, activates with GAP-03 |
++| [Legal Counsel](roles/legal_counsel.md) | Data licensing, user privacy, IP and commercial risk | nothing — no release-readiness moment exists yet |
++
++**Deliberately not reviewer roles.** Three functions were ruled into existence on 2026-07-31 as
++mechanisms rather than agents. **Quality Assurance** is a gate-required evidence artifact
++(`git_discipline._acceptance_gate`), because that check needs proof rather than judgement.
++**Editorial and Localisation** is `scripts/check_copy_gate.py`, because an agent cannot validate
++Finnish better than the builder can — wording stays the CPO's. ⚠ **It runs by hand only; wiring it
++into CI is reserved (#872)**, because it exits 1 on 16 findings and every fix is copy. A **Product**
++function was proposed and reduced to a step: the builder drafts acceptance criteria, the CPO approves
++them before any code, they are locked. Full authority in `.claude/task/escalations.log`, 2026-07-31.
+diff --git a/docs/roles/cto.md b/docs/roles/cto.md
+index 5f7448a..f2cea68 100644
+--- a/docs/roles/cto.md
++++ b/docs/roles/cto.md
+@@ -1,5 +1,16 @@
+ # Role Brief — CTO / Tech Strategist
+ 
++> **Narrowed 2026-07-31 by the CTO split (#868).** This role owned `scripts/`, `tests/`,
++> `.claude/hooks/`, `.github/workflows/` and all of `site_v2/`, which made it a required reviewer on
++> 28% of commits and had it reviewing Astro markup on 48 files. The CPO's ruling: *"We have a CTO
++> role that is pulled in every review process. That's ridiculous."* The territory and the line review
++> moved to [Platform and Reliability](platform_reliability.md). What stays here is authority.
++>
++> **This role is now activated by a PROPERTY of the change, not by a place in the tree.** Four
++> thresholds wake it: a new mechanism is introduced, a dependency is added, a guard invariant is
++> touched, or a recurring cost appears. It rules, and then it stops. It does not review the
++> implementation of what it allowed.
++
+ ## Purpose
+ 
+ Own the evolution of the technical architecture across every maturity stage of Matchday Pilot. Decide what the right tech stack is today, what it needs to become at 10x scale, and when to make the transition. Ensure technical decisions serve the product and the business — not the other way around. Prevent both premature optimisation and technical debt that blocks growth.
+@@ -88,6 +99,7 @@ Own the evolution of the technical architecture across every maturity stage of M
+ | To | Hands off |
+ |----|-----------|
+ | **CPO** | Stage-gate recommendations, architectural decision proposals, risk flags |
++| **Platform and Reliability** | Everything after the ruling — whether the code is re-run safe, pinned, tested, and within the build budget. If a finding is "this code is wrong" rather than "this should not exist", it is theirs |
+ | **CFO** | Infrastructure cost implications of architectural changes |
+ | **Data Engineer** | Infrastructure and tooling decisions affecting the pipeline |
+ | **Analytics Engineer** | dbt and BigQuery architectural constraints and opportunities |
+diff --git a/docs/roles/platform_reliability.md b/docs/roles/platform_reliability.md
+new file mode 100644
+index 0000000..86f2e9f
+--- /dev/null
++++ b/docs/roles/platform_reliability.md
+@@ -0,0 +1,87 @@
++# Role Brief — Platform and Reliability
++
++> Created 2026-07-31 by the CTO split (#868). The CTO was routed to `scripts/`, `tests/`,
++> `.claude/hooks/`, `.github/workflows/` and all of `site_v2/`, which meant it was required on 28% of
++> commits and reviewed Astro markup on 48 files. The machinery work it was doing is real and belongs
++> to someone; this is that someone. See `docs/roles/cto.md` for what stayed with the CTO.
++
++## Purpose
++
++Own the machinery that builds, tests and ships Matchday Pilot: the scripts, the test suite, the
++guard hooks, the CI workflows, the site build and the hosting. Keep the gates running and honest, the
++build affordable, and the shipped page fast. The pipeline is the product; this role is everything
++that carries it from a commit to a served page without anyone having to remember a manual step.
++
++---
++
++## What this role optimises for
++
++- **Gates that actually fire**: a guard nobody notices is working correctly; a guard that cries wolf
++  gets ignored and is worse than none
++- **Reproducibility**: the same commit produces the same build, twice, on a cold machine
++- **Cheap to run**: build minutes, peak memory, query bytes and hosting spend all stay boring
++- **Fast feedback**: a failure surfaces in the developer's own terminal before CI, and in CI before a
++  reviewer
++
++---
++
++## What this role never compromises
++
++- **Fail-open hooks, fail-closed CI**: a guard bug must never lock the workflow, and a CI check must
++  never let a defect through by erroring out. Verified from the code, never from the name
++- **Local and CI parity**: when the same rule exists in two places, both change together. The
++  reviewer-matching loop is hand-copied into `git_discipline.py` and `check_task_artifacts.py` with
++  no parity test, and that is a known hole rather than an accepted design
++- **No secrets in the tree**: no key, token or credential in a diff, and no workflow permission
++  widened without a reason in the contract
++- **Our own origin**: the built page fetches its assets from us. Hotlinking someone else's origin is
++  the defect that took the previous site offline
++
++---
++
++## Principles
++
++1. **Prove it from the built output.** A source grep and an `outerHTML` check have both certified a
++   defect as fixed while it was still shipping. Read `dist/`.
++2. **A test that would still pass with the change reverted is not coverage.** Name the assertion that
++   would break.
++3. **Ask what happens on the second run and on a run that dies halfway.** Most answers are one
++   sentence; the absence of an answer is the finding.
++4. **Measure before claiming.** Build memory, page count and run frequency are numbers, not
++   adjectives. `astro build` already needs `--max-old-space-size=8192` at a fraction of full scale.
++5. **Boring technology, and no new dependency without a reason someone else can read.** Whether the
++   dependency is allowed at all is the CTO's call, not this role's.
++
++---
++
++## Where responsibility begins and ends
++
++| Begins | Ends |
++|--------|------|
++| A file in the territory changes: `scripts/`, `tests/`, `.claude/hooks/`, `.github/workflows/`, `*requirements*.txt`, or the site build and hosting config — including `site_v2/.gitignore`, because an ignore rule changes what lands in `dist/` | The gates still run, still fail in the right direction, and a test pins the behaviour that changed |
++
++**Not this role's, even on a shared diff.** Whether a mechanism, a dependency, a guard change or a
++recurring cost is *allowed* is the CTO's ruling. This role reviews the implementation of what was
++allowed.
++
++**On exactly two of the eight guard paths** — `.claude/hooks/**` and `.github/workflows/**` — this
++role and the CTO review the same diff for different things, both at the opus floor, because the G3
++commit-gate bypasses were fail-open and test-coverage findings and those are this role's items. **On
++the other six it is not routed at all** (`.claude/agents/**`, `.claude/commands/**`,
++`.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`): a brief or
++a config is a prompt rather than machinery, and a second opus specialist there is a recurring cost
++only the CPO may approve. Do not restate this from memory — check
++`.claude/review_routing.json`. This file is `platform-reviewer.md`'s third Input, so a wrong claim
++here is fed to the reviewer on every run, which is how review round 2 caught it.
++
++---
++
++## Handoff points
++
++| To | Hands off |
++|----|-----------|
++| **CTO** | "Should this exist at all" — a new mechanism, an unjustified dependency, a guard invariant being weakened, a recurring cost |
++| **CPO** | Cost changes and anything that alters run cadence or spend |
++| **Data Engineer** | Ingest scheduling, quota and lock behaviour in the workflows |
++| **Analytics Engineer** | Warehouse-side build ordering and the shared CI/prod dataset hazard |
++| **Web / Display** | Build constraints that change what a page may do: page count, payload size, memory |
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index a52933d..6354054 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -47,6 +47,15 @@ committed with the branch so it is PR-visible:
+ - **decisions_taken** — what the contract pre-approves, quoting the CPO ruling
+ - **decisions_reserved** — known CPO-class questions (§10); each is escalated
+   blinded (§11), never decided
++- **acceptance_criteria** — REQUIRED when the diff touches `site_v2/src/`, the
++  user-facing surface. The builder DRAFTS them, the CPO APPROVES them BEFORE any
++  code, and they are LOCKED after that; only the CPO may move them. The commit gate
++  (`git_discipline._acceptance_gate`) denies without them, and denies again unless
++  `.claude/task/acceptance_evidence.md` demonstrates every one under a
++  `criteria_demonstrated:` marker, read from BUILT output. CPO ruling 2026-07-31
++  (#868): every reviewer checks that the code is right, and nothing checked that it
++  does what was asked — a finished page passed both its reviewers while opening on
++  the wrong season
+ - **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
+   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, **and
+   every protected path** — see below; added 2026-07-22): the
+@@ -125,15 +134,32 @@ serialized four steps; the commit gate enforces them mechanically:
+    specialists) are spawned cold: read-only tools, no builder context, judging
+    the CUMULATIVE branch diff (written to `.claude/task/review_input.patch`).
+    Reviewer models are pinned in each agent definition for economy:
+-   `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
++   `scope-auditor` runs on **haiku**, the six specialists on **sonnet**. The
+    pinned model is a floor — when the staged diff touches a guard path
+    (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+-   `.claude/settings.json`, `.claude/review_routing.json`,
+-   `.github/workflows/**`), the orchestrator
+-   spawns `cto-reviewer` with its model overridden to **opus**, because guard
+-   bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
+-   caught only at that depth). This is a procedural rule the orchestrator
+-   applies at spawn time, not a hook-enforced one.
++   `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
++   `.cursor/mcp.json`, `.github/workflows/**`), every **specialist** routing
++   requires for it is spawned at **opus**, because guard bypasses are the
++   highest-stakes findings (the G3 commit-gate bypasses were caught only at that
++   depth). `scope-auditor` is exempt and stays on haiku: it is in `always`, so
++   "every reviewer routing requires" would silently promote it on every
++   governance commit.
++   In practice that means `cto-reviewer` on all eight, **plus
++   `platform-reviewer` on exactly two of them, `.claude/hooks/**` and
++   `.github/workflows/**`** — the CTO rules on authority, Platform on the
++   implementation, and the G3 bypasses were fail-open and test-coverage
++   findings, which are Platform's items. Platform is deliberately absent from
++   the other six, `.claude/agents/**` above all: a reviewer brief is a prompt,
++   not machinery, so its verdict there would be a rubber stamp.
++   This is a procedural rule the orchestrator applies at spawn time, not a
++   hook-enforced one. **Never state it in prose without checking it against the
++   rows.** Round 1 of the split's own review found three documents claiming
++   "both on all eight" while routing gave Platform two; round 2 fixed it by
++   widening the rows to six and was failed again, because two opus specialists
++   where one ran is a recurring cost and cost is CPO-class. **A doc/row mismatch
++   is fixed by correcting whichever side is wrong, and that is almost always the
++   prose.** Before that, the path list itself disagreed across four files
++   (5 vs 6 vs 8 entries).
+ 3. **Cross-Examination** — adversarial verdicts under the no-free-pass rule: a
+    PASS must name at least two real risks checked; a reviewer that cannot find
+    two must FAIL/ESCALATE; praise is banned; §10 decisions are never approved
+diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
+new file mode 100644
+index 0000000..714f522
+--- /dev/null
++++ b/scripts/check_copy_gate.py
+@@ -0,0 +1,191 @@
++"""Editorial and Localisation gate — MECHANICAL checks on user-visible strings.
++
++CPO ruling 2026-07-31 (#868), in his words: *"Editorial and Localisation exists as
++a mechanical gate, not a copy approver. Wording stays yours. Growth owns the
++title's shape, Editorial owns its words."*
++
++Why a gate and not a reviewer agent. An agent cannot validate Finnish better than
++the builder can — same model, same text — so a copy-approving role would
++manufacture a signature. What it CAN do is mechanical, and that is all this file
++does. On #867, nine user-visible strings shipped and four were wrong; the CPO
++wrote the Finnish himself. Every check here is one of those four defect classes
++made unrepeatable. Judgement about whether a sentence reads naturally stays with
++the CPO, permanently.
++
++The checks, each traceable to a real defect:
++  1. EM DASHES in shipped copy. The CPO flagged them twice as an AI tell, in prose
++     AND in product copy. #867 shipped 14. Mechanical, zero false positives.
++  2. LOCALE COMPLETENESS. A key present in one locale and missing in another. #866
++     is the live instance in the other direction (a value never translated).
++  3. TERMINOLOGY drift against the 381-string validated corpus in `site/i18n/`
++     (127 leaf strings per locale, verified). Football Finnish says `kunto` for
++     form, not `muoto`; a string that uses a term the validated corpus contradicts
++     is flagged with both spellings so a human can settle it.
++  4. UNTRANSLATED VALUES. A non-EN locale carrying a value byte-identical to EN
++     for a key whose EN value contains a lowercase alphabetic word. Numbers,
++     symbols, brand names and pure abbreviations are exempt, because those are
++     legitimately identical across locales.
++
++Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
++as a CI check should.
++
++**DELIBERATELY NOT WIRED INTO CI YET, and that is a decision, not an oversight.**
++It exits 1 on `main` today with 16 real findings: 14 em dashes (worst
++`heroVerdictUnder`, in all three locales), `fi.secForm` = `Muotovertailu`, and
++`fi.footerDataSource` left in English. **Every one of those fixes is copy, which is
++the CPO's alone (§10), so the builder cannot green it.** Wiring it into `ci-ui.yml`
++is one line the moment he rewrites them; until then CI would be red on strings only
++he may touch. Recorded in the contract's `decisions_reserved` and in the handover,
++because a check that runs nowhere is the exact failure this repo already carries
++with `seo-expert-reviewer` and must not be claimed as working.
++"""
++from __future__ import annotations
++
++import json
++import pathlib
++import re
++import sys
++
++REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
++STRINGS = REPO_ROOT / "site_v2" / "src" / "i18n" / "strings.ts"
++CORPUS_DIR = REPO_ROOT / "site" / "i18n"
++LOCALES = ("en", "de", "fi")
++# Floor under the extraction, enforced in the gate itself (see main()). The fixture
++# page alone needs about two dozen labels, so anything under this means the regex
++# broke rather than the copy shrank.
++MIN_KEYS = 20
++
++# Terms the validated corpus settles. term -> (wrong, right, why)
++# Only entries evidenced by the corpus or by a recorded CPO correction belong here.
++TERMINOLOGY = {
++    "fi": [("muoto", "kunto", "football Finnish uses `kunto` for form; `muoto` is shape/format "
++                             "(CPO correction, #867)")],
++}
++
++# A dictionary literal: `const EN: Dict = { key: "value", ... };`
++# Values are ALWAYS double-quoted by contract — strings.ts says so at its head,
++# because check-page-specs.mjs extracts keys on the double quote.
++_DICT_RE = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.S | re.M)
++_ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
++
++
++def _dicts(text: str) -> dict[str, dict[str, str]]:
++    out: dict[str, dict[str, str]] = {}
++    for m in _DICT_RE.finditer(text):
++        out[m.group(1).lower()] = dict(_ENTRY_RE.findall(m.group(2)))
++    return out
++
++
++def _corpus_leaves(obj) -> list[str]:
++    if isinstance(obj, dict):
++        return [s for v in obj.values() for s in _corpus_leaves(v)]
++    if isinstance(obj, list):
++        return [s for v in obj for s in _corpus_leaves(v)]
++    return [obj] if isinstance(obj, str) else []
++
++
++def main() -> int:
++    if not STRINGS.is_file():
++        print(f"FAIL: {STRINGS.relative_to(REPO_ROOT)} not found")
++        return 1
++    text = STRINGS.read_text(encoding="utf-8")
++    dicts = _dicts(text)
++    findings: list[str] = []
++
++    missing_locales = [loc for loc in LOCALES if loc not in dicts]
++    if missing_locales:
++        print(f"FAIL: strings.ts has no dictionary for {missing_locales}")
++        return 1
++
++    # A FLOOR INSIDE THE GATE, not only in the test suite. `_DICT_RE` can still
++    # match while `_ENTRY_RE` matches nothing — exactly the fragility strings.ts's
++    # own header warns about, a value rewritten as a backtick template or single
++    # quoted. Every locale would then be present but EMPTY, all four checks below
++    # would iterate nothing, and this would print a clean pass over zero strings.
++    # The repo's precedent for a floor in the checker is
++    # `site_v2/scripts/check-page-specs.mjs`'s MIN_EXPECTED_KEYS.
++    # (platform-reviewer at opus, 2026-07-31.)
++    thin = {loc: len(dicts[loc]) for loc in LOCALES if len(dicts[loc]) < MIN_KEYS}
++    if thin:
++        print(f"FAIL: extracted too few strings {thin} (floor {MIN_KEYS} per locale). "
++              "The entry regex has stopped matching — a gate over zero strings "
++              "always passes. Check that every dictionary value is DOUBLE-quoted.")
++        return 1
++
++    # 1. em dashes in shipped copy
++    for loc in LOCALES:
++        for key, val in dicts[loc].items():
++            if "—" in val:
++                findings.append(
++                    f"em dash in shipped copy: {loc}.{key} = {val!r}. The CPO has flagged "
++                    "em dashes twice as an AI tell, in prose and in product copy."
++                )
++
++    # 2. locale completeness, in both directions
++    en_keys = set(dicts["en"])
++    for loc in LOCALES:
++        if loc == "en":
++            continue
++        for key in sorted(en_keys - set(dicts[loc])):
++            findings.append(f"key missing from {loc}: {key} (present in en)")
++        for key in sorted(set(dicts[loc]) - en_keys):
++            findings.append(f"key present in {loc} but not in en: {key}")
++
++    # 3. terminology settled by the validated corpus
++    corpus: dict[str, list[str]] = {}
++    for loc in LOCALES:
++        path = CORPUS_DIR / f"{loc}.json"
++        if path.is_file():
++            corpus[loc] = _corpus_leaves(json.loads(path.read_text(encoding="utf-8")))
++    for loc, rules in TERMINOLOGY.items():
++        if loc not in dicts:
++            continue
++        for wrong, right, why in rules:
++            for key, val in dicts[loc].items():
++                if re.search(rf"\b{re.escape(wrong)}\w*", val, flags=re.I):
++                    corroborated = any(
++                        re.search(rf"\b{re.escape(right)}", s, flags=re.I)
++                        for s in corpus.get(loc, [])
++                    )
++                    findings.append(
++                        f"terminology: {loc}.{key} uses `{wrong}` where the corpus uses "
++                        f"`{right}` — {why}. Corroborated by site/i18n/{loc}.json: "
++                        f"{corroborated}. Value: {val!r}"
++                    )
++
++    # 4. untranslated values
++    for loc in LOCALES:
++        if loc == "en":
++            continue
++        for key, val in dicts[loc].items():
++            en_val = dicts["en"].get(key)
++            if en_val is None or val != en_val:
++                continue
++            # exempt: no lowercase word at all (numbers, symbols, abbreviations),
++            # or a single token that is a brand/abbreviation
++            if not re.search(r"[a-z]{3,}", en_val):
++                continue
++            if len(en_val.split()) == 1 and en_val[0].isupper():
++                continue
++            findings.append(
++                f"untranslated: {loc}.{key} is byte-identical to en ({en_val!r}). "
++                "If that is correct for this locale, the value needs a comment "
++                "saying so."
++            )
++
++    if findings:
++        print(f"COPY GATE: {len(findings)} finding(s)\n")
++        for f in findings:
++            print(f"  - {f}")
++        print("\nWording is the CPO's call (§10). This gate only reports mechanical "
++              "defects; it never approves copy.")
++        return 1
++
++    total = sum(len(dicts[loc]) for loc in LOCALES)
++    print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales, "
++          f"{sum(len(v) for v in corpus.values())} corpus strings consulted")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/report_process_health.py b/scripts/report_process_health.py
+new file mode 100644
+index 0000000..101ebca
+--- /dev/null
++++ b/scripts/report_process_health.py
+@@ -0,0 +1,191 @@
++"""Process health — reports numbers. Decides nothing.
++
++NOT CPO-RULED. This script is builder-initiated: it was proposed to the CPO on
++2026-07-31 as one of six gap fixes and he did not rule on it. It ships because it
++only READS artifacts the repo already keeps and prints them. It carries no
++authority and sets no policy.
++
++**Whether any number here should have a threshold, and what happens when a
++threshold is crossed, is a §10 decision reserved to the CPO.** An earlier draft of
++this file invented a threshold and a sunset rule for withdrawing CPO-ruled
++process; both `cto-reviewer` and `scope-auditor` failed it as builder-authored
++governance, correctly. The constant below is a REFERENCE POINT computed from the
++log, not a target and not a trigger.
++
++The one claim the org design rests on is that front-loading a decision removes
++review rounds and CPO interruptions. This prints the before and after so that
++claim can be tested rather than asserted. Acting on the result is the CPO's.
++
++Read-only. Never fails a build.
++"""
++from __future__ import annotations
++
++import collections
++import fnmatch
++import json
++import pathlib
++import re
++import subprocess
++import sys
++
++REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
++ESCALATIONS = REPO_ROOT / ".claude" / "task" / "escalations.log"
++REVIEW_REL = ".claude/task/review.md"
++ROUTING = REPO_ROOT / ".claude" / "review_routing.json"
++
++# Computed from the log at run time, never hardcoded. An earlier draft carried a
++# literal AND a different figure in its docstring AND a third in the handover —
++# one quantity, three values, which is how a hand-typed number drifts. The
++# pre-split reference point is now derived from the same parser as the post-split
++# figure, so the two can never disagree about how they were counted.
++
++
++def _git(*args: str) -> str:
++    """UTF-8 with replacement, never the platform codepage: this repo's history is
++    full of multi-byte characters and cp1252 raises on them mid-read. A failed git
++    call returns "" rather than None, so callers never regex against None."""
++    proc = subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True,
++                          encoding="utf-8", errors="replace")
++    return proc.stdout or ""
++
++
++# The split shipped on this date. Branches recorded before it are the BASELINE;
++# branches after it are what the design is judged on. Averaging over all history
++# would mix the two and could never show a change — the first version of this
++# script did exactly that and printed IMPROVING because the split's own entry
++# added a branch.
++SPLIT_DATE = "2026-07-31"
++
++
++def rulings() -> dict:
++    """CPO rulings recorded, split into before and after the org change."""
++    if not ESCALATIONS.is_file():
++        return {"before": (0, 0), "after": (0, 0)}
++    text = ESCALATIONS.read_text(encoding="utf-8", errors="replace")
++    # One entry per `YYYY-MM-DD[/DD] <branch>` header; its rulings are the
++    # CPO ANSWER/RULING markers until the next header.
++    heads = list(re.finditer(r"^(20\d\d-\d\d-\d\d)(?:/\d\d)? (\S+)", text, flags=re.M))
++    tally = {"before": [0, set()], "after": [0, set()]}
++    for i, h in enumerate(heads):
++        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
++        body = text[h.start():end]
++        bucket = "after" if h.group(1) >= SPLIT_DATE else "before"
++        tally[bucket][0] += len(re.findall(r"CPO (?:ANSWER|RULING)", body))
++        tally[bucket][1].add(h.group(2))
++    return {k: (v[0], len(v[1])) for k, v in tally.items()}
++
++
++def rounds_history() -> list[int]:
++    """Every `rounds:` value review.md has ever carried, from its own git log.
++    A branch that needed round 3 cost three times the reviewer spend of round 1."""
++    log = _git("log", "--format=%H", "--", REVIEW_REL).split()
++    seen = []
++    for sha in log:
++        blob = _git("show", f"{sha}:{REVIEW_REL}")
++        m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(\d+)", blob, flags=re.M)
++        if m:
++            seen.append(int(m.group(1)))
++    return seen
++
++
++def activation(n: int = 150) -> tuple[int, collections.Counter]:
++    """How often each reviewer is REQUIRED. A role at 0% is dead by construction;
++    a role near 100% is not a specialist. Both are design defects — and the whole
++    reason the org exercise happened was a role that had never fired once.
++
++    SEEDED FROM THE AGENT FILES, not from the routing table. A `Counter` only ever
++    holds keys it was incremented for, so an earlier version could never surface a
++    zero and the dead-role branch below was unreachable — while a dead role existed
++    in the repo. Seeding from `.claude/agents/*.md` also catches the hole the
++    contract's own blast_radius names: a reviewer with NO routing row at all, and a
++    routing row naming a reviewer with no brief (nothing else in the repo checks
++    that a reviewer name is real)."""
++    routing = json.loads(ROUTING.read_text(encoding="utf-8"))
++    always, paths = routing.get("always") or [], routing.get("paths") or {}
++    briefs = {p.stem for p in (REPO_ROOT / ".claude" / "agents").glob("*.md")
++              if p.stem != "README"}
++    routed = set(always) | {r for revs in paths.values() for r in revs}
++    hits = collections.Counter({name: 0 for name in briefs | routed})
++    total = 0
++    for sha in _git("log", "--format=%H", "-n", str(n)).split():
++        files = _git("diff-tree", "--no-commit-id", "--name-only", "-r", sha).split()
++        if not files:
++            continue
++        total += 1
++        req = set(always)
++        for f in files:
++            for pattern, reviewers in paths.items():
++                if fnmatch.fnmatch(f, pattern):
++                    req.update(reviewers)
++        for r in req:
++            hits[r] += 1
++    return total, hits
++
++
++def main() -> int:
++    print("PROCESS HEALTH\n" + "=" * 58)
++
++    r = rulings()
++    bn, bb = r["before"]
++    an, ab = r["after"]
++    base = (bn / bb) if bb else 0.0
++    print(f"\nCPO rulings, BEFORE the org change ({SPLIT_DATE})")
++    print(f"  {bn} across {bb} branches   = {base:.2f}/branch   <- reference point")
++    print("\nCPO rulings, SINCE the org change")
++    if ab == 0:
++        print("  none recorded yet.")
++    else:
++        print(f"  {an} across {ab} branches   = {an / ab:.2f}/branch")
++        if ab < 3:
++            print("  note: the first post-split entry is the org change ITSELF, whose")
++            print("    rulings are the design, not process overhead.")
++    print("\n  NO TARGET IS SET HERE. Whether these numbers should carry a threshold,")
++    print("  and what follows from crossing one, is the CPO's call (§10). This")
++    print("  script reports; it does not judge and it does not withdraw a guard.")
++
++    hist = rounds_history()
++    if hist:
++        print(f"\nReview rounds observed      n={len(hist)}  max={max(hist)}  "
++              f"mean={sum(hist) / len(hist):.2f}")
++        dist = collections.Counter(hist)
++        for k in sorted(dist):
++            print(f"  round {k}                   {dist[k]}")
++    else:
++        print("\nReview rounds observed      none recorded yet")
++
++    total, hits = activation()
++    routing = json.loads(ROUTING.read_text(encoding="utf-8"))
++    routed = set(routing.get("always") or []) | {
++        r for revs in (routing.get("paths") or {}).values() for r in revs}
++    briefs = {p.stem for p in (REPO_ROOT / ".claude" / "agents").glob("*.md")
++              if p.stem != "README"}
++    if not total:
++        # Seeding the counter made the loop below always run, which un-hid a
++        # ZeroDivisionError that was previously unreachable (platform-reviewer,
++        # round 3). Realistic shape: a `fetch-depth: 1` checkout of a merge commit,
++        # where `diff-tree` without `-m` prints nothing for every commit it sees.
++        print("\nReviewer activation: no file-bearing commits in range, nothing to "
++              "report. (A shallow clone or a merge-only range does this.)")
++        return 0
++    print(f"\nReviewer activation over the last {total} commits")
++    for name, c in hits.most_common():
++        flag = ""
++        if c == 0:
++            flag = ("  <- DEAD: fires on nothing"
++                    + ("" if name in routed else " (NO ROUTING ROW)"))
++        elif c == total and name != "scope-auditor":
++            flag = "  <- fires on everything: not a specialist"
++        if name not in briefs:
++            flag += "  <- ROUTED BUT NO BRIEF FILE"
++        print(f"  {c * 100 // total:>3}%  {c:>3}/{total}  {name}{flag}")
++
++    print("\nNOT MEASURABLE YET, stated rather than silently omitted:")
++    print("  - gate denials per branch: hooks deny in-session and record nothing.")
++    print("  - reviewer FAILs per branch: review.md is overwritten each round, so")
++    print("    only the final verdict survives in git, never the FAILs that led to it.")
++    print("  Both need a hook to append a line when it fires. Not built; not claimed.")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 4952c09..df0ba2c 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -554,6 +554,29 @@ def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
+     assert not missing, f"frontend source escaping the display reviewer: {missing}"
+ 
+ 
++def test_every_tracked_frontend_non_source_file_gets_platform_review():
++    """The POSITIVE mirror, and the coverage that `site_v2/**` used to guarantee
++    for free. The CTO split replaced that glob with six file names and two
++    directory globs, because fnmatch's `*` crosses `/` and `site_v2/*.json` would
++    also match `site_v2/src/data/*.json`. Enumeration is exact but not
++    self-extending: without this test the next root-level build file
++    (`vitest.config.ts`, `.npmrc`, a postcss config) routes to NOBODY and the suite
++    stays green.
++
++    Both cto-reviewer and platform-reviewer raised this independently at opus on
++    2026-07-31, citing this file's own docstrings three times over: a hand-written
++    list is what was wrong the last three times. `site_v2/.gitignore` is included
++    deliberately — a path covered today does not lose coverage in a split."""
++    r = real_routing()
++    outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
++    assert outside, "no tracked files outside site_v2/src — has the tree moved?"
++    missing = [f for f in outside
++               if "platform-reviewer" not in required_reviewers(r, f)]
++    assert not missing, (
++        f"site_v2 build/hosting files with NO platform review: {missing}. Add each "
++        "to review_routing.json by NAME (never a glob that could reach src/).")
++
++
+ def test_frontend_build_config_does_not_get_the_display_reviewer():
+     """The other direction. A guard that cries wolf gets ignored, so a dependency
+     bump or a build-config edit must NOT demand a display review.
+@@ -583,10 +606,18 @@ PINNED_CASES = [
+     ("docs/competition_registry.yml", "data-engineer-reviewer"),
+     ("docs/data_contract.md", "data-engineer-reviewer"),
+     ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
+-    ("scripts/sync_dbt_vars.py", "cto-reviewer"),
+-    ("tests/test_governance_hooks.py", "cto-reviewer"),
++    # The CTO split (#868, 2026-07-31): the territory moved to platform-reviewer,
++    # so these four pins moved with it. The CTO is no longer routed to scripts/,
++    # tests/ or site_v2/ at all — it is woken by a PROPERTY of the change.
++    ("scripts/sync_dbt_vars.py", "platform-reviewer"),
++    ("tests/test_governance_hooks.py", "platform-reviewer"),
+     ("requirements.txt", "cto-reviewer"),
++    # Pins the `*requirements*.txt` correction: fnmatch full-string-matches, so
++    # the old `requirements*.txt` anchored at the start of the path and this file
++    # never reached the dependency threshold at all.
++    ("ingestion/api_football/requirements.txt", "platform-reviewer"),
+     (".claude/hooks/task_contract_gate.py", "cto-reviewer"),
++    (".claude/hooks/git_discipline.py", "platform-reviewer"),
+     (".claude/agents/bi-analyst-reviewer.md", "cto-reviewer"),
+     (".claude/commands/anything.md", "cto-reviewer"),
+     (".claude/settings.json", "cto-reviewer"),
+@@ -594,10 +625,21 @@ PINNED_CASES = [
+     (".mcp.json", "cto-reviewer"),
+     (".cursor/mcp.json", "cto-reviewer"),
+     (".github/workflows/ci-data-build.yml", "cto-reviewer"),
++    (".github/workflows/ci-validate.yml", "platform-reviewer"),
+     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
+     ("site/i18n/de.json", "bi-analyst-reviewer"),
+     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
++    # site_v2/** is gone and the build surface is enumerated by NAME, because
++    # fnmatch's `*` crosses `/` and `site_v2/*.json` would also match
++    # site_v2/src/data/*.json, re-creating the 48-file overlap the split removed.
+     ("site_v2/package.json", "cto-reviewer"),
++    ("site_v2/package-lock.json", "platform-reviewer"),
++    ("site_v2/astro.config.mjs", "platform-reviewer"),
++    ("site_v2/tsconfig.json", "platform-reviewer"),
++    ("site_v2/firebase.json", "platform-reviewer"),
++    ("site_v2/.gitignore", "platform-reviewer"),
++    ("site_v2/integrations/seo-audit.mjs", "platform-reviewer"),
++    ("site_v2/scripts/audit-seo.mjs", "platform-reviewer"),
+     ("dbt_project/seeds/competition_registry.csv", "data-engineer-reviewer"),
+ ]
+ 
+@@ -635,6 +677,180 @@ def test_every_routing_pattern_is_pinned_by_the_test_above():
+     assert not unpinned, f"unpinned routing patterns: {sorted(unpinned)}"
+ 
+ 
++def test_copy_gate_parses_the_real_strings_file():
++    """Pins the fragile part of `scripts/check_copy_gate.py`: the regex that pulls
++    dictionary entries out of `strings.ts`. If it silently matches nothing, the
++    gate reports a clean pass over zero strings, which is worse than no gate.
++
++    strings.ts's own header explains why every value is double-quoted: the build
++    gate `check-page-specs.mjs` extracts keys on the double quote, so rewriting an
++    entry as a backtick template drops it from the checked set. The same fragility
++    applies here, so it is pinned here (CPO ruling 2026-07-31, #868)."""
++    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++    try:
++        import check_copy_gate as gate
++    finally:
++        sys.path.pop(0)
++    text = gate.STRINGS.read_text(encoding="utf-8")
++    dicts = gate._dicts(text)
++    for loc in gate.LOCALES:
++        assert loc in dicts, f"copy gate found no `{loc}` dictionary in strings.ts"
++        assert len(dicts[loc]) >= 20, (
++            f"copy gate extracted only {len(dicts[loc])} {loc} strings — the entry "
++            "regex has stopped matching. A gate over zero strings always passes.")
++    assert len(dicts["en"]) == len(dicts["de"]) == len(dicts["fi"]), (
++        "locale dictionaries differ in size; the gate's completeness check must "
++        "be the thing that reports that, not this test")
++
++
++def _health():
++    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++    try:
++        import report_process_health as health
++    finally:
++        sys.path.pop(0)
++    return health
++
++
++def _fake_git(files_by_sha: dict[str, list[str]]):
++    """Stand in for `report_process_health._git`, dispatching on the subcommand."""
++    def run(*args: str) -> str:
++        if args[0] == "log":
++            return "\n".join(files_by_sha) + "\n"
++        if args[0] == "diff-tree":
++            return "\n".join(files_by_sha.get(args[-1], [])) + "\n"
++        return ""
++    return run
++
++
++def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
++    """The dead-role flag is the whole reason `activation()` was rewritten, and it
++    was unreachable in the first version: a `Counter` only holds keys it was
++    incremented for, so it could never yield a zero and the branch never ran —
++    while a dead role existed in the repo. Seeding from the agent briefs UNION the
++    routed names fixed it.
++
++    HERMETIC, and that is load-bearing rather than tidiness. The first version
++    called `activation(n=6)` against real history and asserted `total` was non-zero.
++    `python-ci.yml` runs `pytest tests/` behind `actions/checkout@v4` with the
++    default `fetch-depth: 1`, so on a `pull_request` HEAD is `refs/pull/N/merge`
++    with no parents fetched: `git log -n 6` yields one sha and `diff-tree` prints
++    nothing for a merge without `-m`, so `total == 0` and the assertion would have
++    reddened **every PR in the repo, including this branch's own**. The irony was
++    that `report_process_health.py` documents exactly that shape and handles it,
++    while the test asserted it could not happen. Caught by platform-reviewer at
++    opus, round 4. Faking `_git` also removes seven subprocess spawns and lets one
++    test pin the counting as well as the roster."""
++    health = _health()
++    monkeypatch.setattr(health, "_git", _fake_git({
++        "sha1": ["dbt_project/models/x.sql"],
++        "sha2": [".claude/hooks/git_discipline.py"],
++    }))
++    total, hits = health.activation(n=2)
++
++    assert total == 2
++    briefs = {p.stem for p in (health.REPO_ROOT / ".claude" / "agents").glob("*.md")
++              if p.stem != "README"}
++    assert briefs <= set(hits), (
++        f"reviewers with a brief but absent from the roster: {briefs - set(hits)}. "
++        "A role missing from the roster can never be seen to be dead.")
++    assert hits["seo-expert-reviewer"] == 0, (
++        "a brief with no routing row must appear at zero, not be absent — that is "
++        "the whole point of seeding the counter")
++    assert hits["scope-auditor"] == 2, "the always-on reviewer fires on every commit"
++    assert hits["analytics-engineer-reviewer"] == 1 and hits["cto-reviewer"] == 1, (
++        "the counting itself is now pinned, not only the roster")
++
++
++def test_health_report_survives_a_shallow_clone(monkeypatch, capsys):
++    """The branch that closed the `ZeroDivisionError` was the one thing nothing
++    exercised — platform-reviewer's own words in round 4, and it was right. An empty
++    range is the realistic CI shape (see the test above), so `main()` must report
++    and exit 0 rather than divide by zero."""
++    health = _health()
++    monkeypatch.setattr(health, "_git", _fake_git({}))
++    assert health.main() == 0
++    assert "no file-bearing commits in range" in capsys.readouterr().out
++
++
++def test_copy_gate_floor_is_in_the_gate_not_only_in_this_test(tmp_path, monkeypatch):
++    """Pins `check_copy_gate.MIN_KEYS`, the floor INSIDE the gate.
++
++    The test above asserts >= 20 against the real `strings.ts`, which proves the
++    regex works today but says nothing about the gate: set `MIN_KEYS = 0`, or delete
++    the `thin` block, and the suite stayed green while `main()` would print
++    "COPY GATE ok: 0 strings" and return 0 over a broken regex. That is the exact
++    failure the floor exists to prevent, and it was the floor's own coverage gap.
++    Caught by platform-reviewer at opus, round 3 — the same finding class it had
++    already raised twice, which is why it is pinned by driving `main()` rather than
++    by inspecting a constant.
++
++    A dictionary whose values are backtick templates matches `_DICT_RE` but yields
++    ZERO entries from `_ENTRY_RE` — the fragility `strings.ts`'s own header warns
++    about, since `check-page-specs.mjs` extracts keys on the double quote too."""
++    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++    try:
++        import check_copy_gate as gate
++    finally:
++        sys.path.pop(0)
++
++    broken = tmp_path / "strings.ts"
++    broken.write_text(
++        "\n".join(
++            f"const {loc}: Dict = {{\n" + "".join(
++                f"  key{i}: `value {i}`,\n" for i in range(40)) + "};\n"
++            for loc in ("EN", "DE", "FI")
++        ), encoding="utf-8")
++    monkeypatch.setattr(gate, "STRINGS", broken)
++
++    assert gate._dicts(broken.read_text(encoding="utf-8")).keys() >= {"en", "de", "fi"}, (
++        "the fixture must reproduce the real failure: dictionaries FOUND but EMPTY")
++    assert gate.main() == 1, (
++        "the gate must FAIL on a file it extracted no strings from; a clean pass "
++        "over zero strings is worse than no gate at all")
++
++
++def test_routing_has_no_duplicate_keys():
++    """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
++    `json.load` keeps the LAST one and the other reviewer requirement vanishes
++    with no signal. Neither consumer detects it and no other test would either,
++    because the parsed dict looks perfectly well-formed.
++
++    Live risk as of the CTO split (#868): five patterns are deliberately shared
++    between `cto-reviewer` and `platform-reviewer`, and the natural way to write
++    that change is one key per role. `object_pairs_hook` sees the raw pairs
++    BEFORE the dict collapses them, so this is exact rather than a regex guess.
++
++    Found by the pre-CPO plan challenge on 2026-07-31, not in review."""
++    def reject_dupes(pairs):
++        seen = set()
++        for key, _ in pairs:
++            assert key not in seen, f"duplicate JSON key silently collapsed: {key!r}"
++            seen.add(key)
++        return dict(pairs)
++
++    with open(REAL_ROUTING_PATH, encoding="utf-8") as fh:
++        json.loads(fh.read(), object_pairs_hook=reject_dupes)
++
++
++def test_frontend_source_gets_no_authority_or_platform_review():
++    """The regression guard for what motivated the CTO split (#868). Before it,
++    `site_v2/**` routed to `cto-reviewer` while `site_v2/src/**` routed to
++    `bi-analyst-reviewer`, so 48 distinct tracked files demanded BOTH and a CTO
++    reviewed Astro markup — the wrong altitude, and it spent the one role with
++    architectural authority on line review.
++
++    Enumerated from `git ls-files`, like its two siblings above, because a
++    hand-written list is what was wrong the last three times."""
++    r = real_routing()
++    files = [f for f in tracked("site_v2") if f.startswith("site_v2/src/")]
++    assert files, "no tracked files under site_v2/src — has the tree moved?"
++    stray = {f: sorted(required_reviewers(r, f) & {"cto-reviewer", "platform-reviewer"})
++             for f in files
++             if required_reviewers(r, f) & {"cto-reviewer", "platform-reviewer"}}
++    assert not stray, f"frontend source pulling in authority/platform review: {stray}"
++
++
+ # --------------------------------------------------------------------------- #
+ # git_discipline — the review/commit gate (G3)
+ # --------------------------------------------------------------------------- #
+@@ -769,6 +985,158 @@ def test_artifact_only_commit_exempt_from_review(repo):
+     assert not denied(out)
+ 
+ 
++# --------------------------------------------------------------------------- #
++# Acceptance gate (Quality Assurance, CPO ruling 2026-07-31, #868)
++#
++# Every reviewer reads the diff and asks whether the code is right; none asked
++# whether the finished thing does what the ticket asked. The player Overview
++# built, passed BOTH its reviewers, and still opened on the wrong season. These
++# tests pin the gate that would have caught it, in both directions — it must fire
++# on the user-facing surface and must NOT fire anywhere else, because a guard that
++# cries wolf gets ignored (review_routing.json's own _doc).
++# --------------------------------------------------------------------------- #
++FRONTEND_PATH = "site_v2/src/pages/x.astro"
++
++
++def _stage_frontend(repo, contract: str | None, evidence: str | None = None):
++    """Stage a user-facing change, optionally with a contract and evidence file."""
++    setup_review_repo(repo, stage_path=FRONTEND_PATH)
++    if contract is not None:
++        (repo / ".claude" / "task" / "contract.md").write_text(contract, encoding="utf-8")
++    if evidence is not None:
++        (repo / ".claude" / "task" / "acceptance_evidence.md").write_text(
++            evidence, encoding="utf-8")
++    write_review(repo, staged_hash(repo), GOOD_BODY)
++
++
++CRITERIA_CONTRACT = """objective: >
++  a page
++acceptance_criteria:
++  - the page opens on the most recent CLUB season, not a national one
++  - the title is unique across the generated set
++scope_paths:
++  - site_v2/src/**
++"""
++
++
++def test_acceptance_gate_denies_frontend_change_with_no_criteria(repo):
++    _stage_frontend(repo, contract="objective: >\n  a page\nscope_paths:\n  - x\n")
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert denied(out) and "acceptance_criteria" in out
++
++
++def test_acceptance_gate_denies_when_evidence_file_is_missing(repo):
++    _stage_frontend(repo, contract=CRITERIA_CONTRACT)
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert denied(out) and "acceptance_evidence.md" in out
++
++
++def test_acceptance_gate_denies_when_a_criterion_is_undemonstrated(repo):
++    """Two declared, one shown. An undemonstrated criterion is an unverified
++    claim, which is exactly how the Overview passed."""
++    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
++        "criteria_demonstrated:\n"
++        "  - read from dist/en/players/x/index.html: opens on 2025/26 Bundesliga\n"
++    ))
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert denied(out) and "2 acceptance criteria declared, 1 demonstrated" in out
++
++
++def test_acceptance_gate_rejects_placeholder_evidence(repo):
++    """A `<placeholder>` and a bare `none` must not satisfy the quota — the same
++    rule the contract gate applies to impact_map, reused rather than re-invented."""
++    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
++        "criteria_demonstrated:\n  - <what it showed>\n  - none\n"))
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert denied(out) and "0 demonstrated" in out
++
++
++def test_acceptance_gate_passes_when_every_criterion_is_demonstrated(repo):
++    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
++        "criteria_demonstrated:\n"
++        "  - read from dist/en/players/x/index.html: opens on 2025/26 Bundesliga\n"
++        "  - all 3 locale titles distinct, read from dist/{de,en,fi}\n"))
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert not denied(out)
++
++
++def test_acceptance_gate_does_not_fire_off_the_user_facing_surface(repo):
++    """The narrow trigger. A warehouse or tooling change has no page to
++    demonstrate, so demanding evidence there would be the cry-wolf failure.
++
++    The staged content must DIFFER from HEAD. The first version of this test wrote
++    `select 1`, byte-identical to what `_repo_template` already committed, so
++    `git diff --staged --name-only` was EMPTY, `_commit_gate` returned at its
++    `if not paths` guard, and the gate under test was never reached — the test
++    would have passed with `ACCEPTANCE_TRIGGER = ""`, i.e. firing on everything.
++    Caught by platform-reviewer at opus, 2026-07-31, round 1."""
++    _stage_frontend(repo, contract="objective: >\n  a model\nscope_paths:\n  - x\n")
++    subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
++    target = repo / "dbt_project" / "models" / "warehouse_only.sql"
++    target.parent.mkdir(parents=True, exist_ok=True)
++    target.write_text("select 42 as definitely_not_head")
++    subprocess.run(["git", "add", str(target)], cwd=repo, check=True)
++    staged = subprocess.run(["git", "diff", "--staged", "--name-only"], cwd=repo,
++                            capture_output=True, text=True, check=True).stdout.split()
++    assert staged == ["dbt_project/models/warehouse_only.sql"], (
++        f"the gate under test is only reached with a non-empty staged diff; got {staged}")
++    write_review(repo, staged_hash(repo), GOOD_BODY)
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert not denied(out)
++
++
++def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
++    """The contract gate owns the missing-contract case, so this one returns None
++    rather than inventing a second deny for it.
++
++    Calls `_acceptance_gate` DIRECTLY. The first version drove the whole hook and
++    asserted only `not denied(out)`, which proved nothing: delete the guard and
++    `open()` raises FileNotFoundError, `main()` swallows it in the fail-open
++    wrapper, and the commit is still not denied — so the test passed either way and
++    its own coverage claim was false. Caught by platform-reviewer at opus, round 3.
++    Reaching into the hook is the same move `required_reviewers` already makes for
++    the routing matcher."""
++    gd = _gd()
++    frontend = ["site_v2/src/pages/x.astro"]
++    assert gd._acceptance_gate(str(tmp_path), frontend) is None, (
++        "with no contract.md the gate must DELEGATE (return None), never deny")
++    # The mirror, so the assertion above cannot be satisfied by a gate that returns
++    # None unconditionally: with a contract present but no criteria, it MUST deny.
++    task = tmp_path / ".claude" / "task"
++    task.mkdir(parents=True)
++    (task / "contract.md").write_text("objective: >\n  a page\n", encoding="utf-8")
++    assert gd._acceptance_gate(str(tmp_path), frontend) is not None
++
++
++def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
++    """Pins `_MIN_EVIDENCE_CHARS`. Without this, deleting the length filter or
++    setting the constant to 0 broke NO test: the placeholder test never reaches the
++    filter (`_bullets` drops `<...>` and `none` first) and the distinctness test
++    uses lines that clear the floor. So the branch added to answer round 1 was
++    itself unpinned gate behaviour — round 1's own finding class, on round 1's fix.
++    Named by platform-reviewer at opus, round 2.
++
++    `- ok` and `- fine` are non-placeholder, distinct, and four characters: proof
++    of nothing."""
++    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
++        "criteria_demonstrated:\n  - ok\n  - fine\n"))
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert denied(out) and "0 demonstrated" in out
++    assert "too short" in out, "the deny must say WHY a line did not count"
++
++
++def test_acceptance_gate_rejects_repeated_identical_evidence(repo):
++    """A count alone is satisfied by two bullets both reading "checked". The quota
++    is a floor, not proof, so identical and too-short lines are rejected
++    (cto-reviewer round 1: "the proof is written by the builder and read by a
++    bullet counter")."""
++    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
++        "criteria_demonstrated:\n  - checked and it works fine\n"
++        "  - checked and it works fine\n"))
++    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
++    assert denied(out) and "identical" in out.lower()
++
++
+ # --------------------------------------------------------------------------- #
+ # Round cap (review-economics, 2026-07-22) — the commit gate bounds the loop.
+ # --------------------------------------------------------------------------- #

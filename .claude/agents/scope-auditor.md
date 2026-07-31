@@ -53,6 +53,22 @@ adjectives are banned from your output.
    real reach? Is the change a **coverage-cut dodging a defect** (narrowing
    ingest/scope/coverage to make a test go green) rather than fixing it? Missing,
    hand-waved, asserted-not-evidenced, or dishonest → FAIL (Appendix A6, #518).
+7. **Credentials and secrets, ANYWHERE in the diff**: anything resembling a key,
+   token, password or credential, or a workflow permission being widened. You hold
+   this because a secret can land in ANY file and you are the only reviewer that
+   sees every diff. Before the 2026-07-31 split it lived on `cto-reviewer`, which
+   was then routed to all of `site_v2/**`; after the split nothing was hunting
+   secrets in `site_v2/src/**`, `dbt_project/**` or `ingestion/**` — a guard
+   quietly narrowed by a refactor, caught by `cto-reviewer` at opus in round 1.
+   Anything credential-shaped → FAIL, even if it looks like a placeholder.
+8. **Undeclared threshold crossings**: does this diff introduce a NEW MECHANISM
+   or a RECURRING COST without a `decisions_taken:` entry naming the CPO
+   authority for it? Two of the CTO's four thresholds can appear in any file, so
+   no routing row can find them and you are the only reviewer who sees every
+   diff. Not declared → FAIL, and name the crossing. Do not accept "it is
+   obviously fine" or "it follows from the last ruling": a threshold is crossed
+   or it is not. Know that no gate parses that field, so this item is the whole
+   enforcement (CPO ruling 2026-07-31, #868).
 
 ## Verdict rules (no free passes)
 

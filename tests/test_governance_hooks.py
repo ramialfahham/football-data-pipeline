@@ -554,6 +554,29 @@ def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
     assert not missing, f"frontend source escaping the display reviewer: {missing}"
 
 
+def test_every_tracked_frontend_non_source_file_gets_platform_review():
+    """The POSITIVE mirror, and the coverage that `site_v2/**` used to guarantee
+    for free. The CTO split replaced that glob with six file names and two
+    directory globs, because fnmatch's `*` crosses `/` and `site_v2/*.json` would
+    also match `site_v2/src/data/*.json`. Enumeration is exact but not
+    self-extending: without this test the next root-level build file
+    (`vitest.config.ts`, `.npmrc`, a postcss config) routes to NOBODY and the suite
+    stays green.
+
+    Both cto-reviewer and platform-reviewer raised this independently at opus on
+    2026-07-31, citing this file's own docstrings three times over: a hand-written
+    list is what was wrong the last three times. `site_v2/.gitignore` is included
+    deliberately — a path covered today does not lose coverage in a split."""
+    r = real_routing()
+    outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
+    assert outside, "no tracked files outside site_v2/src — has the tree moved?"
+    missing = [f for f in outside
+               if "platform-reviewer" not in required_reviewers(r, f)]
+    assert not missing, (
+        f"site_v2 build/hosting files with NO platform review: {missing}. Add each "
+        "to review_routing.json by NAME (never a glob that could reach src/).")
+
+
 def test_frontend_build_config_does_not_get_the_display_reviewer():
     """The other direction. A guard that cries wolf gets ignored, so a dependency
     bump or a build-config edit must NOT demand a display review.
@@ -583,10 +606,18 @@ PINNED_CASES = [
     ("docs/competition_registry.yml", "data-engineer-reviewer"),
     ("docs/data_contract.md", "data-engineer-reviewer"),
     ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
-    ("scripts/sync_dbt_vars.py", "cto-reviewer"),
-    ("tests/test_governance_hooks.py", "cto-reviewer"),
+    # The CTO split (#868, 2026-07-31): the territory moved to platform-reviewer,
+    # so these four pins moved with it. The CTO is no longer routed to scripts/,
+    # tests/ or site_v2/ at all — it is woken by a PROPERTY of the change.
+    ("scripts/sync_dbt_vars.py", "platform-reviewer"),
+    ("tests/test_governance_hooks.py", "platform-reviewer"),
     ("requirements.txt", "cto-reviewer"),
+    # Pins the `*requirements*.txt` correction: fnmatch full-string-matches, so
+    # the old `requirements*.txt` anchored at the start of the path and this file
+    # never reached the dependency threshold at all.
+    ("ingestion/api_football/requirements.txt", "platform-reviewer"),
     (".claude/hooks/task_contract_gate.py", "cto-reviewer"),
+    (".claude/hooks/git_discipline.py", "platform-reviewer"),
     (".claude/agents/bi-analyst-reviewer.md", "cto-reviewer"),
     (".claude/commands/anything.md", "cto-reviewer"),
     (".claude/settings.json", "cto-reviewer"),
@@ -594,10 +625,21 @@ PINNED_CASES = [
     (".mcp.json", "cto-reviewer"),
     (".cursor/mcp.json", "cto-reviewer"),
     (".github/workflows/ci-data-build.yml", "cto-reviewer"),
+    (".github/workflows/ci-validate.yml", "platform-reviewer"),
     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
     ("site/i18n/de.json", "bi-analyst-reviewer"),
     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
+    # site_v2/** is gone and the build surface is enumerated by NAME, because
+    # fnmatch's `*` crosses `/` and `site_v2/*.json` would also match
+    # site_v2/src/data/*.json, re-creating the 48-file overlap the split removed.
     ("site_v2/package.json", "cto-reviewer"),
+    ("site_v2/package-lock.json", "platform-reviewer"),
+    ("site_v2/astro.config.mjs", "platform-reviewer"),
+    ("site_v2/tsconfig.json", "platform-reviewer"),
+    ("site_v2/firebase.json", "platform-reviewer"),
+    ("site_v2/.gitignore", "platform-reviewer"),
+    ("site_v2/integrations/seo-audit.mjs", "platform-reviewer"),
+    ("site_v2/scripts/audit-seo.mjs", "platform-reviewer"),
     ("dbt_project/seeds/competition_registry.csv", "data-engineer-reviewer"),
 ]
 
@@ -633,6 +675,180 @@ def test_every_routing_pattern_is_pinned_by_the_test_above():
                    for path, expected in PINNED_CASES)
     ]
     assert not unpinned, f"unpinned routing patterns: {sorted(unpinned)}"
+
+
+def test_copy_gate_parses_the_real_strings_file():
+    """Pins the fragile part of `scripts/check_copy_gate.py`: the regex that pulls
+    dictionary entries out of `strings.ts`. If it silently matches nothing, the
+    gate reports a clean pass over zero strings, which is worse than no gate.
+
+    strings.ts's own header explains why every value is double-quoted: the build
+    gate `check-page-specs.mjs` extracts keys on the double quote, so rewriting an
+    entry as a backtick template drops it from the checked set. The same fragility
+    applies here, so it is pinned here (CPO ruling 2026-07-31, #868)."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    try:
+        import check_copy_gate as gate
+    finally:
+        sys.path.pop(0)
+    text = gate.STRINGS.read_text(encoding="utf-8")
+    dicts = gate._dicts(text)
+    for loc in gate.LOCALES:
+        assert loc in dicts, f"copy gate found no `{loc}` dictionary in strings.ts"
+        assert len(dicts[loc]) >= 20, (
+            f"copy gate extracted only {len(dicts[loc])} {loc} strings — the entry "
+            "regex has stopped matching. A gate over zero strings always passes.")
+    assert len(dicts["en"]) == len(dicts["de"]) == len(dicts["fi"]), (
+        "locale dictionaries differ in size; the gate's completeness check must "
+        "be the thing that reports that, not this test")
+
+
+def _health():
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    try:
+        import report_process_health as health
+    finally:
+        sys.path.pop(0)
+    return health
+
+
+def _fake_git(files_by_sha: dict[str, list[str]]):
+    """Stand in for `report_process_health._git`, dispatching on the subcommand."""
+    def run(*args: str) -> str:
+        if args[0] == "log":
+            return "\n".join(files_by_sha) + "\n"
+        if args[0] == "diff-tree":
+            return "\n".join(files_by_sha.get(args[-1], [])) + "\n"
+        return ""
+    return run
+
+
+def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
+    """The dead-role flag is the whole reason `activation()` was rewritten, and it
+    was unreachable in the first version: a `Counter` only holds keys it was
+    incremented for, so it could never yield a zero and the branch never ran —
+    while a dead role existed in the repo. Seeding from the agent briefs UNION the
+    routed names fixed it.
+
+    HERMETIC, and that is load-bearing rather than tidiness. The first version
+    called `activation(n=6)` against real history and asserted `total` was non-zero.
+    `python-ci.yml` runs `pytest tests/` behind `actions/checkout@v4` with the
+    default `fetch-depth: 1`, so on a `pull_request` HEAD is `refs/pull/N/merge`
+    with no parents fetched: `git log -n 6` yields one sha and `diff-tree` prints
+    nothing for a merge without `-m`, so `total == 0` and the assertion would have
+    reddened **every PR in the repo, including this branch's own**. The irony was
+    that `report_process_health.py` documents exactly that shape and handles it,
+    while the test asserted it could not happen. Caught by platform-reviewer at
+    opus, round 4. Faking `_git` also removes seven subprocess spawns and lets one
+    test pin the counting as well as the roster."""
+    health = _health()
+    monkeypatch.setattr(health, "_git", _fake_git({
+        "sha1": ["dbt_project/models/x.sql"],
+        "sha2": [".claude/hooks/git_discipline.py"],
+    }))
+    total, hits = health.activation(n=2)
+
+    assert total == 2
+    briefs = {p.stem for p in (health.REPO_ROOT / ".claude" / "agents").glob("*.md")
+              if p.stem != "README"}
+    assert briefs <= set(hits), (
+        f"reviewers with a brief but absent from the roster: {briefs - set(hits)}. "
+        "A role missing from the roster can never be seen to be dead.")
+    assert hits["seo-expert-reviewer"] == 0, (
+        "a brief with no routing row must appear at zero, not be absent — that is "
+        "the whole point of seeding the counter")
+    assert hits["scope-auditor"] == 2, "the always-on reviewer fires on every commit"
+    assert hits["analytics-engineer-reviewer"] == 1 and hits["cto-reviewer"] == 1, (
+        "the counting itself is now pinned, not only the roster")
+
+
+def test_health_report_survives_a_shallow_clone(monkeypatch, capsys):
+    """The branch that closed the `ZeroDivisionError` was the one thing nothing
+    exercised — platform-reviewer's own words in round 4, and it was right. An empty
+    range is the realistic CI shape (see the test above), so `main()` must report
+    and exit 0 rather than divide by zero."""
+    health = _health()
+    monkeypatch.setattr(health, "_git", _fake_git({}))
+    assert health.main() == 0
+    assert "no file-bearing commits in range" in capsys.readouterr().out
+
+
+def test_copy_gate_floor_is_in_the_gate_not_only_in_this_test(tmp_path, monkeypatch):
+    """Pins `check_copy_gate.MIN_KEYS`, the floor INSIDE the gate.
+
+    The test above asserts >= 20 against the real `strings.ts`, which proves the
+    regex works today but says nothing about the gate: set `MIN_KEYS = 0`, or delete
+    the `thin` block, and the suite stayed green while `main()` would print
+    "COPY GATE ok: 0 strings" and return 0 over a broken regex. That is the exact
+    failure the floor exists to prevent, and it was the floor's own coverage gap.
+    Caught by platform-reviewer at opus, round 3 — the same finding class it had
+    already raised twice, which is why it is pinned by driving `main()` rather than
+    by inspecting a constant.
+
+    A dictionary whose values are backtick templates matches `_DICT_RE` but yields
+    ZERO entries from `_ENTRY_RE` — the fragility `strings.ts`'s own header warns
+    about, since `check-page-specs.mjs` extracts keys on the double quote too."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    try:
+        import check_copy_gate as gate
+    finally:
+        sys.path.pop(0)
+
+    broken = tmp_path / "strings.ts"
+    broken.write_text(
+        "\n".join(
+            f"const {loc}: Dict = {{\n" + "".join(
+                f"  key{i}: `value {i}`,\n" for i in range(40)) + "};\n"
+            for loc in ("EN", "DE", "FI")
+        ), encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", broken)
+
+    assert gate._dicts(broken.read_text(encoding="utf-8")).keys() >= {"en", "de", "fi"}, (
+        "the fixture must reproduce the real failure: dictionaries FOUND but EMPTY")
+    assert gate.main() == 1, (
+        "the gate must FAIL on a file it extracted no strings from; a clean pass "
+        "over zero strings is worse than no gate at all")
+
+
+def test_routing_has_no_duplicate_keys():
+    """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
+    `json.load` keeps the LAST one and the other reviewer requirement vanishes
+    with no signal. Neither consumer detects it and no other test would either,
+    because the parsed dict looks perfectly well-formed.
+
+    Live risk as of the CTO split (#868): five patterns are deliberately shared
+    between `cto-reviewer` and `platform-reviewer`, and the natural way to write
+    that change is one key per role. `object_pairs_hook` sees the raw pairs
+    BEFORE the dict collapses them, so this is exact rather than a regex guess.
+
+    Found by the pre-CPO plan challenge on 2026-07-31, not in review."""
+    def reject_dupes(pairs):
+        seen = set()
+        for key, _ in pairs:
+            assert key not in seen, f"duplicate JSON key silently collapsed: {key!r}"
+            seen.add(key)
+        return dict(pairs)
+
+    with open(REAL_ROUTING_PATH, encoding="utf-8") as fh:
+        json.loads(fh.read(), object_pairs_hook=reject_dupes)
+
+
+def test_frontend_source_gets_no_authority_or_platform_review():
+    """The regression guard for what motivated the CTO split (#868). Before it,
+    `site_v2/**` routed to `cto-reviewer` while `site_v2/src/**` routed to
+    `bi-analyst-reviewer`, so 48 distinct tracked files demanded BOTH and a CTO
+    reviewed Astro markup — the wrong altitude, and it spent the one role with
+    architectural authority on line review.
+
+    Enumerated from `git ls-files`, like its two siblings above, because a
+    hand-written list is what was wrong the last three times."""
+    r = real_routing()
+    files = [f for f in tracked("site_v2") if f.startswith("site_v2/src/")]
+    assert files, "no tracked files under site_v2/src — has the tree moved?"
+    stray = {f: sorted(required_reviewers(r, f) & {"cto-reviewer", "platform-reviewer"})
+             for f in files
+             if required_reviewers(r, f) & {"cto-reviewer", "platform-reviewer"}}
+    assert not stray, f"frontend source pulling in authority/platform review: {stray}"
 
 
 # --------------------------------------------------------------------------- #
@@ -767,6 +983,158 @@ def test_artifact_only_commit_exempt_from_review(repo):
     subprocess.run(["git", "add", ".claude/task/notes.md"], cwd=repo, check=True)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert not denied(out)
+
+
+# --------------------------------------------------------------------------- #
+# Acceptance gate (Quality Assurance, CPO ruling 2026-07-31, #868)
+#
+# Every reviewer reads the diff and asks whether the code is right; none asked
+# whether the finished thing does what the ticket asked. The player Overview
+# built, passed BOTH its reviewers, and still opened on the wrong season. These
+# tests pin the gate that would have caught it, in both directions — it must fire
+# on the user-facing surface and must NOT fire anywhere else, because a guard that
+# cries wolf gets ignored (review_routing.json's own _doc).
+# --------------------------------------------------------------------------- #
+FRONTEND_PATH = "site_v2/src/pages/x.astro"
+
+
+def _stage_frontend(repo, contract: str | None, evidence: str | None = None):
+    """Stage a user-facing change, optionally with a contract and evidence file."""
+    setup_review_repo(repo, stage_path=FRONTEND_PATH)
+    if contract is not None:
+        (repo / ".claude" / "task" / "contract.md").write_text(contract, encoding="utf-8")
+    if evidence is not None:
+        (repo / ".claude" / "task" / "acceptance_evidence.md").write_text(
+            evidence, encoding="utf-8")
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+
+
+CRITERIA_CONTRACT = """objective: >
+  a page
+acceptance_criteria:
+  - the page opens on the most recent CLUB season, not a national one
+  - the title is unique across the generated set
+scope_paths:
+  - site_v2/src/**
+"""
+
+
+def test_acceptance_gate_denies_frontend_change_with_no_criteria(repo):
+    _stage_frontend(repo, contract="objective: >\n  a page\nscope_paths:\n  - x\n")
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "acceptance_criteria" in out
+
+
+def test_acceptance_gate_denies_when_evidence_file_is_missing(repo):
+    _stage_frontend(repo, contract=CRITERIA_CONTRACT)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "acceptance_evidence.md" in out
+
+
+def test_acceptance_gate_denies_when_a_criterion_is_undemonstrated(repo):
+    """Two declared, one shown. An undemonstrated criterion is an unverified
+    claim, which is exactly how the Overview passed."""
+    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
+        "criteria_demonstrated:\n"
+        "  - read from dist/en/players/x/index.html: opens on 2025/26 Bundesliga\n"
+    ))
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "2 acceptance criteria declared, 1 demonstrated" in out
+
+
+def test_acceptance_gate_rejects_placeholder_evidence(repo):
+    """A `<placeholder>` and a bare `none` must not satisfy the quota — the same
+    rule the contract gate applies to impact_map, reused rather than re-invented."""
+    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
+        "criteria_demonstrated:\n  - <what it showed>\n  - none\n"))
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "0 demonstrated" in out
+
+
+def test_acceptance_gate_passes_when_every_criterion_is_demonstrated(repo):
+    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
+        "criteria_demonstrated:\n"
+        "  - read from dist/en/players/x/index.html: opens on 2025/26 Bundesliga\n"
+        "  - all 3 locale titles distinct, read from dist/{de,en,fi}\n"))
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+def test_acceptance_gate_does_not_fire_off_the_user_facing_surface(repo):
+    """The narrow trigger. A warehouse or tooling change has no page to
+    demonstrate, so demanding evidence there would be the cry-wolf failure.
+
+    The staged content must DIFFER from HEAD. The first version of this test wrote
+    `select 1`, byte-identical to what `_repo_template` already committed, so
+    `git diff --staged --name-only` was EMPTY, `_commit_gate` returned at its
+    `if not paths` guard, and the gate under test was never reached — the test
+    would have passed with `ACCEPTANCE_TRIGGER = ""`, i.e. firing on everything.
+    Caught by platform-reviewer at opus, 2026-07-31, round 1."""
+    _stage_frontend(repo, contract="objective: >\n  a model\nscope_paths:\n  - x\n")
+    subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
+    target = repo / "dbt_project" / "models" / "warehouse_only.sql"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("select 42 as definitely_not_head")
+    subprocess.run(["git", "add", str(target)], cwd=repo, check=True)
+    staged = subprocess.run(["git", "diff", "--staged", "--name-only"], cwd=repo,
+                            capture_output=True, text=True, check=True).stdout.split()
+    assert staged == ["dbt_project/models/warehouse_only.sql"], (
+        f"the gate under test is only reached with a non-empty staged diff; got {staged}")
+    write_review(repo, staged_hash(repo), GOOD_BODY)
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert not denied(out)
+
+
+def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
+    """The contract gate owns the missing-contract case, so this one returns None
+    rather than inventing a second deny for it.
+
+    Calls `_acceptance_gate` DIRECTLY. The first version drove the whole hook and
+    asserted only `not denied(out)`, which proved nothing: delete the guard and
+    `open()` raises FileNotFoundError, `main()` swallows it in the fail-open
+    wrapper, and the commit is still not denied — so the test passed either way and
+    its own coverage claim was false. Caught by platform-reviewer at opus, round 3.
+    Reaching into the hook is the same move `required_reviewers` already makes for
+    the routing matcher."""
+    gd = _gd()
+    frontend = ["site_v2/src/pages/x.astro"]
+    assert gd._acceptance_gate(str(tmp_path), frontend) is None, (
+        "with no contract.md the gate must DELEGATE (return None), never deny")
+    # The mirror, so the assertion above cannot be satisfied by a gate that returns
+    # None unconditionally: with a contract present but no criteria, it MUST deny.
+    task = tmp_path / ".claude" / "task"
+    task.mkdir(parents=True)
+    (task / "contract.md").write_text("objective: >\n  a page\n", encoding="utf-8")
+    assert gd._acceptance_gate(str(tmp_path), frontend) is not None
+
+
+def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
+    """Pins `_MIN_EVIDENCE_CHARS`. Without this, deleting the length filter or
+    setting the constant to 0 broke NO test: the placeholder test never reaches the
+    filter (`_bullets` drops `<...>` and `none` first) and the distinctness test
+    uses lines that clear the floor. So the branch added to answer round 1 was
+    itself unpinned gate behaviour — round 1's own finding class, on round 1's fix.
+    Named by platform-reviewer at opus, round 2.
+
+    `- ok` and `- fine` are non-placeholder, distinct, and four characters: proof
+    of nothing."""
+    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
+        "criteria_demonstrated:\n  - ok\n  - fine\n"))
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "0 demonstrated" in out
+    assert "too short" in out, "the deny must say WHY a line did not count"
+
+
+def test_acceptance_gate_rejects_repeated_identical_evidence(repo):
+    """A count alone is satisfied by two bullets both reading "checked". The quota
+    is a floor, not proof, so identical and too-short lines are rejected
+    (cto-reviewer round 1: "the proof is written by the builder and read by a
+    bullet counter")."""
+    _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
+        "criteria_demonstrated:\n  - checked and it works fine\n"
+        "  - checked and it works fine\n"))
+    out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+    assert denied(out) and "identical" in out.lower()
 
 
 # --------------------------------------------------------------------------- #

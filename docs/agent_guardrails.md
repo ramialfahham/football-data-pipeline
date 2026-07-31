@@ -54,7 +54,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
 | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
 | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
 | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
-| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. |
+| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live staged-diff hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it from `git diff base...HEAD` and bind the review to the PR's code (F11/#409) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
 
 ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
 
@@ -67,23 +67,41 @@ CPO governance event). The agent definitions themselves are likewise PROTECTED
 (CPO ruling, G3 escalation 2026-06-12) — the builder must not be able to weaken
 its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small model) +
 `analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + the path-routed
-specialists `cto-reviewer` (scripts/hooks/CI/deps), `data-engineer-reviewer`
+specialists `platform-reviewer` (the machinery: scripts, tests, hooks, CI, deps,
+site build + hosting), `data-engineer-reviewer`
 (ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframe specs, the
 whole built frontend `site_v2/src/**` — CPO ruling 2026-07-22, because the
 binding rule is written in the spec and broken on the page — and `site/i18n/`;
 it READS the export to verify bindings but does not review it),
-`football-analytics-expert-reviewer` (catalogue formula edits). Defined
+`football-analytics-expert-reviewer` (catalogue formula edits) + `cto-reviewer`,
+which after the **CTO split (CPO ruling 2026-07-31, #868)** owns NO territory
+and is woken by a PROPERTY of the change: a new mechanism, a new dependency, a
+guard invariant, a recurring cost. Two of those four are path-detectable and
+routed; two can appear in any file and reach it only via the contract's
+`decisions_taken:`, with the always-on `scope-auditor` as the tripwire. Before
+the split the CTO was required on 28% of commits and 48 tracked files pulled in
+both it and the display reviewer, so a CTO reviewed Astro markup. Defined
 later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
-policy). CFO/Growth/Product-Analyst are advisors (consulted at contract time),
+policy). `seo-expert-reviewer` exists but is STILL NOT ROUTED — approved in
+principle 2026-07-31, not commissioned; it fires on nothing.
+CFO/Growth/Product-Analyst are advisors (consulted at contract time),
 not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
-`model:` frontmatter): `scope-auditor` on **haiku**, the five specialists on
-**sonnet**. The pin is a floor — for diffs touching a guard path
-(`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
-`.claude/settings.json`, `.claude/review_routing.json`,
-`.mcp.json`, `.cursor/mcp.json`,
-`.github/workflows/**`) the orchestrator spawns
-`cto-reviewer` on **opus** (a procedural override, not hook-enforced), because
-guard bypasses are the costliest misses.
+`model:` frontmatter): `scope-auditor` on **haiku**, the six specialists on
+**sonnet**. The pin is a floor — on a guard path (`.claude/hooks/**`,
+`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
+`.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
+`.github/workflows/**`) every **specialist** routing requires is spawned on **opus**
+(a procedural override, not hook-enforced), because guard bypasses are the costliest
+misses. `scope-auditor` is exempt and stays haiku — it sits in `always`, so "every
+reviewer" would promote it on every governance commit. That means `cto-reviewer` on
+all eight, **plus `platform-reviewer` on exactly two**, `.claude/hooks/**` and
+`.github/workflows/**`: the CTO rules on authority, Platform on the implementation,
+and the G3 bypasses were fail-open and test-coverage findings, which are Platform's.
+Platform is absent from the other six by design — a brief is a prompt, not
+machinery, so its verdict there would be a rubber stamp. **Check this against the
+rows before restating it**: the split's own review caught it wrong twice, once as
+prose over-claiming and once as rows widened to match the prose at a cost nobody
+had approved.
 
 ### Project skill — `.claude/skills/validate-local/` (committed)
 
