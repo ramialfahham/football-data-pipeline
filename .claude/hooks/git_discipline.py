@@ -237,6 +237,129 @@ def _is_placeholder(s: str) -> bool:
         s.startswith("<") and s.endswith(">"))
 
 
+ACCEPTANCE_TRIGGER = "site_v2/src/"
+CRITERIA_REL = ".claude/task/contract.md"
+EVIDENCE_REL = ".claude/task/acceptance_evidence.md"
+
+
+def _bullets(block: str) -> list[str]:
+    """Non-placeholder `- ` items in a block.
+
+    A STRICTER variant of the risks_checked counter below, not a mirror of it — an
+    earlier comment claimed otherwise and was wrong (cto-reviewer, 2026-07-31).
+    Two real differences: `[^\\S\\n]` is horizontal whitespace only, where the
+    risks counter's `\\s` crosses newlines (the class already fixed once in
+    `_rounds_gate`); and this rejects nullish words and `<placeholders>`, which the
+    risks counter does not. Consequence, stated so nobody trips on it: `- none`
+    satisfies the PASS risks quota but not the acceptance quota. Tightening the
+    risks counter would change an existing gate's behaviour and belongs in its own
+    task."""
+    out = []
+    for line in re.findall(r"^[^\S\n]*-[^\S\n]+(\S.*)$", block, flags=re.MULTILINE):
+        item = line.strip()
+        if item.lower() in _NULLISH_WORDS or (item.startswith("<") and item.endswith(">")):
+            continue
+        out.append(item)
+    return out
+
+
+# An evidence line shorter than this cannot carry a reading of built output. Not a
+# quality bar, just a floor under "checked".
+_MIN_EVIDENCE_CHARS = 15
+
+
+def _block(text: str, key: str) -> str:
+    """The indented body under a top-level `key:` in a contract-style file.
+    Ends at the next non-indented, non-empty line — same rule the contract gate
+    uses, so the two parsers cannot disagree about where a block stops."""
+    lines, keep, buf = text.splitlines(), False, []
+    for line in lines:
+        if re.match(rf"^{re.escape(key)}[^\S\n]*:", line):
+            keep = True
+            continue
+        if keep:
+            if line.strip() and not line.startswith((" ", "\t")):
+                break
+            buf.append(line)
+    return "\n".join(buf)
+
+
+def _acceptance_gate(root: str, paths: list[str]) -> str | None:
+    """Reason to deny on missing acceptance evidence, or None (#868, 2026-07-31).
+
+    The CPO's ruling: Quality Assurance exists as a required EVIDENCE ARTIFACT
+    with a gate, not as a reviewer agent — "this check needs proof, not
+    judgement". Every reviewer reads the diff and asks whether the code is
+    right; none asked whether the finished thing does what the ticket asked. The
+    player Overview built, passed both reviewers, and still opened on the wrong
+    season, because nobody was looking at that question.
+
+    TRIGGER is narrow on purpose: only a diff touching `site_v2/src/` — the
+    user-facing surface where that failure happened. A guard that cries wolf
+    gets ignored (see review_routing.json's own _doc), so this does not fire on
+    warehouse, ingestion or tooling work. Widening it is a CPO decision.
+
+    The criteria live in the contract and the CPO approves them BEFORE any code;
+    the lock is the mechanism, not the authorship (ruling 2). This gate cannot
+    verify that they were approved in advance — that is the honest limit — but
+    it CAN refuse a commit where a declared criterion was never demonstrated,
+    which is what stops criteria being softened at round three.
+    """
+    if not any(p.startswith(ACCEPTANCE_TRIGGER) for p in paths):
+        return None
+    contract = os.path.join(root, CRITERIA_REL)
+    if not os.path.isfile(contract):
+        return None                      # no contract: the contract gate owns that
+    criteria = _bullets(_block(
+        open(contract, encoding="utf-8", errors="replace").read(), "acceptance_criteria"))
+    if not criteria:
+        return (
+            "ACCEPTANCE GATE: this diff changes the user-facing surface "
+            f"(`{ACCEPTANCE_TRIGGER}`) and the contract declares no "
+            "`acceptance_criteria:`. Write them as testable statements, get the "
+            "CPO's approval BEFORE building, and they are locked after that "
+            "(CPO ruling 2026-07-31, #868). Reviewers check whether the code is "
+            "right; nothing else checks whether it does what was asked."
+        )
+    evidence_path = os.path.join(root, EVIDENCE_REL)
+    if not os.path.isfile(evidence_path):
+        return (
+            f"ACCEPTANCE GATE: {EVIDENCE_REL} is missing. Demonstrate each of the "
+            f"{len(criteria)} acceptance criteria against the BUILT output (never "
+            "source, never outerHTML — both have certified a defect as fixed while "
+            "it was still shipping) under a `criteria_demonstrated:` marker."
+        )
+    shown = _bullets(_block(
+        open(evidence_path, encoding="utf-8", errors="replace").read(),
+        "criteria_demonstrated"))
+    substantive = [s for s in shown if len(s) >= _MIN_EVIDENCE_CHARS]
+    if len(substantive) < len(criteria):
+        # Say WHY a line did not count. A gate that reports "1 demonstrated" when
+        # the builder wrote 2 looks buggy and gets worked around rather than
+        # answered (the _deny_missing_impact_map lesson, cto-reviewer 2026-07-22).
+        dropped = len(shown) - len(substantive)
+        detail = (f" {dropped} line(s) were too short to be a reading of built "
+                  f"output (under {_MIN_EVIDENCE_CHARS} characters)." if dropped else "")
+        return (
+            f"ACCEPTANCE GATE: {len(criteria)} acceptance criteria declared, "
+            f"{len(substantive)} demonstrated in {EVIDENCE_REL}.{detail} Every criterion "
+            "needs its own evidence line read from the built output. An undemonstrated "
+            "criterion is an unverified claim."
+        )
+    # A count is a floor, not proof: two bullets both reading "checked" satisfy it.
+    # Identical lines mean one criterion was demonstrated twice and another not at
+    # all (cto-reviewer, 2026-07-31: "read by a bullet counter").
+    lowered = [s.lower() for s in substantive]
+    if len(set(lowered)) < len(lowered):
+        dupes = sorted({s for s in lowered if lowered.count(s) > 1})
+        return (
+            f"ACCEPTANCE GATE: {EVIDENCE_REL} repeats identical evidence lines "
+            f"({dupes[:2]}). Each criterion needs its OWN reading of the built "
+            "output; a repeated line means one criterion went undemonstrated."
+        )
+    return None
+
+
 def _commit_gate(root: str) -> str | None:
     """Reason to deny the commit, or None when the gate passes (governance G3)."""
     import hashlib
@@ -248,6 +371,9 @@ def _commit_gate(root: str) -> str | None:
         return None                      # no routing file: gate not active (fail open)
     if _artifact_only(paths, routing):
         return None                      # bookkeeping commit: exempt
+    acceptance_msg = _acceptance_gate(root, paths)
+    if acceptance_msg:
+        return acceptance_msg
     review_path = os.path.join(root, REVIEW_REL)
     if not os.path.isfile(review_path):
         return (

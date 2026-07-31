@@ -52,8 +52,31 @@ scope_paths:
 # in review. Note it in objective/refs if it shaped the work. (This was a machine-
 # gated `consulted:` field for a few days and was demoted to a habit.)
 
+# REQUIRED when the diff touches `site_v2/src/` — the user-facing surface. The
+# commit gate (`git_discipline._acceptance_gate`) denies the commit without it,
+# and then denies again unless `.claude/task/acceptance_evidence.md` demonstrates
+# EVERY item under a `criteria_demonstrated:` marker, read from the BUILT output.
+# CPO ruling 2026-07-31 (#868): the builder DRAFTS these, the CPO APPROVES them
+# BEFORE any code, and they are LOCKED after that — only the CPO may move them.
+# The lock is the mechanism, not the authorship: criteria written before you know
+# how hard the work is are honest, and criteria you can soften at round three are
+# worthless. Reviewers check that the code is right; this is the only thing that
+# checks it does what was asked. Write each one as a statement a command or a
+# rendered string can settle, never as an intention.
+# acceptance_criteria:
+#   - <testable statement — what must be TRUE on the built page, and how you will show it>
+
 decisions_taken: >
   <what this contract pre-approves, quoting the CPO ruling it rests on>
+
+  # THRESHOLD DECLARATIONS (CPO ruling 2026-07-31, #868). Two of the CTO's four
+  # thresholds — a NEW MECHANISM and a RECURRING COST — can appear in any file,
+  # so no routing row can find them and `cto-reviewer` only sees them if you
+  # write them here with their authority. `scope-auditor`'s undeclared-threshold
+  # hunt item FAILs a crossing that is not here. No gate parses this field, so
+  # the declaration rests on your honesty: an omission is a defect, not an
+  # oversight. (Cite the item by NAME, never by number — this comment said
+  # "item 7" and went stale the same day, when a credentials item took that slot.)
 
 # decisions_reserved is MACHINE-CHECKED if this task publishes an Artifact (a mockup,
 # a design, any page): the gate denies the publish unless this holds real content.

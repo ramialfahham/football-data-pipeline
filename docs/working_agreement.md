@@ -47,6 +47,15 @@ committed with the branch so it is PR-visible:
 - **decisions_taken** — what the contract pre-approves, quoting the CPO ruling
 - **decisions_reserved** — known CPO-class questions (§10); each is escalated
   blinded (§11), never decided
+- **acceptance_criteria** — REQUIRED when the diff touches `site_v2/src/`, the
+  user-facing surface. The builder DRAFTS them, the CPO APPROVES them BEFORE any
+  code, and they are LOCKED after that; only the CPO may move them. The commit gate
+  (`git_discipline._acceptance_gate`) denies without them, and denies again unless
+  `.claude/task/acceptance_evidence.md` demonstrates every one under a
+  `criteria_demonstrated:` marker, read from BUILT output. CPO ruling 2026-07-31
+  (#868): every reviewer checks that the code is right, and nothing checked that it
+  does what was asked — a finished page passed both its reviewers while opening on
+  the wrong season
 - **impact_map** — REQUIRED when `scope_paths` touches the **structural surface**
   (`ingestion/**`, `dbt_project/models/**`, `scripts/export_*.py`, `site*/`, **and
   every protected path** — see below; added 2026-07-22): the
@@ -125,15 +134,32 @@ serialized four steps; the commit gate enforces them mechanically:
    specialists) are spawned cold: read-only tools, no builder context, judging
    the CUMULATIVE branch diff (written to `.claude/task/review_input.patch`).
    Reviewer models are pinned in each agent definition for economy:
-   `scope-auditor` runs on **haiku**, the five specialists on **sonnet**. The
+   `scope-auditor` runs on **haiku**, the six specialists on **sonnet**. The
    pinned model is a floor — when the staged diff touches a guard path
    (`.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
-   `.claude/settings.json`, `.claude/review_routing.json`,
-   `.github/workflows/**`), the orchestrator
-   spawns `cto-reviewer` with its model overridden to **opus**, because guard
-   bypasses are the highest-stakes findings (the G3 commit-gate bypasses were
-   caught only at that depth). This is a procedural rule the orchestrator
-   applies at spawn time, not a hook-enforced one.
+   `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
+   `.cursor/mcp.json`, `.github/workflows/**`), every **specialist** routing
+   requires for it is spawned at **opus**, because guard bypasses are the
+   highest-stakes findings (the G3 commit-gate bypasses were caught only at that
+   depth). `scope-auditor` is exempt and stays on haiku: it is in `always`, so
+   "every reviewer routing requires" would silently promote it on every
+   governance commit.
+   In practice that means `cto-reviewer` on all eight, **plus
+   `platform-reviewer` on exactly two of them, `.claude/hooks/**` and
+   `.github/workflows/**`** — the CTO rules on authority, Platform on the
+   implementation, and the G3 bypasses were fail-open and test-coverage
+   findings, which are Platform's items. Platform is deliberately absent from
+   the other six, `.claude/agents/**` above all: a reviewer brief is a prompt,
+   not machinery, so its verdict there would be a rubber stamp.
+   This is a procedural rule the orchestrator applies at spawn time, not a
+   hook-enforced one. **Never state it in prose without checking it against the
+   rows.** Round 1 of the split's own review found three documents claiming
+   "both on all eight" while routing gave Platform two; round 2 fixed it by
+   widening the rows to six and was failed again, because two opus specialists
+   where one ran is a recurring cost and cost is CPO-class. **A doc/row mismatch
+   is fixed by correcting whichever side is wrong, and that is almost always the
+   prose.** Before that, the path list itself disagreed across four files
+   (5 vs 6 vs 8 entries).
 3. **Cross-Examination** — adversarial verdicts under the no-free-pass rule: a
    PASS must name at least two real risks checked; a reviewer that cannot find
    two must FAIL/ESCALATE; praise is banned; §10 decisions are never approved

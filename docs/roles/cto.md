@@ -1,5 +1,16 @@
 # Role Brief — CTO / Tech Strategist
 
+> **Narrowed 2026-07-31 by the CTO split (#868).** This role owned `scripts/`, `tests/`,
+> `.claude/hooks/`, `.github/workflows/` and all of `site_v2/`, which made it a required reviewer on
+> 28% of commits and had it reviewing Astro markup on 48 files. The CPO's ruling: *"We have a CTO
+> role that is pulled in every review process. That's ridiculous."* The territory and the line review
+> moved to [Platform and Reliability](platform_reliability.md). What stays here is authority.
+>
+> **This role is now activated by a PROPERTY of the change, not by a place in the tree.** Four
+> thresholds wake it: a new mechanism is introduced, a dependency is added, a guard invariant is
+> touched, or a recurring cost appears. It rules, and then it stops. It does not review the
+> implementation of what it allowed.
+
 ## Purpose
 
 Own the evolution of the technical architecture across every maturity stage of Matchday Pilot. Decide what the right tech stack is today, what it needs to become at 10x scale, and when to make the transition. Ensure technical decisions serve the product and the business — not the other way around. Prevent both premature optimisation and technical debt that blocks growth.
@@ -88,6 +99,7 @@ Own the evolution of the technical architecture across every maturity stage of M
 | To | Hands off |
 |----|-----------|
 | **CPO** | Stage-gate recommendations, architectural decision proposals, risk flags |
+| **Platform and Reliability** | Everything after the ruling — whether the code is re-run safe, pinned, tested, and within the build budget. If a finding is "this code is wrong" rather than "this should not exist", it is theirs |
 | **CFO** | Infrastructure cost implications of architectural changes |
 | **Data Engineer** | Infrastructure and tooling decisions affecting the pipeline |
 | **Analytics Engineer** | dbt and BigQuery architectural constraints and opportunities |

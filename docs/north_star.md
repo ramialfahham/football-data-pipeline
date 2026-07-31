@@ -113,16 +113,34 @@ Quality bar first. Growth comes after the product deserves it.
 
 ## Roles
 
-| Role | Responsibility | Brief |
-|------|----------------|-------|
-| CPO | Product decisions, priorities, vision | — |
-| [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | |
-| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it — product translation | |
-| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | |
-| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | |
-| [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | |
-| [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | |
-| [CFO / Financial Advisor](roles/cfo.md) | Cost tracking, revenue modeling, stage-gate investment decisions | |
-| [CTO / Tech Strategist](roles/cto.md) | Tech stack evolution, stage-appropriate architecture, build vs. buy | |
-| [Product Analyst](roles/product_analyst.md) | App tracking, funnel analysis, retention metrics, behavioural insight | |
-| [Legal Counsel](roles/legal_counsel.md) | Data licensing, user privacy, IP and commercial risk | |
+Every role has a brief in [`roles/`](roles/). A role is only *live* when something wakes it: a routing
+row in `.claude/review_routing.json` makes it a gate-required reviewer, and a brief with no row is a
+document nobody reads. The **Wakes on** column says which — keep it honest, because a role nobody
+wakes is the defect the 2026-07-31 org exercise existed to fix.
+
+| Role | Responsibility | Wakes on |
+|------|----------------|----------|
+| CPO | Product, copy, naming, cost, anything permanent. Merges. | every §10 class |
+| [CTO / Tech Strategist](roles/cto.md) | **Authority only, since the 2026-07-31 split.** New mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a PROPERTY of the change. **11 rows**: the 8 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
+| [Platform and Reliability](roles/platform_reliability.md) | The machinery the CTO used to carry: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, the site build + hosting config |
+| [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
+| [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
+| [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | `metric_catalogue.csv` |
+| [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it — does the page tell a truth a fan can read | all of `site_v2/src/**`, the wireframes, `site/i18n/**` |
+| Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | **every commit** |
+| [SEO Expert](roles/seo_expert.md) | Findability: URLs, metadata, structured data, the internal link graph | **NOTHING — brief and agent exist, no routing row (#842).** Approved in principle 2026-07-31, not commissioned |
+| [UI Expert](roles/ui_expert.md) | Design, UX, frontend implementation | nothing yet — brief only, no agent |
+| [Growth Expert](roles/growth_expert.md) | Stickiness, engagement, sharing, retention | nothing — advisor, consulted at contract time |
+| [CFO / Financial Advisor](roles/cfo.md) | Cost tracking, revenue modeling, stage-gate investment | nothing — advisor; the cost tripwire lives on the CTO |
+| [Product Analyst](roles/product_analyst.md) | App tracking, funnel analysis, retention, behavioural insight | nothing — advisor |
+| [Data Journalist](roles/data_journalist.md) | Generated narrative and prose on the page | nothing — brief only, activates with GAP-03 |
+| [Legal Counsel](roles/legal_counsel.md) | Data licensing, user privacy, IP and commercial risk | nothing — no release-readiness moment exists yet |
+
+**Deliberately not reviewer roles.** Three functions were ruled into existence on 2026-07-31 as
+mechanisms rather than agents. **Quality Assurance** is a gate-required evidence artifact
+(`git_discipline._acceptance_gate`), because that check needs proof rather than judgement.
+**Editorial and Localisation** is `scripts/check_copy_gate.py`, because an agent cannot validate
+Finnish better than the builder can — wording stays the CPO's. ⚠ **It runs by hand only; wiring it
+into CI is reserved (#872)**, because it exits 1 on 16 findings and every fix is copy. A **Product**
+function was proposed and reduced to a step: the builder drafts acceptance criteria, the CPO approves
+them before any code, they are locked. Full authority in `.claude/task/escalations.log`, 2026-07-31.
