@@ -5,15 +5,16 @@
 > **CHARACTERS** (`handover_in.py:46`) — `wc -c` counts BYTES and this file is full of multi-byte
 > symbols, so it over-reports by ~220 and will send you trimming content that fits.
 
-_Last updated **2026-07-31**. main GREEN at **8b43d48**. **IN FLIGHT: `feat/868-org-operational`,
-18 files, UNCOMMITTED, review round 4 under a CPO `rounds_cap_override`.** The product is
-**Matchday Pilot** on `matchdaypilot.com`.
+_Last updated **2026-07-31**. main GREEN at **8b43d48**. **IN FLIGHT: PR #874
+`feat/868-org-operational` at `d90c650`, AWAITING THE CPO'S MERGE.** 19 files, 3 reviewers PASS after
+6 rounds under a CPO override; CI green except `data-build`, still running. **Merge before new work.**
+The product is **Matchday Pilot** on `matchdaypilot.com`.
 The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in `stash@{0}` with a
 known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS: read "⭐ CURRENT", run
 `git stash list` before any git work, read #848 before the International tab.**
 
-**NEW PROCESS (#858), in force: every plan is challenged by two independent reviewers BEFORE the CPO
-sees it.** It found 24 defects on C2's plan and 9 on #868's. Never present an unchallenged plan._
+**#858 in force: every plan is challenged by two independent reviewers BEFORE the CPO sees it.** 24
+defects on C2's plan, 9 on #868's. Never present an unchallenged plan._
 
 ## ✅ THE ORG IS IMPLEMENTED — branch `feat/868-org-operational`, #868
 Four CPO rulings (2026-07-31) are now MECHANISMS. **`escalations.log` is the DECISIONS log now and
@@ -32,17 +33,17 @@ holds all four verbatim with their authority. Read it before re-deciding anythin
 5. **Editorial = mechanical gate** (`check_copy_gate.py`), never a copy approver. Wording ALWAYS
    yours. Growth owns a title's shape, Editorial its words.
 
-**⚠ `check_copy_gate.py` EXITS 1 — 16 findings** (14 em dashes, `fi.secForm` `Muotovertailu` vs
+**⚠ `check_copy_gate.py` EXITS 1 — 16 findings** (14 em dashes, `fi.secForm` `Muotovertailu` not
 `kunto`, `fi.footerDataSource` in English). **Not wired to CI: every fix is copy = §10 (#872).**
 `report_process_health.py` reports rulings/branch, rounds, activation. **NOT CPO-ruled, sets NO
 target** — an earlier draft invented a threshold AND a sunset rule for withdrawing your process; both
-guard reviewers failed that as builder-authored governance. **Any threshold is yours.**
+guard reviewers failed that. **Any threshold is yours.**
 
 ## THE GOAL
 **The new website live.** Quality over speed. He runs **a 100% audit before go-live** and expects a
-refactor may follow. "The result has to be (almost) perfect."
+refactor. "The result has to be (almost) perfect."
 
-## ⭐ CURRENT — nothing in flight. Recommended next: unblock the player page (#845 + #846).
+## ⭐ CURRENT — after #874 merges: unblock the player page (#845 + #846).
 
 ### 0. **PR D not started:** pre-launch with #799/#377 — slug persistence, the freeze, #843 redirects.
 **WHY THE PLAYER PAGE BEATS D:** its Overview is built, tested and reviewer-passed in `stash@{0}`.
