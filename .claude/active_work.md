@@ -12,13 +12,23 @@ The player page is FOUR tabs (#848); its Overview is **BUILT but UNCOMMITTED in 
 known-wrong default rule**, held on #845 + #846. **FIRST ACTIONS: read "⭐ CURRENT", run
 `git stash list` before any git work, read #848 before shaping the International tab.**
 
-**⚠ `AI-Assisted Company Building Project.pdf` is an UNTRACKED CPO file in the repo root** that trips
-the contract + stop gates every turn. **DO NOT DELETE IT** — the gate's remedy ("delete untracked
-strays") would destroy his document. Read and distilled into **#868**. Ask him where it should live;
-every non-destructive fix is itself gate-blocked when no contract is active.
-
 **NEW PROCESS (#858), in force: every plan is challenged by two independent reviewers BEFORE the CPO
 sees it.** On C2's plan it found 24 defects and 3 FALSE claims. Never present an unchallenged plan._
+
+## ⏸ PAUSED MID-EXERCISE — the org/process design (#868)
+The CPO wants this project run like a real company and is **mid-way through defining the roles,
+processes and org**. It is a DESIGN exercise; nothing is implemented. **Resume from #868's second
+comment**, which holds the roles x rituals grid, the three bands, and the open questions.
+**His correction, which is the organising principle: define where each role's responsibility BEGINS
+and ENDS — do NOT scale ceremony by change size** (that just adds a judgement call). A change either
+enters a domain or it does not.
+**The finding that unlocks it:** `review_routing.json` maps FILE PATHS to roles, but a domain is not
+a set of paths. SEO's domain ("what a crawler sees") spans `Layout.astro`, the specs, `strings.ts`,
+the export's slug logic AND the registry's competition names. No glob expresses that, which is why
+`seo-expert-reviewer` **has never fired once** despite being created deliberately.
+**Missing roles found by absence:** Localisation Lead (cost us on #867 — four of nine strings wrong,
+the CPO wrote the Finnish himself), Product Lead, and fractional Legal + SRE.
+**Then: back to building.** He said so explicitly.
 
 ## THE GOAL
 **The new website live.** Quality over speed. He runs **a 100% audit before go-live** and expects a
@@ -34,35 +44,33 @@ reviewer-passed in `stash@{0}`. Two decisions (#845 what earns a page, #846 whic
 convert finished work into a shipped page type. Everything else on the list is longer.
 
 **BLOCKING GO-LIVE, in rough order of harm:** **#838** renders a synthetic points number in the
-CRAWLABLE BODY (`RecordStrip.astro:28`, verified `#3 · 71 pts`) — keeping numbers out of `<meta>`
-protects a surface Google increasingly bypasses, so this must land before indexing · **#861** fixture
-URLs destroyed weeks after kickoff · **#843/#852** slugs re-derive every build so an indexed URL can
-move · **#845** what earns a page (154,644 player pages otherwise) · **#799** imprint, the CPO's ·
-**6 of 15 screens unspec'd**.
+CRAWLABLE BODY (`RecordStrip.astro:28`, verified `#3 · 71 pts`) — must land before indexing ·
+**#861** fixture URLs destroyed weeks after kickoff · **#843/#852** slugs re-derive every build so an
+indexed URL can move · **#845** what earns a page (154,644 player pages otherwise) · **#799**
+imprint, the CPO's · **6 of 15 screens unspec'd**.
 
-**⚠ The GitHub Project board is `Matchday Pilot - Project Board`** (renamed 2026-07-28, CPO
-approved). `PROJECT_BOARD_TITLE` in `board-request-sync.yml` + `_paused/project-status-sync.yml` is a
-**live lookup key**: `:101` matches BY TITLE and **throws** at `:104`. String and board move
-together — never "tidy" one alone.
+**⚠ `PROJECT_BOARD_TITLE`** in `board-request-sync.yml` + `_paused/project-status-sync.yml` is a
+**live lookup key** for `Matchday Pilot - Project Board`: `:101` matches BY TITLE and **throws** at
+`:104`. String and board move together — never "tidy" one alone.
 
 **Still carrying the old brand ON PURPOSE, do not "fix":** `north_star.md` (#860) · the 6 wireframe
 `| Matchday IQ` title templates · `site_v2/package*.json` · `system.css:2` (locked, stripped at
 build) · **`site/**`, the retired prototype, where `Matchday IQ` is CORRECT HISTORY.**
 
 **Rulings** (escalations.log): **E3 = TRANSLITERATE** — fold to the base letter where one exists,
-expand only where none does, so `ü→u` AND `ß→ss` are ONE rule · **E2 = the warehouse** produces slugs ·
-ONE locale-independent slug · **base prepares, the core dim publishes.**
+expand only where none does, so `ü→u` AND `ß→ss` are ONE rule · **E2 = the warehouse** produces
+slugs · ONE locale-independent slug · **base prepares, the core dim publishes.**
 
-**Carry into D:** country anchor corrupted — 39 teams lack a country, **22 have one in
-`stg_apif__teams`** · `slug_map` is flat, so **90 player kebabs equal coach kebabs** · players still
-id-suffixed · `fixture_slug` still from NAMES in Python · `team_name_key` zero callers · **#3045
-silently takes `/teams/dragon/`, #4207 `/teams/warriors/`** (no signal; PR D freezes them).
+**Carry into D:** 39 teams lack a country, **22 have one in `stg_apif__teams`** · `slug_map` is flat,
+so **90 player kebabs equal coach kebabs** · players still id-suffixed · `fixture_slug` still from
+NAMES in Python · `team_name_key` zero callers · **#3045 takes `/teams/dragon/`, #4207
+`/teams/warriors/`** silently (PR D freezes them).
 
 ### 1. #844 SHIPPED (#867). What it leaves open.
 
-The gate lives in `site_v2/scripts/audit-seo.mjs` + `integrations/seo-audit.mjs`; the switch is
-`src/config/indexability.mjs`; specs carry a required `seo` block. **Flipping `INDEXABLE` to true is
-the go-live act** and the audit refuses it while `STUB_PAGES` is non-empty.
+Gate: `scripts/audit-seo.mjs` + `integrations/seo-audit.mjs`; switch: `src/config/indexability.mjs`;
+specs carry a required `seo` block. **Flipping `INDEXABLE` true is the go-live act**, and the audit
+refuses it while `STUB_PAGES` is non-empty.
 
 **Open, from the challenge + reviews:** `LinksFooter` renders `<span>` where `<a>` belongs (a NEW
 rule, own PR) · no redirect/alias mechanism · no 404 strategy for the fixture cliff · structured-data
@@ -72,13 +80,12 @@ expect "Valioliiga") · **14 em dashes in shipped copy**, worst `heroVerdictUnde
 the title-width gate fails at 660px not 600, which bundles calibration with an accepted-truncation
 decision the CPO has now seen.
 
-**Siblings:** **#845** minimum-data gate (what earns a page) · **#843** reframed — the URL is derived
-from an unverified mutable field, not merely "changes on rename" · **#846** window selection in the
-frontend.
+**Siblings:** **#845** what earns a page · **#843** the URL derives from an unverified mutable field ·
+**#846** window selection in the frontend.
 
-**`seo-expert-reviewer` exists (#842) but is INERT** — absent from `.claude/review_routing.json`, so
-it fires on nothing. Routing it is an **open governance ask** (protected file). It IS usable directly
-as a consultant, and its #844 ruling reversed a CPO decision.
+**`seo-expert-reviewer` (#842) is INERT** — absent from `review_routing.json`, so it fires on
+nothing (see the PAUSED section: that is a boundary problem, not a routing typo). **It IS usable
+directly as a consultant** — its #844 ruling reversed a CPO decision.
 
 ### 2. The player page is FOUR tabs (#848, CPO-agreed 2026-07-27)
 
@@ -90,12 +97,12 @@ makes the tab appear with zero template change. It carries a competition selecto
 
 ### 3. ⚠️ PLAYER OVERVIEW IS BUILT BUT UNCOMMITTED — IN stash@{0}, WITH A KNOWN-WRONG RULE
 
-`git checkout feat/player-overview-tab && git stash pop` — **do NOT rebuild it, it exists.** Build and
-tests green, `bi-analyst-reviewer` + `scope-auditor` PASS; uncommitted because the gate rejects a FAIL.
+`git checkout feat/player-overview-tab && git stash pop` — **do NOT rebuild it.** Build and tests
+green, `bi-analyst-reviewer` + `scope-auditor` PASS; uncommitted because the gate rejects a FAIL.
 
 **⚠️ Its default-season rule is WRONG as stashed:** `seasons[0]` = most recent of ANY competition, so
 both sample players open on **World Cup 2026** with their national side. Under #848 the club tabs are
-club-only, so it must be the most recent CLUB season. Do not ship it.
+club-only, so it must be the most recent CLUB season.
 
 **Held on:** **#845** — adding `players` = **154,644 pages** against a build already needing 8GB at a
 sixteenth of that · **#846** — the payload must carry the lens per season AND which club season is
@@ -103,14 +110,12 @@ featured. Not the frontend, not the export (**consumption too**), so it is a MAR
 
 **#753's design-state comment is the authority. Everything in its section C is still open.**
 
-**RENDER FAILURE fix, keep all three:** ONE tab at a time (no hidden panels), a **NEW** artifact URL
-(never republish), deliver via Artifact **and** SendUserFile.
+**RENDER FAILURE fix, keep all three:** ONE tab at a time, a **NEW** artifact URL, both channels.
 
 **Still owed:** the CPO-approved chip/pill sizing (`.cchip` 44px) — own PR, edits `system.css`.
 
 **Data deps.** **#840** (club match count; rank YoY sign) · **#838** + **#839** block the **TEAM**
-Overview's cup behaviour, not the player page · **#841** (pass accuracy 23–30% since 2022 vs 72–73%
-before) blocks player **PERFORMANCE**.
+Overview's cup behaviour, not the player page · **#841** blocks player **PERFORMANCE**.
 
 ## Reserved (CPO §10, standing)
 Nav order · search style · desktop RAIL per page type · footer/legal (imprint-blocked) ·
@@ -118,7 +123,7 @@ default-theme policy. **Deferred:** component/metric catalogue, import-boundary 
 
 ## DESIGN DISCIPLINE (the weak spot — read every time)
 - **Compose from the locked `system.css` ONLY.** Refs `be7bd6d3` · fixture `d70aae67` · team
-  `f6348775`; player mock `6c21ef71` NOT approved.
+  `f6348775`; player `6c21ef71` NOT approved.
 - **Show, don't describe.** Rendered output or a mock IS the proposal; never ask him to rule on prose.
 - **A rename is not a find-and-replace.** Where a line describes the RETIRED MVP, `Matchday IQ` is
   correct history; only forward-looking references become Matchday Pilot.
@@ -130,11 +135,10 @@ default-theme policy. **Deferred:** component/metric catalogue, import-boundary 
   sweep.** Verify renames against RENDERED TEXT (split markup and `outerHTML` defeat greps; Astro
   EMITS `<!-- -->`, use `{/* … */}`). Memory `feedback_verify_renames_against_rendered_text`.
 - **I CANNOT self-assess copy in ANY language, English included.** #844's nine SEO strings went to
-  the CPO after a §10 FAIL and four of mine were wrong: German missing a required article, Finnish
-  `sarjassa` + an uninflected borrowed noun, `muoto` (shape) where football says `kunto`, and a
-  separator I changed on an unverified claim a reviewer agreed with. **The retired MVP's
-  `site/i18n/*.json` is 127 VALIDATED strings per locale — check new copy against it.** Em dashes
-  read as AI-generated.
+  the CPO after a §10 FAIL and FOUR of mine were wrong (German missing a required article, Finnish
+  `sarjassa` + an uninflected borrowed noun, `muoto` where football says `kunto`, an unverified
+  separator). **The retired MVP's `site/i18n/*.json` is 127 VALIDATED strings per locale — check new
+  copy against it.** Em dashes read as AI-generated. **No Localisation role exists (#868).**
 - **Design for the DEFAULT case** — a page built around a goalkeeper gave two wrong conclusions.
 - **Never fill an empty slot to balance a layout.**
 - **Real data only** — honest empty states; "no hero, not shippable" is RETRACTED.
@@ -143,18 +147,17 @@ default-theme policy. **Deferred:** component/metric catalogue, import-boundary 
 
 ## WHERE WE STAND
 **Pages** 2 of 5 built (fixture + team) + player Overview HELD · **6 of 15 screens UNSPEC'D** (home,
-competition hub, browse, leaderboards, h2h, glossary) · **Real data** ✅ · **Hosting** LIVE, only the
-trigger shape + go-public left · **Legal** not started. Marts + metric layer DONE; do not reopen.
+competition hub, browse, leaderboards, h2h, glossary) · **Real data** ✅ · **Hosting** LIVE, trigger
+shape + go-public left · **Legal** not started. Marts + metric layer DONE; do not reopen.
 
 **⚠️ v2 makes third-party requests TODAY** — `Crest`/`PlayerRow` render `media.api-sports.io` as
 `<img>`, the defect that took the MVP offline. Fix = mirror crests to our origin.
 
 ## OWED — deferred, not forgotten (must survive rewrites)
 - **The agent set** — a ui-BUILDER (draft on `feat/expert-agents-that-build`); real CONSULTANT
-  agents; a fan probe on the rendered page. **See #868** for the org/process overhaul.
-- **The metric-change skill** (one metric touched SIX files) · **mirror the crests** ·
-  **legal-counsel consultant** · **reviewers as peers** (#822 shipped only the model half) ·
-  **amend `metrics_display.md`** for the 2 metrics #804 surfaced (§10).
+  agents; a fan probe. **#868 supersedes this** as the org/process overhaul.
+- **The metric-change skill** (one metric touched SIX files) · **mirror the crests** · **reviewers
+  as peers** (#822 shipped only the model half) · **amend `metrics_display.md`** (#804's 2 metrics).
 
 ## DONE (history is in git — only still-live gotchas kept)
 Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**. Merged: #842, #847, #854,
@@ -162,13 +165,13 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**. 
 - ⚠️ `appearances` = played legs (`minutes_played > 0`), not squad selections.
 - ⚠️ `astro build` OOMs at full scale (`--max-old-space-size=8192`); before a local dev build run
   `git clean -fX site_v2/src/data`.
-- ⚠️ team-page footer says "Sample data" on real data (confirm). No player photos (CPO).
-  API-Football: reselling is the one hard prohibition.
+- ⚠️ team-page footer says "Sample data" on real data. No player photos (CPO). API-Football:
+  reselling is the one hard prohibition.
 
 ## NEXT
 1. **Player page** (#845 + #846), then Performance → Career, ONE tab at a time, each content
    boundary decided before mocking.
-2. Home page (mock `1c35e7aa` = reference only), **then legal/imprint**, then launch.
+2. Home page (`1c35e7aa` = reference only), **then legal/imprint**, then launch.
 3. Follow-ups: **#863** a PROTECTED path is editable with NO `protected_override` · **#866**
    `Regular Season - 20` untranslated in every locale · **#864** stale `cutover` comments ·
    **#868** operationalise the agent org (discovery spikes, issue anchors, veto criteria) · route
@@ -176,16 +179,14 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**. 
    PlayerRow "1 assists" singular; #833; the 4-way locale-list duplication.
 
 ## OPEN — the CPO's alone
-- **Imprint operator + address** — blocks publication (#799); get a lawyer, never conclude it.
-  Publish-time only; does NOT block building.
-- **Hosting recurring run** — only the trigger shape is left; go-public is imprint-blocked.
-- **The feedback Apps Script** (his Google account, unreachable) — #687.
+- **Imprint operator + address** (#799) — blocks publication; get a lawyer, never conclude it.
+- **Hosting recurring run** — trigger shape only; go-public is imprint-blocked.
+- **The feedback Apps Script** — #687.
 - **#850's alias decision** — which duplicate team record is canonical. PR D freezes the URLs.
 
 ## DO NOT (standing)
-- Do NOT treat the 114-issue tracker as agreed work; re-validate before acting.
-- Do NOT write another planning document (the tracker + this file are the plan). Filling a frontend
-  SPEC is the task, not a planning doc.
+- Do NOT treat the tracker as agreed work; re-validate before acting.
+- Do NOT write another planning document (the tracker + this file are the plan).
 - Do NOT touch `site/` (retired/frozen). Do NOT build an unapproved page.
 - Do NOT derive facts in the export or frontend — select/group/rename only.
 - **Never merge a PR. The CPO merges. Branch from main; never commit to main.**
@@ -200,7 +201,7 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**. 
   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set (a `--rules`
   subset missed ST06). Also `check_layer_contract.py`. BigQuery rejects a FROM-less WHERE.
 - **A wildcard is fine over ONE ref; add a join and AM04 fires.** Enumerate columns — the repo has
-  **zero `noqa`**. Nesting ceiling ≈8 function calls (parse depth 255).
+  **zero `noqa`**. Nesting ceiling ≈8 calls (parse depth 255).
 - **Frontend:** `deploy-site-v2.yml` (manual-only) does export → build → firebase deploy. The Browser
   pane CAN drive the dev server (`preview_start` name `v2`) — accessibility tree, geometry and console
   all work; only `screenshot` fails. **Artifact delivery works** with the three rules in "⭐ CURRENT".
@@ -210,11 +211,11 @@ Filed: **#838–#841, #843–#846, #848, #850–#853, #863, #864, #866, #868**. 
 - **Contract edits need a CLEAN tree** — stash-dance with explicit paths. ⚠ A pathspec stash can
   capture MORE than the paths given; if popping conflicts, `git checkout stash@{0} -- <paths>` then
   drop. Check `git stash list` after — never assume the index.
-- **⚠ CWD PERSISTS between Bash calls.** Four separate false results this session came from a script
-  running in `site_v2/` and silently measuring nothing. `cd` to the repo root in the command.
+- **⚠ CWD PERSISTS between Bash calls.** Four false results this session came from a script running
+  in `site_v2/` and silently measuring nothing. `cd` to the repo root in the command.
 - **⚠ `scope_paths` uses `fnmatch`, so `[lang]`/`[team]` are CHARACTER CLASSES.** A literal Astro
   dynamic-route path can NEVER match itself — use `site_v2/src/pages/*/teams/*.astro`. Bites every
-  frontend contract, since every v2 route is dynamic.
+  frontend contract.
 - **⚠ `src/pages/index.astro` is DEAD CODE** — `prefixDefaultLocale` generates a root redirect that
   overwrites it. Editing it changes nothing that ships.
 
