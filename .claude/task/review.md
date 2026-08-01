@@ -1,133 +1,97 @@
-# Review — make the new org operational (#868)
+# Review — reviewers stop reviewing the review's own paperwork (#868 follow-up)
 
-branch: feat/868-org-operational
-diff_sha256: 20426e42c2e02f362115b48fea444d8ba62adbd5ddce727cb991eed6a7294a40
-rounds: 6
-rounds_cap_override: CPO 2026-07-31. Asked in plain words "May I go past three to write those tests?" he answered "yes". Rounds 4, 5 and 6 are that grant being spent on what it was given for: round 4 found that one of the very tests round 3 demanded would have reddened CI on every pull request, and rounds 5 and 6 corrected two factual errors the fixes introduced. Both round-3 ESCALATE questions were put to him in plain words and answered; both answers are recorded in `.claude/task/escalations.log` under 2026-07-31, not only here.
+branch: fix/868-review-scope
+diff_sha256: c7faa3465b951e4ee2bc6a4d094a951b801369debb4c45e161e77e2e9e654db6
+rounds: 4
+rounds_cap_override: >
+  CPO, 2026-08-01. Told that rounds 1-3 had all FAILed and a fourth was needed, he
+  answered "ok go ahead", having also said "You are running into multiple rounds again" —
+  so the cost was named to him before he authorised it.
+  The rounds are also the argument for the change. Unlike #370, where rounds 6-12 found
+  nothing a visitor would see, EVERY finding here was a real machinery defect.
+  Round 1: the fail-closed CI twin still enforced the repealed PASS floor, so the change
+  was inoperative at the PR boundary — and the contract's `impact_map` asserted a
+  verification I had not performed. Round 2: `--review-patch` emitted the staged diff
+  while every brief promises the cumulative branch diff. Round 3: my fix for that silently
+  narrowed in several real clone shapes while its own comment claimed it was safe. Two
+  guards turned out to be pinned by nothing. Three briefs kept the repealed rule, the last
+  because the phrase straddles a line break and my sweep was line-based.
 
 > **All three required reviewers PASS at this hash.**
->
-> What six rounds caught, because it is the case for the process and not one style note among it.
-> **Round 1** — two §10 violations of mine: `report_process_health.py` claimed a CPO ruling that does
-> not exist, and the handover turned my own invented threshold into a rule for withdrawing his
-> process. Plus a vacuous test that would have passed with the gate disabled, and a credentials guard
-> the split had silently narrowed.
-> **Round 2** — my round-1 fix bought unapproved opus review time. The cheap remedy was to correct the
-> prose; I had widened the routing rows instead. Reverted.
-> **Round 3** — two new gate branches with no test, the same class already flagged twice; plus two §10
-> questions escalated rather than decided.
-> **Round 4** — the test written to answer round 3 **would have reddened CI on every pull request**,
-> because it read real git history while `python-ci.yml` checks out at `fetch-depth: 1`. The script
-> under test documents that exact shape and handles it; my test asserted it could not happen. Also:
-> both CPO rulings were recorded only in `contract.md`, which the next task overwrites.
-> **Round 5** — two factual errors of mine. A row count copied from a reviewer without counting it
-> (10 where it is 11), propagated into two documents including the durable log. And a caveat claiming
-> "nothing catches a secret in CI", written into three places and used to put a cost question to the
-> CPO, which was **false**: `security-secrets.yml` runs gitleaks on every PR with a fail-closed gate.
-> **Round 6** — both corrections verified by me against the primary sources, then by both reviewers
-> independently recounting and re-reading the workflow rather than accepting my summary.
->
-> Machine gates green throughout: **240 tests**. Four issues filed (#870-#873). Residue is listed
-> under each reviewer as `owed`, never hidden.
-
-## scope-auditor
-
-Escalated two §10 questions in round 3; both were put to the CPO in plain words and answered.
-
-CPO ANSWER (2026-07-31) on the credentials guard's review tier: **"yes"** — put it back on
-`cto-reviewer` as well. It now sits on three reviewers, so coverage is strictly wider than before the
-split at no extra cost, because the CTO is already spawned at opus on those paths.
-
-CPO ANSWER (2026-07-31) on `docs/north_star.md`'s roles roster: **"yes, update"**. The roster now
-carries a **Wakes on** column checked row-for-row against `review_routing.json`, and
-`docs/north_star.md` is in `scope_paths` via a recorded amendment.
-
-VERDICT: PASS
-risks_checked:
-- The count that failed twice. Rather than accept round 5's "11", counted the rows containing
-  `cto-reviewer` directly in `.claude/review_routing.json:136-146` and got 11, then checked
-  `docs/north_star.md`'s decomposition (8 guard paths + `*requirements*.txt` + `site_v2/package.json`
-  + `package-lock.json`) against the JSON's own "eight guard paths" statement. Consistent. Then swept
-  the repo for any third document carrying a stale count: none exists, so the propagation path that
-  produced the defect is closed rather than patched at two sites.
-- Guard-loosening under cover of a factual correction. The retracted CI-coverage caveat could have
-  been used to soften the credentials hunt item. Read `security-secrets.yml` in full: gitleaks on
-  every `pull_request` and push to `main`, terminal `gate` with `needs` + `if: always()` exiting 1 on
-  any non-success, so it fails CLOSED and the correction is true. `cto-reviewer.md` still ends item 6
-  in "→ FAIL" and still asserts triple coverage, so no coverage was removed; the reserved item is
-  struck through with its residual question retained, so a false premise was retracted without a §10
-  decision being taken in its place.
-- Scope on the delta: 18 files, every one inside `scope_paths` (`docs/north_star.md` via the recorded
-  amendment), no new file since round 5.
 
 ## cto-reviewer
-
 VERDICT: PASS
 risks_checked:
-- Hunt item 6's secret-scanning description re-verified against the workflow itself, not the builder's
-  summary. `security-secrets.yml` triggers on unfiltered `pull_request` and on push to `main`, runs
-  `gitleaks-action@v2`, and its terminal `gate` job exits 1 on any non-success, so "CI scanning exists
-  and fails CLOSED" is true and the earlier "nothing catches a secret in CI" claim is gone from all
-  three places. A grep of the entire `.github` tree confirms no workflow invokes
-  `.pre-commit-config.yaml`, `check_no_secrets.py` or `detect-private-key`, so the "LOCAL-ONLY second
-  layer" half is accurate too.
-- The delta does not weaken the guard it edits. Item 6 keeps its categorical FAIL trigger and adds
-  only machine-layer facts plus a "check the workflow, do not infer the coverage" instruction. The
-  withdrawn reservation is struck through and marked, not deleted, so `contract.md` stays consistent
-  with `escalations.log`, and the residual question stays RESERVED rather than absorbed — correct,
-  because wiring the local hooks would be a new mechanism plus recurring build minutes. Row count
-  independently recounted from the JSON: 11. `protected_override` and a non-placeholder `impact_map`
-  are present and unchanged.
-- Adding a hunt item to my own brief, on a commit where I am the only required specialist, judged for
-  honesty: items 1-5 unchanged, old items 6 and 7 survive verbatim as 7 and 8, nothing narrowed or
-  dropped. A builder weakening its adversary removes items; this one added one and volunteered a
-  caveat against its own interest. The reallocation is not a recurring cost — the CTO is already
-  spawned on all eight guard paths, unlike round 2's row widening, which correctly failed on exactly
-  that.
-
-owed, not blocking:
-- The deferred amendment landed. `decisions_taken` now carries the credentials reallocation and the
-  declaration that `report_process_health.py` ships builder-initiated and unruled; `decisions_reserved`
-  carries the copy-gate wiring, so `check_copy_gate.py`'s docstring claim is finally true.
-- Whether branch protection actually requires the `gate` check is not verifiable in-repo.
+- `_base_commit` hunted for a narrowing path across seven states — local `main`, stale
+  `main`, `origin/main` only, neither ref, unrelated histories, shallow clone, multiple
+  root commits. None yields less than the cumulative branch diff; stale `main` fails
+  LARGER; unrelated histories raise. The only case where base equals HEAD is when the
+  branch work is already an ancestor of `main`, where the staged increment IS cumulative.
+- Fail direction: `_load_routing` still returns None on a malformed file, yielding no
+  exclusions and the WHOLE diff — the correct direction for reviewer input. The new
+  `raise` sites are reachable only from the `--review-patch` CLI branch, never from the
+  PreToolUse path, so a bug in them cannot lock the workflow. Commit gate still fails
+  open; CI twin still fails closed.
+- The two PASS floors agree in value, counted region and message, pinned in both
+  directions on both copies.
+- Nothing enforced less than before: routing `paths` untouched, all eight guard rows
+  present, exactly two files newly leave `hash_exclude_paths`, and `contract.md` stays
+  hashed — pinned against both the fixture and the real routing file.
+- The four quoted CPO rulings verified verbatim in `escalations.log` before relying on
+  `protected_override`; the amendment cites ruling (3)+(4), not the reviewers' FAIL.
+- Repealed-rule sweep done independently, whitespace-collapsed plus a windowed search:
+  no live statements remain.
 
 ## platform-reviewer
-
 VERDICT: PASS
 risks_checked:
-- The round-4 blocker is genuinely closed and not merely relocated. `python-ci.yml` still checks out
-  at the default `fetch-depth: 1` and still runs `pytest tests/`, and the health test no longer
-  asserts anything about real history: `_fake_git` intercepts the script's single git wrapper, so
-  `total == 2` comes from the fixture. Swept the rest of `tests/` for the same hazard — every
-  remaining real-git call is a temp-repo fixture or `git ls-files`, both depth-1-safe.
-- Both new tests fail on revert, traced assertion by assertion. Reverting the counter seeding breaks
-  `briefs <= set(hits)`; reverting the `if not total:` early return raises `ZeroDivisionError` because
-  the seeded counter makes the loop run, and the `capsys` assertion still fails even if seeding is
-  reverted at the same time. `_fake_git`'s dispatch matches how `activation()` and `rounds_history()`
-  actually call `_git`, including the `args[-1]`-is-the-sha assumption and the empty-history edge.
-  `monkeypatch` restores the module attribute and `_health()` balances its `sys.path` mutation.
-- The acceptance gate preserves fail-open: `_acceptance_gate` runs inside `_commit_gate`, wrapped
-  `try/except Exception`, so an OSError on the contract or evidence file cannot lock commits; and it
-  delegates rather than double-denying when no contract exists, with a test that calls it directly.
-  `check_copy_gate.main()` fails CLOSED on every failure path. Neither inverted.
+- `_base_commit` traced state by state: detached HEAD, stale `main`, already-merged
+  branch, `origin/main` only, linked worktree, `--single-branch` clone, unrelated
+  histories. No narrowing in any of them.
+- Fail-on-revert verified for the four newest tests; none can pass vacuously, and
+  `test_every_task_artifact_is_classified` now asserts its file list is non-empty.
+- PreToolUse reachability confirmed clean: `_base_commit` is reachable only through the
+  `--review-patch` argv branch, which returns before `read_event()`. Zero added git calls
+  per Bash call.
+- Item 8 parity checked line by line: floor, regex, marker and message identical in the
+  hook and the CI twin and asserted on both sides; the other hand-copied loops are
+  byte-unchanged by this diff; `review_exclude_paths` has one consumer, so no twin.
+- Re-run and interruption safety: `--review-patch` is read-only and deterministic; the
+  gate changes mutate nothing.
+- No dependency, lockfile, workflow, credential or build surface in the diff.
 
-owed, not blocking:
-- `assert hits["seo-expert-reviewer"] == 0` is vacuous alone (`Counter.__missing__` returns 0); the
-  revert is caught by the `briefs <= set(hits)` line above it. Reword on the next touch.
-- `report_process_health.py` derives `routing`/`briefs` twice and hardcodes `name != "scope-auditor"`.
-  Worst case is a wrong annotation on a printed line in a script that decides nothing.
-- The reporting block at `:170-180` never executes under test, since the tests reach `main()` only on
-  the empty-history path. Acceptable for a CI-unwired reporter; not if #872 wires it.
-- The acceptance gate has no CI twin (#870), and `acceptance_evidence.md` is read from the working
-  tree and never required to be staged, so it can be satisfied by a file that never enters the commit.
+## scope-auditor
+VERDICT: PASS
+risks_checked:
+- Base resolution: enumerated every ref state and none yields a patch narrower than the
+  cumulative branch diff; the range equals CI's `base...HEAD`, and both refusal paths are
+  pinned by tests that fail on revert. The `origin/main`-only shape — the specific hole
+  this reviewer failed at round 3 — is closed.
+- Authority after the delta: `protected_override` quotes rulings (1)-(4) verbatim, the
+  single amendment cites ruling (3)+(4) rather than reviewer findings, and the rulings are
+  now in `escalations.log`, the durable place. Nothing new is decided; every delta file is
+  inside `scope_paths`; nothing in `decisions_reserved` is touched.
+- Doc-sync on the nine corrected places: the "`.claude/task/**` excluded" claim now
+  matches the mechanism in both directions across eight briefs and both docs, with the
+  authority-visible invariant asserted against the real routing file. Whitespace-collapsed
+  sweep found no residual "Default verdict FAIL".
+- Credentials and thresholds on the delta: nothing credential-shaped, no env block, no
+  workflow or permission change.
 
-## Machine gates — green every round
+## escalations
+(none)
 
-- `python -m pytest tests/test_governance_hooks.py` — **240 passed**.
-- `python scripts/check_layer_contract.py` — passed.
-- `review_routing.json` parses with `object_pairs_hook` rejecting duplicates: 29 unique keys.
-- Activation measured at this hash: `cto-reviewer` 28% to 12%, `platform-reviewer` 24%, 10% both;
-  0 of 48 tracked `site_v2/src/**` files require either.
-- All 8 agent briefs carry a byte-identical `## Delta re-review`.
-- `python scripts/check_copy_gate.py` exits 1 with 16 findings, as designed and disclosed (#872).
-- `python scripts/report_process_health.py` surfaces `seo-expert-reviewer` at 0% DEAD, NO ROUTING ROW.
+## owed — recorded by the reviewers, none blocking
+- A shallow `actions/checkout` clone (feature ref only, no `main`/`origin/main`) reports
+  the graft boundary as a root commit, so the fallback would narrow rather than raise.
+  Unreachable today: `--review-patch` has no CI caller and the governance job checks out
+  at `fetch-depth: 0`. Remedy if it is ever wired: test
+  `git rev-parse --is-shallow-repository` in the fallback branch.
+- `_cumulative_diff`'s returncode `raise` is not itself revert-detected, because the
+  loud-failure test raises earlier in `_base_commit`. The invariant is pinned for the
+  reachable failure family; this is a second layer on the same one.
+- `TEMPLATE.md` and `REVIEW_TEMPLATE.md` are now hidden from reviewers. They are durable
+  rule statements rather than task notes, so the authority-vs-notes split arguably puts
+  them on the visible side.
+- The test fixture's comment says it "mirrors the REAL `review_exclude_paths`" while
+  omitting three real entries. Comment accuracy only; the real list is pinned elsewhere.

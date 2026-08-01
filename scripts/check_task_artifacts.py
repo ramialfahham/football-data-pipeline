@@ -16,7 +16,8 @@ branch and the base, it verifies:
   - no "VERDICT: FAIL"; every "VERDICT: ESCALATE" has a "CPO ANSWER:" in its
     OWN section (per-section pairing, mirroring the local commit gate — an
     answer elsewhere must not mask an unanswered escalation);
-  - every "VERDICT: PASS" section names >= 2 risks.
+  - every "VERDICT: PASS" section says what it examined (>= 1 entry under
+    `risks_checked:`). It need not name a defect — CPO 2026-08-01.
 
 Fails CLOSED (non-zero exit) — this is CI, not a guardrail hook.
 
@@ -163,11 +164,20 @@ def main() -> int:
         if body is None or "VERDICT:" not in body:
             errors.append(f"required reviewer `{reviewer}` has no verdict section")
         elif "VERDICT: PASS" in body:
-            # bullets count only after the risks_checked: marker, mirroring
-            # the local gate — stray bullets must not satisfy the quota
+            # A PASS must say what was EXAMINED; it need not name a defect.
+            # This floor MUST equal `git_discipline._commit_gate`'s — it was 2 here and
+            # 1 there for the length of one review round, which meant a reviewer taking
+            # the CPO's 2026-08-01 permission ("it's allowed to approve and not invent
+            # some finding") committed locally and then reddened CI, fail-closed, with a
+            # message quoting a rule that no longer existed.
+            # Entries count only after the risks_checked: marker, mirroring the local
+            # gate — stray bullets above it must not satisfy the floor.
             _, _, risks_block = body.partition("risks_checked:")
-            if len(re.findall(r"^\s*-\s+\S", risks_block, flags=re.MULTILINE)) < 2:
-                errors.append(f"`{reviewer}` PASS without two named risks (no free passes)")
+            if len(re.findall(r"^\s*-\s+\S", risks_block, flags=re.MULTILINE)) < 1:
+                errors.append(
+                    f"`{reviewer}` PASS with nothing under `risks_checked:` — a pass "
+                    "must state what was examined, even when it found nothing"
+                )
 
     if errors:
         print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
