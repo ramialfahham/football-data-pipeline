@@ -9,6 +9,12 @@
 //
 // `field` is the payload key on w1/w2 (the bare metric name) — NOT the display id.
 // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
+//
+// #370: there is no `label` field here. A metric's display name lives once, per locale, in
+// `i18n/strings.ts` (METRIC_LABELS), keyed by the catalogue's own `label_i18n_key` — which is what
+// `labelKey` below holds. Render a name with `metricLabel(lang, row.labelKey)`; never re-spell one
+// here. The order/group/tier contract from `docs/wireframes/metrics_display.md` is unchanged and still
+// lives in this file; only the strings moved.
 
 import type { Direction } from "./bars";
 
@@ -18,8 +24,11 @@ export type MetricGroup =
 
 export interface MetricRowDef {
   field: string;              // payload key on w1 / w2
-  label: string;              // locked display label (metrics_display.md); EN for now
-  labelKey: string;           // catalogue i18n key — per-locale wiring is #370
+  // The catalogue's `label_i18n_key`, verbatim. Resolve it with `metricLabel(lang, labelKey)`.
+  // ⚠ Read it from the `label_i18n_key` COLUMN of metric_catalogue.csv, never from `metric_id` —
+  // those two deliberately disagree for at least one metric (see row 6). Inferring a key from an id
+  // is how you break the binding. `check-metric-labels.test.mjs` cross-checks every one.
+  labelKey: string;
   group: MetricGroup;
   tier: 1 | 2 | 3;            // visibility under constraint (never reorders — display doc)
   format: RowFormat;
@@ -36,20 +45,27 @@ export const GROUP_ORDER: MetricGroup[] = [
 ];
 
 export const METRIC_ROWS: MetricRowDef[] = [
-  { field: "goals_per_match", label: "Ø Goals", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
-  { field: "goals_against_per_match", label: "Ø Goals against", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
-  { field: "clean_sheets", label: "Clean sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" } },
-  { field: "shots_per_match", label: "Ø Shots", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
-  { field: "danger_zone_ratio", label: "% Shots from box", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
-  { field: "shots_on_goal_per_match", label: "Ø Shots on target", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
-  { field: "finishing_efficiency", label: "% Goals per shot on target", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
-  { field: "duels_per_match", label: "Ø Duels", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
-  { field: "duels_won_pct", label: "% Duels won", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
-  { field: "defensive_actions_per_match", label: "Ø Defensive actions", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
-  { field: "passes_per_match", label: "Ø Passes", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
-  { field: "pass_accuracy", label: "% Pass accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
-  { field: "key_passes_per_match", label: "Ø Key passes", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
-  { field: "corner_kicks_per_match", label: "Ø Corners", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
-  { field: "corners_against_per_match", label: "Ø Corners against", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
-  { field: "save_ratio", label: "% Save percentage", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
+  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
+  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" } },
+  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
+  { field: "danger_zone_ratio", labelKey: "metrics.danger_zone_ratio.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
+  // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
+  //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
+  // The internal id says "on goal", the user-facing term is "on target". Do NOT "fix" this to
+  // `metrics.shots_on_goal_per_match.label` — the catalogue declares no such key and the label would
+  // resolve to nothing.
+  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
+  { field: "finishing_efficiency", labelKey: "metrics.finishing_efficiency.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
+  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
+  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
+  // ⚠ `sublabel` is still an ENGLISH string rendered in all three locales. It is a caption, not a
+  // metric name, so it is outside this task's criteria — recorded in the contract as residual.
+  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
+  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
+  { field: "pass_accuracy", labelKey: "metrics.pass_accuracy.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "key_passes_per_match", labelKey: "metrics.key_passes_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
+  { field: "corner_kicks_per_match", labelKey: "metrics.corner_kicks_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
+  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
+  { field: "save_ratio", labelKey: "metrics.save_ratio.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
 ];

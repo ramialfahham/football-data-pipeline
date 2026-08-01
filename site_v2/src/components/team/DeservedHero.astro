@@ -13,7 +13,7 @@
 // scatter.
 import { decimal1, integer, DASH } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t } from "../../i18n/strings";
+import { t, metricLabel } from "../../i18n/strings";
 import type { TeamSeason } from "../../lib/types";
 
 interface Props {
@@ -37,9 +37,15 @@ const canPlot = dots.length >= 2 && self != null && s.deserved_points != null;
 
 // three shots-on-target boxes (served rates)
 const nums = [
-  { label: t(lang, "heroSotFor"), value: decimal1(s.shots_on_goal_per_match, lang) },
-  { label: t(lang, "heroSotAgainst"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
-  { label: t(lang, "heroSotDiff"), value: signedDec1(s.sot_difference_per_match) },
+  // #370: names read from the catalogue's own i18n keys, not from three hand-written `heroSot*`
+  // strings. Each key is the metric whose value sits beside it, so the tile cannot drift from the
+  // number it labels.
+  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target" — internal id vs
+  // user-facing term. Read it from the catalogue's `label_i18n_key` column; never infer it from the
+  // payload field name.
+  { label: metricLabel(lang, "metrics.shots_on_target_per_match.label"), value: decimal1(s.shots_on_goal_per_match, lang) },
+  { label: metricLabel(lang, "metrics.shots_on_goal_against_per_match.label"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
+  { label: metricLabel(lang, "metrics.sot_difference_per_match.label"), value: signedDec1(s.sot_difference_per_match) },
 ];
 
 // verdict: which template (over / under / in line) is the display encoding of the

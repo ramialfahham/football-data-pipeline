@@ -128,6 +128,27 @@ export function collectEnI18nKeys() {
       error: `extracted only ${keys.size} EN keys from ${rel(STRINGS_FILE)} (expected >= ${MIN_EXPECTED_KEYS}) -- the EN-block extraction regex likely broke on a strings.ts reformat, not that the file actually shrank`,
     };
   }
+  // SECOND KEY CLASS (#370). A metric's display name is no longer a chrome string; it lives in
+  // METRIC_LABELS_EN keyed by the catalogue's own `label_i18n_key`. A spec must still be able to
+  // DECLARE that a block renders one, so those keys are collected too and validated the same way.
+  // Without this, deleting the three hand-written `heroSot*` chrome strings makes `team.spec.json`'s
+  // declaration unresolvable -- which is exactly how this gate caught the change.
+  const mm = src.match(/\nconst METRIC_LABELS_EN: MetricLabels = \{([\s\S]*?)\n\};/);
+  if (!mm) {
+    return { keys: null, error: `could not locate "const METRIC_LABELS_EN: MetricLabels = {...};" block in ${rel(STRINGS_FILE)}` };
+  }
+  const metricKeys = new Set();
+  for (const k of mm[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"/g)) metricKeys.add(k[1]);
+  // Its own floor, for the same reason as the one above: a quoted-dotted-key reformat must fail
+  // loudly rather than make every declared metric label look missing.
+  const MIN_EXPECTED_METRIC_KEYS = 15;
+  if (metricKeys.size < MIN_EXPECTED_METRIC_KEYS) {
+    return {
+      keys: null,
+      error: `extracted only ${metricKeys.size} metric label keys from ${rel(STRINGS_FILE)} (expected >= ${MIN_EXPECTED_METRIC_KEYS}) -- the METRIC_LABELS_EN extraction regex likely broke, not that the labels vanished`,
+    };
+  }
+  for (const k of metricKeys) keys.add(k);
   return { keys, error: null };
 }
 

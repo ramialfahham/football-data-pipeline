@@ -26,12 +26,24 @@
     {
       "block": "Deserved-vs-actual (flagship)",
       "mart": "mart_team_profile",
-      "i18n_keys": ["secDeserved", "heroSotDiff", "heroVerdictUnder", "heroVerdictOver", "heroCaption", "heroNoData"]
+      "i18n_keys": [
+        "secDeserved",
+        "metrics.shots_on_target_per_match.label",
+        "metrics.shots_on_goal_against_per_match.label",
+        "metrics.sot_difference_per_match.label",
+        "heroVerdictUnder",
+        "heroVerdictOver",
+        "heroCaption",
+        "heroNoData",
+        "axPoints",
+        "axPlay",
+        "trendLabel"
+      ]
     },
     {
       "block": "Season-over-season",
       "mart": "mart_team_profile",
-      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "noYoY"]
+      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "yoyThroughGames", "noYoY"]
     },
     {
       "block": "Upcoming / Results",
@@ -41,7 +53,33 @@
     {
       "block": "Vs-benchmark (bars vs league avg + percentile)",
       "mart": "mart_team_competition_benchmarks",
-      "i18n_keys": ["vsLeague", "vsLastSeason", "median", "rankOfCount", "notRankable"]
+      "i18n_keys": [
+        "vsLeague",
+        "vsLastSeason",
+        "median",
+        "rankOfCount",
+        "notRankable",
+        "rankedInLeague",
+        "vsPriorSeasonGames",
+        "unitPp",
+        "noYoY",
+        "metrics.goals_per_match.label",
+        "metrics.goals_against_per_match.label",
+        "metrics.clean_sheets.label",
+        "metrics.shots_per_match.label",
+        "metrics.danger_zone_ratio.label",
+        "metrics.shots_on_target_per_match.label",
+        "metrics.finishing_efficiency.label",
+        "metrics.duels_per_match.label",
+        "metrics.duels_won_pct.label",
+        "metrics.defensive_actions_per_match.label",
+        "metrics.passes_per_match.label",
+        "metrics.pass_accuracy.label",
+        "metrics.key_passes_per_match.label",
+        "metrics.corner_kicks_per_match.label",
+        "metrics.corners_against_per_match.label",
+        "metrics.save_ratio.label"
+      ]
     },
     {
       "block": "Squad / roster",

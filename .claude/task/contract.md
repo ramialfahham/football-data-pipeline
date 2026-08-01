@@ -1,156 +1,171 @@
-# Task contract — reviewers stop reviewing the review's own paperwork (#868 follow-up)
+# Task contract — metric labels come from the catalogue, per locale (#370 slice)
 
-> Written on a clean tree before any file was touched. Branch `fix/868-review-scope` from `main` at
-> `cc6cc45`; `gh pr list --state open` empty. Governance task: it edits the guards, so it carries
-> `protected_override` and `impact_map`.
+> Written on a clean tree before any file was touched. Branch `feat/370-metric-labels-from-catalogue`
+> from `main` at `cc6cc45`. No protected path in scope, so no `protected_override`. `site_v2/` is the
+> structural surface, so `impact_map` is required and present.
 
 objective: >
-  #370 took twelve review rounds for a ~300-line change. The code was correct from round 5; rounds 6
-  to 12 found nothing a visitor would see. Measured cause, three mechanisms compounding:
+  A stat's name is currently written down in FOUR places: the catalogue holds the i18n key but no
+  translation, `metricRows.ts` hard-codes an English label, `strings.ts` hard-codes three more for the
+  hero tiles, and the narrative sentence spells one out in prose. Nothing keeps them in step, and the
+  German and Finnish pages show English stat names because the catalogue's keys resolve to nothing.
 
-  1. Governance artifacts are inside `scope_paths`, so reviewers read the paperwork the review itself
-     produces — 839 lines of code inside a 38,932-line reviewed diff.
-  2. Two evidence artifacts are inside `diff_sha256`, so correcting a typo in prose voids every PASS
-     already given and forces a new round.
-  3. Every reviewer brief says a PASS requires two named risks, so on correct code a reviewer is
-     *required* to find something. It finds prose.
-
-  This closes all three. It changes what reviewers see, what invalidates their verdict, and what a
-  PASS must contain. It does NOT change the org, the roles, the activation model, the decision rights
-  or the definition of done.
+  This makes the catalogue's `label_i18n_key` real: one per-locale name per metric, read from one
+  place by every page. It is the slice of #370 that unblocks composing narrative text from the
+  semantic layer instead of hand-writing it per locale.
 
 refs: >
-  #868. CPO rulings 2026-08-01, in this conversation, quoted in `protected_override` below.
+  #370, the bullet "metric labels from `metric_catalogue` i18n keys (never hardcoded)" and only that
+  bullet. The rest of #370 (hreflang, per-locale sitemaps, five new languages, locale-aware
+  formatting, localised competition names) is explicitly NOT in this task.
 
 scope_paths:
-  - .claude/review_routing.json
-  - .claude/hooks/git_discipline.py
-  - .claude/agents/*.md
-  - docs/working_agreement.md
-  - docs/agent_guardrails.md
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/lib/metricRows.ts
+  - site_v2/src/components/fixture/MetricRow.astro
+  - site_v2/src/components/team/MetricLeagueRow.astro
+  - site_v2/src/components/team/MetricSeasonRow.astro
+  - site_v2/src/components/team/DeservedHero.astro
+  - site_v2/src/styles/system.css
+  - site_v2/src/specs/teams/team.spec.json
+  - site_v2/src/specs/competition/matches/fixture.spec.json
+  - site_v2/scripts/check-metric-labels.test.mjs
+  - site_v2/scripts/check-page-specs.mjs
+  - site_v2/scripts/check-page-specs.test.mjs
+  - scripts/check_copy_gate.py
+  - docs/wireframes/metrics_display.md
   - tests/test_governance_hooks.py
   - .claude/task/*.md
+  - .claude/task/acceptance_evidence.md
+  - .claude/task/rendered_page_evidence.md
   - .claude/task/escalations.log
+  - .claude/task/review_input.patch
   - .claude/active_work.md
-  # ADDED after round 1. All three reviewers found that this file re-implements the
-  # PASS floor (`:169`) and enforces the OLD value of 2 in CI, fail-closed, on every
-  # PR — so change 3 was inoperative at the PR boundary and a one-entry PASS would
-  # have commited locally and reddened CI. See the amendment.
-  - scripts/check_task_artifacts.py
-
-protected_override: >
-  CPO approval, 2026-08-01, this conversation. He was shown the defect in plain language and approved
-  each change separately:
-  (1) and (2) — **"yes to those two"**, to reviewers no longer seeing task notes, and to a note fix no
-  longer restarting the review.
-  (3) — **"why would we force it? Of course, the reviewer needs to have he critical attitude but it's
-  allowed to approve and not invent some finding."**
-  (4) — **"go ahead"**, to implementing all three.
-  He also ruled, correcting me, that the ORG IS NOT THE PROBLEM: activation-on-necessity is right and
-  low activation is not a defect. No role, brief or routing row is removed by this task.
 
 acceptance_criteria:
-  # NOT drafted by me. These are the CPO's own three sentences turned into checks, so the lock is his
-  # wording rather than my paraphrase.
-  - A reviewer does not see the review's own paperwork. `review_input.patch` is generated with
-    `.claude/task/**` and `.claude/active_work.md` excluded, by a command in the hook rather than by
-    hand, and the briefs say what is in scope for them to read.
-  - Correcting a note does not restart the review. Editing `acceptance_evidence.md` or
-    `rendered_page_evidence.md` leaves `--staged-hash` unchanged, so a PASS survives it. Editing
-    `contract.md` still changes the hash, because `scope_paths` and `acceptance_criteria` carry
-    authority and must not move after review.
-  - A reviewer may approve without inventing a finding. A PASS states what was examined and needs no
-    named risk. It still cannot be a bare verdict with nothing behind it.
-  - Nothing about the org changes. The same eight briefs exist, the same routing rows fire, the same
-    decision rights hold, `done_when` is unchanged.
+  - Each stat name is written down once. `metricRows.ts` has no `label:` field, `heroSotFor`,
+    `heroSotAgainst` and `heroSotDiff` are gone from `strings.ts`, and no stat name is spelled
+    anywhere outside the one metric-label block.
+  - A German reader sees German stat names. In the BUILT output the German hero tiles read
+    `Ø Torschüsse`, `Ø Torschüsse gegen`, `Ø Torschussdifferenz`; the Finnish read
+    `Ø Maalilaukaukset`, `Ø Maalilaukaukset vastaan`, `Ø Maalilaukauksien ero`; and the Performance
+    rows differ per locale the same way.
+  - If a name is ever missing, the page must not show gibberish. `t()` falls back to the key itself,
+    so a gap would print the lookup code for a visitor to read. The built HTML contains zero
+    occurrences of `metrics.`, and a test asserts every key resolves in all three locales.
+  - Every name on the page belongs to a stat that really exists. A test cross-checks each key against
+    `metric_catalogue.csv`, which is what catches the dangling `shots_on_target_per_match`.
+    # Locked wording, kept verbatim. Its example is wrong — the catalogue DOES declare that key — and
+    # only the CPO moves a locked criterion. He was asked and chose to leave it annotated.
+  - The ten names the CPO already validated stay exactly as he wrote them. A test compares them
+    against `site/i18n/*.json` so nothing approved is silently reworded while strings move.
+  - The new names go through the same copy check as everything else. `scripts/check_copy_gate.py`
+    reports a higher string count and applies its em dash, locale-completeness and terminology checks
+    to the metric labels too.
 
 impact_map: >
-  writers: `.claude/review_routing.json` has exactly two consumers — `git_discipline.py::_load_routing`
-    (fails OPEN, swallows exceptions and returns None, so a malformed file silently disables the local
-    gate) and `scripts/check_task_artifacts.py` (fails CLOSED in CI). Both must agree on the new key.
+  writers: nothing writes these values at runtime. They are static per-locale strings in
+    `site_v2/src/i18n/strings.ts`. The catalogue seed (`dbt_project/seeds/metric_catalogue.csv`)
+    supplies `label_i18n_key`, `direction` and `format` and is NOT edited here. Every key the page
+    uses is declared verbatim in the `label_i18n_key` COLUMN; none is invented.
 
-  downstream: the PASS floor exists in TWO places and both must move together —
-    `git_discipline.py::_commit_gate` (the local hook) and `scripts/check_task_artifacts.py:169`
-    (the CI twin, fail-closed, run on every PR by `ci-validate.yml`). The twin also re-implements the
-    reviewer-matching loop by hand with no parity test (#873, open).
-    ⚠ This entry previously claimed the quota "exists in one place. Verified before editing." **That
-    was false and it was the load-bearing sentence of this impact map.** All three reviewers caught it
-    in round 1. I asserted a verification I had not actually performed — the exact failure the
-    impact_map field exists to prevent.
+  downstream: four render sites consume a metric name, enumerated from the tree rather than assumed —
+    `components/fixture/MetricRow.astro`, `components/team/MetricLeagueRow.astro`,
+    `MetricSeasonRow.astro`, and `components/team/DeservedHero.astro` (three `heroSot*` calls). All
+    four already receive `lang` as a prop, so no prop threading is needed. `lib/metricRows.ts` is the
+    LOCKED 16-row display contract read by `MetricComparison.astro` and `TeamPerformance.astro`; its
+    `field`, `format`, `direction`, `group`, `tier`, `denom` and `sublabel` are untouched — only
+    `label` leaves.
 
-  layer_rules: no warehouse change. The machine rules that apply are in
-    `tests/test_governance_hooks.py`: every `.claude/agents/*.md` must carry a byte-identical
-    `## Delta re-review` section with nothing after it (globbed, no opt-out), and every routing
-    pattern must be pinned in `PINNED_CASES`.
+  layer_rules: no warehouse change, so `check_layer_contract.py` is unaffected. Selecting a string by
+    key is selection, not derivation, so resolving a label per locale stays inside what the
+    consumption layer may do. What it may NOT do is invent or restate a metric's meaning, which is
+    exactly the duplication being removed.
 
-  deploy_order: this branch is routed BY ITS OWN new table, because both consumers read the file from
-    the working tree rather than from HEAD. It is also the first branch reviewed under its own new
-    PASS condition.
+  deploy_order: none. No warehouse, no migration, no export change; the payload is untouched. The
+    build runs `npm test` via `prebuild`, so the new test gates the build itself rather than only CI.
 
-  blast_radius: every future commit in this repo. What stops being enforced if this is wrong: a PASS
-    could become a rubber stamp (mitigated — a PASS must still state what was examined, and the gate
-    still requires one entry), or the hash could stop covering something that carries authority
-    (mitigated — `contract.md` stays inside the hash; only the two evidence artifacts leave).
+  blast_radius: every metric name on the fixture page and both team-page tabs, in three locales — 18
+    distinct keys across 19 render slots (`shots_on_target_per_match` is used twice: hero tile 1 and
+    Performance row 6). Ten are CPO-validated strings that must not change and are test-pinned to
+    `site/i18n/*.json`. What breaks if it is wrong: `t()` returns the KEY when a lookup misses, so a
+    missed name renders `metrics.duels_per_match.label` as visible text on a public page. That failure
+    is silent in review and loud to a reader, which is why criterion 3 greps the built HTML rather
+    than trusting the diff.
 
 decisions_taken: >
-  - The four CPO rulings above.
-  - Builder judgement: `contract.md` STAYS inside `diff_sha256`. Excluding it would let scope or
-    acceptance criteria be widened after every reviewer has passed, which is the F10/#409 guard. Only
-    the two evidence artifacts leave the hash, because they carry evidence rather than authority.
-  - Builder judgement: the PASS floor drops from two entries to one, not to zero. Zero would allow a
-    bare `VERDICT: PASS` with nothing behind it, which is the rubber-stamp the two-risk rule was
-    written to prevent. One entry keeps that protection and removes the forced invention.
-  - Builder judgement: `risks_checked:` keeps its name in the artifact format so no reviewer brief or
-    test has to change key names, but the briefs now ask for what was EXAMINED rather than what was
-    FOUND.
+  CPO rulings on this task, one line each. **Full text with what was asked and what he answered is in
+  `.claude/task/escalations.log`**, which survives this task; this contract does not.
+
+  - The six acceptance criteria above: "All approved." Locked; only he moves them.
+  - German metric names, supplied verbatim: `Torschüsse`, `Torschüsse gegen`, `Torschussdifferenz`.
+  - Finnish, supplied verbatim: `maalilaukaukset`, `maalilaukaukset vastaan`, `maalilaukauksien ero`.
+  - Eight further DE/FI names that were mine, plus two Finnish he had confirmed separately:
+    "Approved, record it."
+  - The overflow fix is styling, not shorter copy: "Change the styling."
+  - `docs/wireframes/metrics_display.md` updated in this branch, not deferred: "Update it now."
+  - Criterion 4's false example stays annotated rather than reworded: "Leave it, the note is enough."
+  - The metric's name inside the hero prose sentences: "Yes, use my words."
+  - The Finnish caption keeps its per-match basis and the `eron` inflection: "Put 'per match' back."
+  - The two `axPlay` values and the German `heroCaption`: "Approve them."
+  - The German rate word, chosen against my recommendation: `pro Spiel`.
+  - Hero tiles stack on phones rather than breaking words mid-word: "Stack them on phones."
+    The 560px threshold is a builder choice; he ruled the behaviour, not the number.
+  - `.vs-row` mid-word breaks are filed, not fixed here: "Leave it filed, fix later" (#876).
+  - Review rounds past the cap of 3, and finishing this branch: "yes and yes", then "finish 370".
+
+  Builder judgement, recorded because it is visible in the design: the labels live in the i18n layer
+  rather than a new seed, because the catalogue owns a metric's identity, direction and format while
+  display copy does not belong in a warehouse seed. The structure is a dedicated per-metric map rather
+  than flat dotted keys in the chrome dictionary, because a quoted dotted key is invisible to both
+  `check_copy_gate.py`'s entry regex and `check-page-specs.mjs`'s key extraction — flat keys would
+  have smuggled 54 strings past the copy check that criterion 6 requires.
 
 decisions_reserved:
-  - The round cap still records rather than refuses: it is checked at commit time against a number the
-    builder types, so nothing stops a fourth round while rounds are running. Fixing it means deriving
-    the count mechanically. Not in this task.
-  - `.claude/task/escalations.log` is in `hash_exclude_paths`, so the durable ruling record sits
-    outside the hash and can be rewritten after every reviewer passes. Whether to bind it is a
-    mechanism question.
-  - No gate records when it denies, so most of the 72 enumerated checks are unobservable and cannot be
-    shown to have ever fired. Adding one appended line per denial is the highest-value follow-up.
-  - Whether any reviewer or role should be removed. The CPO ruled the org is not the problem; nothing
-    here touches it.
+  - The narrative sentences themselves — shape, voice, rotation. This task is why #370 goes first:
+    once labels resolve from the layer, a narrative can name a metric in any locale without a
+    hand-written string. `heroVerdictUnder`/`Over` still hand-spell the name in all three locales and
+    nothing mechanical keeps them in step with `METRIC_LABELS`.
+  - `defensive_actions_per_match.sublabel` is still English in all three locales. It is a caption, not
+    a name.
+  - `YearOverYear.astro` renders three stat names from chrome strings and cannot be bound without a
+    catalogue key that does not exist. Two of them are a second spelling of a name the new block owns.
+  - Metric GROUP headings render in English on every DE/FI page that lists metrics, from two call
+    sites. Where a group name should live is a schema question: **#875**, needs a CPO ruling.
+  - Every other place a stat is named or abbreviated: **#877**, the single source for that set. Needs
+    no ruling — it is ordinary display copy. Nothing in it was introduced by this branch.
+  - The `-n` of `eron` in the Finnish `heroCaption` is a case ending I inferred, not the CPO's word.
+    He approved it knowing that. Still unverified against a Finnish source.
+  - EN `finishing_efficiency` has two approved names: v2's `% Goals per shot on target` and the MVP
+    corpus's `% Conversion rate`. This task keeps v2's, which is why no English text changes.
+  - Wiring `check_copy_gate.py` into CI: **#872**, blocked on the 16 copy findings, which are the CPO's.
+  - Whether magnitude should change the narrative's wording, so 22 points reads differently from 4.
+    Would need the tier to come from the mart; classifying the gap in the frontend is forbidden.
 
 done_when:
-  - `python -m pytest tests/test_governance_hooks.py -q` green, with new tests pinning each of the
-    three changes so a revert fails.
-  - `python .claude/hooks/git_discipline.py --staged-hash` is unchanged by an edit to
-    `acceptance_evidence.md`, and changed by an edit to `contract.md`. Demonstrated, not asserted.
-  - `python scripts/check_task_artifacts.py` agrees with the local hook on the new table.
-  - `python -c "import json; json.load(open('.claude/review_routing.json'))"` parses, and the number of
-    `paths` keys equals the number of distinct pattern strings in the file text.
-  - The four CPO rulings are appended to `.claude/task/escalations.log`, the durable record. They
-    authorise a change whose blast radius is every future commit, and `contract.md` does not survive
-    the next task.
+  - `cd site_v2 && npm run build` passes, which runs `npm test` and `check-page-specs.mjs` via
+    `prebuild`, so the new test gates the build.
+  - Every acceptance criterion demonstrated in `.claude/task/acceptance_evidence.md`, read from
+    `site_v2/dist/`, never from source and never from `outerHTML`.
+  - `grep -rE "metrics\.[a-z_]+\.label" site_v2/dist` returns nothing.
+  - `python scripts/check_copy_gate.py` reports a string count that includes the metric labels.
+  - `python -m pytest tests/test_governance_hooks.py -q` green.
 
 amendments:
-  - `+ scripts/check_task_artifacts.py` — **authority: the CPO's 2026-08-01 ruling (3) + (4)**,
-    quoted in `protected_override`. He ruled that a reviewer may approve without inventing a finding,
-    and said "go ahead" to implementing it. That ruling CANNOT be satisfied in only one of the two
-    places the floor lives: this file is the fail-closed CI twin, so leaving it at 2 meant a one-entry
-    PASS committed locally and then reddened the PR — the permission he granted would not have existed
-    at the boundary that matters. Extending scope to the second copy is the minimum needed to carry out
-    the ruling, not a new decision.
-    (Round 1's reviewers found the divergence; both `cto-reviewer` and `scope-auditor` then noted that
-    an amendment must record the CPO's authority and not the reviewers' — §2, and the precedent in
-    `escalations.log` 2026-06-23. Correct: a reviewer FAIL is a reason to look, never an authority.)
+  Scope additions, each with its authority. One line each.
 
-  - Round 1, three reviewers, eight findings, all real machinery defects and none about artifact
-    phrasing — which is the evidence that the change works. Fixed:
-    (1) the CI twin above. This contract's `impact_map` had asserted a verification I never performed.
-    (2) `_review_patch_bytes` ignored git's return code, so any git failure wrote a zero-byte patch and
-    exited 0 — a reviewer would read "nothing changed" and could pass on it. Now fails loud.
-    (3) `.claude/task/escalations.log` REMOVED from `review_exclude_paths`. `cto-reviewer` was right
-    that it is AUTHORITY, not a note: `protected_override` cites it as the locatable record, and
-    "does the claimed ruling actually exist" is a check that has fired before. I applied the
-    authority-vs-evidence split to the hash and forgot to apply it to visibility.
-    (4) `docs/agent_guardrails.md` still stated the old rule, in scope and untouched.
-    (5) `seo-expert-reviewer.md` carried the old rule one line under the new one.
-    (6) No test pinned the REAL routing's new `hash_exclude_paths` entries, so deleting them left the
-    suite green. (7) `test_every_task_artifact_is_classified` could pass vacuously on an empty
-    `git ls-files` and hand-rolled an enumeration the file's own `tracked()` helper already does safely.
+  - `+ site_v2/scripts/check-page-specs.mjs`, `+ site_v2/src/specs/teams/team.spec.json` — the
+    standing page-spec rule (#826/#844): a page declares its own surface. Found by the build gate,
+    which refused the build because `team.spec.json` declared a key criterion 1 deletes.
+  - `+ tests/test_governance_hooks.py`, `+ site_v2/scripts/check-page-specs.test.mjs` — the standing
+    rule that new gate behaviour is pinned by a test that fails on revert.
+  - `+ site_v2/src/styles/system.css`, `+ docs/wireframes/metrics_display.md` — CPO: "Change the
+    styling" and "Update it now."
+  - `+ site_v2/src/specs/competition/matches/fixture.spec.json` — same page-spec rule. `MetricRow`
+    changed from `def.label` to `metricLabel()`, so the fixture page renders 16 names through the new
+    key class and its spec declared none of them.
+  - `+ .claude/task/escalations.log`, `+ .claude/task/review_input.patch` — both were already in the
+    diff while excluded from declared scope. `escalations.log` is the durable record §11 requires;
+    `.claude/task/*.md` does not match a `.patch` file.
+  - Criterion 2 updated to the words the CPO chose after he revised all four himself, on his explicit
+    yes. A later instruction supersedes an earlier one, but the record has to say so.

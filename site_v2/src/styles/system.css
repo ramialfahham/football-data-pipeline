@@ -264,8 +264,29 @@ section { margin-top: 36px; }
 .hero .verdict b { color: var(--ink); font-weight: 700; }
 .hero .heronums { display: flex; gap: 8px; margin: 0 0 18px; }
 .hero .hn { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; display: flex; flex-direction: column; }
-.hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; }
+/* `overflow-wrap: anywhere` (#370, CPO-approved 2026-07-31): metric names are localised now, and
+   German and Finnish build single long compounds where English uses several short words. MEASURED at
+   375px, where this box is 71px: `Ø Maalilaukaukset` needs 78 and `Ø Torschussdifferenz` needs 89, so
+   the text ran into the tile's padding with nowhere to break — the default `overflow-wrap: normal`
+   plus `hyphens: manual` gives a 16-character compound no break opportunity at all. `anywhere` rather
+   than `break-word` because it also lowers min-content width, which is what a flex item with
+   `min-width: 0` actually sizes against. Every future compounding locale (Dutch next) needs this. */
+.hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
 .hero .hn .hv { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 8px; }
+/* Stack the hero tiles on phones (#370, CPO-approved). Three side by side leave 71px per label, and
+   `overflow-wrap: anywhere` above then breaks a German or Finnish compound at an arbitrary letter with
+   no hyphen — `Ø / Torschussdiffe / renz`. `hyphens: auto` cannot help: this engine ships no de/fi
+   hyphenation dictionary. Stacked, the label gets ~231px (the 301px tile less padding, the value and
+   the gap, since `.hl` and `.hv` share the row) against the 89px the longest German name needs, so
+   every name fits on one line. Costs 53px of block height. English is unaffected either way.
+   The `anywhere` rule above STAYS as the backstop for `.vs-name`, which is not stacked (#876).
+   560px is a builder choice, not part of the ruling: the shell's breakpoints are all min-width
+   700/900/1010 and the container queries at 560/520 target other selectors, so it collides with none. */
+@media (max-width: 560px) {
+  .hero .heronums { flex-direction: column; gap: 6px; }
+  .hero .hn { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .hero .hn .hv { margin-top: 0; padding-top: 0; }
+}
 .hero .cap2 { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 14px 0 0; }
 .sc { width: 100%; height: auto; display: block; overflow: visible; }
 .sc .ax { stroke: var(--div); stroke-width: 1; }
@@ -315,7 +336,14 @@ section { margin-top: 36px; }
 .vs-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
 .vs-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .vs-row:last-child { border-bottom: 0; }
-.vs-name { font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; }
+/* Same rule, same reason, and this is the surface that measured WORST (#370, CPO-approved
+   2026-07-31): at 375px this column is 77px and 9 of the 16 Performance rows overflowed it in
+   Finnish, `% Viimeistelytehokkuus` by 53px — far enough to run the label into the bar column beside
+   it. Note that string is from the CPO's own validated corpus, so the gap is pre-existing in this
+   file and localising the labels merely exposed it. `.mlabel` on the fixture page deliberately does
+   NOT get this: it was measured too and is fine, because `.mmid` centres rather than stretches so its
+   box grows to fit. Fix what measured over, not every label that might. */
+.vs-name { font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
 .vs-name .sub { display: block; font-size: 11px; color: var(--muted); }
 .vs-bar { position: relative; height: 6px; background: var(--track); border-radius: 3px; }
 .vs-fill { position: absolute; left: 0; top: 0; bottom: 0; min-width: 3px; background: var(--ink); border-radius: 3px; }
@@ -338,11 +366,13 @@ section { margin-top: 36px; }
  *  FOUNDATION SHELL — global header/footer + responsive layout system   *
  *  (#825). Transcribed from the CPO-approved foundation mock (artifact  *
  *  87d14109, "looks good for now"). Same token contract as above — no   *
- *  new colours, no new type scale. Three breakpoints, all viewport      *
- *  (@media), distinct from the component-level @container queries      *
- *  above: nav goes inline + hamburger/drawer hide >=700px; the page     *
- *  grid below goes two-column >=900px; the search field replaces its   *
- *  icon-only button >=1010px. Nav/drawer items render as <a> OR <span> *
+ *  new colours, no new type scale. THE SHELL'S three breakpoints are    *
+ *  all viewport (@media) and min-width, distinct from the component-    *
+ *  level @container queries above: nav goes inline + hamburger/drawer   *
+ *  hide >=700px; the page grid below goes two-column >=900px; the       *
+ *  search field replaces its icon-only button >=1010px. There is also  *
+ *  one max-width query, at .heronums above, outside this shell set.     *
+ *  Nav/drawer items render as <a> OR <span>                             *
  *  — `.mainnav a, .mainnav span` styles both identically, because most *
  *  nav items are inert placeholders (no index page built yet) and get *
  *  the same look as a real link, per the codebase's existing no-dead-  *

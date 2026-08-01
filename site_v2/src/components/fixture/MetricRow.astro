@@ -8,6 +8,7 @@ import { barWidth, betterSide } from "../../lib/bars";
 import { asNumber } from "../../lib/types";
 import type { WindowStats } from "../../lib/types";
 import type { MetricRowDef } from "../../lib/metricRows";
+import { metricLabel } from "../../i18n/strings";
 
 interface Props {
   def: MetricRowDef;
@@ -39,7 +40,7 @@ const aWidth = barWidth(av, hv);
 <div class="mrow">
   <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
   <div class="mmid">
-    <div class="mlabel">{def.label}{def.sublabel && <small>{def.sublabel}</small>}</div>
+    <div class="mlabel">{metricLabel(lang, def.labelKey)}{def.sublabel && <small>{def.sublabel}</small>}</div>
     <div class="mbar" aria-hidden="true">
       <div class="bside home">
         <span class:list={["fill", { better: better === "home" }]} style={`width:${hWidth}%`}></span>
